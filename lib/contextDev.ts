@@ -455,6 +455,11 @@ function positiveMaxAge(options: ContextDevCallOptions): number | undefined {
   return options.maxAgeMs === undefined ? undefined : Math.max(0, options.maxAgeMs);
 }
 
+function scrapeQuery(url: string, options: ContextDevCallOptions) {
+  const maxAgeMs = positiveMaxAge(options);
+  return maxAgeMs === undefined ? { url } : { url, maxAgeMs };
+}
+
 /** Scrape one page to Markdown. 1 credit. */
 export async function scrapeMarkdown(
   url: string,
@@ -462,10 +467,10 @@ export async function scrapeMarkdown(
 ): Promise<ContextDevScrapeResult> {
   return guardedCall<ContextDevScrapeOk>(url, options, (client) =>
     attempt(
-      () => client.web.scrape({ url, formats: { markdown: true }, maxAgeMs: positiveMaxAge(options) }),
+      () => client.web.webScrapeMd(scrapeQuery(url, options)),
       (body) =>
-        body.markdown?.success === true && typeof body.markdown.data === "string"
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown.data }
+        body.success === true && body.finalDOMState === "loaded" && typeof body.markdown === "string" && body.markdown.length > 0
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown }
           : null,
       "Scrape returned no markdown.",
     ),
@@ -479,10 +484,10 @@ export async function scrapeHtml(
 ): Promise<ContextDevHtmlResult> {
   return guardedCall<ContextDevHtmlOk>(url, options, (client) =>
     attempt(
-      () => client.web.scrape({ url, formats: { html: true }, maxAgeMs: positiveMaxAge(options) }),
+      () => client.web.webScrapeHTML(scrapeQuery(url, options)),
       (body) =>
-        body.html?.success === true && typeof body.html.data === "string"
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html.data }
+        body.success === true && typeof body.html === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html }
           : null,
       "Scrape returned no html.",
     ),
@@ -512,17 +517,17 @@ export async function sitemapUrls(
   return guardedCall<ContextDevSitemapOk>(url, options, (client) =>
     attempt(
       () =>
-        client.web.mapUrls({
+        client.web.webScrapeSitemap({
           domain,
           ...(options.maxLinks === undefined ? {} : { maxLinks: options.maxLinks }),
           ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
         }),
       (body) =>
-        Array.isArray(body?.urls)
+        body.success === true && Array.isArray(body.urls)
           ? {
               status: "ok" as const,
               domain: typeof body.domain === "string" && body.domain ? body.domain : domain,
-              urls: body.urls.map((entry) => entry?.url).filter((entry): entry is string => typeof entry === "string"),
+              urls: body.urls.filter((entry): entry is string => typeof entry === "string"),
             }
           : null,
       "Sitemap read returned no urls.",
@@ -590,22 +595,23 @@ export async function extract<T extends Record<string, unknown> = Record<string,
   return guardedCall<ContextDevExtractOk<T>>(url, options, (client) =>
     attempt(
       () =>
-        client.web.scrape({
+        client.web.extract({
           url,
-          formats: { json: true, markdown: true },
-          jsonParams: { schema, ...(instructions === undefined ? {} : { instructions }) },
-          maxAgeMs: 0,
+          schema,
+          ...(instructions === undefined ? {} : { instructions }),
         }),
       (body) =>
-        body?.isPartial !== true && body?.json?.success === true && typeof body.json.data === "object" && body.json.data !== null
-          && body.markdown?.success === true && typeof body.markdown.data === "string"
-          && typeof body.url === "string" && body.url.length > 0
+        body.status === "ok" && body.partial !== true && typeof body.url === "string" && body.url.length > 0
+        && typeof body.data === "object" && body.data !== null
           ? {
               status: "ok" as const,
               url: body.url,
-              data: body.json.data as T,
-              markdown: body.markdown.data,
-              urlsAnalyzed: [body.url],
+              data: body.data as T,
+              markdown: "",
+              urlsAnalyzed:
+                Array.isArray(body.urls_analyzed) && body.urls_analyzed.length > 0
+                  ? body.urls_analyzed
+                  : [body.url],
             }
           : null,
       "Extract returned no data.",

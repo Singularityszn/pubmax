@@ -30,8 +30,25 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   });
 }
 
+function scrapeEnvelope(url: string) {
+  return {
+    success: true as const,
+    url,
+    finalDOMState: "loaded" as const,
+    request_id: "test",
+    cache_metadata: { age_ms: 0, status: "miss" as const },
+    metadata: { finalUrl: url, sourceUrl: url },
+  };
+}
+
 function scrapeOutput(format: "markdown" | "html", data: string | null, success = true) {
-  return { url: PERMITTED, [format]: { requested: true, success, data } };
+  if (!success || data === null) {
+    return { success: false, url: PERMITTED, error_code: "EMPTY" };
+  }
+  const base = scrapeEnvelope(PERMITTED);
+  return format === "markdown"
+    ? { ...base, markdown: data, contentLength: data.length }
+    : { ...base, html: data, type: "html" as const };
 }
 
 function allowRobots(): RobotsChecker {
@@ -130,11 +147,10 @@ describe("maxAgeMs", () => {
       sleepImpl: noSleep,
       maxAgeMs: 0,
     });
-    expect(seen[0]).toContain("/web/scrape");
-    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
-    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
-      url: PERMITTED, formats: { markdown: true }, maxAgeMs: 0,
-    });
+    const request = new URL(seen[0]);
+    expect(request.pathname).toBe("/v1/web/scrape/markdown");
+    expect(request.searchParams.get("url")).toBe(PERMITTED);
+    expect(request.searchParams.get("maxAgeMs")).toBe("0");
   });
 
   it("is absent from the request when the caller names none", async () => {
@@ -148,7 +164,8 @@ describe("maxAgeMs", () => {
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
     });
-    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).not.toHaveProperty("maxAgeMs");
+    const request = new URL(String(fetchImpl.mock.calls[0]?.[0]));
+    expect(request.searchParams.get("maxAgeMs")).toBeNull();
   });
 });
 
@@ -180,10 +197,14 @@ describe("scrapeHtml", () => {
 
   it("does not accept failed Markdown output from a partial scrape", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({
+      success: true,
       url: PERMITTED,
-      markdown: { requested: true, success: false, data: "stale text" },
-      html: { requested: false, success: null, data: null },
-      isPartial: true,
+      markdown: "",
+      contentLength: 0,
+      finalDOMState: "still-loading",
+      request_id: "test",
+      cache_metadata: { age_ms: 0, status: "miss" },
+      metadata: { finalUrl: PERMITTED, sourceUrl: PERMITTED },
     }));
     const result = await scrapeMarkdown(PERMITTED, {
       env: KEY,
@@ -203,7 +224,7 @@ describe("sitemapUrls", () => {
       jsonResponse({
         success: true,
         domain: "www.fullers.co.uk",
-        urls: [{ url: "https://www.fullers.co.uk/a", title: "A" }, { url: "https://www.fullers.co.uk/b" }],
+        urls: ["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"],
       }),
     );
     const result = await sitemapUrls(PERMITTED, {
@@ -215,7 +236,7 @@ describe("sitemapUrls", () => {
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.urls).toEqual(["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"]);
     const request = new URL(String(fetchImpl.mock.calls[0]?.[0]));
-    expect(request.pathname).toBe("/v1/web/urls");
+    expect(request.pathname).toBe("/v1/web/scrape/sitemap");
     expect(request.searchParams.get("domain")).toBe("www.fullers.co.uk");
   });
 

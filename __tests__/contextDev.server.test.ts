@@ -13,6 +13,27 @@ import {
 
 const noSleep = async () => {};
 
+function extractOkBody() {
+  return {
+    status: "ok",
+    url: "https://www.fullers.co.uk/events",
+    data: {
+      events: [
+        {
+          title: "Quiz night",
+          placeName: "The Red Lion",
+          kind: "event",
+          sourceUrl: "https://example.com/e/1",
+        },
+      ],
+    },
+    urls_analyzed: ["https://www.fullers.co.uk/events"],
+    request_id: "test",
+    cache_metadata: { age_ms: 0, status: "miss" },
+    metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
+  };
+}
+
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
@@ -21,9 +42,16 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 }
 
 function markdownResponse(markdown: string) {
+  const url = "https://www.fullers.co.uk/event-finder";
   return jsonResponse({
-    url: "https://www.fullers.co.uk/event-finder",
-    markdown: { requested: true, success: true, data: markdown },
+    success: true,
+    url,
+    markdown,
+    contentLength: markdown.length,
+    finalDOMState: "loaded",
+    request_id: "test",
+    cache_metadata: { age_ms: 0, status: "miss" },
+    metadata: { finalUrl: url, sourceUrl: url },
   });
 }
 
@@ -328,20 +356,7 @@ describe("run request budget", () => {
 describe("extract", () => {
   it.each([undefined, 0, 43_200_000])("collects fresh joint extraction despite cache preference %s", async (maxAgeMs) => {
     const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
-      jsonResponse({
-        url: "https://www.fullers.co.uk/events",
-        json: { requested: true, success: true, data: {
-          events: [
-            {
-              title: "Quiz night",
-              placeName: "The Red Lion",
-              kind: "event",
-              sourceUrl: "https://example.com/e/1",
-            },
-          ],
-        } },
-        markdown: { requested: true, success: true, data: "# Events\nQuiz night at The Red Lion" },
-      }),
+      jsonResponse(extractOkBody()),
     );
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
@@ -353,25 +368,19 @@ describe("extract", () => {
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.data.events).toHaveLength(1);
-    expect(result.markdown).toContain("Quiz night");
+    expect(result.markdown).toBe("");
     expect(result.urlsAnalyzed).toEqual(["https://www.fullers.co.uk/events"]);
-    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("/v1/web/scrape");
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("/v1/web/extract");
     expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
     expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
       url: "https://www.fullers.co.uk/events",
-      formats: { json: true, markdown: true },
-      jsonParams: { schema: { type: "object" }, instructions: "Use only page evidence." },
-      maxAgeMs: 0,
+      schema: { type: "object" },
+      instructions: "Use only page evidence.",
     });
   });
 
   it("fails closed when JSON extraction failed despite a successful page scrape", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({
-      url: "https://www.fullers.co.uk/events",
-      markdown: { requested: true, success: true, data: "# Events" },
-      json: { requested: true, success: false, data: null },
-      isPartial: true,
-    }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ ...extractOkBody(), data: {}, partial: true }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -384,12 +393,7 @@ describe("extract", () => {
   });
 
   it("refuses a successful but partial joint extraction without retry", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({
-      url: "https://www.fullers.co.uk/events",
-      markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026." },
-      json: { requested: true, success: true, data: { events: [{ title: "Quiz" }] } },
-      isPartial: true,
-    }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ ...extractOkBody(), partial: true }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -402,12 +406,7 @@ describe("extract", () => {
   });
 
   it("fails closed when JSON succeeds but same-scrape Markdown evidence is absent", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({
-      url: "https://www.fullers.co.uk/events",
-      json: { requested: true, success: true, data: { events: [{ title: "Quiz" }] } },
-      markdown: { requested: true, success: false, data: null },
-      isPartial: true,
-    }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ status: "ok", url: "https://www.fullers.co.uk/events", data: { events: [{ title: "Quiz" }] }, urls_analyzed: [], request_id: "t", cache_metadata: { age_ms: 0, status: "miss" }, metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 0 }, partial: true }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -419,10 +418,7 @@ describe("extract", () => {
   });
 
   it("refuses extraction without the SDK's final URL", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({
-      json: { requested: true, success: true, data: { events: [] } },
-      markdown: { requested: true, success: true, data: "# Events" },
-    }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ status: "ok", data: { events: [] }, urls_analyzed: [], request_id: "t", cache_metadata: { age_ms: 0, status: "miss" }, metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 0 } }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
