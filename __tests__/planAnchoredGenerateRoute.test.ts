@@ -2,6 +2,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+const listedBundleFixture = vi.hoisted(() => ({
+  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
+  status: "ready" as "ready" | "empty" | "unavailable",
+}));
+vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
+  const { listedCategoryPrices } = await import("@/lib/listedCategoryPrices");
+  return {
+    ...actual,
+    ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
+      ? actual.ukPriceBundleRowsFor(venueId)
+      : { status: listedBundleFixture.status, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
+    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number) => {
+      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now);
+      const prices = [...new Set(listedBundleFixture.rows.map((row) => row.venueId))].flatMap((venueId) => {
+        const quote = listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now)
+          .find((value) => value.category === category);
+        return quote ? [{ venueId, ...quote }] : [];
+      });
+      return { prices, truncated: false, degraded: listedBundleFixture.status === "unavailable" };
+    },
+  };
+});
+
+
 const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock, categoryIndexMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async () => false),
   loadConciergeVenuesMock: vi.fn(),
@@ -139,6 +164,30 @@ describe("POST /api/plans/generate — anchored", () => {
       body.operationKey,
     );
     expect(verdict).toMatchObject({ ok: true, anchored: true, outcome: "route", anchorVenueId: "anchor-venue" });
+  });
+
+  it("retains source-stated listed wine on an anchor-only draft without upgrading it to a route", async () => {
+    const now = Date.parse("2026-09-30T12:00:00.000Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    const observedAt = "2026-09-29T12:00:00.000Z";
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+    loadConciergeVenuesMock.mockResolvedValueOnce([claphamVenue("anchor-venue", 0)]);
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.rows = [{ venueId: "anchor-venue", name: "Anchor", category: "wine", priceGbp: 6.25,
+      drinkLabel: "Chenin", servingSize: "125ml", lane: "site-harvest", standing: "listed",
+      sourceUrl: "https://pub.example/anchor/menu", observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null }];
+    try {
+      const response = await generate({ query: "Quiet wine in Clapham for 2", anchor: ANCHOR });
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body).toMatchObject({ outcome: "anchor-only", routeReady: false, anchorVenueId: "anchor-venue" });
+      expect(body.stops).toHaveLength(1);
+      expect(body.stops[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
+        selectedDrinkPriceEvidence: { category: "wine", pence: 625, serving: "125ml", source: "listed",
+          sourceUrl: "https://pub.example/anchor/menu", observedAt } });
+      expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ["anchor-venue"], body.operationKey))
+        .toMatchObject({ ok: true, anchored: true, outcome: "anchor-only" });
+    } finally { clock.mockRestore(); listedBundleFixture.rows = null; }
   });
 
   it("keeps corroborated wine evidence in an anchor-only draft", async () => {

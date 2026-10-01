@@ -10,7 +10,7 @@ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
 import { CATEGORY_META } from "@/lib/drinks";
-import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
+import { drinkLensCoverageNote, readListedDrinkIndex, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import {
 	getNightArea,
 	isNightAreaRouteReady,
@@ -48,6 +48,7 @@ import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/
 import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
+import { ukPriceBundleCategoryIndex } from "@/lib/ukPriceBundle.server";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
@@ -305,10 +306,15 @@ export async function preparePlanGeneration(
 	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
 		? context.drinkCategory
 		: null;
-	const categoryPriceRows = await readCommunityPriceCategoryIndex(
-		[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
-		requestNow,
-	);
+	const [categoryPriceRows, listedPriceIndex] = await Promise.all([
+		readCommunityPriceCategoryIndex(
+			[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
+			requestNow,
+		).catch(() => ({ prices: [] as CommunityPrice[], truncated: false, degraded: true })),
+		requestedCategory
+			? ukPriceBundleCategoryIndex(requestedCategory, requestNow).catch(() => ({ prices: [], truncated: false, degraded: true }))
+			: Promise.resolve(null),
+	]);
 	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
 	for (const row of categoryPriceRows.prices) {
 		const current = priceRowsByVenue.get(row.venueId) ?? [];
@@ -319,10 +325,22 @@ export async function preparePlanGeneration(
 	const drinkLensPrices = requestedCategory
 		? trustedDrinkLensPrices(priceRowsByVenue, requestedCategory, requestNow)
 		: undefined;
+	const listedDrinkPricesByVenue = new Map<string, MapLensPrice>();
+	if (requestedCategory && listedPriceIndex) {
+		for (const price of readListedDrinkIndex(listedPriceIndex.prices, requestedCategory)) {
+			if (!listedDrinkPricesByVenue.has(price.venueId)) {
+				listedDrinkPricesByVenue.set(price.venueId, price);
+			}
+		}
+	}
 	const drinkPriceCoverageNote = requestedCategory
 		? drinkLensCoverageNote(
 			CATEGORY_META[requestedCategory].label.toLowerCase(),
-			categoryPriceRows.degraded ? "degraded" : categoryPriceRows.truncated ? "partial" : "ready",
+			categoryPriceRows.degraded || listedPriceIndex?.degraded
+				? "degraded"
+				: categoryPriceRows.truncated || listedPriceIndex?.truncated
+					? "partial"
+					: "ready",
 		)
 		: null;
 	const venues = await loadConciergeVenues(cityId);
@@ -345,7 +363,14 @@ export async function preparePlanGeneration(
 				wetherspoonsMatchedIds,
 				drinkLensPrices,
 			);
-			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
+			return {
+				venue,
+				distance,
+				tonightEvents,
+				signalClaims,
+				...scored,
+				selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
+			};
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm

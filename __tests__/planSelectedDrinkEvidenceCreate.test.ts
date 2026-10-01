@@ -1,6 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+
+const listedBundleFixture = vi.hoisted(() => ({
+  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
+  status: "ready" as "ready" | "empty" | "unavailable",
+}));
+vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
+  const { listedCategoryPrices } = await import("@/lib/listedCategoryPrices");
+  return {
+    ...actual,
+    ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
+      ? actual.ukPriceBundleRowsFor(venueId)
+      : { status: listedBundleFixture.status, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
+    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number) => {
+      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now);
+      const prices = [...new Set(listedBundleFixture.rows.map((row) => row.venueId))].flatMap((venueId) => {
+        const quote = listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now)
+          .find((value) => value.category === category);
+        return quote ? [{ venueId, ...quote }] : [];
+      });
+      return { prices, truncated: false, degraded: listedBundleFixture.status === "unavailable" };
+    },
+  };
+});
+
 const { categoryIndexMock } = vi.hoisted(() => ({ categoryIndexMock: vi.fn() }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -24,7 +49,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 });
 
 import { POST } from "@/app/api/plans/route";
-import { PATCH } from "@/app/api/plans/[id]/route";
+import { GET, PATCH } from "@/app/api/plans/[id]/route";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
@@ -50,8 +75,8 @@ async function create(category: "wine" | "cocktail" | "beer", submitted: unknown
 }
 
 describe("Plan create selected drink evidence", () => {
-  beforeEach(() => { __resetMemoryPlans(); categoryIndexMock.mockReset(); });
-  afterEach(() => { __resetMemoryPlans(); });
+  beforeEach(() => { __resetMemoryPlans(); categoryIndexMock.mockReset(); listedBundleFixture.rows = null; listedBundleFixture.status = "ready"; });
+  afterEach(() => { __resetMemoryPlans(); listedBundleFixture.rows = null; });
 
   it.each(["wine", "cocktail"] as const)("saves trusted %s evidence on route replacement and reload", async (category) => {
     const { body } = await create(category, null);
@@ -231,6 +256,106 @@ describe("Plan create selected drink evidence", () => {
     expect(replay.body.plan.plan.id).toBe(first.body.plan.plan.id);
     expect(replay.body.plan.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
     const changed = await submit({ ...body, stops: [{ ...body.stops[0], selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }] });
+    expect(changed.status).toBe(409);
+  });
+  it("does not turn a listed display hint into server-verified community evidence", async () => {
+    const submittedAt = Date.now();
+    const reportedAt = new Date(submittedAt).toISOString();
+    categoryIndexMock.mockResolvedValue({
+      prices: [{ venueId: "venue-a", drinkCategory: "wine", priceGbp: 7.5,
+        submittedAt, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    const listed = { category: "wine", pence: 750, serving: "125ml", source: "listed",
+      sourceUrl: "https://pub.example/menu", observedAt: reportedAt, reportedAt };
+    expect((await create("wine", listed)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+    const community = { category: "wine", pence: 750, serving: null, source: "community", reportedAt };
+    expect((await create("wine", community)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(community);
+  });
+
+});
+
+
+describe("Plan listed-price authority and persistence", () => {
+  const now = Date.parse("2026-09-30T12:00:00.000Z");
+  const observedAt = "2026-09-29T12:00:00.000Z";
+  const a = { category: "wine", pence: 525, serving: "125ml", source: "listed",
+    sourceUrl: "https://pub.example/a/menu", observedAt };
+  const b = { ...a, pence: 610, serving: "175ml", sourceUrl: "https://pub.example/b/menu" };
+  let restoreClock: () => void;
+  beforeEach(() => {
+    __resetMemoryPlans();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    restoreClock = () => { clock.mockRestore(); };
+    categoryIndexMock.mockReset();
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: false, truncated: false });
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.rows = [a, b].map((quote, index) => ({
+      venueId: index === 0 ? "venue-a" : "venue-b", name: "Fixture pub", category: "wine",
+      priceGbp: quote.pence / 100, drinkLabel: index === 0 ? "Rioja" : "Chenin",
+      servingSize: quote.serving, sourceUrl: quote.sourceUrl, observedAt,
+      lane: "site-harvest", standing: "listed", publisher: "Fixture publisher", basis: null, sampleSize: null,
+    }));
+  });
+  afterEach(() => { restoreClock(); __resetMemoryPlans(); listedBundleFixture.rows = null; });
+
+  it("re-reads listed wine at create, reloads it, and withholds it from anonymous preview", async () => {
+    const { body, reloaded } = await create("wine", { ...a, contributor: "private-canary" });
+    expect(body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+    expect(reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+    expect(JSON.stringify(buildPlanPrivacyPreview(reloaded))).not.toContain(a.sourceUrl);
+  });
+
+  it("verifies listed wine on route replacement and preserves member reload while redacting anonymous HTTP reads", async () => {
+    const { body } = await create("wine", null);
+    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH", headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
+        { venueId: "venue-a" }, { venueId: "venue-b", selectedDrinkPriceEvidence: b }, { venueId: "venue-c" },
+      ] }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    const updated = await response.json();
+    expect(response.status, JSON.stringify(updated)).toBe(200);
+    expect(updated.stops[1]?.selectedDrinkPriceEvidence).toEqual(b);
+    const saved = (await memoryPlanStore.get(body.plan.plan.id))!;
+    expect(saved.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+    expect(saved.stops[1]?.selectedDrinkPriceEvidence).toEqual(b);
+    const memberResponse = await GET(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      headers: { authorization: `Bearer ${body.memberToken}` },
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(memberResponse.status).toBe(200);
+    expect((await memberResponse.json()).stops[1]?.selectedDrinkPriceEvidence).toEqual(b);
+    const anonymousResponse = await GET(new Request(`http://localhost/api/plans/${body.plan.plan.id}`),
+      { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(anonymousResponse.status).toBe(200);
+    const preview = await anonymousResponse.json();
+    expect(preview).toMatchObject({ visibility: "preview", stopCount: 3 });
+    for (const canary of [a.sourceUrl, b.sourceUrl, "selectedDrinkPriceEvidence", "private-canary", "venue-b"]) {
+      expect(JSON.stringify(preview)).not.toContain(canary);
+    }
+  });
+
+  it("replays verified listed evidence after a lost response but rejects a changed serving on the same operation key", async () => {
+    const value = { creatorName: "Host", startTime: "2026-09-30T19:00:00.000Z",
+      context: { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" },
+      stops: [{ venueId: "venue-a", selectedDrinkPriceEvidence: a }] };
+    const submit = (body = value) => POST(new Request("http://localhost/api/plans", {
+      method: "POST", headers: { "idempotency-key": "listed-plan-retry", "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+    const first = await submit();
+    const original = await first.json();
+    expect(first.status).toBe(201);
+    expect(original.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+    listedBundleFixture.status = "unavailable";
+    listedBundleFixture.rows = [];
+    const replay = await submit();
+    const replayed = await replay.json();
+    expect(replay.status).toBe(201);
+    expect(replayed.created).toBe(false);
+    expect(replayed.plan.plan.id).toBe(original.plan.plan.id);
+    expect(replayed.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+    const changed = await submit({ ...value, stops: [{ venueId: "venue-a", selectedDrinkPriceEvidence: { ...a, serving: "250ml" } }] });
     expect(changed.status).toBe(409);
   });
 });
