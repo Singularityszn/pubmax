@@ -149,6 +149,7 @@ describe("Pub Pal voice controls", () => {
     expect(input?.value).toBe("A quiet pub in Soho");
     expect(voice.sendUserMessage).not.toHaveBeenCalled();
     expect(sendButton?.disabled).toBe(true);
+    expect(container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]')?.textContent ?? "").toContain("Ask in writing");
   });
 
   it("keeps a connected message draft after a send error and sends it on retry", async () => {
@@ -178,8 +179,9 @@ describe("Pub Pal voice controls", () => {
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 
-  it("does not probe or offer voice while the Pal is muted", async () => {
-    const availabilityFetch = vi.fn(async () => Response.json({ available: true }));
+  it("offers writing while muted only after the shared service is available", async () => {
+    const pending = deferred<Response>();
+    const availabilityFetch = vi.fn(() => pending.promise);
     vi.stubGlobal("fetch", availabilityFetch);
 
     await act(async () => {
@@ -187,12 +189,61 @@ describe("Pub Pal voice controls", () => {
     });
     await settle();
 
-    expect(availabilityFetch).not.toHaveBeenCalled();
+    expect(container.querySelector('a[href="/pal/chat"]')).toBeNull();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
+
+    await act(async () => pending.resolve(Response.json({ available: true })));
+
+    expect(availabilityFetch).toHaveBeenCalledOnce();
     expect([...container.querySelectorAll("button")].some((button) => (
       button.textContent?.includes("Start voice chat")
     ))).toBe(false);
     const writingLink = container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]');
-    expect(writingLink?.textContent).toContain("Ask in writing");
+    expect(writingLink?.textContent ?? "").toContain("Ask in writing");
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
+    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["unconfigured", "probe failure"])("offers Map Ask while muted when the shared service is %s", async (caseName) => {
+    vi.stubGlobal("fetch", caseName === "unconfigured"
+      ? vi.fn(async () => Response.json({ available: false }))
+      : vi.fn(async () => { throw new TypeError("Network unavailable"); }));
+
+    await act(async () => root?.render(createElement(PubPalVoice, { muted: true })));
+    await settle();
+
+    expect(container.querySelector<HTMLAnchorElement>('a[href="/map"]')?.textContent ?? "").toContain("Ask on the map");
+    expect(container.querySelector('a[href="/pal/chat"]')).toBeNull();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
+    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps a cancelled owner's availability answer out of the next Pal", async () => {
+    const stale = deferred<Response>();
+    const availabilityFetch = vi.fn()
+      .mockReturnValueOnce(stale.promise)
+      .mockResolvedValueOnce(Response.json({ available: false }));
+    vi.stubGlobal("fetch", availabilityFetch);
+
+    await act(async () => root?.render(createElement(PubPalVoice, { key: "owner-a", muted: true })));
+    await settle();
+    expect(availabilityFetch).toHaveBeenCalledOnce();
+    const previousSignal = availabilityFetch.mock.calls[0]?.[1]?.signal as AbortSignal | undefined;
+
+    await act(async () => root?.render(createElement(PubPalVoice, { key: "owner-b", muted: true })));
+    await settle();
+    expect(previousSignal?.aborted).toBe(true);
+    expect(container.querySelector<HTMLAnchorElement>('a[href="/map"]')?.textContent ?? "").toContain("Ask on the map");
+
+    await act(async () => stale.resolve(Response.json({ available: true })));
+
+    expect(container.querySelector<HTMLAnchorElement>('a[href="/map"]')?.textContent ?? "").toContain("Ask on the map");
+    expect(container.querySelector('a[href="/pal/chat"]')).toBeNull();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
   });
 
   it("does not issue a grant after microphone denial and unlocks Starting UI", async () => {
@@ -227,6 +278,22 @@ describe("Pub Pal voice controls", () => {
     expect(startButton?.disabled).toBe(false);
     expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
     expect(container.textContent).toContain(PAL_MICROPHONE_PERMISSION_ERROR);
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]')?.textContent ?? "").toContain("Ask in writing");
+  });
+
+  it("offers writing when the microphone is unavailable without granting or connecting voice", async () => {
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
+    await mountAvailable();
+
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe("Microphone is unavailable. Use text instead.");
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]')?.textContent ?? "").toContain("Ask in writing");
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
   });
 
   it("releases an uncertain grant request after malformed grant JSON", async () => {
