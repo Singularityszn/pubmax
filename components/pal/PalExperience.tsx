@@ -419,6 +419,8 @@ export default function PalExperience() {
             }
           }
           void loadMemories(ownerId);
+        } else if (response.ok && body.pal === null) {
+          clearOwnedPalCache(ownerId);
         }
         if (!controller.signal.aborted && activeOwnerRef.current === ownerId) setReady(true);
       })
