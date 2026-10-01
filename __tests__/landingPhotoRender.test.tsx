@@ -4,7 +4,28 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/landingPubCard.server", () => ({
+  loadLandingHeroData: async () => ({
+    card: null,
+    archive: {},
+    rail: [],
+    averages: null,
+  }),
+}));
+vi.mock("@/lib/landingAnswers.server", () => ({
+  loadLandingAnswers: async () => ({
+    today: { line: "Quiet.", stamp: "Wednesday 1 October", measured: false },
+    tonight: { line: "Quiet.", stamp: "Wednesday 1 October", measured: false },
+  }),
+}));
+vi.mock("@/lib/trustedHandoffFlags.server", () => ({
+  readTrustedHandoffFlag: () => false,
+}));
+vi.mock("@/components/landing/LandingPage", () => ({ default: () => null }));
+vi.mock("@/components/native/AppEntryRoute", () => ({ default: () => null }));
 
+import Home from "@/app/page";
 import BoroughScreen from "@/app/borough/BoroughScreen";
 import LandingHero from "@/components/landing/LandingHero";
 import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
@@ -44,6 +65,15 @@ function hero(overrides: Partial<LandingPubCardData> = {}): string {
     createElement(LandingHero, { card: { ...card, ...overrides }, archive, rail: [] }),
   );
 }
+
+describe("the home document ships the skyline preload", () => {
+  it("mounts exactly one high-priority skyline preload on /", async () => {
+    const html = renderToStaticMarkup(await Home());
+    expect(html.match(/rel="preload"/g)?.length ?? 0).toBe(1);
+    expect(html).toContain("/landing/hero-thames-1024.avif 1024w");
+    expect(html).toContain('fetchPriority="high"');
+  });
+});
 
 describe("the landing hero stands on a photograph", () => {
   const html = hero();
