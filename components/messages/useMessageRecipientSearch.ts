@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/handleNormalize";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 
 export type MessageRecipient = {
@@ -60,9 +61,10 @@ export function useMessageRecipientSearch(viewer: string) {
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetch(
-            `/api/profiles/search?q=${encodeURIComponent(prefix)}`,
+          const response = await authedActionFetch(
+            `/api/messages/recipients?q=${encodeURIComponent(prefix)}`,
             { cache: "no-store", signal: controller.signal },
+            { requiresIdentity: true },
           );
           if (!live || controller.signal.aborted) {
             discardBody(response);

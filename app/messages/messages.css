@@ -1555,7 +1555,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .messagesNewGroupBackdrop {
   position: fixed;
-  inset: 0 0 var(--message-picker-keyboard-inset, 0px);
+  inset: var(--message-picker-viewport-top, 0px) 0 var(--message-picker-keyboard-inset, 0px);
   z-index: calc(var(--z-tabbar) + 1);
   display: grid;
   place-items: center;
@@ -1568,7 +1568,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   flex-direction: column;
   gap: 0.6rem;
   width: min(100%, 520px);
-  max-height: min(700px, calc(100dvh - var(--message-picker-keyboard-inset, 0px) - 40px));
+  max-height: min(700px, calc(var(--message-picker-viewport-height, 100dvh) - 40px));
   overflow-y: auto;
   padding: 1rem;
   border-radius: 14px;
@@ -1769,8 +1769,8 @@ html[data-theme="dark"] .messageBubblePhoto {
 
   .messagesNewGroup {
     width: 100%;
-    height: calc(100dvh - var(--message-picker-keyboard-inset, 0px));
-    max-height: calc(100dvh - var(--message-picker-keyboard-inset, 0px));
+    height: var(--message-picker-viewport-height, 100dvh);
+    max-height: var(--message-picker-viewport-height, 100dvh);
     padding: max(0.75rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
     border-radius: 0;
   }

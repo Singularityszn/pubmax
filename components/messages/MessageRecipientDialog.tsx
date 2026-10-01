@@ -5,7 +5,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { HANDLE_MAX } from "@/lib/handleNormalize";
-import { useKeyboardInset } from "@/lib/keyboardInset";
+import { useKeyboardInset, useKeyboardViewportBounds } from "@/lib/keyboardInset";
 import {
   GROUP_CREATE_HEADING,
   GROUP_MAX_MEMBERS,
@@ -110,6 +110,7 @@ export default function MessageRecipientDialog({
   const liveRef = useRef(true);
   const fieldId = useId();
   const keyboardInset = useKeyboardInset();
+  const viewportBounds = useKeyboardViewportBounds();
   const search = useMessageRecipientSearch(handle);
   useFocusTrap(true, dialogRef, "strict-modal", focusOriginRef);
 
@@ -198,7 +199,11 @@ export default function MessageRecipientDialog({
   return (
     <div
       className="messagesNewGroupBackdrop"
-      style={{ "--message-picker-keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
+      style={{
+        "--message-picker-keyboard-inset": `${keyboardInset}px`,
+        "--message-picker-viewport-top": `${viewportBounds.offsetTop}px`,
+        "--message-picker-viewport-height": viewportBounds.height === null ? "100dvh" : `${viewportBounds.height}px`,
+      } as React.CSSProperties}
       onClick={(event) => {
         if (event.target === event.currentTarget) close();
       }}
