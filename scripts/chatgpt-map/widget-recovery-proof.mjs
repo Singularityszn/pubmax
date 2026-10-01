@@ -189,7 +189,7 @@ try {
       assert.equal(await widget.locator("#status").textContent(), "3 listed pubs.", "Healthy setup already has a warning");
       await page.screenshot({ path: `${output}${name}-before.png`, fullPage: true });
       stage = "outage";
-      await widget.getByRole("button", { name: "Zoom out", exact: true }).click();
+      await widget.getByRole("button", { name: name === "transient-vector-recovery" ? "Zoom in" : "Zoom out", exact: true }).click();
       await waitFor(() => check.tiles.some((tile) => tile.stage === "outage" && tile.outcome === "aborted"), "Native zoom did not request a real vector tile in the outage");
       await widget.locator("#status").filter({ hasText: "Streets could not load" }).waitFor();
       check.failedView = await waitFor(async () => { const view = await inspector.view(); return !view.moving && check.tiles.some((tile) => tile.stage === "outage" && tile.outcome === "aborted" && tileInView(tile, view)) ? view : null; }, "Failed tile is outside the current visible grid");
@@ -242,12 +242,10 @@ try {
       } else {
         const priorUrls = new Set(check.tiles.map((tile) => tile.url));
         stage = "held-recovery";
-        // Errored child tiles trigger MapLibre parent fallback down to z0.
-        // Zoom above the healthy grid so recovery cannot reuse those tiles.
-        for (let step = 0; step < 2; step++) {
-          await widget.getByRole("button", { name: "Zoom in", exact: true }).click();
-          await waitFor(async () => !(await inspector.view()).moving, "Native recovery zoom never stopped moving");
-        }
+        // The outage itself zooms above the healthy grid. Recover farther in,
+        // without crossing a valid cached grid that should clear the warning.
+        await widget.getByRole("button", { name: "Zoom in", exact: true }).click();
+        await waitFor(async () => !(await inspector.view()).moving, "Native recovery zoom never stopped moving");
         await waitFor(() => check.tiles.some((tile) => tile.stage === "held-recovery" && !priorUrls.has(tile.url)), "Native recovery zoom reused old grid instead of requesting fresh visible tiles");
         check.heldView = await waitFor(async () => { const view = await inspector.view(); return !view.moving && check.tiles.some((tile) => tile.stage === "held-recovery" && !priorUrls.has(tile.url) && tileInView(tile, view)) ? view : null; }, "Held recovery tile is outside current visible grid");
         assert.ok((await widget.locator("#status").textContent()).includes("Streets could not load"), "Warning cleared before a fresh recovery vector response");
