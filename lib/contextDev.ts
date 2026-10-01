@@ -617,7 +617,7 @@ export async function crawlMarkdown(
 }
 
 /**
- * Extract one page into a JSON schema through the unified scrape.
+ * Extract one page into a JSON schema through POST `/web/extract`.
  *
  * Freshness, capture completeness and credit costs are defined in
  * docs/rules/lib-shared-seams-stores-http-freshness-brand.md, Context.dev contract.
