@@ -224,7 +224,7 @@ describe("sitemapUrls", () => {
       jsonResponse({
         success: true,
         domain: "www.fullers.co.uk",
-        urls: ["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"],
+        urls: [{ url: "https://www.fullers.co.uk/a", title: "A" }, { url: "https://www.fullers.co.uk/b" }],
       }),
     );
     const result = await sitemapUrls(PERMITTED, {
@@ -236,7 +236,7 @@ describe("sitemapUrls", () => {
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.urls).toEqual(["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"]);
     const request = new URL(String(fetchImpl.mock.calls[0]?.[0]));
-    expect(request.pathname).toBe("/v1/web/scrape/sitemap");
+    expect(request.pathname).toBe("/v1/web/urls");
     expect(request.searchParams.get("domain")).toBe("www.fullers.co.uk");
   });
 

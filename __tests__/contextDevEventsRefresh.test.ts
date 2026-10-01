@@ -37,7 +37,7 @@ const FULLERS_EVENT_FINDER = "https://www.fullers.co.uk/event-finder";
 
 function contextDevExtractEnvelope(
   data: Record<string, unknown>,
-  options: { url?: string; partial?: boolean } = {},
+  options: { url?: string; partial?: boolean; markdown?: string } = {},
 ) {
   const url = options.url ?? FULLERS_EVENT_FINDER;
   return {
@@ -48,6 +48,7 @@ function contextDevExtractEnvelope(
     request_id: "test",
     cache_metadata: { age_ms: 0, status: "miss" },
     metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
+    ...(options.markdown === undefined ? {} : { markdown: options.markdown }),
     ...(options.partial ? { partial: true } : {}),
   };
 }
@@ -200,7 +201,7 @@ describe("eventsRefresh Context.dev lane", () => {
       const url = String(input);
       if (url.startsWith("https://api.context.dev/")) {
         return new Response(
-          JSON.stringify(contextDevExtractEnvelope(data)),
+          JSON.stringify(contextDevExtractEnvelope(data, { markdown: _markdown || undefined })),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }

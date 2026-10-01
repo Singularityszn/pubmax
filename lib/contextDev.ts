@@ -526,19 +526,19 @@ export async function sitemapUrls(
   return guardedCall<ContextDevSitemapOk>(url, options, (client) =>
     attempt(
       () =>
-        contextDevTransport(client).get("/web/scrape/sitemap", {
-          query: {
-            domain,
-            ...(options.maxLinks === undefined ? {} : { maxLinks: options.maxLinks }),
-            ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
-          },
+        client.web.mapUrls({
+          domain,
+          ...(options.maxLinks === undefined ? {} : { maxLinks: options.maxLinks }),
+          ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
         }),
       (body) =>
         body.success === true && Array.isArray(body.urls)
           ? {
               status: "ok" as const,
               domain: typeof body.domain === "string" && body.domain ? body.domain : domain,
-              urls: body.urls.filter((entry): entry is string => typeof entry === "string"),
+              urls: body.urls
+                .map((entry) => (typeof entry === "string" ? entry : entry?.url))
+                .filter((entry): entry is string => typeof entry === "string" && entry.length > 0),
             }
           : null,
       "Sitemap read returned no urls.",
@@ -618,13 +618,14 @@ export async function extract<T extends Record<string, unknown> = Record<string,
         const record = body as {
           status?: string;
           partial?: boolean;
+          isPartial?: boolean;
           url?: string;
           data?: unknown;
           markdown?: unknown;
           urls_analyzed?: unknown;
         };
         const markdown = typeof record.markdown === "string" ? record.markdown : "";
-        return record.status === "ok" && record.partial !== true
+        return record.status === "ok" && record.partial !== true && record.isPartial !== true
           && typeof record.url === "string" && record.url.length > 0
           && typeof record.data === "object" && record.data !== null
           && markdown.length > 0

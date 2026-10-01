@@ -21,7 +21,7 @@ const observedAt = "2026-08-16T09:00:00.000Z";
 
 function contextDevExtractEnvelope(
   data: Record<string, unknown>,
-  options: { url?: string; partial?: boolean } = {},
+  options: { url?: string; partial?: boolean; markdown?: string } = {},
 ) {
   const url = options.url ?? fullers?.url ?? "https://www.fullers.co.uk/event-finder";
   return {
@@ -32,6 +32,7 @@ function contextDevExtractEnvelope(
     request_id: "test",
     cache_metadata: { age_ms: 0, status: "miss" },
     metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
+    ...(options.markdown === undefined ? {} : { markdown: options.markdown }),
     ...(options.partial ? { partial: true } : {}),
   };
 }
@@ -143,11 +144,11 @@ describe("normaliseContextDevEventRow", () => {
 });
 
 describe("runContextDevEventsLane", () => {
-  async function capturedEvent(_markdown: string, event: Record<string, string> | Record<string, string>[]) {
+  async function capturedEvent(markdown: string, event: Record<string, string> | Record<string, string>[]) {
     if (!fullers) throw new Error("missing fullers register entry");
     const events = Array.isArray(event) ? event : [event];
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify(
-      contextDevExtractEnvelope({ events }),
+      contextDevExtractEnvelope({ events }, { markdown }),
     ), { status: 200, headers: { "content-type": "application/json" } }));
     return runContextDevEventsLane({
       observedAt,
@@ -480,7 +481,7 @@ describe("runContextDevEventsLane", () => {
         placeName: "The Dove",
         kind: "event",
         startsDate: "2026-08-18",
-      }] }),
+      }] }, { markdown: "Quiz at The Dove on 18 August 2026." }),
     ), { status: 200, headers: { "content-type": "application/json" } }));
 
     const result = await runContextDevEventsLane({
@@ -501,7 +502,7 @@ describe("runContextDevEventsLane", () => {
       contextDevExtractEnvelope({ events: [{
         title: "Open mic", placeName: "The Dove", kind: "music",
         startsAt: "2026-08-18T19:00:00Z", priceText: "£40", sourceId: "fake-42",
-      }] }),
+      }] }, { markdown: "Open mic at The Dove on 18 August 2026 at 20:00." }),
     ), { status: 200, headers: { "content-type": "application/json" } }));
 
     const result = await runContextDevEventsLane({
@@ -523,7 +524,9 @@ describe("runContextDevEventsLane", () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify(
       contextDevExtractEnvelope({ events: [{
         title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-18",
-      }] }),
+      }] }, {
+        markdown: "# Events\nOpen mic at The Swan on 19 August 2026 at 20:00.\nQuiz at The Dove on 18 August 2026 at 20:00.",
+      }),
     ), { status: 200, headers: { "content-type": "application/json" } }));
 
     const result = await runContextDevEventsLane({
@@ -549,7 +552,7 @@ describe("runContextDevEventsLane", () => {
             sourceUrl: "https://example.com/event/quiz",
             startsDate: "2026-08-18",
           }],
-        }),
+        }, { markdown: "Quiz at The Dove on 18 August 2026." }),
       ), { status: 200, headers: { "content-type": "application/json" } }),
     );
 
@@ -563,8 +566,8 @@ describe("runContextDevEventsLane", () => {
 
     expect(fetchImpl).toHaveBeenCalled();
     const request = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
-    expect(request.formats).toEqual({ json: true, markdown: true });
-    expect(request.jsonParams.schema.properties.events.items.required).toBeUndefined();
+    expect(request.schema.properties.events.items.required).toBeUndefined();
+    expect(request.maxAgeMs).toBe(0);
     expect(result.rows).toEqual([]);
     expect(result.failures).toHaveLength(contextDevEventSources().length);
   });
@@ -579,7 +582,10 @@ describe("runContextDevEventsLane", () => {
             kind: "event",
             startsDate: "2026-08-18",
           }],
-        }, { url: "https://example.com/unrelated" }),
+        }, {
+          url: "https://example.com/unrelated",
+          markdown: "Quiz at The Dove on 18 August 2026.",
+        }),
       ), { status: 200, headers: { "content-type": "application/json" } }),
     );
 
