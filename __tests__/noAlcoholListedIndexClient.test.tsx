@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, createElement } from "react";
+import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
@@ -32,8 +32,9 @@ let current: State;
 let root: Root | null = null;
 let container: HTMLDivElement;
 function Surface() {
-  current = useCommunityPrices();
-  return createElement("button", { onClick: current.loadNoAlcoholIndex }, "Read no-alcohol prices");
+  const communityPrices = useCommunityPrices();
+  useEffect(() => { current = communityPrices; }, [communityPrices]);
+  return createElement("button", { onClick: communityPrices.loadNoAlcoholIndex }, "Read no-alcohol prices");
 }
 async function mount() {
   container = document.createElement("div");
