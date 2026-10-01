@@ -122,3 +122,7 @@ EXIT.json
 # create the directory themselves and overwrite every file on each run, so a
 # committed copy is stale the moment the page changes.
 e2e-shots/
+
+# Local audit receipts and nested helper installs are verification output.
+/.audit/
+**/node_modules/

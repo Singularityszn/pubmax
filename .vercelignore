@@ -22,6 +22,7 @@
 /e2e-shots/
 /.tmp-evidence/
 /artifacts/
+/.audit/
 /.gnhf/
 
 # Harvest shards and crawler output. Gitignored, large, and read by scripts the
