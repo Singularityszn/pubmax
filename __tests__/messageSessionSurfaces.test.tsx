@@ -213,7 +213,39 @@ describe("message sign-in doors", () => {
     unread: 0,
   };
 
-  it.each(["success", "http-failure", "network-failure"])("publishes slow %s reads despite recurring polls, focus and realtime", async (outcome) => {
+  it("reads once more after mid-read realtime changes and renders the new conversation", async () => {
+    signedIn();
+    fetchState.pending = true;
+    await render(createElement(MessagesInboxClient));
+    await act(async () => { inboxEvents.signal?.(); inboxEvents.signal?.(); });
+    expect(fetchState.calls).toBe(1);
+    expect(fetchState.requests[0]!.signal?.aborted).toBe(false);
+    // The first database snapshot predates both stored-message signals.
+    const first = fetchState.requests.shift()!;
+    await act(async () => {
+      first.resolve(Response.json({ conversations: [] }));
+      await Promise.resolve();
+    });
+    expect(fetchState.calls).toBe(2);
+    expect(fetchState.requests).toHaveLength(1);
+    await releaseFetch(Response.json({ conversations: [createdGroup] }));
+    expect(host.querySelector(`a[href="/messages/${createdGroup.id}"]`)?.textContent).toContain(createdGroup.title);
+    expect(fetchState.calls).toBe(2);
+  });
+
+  it("drops queued realtime work when conversation creation supersedes the old read", async () => {
+    signedIn();
+    fetchState.pending = true;
+    await render(createElement(MessagesInboxClient));
+    await act(async () => inboxEvents.signal?.());
+    await completeCreation();
+    await releaseFetch(Response.json({ conversations: [createdGroup] }), undefined, true);
+    await releaseFetch(Response.json({ conversations: [] }));
+    expect(fetchState.calls).toBe(2);
+    expect(host.textContent).toContain(createdGroup.title);
+  });
+
+  it.each(["success", "http-failure", "network-failure"])("publishes slow %s reads despite recurring polls and focus", async (outcome) => {
     vi.useFakeTimers();
     signedIn();
     fetchState.pending = true;
@@ -233,7 +265,6 @@ describe("message sign-in doors", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
     await act(async () => {
       window.dispatchEvent(new Event("focus"));
-      inboxEvents.signal!();
     });
     expect(fetchState.calls).toBe(1);
     expect(fetchState.requests).toHaveLength(1);
@@ -329,7 +360,10 @@ describe("message sign-in doors", () => {
       inboxEvents.signal!();
     });
     expect(fetchState.calls).toBe(2);
+    // The subsequent snapshot still includes this stored conversation.
+    fetchState.response = () => Response.json({ conversations: [createdGroup] });
     await releaseFetch(Response.json({ conversations: [createdGroup] }));
+    expect(fetchState.calls).toBe(3);
     expect(host.textContent).toContain(createdGroup.title);
   });
 

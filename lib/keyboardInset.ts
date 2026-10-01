@@ -43,6 +43,9 @@ export function keyboardInsetPx(evidence: ViewportEvidence): number {
 
 const listeners = new Set<() => void>();
 let inset = 0;
+type KeyboardViewportBounds = { offsetTop: number; height: number | null };
+const EMPTY_BOUNDS: KeyboardViewportBounds = { offsetTop: 0, height: null };
+let bounds = EMPTY_BOUNDS;
 
 function readEvidence(): ViewportEvidence | null {
   if (typeof window === "undefined" || !window.visualViewport) return null;
@@ -56,7 +59,11 @@ function readEvidence(): ViewportEvidence | null {
 function refresh(): void {
   const evidence = readEvidence();
   const next = evidence ? keyboardInsetPx(evidence) : 0;
-  if (next === inset) return;
+  const valid = evidence && Object.values(evidence).every(Number.isFinite);
+  const offsetTop = valid ? Math.max(0, Math.min(evidence.offsetTop, evidence.layoutHeight)) : 0;
+  const height = valid ? Math.max(0, Math.min(evidence.viewportHeight, evidence.layoutHeight - offsetTop)) : null;
+  if (next === inset && offsetTop === bounds.offsetTop && height === bounds.height) return;
+  bounds = { offsetTop, height };
   inset = next;
   for (const listener of listeners) listener();
 }
@@ -96,10 +103,24 @@ export function subscribeKeyboardInset(onStoreChange: () => void): () => void {
     // keyboard that has since closed would paint the old inset for one frame
     // before `refresh()` corrected it. Zero is what nobody-is-covered means.
     inset = 0;
+    bounds = EMPTY_BOUNDS;
   };
 }
 
 /** The inset, live. Zero wherever nothing is covered. */
 export function useKeyboardInset(): number {
   return useSyncExternalStore(subscribeKeyboardInset, readKeyboardInset, serverKeyboardInset);
+}
+
+/** Visible bounds for overlays; composers retain their numeric bottom inset. */
+export function readKeyboardViewportBounds(): KeyboardViewportBounds {
+  return bounds;
+}
+
+function serverKeyboardViewportBounds(): KeyboardViewportBounds {
+  return EMPTY_BOUNDS;
+}
+
+export function useKeyboardViewportBounds(): KeyboardViewportBounds {
+  return useSyncExternalStore(subscribeKeyboardInset, readKeyboardViewportBounds, serverKeyboardViewportBounds);
 }

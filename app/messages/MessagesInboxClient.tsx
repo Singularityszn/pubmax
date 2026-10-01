@@ -131,6 +131,7 @@ export default function MessagesInboxClient({
     generation: number;
     signal?: AbortSignal;
     promise: Promise<void>;
+    followup: boolean;
   } | null>(null);
   const liveRef = useRef(false);
   useLayoutEffect(() => {
@@ -156,11 +157,14 @@ export default function MessagesInboxClient({
   }, [authHandle]);
 
   const refresh = useCallback(
-    async (signal?: AbortSignal, supersede = false) => {
+    async function refreshInbox(signal?: AbortSignal, supersede = false, invalidate = false): Promise<void> {
       const requestRevision = accountRevision;
       if (!liveRef.current || signal?.aborted || requestRevision !== accountRevisionRef.current) return;
       const pending = pendingReadRef.current;
       if (!supersede && pending && !pending.signal?.aborted && pending.generation === requestGenerationRef.current) {
+        // Only stored-message invalidations owe a newer database snapshot.
+        // Focus and polls must never starve a slow but current read.
+        if (invalidate) pending.followup = true;
         return pending.promise;
       }
       const generation = ++requestGenerationRef.current;
@@ -236,10 +240,14 @@ export default function MessagesInboxClient({
           }
         } finally {
           if (stillCurrent()) setLoadedRevision(requestRevision);
-          if (pendingReadRef.current?.generation === generation) pendingReadRef.current = null;
+          const completed = pendingReadRef.current;
+          if (completed?.generation === generation) {
+            pendingReadRef.current = null;
+            if (completed.followup && stillCurrent()) void refreshInbox();
+          }
         }
       });
-      pendingReadRef.current = { generation, signal, promise };
+      pendingReadRef.current = { generation, signal, promise, followup: false };
       return promise;
     },
     // `handle` is deliberately NOT a dependency: the read derives the handle
@@ -288,7 +296,7 @@ export default function MessagesInboxClient({
   // safety poll with one, nothing while the tab is hidden.
   useEffect(() => {
     if (paneHidden || !handle) return;
-    return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
+    return subscribeToInbox(handle, () => void refresh(undefined, false, true), { poll: () => void refresh() });
   }, [refresh, handle, paneHidden]);
 
   const accountDataReady = loadedRevision === accountRevision;

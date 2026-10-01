@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   keyboardInsetPx,
   readKeyboardInset,
+  readKeyboardViewportBounds,
   serverKeyboardInset,
   subscribeKeyboardInset,
 } from "@/lib/keyboardInset";
@@ -79,4 +80,36 @@ describe("the store", () => {
       vi.unstubAllGlobals();
     }
   });
+});
+
+
+it("notifies visible-bound changes even when the composer bottom inset stays constant", () => {
+  const viewport = new EventTarget() as EventTarget & { height: number; offsetTop: number };
+  viewport.height = 508;
+  viewport.offsetTop = 100;
+  const layout = new EventTarget();
+  vi.stubGlobal("window", {
+    innerHeight: 844,
+    visualViewport: viewport,
+    addEventListener: layout.addEventListener.bind(layout),
+    removeEventListener: layout.removeEventListener.bind(layout),
+  });
+  let unsubscribe = () => {};
+  try {
+    const changed = vi.fn();
+    unsubscribe = subscribeKeyboardInset(changed);
+    expect(readKeyboardViewportBounds()).toEqual({ offsetTop: 100, height: 508 });
+    expect(readKeyboardInset()).toBe(236);
+    changed.mockClear();
+    viewport.offsetTop = 140;
+    viewport.height = 468;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(readKeyboardViewportBounds()).toEqual({ offsetTop: 140, height: 468 });
+    expect(readKeyboardInset()).toBe(236);
+  } finally {
+    unsubscribe();
+    vi.unstubAllGlobals();
+  }
+  expect(readKeyboardViewportBounds()).toEqual({ offsetTop: 0, height: null });
 });

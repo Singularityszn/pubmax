@@ -52,7 +52,11 @@ vi.mock("@/components/auth/useViewerSession", () => ({
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
-  authedActionFetch: (input: string, init?: RequestInit) => {
+  authedActionFetch: (input: string, init?: RequestInit, options?: { requiresIdentity?: boolean }) => {
+    if (input.startsWith("/api/messages/recipients")) {
+      expect(options?.requiresIdentity).toBe(true);
+      return fetch(input, init);
+    }
     const url = String(input);
     const method = String(init?.method ?? "GET").toUpperCase();
     requests.postCalls.push({
@@ -251,7 +255,7 @@ describe("message recipient picker", () => {
     await settle(260);
     expect(
       requests.searchCalls.find((call) => call.method === "GET")?.url,
-    ).toBe("/api/profiles/search?q=hari");
+    ).toBe("/api/messages/recipients?q=hari");
     expect(
       requests.searchCalls.find((call) => call.method === "GET")?.cache,
     ).toBe("no-store");
@@ -496,7 +500,7 @@ describe("message recipient picker", () => {
     let searchSignal: AbortSignal | undefined;
     requests.searchRespond = (url, init) =>
       new Promise<Response>((resolve) => {
-        if (url.startsWith("/api/profiles/search")) {
+        if (url.startsWith("/api/messages/recipients")) {
           resolveSearch = resolve;
           searchSignal = init?.signal ?? undefined;
         } else {
