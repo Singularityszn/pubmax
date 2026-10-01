@@ -4,8 +4,8 @@
 // Captain 7 Sep 2026: "There should be an FAQ section where people understand
 // how the app works and everything." Every answer here states a fact the code
 // or the dataset already backs: the two price lanes, the composer's own photo
-// rule, what /today and /tonight read, that every listed price we hold is a
-// London one, and that the web app installs to a home screen today.
+// rule, what /today and /tonight read, where listed prices are held beyond
+// London, and that the web app installs to a home screen today.
 // __tests__/landingFaq.test.ts holds the count at six and the copy to the
 // voice rules.
 //
@@ -44,7 +44,7 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "outside-london",
     question: "Does it work outside London?",
     answer:
-      "Not for prices yet. Every listed price we hold today is a London one. The map opens in eleven other UK cities, and a pub there stays without a price until somebody logs the first one.",
+      "London is our focus. You can also browse pubs in other UK cities, with listed prices where we have them. If a pub has no price yet, you can log what you paid.",
   },
   {
     id: "app",

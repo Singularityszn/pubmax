@@ -61,10 +61,12 @@ describe("the landing FAQ", () => {
     expect(answer).toMatch(/photo of the bill or the pint/);
   });
 
-  it("says prices are London's, because every listed price we hold is", () => {
+  it("keeps London as the focus while explaining listed prices in other UK cities", () => {
     const answer = LANDING_FAQ.find((entry) => entry.id === "outside-london")?.answer ?? "";
-    expect(answer).toContain("London");
-    expect(answer).toMatch(/not for prices yet/i);
+    expect(answer).toContain("London is our focus");
+    expect(answer).toContain("other UK cities");
+    expect(answer).toContain("listed prices");
+    expect(answer).not.toMatch(/not for prices yet|every listed price.*London/i);
   });
 
   it("keeps the house voice: no em dash, no exclamation, no template words", () => {
