@@ -11,6 +11,7 @@ vi.mock("@/lib/palElevenLabsChat.server", () => ({
   runPalElevenLabsChatTurn: vi.fn(),
 }));
 
+import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
@@ -24,20 +25,28 @@ describe("POST /api/pub-pal/chat", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
-  it("returns the curated fallback when ElevenLabs is not configured", async () => {
+  it("answers from the deterministic ask path when ElevenLabs is not configured", async () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
     const response = await POST(
       new Request("http://localhost/api/pub-pal/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
+        body: JSON.stringify({
+          query: "Cheapest pint in Camden tonight",
+          cityId: "london",
+        }),
       }),
     );
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
     const body = await response.json();
-    expect(body.error).toBe(PAL_ERROR_FALLBACK);
+    expect(body.toolsUsed).toContain("cheapest_pint_near");
+    expect(body.answer).toMatch(/Cheapest listed pints in Camden/i);
+    expect(body.error).toBeUndefined();
   });
 
   it("returns the curated fallback when the provider turn fails", async () => {
