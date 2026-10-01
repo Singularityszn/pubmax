@@ -629,7 +629,12 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   .mapToolbarSearch {
     flex: 1 1 8rem;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
+  }
+
+  /* The field shrinks with its cell; the absolute suggestions escape below. */
+  .mapToolbarSearch .mapSearchSuggest--toolbar {
+    min-width: 0;
   }
 
   .mapToolbarSearch input {

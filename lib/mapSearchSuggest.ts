@@ -21,6 +21,11 @@ import { haversineKm } from "@/lib/haversine";
 import type { Locality } from "@/lib/localities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import {
+  drinkLensUnknownSentence,
+  type CategoryPriceIndexStatus,
+  type MapLensPrice,
+} from "@/lib/mapExperienceLens";
+import {
   UK_PLACE_MAP_ZOOM,
   type UkPlace,
 } from "@/lib/ukPlaceSearch";
@@ -116,7 +121,7 @@ export type PubSuggestion = {
   typeLabel: string;
   /** The pub's borough, for a quiet second-line hint ("" when unknown). */
   boroughLabel: string;
-  /** "£5.20" verified cheapest, or null when nothing is priced yet. */
+  /** The active drink's labelled quote or read status; pint price at rest. */
   priceLabel: string | null;
   anchor: CompactVenueAnchor | null;
   distanceKm: number;
@@ -165,6 +170,10 @@ export type MapSearchSuggestInput = {
   cityId: CityId;
   query: string;
   venues: Venue[];
+  /** Null keeps the resting pint view; an empty map keeps an active read unknown. */
+  lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  lensCategoryLabel?: string | null;
+  lensStatus?: CategoryPriceIndexStatus;
   /** The Greater London locality gazetteer (public/data/london_localities.json).
    *  Optional + defaults to []: a non-London city, or a fetch that hasn't
    *  landed yet, simply falls back to the modelled areas + boroughs. */
@@ -381,6 +390,7 @@ function buildPubSuggestion(
   venue: Venue,
   originPoint: [number, number],
   origin: SuggestOrigin,
+  input: MapSearchSuggestInput,
 ): PubSuggestion {
   const distanceKm = distanceKmFrom(originPoint, [
     venue.longitude,
@@ -389,6 +399,22 @@ function buildPubSuggestion(
   const price = verifiedPrice(venue);
   const anchor = compactVenueAnchor(venue);
   const canShowPrice = isPubVenue(venue) || anchor !== null;
+  let priceLabel = price !== null && canShowPrice ? formatGbp(price) : null;
+  let priceAnchor = anchor;
+  if (input.lensPrices != null) {
+    const lensPrice = input.lensPrices.get(venue.id);
+    if (!lensPrice) {
+      priceLabel = drinkLensUnknownSentence(input.lensCategoryLabel ?? "this drink", input.lensStatus ?? "ready");
+      priceAnchor = null;
+    } else if (lensPrice.source === "sourced-anchor" && anchor) {
+      priceLabel = formatGbp(lensPrice.priceGbp);
+    } else {
+      const serving = lensPrice.category && lensPrice.category !== "beer"
+        ? ` · ${lensPrice.servingSize ?? "Serving not recorded"}` : "";
+      priceLabel = `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}${serving}`;
+      priceAnchor = null;
+    }
+  }
 
   return {
     id: venue.id,
@@ -396,9 +422,8 @@ function buildPubSuggestion(
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
     typeLabel: venueKindLabel(venue.kind),
     boroughLabel: (venue.primaryBorough ?? "").trim(),
-    priceLabel:
-      price !== null && canShowPrice ? formatGbp(price) : null,
-    anchor,
+    priceLabel,
+    anchor: priceAnchor,
     distanceKm,
     distanceLabel: formatSuggestDistance(distanceKm, origin),
   };
@@ -555,7 +580,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
       seen.add(venue.id);
       pubMatches.push({
         tier,
-        suggestion: buildPubSuggestion(venue, originPoint, origin),
+        suggestion: buildPubSuggestion(venue, originPoint, origin, input),
       });
     }
   }

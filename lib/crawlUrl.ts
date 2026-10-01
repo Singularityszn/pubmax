@@ -180,7 +180,10 @@ export function encodeCrawl(state: CrawlUrlState): string {
 // `/map?mode=build&pubs=<ordered ids>` (defaults are omitted, so nothing else
 // clutters the link). Returns null for fewer than two stops — a single stop has
 // no walk to show.
-export function buildCrawlMapHref(venueIds: string[]): string | null {
+export function buildCrawlMapHref(
+  venueIds: string[],
+  routeDrinkIntent?: RouteDrinkIntent | null,
+): string | null {
   const ids = venueIds.filter(Boolean);
   if (ids.length < 2) return null;
   return `/map?${encodeCrawl({
@@ -188,6 +191,7 @@ export function buildCrawlMapHref(venueIds: string[]): string | null {
     filters: initialFilters,
     builtIds: ids,
     selectedVenueId: "",
+    routeDrinkIntent,
   })}`;
 }
 

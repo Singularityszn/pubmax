@@ -734,6 +734,13 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       : <p className="planSummary__status planSummary__status--error" role="alert">{notice.text}</p>;
   }
 
+  // Map links carry only the saved public drink request, never private planning context.
+  const routeDrinkIntent = state.context?.zeroProof === true
+    ? { zeroProof: true }
+    : state.context?.drinkCategory && state.context.drinkCategory !== "beer"
+      ? { drinkCategory: state.context.drinkCategory, zeroProof: false }
+      : null;
+
   return (
     <section className="planSummary" aria-labelledby="plan-stops-title">
       <div className="planSummary__heading">
@@ -755,6 +762,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
             planId={planId}
             startTime={state.plan.startTime}
             stops={canonicalRouteStops}
+            routeDrinkIntent={routeDrinkIntent}
           />
           {memberToken ? (
             /* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */

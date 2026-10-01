@@ -9,7 +9,7 @@ import { CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-r
 // so no server code reaches the client bundle.
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
-import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { buildCrawlMapHref, type RouteDrinkIntent } from "@/lib/crawlUrl";
 import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
@@ -45,10 +45,12 @@ export default function PlanRoute({
   planId,
   startTime,
   stops,
+  routeDrinkIntent,
 }: {
   planId: string;
   startTime: string;
   stops: RouteStop[];
+  routeDrinkIntent?: RouteDrinkIntent | null;
 }) {
   const [report, setReport] = useState<GetInReport | null>(null);
   const [state, setState] = useState<FetchState>("loading");
@@ -105,7 +107,7 @@ export default function PlanRoute({
   // Deep link the whole ordered crawl onto the map, where the route now follows
   // real walking roads. The per-stop "Open on the map" links below still jump to
   // a single pin; this shows the walk between every stop.
-  const walkRouteHref = buildCrawlMapHref(stops.map((stop) => stop.venueId));
+  const walkRouteHref = buildCrawlMapHref(stops.map((stop) => stop.venueId), routeDrinkIntent);
 
   return (
     <div className="planRoute">
