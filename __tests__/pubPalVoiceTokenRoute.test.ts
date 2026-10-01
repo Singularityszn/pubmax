@@ -72,6 +72,7 @@ describe("Pub Pal voice token route", () => {
     voiceState.palPresent = true;
     voiceState.pal.muted = false;
     voiceState.pal.hidden = false;
+    voiceState.pal.proposalPreferences = { memories: false, routes: true };
     voiceState.rpc.mockReset();
     voiceState.userId = "11111111-1111-4111-8111-111111111111";
     vi.stubEnv("ELEVENLABS_API_KEY", "server-only-key");
@@ -249,6 +250,29 @@ describe("Pub Pal voice token route", () => {
       p_month: expect.stringMatching(/^\d{4}-\d{2}-01$/),
       p_limit: PAL_VOICE_MONTHLY_MINUTES,
     });
+  });
+
+  it.each([
+    { memories: false, routes: false },
+    { memories: true, routes: false },
+    { memories: false, routes: true },
+  ])("delivers proposal permissions from the owned Pal preferences %j", async (preferences) => {
+    voiceState.pal.proposalPreferences = preferences;
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: "wss://voice.example/session" })));
+
+    const response = await POST(issueRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    const prompt = body.overrides.systemPrompt;
+    if (!preferences.memories) expect(prompt).toContain("Do not offer unsolicited memory proposals.");
+    else expect(prompt).not.toContain("Do not offer unsolicited memory proposals.");
+    if (!preferences.routes) expect(prompt).toContain("Do not offer unsolicited route proposals.");
+    else expect(prompt).not.toContain("Do not offer unsolicited route proposals.");
+    expect(prompt).toContain("when the user explicitly asks");
+    expect(prompt).toContain("never apply it yourself");
+    expect(prompt).toContain("confirm in the app");
   });
 
   it("releases a client-failed session without billing minutes", async () => {
