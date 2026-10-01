@@ -1,5 +1,6 @@
 // Pub Pal chat — pure answer shaping for grounded cards returned by
-// `POST /api/pub-pal/chat` (ElevenLabs agent + ADR 0014 webhook tools). The
+// `POST /api/pub-pal/chat` (ElevenLabs when configured, otherwise the same
+// deterministic tools as `/api/ask`, with no OpenRouter call). The
 // /pal/chat surface is a chat SKIN: the user asks in natural language, webhook
 // tools read our own rows, and ANSWER CARDS ARE THE FACTS — each keeping its
 // provenance label.
