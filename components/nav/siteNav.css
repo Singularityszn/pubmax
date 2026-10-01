@@ -666,7 +666,7 @@ button.siteNavMoreItem {
      dragged the bar (and its wordmark) off the left edge — audit F2's clipped
      "UBMAXX" and full-bleed bar.
 
-     (100vw - 100%) / 2 measures that real gap geometrically: for any centred,
+     (100svw - 100%) / 2 measures that real gap geometrically: for any centred,
      symmetric host, 100% (the bar's containing-block inline size) already nets
      out every ancestor's padding + centring, so this resolves to the exact
      distance from the viewport edge to the bar's containing block — 0-gutter,
@@ -682,7 +682,7 @@ button.siteNavMoreItem {
   .siteNavBar:not(.siteNavBarFloating) {
     width: auto;
     align-self: stretch;
-    margin-inline: calc(var(--topbar-side, 10px) - (100vw - 100%) / 2);
+    margin-inline: calc(var(--topbar-side, 10px) - (100svw - 100%) / 2);
   }
 
   .siteNavLinks {
@@ -751,6 +751,22 @@ button.siteNavMoreItem {
   /* Hide the full signed-in row, not the compact Sign in / Account host. */
   .siteNavBar .authUser:not(.authUserNav) {
     display: none;
+  }
+
+  /* Signed-in compact account: avatar + "Account" fits the landing bar, but
+     beside bell/messages/theme in SiteNav the label bleeds ~12px past 320px
+     (scrollWidth 332). Match the 641–900 icon-only disc here; aria-label keeps
+     the name. */
+  .siteNavBar .authUserNav .authCompactLabel {
+    display: none;
+  }
+
+  .siteNavBar .authUserNav .authCompactTrigger {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
   }
 
   /* No hardware keyboard on phones — the bottom tab bar owns navigation, so the

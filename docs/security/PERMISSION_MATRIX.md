@@ -91,7 +91,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | `night_moments` at the table | denied | no rows, no writes | own rows, no writes | n/a |
 | A's upload object (`storage.objects` and the bucket paths) | invisible | invisible | invisible; only a server-minted signed URL serves it | n/a |
 | Log a price (`POST /api/price-submit`, `POST /api/pint-drops`) | 401 | allowed under own actor | allowed under own actor | n/a |
-| Confirmation | n/a | independent second report confirms | own repeat is `same_reporter`, never a confirmation | n/a |
+| Confirmation | 401, no row; anon and authenticated inserts refused at the table | a matching figure confirms and `pintTrust` becomes `confirmed` | a different figure does not confirm and `pintTrust` stays `disputed` | n/a |
 | Edit own price observation | n/a | newer-wins under own actor | newer-wins under own actor | n/a |
 | Edit another's price row at the table | denied | denied | denied | n/a |
 | Hidden rows and `actor` or `hidden_at` columns at the table | denied | denied | denied | n/a |

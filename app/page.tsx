@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import LandingPage from "@/components/landing/LandingPage";
 import LandingLondonCollage from "@/components/landing/LandingLondonCollage";
+import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
@@ -99,6 +100,7 @@ export default async function Home() {
 
   return (
     <>
+      <LandingSkylinePreload />
       {/* The only route the entry decision may rewrite (issue #439): shell
           opens (Capacitor wrap, installed PWA) land on /tonight, a genuine
           native first-run opens the one-time onboarding, browser visits

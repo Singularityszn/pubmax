@@ -9,10 +9,10 @@ import { describe, expect, it } from "vitest";
  * column with a single geometric breakout:
  *
  *   .siteNavBar:not(.siteNavBarFloating) {
- *     margin-inline: calc(var(--topbar-side, 10px) - (100vw - 100%) / 2);
+ *     margin-inline: calc(var(--topbar-side, 10px) - (100svw - 100%) / 2);
  *   }
  *
- * The term (100vw - 100%) / 2 measures the gap between the viewport edge and
+ * The term (100svw - 100%) / 2 measures the gap between the viewport edge and
  * the bar's containing block. That measurement is ONLY correct when the host
  * centres its content symmetrically: equal left and right gutters, whatever
  * their size (0, 16px, or --page-gutter, the formula nets them all out).
@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
  * a host shell gains asymmetric padding (padding-left != padding-right), an
  * asymmetric margin, a sidebar column at mobile widths, or a max-width cap
  * without auto centring (which pins the column to the left edge). Any of
- * those makes (100vw - 100%) / 2 measure the AVERAGE gap, not the actual
+ * those makes (100svw - 100%) / 2 measure the AVERAGE gap, not the actual
  * left/right gaps, and the bar silently misaligns on every page served by
  * that shell - typically dragging the wordmark off one viewport edge (the
  * audit F2 clipped-"UBMAXX" failure mode).
@@ -171,19 +171,19 @@ describe("nav breakout fence (D6): the formula", () => {
     // align-self: stretch defeats flex-centred hosts shrink-wrapping it.
     // All three declarations are one mechanism; assert them as a block.
     expect(siteNavCss).toMatch(
-      /\.siteNavBar:not\(\.siteNavBarFloating\)\s*\{\s*width:\s*auto;\s*align-self:\s*stretch;\s*margin-inline:\s*calc\(var\(--topbar-side,\s*10px\)\s*-\s*\(100vw\s*-\s*100%\)\s*\/\s*2\);\s*\}/,
+      /\.siteNavBar:not\(\.siteNavBarFloating\)\s*\{\s*width:\s*auto;\s*align-self:\s*stretch;\s*margin-inline:\s*calc\(var\(--topbar-side,\s*10px\)\s*-\s*\(100svw\s*-\s*100%\)\s*\/\s*2\);\s*\}/,
     );
   });
 
   it("uses the geometric gap term exactly once (no competing breakout)", () => {
-    const occurrences = stripComments(siteNavCss).match(/100vw\s*-\s*100%/g) ?? [];
+    const occurrences = stripComments(siteNavCss).match(/100svw\s*-\s*100%/g) ?? [];
     expect(occurrences).toHaveLength(1);
   });
 
   it("keeps the --topbar-side token equal to the formula's fallback", () => {
     const token = stripComments(siteNavCss).match(/--topbar-side:\s*([^;]+);/);
     const fallback = stripComments(siteNavCss).match(
-      /var\(--topbar-side,\s*([^)]+)\)\s*-\s*\(100vw/,
+      /var\(--topbar-side,\s*([^)]+)\)\s*-\s*\(100svw/,
     );
     expect(token?.[1].trim()).toBe("10px");
     expect(fallback?.[1].trim()).toBe("10px");

@@ -1,8 +1,9 @@
 # Pub Pal setup: text now, voice when you switch it on
 
-Pub Pal typed chat and voice share one ElevenLabs agent in production. Map Ask
-still answers keylessly via `/api/ask`. Voice and `/pal/chat` need the four
-ElevenLabs values below and one script run.
+Pub Pal typed chat answers keylessly via `/api/pub-pal/chat` (the same grounded
+`runAsk` tools as map Ask, no OpenRouter). Voice and the hosted-LLM typed path
+share one ElevenLabs agent when the four values below are set and the agent
+script has run. Map Ask still answers keylessly via `/api/ask`.
 
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
@@ -14,10 +15,10 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | No | Same agent as voice in text-only mode via `/api/pub-pal/chat` |
+| `/pal/chat` text ask | Yes | `/api/pub-pal/chat` via deterministic `runAsk` when ElevenLabs is off; same agent as voice in text-only mode when it is on |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
-| Model tool selection | ElevenLabs | Hosted LLM on the agent picks webhook tools; no OpenRouter |
+| Model tool selection | Keyless regex | With ElevenLabs, the hosted LLM on the agent picks webhook tools; neither path calls OpenRouter |
 | Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
 | Voice | No | Needs the four ElevenLabs values below |
 

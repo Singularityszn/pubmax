@@ -1,4 +1,4 @@
-// Pub Pal chat — client ask session over the Pub Pal ElevenLabs agent (`/api/pub-pal/chat`).
+// Pub Pal chat — client ask session over `/api/pub-pal/chat`.
 // Latest-wins, timeout, curated errors. In-thread turns only (ADR 0014);
 // durable Pal memory stays confirm-gated (ADR 0006). Never sends `narrated`.
 

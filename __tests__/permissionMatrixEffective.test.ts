@@ -1017,6 +1017,7 @@ describe("private Night Memory, Moment and its object", () => {
 type PriceSubmitBody = {
   ok?: boolean;
   confirmationOutcome?: { status: string; confirmation?: { confirmationId: string }; dropIds?: string[] };
+  pintTrust?: string;
   price?: { priceGbp: number };
 };
 
@@ -1188,29 +1189,55 @@ describe("private profile card: read", () => {
   });
 });
 
+// Local proof of the Confirm write. Vercel preview bundles for project
+// chengdu inline the production Supabase host, so this file never calls a
+// preview or pubmaxxing.com. A signed-in match sets pintTrust to confirmed.
+// A different figure leaves it disputed. A logged-out caller gets 401 and
+// neither browser role can insert a pint_drops row.
 describe("price observation and its confirmation", () => {
-  it("anonymous cannot log a price", async () => {
+  it("anonymous cannot log a price, and no browser role can insert a drop", async () => {
+    const before = truth(`select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}'`);
     const response = await submitPrice(undefined, PRICE_VENUE, 4.5);
     expect(response.status).toBe(401);
+    expect(truth(`select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}'`)).toBe(before);
+
+    // The route is the write. RLS grants no insert to anon or authenticated,
+    // so a logged-out PostgREST call cannot mint the row the route refused.
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE]] as const) {
+      const inserted = attemptAsRole(
+        role,
+        sub,
+        `insert into public.pint_drops (id, venue_id, handle, price_gbp, status, visibility) values (gen_random_uuid(), '${PRICE_VENUE}', 'forged', 4.50, 'visible', 'public')`,
+      );
+      expect(inserted.ok, inserted.err).toBe(false);
+      expect(inserted.err).toMatch(/permission denied/i);
+    }
+    expect(truth(`select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}'`)).toBe(before);
   });
 
   it("A's first report waits for a second drinker, and A's second figure is a second price", async () => {
     const first = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.5);
     expect(first.status, await first.clone().text()).toBe(201);
-    expect((await readJson<PriceSubmitBody>(first)).confirmationOutcome?.status).toBe("awaiting_second_drinker");
+    const firstBody = await readJson<PriceSubmitBody>(first);
+    expect(firstBody.confirmationOutcome?.status).toBe("awaiting_second_drinker");
+    expect(firstBody.pintTrust).toBe("logged-once");
 
     // A second REPORT, not a second tap: a different figure, so the
     // duplicate-tap window (battle test D10) leaves it alone. Since 7 Sept 2026
     // the drop lane's agreement is EXACT, so 4.50 and 4.60 are two prices this
     // pub holds rather than one repeated report, and the outcome says so with
-    // ONE drinker behind them.
+    // ONE drinker behind them. Trust stays unconfirmed. A mismatch is not a
+    // confirmation.
     const repeat = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.6);
     expect(repeat.status, await repeat.clone().text()).toBe(201);
-    expect((await readJson<PriceSubmitBody>(repeat)).confirmationOutcome).toMatchObject({
+    const repeatBody = await readJson<PriceSubmitBody>(repeat);
+    expect(repeatBody.confirmationOutcome).toMatchObject({
       status: "price_disagrees",
       prices: [4.5, 4.6],
       reporters: 1,
     });
+    expect(repeatBody.pintTrust).toBe("disputed");
+    expect(repeatBody.pintTrust).not.toBe("confirmed");
     expect(truth(
       `select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}' and confirmation_id is not null`,
     )).toBe("0");
@@ -1221,6 +1248,7 @@ describe("price observation and its confirmation", () => {
     expect(second.status, await second.clone().text()).toBe(201);
     const body = await readJson<PriceSubmitBody>(second);
     expect(body.confirmationOutcome?.status).toBe("confirmed");
+    expect(body.pintTrust).toBe("confirmed");
     const confirmationId = body.confirmationOutcome?.confirmation?.confirmationId ?? "";
     expect(confirmationId).toMatch(/[0-9a-f-]{36}/);
     expect(truth(
