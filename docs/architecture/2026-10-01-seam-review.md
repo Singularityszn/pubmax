@@ -52,3 +52,19 @@ The folded menu enrichment, famous-venue seeds, and harvest overlays can change 
 **Files changed:** `app/bar-tab/[id]/page.tsx`, `app/ledger/[id]/page.tsx`, `__tests__/venuePageReadUnavailable.test.tsx`, `docs/evidence/venue-detail-convergence/`.
 
 **Fully resolved:** yes. One module remains, both pages call it, the adapted test proves unavailable and missing through the page, and the six before shots and six after shots are recorded.
+
+## 1743 GET /api/night-signals
+
+**Still true:** yes. No web component fetches this route. A search for `/api/night-signals` in `components/`, `app/` (outside the route file), `e2e/`, `ios/` and `android/` finds no caller. The same string in TypeScript is the route plus three tests. `docs/CAPACITOR_WRAP.md` names `GET /api/night-signals` as the night-signal "went live" broadcast for registered iOS, Android, and web devices: the handler calls `maybeBroadcastNightSignalLive` in `lib/pushSender.ts`. That is a server fan-out, not a screen. `docs/CRON_PLANE_RUNBOOK.md` names the same GET as the feed an approved, in-window candidate joins beside the committed snapshot. The `night-signals/` token in the proxy matcher is the public directory `public/night-signals/` (six SVGs, listed in `lib/staticAssetPrefixes.mjs`). `/api/night-signals` stays on the `/api/:path*` matcher and is not that prefix.
+
+**Seam decision:** keep. Do not delete the route. Do not add a web screen. The module is `GET` in `app/api/night-signals/route.ts`. Depth is one reviewed feed: the committed snapshot and the durable approved rows, merged in that handler. There is no second copy of the read, so there is no second adapter to introduce. The route is the public JSON adapter. Device push and the approved-claim join are callers of that handler.
+
+The interface is the handler. The existing tests already call it the way those contracts describe, so this slice did not add another:
+
+- `__tests__/nightSignalRoute.test.ts` calls `GET` with `entityId` and no durable store. That is the keyless public read: status 200, `version`, `asOf`, `durable: "ready"`, and the short cache window.
+- `__tests__/nightSignalFeedApproved.test.ts` calls `GET` after a candidate is saved. An approved, in-window claim is in `claims`; a pending claim, a rejected claim, and an approved claim past its window are not. That is the deletion test for a feed that published an unreviewed row. The committed snapshot (`public/data/night_signals/latest.json`) holds `claims: []`, so the approved row joins an empty snapshot.
+- `__tests__/pushEventHooks.test.ts` calls `GET` and asserts `maybeBroadcastNightSignalLive` runs without the response waiting on it. That is the device contract in `docs/CAPACITOR_WRAP.md`.
+
+**Files changed:** none in the route or its tests. This section is the record.
+
+**Fully resolved:** yes. The route stays. The doc cites the device caller and the approved-claim join, and the tests call the handler.
