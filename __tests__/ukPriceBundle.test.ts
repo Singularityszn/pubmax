@@ -501,3 +501,98 @@ describe("which price a reader is handed for one pub and one drink", () => {
     expect(bundlePricesForCategory([wine], "beer").listed).toBeNull();
   });
 });
+
+describe("Sun Tavern named drinks do not become single-category offers", () => {
+  const sourceUrl = "https://www.thesuntavern.co.uk/menu/";
+  const observedAt = "2026-09-04T13:44:58.699Z";
+  const now = Date.parse("2026-10-01T12:00:00.000Z");
+  const evidence = [
+    { category: "gin", priceGbp: 7,
+      drinkLabel: "sics Umbrella Vesper Grey Goose Vodka, Boatyard Gin, Kina L’Aero, Vichy Catalan" },
+    { category: "beer", priceGbp: 8.5,
+      drinkLabel: "BELFAST COFFEE Bán Poitín, Cold Brew Coffee, Cream, Demerara, Nutmeg" },
+  ] as const;
+  const claimFor = (item: (typeof evidence)[number]): UkPriceBundleRow => ({
+    ...listed, ...item, venueId: "venue-uk-n1420042285", name: "The Sun Tavern",
+    sourceUrl, publisher: "thesuntavern.co.uk", observedAt,
+  });
+
+  it("keeps both exact named observations in the raw source ledger", () => {
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim().split("\n").map((line) => JSON.parse(line));
+    for (const item of evidence) {
+      expect(ledger).toContainEqual(expect.objectContaining({
+        ...item, venueId: "venue-uk-n1420042285", sourceUrl, observedAt,
+      }));
+    }
+  });
+
+  it.each(evidence)("withholds the named $category claim from all eligible price readings", (item) => {
+    const claim = claimFor(item);
+    expect(isValidUkPriceBundleRow(claim)).toBe(true);
+    expect(parseUkPriceBundleRows([claim])).toEqual([]);
+    expect(authoritativeBundleRows([claim])).toEqual([]);
+    expect(bundlePricesForCategory([claim], item.category).listed).toBeNull();
+    expect(listedCategoryPrices([claim], now, { includeBeer: true })).toEqual([]);
+  });
+
+  it.each(evidence)("preserves changed signatures beside the exact $category claim", (item) => {
+    const claim = claimFor(item);
+    // Synthetic controls exercise exact signatures, not new publisher claims.
+    const controls: UkPriceBundleRow[] = [
+      { ...claim, sourceUrl: "https://another-pub.example/menu" },
+      { ...claim, priceGbp: item.priceGbp + 1 },
+      { ...claim, drinkLabel: item.category === "gin" ? "Boatyard Gin" : "Guinness pint" },
+      { ...claim, category: "cocktail" },
+    ];
+    for (const control of controls) {
+      expect(parseUkPriceBundleRows([control])).toEqual([control]);
+      expect(authoritativeBundleRows([control])).toEqual([control]);
+      expect(bundlePricesForCategory([control], control.category).listed?.priceGbp)
+        .toBe(control.priceGbp);
+      expect(listedCategoryPrices([control], now, { includeBeer: true })).toEqual([
+        expect.objectContaining({ category: control.category, priceGbp: control.priceGbp,
+          drinkLabel: control.drinkLabel, sourceUrl: control.sourceUrl }),
+      ]);
+    }
+  });
+
+  it("keeps unrelated synthetic single-gin and beer fixtures eligible", () => {
+    const controls: UkPriceBundleRow[] = [
+      { ...listed, category: "gin", drinkLabel: "Sipsmith London Dry Gin" },
+      { ...listed, category: "beer", drinkLabel: "London Pride" },
+    ];
+    expect(parseUkPriceBundleRows(controls)).toEqual(controls);
+    expect(authoritativeBundleRows(controls)).toEqual(controls);
+    for (const control of controls) {
+      expect(bundlePricesForCategory([control], control.category).listed?.priceGbp)
+        .toBe(control.priceGbp);
+      expect(listedCategoryPrices([control], now, { includeBeer: true })).toEqual([
+        expect.objectContaining({ category: control.category, priceGbp: control.priceGbp,
+          drinkLabel: control.drinkLabel, sourceUrl: control.sourceUrl }),
+      ]);
+    }
+  });
+
+  it("preserves the three unnamed Sun Tavern spirit observations without inventing a serving", () => {
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim().split("\n").map((line) => JSON.parse(line));
+    for (const category of ["rum", "shot", "whisky"] as const) {
+      const raw = ledger.find((row) => row.sourceUrl === sourceUrl && row.category === category
+        && row.priceGbp === 10 && row.drinkLabel === undefined);
+      expect(raw).toMatchObject({ venueId: "venue-uk-n1420042285", observedAt });
+      const claim: UkPriceBundleRow = {
+        ...listed, venueId: "venue-uk-n1420042285", name: "The Sun Tavern", category,
+        sourceUrl, publisher: "thesuntavern.co.uk", observedAt, priceGbp: 10,
+      };
+      expect(claim.drinkLabel).toBeUndefined();
+      expect(claim.servingSize).toBeUndefined();
+      expect(parseUkPriceBundleRows([claim])).toEqual([claim]);
+      expect(authoritativeBundleRows([claim])).toEqual([claim]);
+      expect(bundlePricesForCategory([claim], category).listed?.priceGbp).toBe(10);
+      expect(listedCategoryPrices([claim], now)).toEqual([
+        expect.objectContaining({ category, priceGbp: 10, drinkLabel: null, servingSize: null }),
+      ]);
+    }
+  });
+});

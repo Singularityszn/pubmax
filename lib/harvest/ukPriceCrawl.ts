@@ -150,7 +150,7 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   {
     category: "cocktail",
     pattern:
-      /\b(cocktail|martini|negroni|margarita|mojito|daiquiri|old fashioned|aperol spritz|spritz|bloody mary|cosmopolitan|pornstar|espresso martini|highball|sour)\b/i,
+      /\b(cocktail|martini|negroni|margarita|mojito|daiquiri|old fashioned|aperol spritz|spritz|bloody mary|cosmopolitan|vesper|pornstar|espresso martini|highball|sour)\b/i,
   },
   {
     // A SOFT DRINK WEARING A BEER WORD. "Ginger ale" and "ginger beer" sit on
