@@ -14,6 +14,7 @@ import {
   GROUP_TITLE_PLACEHOLDER,
 } from "@/lib/messageGroupThread";
 import { useFocusTrap } from "@/lib/useFocusTrap";
+import { discardBody } from "@/lib/responseBody";
 
 import MessageAvatar from "./MessageAvatar";
 import {
@@ -157,6 +158,10 @@ export default function MessageRecipientDialog({
           ...(title.trim() ? { title: title.trim() } : {}),
         } : { action: "open", handle, other: selected[0].handle }),
       }, { requiresIdentity: true });
+      if (!current()) {
+        discardBody(response);
+        return;
+      }
       const body: unknown = await response.json().catch(() => null);
       if (!current()) return;
       if (!response.ok) {
