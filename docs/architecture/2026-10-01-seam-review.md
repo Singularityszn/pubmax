@@ -18,3 +18,18 @@ Outcomes for the seven architecture seams on `fm/pubmax-arch-gnhf`. One section 
 **Files changed:** `lib/greatCircle.mjs`, `lib/greatCircle.d.mts`, `lib/haversine.ts`, `scripts/lib/geo.mjs`, `lib/samePubIdentity.ts`, `__tests__/haversine.test.ts`.
 
 **Fully resolved:** yes. One master remains, and the callers compile through the shared cases.
+
+## 1691 Email provider configured check
+
+**Still true:** yes, for the delivery seam. `docs/EMAIL_DIGEST.md` says delivery is `lib/emailProvider.ts`, the no-op stays active until keys, and nothing is sent today. `resendEmailProvider.send` still throws (`lib/emailProvider.ts`). `.github/workflows/weekly-digest.yml` still comments out the Monday cron (`schedule:` is commented). What is no longer true: `scripts/send_weekly_digest.mjs` no longer defines its own `isEmailProviderConfigured`. That local function duplicated `isResendConfigured` because the script cannot import TypeScript. A search for `process.env.RESEND_API_KEY && process.env.EMAIL_FROM` finds the boolean only in `lib/emailProviderConfigured.mjs`.
+
+**Seam decision:** partial deepen. The module is `lib/emailProviderConfigured.mjs`, plain ESM, with the `lib/emailProviderConfigured.d.mts` sidecar (the `lib/brandMark.mjs` pattern). Depth is one boolean: both `RESEND_API_KEY` and `EMAIL_FROM` are non-empty. Two adapters sit on it:
+
+- `scripts/send_weekly_digest.mjs` imports `isEmailProviderConfigured` and gates the batch on it.
+- `lib/emailProvider.ts` `isResendConfigured` is the typed view. `selectEmailProvider` and `resendEmailProvider.send` call that view.
+
+The interface is that check. `__tests__/emailProvider.test.ts` calls `isEmailProviderConfigured` the way the script does: both keys absent, and both keys set. The same cases through `isResendConfigured` are the deletion test for a second copy of the boolean. HTTP stays unimplemented. The send method still throws. No mail is sent. The cron stays off.
+
+**Files changed:** `lib/emailProviderConfigured.mjs`, `lib/emailProviderConfigured.d.mts`, `lib/emailProvider.ts`, `scripts/send_weekly_digest.mjs`, `__tests__/emailProvider.test.ts`.
+
+**Fully resolved:** no. The HTTP transport stays a stub on purpose.
