@@ -1,256 +1,114 @@
-// The thread a person actually types into, fenced at the two places it broke.
-//
-// 1. THE COLLAPSED BUBBLE. The first live DM on production rendered an outgoing
-//    "Yo!!" as one character per line at 390px. The cause was one declaration:
-//    `max-width: 78%` sat on `.messageBubble`, whose containing block was a
-//    shrink-to-fit wrapper the bubble had just sized itself. So the percentage
-//    resolved against the bubble's OWN natural width, every bubble was clamped
-//    to 78% of itself, and `overflow-wrap: anywhere` broke mid-word to obey.
-//    Measured in Chrome at 390: the bubble was 42px wide over three lines.
-//
-//    The limit belongs on `.messageLine`, which has the row's real width to
-//    measure against, and `width: fit-content` is what keeps a short message
-//    natural: `fit-content` floors on the AVAILABLE width, where a flex item's
-//    automatic minimum floors on min-content - one character, under `anywhere`.
-//    There is no layout engine in this suite, so the arithmetic is fenced on the
-//    SHIPPED CSS and the markup that carries it; `e2e/messages-mobile.spec.ts`
-//    measures the rendered boxes at 390px and 1280px.
-//
-// 2. THE COMPOSER. A message is somebody talking, so the field helps them the
-//    way every other free-text message field does: sentence case, autocorrect
-//    on, spelling checked. The sweep below pins composer-adjacent prose fields;
-//    the recipient picker has a separate lowercase handle-search fence.
-//
-// 3. THE OVERSIZED PHOTO. Captain report from live mobile use. The tile was
-//    capped at `max-height: 15rem`, which is the READER'S FONT rather than the
-//    screen: measured in Chrome at 390x844, the same photograph rendered 240px
-//    tall at a 16px root, 300px at 20px and 360px - 43% of the screen - at
-//    24px. Past the point where the bubble's width bound the tile, the box's
-//    aspect stopped matching the picture's and `object-fit: cover` CUT the
-//    sender's framing (222x360 against a 4:5 photograph). And the reserved box
-//    was 87x109 against a 192x240 tile, so every photo reflowed the thread when
-//    its bytes landed.
-//
-//    The cap is now the viewport's and the bubble's, the aspect rides on the
-//    tile so nothing is ever cropped, and the figure takes a definite width so
-//    the placeholder and the photograph are one rectangle. Measured after, at
-//    390x844: 192x240 at 16px, 20px AND 24px root, aspect 0.8 exactly, zero
-//    jump; on a phone held sideways (844x390) the 40dvh limb binds at 124.8x156.
-//    `e2e/message-bubble-geometry.spec.ts` measures the rendered boxes.
+// @vitest-environment jsdom
 
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { createElement } from "react";
+import { act, createElement, type ReactElement, type ReactNode } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const state = vi.hoisted(() => ({
+  finePointer: false, mobile: false, request: vi.fn(), track: vi.fn(),
+  auth: { user: { id: "user-1" }, handle: "alice", accountRevision: 1 },
+}));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => state.auth,
+}));
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => ({ phase: "signed-in", signedIn: true, signedOut: false, unresolved: false }),
+}));
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
+    createElement("a", { href, ...props }, children),
+}));
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: (...args: unknown[]) => state.request(...args) }));
+vi.mock("@/lib/messagesRealtime", () => ({ subscribeToMessages: () => () => {}, subscribeToInbox: () => () => {} }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: (...args: unknown[]) => state.track(...args) }));
+
+import MessageThread from "@/components/messages/MessageThread";
+import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessageAttachmentPicker from "@/components/messages/MessageAttachmentPicker";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
-
 import {
   MESSAGE_ATTACHMENT_KINDS,
-  MESSAGE_ATTACH_CONTACT_LABEL,
-  MESSAGE_ATTACH_EVENT_LABEL,
-  MESSAGE_ATTACH_POLL_LABEL,
-  MESSAGE_ATTACH_VENUE_LABEL,
-  MESSAGE_PHOTO_ASPECT_PROPERTY,
-  MESSAGE_PHOTO_ASPECT_RATIO,
-  messagePhotoAspect,
+  MESSAGE_ATTACH_CONTACT_LABEL, MESSAGE_ATTACH_EVENT_LABEL, MESSAGE_ATTACH_POLL_LABEL, MESSAGE_ATTACH_VENUE_LABEL,
+  MESSAGE_PHOTO_ASPECT_PROPERTY, MESSAGE_PHOTO_ASPECT_RATIO, messagePhotoAspect,
 } from "@/lib/messageAttachments";
-import {
-  POLL_COMPOSE_LABEL,
-  POLL_UNREADABLE_LINE,
-  type MessagePollView,
-} from "@/lib/messagePoll";
+import { POLL_COMPOSE_LABEL, POLL_UNREADABLE_LINE, type MessagePollView } from "@/lib/messagePoll";
 import { MAX_MESSAGE_BODY } from "@/lib/messages";
 
-const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
+const BALLOT = [{ index: 0, label: "The Harp", votes: 0 }, { index: 1, label: "The Blackfriar", votes: 0 }] as const;
+const messages = ["alice", "bridget"].map((senderHandle, i) => ({
+  id: `message-${i}`, conversationId: "conversation-1", senderHandle, body: "Yo!!",
+  createdAt: "2026-10-01T18:00:00.000Z", read: false, flagged: false,
+}));
+let host: HTMLDivElement;
+let root: Root;
+let restoreDOM: Array<() => void>;
 
-/** A ballot that is readable: a question plus the two answers a poll needs. */
-const BALLOT = [
-  { index: 0, label: "The Harp", votes: 0 },
-  { index: 1, label: "The Blackfriar", votes: 0 },
-] as const;
-
-const CSS = read("app/messages/messages.css") + read("components/messages/messageVenuePicker.css");
-const THREAD = read("components/messages/MessageThread.tsx");
-const PICKER = read("components/messages/MessageAttachmentPicker.tsx");
-const PHOTO = read("components/messages/MessagePhoto.tsx");
-const RECIPIENT_DIALOG_PATH = join(
-  process.cwd(),
-  "components/messages/MessageRecipientDialog.tsx",
-);
-const RECIPIENT_DIALOG = existsSync(RECIPIENT_DIALOG_PATH)
-  ? readFileSync(RECIPIENT_DIALOG_PATH, "utf8")
-  : "";
-
-/** One rule body out of the shipped stylesheet, by selector. */
-function rule(selector: string): string {
-  const at = CSS.indexOf(`${selector} {`);
-  expect(at, `${selector} is missing from the messages stylesheets`).toBeGreaterThan(-1);
-  return CSS.slice(at, CSS.indexOf("}", at));
+function domMethod(target: object, name: string, value: unknown): void {
+  const original = Object.getOwnPropertyDescriptor(target, name);
+  Object.defineProperty(target, name, { configurable: true, writable: true, value });
+  restoreDOM.push(() => {
+    if (original) Object.defineProperty(target, name, original);
+    else Reflect.deleteProperty(target, name);
+  });
 }
 
-/**
- * The same, but read out of a `@media (max-width: 640px)` block - the shared
- * mobile breakpoint. Brace-matched, so a selector that only exists OUTSIDE the
- * block cannot satisfy a phone assertion.
- */
-function phoneRule(selector: string): string {
-  const marker = "@media (max-width: 640px)";
-  for (let from = CSS.indexOf(marker); from > -1; from = CSS.indexOf(marker, from + 1)) {
-    let depth = 0;
-    let end = from;
-    for (let at = CSS.indexOf("{", from); at < CSS.length && at > -1; at += 1) {
-      if (CSS[at] === "{") depth += 1;
-      if (CSS[at] === "}") {
-        depth -= 1;
-        if (depth === 0) {
-          end = at;
-          break;
-        }
-      }
-    }
-    const block = CSS.slice(from, end);
-    const at = block.indexOf(`${selector} {`);
-    if (at > -1) return block.slice(at, block.indexOf("}", at));
-  }
-  throw new Error(`${selector} is missing from every 640px block in app/messages/messages.css`);
+beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  restoreDOM = [];
+  domMethod(URL, "createObjectURL", vi.fn(() => "blob:private-photo"));
+  domMethod(URL, "revokeObjectURL", vi.fn());
+  domMethod(HTMLDialogElement.prototype, "showModal", function (this: HTMLDialogElement) { this.open = true; });
+  domMethod(HTMLDialogElement.prototype, "close", function (this: HTMLDialogElement) { this.open = false; });
+  state.finePointer = false;
+  state.mobile = false;
+  state.track.mockReset();
+  state.request.mockReset().mockImplementation((_url: string, init?: RequestInit) => {
+    if (init?.method === "POST") return Promise.resolve(Response.json({ message: {
+      ...messages[0], id: "sent-1", body: JSON.parse(String(init.body)).body,
+    } }));
+    return Promise.resolve(Response.json({ messages, conversations: [] }));
+  });
+  window.matchMedia = ((query: string) => ({
+    matches: query === "(pointer: fine)" ? state.finePointer : state.mobile,
+    media: query, onchange: null, addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  host.remove();
+  vi.restoreAllMocks();
+  restoreDOM.reverse().forEach((restore) => restore());
+});
+
+async function render(element: ReactElement): Promise<void> {
+  await act(async () => root.render(element));
 }
-
-describe("a bubble's width is the row's business, never the bubble's own", () => {
-  it("puts the width limit on the line, with the row to measure against", () => {
-    const line = rule(".messageLine");
-    expect(line).toMatch(/max-width:\s*75%/);
-    // Without this the line is a flex item whose automatic minimum size is
-    // min-content, which `overflow-wrap: anywhere` makes one character wide.
-    expect(line).toMatch(/width:\s*fit-content/);
-    expect(line).toMatch(/min-width:\s*0/);
+async function thread(): Promise<void> {
+  await render(createElement(MessageThread, { conversationId: "conversation-1" }));
+}
+function field(): HTMLTextAreaElement {
+  return host.querySelector('textarea[aria-label="Message"]')!;
+}
+function button(label: string): HTMLButtonElement {
+  const target = Array.from(host.querySelectorAll("button")).find((node) =>
+    (node.getAttribute("aria-label") ?? node.textContent ?? "").trim() === label);
+  expect(target, label).toBeDefined();
+  return target!;
+}
+async function typeInto(input: HTMLInputElement | HTMLTextAreaElement, value: string): Promise<void> {
+  const prototype = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   });
-
-  it("leaves the bubble no percentage width of its own", () => {
-    const bubble = rule(".messageBubble");
-    // THE DEFECT, exactly: a FRACTIONAL percentage max-width, resolved against
-    // a parent the bubble had just sized. Filling its own line is the only
-    // percentage a bubble may name.
-    const percentages = [...bubble.matchAll(/max-width:\s*(\d+(?:\.\d+)?)%/g)].map((hit) =>
-      Number(hit[1]),
-    );
-    expect(percentages).toEqual([100]);
-  });
-
-  it("still breaks a pasted link rather than pushing the page sideways", () => {
-    expect(rule(".messageBubble")).toMatch(/overflow-wrap:\s*anywhere/);
-  });
-
-  it("wraps every bubble in the line that carries the limit", () => {
-    expect(THREAD).toContain('<div className="messageLine">');
-    // One line per row, and the bubble is inside it.
-    const line = THREAD.indexOf('<div className="messageLine">');
-    const bubble = THREAD.indexOf("messageBubble messageBubbleMine");
-    expect(bubble).toBeGreaterThan(line);
-  });
-
-  it("keeps an own message's meta under the bubble it belongs to", () => {
-    // An outgoing message's meta is usually empty, which is why the collapse
-    // showed up on that side first: nothing else held the line open.
-    expect(rule(".messageRowMine .messageMeta")).toMatch(/justify-content:\s*flex-end/);
-  });
-});
-
-describe("the composer is a field somebody can talk into", () => {
-  it("leaves the phone keyboard's help switched ON", () => {
-    expect(THREAD).toContain('autoCapitalize="sentences"');
-    expect(THREAD).toContain('autoCorrect="on"');
-    expect(THREAD).toContain("spellCheck");
-  });
-
-  it("never turns autocorrect, autocapitalise or spellcheck off anywhere here", () => {
-    for (const file of [
-      "components/messages/MessageThread.tsx",
-      "components/messages/MessageVenuePicker.tsx",
-      "components/messages/MessagePhoto.tsx",
-      "components/messages/MessageVenueCard.tsx",
-      "components/messages/ProfileMessageButton.tsx",
-      "app/messages/MessagesInboxClient.tsx",
-    ]) {
-      const source = read(file);
-      expect(source, `${file} turns autocorrect off`).not.toMatch(/autoCorrect=["{]?["']?off/i);
-      expect(source, `${file} turns autocapitalise off`).not.toMatch(
-        /autoCapitalize=["{]?["']?(off|none)/i,
-      );
-      expect(source, `${file} turns spellcheck off`).not.toMatch(/spellCheck=\{false\}/);
-    }
-  });
-
-  it("keeps recipient handle search lowercase and out of autocorrect", () => {
-    const labelAt = RECIPIENT_DIALOG.indexOf('htmlFor={`${fieldId}-search`}');
-    const inputAt = RECIPIENT_DIALOG.indexOf('id={`${fieldId}-search`}', labelAt);
-    const inputEnd = RECIPIENT_DIALOG.indexOf("/>", inputAt);
-    expect(labelAt).toBeGreaterThan(-1);
-    expect(inputAt).toBeGreaterThan(labelAt);
-    expect(inputEnd).toBeGreaterThan(inputAt);
-    const search = RECIPIENT_DIALOG.slice(inputAt, inputEnd);
-    expect(search).toContain('autoCapitalize="none"');
-    expect(search).toContain('autoCorrect="off"');
-    expect(search).toContain("spellCheck={false}");
-  });
-
-  it("grows with what is typed and stops where the CSS says", () => {
-    expect(THREAD).toContain("rows={1}");
-    // Measured off scrollHeight, because a row count cannot know how a line
-    // wrapped.
-    expect(THREAD).toContain("field.style.height = `${field.scrollHeight}px`");
-    const input = rule(".composerInput");
-    expect(input).toMatch(/resize:\s*none/);
-    expect(input).toMatch(/max-height:\s*9rem/);
-    expect(input).toMatch(/min-height:\s*44px/);
-  });
-
-  it("sends on Enter only where there is a modifier to spare", () => {
-    expect(THREAD).toContain('window.matchMedia("(pointer: fine)")');
-    // Shift+Enter is a new line on every device.
-    expect(THREAD).toMatch(/if \(e\.key !== "Enter" \|\| e\.shiftKey\) return;/);
-    expect(THREAD).toContain("if (!enterSends) return;");
-    expect(THREAD).toContain('enterKeyHint={enterSends ? "send" : "enter"}');
-  });
-
-  it("refuses to send nothing, and counts what a person may actually send", () => {
-    expect(THREAD).toContain("disabled={!canSend}");
-    // A photo is a message: something to send is text, an attachment, or both.
-    expect(THREAD).toContain(
-      "const hasSomething = draft.trim().length > 0 || pending !== null;",
-    );
-    expect(THREAD).toContain("const canSend = hasSomething && !over && !sending;");
-  });
-
-  it("keeps the counter honest about the cap it is counting to", () => {
-    // The field admits a little more than the cap so the over-count can be SEEN
-    // and refused, rather than the browser silently swallowing the keystroke
-    // that went past it.
-    expect(THREAD).toContain("{draft.length}/{MAX_MESSAGE_BODY}");
-    expect(THREAD).toContain("maxLength={MAX_MESSAGE_BODY + 100}");
-    expect(THREAD).toContain("const over = draft.length > MAX_MESSAGE_BODY;");
-    expect(MAX_MESSAGE_BODY).toBe(1000);
-  });
-
-  it("gives every control a 44px box", () => {
-    for (const selector of [
-      ".composerSend",
-      ".composerAttach",
-      ".composerPendingRemove",
-      ".composerVenueSearch",
-      ".composerVenueResult",
-      ".messagePhotoViewerClose",
-    ]) {
-      expect(rule(selector), selector).toMatch(/min-height:\s*44px/);
-    }
-    for (const selector of [".composerSend", ".composerAttach", ".messagePhotoViewerClose"]) {
-      expect(rule(selector), selector).toMatch(/min-width:\s*44px/);
-    }
-  });
-});
+}
 
 describe("mobile message attachment picker", () => {
   it("renders labelled library, camera, and file targets with honest inputs", () => {
@@ -341,75 +199,8 @@ describe("mobile message attachment picker", () => {
     );
   });
 
-  it("keeps picker controls mobile-only and touch-safe", () => {
-    const mobileGate = CSS.slice(CSS.indexOf("@media (max-width: 640px)"));
-    expect(THREAD).toContain("MOBILE_MEDIA_QUERY");
-    expect(mobileGate).toMatch(/\.composerMobileAttach\s*\{[\s\S]*display:\s*inline-flex/);
-    expect(mobileGate).toMatch(/\.composerPhotoDesktop\s*\{[\s\S]*display:\s*none/);
-    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*min-width:\s*56px/);
-    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*min-height:\s*56px/);
-    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*touch-action:\s*manipulation/);
-    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*user-select:\s*none/);
-    expect(THREAD).toContain('trackEvent("message_attach_selected", { kind });');
-    expect(PICKER).toContain("onClick={close}");
-    expect(PICKER).toContain("onPointerDown={onDragStart}");
-    expect(PICKER).toContain("onPointerMove={onDragMove}");
-    expect(PICKER).toContain("onPointerUp={onDragEnd}");
-    expect(PICKER).toContain("SWIPE_DISMISS_PX");
-  });
 });
-
-describe("a photo tile is measured against the screen, never the reader's font", () => {
-  it("caps the tile in viewport units and absolute pixels, with no rem anywhere", () => {
-    const figure = rule(".messagePhotoFigure");
-    // THE DEFECT, exactly: a cap denominated in the root font size, which grew
-    // the same photograph from 240px to 360px as a reader raised their text.
-    expect(figure).toMatch(/--message-photo-max-height:\s*min\(40dvh,\s*240px\)/);
-    for (const selector of [".messagePhotoFigure", ".messagePhoto", ".messagePhotoPending"]) {
-      const body = rule(selector);
-      const heightCaps = [...body.matchAll(/max-height:\s*([^;]+);/g)].map((hit) => hit[1]);
-      for (const cap of heightCaps) {
-        expect(cap, `${selector} caps a photo in rem`).not.toMatch(/rem/);
-      }
-    }
-    // `dvh` rather than `vh`: on a phone the URL bar makes them different, and
-    // this cap only ever binds on the short viewport where that shows.
-    expect(figure).not.toMatch(/\d+vh/);
-  });
-
-  it("never crops the sender's framing", () => {
-    // `cover` fills the box by CUTTING the picture, and the box stopped matching
-    // the picture the moment the bubble's width bound the tile. A reader cannot
-    // tell that anything was removed, which is what makes it worse than a tile
-    // of the wrong size.
-    expect(rule(".messagePhoto")).toMatch(/object-fit:\s*contain/);
-    expect(rule(".messagePhoto")).not.toMatch(/object-fit:\s*cover/);
-    expect(rule(".messagePhoto")).toMatch(
-      new RegExp(`aspect-ratio:\\s*var\\(${MESSAGE_PHOTO_ASPECT_PROPERTY}`),
-    );
-  });
-
-  it("reserves the same rectangle the photograph will occupy", () => {
-    // The placeholder used to be a bare `<p>` with an `aspect-ratio` and no
-    // width to measure it against, inside a `fit-content` line: 87x109 reserved
-    // for a 192x240 tile.
-    const figure = rule(".messagePhotoFigure");
-    expect(figure).toMatch(
-      new RegExp(
-        `width:\\s*calc\\(var\\(--message-photo-max-height\\)\\s*\\*\\s*var\\(${MESSAGE_PHOTO_ASPECT_PROPERTY}`,
-      ),
-    );
-    expect(figure).toMatch(/max-width:\s*100%/);
-    const pending = rule(".messagePhotoPending");
-    expect(pending).toMatch(/width:\s*100%/);
-    expect(pending).toMatch(
-      new RegExp(`aspect-ratio:\\s*var\\(${MESSAGE_PHOTO_ASPECT_PROPERTY}`),
-    );
-    // Both states render the figure, or there is nothing for the width to sit on.
-    expect(PHOTO).toContain(`[MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height)`);
-    expect(PHOTO.match(/className="messagePhotoFigure" style=\{tile\}/g)).toHaveLength(2);
-  });
-
+describe("message photo dimensions", () => {
   it("falls back to the frame a message photo is cut to when a dimension is missing", () => {
     expect(messagePhotoAspect(1080, 1350)).toBeCloseTo(0.8, 10);
     expect(messagePhotoAspect(1080, 720)).toBeCloseTo(1.5, 10);
@@ -425,48 +216,176 @@ describe("a photo tile is measured against the screen, never the reader's font",
     }
   });
 
-  it("has no document attachment to render, so nothing may grow a preview for one", () => {
-    // A PHOTO is the only kind that reserves a box, because it is the only one
-    // whose height is somebody else's pixels. Every other kind is a compact
-    // row, so a card may not grow a height or an aspect of its own.
-    expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual([
-      "photo",
-      "venue",
-      "contact",
-      "event",
-      "poll",
-    ]);
-    for (const selector of [".messageVenueCard", ".messageContactCard", ".messageEventCard"]) {
-      const card = rule(selector);
-      expect(card).toMatch(/padding:\s*0\.5rem 0\.6rem/);
-      expect(card).not.toMatch(/(height|aspect-ratio):/);
+});
+describe("rendered conversation and composer", () => {
+  it("keeps own and incoming bubbles and metadata in their row's width wrapper", async () => {
+    await thread();
+    const rows = host.querySelectorAll(".messageRow");
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      const line = row.querySelector(".messageLine");
+      expect(line?.parentElement).toBe(row);
+      expect(line?.querySelector(".messageBubble")?.parentElement).toBe(line);
+      expect(line?.querySelector(".messageMeta")?.parentElement).toBe(line);
+      expect(line?.textContent).toContain("Yo!!");
     }
   });
-});
 
-describe("a phone crop and lightbox stay bounded, not full-screen", () => {
-  it("anchors the crop step in a bottom card over a dimmed thread", () => {
-    const overlay = rule(".messageCropOverlay");
-    expect(overlay).toMatch(/align-items:\s*flex-end/);
-    expect(overlay).not.toMatch(/align-items:\s*stretch/);
-    const card = rule(".messageCropCard");
-    expect(card).toMatch(/width:\s*min\(100%,\s*24rem\)/);
-    expect(card).toMatch(/max-height:\s*min\(70dvh/);
+  it("renders keyboard help for prose and grows to the measured scroll height", async () => {
+    await thread();
+    const input = field();
+    expect(input.getAttribute("autocapitalize")).toBe("sentences");
+    expect(input.getAttribute("autocorrect")).toBe("on");
+    expect(input.getAttribute("spellcheck")).toBe("true");
+    expect(input.rows).toBe(1);
+    Object.defineProperty(input, "scrollHeight", { configurable: true, value: 88 });
+    await typeInto(input, "A longer message");
+    expect(input.style.height).toBe("88px");
   });
 
-  it("keeps the lightbox dialog inside the viewport on phone", () => {
-    // The narrow caps belong to the phone alone: a desktop "view full" keeps
-    // the 60rem / 92dvh room it has always had, so the bound is read out of the
-    // 640px block rather than the base rule.
-    const viewer = phoneRule(".messagePhotoViewer");
-    expect(viewer).toMatch(/width:\s*min\(88vw,\s*36rem\)/);
-    expect(viewer).toMatch(/max-height:\s*min\(\s*72dvh/);
-    expect(viewer).not.toMatch(/width:\s*100vw/);
-    expect(viewer).not.toMatch(/height:\s*100vh/);
-    expect(rule(".messagePhotoViewerImage")).toMatch(/object-fit:\s*contain/);
+  it.each([false, true])("Enter respects pointer capability %s and Shift preserves newline", async (fine) => {
+    state.finePointer = fine;
+    await thread();
+    expect(field().getAttribute("enterkeyhint")).toBe(fine ? "send" : "enter");
+    await typeInto(field(), "See you there");
+    const posts = () => state.request.mock.calls.filter(([, init]) => init?.method === "POST");
+    await act(async () => field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true })));
+    expect(posts()).toHaveLength(0);
+    const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    await act(async () => field().dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(fine);
+    expect(posts()).toHaveLength(fine ? 1 : 0);
+    if (fine) expect(JSON.parse(String(posts()[0][1].body))).toMatchObject({ action: "send", handle: "alice", body: "See you there" });
+    else expect(field().value).toBe("See you there");
+  });
+
+  it("refuses whitespace and over-cap drafts while displaying actual count", async () => {
+    await thread();
+    expect(button("Send").disabled).toBe(true);
+    await typeInto(field(), "   ");
+    expect(button("Send").disabled).toBe(true);
+    expect(MAX_MESSAGE_BODY).toBe(1000);
+    expect(field().maxLength).toBe(MAX_MESSAGE_BODY + 100);
+    await typeInto(field(), "x".repeat(MAX_MESSAGE_BODY + 1));
+    expect(host.querySelector(".composerCount")?.textContent).toBe("1001/1000");
+    expect(button("Send").disabled).toBe(true);
+    await typeInto(field(), "x".repeat(MAX_MESSAGE_BODY));
+    expect(host.querySelector(".composerCount")?.textContent).toBe("1000/1000");
+    expect(button("Send").disabled).toBe(false);
+  });
+
+  it("sends attachment-only poll, records selection, and blocks duplicate send", async () => {
+    state.mobile = true;
+    await thread();
+    await act(async () => button("Add an attachment").click());
+    await act(async () => button(MESSAGE_ATTACH_POLL_LABEL).click());
+    expect(state.track).toHaveBeenCalledWith("message_attach_selected", { kind: "poll" });
+    const inputs = host.querySelectorAll<HTMLInputElement>(".composerPollComposer input");
+    expect(inputs).toHaveLength(3);
+    await typeInto(inputs[0], "Where first?");
+    await typeInto(inputs[1], "The Harp");
+    await typeInto(inputs[2], "The Blackfriar");
+    const attach = host.querySelector<HTMLButtonElement>(".composerPollComposer .composerVenueResult")!;
+    await act(async () => attach.click());
+    expect(field().value).toBe("");
+    expect(button("Send").disabled).toBe(false);
+    let release!: (response: Response) => void;
+    state.request.mockImplementation((_url: string, init?: RequestInit) => init?.method === "POST"
+      ? new Promise<Response>((resolve) => { release = resolve; })
+      : Promise.resolve(Response.json({ messages })));
+    const send = button("Send");
+    await act(async () => { send.click(); send.click(); });
+    const posts = state.request.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(posts).toHaveLength(1);
+    expect(JSON.parse(String(posts[0][1].body))).toMatchObject({ body: "", poll: { question: "Where first?", options: ["The Harp", "The Blackfriar"] } });
+    expect(button("Send").disabled).toBe(true);
+    await act(async () => release(Response.json({ message: { ...messages[0], id: "poll-sent", body: "" } })));
   });
 });
-// The desktop half of that bound is a RENDERED claim about a 1280px dialog, so
-// it is measured in e2e/message-bubble-geometry.spec.ts rather than read off the
-// stylesheet here: a clamp or a custom property would keep the pixels and fail a
-// regex, and a rule the cascade has killed would pass one.
+
+describe("attachment chooser interactions", () => {
+  it.each(["photos", "camera", "document"] as const)("opens %s input and closes chooser", async (kind) => {
+    const onOpenChange = vi.fn();
+    const onKindSelected = vi.fn();
+    const onFileChange = vi.fn();
+    await render(createElement(MessageAttachmentPicker, { open: true, disabled: false, onOpenChange, onKindSelected, onFileChange }));
+    const inputId = { photos: "message-photo-file", camera: "message-camera-file", document: "message-document-file" }[kind];
+    const input = host.querySelector<HTMLInputElement>(`#${inputId}`)!;
+    const click = vi.spyOn(input, "click").mockImplementation(() => {});
+    await act(async () => button({ photos: "Photos", camera: "Camera", document: "Document" }[kind]).click());
+    expect(onKindSelected).toHaveBeenCalledWith(kind);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(click).toHaveBeenCalledOnce();
+    await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(onFileChange).toHaveBeenCalledOnce();
+  });
+
+  it.each(["Dismiss attachment chooser", "Close attachment chooser"])("closes through %s", async (label) => {
+    const close = vi.fn();
+    await render(createElement(MessageAttachmentPicker, { open: true, disabled: false, onOpenChange: close, onKindSelected: vi.fn(), onFileChange: vi.fn() }));
+    await act(async () => button(label).click());
+    expect(close).toHaveBeenCalledWith(false);
+  });
+
+  it("dismisses downward swipe and keeps short drag open", async () => {
+    const close = vi.fn();
+    await render(createElement(MessageAttachmentPicker, { open: true, disabled: false, onOpenChange: close, onKindSelected: vi.fn(), onFileChange: vi.fn() }));
+    const header = host.querySelector("header")!;
+    const drag = async (distance: number) => {
+      for (const [type, y] of [["pointerdown", 100], ["pointermove", 100 + distance], ["pointerup", 100 + distance]] as const) {
+        await act(async () => header.dispatchEvent(new MouseEvent(type, { clientY: y, bubbles: true })));
+      }
+    };
+    await drag(40);
+    expect(close).not.toHaveBeenCalled();
+    await drag(100);
+    expect(close).toHaveBeenCalledWith(false);
+  });
+
+  it("exposes only supported attachment kinds", () => {
+    expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual(["photo", "venue", "contact", "event", "poll"]);
+  });
+});
+
+describe("private photo rendering", () => {
+  it("renders an unavailable photo without exposing its private address", async () => {
+    state.request.mockResolvedValue(new Response(null, { status: 403 }));
+    await render(createElement(MessagePhoto, { url: "/api/messages/private-photo", width: 1080, height: 1350, handle: "alice", senderHandle: "bridget" }));
+    expect(host.querySelector(".messagePhotoFailed")).not.toBeNull();
+    expect(host.querySelector("img")).toBeNull();
+    expect(host.textContent).not.toContain("/api/messages/private-photo");
+  });
+
+  it("preserves reserved aspect after authenticated bytes arrive and opens full-frame viewer", async () => {
+    let release!: (response: Response) => void;
+    state.request.mockImplementation(() => new Promise<Response>((resolve) => { release = resolve; }));
+    const createUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:private-photo");
+    const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const show = vi.spyOn(HTMLDialogElement.prototype, "showModal").mockImplementation(function (this: HTMLDialogElement) { this.open = true; });
+    vi.spyOn(HTMLDialogElement.prototype, "close").mockImplementation(function (this: HTMLDialogElement) { this.open = false; });
+    await render(createElement(MessagePhoto, { url: "/api/messages/photo", width: 1080, height: 1350, handle: "alice", senderHandle: "bridget" }));
+    const figure = host.querySelector<HTMLElement>("figure")!;
+    expect(figure.style.getPropertyValue(MESSAGE_PHOTO_ASPECT_PROPERTY)).toBe("0.8");
+    expect(figure.textContent).toContain("Loading photo");
+    expect(host.querySelector("img")).toBeNull();
+    expect(state.request).toHaveBeenCalledWith("/api/messages/photo?handle=alice", expect.objectContaining({ signal: expect.any(AbortSignal) }), { requiresIdentity: true });
+    await act(async () => release(new Response(new Blob(["private"]), { status: 200 })));
+    expect(createUrl).toHaveBeenCalledOnce();
+    expect(host.querySelector("figure")).toBe(figure);
+    expect(figure.style.getPropertyValue(MESSAGE_PHOTO_ASPECT_PROPERTY)).toBe("0.8");
+    expect(host.querySelector(".messagePhotoPending")).toBeNull();
+    expect(host.querySelector(".messagePhoto")?.getAttribute("src")).toBe("blob:private-photo");
+    await act(async () => host.querySelector<HTMLButtonElement>(".messagePhotoButton")!.click());
+    const dialog = host.querySelector("dialog")!;
+    expect(show).toHaveBeenCalledOnce();
+    expect(dialog.open).toBe(true);
+    expect(dialog.querySelector("img")?.getAttribute("src")).toBe("blob:private-photo");
+    await act(async () => dialog.click());
+    expect(dialog.open).toBe(false);
+    await act(async () => host.querySelector<HTMLButtonElement>(".messagePhotoButton")!.click());
+    await act(async () => button("Close").click());
+    expect(dialog.open).toBe(false);
+    await act(async () => root.render(null));
+    expect(revoke).toHaveBeenCalledWith("blob:private-photo");
+  });
+});
