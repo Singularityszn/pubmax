@@ -745,6 +745,22 @@ button.siteNavMoreItem {
     display: none;
   }
 
+  /* Signed-in compact account: avatar + "Account" fits the landing bar, but
+     beside bell/messages/theme in SiteNav the label bleeds ~12px past 320px
+     (scrollWidth 332). Match the 641–900 icon-only disc here; aria-label keeps
+     the name. */
+  .siteNavBar .authUserNav .authCompactLabel {
+    display: none;
+  }
+
+  .siteNavBar .authUserNav .authCompactTrigger {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+
   /* No hardware keyboard on phones — the bottom tab bar owns navigation, so the
      ⌘K hint would only add noise. Hide it (the shortcut and provider remain). */
   .siteNavCmdk {

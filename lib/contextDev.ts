@@ -477,10 +477,24 @@ export async function scrapeMarkdown(
   return guardedCall<ContextDevScrapeOk>(url, options, (client) =>
     attempt(
       () => contextDevTransport(client).get("/web/scrape/markdown", { query: scrapeQuery(url, options) }),
-      (body) =>
-        body.success === true && body.finalDOMState === "loaded" && typeof body.markdown === "string" && body.markdown.length > 0
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown }
-          : null,
+      (body) => {
+        const record = body as {
+          success?: boolean;
+          finalDOMState?: string;
+          markdown?: unknown;
+          url?: string;
+        };
+        return record.success === true
+          && record.finalDOMState === "loaded"
+          && typeof record.markdown === "string"
+          && record.markdown.length > 0
+          ? {
+              status: "ok" as const,
+              url: typeof record.url === "string" && record.url ? record.url : url,
+              markdown: record.markdown,
+            }
+          : null;
+      },
       "Scrape returned no markdown.",
     ),
   );
@@ -494,10 +508,24 @@ export async function scrapeHtml(
   return guardedCall<ContextDevHtmlOk>(url, options, (client) =>
     attempt(
       () => contextDevTransport(client).get("/web/scrape/html", { query: scrapeQuery(url, options) }),
-      (body) =>
-        body.success === true && body.finalDOMState === "loaded" && typeof body.html === "string" && body.html.length > 0
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html }
-          : null,
+      (body) => {
+        const record = body as {
+          success?: boolean;
+          finalDOMState?: string;
+          html?: unknown;
+          url?: string;
+        };
+        return record.success === true
+          && record.finalDOMState === "loaded"
+          && typeof record.html === "string"
+          && record.html.length > 0
+          ? {
+              status: "ok" as const,
+              url: typeof record.url === "string" && record.url ? record.url : url,
+              html: record.html,
+            }
+          : null;
+      },
       "Scrape returned no html.",
     ),
   );

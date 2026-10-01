@@ -1,4 +1,4 @@
-export const CONTEXT_DEV_EXTRACT_DEFAULT_URL = "https://www.fullers.co.uk/event-finder";
+const CONTEXT_DEV_EXTRACT_DEFAULT_URL = "https://www.fullers.co.uk/event-finder";
 
 export function contextDevExtractEnvelope(
   data: Record<string, unknown>,
