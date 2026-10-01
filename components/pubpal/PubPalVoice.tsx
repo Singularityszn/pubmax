@@ -25,16 +25,11 @@ const PubPalVoiceSession = dynamic(
   },
 );
 
-// Voice is switched on per deployment by the captain's ElevenLabs keys (see
-// docs/PUB_PAL_SETUP.md). Until they are set, the Pal SAYS so in its own voice
-// and points at the writing door - a Start button that answers 503 on the tap
-// reads as a broken feature rather than one nobody has turned on. Availability
-// is TRI-STATE: while the answer is still coming the control renders neither
-// claim, because "voice is off" is a statement we must have checked.
+// Typed Pal chat shares voice's provider. Map Ask works without that provider.
 export type PalVoiceAvailability = "asking" | "available" | "unavailable";
 
 export const PAL_VOICE_UNAVAILABLE_LINE =
-  "Voice is not switched on here yet. Ask me in writing and you get the same grounded answers.";
+  "Voice is unavailable here. Use Ask on the map to find pubs and plan a night.";
 const PAL_VOICE_MUTED_LINE =
   "Voice is muted. Ask me in writing or turn voice back on when you want it.";
 
@@ -58,7 +53,7 @@ export function palVoiceAvailabilityFrom(
   return available === true ? "available" : "unavailable";
 }
 
-/** The voice-off card: one honest line and the door that does work. */
+/** A provider-free way onward when voice is unavailable. */
 export function PalVoiceOffline() {
   return (
     <div className="palVoice palVoice--offline">
@@ -66,8 +61,8 @@ export function PalVoiceOffline() {
         {PAL_VOICE_UNAVAILABLE_LINE}
       </div>
       <div className="palVoiceActions">
-        <Link className="palVoiceWriteLink" href="/pal/chat">
-          <Send size={17} aria-hidden="true" /> Ask in writing
+        <Link className="palVoiceWriteLink" href="/map">
+          <Send size={17} aria-hidden="true" /> Ask on the map
         </Link>
       </div>
     </div>

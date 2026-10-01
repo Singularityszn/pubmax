@@ -81,7 +81,7 @@ async function mountAvailable(): Promise<void> {
     root?.render(createElement(PubPalVoice));
   });
   await settle();
-  await vi.dynamicImportSettled();
+  await act(async () => vi.dynamicImportSettled());
   await settle();
   expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
 }
@@ -141,15 +141,41 @@ describe("Pub Pal voice controls", () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "A quiet pub in Soho");
       input?.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(sendButton?.disabled).toBe(true);
-
     await act(async () => {
       sendButton?.click();
       input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
 
-    expect(voice.sendUserMessage).not.toHaveBeenCalled();
     expect(input?.value).toBe("A quiet pub in Soho");
+    expect(voice.sendUserMessage).not.toHaveBeenCalled();
+    expect(sendButton?.disabled).toBe(true);
+  });
+
+  it("keeps a connected message draft after a send error and sends it on retry", async () => {
+    await mountAvailable();
+    voice.status = "connected";
+    await act(async () => root?.render(createElement(PubPalVoice)));
+    const input = container.querySelector<HTMLInputElement>("input");
+    const sendButton = container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]');
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "  A quiet pub in Soho  ");
+      input?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(sendButton?.disabled).toBe(false);
+    voice.sendUserMessage.mockImplementationOnce(() => { throw new Error("Socket disconnected"); });
+
+    await act(async () => sendButton?.click());
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe("Could not send that message. Try again.");
+    expect(input?.value).toBe("  A quiet pub in Soho  ");
+    expect(sendButton?.disabled).toBe(false);
+
+    await act(async () => sendButton?.click());
+
+    expect(voice.sendUserMessage.mock.calls).toEqual([["A quiet pub in Soho"], ["A quiet pub in Soho"]]);
+    expect(input?.value).toBe("");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 
   it("does not probe or offer voice while the Pal is muted", async () => {

@@ -51,7 +51,7 @@ import ProfilePageClient from "@/app/u/[handle]/ProfilePageClient";
 
 const WANTED_LEDE =
   "Paste a pub name or a link you saved elsewhere. It becomes a place you can plan around.";
-const PAL_TITLE = "A little signal that becomes yours.";
+const PAL_TITLE = "Choose your Pub Pal.";
 
 function settledParams<T>(value: T): Promise<T> {
   return Object.assign(Promise.resolve(value), { status: "fulfilled", value });
@@ -97,7 +97,7 @@ describe("hydration-gated static copy is in the server HTML", () => {
     expect(html).toContain('id="pal-meeting-title"');
     expect(html).toContain(PAL_TITLE);
     expect(html).toContain("Your Pub Pal");
-    expect(html).toContain("Choose its form, voice and boundaries.");
+    expect(html).toContain("Pick its look and voice.");
     expect(html).not.toContain("Waking your Pub Pal");
   });
 });
