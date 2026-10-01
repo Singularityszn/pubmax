@@ -486,7 +486,7 @@ export async function scrapeHtml(
     attempt(
       () => client.web.webScrapeHTML(scrapeQuery(url, options)),
       (body) =>
-        body.success === true && typeof body.html === "string"
+        body.success === true && typeof body.html === "string" && body.html.length > 0
           ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html }
           : null,
       "Scrape returned no html.",
@@ -598,6 +598,7 @@ export async function extract<T extends Record<string, unknown> = Record<string,
         client.web.extract({
           url,
           schema,
+          maxAgeMs: 0,
           ...(instructions === undefined ? {} : { instructions }),
         }),
       (body) =>

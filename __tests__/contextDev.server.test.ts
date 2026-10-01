@@ -376,6 +376,7 @@ describe("extract", () => {
       url: "https://www.fullers.co.uk/events",
       schema: { type: "object" },
       instructions: "Use only page evidence.",
+      maxAgeMs: 0,
     });
   });
 

@@ -19,6 +19,23 @@ import { isValidWhatsOnRow } from "@/lib/whatsOn";
 const fullers = contextDevEventSources().find((source) => source.id === "fullers-event-finder-events");
 const observedAt = "2026-08-16T09:00:00.000Z";
 
+function contextDevExtractEnvelope(
+  data: Record<string, unknown>,
+  options: { url?: string; partial?: boolean } = {},
+) {
+  const url = options.url ?? fullers?.url ?? "https://www.fullers.co.uk/event-finder";
+  return {
+    status: "ok",
+    url,
+    data,
+    urls_analyzed: [url],
+    request_id: "test",
+    cache_metadata: { age_ms: 0, status: "miss" },
+    metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
+    ...(options.partial ? { partial: true } : {}),
+  };
+}
+
 describe("contextDevEventSources register gate", () => {
   it("lists allowed FIRST-PARTY venue-events pages only", () => {
     const sources = contextDevEventSources();
@@ -126,13 +143,12 @@ describe("normaliseContextDevEventRow", () => {
 });
 
 describe("runContextDevEventsLane", () => {
-  async function capturedEvent(markdown: string, event: Record<string, string> | Record<string, string>[]) {
+  async function capturedEvent(_markdown: string, event: Record<string, string> | Record<string, string>[]) {
     if (!fullers) throw new Error("missing fullers register entry");
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
-      markdown: { requested: true, success: true, data: markdown },
-      json: { requested: true, success: true, data: { events: Array.isArray(event) ? event : [event] } },
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const events = Array.isArray(event) ? event : [event];
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(
+      contextDevExtractEnvelope({ events }),
+    ), { status: 200, headers: { "content-type": "application/json" } }));
     return runContextDevEventsLane({
       observedAt,
       env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
@@ -458,16 +474,14 @@ describe("runContextDevEventsLane", () => {
 
   it("refuses a shape-valid event whose facts are absent from scraped page text", async () => {
     if (!fullers) throw new Error("missing fullers register entry");
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
-      markdown: { requested: true, success: true, data: "# Events\n\nThe Dove hosts Open mic on 18 August 2026." },
-      json: { requested: true, success: true, data: { events: [{
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(
+      contextDevExtractEnvelope({ events: [{
         title: "Invented quiz",
         placeName: "The Dove",
         kind: "event",
         startsDate: "2026-08-18",
-      }] } },
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+      }] }),
+    ), { status: 200, headers: { "content-type": "application/json" } }));
 
     const result = await runContextDevEventsLane({
       observedAt,
@@ -483,14 +497,12 @@ describe("runContextDevEventsLane", () => {
 
   it("accepts a stated event and strips unstated price and publisher id", async () => {
     if (!fullers) throw new Error("missing fullers register entry");
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
-      markdown: { requested: true, success: true, data: "# Events\n\nOpen mic at The Dove on 18 August 2026 at 20:00." },
-      json: { requested: true, success: true, data: { events: [{
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(
+      contextDevExtractEnvelope({ events: [{
         title: "Open mic", placeName: "The Dove", kind: "music",
         startsAt: "2026-08-18T19:00:00Z", priceText: "£40", sourceId: "fake-42",
-      }] } },
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+      }] }),
+    ), { status: 200, headers: { "content-type": "application/json" } }));
 
     const result = await runContextDevEventsLane({
       observedAt,
@@ -508,14 +520,11 @@ describe("runContextDevEventsLane", () => {
 
   it("does not combine a title from one listing with another listing's venue and date", async () => {
     if (!fullers) throw new Error("missing fullers register entry");
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
-      markdown: { requested: true, success: true, data:
-        "# Events\n\nOpen mic at The Swan on 19 August 2026.\n\nQuiz at The Dove on 18 August 2026." },
-      json: { requested: true, success: true, data: { events: [{
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(
+      contextDevExtractEnvelope({ events: [{
         title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-18",
-      }] } },
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+      }] }),
+    ), { status: 200, headers: { "content-type": "application/json" } }));
 
     const result = await runContextDevEventsLane({
       observedAt,
@@ -531,23 +540,17 @@ describe("runContextDevEventsLane", () => {
 
   it("sends optional fields and refuses off-host JSON attribution through the installed SDK", async () => {
     const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
-      new Response(JSON.stringify({
-        url: fullers?.url,
-        json: {
-          requested: true,
-          success: true,
-          data: {
-            events: [{
-              title: "Invented quiz",
-              placeName: "The Dove",
-              kind: "event",
-              sourceUrl: "https://example.com/event/quiz",
-              startsDate: "2026-08-18",
-            }],
-          },
-        },
-        markdown: { requested: true, success: true, data: "# Events\nInvented quiz at The Dove on 18 August 2026." },
-      }), { status: 200, headers: { "content-type": "application/json" } }),
+      new Response(JSON.stringify(
+        contextDevExtractEnvelope({
+          events: [{
+            title: "Invented quiz",
+            placeName: "The Dove",
+            kind: "event",
+            sourceUrl: "https://example.com/event/quiz",
+            startsDate: "2026-08-18",
+          }],
+        }),
+      ), { status: 200, headers: { "content-type": "application/json" } }),
     );
 
     const result = await runContextDevEventsLane({
@@ -568,19 +571,16 @@ describe("runContextDevEventsLane", () => {
 
   it("refuses a scrape redirected off the registered publisher host", async () => {
     const fetchImpl = vi.fn(async () =>
-      new Response(JSON.stringify({
-        url: "https://example.com/unrelated",
-        json: {
-          requested: true,
-          success: true,
-          data: { events: [{
+      new Response(JSON.stringify(
+        contextDevExtractEnvelope({
+          events: [{
             title: "Quiz",
             placeName: "The Dove",
             kind: "event",
             startsDate: "2026-08-18",
-          }] },
-        },
-      }), { status: 200, headers: { "content-type": "application/json" } }),
+          }],
+        }, { url: "https://example.com/unrelated" }),
+      ), { status: 200, headers: { "content-type": "application/json" } }),
     );
 
     const result = await runContextDevEventsLane({
