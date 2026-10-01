@@ -126,9 +126,16 @@ export default function MessagesInboxClient({
   const [retrying, setRetrying] = useState(false);
   const retryingRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
+  const requestGenerationRef = useRef(0);
+  const liveRef = useRef(false);
   useLayoutEffect(() => {
     accountRevisionRef.current = accountRevision;
-  }, [accountRevision]);
+    liveRef.current = !paneHidden;
+    return () => {
+      liveRef.current = false;
+      requestGenerationRef.current += 1;
+    };
+  }, [accountRevision, user, authHandle, paneHidden]);
 
   useEffect(() => {
     let active = true;
@@ -145,8 +152,13 @@ export default function MessagesInboxClient({
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
       const requestRevision = accountRevision;
-      if (requestRevision !== accountRevisionRef.current) return;
-      const stillCurrent = () => requestRevision === accountRevisionRef.current;
+      if (!liveRef.current || signal?.aborted || requestRevision !== accountRevisionRef.current) return;
+      const generation = ++requestGenerationRef.current;
+      const stillCurrent = () =>
+        liveRef.current &&
+        !signal?.aborted &&
+        generation === requestGenerationRef.current &&
+        requestRevision === accountRevisionRef.current;
       if (!user) {
         if (!stillCurrent()) return;
         setConversations([]);
