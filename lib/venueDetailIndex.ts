@@ -256,13 +256,17 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   return fallbackIndex;
 }
 
-export async function lookupVenueDetail(requestedId: string): Promise<VenueDetailLookupResult> {
+export async function lookupVenueDetail(
+  requestedId: string,
+  options: { includeHarvestOverlay?: boolean } = {},
+): Promise<VenueDetailLookupResult> {
   if (!isVenueDetailId(requestedId)) return { status: "missing" };
   const aliasResult = await lookupCanonicalVenueId(requestedId);
   if (aliasResult.status === "unavailable") return aliasResult;
   const id = aliasResult.venueId;
   const cached = cachedDetails.get(id);
   if (cached) {
+    if (options.includeHarvestOverlay === false) return { status: "found", venue: cached.venue };
     try {
       let overlayVenueIds = cached.overlayVenueIds;
       if (!overlayVenueIds) {
@@ -311,6 +315,12 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
+    // These pages show neither website nor menu links. Keep the enriched base
+    // in cache so a later full read can still resolve and fold its overlay.
+    if (options.includeHarvestOverlay === false) {
+      cachedDetails.set(id, { venue: enriched });
+      return { status: "found", venue: enriched };
+    }
     let overlayVenueIds: string[] | undefined;
     try {
       const osmLookup = await lookupCanonicalVenueWithOsm(id);
