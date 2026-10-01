@@ -94,6 +94,7 @@ process.exit(fixture.exitCode);
     encoding: "utf8",
     timeout: 20_000,
     env: {
+      NODE_ENV: "test",
       PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
       PUBMAX_AUDIT_FIXTURE_ROOT: workspace,
       PUBMAX_AUDIT_FIXTURE_RECEIPTS: receiptsPath,
