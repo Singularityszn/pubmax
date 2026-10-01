@@ -1,4 +1,5 @@
 .mapKey {
+  --map-key-unknown-paint: color-mix(in srgb, var(--muted) 84%, transparent);
   display: grid;
   gap: 12px;
   color: var(--ink);
@@ -64,7 +65,7 @@
 }
 
 .mapKeyPriceSwatch--grey {
-  background: color-mix(in srgb, var(--muted) 84%, transparent);
+  background: var(--map-key-unknown-paint);
 }
 
 .mapKeyPriceCode {
@@ -98,6 +99,12 @@
   color: var(--ink);
   font-size: 0.64rem;
   font-weight: 850;
+}
+
+.mapKeyClusterSample--grey {
+  border-color: var(--map-key-unknown-paint);
+  background: var(--panel-raised);
+  background-clip: padding-box;
 }
 
 .mapKeyDetails {
@@ -309,8 +316,8 @@
   opacity: 0.38;
 }
 
-html[data-theme="dark"] .mapKeyPriceSwatch--grey {
-  background: color-mix(in srgb, var(--muted) 78%, transparent);
+html[data-theme="dark"] .mapKey {
+  --map-key-unknown-paint: color-mix(in srgb, var(--muted) 78%, transparent);
 }
 
 .mapKeyMarker--crawl-stop {

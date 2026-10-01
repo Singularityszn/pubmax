@@ -70,12 +70,11 @@ export function orderedRouteStops<T extends { position: number }>(stops: Readonl
 type GeneratedStop = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence; alternatives?: ReadonlyArray<RouteAlternative> };
 
 /**
- * Seed the editor: the STORED stops, in stored order, each carrying the
- * backups a fresh generation offered. The generated route itself is never the
- * draft. Its stops and their alternatives are a pool of swap candidates: a
- * stop takes the candidates generated for its own position first, then the
- * rest of the pool, never a venue already in the stored route, never the same
- * venue twice.
+ * Seed the editor from the STORED stops in stored order. The generated route
+ * itself is never the draft; its stops and alternatives supply fresh swaps.
+ * Each stop takes fresh candidates for its own position first, then the rest
+ * of the fresh pool, then retained stored backups as fallback. Exclude venues
+ * already in the stored route and deduplicate by venue, keeping the first offer.
  */
 export function seedRouteDraft(
   canonical: ReadonlyArray<EditableStop>,
@@ -93,7 +92,7 @@ export function seedRouteDraft(
   return stored.map((stop, index) => {
     const seen = new Set<string>();
     const alternatives: RouteAlternative[] = [];
-    for (const candidate of [...(stop.alternatives ?? []), ...candidatesAt(index), ...pool]) {
+    for (const candidate of [...candidatesAt(index), ...pool, ...(stop.alternatives ?? [])]) {
       if (!candidate.venueId || !candidate.venueName) continue;
       if (inRoute.has(candidate.venueId) || seen.has(candidate.venueId)) continue;
       seen.add(candidate.venueId);

@@ -107,6 +107,60 @@ describe("seedRouteDraft", () => {
     }
   });
 
+  it("prefers fresh position and pool candidates before saved backups on a second edit", () => {
+    const freshElephantPrice = {
+      category: "gin" as const, pence: 480, serving: "25ml", source: "listed" as const,
+      sourceUrl: "https://pub.example/elephant-menu", observedAt: "2026-10-01T12:00:00.000Z",
+    };
+    const oldElephantPrice = {
+      ...freshElephantPrice, pence: 530, observedAt: "2026-09-01T12:00:00.000Z",
+    };
+    const bohemiaPrice = { ...freshElephantPrice, pence: 640, sourceUrl: "https://pub.example/bohemia-menu" };
+    const hazine = { venueId: "v-hazine", venueName: "Hazine" };
+    const canonical: EditableStop[] = [
+      { venueId: "v-arnos", venueName: "Arnos Arms", position: 0 },
+      {
+        venueId: "v-bohemia", venueName: "Bohemia", position: 1,
+        selectedDrinkPriceEvidence: bohemiaPrice,
+        alternatives: [
+          hazine,
+          { venueId: "v-elephant", venueName: "The Elephant Inn", selectedDrinkPriceEvidence: oldElephantPrice },
+          { venueId: "v-arnos", venueName: "Arnos Arms" },
+        ],
+      },
+      { venueId: "v-george", venueName: "George", position: 2 },
+    ];
+    const fresh = [
+      {
+        venueId: "v-arnos", venueName: "Arnos Arms",
+        alternatives: [
+          { venueId: "v-plough", venueName: "The Plough" },
+          { venueId: "v-george", venueName: "George" },
+        ],
+      },
+      { venueId: "v-elephant", venueName: "The Elephant Inn", selectedDrinkPriceEvidence: freshElephantPrice },
+      { venueId: "v-george", venueName: "George" },
+    ];
+    const canonicalBefore = JSON.stringify(canonical);
+    const freshBefore = JSON.stringify(fresh);
+
+    const draft = seedRouteDraft(canonical, fresh);
+
+    expect(draft.map((stop) => [stop.venueId, stop.venueName, stop.position])).toEqual([
+      ["v-arnos", "Arnos Arms", 0],
+      ["v-bohemia", "Bohemia", 1],
+      ["v-george", "George", 2],
+    ]);
+    expect(draft[1].alternatives).toEqual([
+      { venueId: "v-elephant", venueName: "The Elephant Inn", selectedDrinkPriceEvidence: freshElephantPrice },
+      { venueId: "v-plough", venueName: "The Plough" },
+      hazine,
+    ]);
+    expect(draft[1].selectedDrinkPriceEvidence).toEqual(bohemiaPrice);
+    expect(JSON.stringify(canonical)).toBe(canonicalBefore);
+    expect(JSON.stringify(fresh)).toBe(freshBefore);
+  });
+
   it("leaves a stop with no backups when the generator offered nothing new", () => {
     const draft = seedRouteDraft(stored, [
       { venueId: "v-beehive", venueName: "Beehive" },

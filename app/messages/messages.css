@@ -119,6 +119,12 @@ html[data-theme="dark"] .messagesPage {
   margin: 0;
 }
 
+.messagesScreen .screenPrimary > a {
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: var(--space-3);
+}
+
 .messagesScreen .screenPrimary > button {
   min-width: 44px;
   width: 44px;

@@ -71,7 +71,31 @@ test("a suggestion chip generates a real priced route end to end, keyless", asyn
     page.getByText("3 stops we can stand behind, shaped by the outing you set below."),
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("This route needs a refresh")).toHaveCount(0);
+
+  const stops = page.locator(".planComposer__stop");
+  await expect(stops).toHaveCount(3);
+  const venueNames: string[] = [];
+  for (const stop of await stops.all()) {
+    const venue = stop.getByLabel("Venue name", { exact: true });
+    await expect(venue).toHaveValue(/\S/);
+    const venueName = (await venue.inputValue()).trim();
+    expect(venueName).not.toMatch(/^venue-[a-z0-9]+$/);
+    venueNames.push(venueName);
+    const reason = stop.locator(".planComposer__stopReason").filter({ hasText: /pints from £\d+\.\d{2}/ });
+    await expect(reason).toHaveCount(1);
+    const price = (await reason.innerText()).match(/pints from £(\d+\.\d{2})/);
+    expect(Number(price?.[1])).toBeGreaterThan(0);
+  }
+  expect(new Set(venueNames).size).toBe(3);
+
+  const name = page.getByLabel("Your name", { exact: true });
+  const lock = page.getByRole("button", { name: "Lock it in", exact: true });
+  await name.fill("");
+  await expect(page.locator(".planComposer__error[role='alert']")).toHaveText("Add your name.");
+  await expect(lock).toBeDisabled();
+  await name.fill("Route host");
   await expect(page.locator(".planComposer__error")).toHaveCount(0);
+  await expect(lock).toBeEnabled();
 });
 
 test("reloading a recovered draft does not extend its near expiry", async ({ page }) => {

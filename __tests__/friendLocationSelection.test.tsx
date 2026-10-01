@@ -27,8 +27,53 @@ beforeEach(() => {
   fixture.state.status = "ready";
   fixture.state.message = "Choose who can see you.";
   fixture.client.start.mockReset();
+  fixture.client.stop.mockReset();
   host = document.createElement("div"); document.body.appendChild(host);
   root = createRoot(host);
+});
+
+it("stages inactive Friends until the first-visit answer without removing the component", async () => {
+  const pending = { map: null, arrivalPending: true };
+  await act(async () => { root.render(createElement(FriendLocationControl, pending)); });
+  expect(host.querySelector("button")).toBeNull();
+  await act(async () => { root.render(createElement(FriendLocationControl, { ...pending, arrivalPending: false })); });
+  expect(host.querySelector("button")?.getAttribute("aria-label")).toBe("Friend locations");
+});
+
+it("keeps an existing share and its Stop action reachable during the first-visit ask", async () => {
+  fixture.state.own = {
+    sessionId: "10000000-0000-4000-8000-000000000002", revision: 1,
+    expiresAt: "2026-10-02T01:00:00.000Z", recipients: ["bob"], accuracy: 110,
+  };
+  fixture.state.status = "paused";
+  const pending = { map: null, arrivalPending: true };
+  await act(async () => { root.render(createElement(FriendLocationControl, pending)); });
+  await act(async () => { host.querySelector<HTMLButtonElement>("button")!.click(); });
+  const stop = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Stop sharing")!;
+  expect(stop.disabled).toBe(false);
+  await act(async () => { stop.click(); });
+  expect(fixture.client.stop).toHaveBeenCalledTimes(1);
+});
+
+it("keeps an uncertain sharing start reachable without enabling another start", async () => {
+  fixture.state.status = "start-unconfirmed";
+  fixture.state.message = "Sharing start is unconfirmed. Updates are stopped here.";
+  const pending = { map: null, arrivalPending: true };
+  await act(async () => { root.render(createElement(FriendLocationControl, pending)); });
+  await act(async () => { host.querySelector<HTMLButtonElement>("button")!.click(); });
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("unconfirmed");
+  const share = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Share my location")!;
+  expect(share.disabled).toBe(true);
+  expect(fixture.client.start).not.toHaveBeenCalled();
+});
+
+it("keeps an open Friends panel when the first-visit ask becomes pending", async () => {
+  await act(async () => { root.render(createElement(FriendLocationControl, { map: null })); });
+  await act(async () => { host.querySelector<HTMLButtonElement>("button")!.click(); });
+  const pending = { map: null, arrivalPending: true };
+  await act(async () => { root.render(createElement(FriendLocationControl, pending)); });
+  expect(host.querySelector("section")?.getAttribute("aria-label")).toBe("Friend locations");
+  expect(host.querySelector("button")?.getAttribute("aria-expanded")).toBe("true");
 });
 
 it("claims Escape from the focused trigger and closes the anchored panel", async () => {

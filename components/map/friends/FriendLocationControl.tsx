@@ -11,7 +11,7 @@ import { useFriendLocations } from "./useFriendLocations";
 import { useFriendLocationMarkers } from "./useFriendLocationMarkers";
 import "./friendLocations.css";
 
-export default function FriendLocationControl({ map }: { map: MapLibreMap | null }) {
+export default function FriendLocationControl({ map, arrivalPending = false }: { map: MapLibreMap | null; arrivalPending?: boolean }) {
   const { state, client, signedIn, accountKey } = useFriendLocations();
   useFriendLocationMarkers(map, signedIn ? state.friends : []);
   const [open, setOpen] = useState(false);
@@ -32,6 +32,7 @@ export default function FriendLocationControl({ map }: { map: MapLibreMap | null
   }, [open]);
   const sharingLabel = state.status === "revoking" ? "Stopping" : state.status === "revoke-error" ? "Stop unconfirmed" : "Sharing";
   const working = ["starting", "start-unconfirmed", "revoking"].includes(state.status);
+  if (arrivalPending && !state.own && !open && !working && state.status !== "revoke-error") return null;
   return <div ref={control} className={`friendLocationControl ph-no-capture${open ? " isOpen" : ""}`}>
     <Button ref={trigger} variant="secondary" aria-label={state.own ? `Friend locations. ${sharingLabel}.` : "Friend locations"} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}><Users size={16} aria-hidden="true" />Friends{state.own && <span className="friendLocationSharingBadge">{sharingLabel}</span>}</Button>
     {open && <section id={id} className="friendLocationPanel" aria-label="Friend locations">

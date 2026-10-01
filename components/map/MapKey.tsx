@@ -68,6 +68,8 @@ export default function MapKey({
 }: {
   legend: MapPriceLegendModel;
 }) {
+  const greyOnlyClusters = legend.rows.every((row) => row.tone === "grey");
+
   return (
     <div className="mapKey" aria-label="Map key">
       <section className="mapKeySection" aria-labelledby="mapKeyPriceHeading">
@@ -102,7 +104,10 @@ export default function MapKey({
         <section className="mapKeySection" aria-labelledby="mapKeyClusterHeading">
           <h3 id="mapKeyClusterHeading">Clusters</h3>
           <div className="mapKeyClusterRow">
-            <span className="mapKeyClusterSample" aria-hidden="true">
+            <span
+              className={`mapKeyClusterSample${greyOnlyClusters ? " mapKeyClusterSample--grey" : ""}`}
+              aria-hidden="true"
+            >
               #
             </span>
             <p>{legend.clusterNote}</p>

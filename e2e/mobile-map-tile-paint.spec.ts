@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import sharp from "sharp";
 
 const VIEWPORT = { width: 390, height: 844 };
@@ -148,13 +149,15 @@ test.describe("mobile map tile paint", () => {
   test("390px bottom map controls do not overlap and stay visible", async ({ page }) => {
     test.setTimeout(120_000);
     await seedMap(page);
-    await page.addInitScript(() => {
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await page.addInitScript((ownerId) => {
       const now = "2026-01-01T00:00:00.000Z";
       window.localStorage.setItem(
         "pubmax_pub_pal_v1",
         JSON.stringify({
           id: "pal-e2e",
-          ownerId: "owner-e2e",
+          ownerId,
           name: "Ada",
           adultAttestedAt: now,
           appearance: {},
@@ -168,7 +171,7 @@ test.describe("mobile map tile paint", () => {
           updatedAt: now,
         }),
       );
-    });
+    }, ACCOUNTS.A.id);
 
     await page.goto("/map");
     await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });

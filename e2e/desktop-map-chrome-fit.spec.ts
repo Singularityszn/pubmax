@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { SHEET_ENTRANCE_OVERSHOOT_DAMPING } from "../lib/sheetSnap";
+
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
 
 const DESKTOP = { width: 1440, height: 900 };
@@ -407,7 +409,16 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     ]);
     expect(plannerMid.x).toBeLessThan(0);
     expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
-    expect(venueMid.x).toBeGreaterThan(800);
+    // A fresh entrance deliberately uses the underdamped sheet spring. Its
+    // first overshoot is bounded by exp(-pi*zeta/sqrt(1-zeta²)) of the travel.
+    // Keep the exact 800px resting edge below, after the spring declares idle.
+    const overshootShare = Math.exp(
+      (-Math.PI * SHEET_ENTRANCE_OVERSHOOT_DAMPING) /
+        Math.sqrt(1 - SHEET_ENTRANCE_OVERSHOOT_DAMPING ** 2),
+    );
+    expect(venueMid.x).toBeGreaterThanOrEqual(
+      800 - venueMid.width * overshootShare - SUBPIXEL_TOLERANCE,
+    );
     expect(venueMid.x).toBeLessThan(DESKTOP.width);
     await captureDrawerExchange(page, "mid-exchange");
   }
@@ -445,6 +456,9 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     venue.getByRole("heading", { name: retargetVenueName }).first(),
   ).toBeVisible({ timeout: 20_000 });
 
+  // SpringDrawer declares idle by dropping will-change to auto. Its logical
+  // open/aria state changes earlier, so it cannot stand in for settled geometry.
+  await expect(venue).toHaveCSS("will-change", "auto");
   const [mapAfter, venueOpen, toolbarOpen] = await Promise.all([
     renderedBox(mapStage, "map stage after exchange"),
     renderedBox(venue, "open venue drawer"),

@@ -102,6 +102,9 @@ test.describe("the desktop map's arrival chrome", () => {
       .toBe(ARRIVAL_CONTROLS.length);
 
     expect((await arrivalChrome(page)).sort()).toEqual([...ARRIVAL_CONTROLS].sort());
+    await expect(page.getByRole("button", { name: "Friend locations", exact: true })).toBeHidden();
+    await page.locator(".mapArrivalCard").getByRole("button", { name: "Close", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Friend locations", exact: true })).toBeVisible();
   });
 
   test("shows one banner at a time, and while the strip is up the strip is it", async ({

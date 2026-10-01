@@ -125,40 +125,50 @@ test("crawl surfaces render; unknown slug is a friendly 404/empty", async ({ pag
 });
 
 // ---------------------------------------------------------------------------
-// Discover · Tonight board (components/discovery/TonightBoard.tsx). The live
-// "cheapest pints logged tonight" board is community-driven and time-windowed
-// (trailing 24h), so on a quiet night it renders its friendly empty state
-// instead of rows — both are valid. We assert the section's stable heading
-// always renders, and that whichever state shows is well-formed: real rows link
-// the pub into /map?sel=… by NAME (never a raw venue id), or the empty note is
-// present. Read-only: it consumes the same /api/pint-drops the page fetches and
-// never POSTs.
+// Discover · Tonight board (components/discovery/TonightBoard.tsx).
+// The recent board is community-driven and time-windowed (trailing 24h).
+// Public-read controls exercise populated, settled-empty and failed loads.
+// A settled empty board omits its whole section; idle copy is not an empty
+// result. The generated listed-price board still loads through its real fetch.
+// No control POSTs a drop or changes production data.
 test("discover recently logged cheap pints board renders rows or its empty state (§5.1)", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
+  await page.clock.setFixedTime(new Date("2026-10-01T19:00:00.000Z"));
+  await page.route("**/api/pint-drops", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ drops: [
+      {
+        id: "browser-read-prospect",
+        venueId: "venue-16pnwmm",
+        venueName: "Prospect of Whitby",
+        priceGbp: 6.4,
+        createdAt: "2026-10-01T18:30:00.000Z",
+      },
+      {
+        id: "browser-read-grapes",
+        venueId: "venue-ekvkuv",
+        venueName: "The Grapes",
+        priceGbp: 5.8,
+        createdAt: "2026-10-01T18:15:00.000Z",
+      },
+    ] }),
+  }));
 
   const response = await page.goto("/social?tab=discover");
   expect(response?.status()).toBe(200);
+  await page.locator("#rivalry-title").scrollIntoViewIfNeeded();
 
-  // The app-owned section heading (stable id in DiscoverBody) always
-  // renders regardless of whether any pints landed in the last 24h.
   await expect(page.locator("#tonight-title")).toHaveText("Recently logged cheap pints");
-
-  // The board mounts EITHER as an ordered list of rows OR as its empty note. It
-  // starts empty (drops arrive after the client fetch), so web-first wait until
-  // one of the two states is present rather than snapshotting mid-load.
   const rows = page.locator(".tonightBoard .tonightRow");
-  const empty = page.locator(".discoverEmpty");
-  await expect
-    .poll(async () => (await rows.count()) + (await empty.count()))
-    .toBeGreaterThan(0);
-
-  const rowCount = await rows.count();
-  if (rowCount > 0) {
-    const link = rows.first().locator(".tonightPub").first();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.locator(".tonightPub")).toHaveText(["The Grapes", "Prospect of Whitby"]);
+  await expect(rows.locator(".tonightPrice")).toHaveText(["£5.80", "£6.40"]);
+  for (const row of await rows.all()) {
+    const link = row.locator(".tonightPub");
     await expect(link).toBeVisible();
-
     // The pub is linked by its human name — never the raw internal venue id.
     const name = (await link.innerText()).trim();
     expect(name.length).toBeGreaterThan(0);
@@ -167,11 +177,57 @@ test("discover recently logged cheap pints board renders rows or its empty state
     // …and that name routes onto the map with this pub selected (/map?sel=…).
     const href = await link.getAttribute("href");
     expect(href ?? "").toMatch(/^\/map\?sel=/);
-  } else {
-    // Quiet night: the empty note ("be the first tonight") stands in for rows.
-    await expect(empty.first()).toBeVisible();
   }
+  await expect(rows.nth(0).locator(".tonightPub")).toHaveAttribute("href", "/map?sel=venue-ekvkuv");
+  await expect(rows.nth(1).locator(".tonightPub")).toHaveAttribute("href", "/map?sel=venue-16pnwmm");
 
+  expect(errors).toEqual([]);
+});
+
+test("discover omits the recent board only after a successful empty read", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  let dropsRead = false;
+  await page.route("**/api/pint-drops", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ drops: [] }),
+    });
+    dropsRead = true;
+  });
+  const response = await page.goto("/social?tab=discover");
+  expect(response?.status()).toBe(200);
+  await page.locator("#rivalry-title").scrollIntoViewIfNeeded();
+
+  // This real listed-price table mounts only in the settled ready branch.
+  const listed = page.locator("section[aria-labelledby='cheap-title'] .leaderboard");
+  await expect(listed).toBeVisible();
+  await expect.poll(() => listed.locator("tbody tr").count()).toBeGreaterThan(0);
+  await expect(listed.getByRole("columnheader", { name: "Cheapest pint" })).toBeVisible();
+  await expect.poll(() => dropsRead).toBe(true);
+  await expect(page.locator("section[aria-labelledby='tonight-title']")).toHaveCount(0);
+  await expect(page.locator("#tonight-title")).toHaveCount(0);
+  await expect(page.locator(".tonightBoard")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("discover reports a failed board read and offers the map", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  await page.route("**/data/discover/board.json", (route) => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "Controlled read failure" }),
+  }));
+  const response = await page.goto("/social?tab=discover");
+  expect(response?.status()).toBe(200);
+  await page.locator("#rivalry-title").scrollIntoViewIfNeeded();
+
+  const recent = page.locator("section[aria-labelledby='tonight-title']");
+  await expect(recent.locator("#tonight-title")).toHaveText("Recently logged cheap pints");
+  await expect(recent.getByRole("status")).toContainText("Couldn’t load tonight’s prices just now.");
+  await expect(recent.getByRole("link", { name: "Open the map" })).toHaveAttribute("href", "/map");
+  await expect(recent.getByRole("link", { name: "Open the map" })).toBeVisible();
+  await expect(recent.locator(".tonightRow")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

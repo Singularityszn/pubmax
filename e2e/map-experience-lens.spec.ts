@@ -78,8 +78,10 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 
   await food.click();
   await expect(food).toHaveAttribute("aria-pressed", "true");
-  await expect(sheet.getByRole("status")).toContainText(
-    /sourced menu price|Food venues shown/i,
+  // The committed London food anchors currently contribute 37 priced venues.
+  // Check the exact grounded count and copy, rather than accepting any food note.
+  await expect(sheet.getByRole("status")).toHaveText(
+    "37 menu prices we have shown.",
   );
   await expect(
     page.getByRole("button", { name: "Pints", exact: true }),
