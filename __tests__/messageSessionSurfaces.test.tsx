@@ -20,8 +20,13 @@ const viewerState = vi.hoisted(() => ({
   },
 }));
 const routerState = vi.hoisted(() => ({ push: vi.fn() }));
+const inboxEvents = vi.hoisted(() => ({
+  signal: null as (() => void) | null,
+  poll: null as (() => void) | null,
+}));
 const fetchState = vi.hoisted(() => ({
   pending: false,
+  calls: 0,
   requests: [] as Array<{
     url: string;
     resolve: (response: Response) => void;
@@ -49,6 +54,7 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: (input: string, init?: RequestInit) => {
+    fetchState.calls += 1;
     if (fetchState.pending) {
       return new Promise<Response>((resolve, reject) => {
         fetchState.requests.push({ url: String(input), resolve, reject, signal: init?.signal ?? undefined });
@@ -61,7 +67,28 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 vi.mock("@/lib/messagesRealtime", () => ({
   subscribeToMessages: () => () => {},
-  subscribeToInbox: () => () => {},
+  subscribeToInbox: (_handle: string, signal: () => void, options?: { poll?: () => void }) => {
+    inboxEvents.signal = signal;
+    inboxEvents.poll = options?.poll ?? null;
+    return () => {
+      inboxEvents.signal = null;
+      inboxEvents.poll = null;
+    };
+  },
+}));
+vi.mock("@/components/messages/MessagesNewGroup", () => ({
+  default: ({ open, onClose, onOpened }: {
+    open?: boolean;
+    onClose?: () => void;
+    onOpened: (conversationId: string) => void;
+  }) => open ? createElement("button", {
+    type: "button",
+    "data-testid": "complete-conversation-creation",
+    onClick: () => {
+      onClose?.();
+      onOpened("group-hari-maisie");
+    },
+  }, "Complete conversation creation") : null,
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
@@ -106,6 +133,16 @@ async function render(element: ReactElement): Promise<void> {
   });
 }
 
+async function completeCreation(): Promise<void> {
+  const opener = host.querySelector<HTMLButtonElement>('button[aria-label="New message"]');
+  expect(opener?.disabled).toBe(false);
+  await act(async () => opener!.click());
+  const created = host.querySelector<HTMLButtonElement>('[data-testid="complete-conversation-creation"]');
+  expect(created).not.toBeNull();
+  await act(async () => created!.click());
+  expect(routerState.push).toHaveBeenLastCalledWith("/messages/group-hari-maisie");
+}
+
 async function releaseFetch(
   response?: Response | Error,
   urlPart?: string,
@@ -129,11 +166,15 @@ async function releaseFetch(
 }
 
 beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   signedOut();
   routerState.push.mockClear();
   fetchState.pending = false;
+  fetchState.calls = 0;
   fetchState.requests = [];
   fetchState.response = null;
+  inboxEvents.signal = null;
+  inboxEvents.poll = null;
   window.matchMedia = (() => ({
     matches: false,
     media: "",
@@ -151,6 +192,10 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  if (vi.isFakeTimers()) {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
   while (fetchState.requests.length > 0) await releaseFetch();
   await act(async () => root.unmount());
   host.remove();
@@ -168,13 +213,67 @@ describe("message sign-in doors", () => {
     unread: 0,
   };
 
+  it.each(["success", "http-failure", "network-failure"])("publishes slow %s reads despite recurring polls, focus and realtime", async (outcome) => {
+    vi.useFakeTimers();
+    signedIn();
+    fetchState.pending = true;
+    await render(createElement(MessagesInboxClient));
+    expect(fetchState.calls).toBe(1);
+    expect(inboxEvents.poll).not.toBeNull();
+    expect(inboxEvents.signal).not.toBeNull();
+    window.setInterval(() => inboxEvents.poll?.(), 15_000);
+    const finishRead = (first: boolean) => {
+      const request = fetchState.requests.shift()!;
+      if (first && outcome === "network-failure") request.reject(new Error("network"));
+      else request.resolve(first && outcome === "http-failure"
+        ? new Response("unavailable", { status: 503 })
+        : Response.json({ conversations: [{ ...createdGroup, title: first ? createdGroup.title : "Updated pub crew" }] }));
+    };
+    window.setTimeout(() => finishRead(true), 16_000);
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      inboxEvents.signal!();
+    });
+    expect(fetchState.calls).toBe(1);
+    expect(fetchState.requests).toHaveLength(1);
+    expect(host.textContent).toContain("With you in a sec.");
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(fetchState.requests).toHaveLength(0);
+    expect(host.textContent).not.toContain("With you in a sec.");
+    if (outcome === "success") expect(host.textContent).toContain(createdGroup.title);
+    else expect(host.querySelector('[role="alert"]')?.textContent).toContain("Couldn’t load your conversations.");
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(14_000); });
+    expect(fetchState.calls).toBe(2);
+    expect(fetchState.requests).toHaveLength(1);
+    window.setTimeout(() => finishRead(false), 16_000);
+    if (outcome !== "success") {
+      const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Try again")!;
+      retry.focus();
+      await act(async () => { retry.click(); retry.click(); });
+      expect(retry.disabled).toBe(false);
+      expect(retry.getAttribute("aria-busy")).toBe("true");
+      expect(document.activeElement).toBe(retry);
+      expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    }
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    expect(fetchState.calls).toBe(2);
+    expect(fetchState.requests).toHaveLength(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(host.textContent).toContain("Updated pub crew");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(host.textContent).not.toContain("With you in a sec.");
+    expect(host.textContent).not.toContain("Trying again");
+  });
+
   it.each(["empty", "unauthorized", "unavailable", "thrown"])("keeps fresh group after stale initial %s response", async (stale) => {
     signedIn();
     fetchState.pending = true;
     await render(createElement(MessagesInboxClient, { activeConversationId: createdGroup.id }));
     expect(fetchState.requests).toHaveLength(1);
     expect(host.textContent).toContain("With you in a sec.");
-    await act(async () => window.dispatchEvent(new Event("focus")));
+    await completeCreation();
     expect(fetchState.requests).toHaveLength(2);
     await releaseFetch(Response.json({ conversations: [createdGroup] }), undefined, true);
     const link = () => host.querySelector(`a[href="/messages/${createdGroup.id}"]`);
@@ -208,7 +307,7 @@ describe("message sign-in doors", () => {
     }), { headers: { "content-type": "application/json" } });
     await releaseFetch(older);
     fetchState.pending = true;
-    await act(async () => window.dispatchEvent(new Event("focus")));
+    await completeCreation();
     await releaseFetch(Response.json({ conversations: [createdGroup] }));
     expect(host.textContent).toContain(createdGroup.title);
     await act(async () => releaseBody());
@@ -220,20 +319,26 @@ describe("message sign-in doors", () => {
     signedIn();
     fetchState.pending = true;
     await render(createElement(MessagesInboxClient));
-    await act(async () => window.dispatchEvent(new Event("focus")));
+    await completeCreation();
     await releaseFetch(Response.json({ conversations: [] }));
     expect(host.textContent).toContain("With you in a sec.");
     expect(host.textContent).not.toContain("Your messages start here");
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      inboxEvents.poll!();
+      inboxEvents.signal!();
+    });
+    expect(fetchState.calls).toBe(2);
     await releaseFetch(Response.json({ conversations: [createdGroup] }));
     expect(host.textContent).toContain(createdGroup.title);
   });
 
-  it("disposes pending initial and focus responses after inbox unmount", async () => {
+  it("disposes pending initial and post-create responses after inbox unmount", async () => {
     signedIn();
     fetchState.pending = true;
     await render(createElement(MessagesInboxClient));
     const signal = fetchState.requests[0].signal;
-    await act(async () => window.dispatchEvent(new Event("focus")));
+    await completeCreation();
     expect(fetchState.requests).toHaveLength(2);
     await act(async () => root.render(null));
     expect(signal?.aborted).toBe(true);
