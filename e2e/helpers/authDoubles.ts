@@ -19,6 +19,11 @@ export const ACCOUNTS = {
 
 export type AccountKey = keyof typeof ACCOUNTS;
 type Account = (typeof ACCOUNTS)[AccountKey];
+type DeviceAccount = {
+  userId: string;
+  refreshToken: string | null;
+  handle: string | null;
+};
 
 export const AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 export const DEVICE_ACCOUNTS_KEY = "pubmax_device_sessions_v1";
@@ -288,17 +293,27 @@ export async function seedSignedIn(page: Page, key: AccountKey): Promise<void> {
 /** The accounts this device remembers, as the switcher's own lane holds them. */
 export async function readDeviceAccounts(
   page: Page,
-): Promise<Array<{ userId: string; refreshToken: string | null; handle: string | null }>> {
+): Promise<DeviceAccount[]> {
   return page.evaluate((key) => {
+    const isDeviceAccount = (value: unknown): value is DeviceAccount => {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+      return "userId" in value && typeof value.userId === "string" &&
+        "refreshToken" in value &&
+        (typeof value.refreshToken === "string" || value.refreshToken === null) &&
+        "handle" in value &&
+        (typeof value.handle === "string" || value.handle === null);
+    };
     try {
       const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as Array<Record<string, never>>) : [];
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const entries: unknown[] = parsed;
+      return entries.filter(isDeviceAccount);
     } catch {
       return [];
     }
-  }, DEVICE_ACCOUNTS_KEY) as Promise<
-    Array<{ userId: string; refreshToken: string | null; handle: string | null }>
-  >;
+  }, DEVICE_ACCOUNTS_KEY);
 }
 
 export async function readDeviceIdentity(page: Page): Promise<Record<string, string | null>> {

@@ -41,7 +41,7 @@ async function installPickerFixture(
   let activeThread: Thread | null = null;
   const messages: Array<Record<string, unknown>> = [];
 
-  await page.route("**/api/profiles/search**", async (route) => {
+  await page.route("**/api/messages/recipients**", async (route) => {
     const query = new URL(route.request().url()).searchParams.get("q");
     if (query === "hari" && failHariOnce) {
       failHariOnce = false;
@@ -160,18 +160,26 @@ async function installPickerFixture(
   return journal;
 }
 
+async function openRecipientPicker(page: Page) {
+  const opener = page.getByRole("button", { name: "New message" });
+  const dialog = page.getByRole("dialog", { name: "New message" });
+  await expect(opener).toBeVisible();
+  // A server-painted opener can accept a tap before React hydrates and drop it.
+  // Retry only this opening tap until the dialog answers; never replay a write.
+  await expect(async () => {
+    await opener.click();
+    await expect(dialog).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  return { opener, dialog };
+}
+
 test("a selected public profile starts a direct message from the inbox", async ({
   page,
 }, testInfo) => {
   const journal = await installPickerFixture(page);
 
   await page.goto("/messages");
-  const openPicker = page.getByRole("button", { name: "New message" });
-  await expect(openPicker).toBeVisible();
-  await openPicker.click();
-
-  const dialog = page.getByRole("dialog", { name: "New message" });
-  await expect(dialog).toBeVisible();
+  const { dialog } = await openRecipientPicker(page);
   await dialog.getByRole("textbox", { name: "Search people" }).fill("hari");
   const addHari = dialog.getByRole("button", { name: "Add @hari" });
   await expect(addHari).toBeVisible();
@@ -195,10 +203,7 @@ test("a named group opens with three members and sends a synthetic message recei
   await page.setViewportSize({ width: 1440, height: 900 });
   const journal = await installPickerFixture(page);
   await page.goto("/messages");
-  await page.getByRole("button", { name: "New message" }).click();
-
-  const dialog = page.getByRole("dialog", { name: "New message" });
-  await expect(dialog).toBeVisible();
+  const { dialog } = await openRecipientPicker(page);
   const search = dialog.getByRole("textbox", { name: "Search people" });
   await search.fill("hari");
   await dialog.getByRole("button", { name: "Add @hari" }).click();
@@ -248,8 +253,7 @@ test("unknown prefixes stay disabled and directory failure retries as an error, 
 }) => {
   await installPickerFixture(page, "fail-first-hari");
   await page.goto("/messages");
-  await page.getByRole("button", { name: "New message" }).click();
-  const dialog = page.getByRole("dialog", { name: "New message" });
+  const { dialog } = await openRecipientPicker(page);
   const search = dialog.getByRole("textbox", { name: "Search people" });
   await search.fill("hari");
   await expect(dialog.getByRole("alert")).toBeVisible();
@@ -288,9 +292,7 @@ for (const layout of KEYBOARD_LAYOUTS) {
     }));
     await installPickerFixture(page, "normal", people);
     await page.goto("/messages");
-    const opener = page.getByRole("button", { name: "New message" });
-    await opener.click();
-    const dialog = page.getByRole("dialog", { name: "New message" });
+    const { opener, dialog } = await openRecipientPicker(page);
     const search = dialog.getByRole("textbox", { name: "Search people" });
     await expect(search).toBeFocused();
     await page.evaluate((height) => {
@@ -357,6 +359,90 @@ for (const layout of KEYBOARD_LAYOUTS) {
   });
 }
 
+const SHIFTED_KEYBOARD_LAYOUTS = [
+  { name: "phone", width: 390, height: 844, offsetTop: 120, inset: 300 },
+  { name: "tablet", width: 768, height: 1024, offsetTop: 120, inset: 300 },
+];
+
+for (const layout of SHIFTED_KEYBOARD_LAYOUTS) {
+  test(`${layout.name} shifted keyboard keeps picker controls in visible viewport`, async ({ page }) => {
+    await page.setViewportSize({ width: layout.width, height: layout.height });
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: Object.assign(new EventTarget(), { height: window.innerHeight, offsetTop: 0 }),
+      });
+    });
+    await installPickerFixture(page);
+    await page.goto("/messages");
+    const { dialog } = await openRecipientPicker(page);
+    const search = dialog.getByRole("textbox", { name: "Search people" });
+    await search.fill("hari");
+    await dialog.getByRole("button", { name: "Add @hari" }).click();
+    const chat = dialog.getByRole("button", { name: "Chat", exact: true });
+    await expect(chat).toBeEnabled();
+
+    const heading = dialog.getByRole("heading", { name: "New message" });
+    const close = dialog.getByRole("button", { name: "Close new message" });
+    const visibleControls = [
+      dialog.locator(".messagesNewGroupHeader"),
+      heading,
+      close,
+      search,
+      chat,
+    ];
+    const bottom = layout.height - layout.inset;
+    const setVisualViewport = async (offsetTop: number, height: number) => {
+      await page.evaluate(({ nextOffsetTop, nextHeight }) => {
+        Object.assign(window.visualViewport!, {
+          offsetTop: nextOffsetTop,
+          height: nextHeight,
+        });
+        window.visualViewport!.dispatchEvent(new Event("resize"));
+      }, { nextOffsetTop: offsetTop, nextHeight: height });
+      await expect.poll(() => page.evaluate(() =>
+        window.innerHeight - window.visualViewport!.height - window.visualViewport!.offsetTop,
+      )).toBe(layout.inset);
+      await expect.poll(() => page.evaluate(() =>
+        window.visualViewport!.offsetTop + window.visualViewport!.height,
+      )).toBe(bottom);
+      await expect.poll(() => dialog.evaluate((element) => {
+        const viewport = window.visualViewport!;
+        const box = element.getBoundingClientRect();
+        return box.top >= viewport.offsetTop &&
+          box.bottom <= viewport.offsetTop + viewport.height;
+      })).toBe(true);
+      for (const control of visibleControls) {
+        await expect(control).toBeVisible();
+        await expect.poll(() => control.evaluate((element) => {
+          const viewport = window.visualViewport!;
+          const box = element.getBoundingClientRect();
+          const x = box.left + box.width / 2;
+          const y = box.top + box.height / 2;
+          const hit = document.elementFromPoint(x, y);
+          return box.top >= viewport.offsetTop &&
+            box.bottom <= viewport.offsetTop + viewport.height &&
+            box.left >= 0 && box.right <= window.innerWidth &&
+            Boolean(hit && (hit === element || element.contains(hit)));
+        })).toBe(true);
+      }
+    };
+
+    const initialHeight = layout.height - layout.inset;
+    await setVisualViewport(0, initialHeight);
+    const initialBounds = await dialog.boundingBox();
+    await setVisualViewport(layout.offsetTop, initialHeight - layout.offsetTop);
+    const shiftedBounds = await dialog.boundingBox();
+    expect(initialBounds).not.toBeNull();
+    expect(shiftedBounds).not.toBeNull();
+    expect(initialBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(initialBounds!.y + initialBounds!.height).toBeLessThanOrEqual(initialHeight);
+    expect(shiftedBounds!.y).toBeGreaterThanOrEqual(layout.offsetTop);
+    expect(shiftedBounds!.y + shiftedBounds!.height).toBeLessThanOrEqual(bottom);
+    expect(shiftedBounds!.y).toBeGreaterThan(initialBounds!.y);
+  });
+}
+
 const PICKER_LAYOUTS = [
   { name: "desktop-light", width: 1440, height: 900, colorScheme: "light" as const },
   { name: "desktop-dark", width: 1440, height: 900, colorScheme: "dark" as const },
@@ -377,10 +463,7 @@ for (const layout of PICKER_LAYOUTS) {
     }, layout.colorScheme);
     await page.goto("/messages");
 
-    const opener = page.getByRole("button", { name: "New message" });
-    await opener.click();
-    const dialog = page.getByRole("dialog", { name: "New message" });
-    await expect(dialog).toBeVisible();
+    const { opener, dialog } = await openRecipientPicker(page);
     const search = dialog.getByRole("textbox", { name: "Search people" });
     await expect(search).toBeFocused();
     expect(
