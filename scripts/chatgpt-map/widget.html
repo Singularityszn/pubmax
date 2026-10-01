@@ -56,7 +56,8 @@
       const latitude=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/scale)))*180/Math.PI;
       const west=(canonical.x/scale+wrap)*360-180,east=west+360/scale;
       const inView=overscaledZ===zoom&&east>bounds.getWest()&&west<bounds.getEast()&&latitude(canonical.y)>bounds.getSouth()&&latitude(canonical.y+1)<bounds.getNorth();
-      if(inView)visible.push(entry.tile);else streetTiles.delete(key);
+      if(entry.tile.state==="unloaded"){streetTiles.delete(key);continue;}
+      if(inView)visible.push(entry.tile);
     }
     // MapLibre counts errored tiles as settled. Require actual loaded visible
     // tiles and drawn street geometry before retiring a streets warning.
