@@ -12,7 +12,7 @@
 // Anything else - a new advisory, a new severity, the same advisory reaching a
 // production dependency - still fails the gate.
 import { spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const AUDIT_LEVELS = ["high", "critical"];
 
@@ -25,8 +25,9 @@ const AUDIT_LEVELS = ["high", "critical"];
 // production-only audit proves the chain is dev-only.
 export const WAIVED_ADVISORIES = new Map();
 
-function runAudit(extraArgs = []) {
+function runAudit(packageDirectory, extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {
+    cwd: packageDirectory,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
   });
@@ -78,8 +79,8 @@ export function classifyFindings(report, waived = WAIVED_ADVISORIES) {
   return { waived: waivedNames, unwaived: unwaivedNames };
 }
 
-function main() {
-  const { result, stdout, report } = runAudit();
+function auditPackage(packageDirectory) {
+  const { result, stdout, report } = runAudit(packageDirectory);
 
   if (hasVulnerabilities(report)) {
     const counts = report.metadata.vulnerabilities;
@@ -102,7 +103,7 @@ function main() {
 
     // Everything flagged is waived, but a waiver only covers dev dependencies.
     // Re-audit production-only and fail if the same advisory reaches shipped code.
-    const prod = runAudit(["--omit=dev"]);
+    const prod = runAudit(packageDirectory, ["--omit=dev"]);
     if (!hasVulnerabilities(prod.report)) {
       console.error(
         "[resilient-audit] cannot confirm the waived advisories are dev-only (production audit unavailable) - failing closed.",
@@ -132,6 +133,19 @@ function main() {
   console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
   if (stderr) console.warn(stderr);
   return 0;
+}
+
+function main() {
+  const packages = [
+    ["root", new URL("../", import.meta.url)],
+    ["scripts/chatgpt-map", new URL("./chatgpt-map/", import.meta.url)],
+  ];
+  let exitCode = 0;
+  for (const [name, url] of packages) {
+    console.log(`[resilient-audit] checking ${name}.`);
+    exitCode = Math.max(exitCode, auditPackage(fileURLToPath(url)));
+  }
+  return exitCode;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
