@@ -132,9 +132,8 @@ function sheetBodyFor(
  * ONE docked lane under the one bar, shared by both chips, so the phone chrome
  * still costs a bar plus a single 44px row however many chips it earns.
  *
- * Left: the drink the map is under, always named, because a map showing
- * cocktail prices must never look like the pint map and that choice may not be
- * buried two taps inside a refinement drawer.
+ * Left: the current drink or experience view, always named. An experience
+ * opens its existing view controls; a drink opens its category picker.
  * Right (P5 cold-start): What's On listings earn a one-tap path into the
  * Tonight sheet, and a quiet night simply leaves that half empty.
  *
@@ -145,33 +144,40 @@ function MapChipRow({
   overlay,
   drinkLaneLabel,
   drinkLaneSelected,
+  experienceFilterLabel,
   tonightChip,
   onOpen,
 }: {
   overlay: MapOverlay;
   drinkLaneLabel: string;
   drinkLaneSelected: boolean;
+  experienceFilterLabel?: "no-alcohol view" | "food view";
   tonightChip: TonightChipModel | null;
   onOpen: (overlay: MapOverlay) => void;
 }) {
-  const drinkOpen = overlay === "drink";
+  const experienceLabel = experienceFilterLabel === "no-alcohol view" ? "No alcohol"
+    : experienceFilterLabel === "food view" ? "Food" : null;
+  const targetOverlay = experienceLabel ? "filters" : "drink";
+  const controlOpen = overlay === targetOverlay;
   const tonightOpen = overlay === "tonight";
   return (
     <div className="mobileMapChipRow">
       <button
         type="button"
         className={
-          drinkOpen || drinkLaneSelected
+          controlOpen || drinkLaneSelected || experienceLabel !== null
             ? "mobileMapDrinkChip isActive"
             : "mobileMapDrinkChip"
         }
-        aria-label={`Drink shown on the map: ${drinkLaneLabel}. Choose another drink`}
-        aria-expanded={drinkOpen}
+        aria-label={experienceLabel
+          ? `Map view: ${experienceLabel}. Change view`
+          : `Drink shown on the map: ${drinkLaneLabel}. Choose another drink`}
+        aria-expanded={controlOpen}
         aria-haspopup="dialog"
-        onClick={() => onOpen("drink")}
+        onClick={() => onOpen(targetOverlay)}
       >
         <GlassWater size={15} aria-hidden="true" />
-        <span className="mobileMapDrinkChipLabel">{drinkLaneLabel}</span>
+        <span className="mobileMapDrinkChipLabel">{experienceLabel ?? drinkLaneLabel}</span>
       </button>
       {tonightChip ? (
         <button
@@ -472,6 +478,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             overlay={overlay}
             drinkLaneLabel={drinkLaneLabel}
             drinkLaneSelected={drinkLaneSelected}
+            experienceFilterLabel={experienceFilterLabel}
             tonightChip={tonightChip}
             onOpen={set}
           />
