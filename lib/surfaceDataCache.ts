@@ -67,6 +67,7 @@ type Entry = { value: unknown; storedAt: number };
 // browser-only: on the server every read misses and every write is dropped,
 // which also keeps a first paint identical on both sides.
 const store = new Map<string, Entry>();
+let surfaceCacheGeneration = 0;
 const inBrowser = (): boolean => typeof window !== "undefined";
 // The window the boundary listener is attached to, rather than a latched
 // boolean: a document only ever has one, so this binds exactly once in the app,
@@ -228,13 +229,8 @@ function bindIdentityBoundary(): void {
   boundWindow = window;
   const storage = getSessionStorage();
   if (storage) pruneOldPersistentNamespaces(storage);
-  subscribeDeviceIdentity(() => {
-    store.clear();
-    clearPersistentSurfaceCache();
-  });
+  subscribeDeviceIdentity(() => retireSurfaceCache());
 }
-
-if (inBrowser()) bindIdentityBoundary();
 
 function isTransientResponse(response: Response): boolean {
   return response.status === 408 ||
@@ -275,8 +271,7 @@ export function writeSurfaceSnapshot<T>(
 
 /** The account boundary, and the test seam. */
 export function clearSurfaceCache(): void {
-  store.clear();
-  clearPersistentSurfaceCache();
+  retireSurfaceCache();
 }
 
 /** Test seam only: how many answers are held. */
@@ -310,6 +305,17 @@ type InFlightRequest = {
 
 const inFlight = new Map<string, InFlightRequest>();
 
+function retireSurfaceCache(): void {
+  surfaceCacheGeneration += 1;
+  store.clear();
+  clearPersistentSurfaceCache();
+  // Keep existing public readers alive, but do not let new readers join work
+  // started before this identity boundary.
+  inFlight.clear();
+}
+
+if (inBrowser()) bindIdentityBoundary();
+
 export type LoadSurfaceJsonOptions<T = unknown> = {
   signal?: AbortSignal;
   init?: RequestInit;
@@ -336,6 +342,7 @@ export async function loadSurfaceJson<T>(
   apply: (value: T, source: "snapshot" | "network") => void | boolean,
 ): Promise<"snapshot" | "network" | "failed"> {
   assertCacheable(key);
+  const generation = surfaceCacheGeneration;
   const { signal, init, maxAgeMs, validate } = options;
   let applied: "snapshot" | "network" | "failed" = "failed";
   const requestSignal = signal ?? init?.signal ?? undefined;
@@ -395,7 +402,9 @@ export async function loadSurfaceJson<T>(
     if (!valid) return applied;
   }
   const shouldCache = apply(body, "network") !== false;
-  if (shouldCache) writeSurfaceSnapshot(key, body);
+  if (shouldCache && generation === surfaceCacheGeneration) {
+    writeSurfaceSnapshot(key, body);
+  }
   return "network";
 }
 
@@ -417,6 +426,7 @@ function joinSurfaceRequest<T>(
     controller,
     joiners: 1,
     promise: runSurfaceRequest(key, options, controller.signal).finally(() => {
+      // A boundary may have installed a new request for this key meanwhile.
       if (inFlight.get(key) === entry) inFlight.delete(key);
     }),
   };

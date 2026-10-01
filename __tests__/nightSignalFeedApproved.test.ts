@@ -70,6 +70,11 @@ function req(query = ""): Request {
 }
 
 beforeEach(() => {
+  // This file exercises the real process-memory store, never ambient credentials.
+  vi.stubEnv("SUPABASE_URL", "");
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+  vi.stubEnv("VERCEL_ENV", "");
+  vi.stubEnv("PUBMAX_E2E_KEYLESS", "1");
   resetNightSignalStoreMemory();
   storeOverride.candidates = null;
   storeOverride.durable = null;
@@ -149,14 +154,54 @@ describe("GET /api/night-signals", () => {
     expect(body.asOf).toBeTruthy();
   });
 
-  it("holds a body that read mutable rows out of the edge cache", async () => {
-    // Keyless: the answer is a pure function of the deployment, so it keeps the
-    // short cache window it always had.
-    expect((await GET(req())).headers.get("cache-control")).toContain("s-maxage=300");
+  it("does not edge-cache the keyless feed because candidate rows are mutable", async () => {
+    expect((await GET(req())).headers.get("cache-control")).toBe("no-store");
 
-    // With a durable store the body carries rows a moderator can change at any
-    // moment, so it may not be held at the edge.
+    // Keep the configured-store contract beside the keyless regression. Both
+    // backends expose approvals and expiry that can change between responses.
     storeOverride.durable = true;
     expect((await GET(req())).headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("does not cache a keyless approval past its exact expiry", async () => {
+    const id = "opening:camden:20260930:ffff6666";
+    const expiresAt = new Date(NOW + 60_000);
+    await nightSignalCandidateStore().save([approved(id, { expiresAt: expiresAt.toISOString() })]);
+
+    const firstResponse = await GET(req());
+    const firstBody = await firstResponse.json();
+    expect((firstBody.claims as NightSignalClaim[]).map((row) => row.id)).toContain(id);
+
+    vi.setSystemTime(expiresAt);
+    const expiredResponse = await GET(req());
+    const expiredBody = await expiredResponse.json();
+    expect((expiredBody.claims as NightSignalClaim[]).map((row) => row.id)).not.toContain(id);
+    expect(firstResponse.headers.get("cache-control")).toBe("no-store");
+    expect(expiredResponse.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("does not cache a keyless feed before or after an operations approval", async () => {
+    const id = "opening:camden:20260930:abab7777";
+    await nightSignalCandidateStore().save([claim(id)]);
+
+    const pendingResponse = await GET(req());
+    const pendingBody = await pendingResponse.json();
+    expect((pendingBody.claims as NightSignalClaim[]).map((row) => row.id)).not.toContain(id);
+
+    const review = await nightSignalCandidateStore().review(id, {
+      action: "approve",
+      authority: "operations",
+      now: Date.now(),
+    });
+    expect(review).toMatchObject({
+      status: "decided",
+      candidate: { reviewState: "approved", reviewAuthority: "operations" },
+    });
+
+    const approvedResponse = await GET(req());
+    const approvedBody = await approvedResponse.json();
+    expect((approvedBody.claims as NightSignalClaim[]).map((row) => row.id)).toContain(id);
+    expect(pendingResponse.headers.get("cache-control")).toBe("no-store");
+    expect(approvedResponse.headers.get("cache-control")).toBe("no-store");
   });
 });

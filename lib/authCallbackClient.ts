@@ -87,6 +87,7 @@ export type PreparedAuthCallbackSession<SessionValue> =
   | {
       status: "confirmation-required";
       identity: { userId: string; label: string };
+      installingTokens: AuthCallbackTokens;
       confirm: () => Promise<AuthCallbackSessionResult<SessionValue>>;
     };
 
@@ -129,6 +130,7 @@ export async function prepareAuthCallbackSession<SessionValue>(
     return {
       status: "confirmation-required",
       identity: { userId, label },
+      installingTokens: verifiedTokens,
       confirm: () => (inFlight ??= establishAuthCallbackSession(auth, verifiedTokens)),
     };
   } catch {

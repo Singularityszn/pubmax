@@ -474,6 +474,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       setFollowStateKey(followKey);
       setFollowing(false);
       setFollowsViewer(false);
+      setSocialLinks([]);
       // A CARD DOES NOT CROSS A BOUNDARY. `followKey` is the account and the
       // handle together, so a sign-in, a sign-out and a walk to another profile
       // all land here, and the card held in state belongs to neither the new
@@ -879,13 +880,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }, [accountRevision, routeHandle, socialFriendsLaunchEnabled, viewerHandle]);
 
   // Overlay any durable, user-owned fields on top of the synthesized identity.
+  const followStateReady = followStateKey === followKey;
   const profile: Profile = withStoredProfile(
     deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]),
-    stored,
+    followStateReady ? stored : null,
   );
-  const followStateReady = followStateKey === followKey;
   const visibleSocialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
-    socialLinks,
+    socialLinks: followStateReady ? socialLinks : [],
     counts,
     following: followStateReady && following,
     followsViewer: followStateReady && followsViewer,
