@@ -45,3 +45,18 @@ describe("saved Plan route price display", () => {
     expect(html).not.toContain("community report");
   });
 });
+
+describe("single-stop Plan map link", () => {
+  it("opens the chosen venue in build mode without requiring a walking route", () => {
+    const html = renderToStaticMarkup(<PlanRoute
+      planId="6ab5ca40-836b-4970-9477-d1779fdd31ab"
+      startTime="2026-09-30T18:00:00.000Z"
+      stops={[base]}
+    />);
+
+    expect(html).toContain(
+      'href="/map?mode=build&amp;pubs=venue-a&amp;sel=venue-a">Open on the map</a>',
+    );
+    expect(html).not.toContain('class="planRoute__walk"');
+  });
+});

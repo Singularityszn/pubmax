@@ -8,8 +8,9 @@ import { CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-r
 // source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
 // so no server code reaches the client bundle.
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
+import { initialFilters } from "@/lib/venues";
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
-import { buildCrawlMapHref, type RouteDrinkIntent } from "@/lib/crawlUrl";
+import { buildCrawlMapHref, encodeCrawl, type RouteDrinkIntent } from "@/lib/crawlUrl";
 import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
@@ -104,10 +105,10 @@ export default function PlanRoute({
 
   const signals = new Map((report?.stops ?? []).map((stop) => [stop.venueId, stop]));
   const groupSize = report?.groupSize ?? 0;
-  // Deep link the whole ordered crawl onto the map, where the route now follows
-  // real walking roads. The per-stop "Open on the map" links below still jump to
-  // a single pin; this shows the walk between every stop.
-  const walkRouteHref = buildCrawlMapHref(stops.map((stop) => stop.venueId), routeDrinkIntent);
+  // Whole-route links emphasize the walking line; each stop link keeps the
+  // ordered crawl and selects its own venue on the map.
+  const orderedVenueIds = stops.map((stop) => stop.venueId);
+  const walkRouteHref = buildCrawlMapHref(orderedVenueIds, routeDrinkIntent);
 
   return (
     <div className="planRoute">
@@ -135,6 +136,13 @@ export default function PlanRoute({
           {stops.map((stop, index) => {
             const signal = signals.get(stop.venueId);
             const priceLine = selectedDrinkPriceDescription(cleanSelectedDrinkPriceEvidence(stop.selectedDrinkPriceEvidence) ?? undefined);
+            const stopMapHref = `/map?${encodeCrawl({
+              mode: "build",
+              filters: initialFilters,
+              builtIds: orderedVenueIds,
+              selectedVenueId: stop.venueId,
+              routeDrinkIntent,
+            })}`;
             return (
               <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties}>
                 <span className="planSummary__marker">{index + 1}</span>
@@ -142,7 +150,7 @@ export default function PlanRoute({
                   <strong>{stop.venueName}</strong>
                   {priceLine ? <small className="planRoute__selectedDrinkPrice">{priceLine}</small> : null}
                   <StopEventBadge event={events.get(stop.venueId)} />
-                  <Link href={`/map?venue=${encodeURIComponent(stop.venueId)}`}>Open on the map</Link>
+                  <Link href={stopMapHref}>Open on the map</Link>
                   <StopGetIn state={state} signal={signal} />
                 </div>
               </li>

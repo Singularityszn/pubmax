@@ -156,5 +156,21 @@ describe("saved Plan drink intent in map links", () => {
     expect([...url.searchParams.keys()].sort()).toEqual(
       ["mode", "pubs", ...(key ? [key] : [])].sort(),
     );
+    const perStopLinks = [...container.querySelectorAll<HTMLAnchorElement>(".planRoute__stopsTrack a")]
+      .filter((link) => link.textContent?.trim() === "Open on the map");
+    expect(perStopLinks).toHaveLength(stops.length);
+    for (const [index, link] of perStopLinks.entries()) {
+      const stopUrl = new URL(link.href, "https://pubmaxx.example");
+      expect(stopUrl.pathname).toBe("/map");
+      expect(stopUrl.searchParams.get("mode")).toBe("build");
+      expect(stopUrl.searchParams.get("pubs")?.split(",")).toEqual(
+        stops.map((stop) => stop.venueId),
+      );
+      expect(stopUrl.searchParams.get("sel")).toBe(stops[index]!.venueId);
+      if (key) expect(stopUrl.searchParams.get(key)).toBe(value);
+      expect([...stopUrl.searchParams.keys()].sort()).toEqual(
+        ["mode", "pubs", "sel", ...(key ? [key] : [])].sort(),
+      );
+    }
   });
 });

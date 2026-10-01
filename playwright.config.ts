@@ -179,6 +179,8 @@ export default defineConfig({
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
         "**/map-live-qa-0924.spec.ts",
+        "**/plan-selected-drink-journey.spec.ts",
+        "**/plan-route-map.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
@@ -289,6 +291,9 @@ export default defineConfig({
       // a real WebGL2 context (SwiftShader), so both run here.
       testMatch: [
         "**/map-gl.spec.ts",
+        // Saved Plan CTAs and Plan route maps assert the rendered minimap canvas.
+        "**/plan-selected-drink-journey.spec.ts",
+        "**/plan-route-map.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
         // The opening turn and the first-visit card's grip on the pins: both

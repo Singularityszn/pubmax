@@ -1032,6 +1032,7 @@ export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
   nationalBrowse = false,
+  incomingSearch,
 }: {
   cityId?: CityId;
   /**
@@ -1047,13 +1048,18 @@ export default function PubMap({
    * appear once the camera crosses the base zoom gate. Never invents prices.
    */
   nationalBrowse?: boolean;
+  /** Canonical router arrival; undefined preserves direct caller fallback. */
+  incomingSearch?: string;
 }) {
+  // One arrival feeds every initializer. Later URL reflection must not revive
+  // stops or price authority after the reader edits or clears the route.
+  const [arrivalSearch] = useState(() => incomingSearch ?? currentSearch());
   // An early skip link can focus the skeleton this dynamic component replaces.
   useLayoutEffect(restoreMainLandmarkFocus, []);
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
   const [ukNationalBrowse] = useState(
-    () => nationalBrowse || isUkNationalBrowse(currentSearch()),
+    () => nationalBrowse || isUkNationalBrowse(arrivalSearch),
   );
   // National gazetteer for map search (same places.json as CityChooser).
   // Loaded once when the reader types two characters or arrives on a national
@@ -1077,7 +1083,7 @@ export default function PubMap({
     return pending;
   }, []);
   const [lastKnownLocation] = useState(() =>
-    currentSearch() ? null : readMapOpeningLocation(),
+    arrivalSearch ? null : readMapOpeningLocation(),
   );
   const arrivalSearchNow = currentSearch();
   const arrival = useMemo(
@@ -1091,7 +1097,14 @@ export default function PubMap({
       }),
     [arrivalSearchNow, ukPlaceArrival, ukNationalBrowse, cityId, city.displayName],
   );
-  const mapOpeningNeedsResolution = arrival.needsOpeningResolution;
+  // Opening resolution belongs to this arrival, not later URL reflection.
+  const [mapOpeningNeedsResolution] = useState(() => mapArrivalFrame({
+    search: arrivalSearch,
+    placeArrival: ukPlaceArrival,
+    nationalBrowse: ukNationalBrowse,
+    cityId,
+    cityDisplayName: city.displayName,
+  }).needsOpeningResolution);
   const [initialMapView] = useState<MapViewportSnapshot>(() => {
     if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
     if (ukNationalBrowse) {
@@ -1174,15 +1187,12 @@ export default function PubMap({
   // URL is the only share/restore source — do NOT resurrect a previous hand-built
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
-  const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch(), cityId));
+  const [seed] = useState<MapSeed>(() => buildMapSeed(arrivalSearch, cityId));
   const [restoredMobileSession] = useState(() => {
-    if (currentSearch()) return null;
+    if (arrivalSearch) return null;
     const saved = readMobileMapSession();
     return saved?.cityId === cityId ? saved : null;
   });
-  // Freeze arrival search with the seed so fit-on-arrival does not flip when the
-  // user later maps a route or the address bar syncs.
-  const [arrivalSearch] = useState(() => currentSearch());
   // A restored /map?sel=venue-uk-* arrival: the base pub's id plus the `at=`
   // location hint the selecting tap wrote alongside sel. The id alone carries
   // no coordinates and no shard cell, so without the hint an older link
@@ -1190,7 +1200,7 @@ export default function PubMap({
   // rather than opening a guessed pub.
   const [ukBaseRestore] = useState(() => {
     if (!seed.selectedVenueId || !isUkBaseId(seed.selectedVenueId)) return null;
-    const hint = parseSelectionHint(currentSearch());
+    const hint = parseSelectionHint(arrivalSearch);
     return hint ? { id: seed.selectedVenueId, ...hint } : null;
   });
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
@@ -1203,16 +1213,16 @@ export default function PubMap({
   // PlanningIntent is always explicit Map intent.
   const [explicitArrivalIntent] = useState(() =>
     explicitMapIntent({
-      search: currentSearch(),
+      search: arrivalSearch,
       planningIntent: readPlanningIntent(),
       restoredMobileSession,
     }),
   );
   const [mapResumeSeed] = useState(() =>
-    currentSearch() ? null : readMapResumeSync(cityId),
+    arrivalSearch ? null : readMapResumeSync(cityId),
   );
   const shouldResolveOpeningLocation = shouldResolveOpeningLocationFor({
-    needsOpeningResolution: arrival.needsOpeningResolution,
+    needsOpeningResolution: mapOpeningNeedsResolution,
     mapResumeSeed,
     restoredMobileSession,
   });
@@ -1288,10 +1298,10 @@ export default function PubMap({
         restoredSession: restoredMobileSession,
         resumeSeed: mapResumeSeed,
         cityId,
-        search: arrivalSearchNow,
+        search: arrivalSearch,
         shouldOpenPlanningInitially,
       }),
-    [arrivalSearchNow, cityId, mapResumeSeed, restoredMobileSession, seed],
+    [arrivalSearch, cityId, mapResumeSeed, restoredMobileSession, seed],
   );
   const mapResumeSeedConsumedRef = useRef(false);
   // `loaded` means the slim map index has settled. Source datasets are not
@@ -1468,7 +1478,7 @@ export default function PubMap({
     noAcceptedArrivalSource,
   );
   const [arrivalSelectionNotice, setArrivalSelectionNotice] = useState<MapSelectionNotice | null>(
-    () => mapSelectionNoticeFromSearch(currentSearch()),
+    () => mapSelectionNoticeFromSearch(arrivalSearch),
   );
   const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
     () => arrivalSelectionNotice,
@@ -1529,10 +1539,10 @@ export default function PubMap({
   // holds, because nothing asks for it until a reader arrives under it or the
   // map has drawn the control to switch it over.
   const [spoonsValueOn, setSpoonsValueOn] = useState(() =>
-    spoonsValueLensRequested(currentSearch()),
+    spoonsValueLensRequested(arrivalSearch),
   );
   const [spoonsValueRead, setSpoonsValueRead] = useState<SpoonsValueLensState>(() =>
-    spoonsValueReadForToggle(spoonsValueLensRequested(currentSearch())),
+    spoonsValueReadForToggle(spoonsValueLensRequested(arrivalSearch)),
   );
   const [spoonsValueLaneRead, setSpoonsValueLaneRead] =
     useState<SpoonsValuePinLane | null>(null);
@@ -1786,7 +1796,7 @@ export default function PubMap({
   const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
-  const [mapListOpen, setMapListOpen] = useState(() => mapListOpenFromSearch(currentSearch()));
+  const [mapListOpen, setMapListOpen] = useState(() => mapListOpenFromSearch(arrivalSearch));
   const [mapListSortMode, setMapListSortMode] =
     useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
