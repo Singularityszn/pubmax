@@ -1,0 +1,59 @@
+{
+  "startedAt": "2026-09-30T11:51:39.954Z",
+  "finishedAt": "2026-09-30T11:51:44.578Z",
+  "origin": "http://localhost:3351",
+  "route": "/map/manchester",
+  "fixtureStorageState": {
+    "localStorage": {
+      "pubmaxx:analytics-consent:v1": "denied",
+      "pubmax:map-first-visit-arrival:v1": "dismissed",
+      "pubmax-tour-v1-done": "1"
+    },
+    "sessionStorage": {
+      "pubmax_onboarding_dismissed": "1"
+    }
+  },
+  "navigationStatus": 200,
+  "outcome": "location-marker-shown",
+  "detail": null,
+  "clickedAfterEnabled": true,
+  "markerWaitResult": "shown",
+  "browserElapsedMs": null,
+  "counts": {
+    "geolocationPermissionQueries": 0,
+    "permissionStates": {},
+    "getCurrentPositionRequests": 0,
+    "getCurrentPositionSuccesses": 0,
+    "getCurrentPositionErrors": 0,
+    "getCurrentPositionPending": 0,
+    "buttonStateChanges": 0,
+    "pageErrors": 1
+  },
+  "browserSnapshot": {
+    "href": "http://localhost:3351/map/manchester",
+    "now": {
+      "browserMs": 4249.5999999940395,
+      "wallTime": 1790769104355
+    },
+    "trace": null,
+    "button": {
+      "attached": true,
+      "label": "Checking…",
+      "disabled": true
+    },
+    "locationMarkerShown": true
+  },
+  "pageErrors": {
+    "count": 1,
+    "first": [
+      {
+        "at": "2026-09-30T11:51:40.200Z",
+        "name": "ReferenceError",
+        "message": "__name is not defined"
+      }
+    ],
+    "last": []
+  },
+  "screenshotPath": "/tmp/pubmaxx-r24-gps-native-diagnostic.png",
+  "screenshotError": null
+}

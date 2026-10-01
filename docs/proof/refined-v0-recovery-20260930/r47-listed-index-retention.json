@@ -1,0 +1,45 @@
+{
+  "status": "SOURCE_ONLY_UNRUN",
+  "patchSha256": "0bcefeaa364b7af631e7707b5b912cf2bc9a0ef5f74b1042d45acc68494f8572",
+  "bytes": 2198,
+  "base": "Active Root workingtree at HEAD040134c5b4b697f775ba4ac8846f43873fbc317c plus provisional composition, before hashes authoritative",
+  "files": [
+    {
+      "path": "lib/ukPriceBundle.server.ts",
+      "beforeSha256": "5f265615d0dea4ac1bc566b247bee27a10b00c6437d7954327ac2b025514681c",
+      "afterSha256": "1a57875f9b216689b6495494e881baddef0c7188ecfc6049d14c5925de910a8b"
+    },
+    {
+      "path": "lib/mapExperienceLens.ts",
+      "beforeSha256": "1dfc10c4dd19c3cd0d32cf56814c393b2b83aa7f8f72d154157a3ed3125fc6b5",
+      "afterSha256": "2cde4a69779e046467b49dee20dd55d2af64539bafcc9402d0993a19f2c481fc"
+    }
+  ],
+  "actualRed": {
+    "path": ".audit/overnight-20261001/listed-plan-serving-corrected-red-results.json",
+    "testFile": "__tests__/listedDiscoveryIndex.test.ts",
+    "failures": [
+      "approved category serving alternatives expected3 got1",
+      "client reader discarded source-stated Rioja label"
+    ],
+    "baselineControls": "same file3PASSED"
+  },
+  "invariants": [
+    "Existing approved listedCategoryPrices four/category cap, authority, quarantine, age and order unchanged",
+    "Cross-venue response cap1000 unchanged; spill within venue now reports truncated",
+    "Drink label uses existing canonical normalizer, no duplicated validator/taxonomy",
+    "Community preference, amount sorting, base streaming, selected-serving UI and Plan metadata unchanged"
+  ],
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFiles": true,
+    "runtime": false,
+    "types": false,
+    "lint": false
+  },
+  "focusedCommand": "npx vitest run __tests__/listedDiscoveryIndex.test.ts __tests__/mapExperienceLens.test.ts __tests__/listedCategoryPrices.test.ts",
+  "limits": [
+    "This fixes lost approved alternatives/labels only; does not establish grouped selection/ranking or base venue inclusion",
+    "Native category falsifier/full11file repair remain owner pending"
+  ]
+}

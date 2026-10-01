@@ -1,0 +1,600 @@
+{
+  "diagnosticOnly": true,
+  "status": "RED",
+  "origin": "http://localhost:3351",
+  "journeys": [
+    {
+      "width": 390,
+      "venueId": "venue-1vse4lh",
+      "name": "The Brownswood",
+      "completed": true,
+      "checks": [
+        {
+          "name": "Mixer quote never supplies a beer price",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBeFalsy()\n\nReceived: true"
+        },
+        {
+          "name": "Mixer quote never appears as the published pint figure",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.contributorPrice').filter({ hasText: 'Published price' }).filter({ hasText: '£2.60' }).filter({ has: locator('a.priceSourceLink[href=\"https://thebrownswood.co.uk/drinks-menu/\"]') })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.contributorPrice').filter({ hasText: 'Published price' }).filter({ hasText: '£2.60' }).filter({ has: locator('a.priceSourceLink[href=\"https://thebrownswood.co.uk/drinks-menu/\"]') })\n    14 × locator resolved to 1 element\n       - unexpected value \"1\"\n"
+        },
+        {
+          "name": "Printed gin measure survives API projection",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"25ml\"\nReceived: undefined"
+        },
+        {
+          "name": "Printed gin measure appears in the actual sheet",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveText(expected) failed\n\nLocator: locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.venueListedPriceRow').filter({ hasText: 'Sacred' }).locator('.venueListedPriceMeasure')\nExpected pattern: /25\\s*ml/i\nReceived string:  \"Serving not recorded\"\nTimeout: 5000ms\n\nCall log:\n  - Expect \"to.have.text\" with timeout 5000ms\n  - waiting for locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.venueListedPriceRow').filter({ hasText: 'Sacred' }).locator('.venueListedPriceMeasure')\n    14 × locator resolved to <span class=\"venueListedPriceMeasure\">Serving not recorded</span>\n       - unexpected value \"Serving not recorded\"\n"
+        },
+        {
+          "name": "Selected sheet has no page errors",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "response": {
+        "status": 200,
+        "fromServiceWorker": false,
+        "venueId": "venue-1vse4lh",
+        "bundlePrices": {
+          "listed": {
+            "priceGbp": 2.6,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          "estimate": {
+            "priceGbp": 4.89,
+            "basis": "regional_baseline:hackney",
+            "sampleSize": 48,
+            "computedAt": "2026-09-03T21:36:27.404Z"
+          }
+        },
+        "listedCategoryPrices": [
+          {
+            "source": "listed",
+            "category": "whisky",
+            "drinkLabel": "Lucky Sod –",
+            "priceGbp": 4.3,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "gin",
+            "drinkLabel": "Gin ~ 25 ml Sacred –",
+            "priceGbp": 4.2,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "vodka",
+            "drinkLabel": "Virgin Bloody Mary AF –",
+            "priceGbp": 4,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "rum",
+            "drinkLabel": "Paloma –",
+            "priceGbp": 8,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "cocktail",
+            "drinkLabel": "High Point Ruby Spritz AF –",
+            "priceGbp": 5.5,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "shot",
+            "drinkLabel": null,
+            "priceGbp": 4.3,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "alcohol-free",
+            "drinkLabel": "Corona Cero 0.0% –",
+            "priceGbp": 4.5,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "soft-drink",
+            "drinkLabel": "btl Still / Sparkling Water –",
+            "priceGbp": 2.2,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "coffee",
+            "drinkLabel": "Liquors Amaretto Lazzaroni –",
+            "priceGbp": 4.3,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          }
+        ]
+      },
+      "setupError": null,
+      "navigationStatus": 200,
+      "text": "The Brownswood\n£2.60\nlisted by the pub\nNear me\nTurn on location for walk times\nPlan stop\nPhoto: pub website\nOverview\nPhotos\nDrinks\nStories\nLore\n\n271 Green Lanes, London N4 2EX\n\nBook via site\nLook at the menu\nHow busy is it right now?\n\nNo fresh reading\n\nSign in to report\n\nON THE NIGHT\nVisits, written up\nWrite yours on Lore\n\nNo visits have been written up here yet.\n\nFood hygiene\n4\nFSA\nDetails and practical info\nLast train\nWhat drinkers noticed\nAccess unknown\nPrices on published menus\nWhisky · Lucky Sod –\n£4.30\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nGin · Gin ~ 25 ml Sacred –\n£4.20\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nVodka · Virgin Bloody Mary AF –\n£4.00\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nRum · Paloma –\n£8.00\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nCocktails · High Point Ruby Spritz AF –\n£5.50\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nShots\n£4.30\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nAlcohol-free · Corona Cero 0.0% –\n£4.50\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nSoft drinks · btl Still / Sparkling Water –\n£2.20\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nCoffee · Liquors Amaretto Lazzaroni –\n£4.30\nServing not recorded\nPrice seen 21 September 2026 · View menu source\n\nNo beer price logged here yet.\n\nSOURCED\nPublished price\n£2.60\nListed\nlogged 8 days ago · source\nLog tonight's price\nSave The Brownswood to a list\nSave for a night\nI'm here\nMake it Stop 1\nShare",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "width": 390,
+      "venueId": "venue-1ctgk0m",
+      "name": "The Bell on the Green",
+      "completed": true,
+      "checks": [
+        {
+          "name": "London Pride never appears as wine in the detail API",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBeFalsy()\n\nReceived: true"
+        },
+        {
+          "name": "London Pride never appears as wine in the actual sheet",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.venueListedPriceRow').filter({ hasText: 'London Pride' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.venueListedPriceRow').filter({ hasText: 'London Pride' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\n    14 × locator resolved to 1 element\n       - unexpected value \"1\"\n"
+        },
+        {
+          "name": "Selected sheet has no page errors",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "response": {
+        "status": 200,
+        "fromServiceWorker": false,
+        "venueId": "venue-1ctgk0m",
+        "bundlePrices": {
+          "listed": {
+            "priceGbp": 4.25,
+            "sourceUrl": "https://thebellonthegreen.com/drinks/",
+            "observedAt": "2026-09-21T18:25:47.604Z"
+          },
+          "estimate": {
+            "priceGbp": 6.06,
+            "basis": "regional_baseline:hounslow",
+            "sampleSize": 26,
+            "computedAt": "2026-09-03T21:36:27.404Z"
+          }
+        },
+        "listedCategoryPrices": [
+          {
+            "source": "listed",
+            "category": "wine",
+            "drinkLabel": "London Pride 500ml",
+            "priceGbp": 4,
+            "servingSize": null,
+            "sourceUrl": "https://thebellonthegreen.com/drinks/",
+            "observedAt": "2026-09-21T18:25:47.604Z"
+          },
+          {
+            "source": "listed",
+            "category": "soft-drink",
+            "drinkLabel": null,
+            "priceGbp": 1.45,
+            "servingSize": null,
+            "sourceUrl": "https://thebellonthegreen.com/drinks/",
+            "observedAt": "2026-09-21T18:25:47.604Z"
+          }
+        ]
+      },
+      "setupError": null,
+      "navigationStatus": 200,
+      "text": "The Bell on the Green\n£4.25\nlisted by the pub\nNear me\nTurn on location for walk times\nPlan stop\nNo photo yet\nOverview\nPhotos\nDrinks\nStories\nLore\n\n661, Staines Road, Feltham, TW14 8PA\n\nBook via site\nPub website\nHow busy is it right now?\n\nNo fresh reading\n\nSign in to report\n\nON THE NIGHT\nVisits, written up\nWrite yours on Lore\n\nNo visits have been written up here yet.\n\nFood hygiene\n2\nFSA\nDetails and practical info\nLast train\nWhat drinkers noticed\nAccess unknown\nPrices on published menus\nWine · London Pride 500ml\n£4.00\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nSoft drinks\n£1.45\nServing not recorded\nPrice seen 21 September 2026 · View menu source\n\nNo beer price logged here yet.\n\nSOURCED\nPublished price\n£4.25\nListed\nlogged 9 days ago · source\nLog tonight's price\nSave The Bell on the Green to a list\nSave for a night\nI'm here\nMake it Stop 1\nShare",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "width": 390,
+      "venueId": "venue-bri-1o203s4",
+      "name": "The Gallimaufry",
+      "completed": true,
+      "checks": [
+        {
+          "name": "Ting Grapefruit Soda never appears as wine in the detail API",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBeFalsy()\n\nReceived: true"
+        },
+        {
+          "name": "Ting Grapefruit Soda never appears as wine in the actual sheet",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.venueListedPriceRow').filter({ hasText: 'Ting Grapefruit Soda' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for locator('.mobileSheetPortal[data-sheet-kind=\"venue\"]:visible').locator('.venueListedPriceRow').filter({ hasText: 'Ting Grapefruit Soda' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\n    14 × locator resolved to 1 element\n       - unexpected value \"1\"\n"
+        },
+        {
+          "name": "Selected sheet has no page errors",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "response": {
+        "status": 200,
+        "fromServiceWorker": false,
+        "venueId": "venue-bri-1o203s4",
+        "bundlePrices": {
+          "listed": {
+            "priceGbp": 6,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          "estimate": null
+        },
+        "listedCategoryPrices": [
+          {
+            "source": "listed",
+            "category": "wine",
+            "drinkLabel": "Ting Grapefruit Soda 330ml",
+            "priceGbp": 3,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          {
+            "source": "listed",
+            "category": "cocktail",
+            "drinkLabel": ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml",
+            "priceGbp": 6,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          {
+            "source": "listed",
+            "category": "soft-drink",
+            "drinkLabel": null,
+            "priceGbp": 3,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          {
+            "source": "listed",
+            "category": "coffee",
+            "drinkLabel": null,
+            "priceGbp": 2,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          }
+        ]
+      },
+      "setupError": null,
+      "navigationStatus": 200,
+      "text": "The Gallimaufry\n£6.00\nlisted by the pub\nNear me\nTurn on location for walk times\nPlan stop\nNo photo yet\nOverview\nPhotos\nDrinks\nStories\nLore\n\n26-28, gloucester road, bristol, bs7 8al\n\nFind booking\nHow busy is it right now?\n\nNo fresh reading\n\nSign in to report\n\nON THE NIGHT\nVisits, written up\nWrite yours on Lore\n\nNo visits have been written up here yet.\n\nDetails and practical info\nLast Train\nWhat drinkers noticed\nAccess unknown\nPrices on published menus\nWine · Ting Grapefruit Soda 330ml\n£3.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\nCocktails · .5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml\n£6.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\nSoft drinks\n£3.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\nCoffee\n£2.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\n\nNo beer price logged here yet.\n\nSOURCED\nPublished price\n£6.00\nListed\nlogged 26 days ago · source\nLog tonight's price\nSave The Gallimaufry to a list\nSave for a night\nI'm here\nMake it Stop 1\nShare",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "width": 1440,
+      "venueId": "venue-1vse4lh",
+      "name": "The Brownswood",
+      "completed": true,
+      "checks": [
+        {
+          "name": "Mixer quote never supplies a beer price",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBeFalsy()\n\nReceived: true"
+        },
+        {
+          "name": "Mixer quote never appears as the published pint figure",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.contributorPrice').filter({ hasText: 'Published price' }).filter({ hasText: '£2.60' }).filter({ has: locator('a.priceSourceLink[href=\"https://thebrownswood.co.uk/drinks-menu/\"]') })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.contributorPrice').filter({ hasText: 'Published price' }).filter({ hasText: '£2.60' }).filter({ has: locator('a.priceSourceLink[href=\"https://thebrownswood.co.uk/drinks-menu/\"]') })\n    12 × locator resolved to 1 element\n       - unexpected value \"1\"\n"
+        },
+        {
+          "name": "Printed gin measure survives API projection",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"25ml\"\nReceived: undefined"
+        },
+        {
+          "name": "Printed gin measure appears in the actual sheet",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveText(expected) failed\n\nLocator: locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.venueListedPriceRow').filter({ hasText: 'Sacred' }).locator('.venueListedPriceMeasure')\nExpected pattern: /25\\s*ml/i\nReceived string:  \"Serving not recorded\"\nTimeout: 5000ms\n\nCall log:\n  - Expect \"to.have.text\" with timeout 5000ms\n  - waiting for locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.venueListedPriceRow').filter({ hasText: 'Sacred' }).locator('.venueListedPriceMeasure')\n    14 × locator resolved to <span class=\"venueListedPriceMeasure\">Serving not recorded</span>\n       - unexpected value \"Serving not recorded\"\n"
+        },
+        {
+          "name": "Selected sheet has no page errors",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "response": {
+        "status": 200,
+        "fromServiceWorker": false,
+        "venueId": "venue-1vse4lh",
+        "bundlePrices": {
+          "listed": {
+            "priceGbp": 2.6,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          "estimate": {
+            "priceGbp": 4.89,
+            "basis": "regional_baseline:hackney",
+            "sampleSize": 48,
+            "computedAt": "2026-09-03T21:36:27.404Z"
+          }
+        },
+        "listedCategoryPrices": [
+          {
+            "source": "listed",
+            "category": "whisky",
+            "drinkLabel": "Lucky Sod –",
+            "priceGbp": 4.3,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "gin",
+            "drinkLabel": "Gin ~ 25 ml Sacred –",
+            "priceGbp": 4.2,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "vodka",
+            "drinkLabel": "Virgin Bloody Mary AF –",
+            "priceGbp": 4,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "rum",
+            "drinkLabel": "Paloma –",
+            "priceGbp": 8,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "cocktail",
+            "drinkLabel": "High Point Ruby Spritz AF –",
+            "priceGbp": 5.5,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "shot",
+            "drinkLabel": null,
+            "priceGbp": 4.3,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "alcohol-free",
+            "drinkLabel": "Corona Cero 0.0% –",
+            "priceGbp": 4.5,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "soft-drink",
+            "drinkLabel": "btl Still / Sparkling Water –",
+            "priceGbp": 2.2,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          },
+          {
+            "source": "listed",
+            "category": "coffee",
+            "drinkLabel": "Liquors Amaretto Lazzaroni –",
+            "priceGbp": 4.3,
+            "servingSize": null,
+            "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+            "observedAt": "2026-09-21T18:56:51.214Z"
+          }
+        ]
+      },
+      "setupError": null,
+      "navigationStatus": 200,
+      "text": "Hackney · Pub\nThe Brownswood\nPhoto: pub website\nOverview\nPhotos\nDrinks\nStories\nLore\n\n271 Green Lanes, London N4 2EX\n\nBook via site\nLook at the menu\nHow busy is it right now?\n\nNo fresh reading\n\nSign in to report\n\nON THE NIGHT\nVisits, written up\nWrite yours on Lore\n\nNo visits have been written up here yet.\n\nFood hygiene\n4\nFSA\nDetails and practical info\nLast train\nWhat drinkers noticed\nAccess unknown\nPrices on published menus\nWhisky · Lucky Sod –\n£4.30\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nGin · Gin ~ 25 ml Sacred –\n£4.20\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nVodka · Virgin Bloody Mary AF –\n£4.00\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nRum · Paloma –\n£8.00\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nCocktails · High Point Ruby Spritz AF –\n£5.50\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nShots\n£4.30\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nAlcohol-free · Corona Cero 0.0% –\n£4.50\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nSoft drinks · btl Still / Sparkling Water –\n£2.20\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nCoffee · Liquors Amaretto Lazzaroni –\n£4.30\nServing not recorded\nPrice seen 21 September 2026 · View menu source\n\nNo beer price logged here yet.\n\nSOURCED\nPublished price\n£2.60\nListed\nlogged 8 days ago · source\nLog tonight's price\nSave The Brownswood to a list\nSave for a night\nI'm here\nMake it Stop 1\nShare",
+      "bounds": {
+        "x": 800,
+        "y": 159,
+        "width": 640,
+        "height": 841
+      }
+    },
+    {
+      "width": 1440,
+      "venueId": "venue-1ctgk0m",
+      "name": "The Bell on the Green",
+      "completed": true,
+      "checks": [
+        {
+          "name": "London Pride never appears as wine in the detail API",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBeFalsy()\n\nReceived: true"
+        },
+        {
+          "name": "London Pride never appears as wine in the actual sheet",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.venueListedPriceRow').filter({ hasText: 'London Pride' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.venueListedPriceRow').filter({ hasText: 'London Pride' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\n    12 × locator resolved to 1 element\n       - unexpected value \"1\"\n"
+        },
+        {
+          "name": "Selected sheet has no page errors",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "response": {
+        "status": 200,
+        "fromServiceWorker": false,
+        "venueId": "venue-1ctgk0m",
+        "bundlePrices": {
+          "listed": {
+            "priceGbp": 4.25,
+            "sourceUrl": "https://thebellonthegreen.com/drinks/",
+            "observedAt": "2026-09-21T18:25:47.604Z"
+          },
+          "estimate": {
+            "priceGbp": 6.06,
+            "basis": "regional_baseline:hounslow",
+            "sampleSize": 26,
+            "computedAt": "2026-09-03T21:36:27.404Z"
+          }
+        },
+        "listedCategoryPrices": [
+          {
+            "source": "listed",
+            "category": "wine",
+            "drinkLabel": "London Pride 500ml",
+            "priceGbp": 4,
+            "servingSize": null,
+            "sourceUrl": "https://thebellonthegreen.com/drinks/",
+            "observedAt": "2026-09-21T18:25:47.604Z"
+          },
+          {
+            "source": "listed",
+            "category": "soft-drink",
+            "drinkLabel": null,
+            "priceGbp": 1.45,
+            "servingSize": null,
+            "sourceUrl": "https://thebellonthegreen.com/drinks/",
+            "observedAt": "2026-09-21T18:25:47.604Z"
+          }
+        ]
+      },
+      "setupError": null,
+      "navigationStatus": 200,
+      "text": "Hounslow · Pub\nThe Bell on the Green\nNo photo yet\nOverview\nPhotos\nDrinks\nStories\nLore\n\n661, Staines Road, Feltham, TW14 8PA\n\nBook via site\nPub website\nHow busy is it right now?\n\nNo fresh reading\n\nSign in to report\n\nON THE NIGHT\nVisits, written up\nWrite yours on Lore\n\nNo visits have been written up here yet.\n\nFood hygiene\n2\nFSA\nDetails and practical info\nLast train\nWhat drinkers noticed\nAccess unknown\nPrices on published menus\nWine · London Pride 500ml\n£4.00\nServing not recorded\nPrice seen 21 September 2026 · View menu source\nSoft drinks\n£1.45\nServing not recorded\nPrice seen 21 September 2026 · View menu source\n\nNo beer price logged here yet.\n\nSOURCED\nPublished price\n£4.25\nListed\nlogged 9 days ago · source\nLog tonight's price\nSave The Bell on the Green to a list\nSave for a night\nI'm here\nMake it Stop 1\nShare",
+      "bounds": {
+        "x": 800,
+        "y": 159,
+        "width": 640,
+        "height": 841
+      }
+    },
+    {
+      "width": 1440,
+      "venueId": "venue-bri-1o203s4",
+      "name": "The Gallimaufry",
+      "completed": true,
+      "checks": [
+        {
+          "name": "Ting Grapefruit Soda never appears as wine in the detail API",
+          "status": "FAIL",
+          "error": "Error: expect(received).toBeFalsy()\n\nReceived: true"
+        },
+        {
+          "name": "Ting Grapefruit Soda never appears as wine in the actual sheet",
+          "status": "FAIL",
+          "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.venueListedPriceRow').filter({ hasText: 'Ting Grapefruit Soda' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for locator('.mapDrawer.right[aria-hidden=\"false\"]').locator('.venueListedPriceRow').filter({ hasText: 'Ting Grapefruit Soda' }).filter({ has: locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\\b/i }) })\n    13 × locator resolved to 1 element\n       - unexpected value \"1\"\n"
+        },
+        {
+          "name": "Selected sheet has no page errors",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "response": {
+        "status": 200,
+        "fromServiceWorker": false,
+        "venueId": "venue-bri-1o203s4",
+        "bundlePrices": {
+          "listed": {
+            "priceGbp": 6,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          "estimate": null
+        },
+        "listedCategoryPrices": [
+          {
+            "source": "listed",
+            "category": "wine",
+            "drinkLabel": "Ting Grapefruit Soda 330ml",
+            "priceGbp": 3,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          {
+            "source": "listed",
+            "category": "cocktail",
+            "drinkLabel": ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml",
+            "priceGbp": 6,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          {
+            "source": "listed",
+            "category": "soft-drink",
+            "drinkLabel": null,
+            "priceGbp": 3,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          },
+          {
+            "source": "listed",
+            "category": "coffee",
+            "drinkLabel": null,
+            "priceGbp": 2,
+            "servingSize": null,
+            "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+            "observedAt": "2026-09-04T13:40:39.833Z"
+          }
+        ]
+      },
+      "setupError": null,
+      "navigationStatus": 200,
+      "text": "Bristol · Pub\nThe Gallimaufry\nNo photo yet\nOverview\nPhotos\nDrinks\nStories\nLore\n\n26-28, gloucester road, bristol, bs7 8al\n\nFind booking\nHow busy is it right now?\n\nNo fresh reading\n\nSign in to report\n\nON THE NIGHT\nVisits, written up\nWrite yours on Lore\n\nNo visits have been written up here yet.\n\nDetails and practical info\nLast Train\nWhat drinkers noticed\nAccess unknown\nPrices on published menus\nWine · Ting Grapefruit Soda 330ml\n£3.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\nCocktails · .5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml\n£6.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\nSoft drinks\n£3.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\nCoffee\n£2.00\nServing not recorded\nPrice seen 4 September 2026 · View menu source\n\nNo beer price logged here yet.\n\nSOURCED\nPublished price\n£6.00\nListed\nlogged 26 days ago · source\nLog tonight's price\nSave The Gallimaufry to a list\nSave for a night\nI'm here\nMake it Stop 1\nShare",
+      "bounds": {
+        "x": 800,
+        "y": 159,
+        "width": 640,
+        "height": 841
+      }
+    }
+  ],
+  "errors": []
+}

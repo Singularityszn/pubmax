@@ -1,31 +1,9 @@
-// ONE BUNDLE, EVERY PRICE WE HOLD, AND EACH ROW SAYS WHAT IT IS WORTH.
-//
-// Prices reach this tree down several lanes: a drinker's Pint Drop, a chain's
-// own published menu, a first-party harvest of a pub's own site, and a figure
-// modelled here that nobody published at all. Each lane already has an owner,
-// and each owner already decides its own thing. What did not exist was ONE
-// place a reader could ask "what do we hold about this pub, and how good is
-// it", so a coverage question could only be answered by counting four files by
-// hand.
-//
-// THE BUNDLE INVENTS NOTHING. Every row is a row one of those lanes already
-// produced, carried through with its own source URL and its own observation
-// day, and stamped with the standing lib/priceTier.ts decided for it. The
-// builder is scripts/build_uk_price_bundle.mjs; this module is the shape, the
-// parser and the ONE rule about who may read what.
-//
-// THAT RULE, and it is the reason this module exists rather than a bare JSON
-// read: A BUNDLE ROW IS NOT AUTOMATICALLY A PRICE A SURFACE MAY PAINT. The
-// bundle deliberately carries estimates, because a coverage answer that omits
-// them is not a coverage answer. An estimate may never reach pin colour, the
-// cheapest-pint buckets, the price bands or the Pint Index - the fence
-// __tests__/priceEstimateAuthorityFence.test.ts holds that line for the estimate
-// engine, and `authoritativeBundleRows` holds it here. A caller that wants a
-// figure it may treat as a fact asks for that; a caller that wants to say what
-// we hold asks for the whole set and prints the standing beside every row.
-//
-// This module imports the standing vocabulary and nothing else, so a surface
-// that needs to read the bundle does not pull the venue index in behind it.
+// Bundle schema and read policy for scripts/build_uk_price_bundle.mjs.
+// Rows retain their producing lane, source and observation date; priceTier.ts
+// decides their standing. Estimates remain available for coverage reporting,
+// but authoritativeBundleRows excludes them from price claims, pin colours,
+// cheapest-pint buckets, price bands and the Pint Index. This leaf imports no
+// venue index.
 
 import {
   UK_PRICE_BUNDLE_DRINK_LABEL_MAX,
@@ -44,10 +22,7 @@ import {
 export const UK_PRICE_BUNDLE_VERSION = 1;
 
 /**
- * Which lane a row came down. This is PROVENANCE, not authority: the standing
- * says how good the row is, and the lane says who produced it, so a coverage
- * report can name the lane that is thin without re-deciding what its rows are
- * worth.
+ * Producing lanes describe provenance. Standing determines authority.
  */
 export const UK_PRICE_BUNDLE_LANES = [
   // A pub's or a chain's own website, read by scripts/harvest/uk-prices.
@@ -96,12 +71,28 @@ export type UkPriceBundleRow = {
  * as well as category and price, so other drinks on these menus still publish.
  */
 const CATEGORY_QUARANTINE: ReadonlyArray<
-  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
+  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel" | "servingSize">
 > = [
+  { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride 500ml" },
+  { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride", servingSize: "500ml" },
+  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "wine", priceGbp: 3, drinkLabel: "Ting Grapefruit Soda 330ml" },
+  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "wine", priceGbp: 3, drinkLabel: "Ting Grapefruit Soda", servingSize: "330ml" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "beer", priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "rum", priceGbp: 8, drinkLabel: "Paloma –" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "vodka", priceGbp: 4, drinkLabel: "Virgin Bloody Mary AF –" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "coffee", priceGbp: 4.3, drinkLabel: "Liquors Amaretto Lazzaroni –" },
+  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "cocktail", priceGbp: 6, drinkLabel: ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml" },
   { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 8.1, drinkLabel: "/" },
   { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda" },
   { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda" },
   { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 7.8, drinkLabel: "/" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "rum", priceGbp: 9, drinkLabel: "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "cocktail", priceGbp: 9, drinkLabel: "## 0% Espresso Martini The classic coffee cocktail shaken with Clean Co Clean V" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "cocktail", priceGbp: 9, drinkLabel: "Zesty and refreshing Clean Co Clean R with Mexican lime, Moroccan mint and soda" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "gin", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "shot", priceGbp: 12, drinkLabel: "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "whisky", priceGbp: 10, drinkLabel: "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary" },
@@ -127,8 +118,20 @@ export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
   return row.lane === "site-harvest" && row.standing === "listed" &&
     CATEGORY_QUARANTINE.some((item) =>
       item.sourceUrl === row.sourceUrl && item.category === row.category &&
-      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel,
+      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel &&
+      (item.servingSize === undefined || item.servingSize === row.servingSize),
     );
+}
+
+/** Recover this retained menu's literal measure; existing typed servings win. */
+export function bundleRowServingSize(row: UkPriceBundleRow): string | undefined {
+  if (row.servingSize !== undefined) return row.servingSize;
+  if (row.lane === "site-harvest" && row.standing === "listed" &&
+      row.sourceUrl === "https://thebrownswood.co.uk/drinks-menu/" &&
+      row.category === "gin" && row.drinkLabel === "Gin ~ 25 ml Sacred –") {
+    return "25ml";
+  }
+  return undefined;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -144,9 +147,8 @@ export function isUkPriceBundleLane(value: unknown): value is UkPriceBundleLane 
 }
 
 /**
- * A row is valid only if it can be cited. THE TWO THINGS EVERY ROW OWES are a
- * day and, unless it is modelled, a source URL; a row without them is a figure
- * nobody can check or correct, and validate-data refuses the file over it.
+ * Every row needs a date; listed rows also need a source URL. Estimates carry
+ * their model basis and sample size instead. validate-data enforces this shape.
  */
 export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleRow {
   if (!value || typeof value !== "object") return false;
@@ -194,20 +196,14 @@ export function parseUkPriceBundleRows(raw: unknown): UkPriceBundleRow[] {
 }
 
 /**
- * The rows a surface may treat as a FACT about tonight's price. Everything the
- * standing vocabulary says carries authority, and nothing else, which is how an
- * estimate is kept out of pin colour and the Index without every caller having
- * to remember the rule.
+ * Rows eligible for factual price claims, excluding quarantined observations.
  */
 export function authoritativeBundleRows(rows: readonly UkPriceBundleRow[]): UkPriceBundleRow[] {
   return rows.filter((row) => standingCarriesAuthority(row.standing) && !isCategoryQuarantined(row));
 }
 
 /**
- * The strongest row the bundle holds for one pub and one drink, decided by the
- * ONE decider. A harvested listing beats a modelled estimate for the same pub
- * and drink because `priceStandingFor` says so, not because this function
- * re-decides it.
+ * Delegate standing and freshness for one pub and drink to priceStandingFor.
  */
 export function strongestBundleRow(
   rows: readonly UkPriceBundleRow[],
@@ -217,15 +213,9 @@ export function strongestBundleRow(
 }
 
 /**
- * The two inputs `priceStandingFor` takes, over rows already narrowed to one
- * pub and one drink.
- *
- * WITHIN ONE STANDING, THE READ SIDE PICKS WHAT THE BUILD SIDE KEEPS: the
- * freshest reading, and the cheapest within that reading. Both sides ask
- * `bundleRowSupersedes`, so a second listed lane landing for one pub cannot
- * make the sheet quote a figure the builder itself would have superseded. The
- * two standings are gathered apart because choosing BETWEEN them is the one
- * decider's job, never this function's.
+ * Gather listed and estimated inputs separately for one pub and drink.
+ * Read and build paths share bundleRowSupersedes: newest observation wins,
+ * then cheapest within that observation. priceStandingFor chooses the standing.
  */
 function bundlePriceInputs(rows: readonly UkPriceBundleRow[]): {
   listed: ListedPriceInput | null;
@@ -271,31 +261,15 @@ export function bundlePricesForCategory(
 }
 
 /**
- * The drink a pub's own price area is about. Beer is the lane the map rests in
- * (lib/drinkLanes.ts), so the sheet's price claim is a beer claim, and naming
- * it once here stops a surface reaching for a different drink's figure.
+ * The default sheet price is beer, matching the map's default drink lane.
  */
 export const BUNDLE_DEFAULT_CATEGORY = "beer";
 
 /**
- * Which of two rows for one pub and one drink the bundle keeps, and the ONE
- * ordering both sides of the bundle spend: the builder folding a lane's rows
- * down to what it stores, and `bundlePriceInputs` picking what a sheet reads
- * back out. A rule stated twice is a rule that drifts, and this one drifted
- * once already.
- *
- * TWO QUESTIONS, ANSWERED IN ORDER, because they are about different things.
- *
- * 1. THE FRESHEST READING WINS. A page read twice is one page answering twice,
- *    and the later answer is the one that is true now. Keeping the cheaper of
- *    two readings publishes last year's figure the moment a pub puts its prices
- *    up, and dates it to the day it was cheap.
- * 2. WITHIN ONE READING, THE CHEAPEST WINS. A menu states many lines for one
- *    pub's beer, and the figure a drinker can walk in and pay is the lowest of
- *    them. A reading is stamped once per page, so the rows of one page share an
- *    instant and land here as a tie.
- *
- * Returns true when `candidate` should replace `held`.
+ * Shared read/build ordering for one pub and drink. Prefer the latest
+ * observation, then the cheapest price at that timestamp. Choosing price
+ * before date would preserve an older, cheaper offer after a price increase.
+ * Returns true when candidate replaces held.
  */
 export function bundleRowSupersedes(
   candidate: UkPriceBundleRow,

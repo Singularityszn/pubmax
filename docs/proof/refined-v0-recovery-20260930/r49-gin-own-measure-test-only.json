@@ -1,0 +1,42 @@
+{
+  "status": "FROZEN TEST-ONLY; actual own-measure RED UNRUN",
+  "createdAtUTC": "2026-10-01T13:27:31.776708+00:00",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtPackaging": "b4a30f2b0366e7ddd6a96316ce92281be0636b64",
+  "scratch": "/tmp/pubmaxx-r49-gin-own-measure-tests",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-gin-own-measure-test-only.patch",
+  "patchSHA256": "47d0f6f5d3cfe0e93c64cfa601c5acc62bec3499bbbd0a7828ffa71c58c95097",
+  "paths": [
+    {
+      "path": "__tests__/ginPublisherServingScope.test.ts",
+      "beforeSHA256": null,
+      "afterSHA256": "47453eba458de57b532cab2f458ab837e19ddab438ae6ae0daa0e274d63f45d6",
+      "currentRootAbsent": true
+    }
+  ],
+  "readerDependency": {
+    "path": "lib/harvest/ukPriceCrawl.ts",
+    "SHA256": "e06986c7509fcdf02898d603ee60c34c20a536223fd0166d2422eb51ed861073"
+  },
+  "sourceFinding": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-gin-item-measure-source-finding.md",
+    "SHA256": "242c157b77bab726b64915122744cf068c1c32b648885a2f79f799d10de49954"
+  },
+  "cases": [
+    "explicit own 50ml must override preceding Gin 25ml section",
+    "preceding Gin 25ml supplies measure when named item states none",
+    "later Gin 25ml never retroactively assigns measure to an earlier named item"
+  ],
+  "expectedCurrentResult": "Source inference only: first contract should FAIL (current emits25ml); two controls should PASS. No execution claimed.",
+  "inputAuthority": "All three inputs are deliberately synthetic reader contracts; no publisher attribution, fetch, ledger import or generated price claim.",
+  "checks": {
+    "RootReadonlyGitApplyCheckWhitespaceErrorAll": "PASS exit0",
+    "freshScratchApply": "PASS exit0",
+    "freshScratchHash": "PASS exact bytes",
+    "currentReaderPin": "PASS",
+    "sourceFindingPin": "PASS"
+  },
+  "verification": "No tests/runtime/compiler/lint/build/browser/provider run by this lane; actual RED prerequisite remains Root-owned.",
+  "command": "npx vitest run __tests__/ginPublisherServingScope.test.ts __tests__/ginPublisherSourceRefresh.test.ts __tests__/ukPriceCrawl.test.ts __tests__/ukPriceHarvestRead.test.ts __tests__/ukPriceSourceFormat.test.ts",
+  "scope": "One new test file only; reader, existing Root tests/fixtures, data and storage code unchanged."
+}

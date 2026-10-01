@@ -9,6 +9,13 @@ import {
   type SiteHarvestLedgerRow,
 } from "@/lib/siteHarvestLedger";
 import { isHarvestableDrinkUpdateUrl } from "@/lib/harvest/sourcePolicy";
+import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
+import {
+  bundleRowServingSize,
+  isCategoryQuarantined,
+  isValidUkPriceBundleRow,
+  type UkPriceBundleRow,
+} from "@/lib/ukPriceBundle";
 
 vi.mock("server-only", () => ({}));
 
@@ -459,23 +466,53 @@ describe("site-harvest withdrawal reconciliation", () => {
 
     const bundleRows = JSON.parse(
       readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
-    ) as Array<{
-      sourceUrl: string | null;
-      lane: string;
-      drinkLabel?: string;
-      servingSize?: string;
-      priceGbp: number;
-      observedAt: string;
-    }>;
+    ) as UkPriceBundleRow[];
     const bundledSourceRows = bundleRows.filter(
       (row) => row.sourceUrl === publication.sourceUrl && row.lane === "site-harvest",
     );
     const identity = (row: { drinkLabel?: string; servingSize?: string; priceGbp?: number; observedAt?: string }) =>
       `${row.drinkLabel}|${row.servingSize}|${row.priceGbp}|${row.observedAt}`;
     expect(bundledSourceRows.map(identity).sort()).toEqual(sourceRows.map(identity).sort());
-    expect(publication.currentBundle).toEqual({
-      rowCount: bundleRows.length,
-      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
-    });
+    // This records the September 29 publication, not every later bundle build.
+    expect(publication.currentBundle).toEqual({ rowCount: 7603, siteHarvestRows: 3083 });
+    const ledgerBundleRows: unknown[] = rows.map((row) => ({
+      venueId: row.venueId,
+      name: row.name ?? null,
+      category: row.category,
+      priceGbp: row.priceGbp,
+      lane: "site-harvest",
+      standing: "listed",
+      sourceUrl: row.sourceUrl ?? null,
+      publisher: row.host ?? null,
+      observedAt: row.observedAt,
+      basis: null,
+      sampleSize: null,
+      ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
+      ...bundleDrinkFieldsFromPrintedName(row.drinkLabel ?? row.drinkName ?? null, row.category ?? ""),
+    }));
+    const validLedgerRows = ledgerBundleRows.filter(isValidUkPriceBundleRow);
+    expect(validLedgerRows).toHaveLength(rows.length);
+    const quarantined = validLedgerRows.filter(isCategoryQuarantined);
+    expect(quarantined).toHaveLength(37);
+    const historicalQuarantineCount = publication.currentLedger.rowCount - publication.currentBundle.siteHarvestRows;
+    expect(historicalQuarantineCount).toBe(23);
+    const additionalQuarantines = quarantined.length - historicalQuarantineCount;
+    const publishedSiteRows = bundleRows.filter((row) => row.lane === "site-harvest");
+    expect(bundleRows).toHaveLength(publication.currentBundle.rowCount - additionalQuarantines);
+    expect(publishedSiteRows).toHaveLength(publication.currentBundle.siteHarvestRows - additionalQuarantines);
+
+    // Curated aliases change venue IDs. Every other published claim must still
+    // match its source, including the literal serving recovered by the builder.
+    const claimIdentity = (row: UkPriceBundleRow) => JSON.stringify([
+      row.sourceUrl, row.category, row.priceGbp, row.drinkLabel ?? null,
+      row.observedAt, row.servingSize ?? null,
+    ]);
+    const publishedClaims = publishedSiteRows.map(claimIdentity).sort();
+    for (const row of quarantined) {
+      expect(publishedClaims).not.toContain(claimIdentity(row));
+    }
+    const retainedClaims = validLedgerRows.filter((row) => !isCategoryQuarantined(row))
+      .map((row) => claimIdentity({ ...row, servingSize: bundleRowServingSize(row) })).sort();
+    expect(publishedClaims).toEqual(retainedClaims);
   });
 });

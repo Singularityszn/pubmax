@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-01T00:13:51.982728+00:00",
+  "status": "RED",
+  "exitCode": 1,
+  "sourceFreeze": "r46-repaired-source-freeze.json",
+  "passed": 18703,
+  "failed": 1,
+  "skipped": 6,
+  "filesPassed": 1739,
+  "filesFailed": 1,
+  "filesSkipped": 1,
+  "failure": "siteHarvestReconciliation496 expected30 quarantines got37 after seven newly evidenced Prospect claims withheld",
+  "log": "/tmp/pubmaxx-r46-full-source-verify.log",
+  "lintErrors": 0,
+  "lintWarnings": 18,
+  "remainingStages": "RLS/final skips freshness audit not reached because coverage exited1",
+  "followup": "Preserve historicalaudit/rawledger, correct currentquarantinecount, retain durablecachecontrol, factorbanpredicate to avoid newcomplexitywarning, then freshwholegate"
+}

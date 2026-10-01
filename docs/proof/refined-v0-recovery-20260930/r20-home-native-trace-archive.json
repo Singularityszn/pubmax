@@ -1,0 +1,38 @@
+{
+  "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/artifacts/refined-v0-recovery/r20-home-native-traces.tar.gz",
+  "sha256": "048bc5e1821b0485071d823a88c82a151dc44f98b1fc1c9de3dc7b44ea1b7dc6",
+  "bytes": 5714586,
+  "files": [
+    {
+      "name": "sample-0-trace.json",
+      "bytes": 14896267,
+      "sha256": "854abc6f0c3cf5fa421eca6ee1125496d442fb5a8491d07124d2c551603af30b"
+    },
+    {
+      "name": "sample-1-trace.json",
+      "bytes": 16747962,
+      "sha256": "154ef8f013089823762f1aa418db1883c7fb2ad37c854a351a1dc205807e8e9c"
+    },
+    {
+      "name": "sample-2-trace.json",
+      "bytes": 16264940,
+      "sha256": "f6a7909159487faac4ac2bfefa20b50fae335162125a1f99b278f29f6b558ed8"
+    },
+    {
+      "name": "sample-3-trace.json",
+      "bytes": 17020233,
+      "sha256": "2b6878d47f5eeabefbb0045372dfa3dd8cfb6771237edb757c8892b8436f4184"
+    },
+    {
+      "name": "sample-4-trace.json",
+      "bytes": 16913549,
+      "sha256": "4a083af267976dad4f818f4eda0691c496b7791fd85c6c4467da990e587f4c1c"
+    }
+  ],
+  "diagnosticOnly": true,
+  "confounds": [
+    "Extra native tracing overhead",
+    "Own94-unit/tsc09:04:53 finalsample overlap",
+    "ExternalselfhostedActionsperformance-browserborn09:00:02 active duringR20 measurements"
+  ]
+}

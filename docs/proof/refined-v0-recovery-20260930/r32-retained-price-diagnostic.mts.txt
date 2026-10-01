@@ -1,0 +1,136 @@
+// UNRUN. Local browser proof requires the Core runtime handoff and a fresh build.
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { chromium, devices, expect } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs';
+import { uiUxChromiumLaunchOptions } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/scripts/lib/uiUxBattleTestBrowser.mjs';
+
+const origin = new URL(process.argv[2] ?? 'http://localhost:3351').origin;
+if (!['localhost', '127.0.0.1'].includes(new URL(origin).hostname)) throw new Error('Loopback only');
+const output = process.argv[3] ?? '/tmp/pubmaxx-r32-retained-price-native';
+const pubs = [
+  { id: 'venue-1vse4lh', name: 'The Brownswood', lat: 51.564, lng: -0.0927414 },
+  { id: 'venue-1ctgk0m', name: 'The Bell on the Green', lat: 51.4511716, lng: -0.4386407 },
+  { id: 'venue-bri-1o203s4', name: 'The Gallimaufry', lat: 51.4716714, lng: -2.5926632, place: 'bristol' },
+];
+mkdirSync(output, { recursive: true });
+const report = { diagnosticOnly: true, status: 'RUNNING', origin, journeys: [], errors: [] };
+const flush = () => writeFileSync(`${output}/report.json`, JSON.stringify(report, null, 2) + '\n');
+flush();
+const browser = await chromium.launch(uiUxChromiumLaunchOptions(process.env.UI_UX_BROWSER_CHANNEL));
+let context;
+const deadline = setTimeout(() => {
+  report.errors.push('300s diagnostic deadline'); flush(); void browser.close();
+}, 300_000);
+try {
+  for (const width of [390, 1440]) {
+    for (const pub of pubs) {
+      const journal = { width, venueId: pub.id, name: pub.name, completed: false,
+        checks: [], pageErrors: [], response: null, setupError: null };
+      report.journeys.push(journal);
+      try {
+        context = await browser.newContext({ ...devices['Desktop Chrome'],
+          viewport: { width, height: width === 390 ? 844 : 1000 }, baseURL: origin,
+          serviceWorkers: 'block', storageState: { cookies: [], origins: [{ origin,
+            localStorage: [{ name: 'pubmaxx:analytics-consent:v1', value: 'denied' },
+              { name: 'pubmax:map-first-visit-arrival:v1', value: 'dismissed' }] }] } });
+        const page = await context.newPage();
+        page.setDefaultTimeout(25_000);
+        page.on('pageerror', error => journal.pageErrors.push(String(error)));
+        // Observe the detail request the actual sheet makes. No request interception.
+        const detailPromise = page.waitForResponse(response =>
+          response.request().method() === 'GET'
+          && new URL(response.url()).origin === origin
+          && new URL(response.url()).pathname === `/api/venue/${pub.id}`,
+        { timeout: 35_000 }).then(value => ({ value, error: null }), error => ({ value: null, error }));
+        const path = `/map${pub.place ? `/${pub.place}` : ''}?sel=${pub.id}&at=${pub.lat},${pub.lng}`;
+        const navigation = await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 35_000 });
+        journal.navigationStatus = navigation?.status() ?? null;
+        const detailRead = await detailPromise;
+        if (detailRead.error) throw detailRead.error;
+        const detail = detailRead.value;
+        expect(detail.status()).toBe(200);
+        const body = await detail.json();
+        expect(body.venue?.id).toBe(pub.id);
+        journal.response = { status: detail.status(), fromServiceWorker: detail.fromServiceWorker(),
+          venueId: body.venue.id, bundlePrices: body.venue.bundlePrices,
+          listedCategoryPrices: body.venue.listedCategoryPrices };
+        const sheet = width === 390
+          ? page.locator('.mobileSheetPortal[data-sheet-kind="venue"]:visible')
+          : page.locator('.mapDrawer.right[aria-hidden="false"]');
+        await expect(sheet).toHaveCount(1);
+        await expect(sheet).toBeVisible();
+        await expect(sheet).toContainText(pub.name);
+        const expand = sheet.getByRole('button', { name: 'Expand sheet', exact: true });
+        if (width === 390 && await expand.isVisible()) await expand.click();
+        await expect(sheet.locator('.venueInspector')).toBeVisible();
+        await expect(sheet).not.toContainText('Checking published menu prices');
+        // Wait for the selected response to be rendered before an absence assertion.
+        expect(Array.isArray(body.venue.listedCategoryPrices)).toBeTruthy();
+        await expect(sheet.locator('.venueListedPriceRow')).toHaveCount(body.venue.listedCategoryPrices.length);
+        journal.text = await sheet.innerText();
+        journal.bounds = await sheet.boundingBox();
+        writeFileSync(`${output}/${width}-${pub.id}.txt`, journal.text + '\n');
+        await page.screenshot({ path: `${output}/${width}-${pub.id}.png`, fullPage: true });
+        const check = async (name, action) => {
+          try { await action(); journal.checks.push({ name, status: 'PASS' }); }
+          catch (error) { journal.checks.push({ name, status: 'FAIL', error: String(error) }); }
+          flush();
+        };
+        if (pub.id === 'venue-1vse4lh') {
+          await check('Mixer quote never supplies a beer price', async () => {
+            const listed = body.venue.bundlePrices?.listed;
+            expect(listed && listed.priceGbp === 2.6
+              && listed.sourceUrl === 'https://thebrownswood.co.uk/drinks-menu/').toBeFalsy();
+          });
+          await check('Mixer quote never appears as the published pint figure', async () => {
+            const badPint = sheet.locator('.contributorPrice').filter({ hasText: 'Published price' })
+              .filter({ hasText: '£2.60' })
+              .filter({ has: page.locator('a.priceSourceLink[href="https://thebrownswood.co.uk/drinks-menu/"]') });
+            await expect(badPint).toHaveCount(0);
+          });
+          await check('Printed gin measure survives API projection', async () => {
+            const quotes = body.venue.listedCategoryPrices;
+            expect(Array.isArray(quotes)).toBeTruthy();
+            const quote = quotes.find(row => row.category === 'gin'
+              && row.drinkLabel?.includes('Sacred') && row.priceGbp === 4.2);
+            expect(quote).toBeTruthy();
+            expect(quote.servingSize?.replace(/\s/g, '').toLowerCase()).toBe('25ml');
+          });
+          await check('Printed gin measure appears in the actual sheet', async () => {
+            const row = sheet.locator('.venueListedPriceRow').filter({ hasText: 'Sacred' });
+            await expect(row).toHaveCount(1);
+            await expect(row.locator('.venueDrinkPriceFigure')).toHaveText('£4.20');
+            await expect(row.locator('.venueListedPriceMeasure')).toHaveText(/25\s*ml/i);
+            await expect(row.getByRole('link', { name: 'View menu source', exact: true }))
+              .toHaveAttribute('href', 'https://thebrownswood.co.uk/drinks-menu/');
+          });
+        } else {
+          const badLabel = pub.id === 'venue-1ctgk0m' ? 'London Pride' : 'Ting Grapefruit Soda';
+          await check(`${badLabel} never appears as wine in the detail API`, async () => {
+            expect(Array.isArray(body.venue.listedCategoryPrices)).toBeTruthy();
+            expect(body.venue.listedCategoryPrices.some(row =>
+              row.category === 'wine' && row.drinkLabel?.includes(badLabel))).toBeFalsy();
+          });
+          await check(`${badLabel} never appears as wine in the actual sheet`, async () => {
+            const badRow = sheet.locator('.venueListedPriceRow').filter({ hasText: badLabel })
+              .filter({ has: page.locator('.venueDrinkPriceTag').filter({ hasText: /^Wine\b/i }) });
+            await expect(badRow).toHaveCount(0);
+          });
+        }
+        await check('Selected sheet has no page errors', async () => expect(journal.pageErrors).toEqual([]));
+        journal.completed = true;
+      } catch (error) {
+        journal.setupError = String(error);
+        const page = context?.pages()[0];
+        if (page && !page.isClosed()) await page.screenshot({ path: `${output}/${width}-${pub.id}-setup-failure.png`, fullPage: true }).catch(() => {});
+      } finally {
+        await context?.close().catch(() => {}); context = undefined; flush();
+      }
+    }
+  }
+  report.status = report.journeys.some(journey => !journey.completed) ? 'SETUP_FAILED'
+    : report.journeys.some(journey => journey.checks.some(check => check.status === 'FAIL')) ? 'RED' : 'GREEN';
+} finally {
+  clearTimeout(deadline); await context?.close().catch(() => {});
+  await browser.close().catch(() => {}); flush();
+}
+if (report.errors.length || report.status !== 'GREEN') process.exitCode = report.status === 'SETUP_FAILED' ? 2 : 1;

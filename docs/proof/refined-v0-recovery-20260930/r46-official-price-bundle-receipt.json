@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-01T00:15:31.864638+00:00",
+  "command": "DEPLOYMENT_VERSION=local npm run build:uk-price-bundle",
+  "exitCode": 0,
+  "log": "/tmp/pubmaxx-r46-official-price-builder.log",
+  "rows": 7589,
+  "siteHarvestRows": 3069,
+  "estimates": 2960,
+  "rawLedgerSha256": "aaf43a4dccda3eb3cf9b6ef9bd37b080932ad31751f8dd9211ef2511d9c8b660",
+  "newQuarantinedClaims": 7,
+  "currentQuarantinedCount": 37,
+  "baselineQuarantinedCount": 30,
+  "rawAuditRetained": true,
+  "snapshot": "/tmp/pubmaxx-r46-bundle-repaired",
+  "outputSha256": {
+    "rows.json": "f97dd00e56b1b2f50af976af5dde0dd759f2a5461b5b00d7df557166af514dcc",
+    "manifest.json": "2f2fdc2a4f2a9443ea8261d182b8b48a1ce6abfab220b175c78354232df40046"
+  },
+  "claimBoundary": "Seven exact contradiction signatures withheld; no new prices/reclassification guessed, no whole-dataset accuracy claim"
+}

@@ -1,0 +1,98 @@
+--- a/__tests__/listedCategoryPrices.test.ts
++++ b/__tests__/listedCategoryPrices.test.ts
+@@ -238,6 +238,30 @@
+       .toEqual(["125ml", "250ml", "carafe", "small glass"]);
+   });
+ 
++  it("keeps selected fifth serving available without raising the default per-category cap", () => {
++    const servings = ["25ml", "35ml", "50ml", "75ml", "100ml"];
++    const quotes = servings.map((servingSize, index) => ({
++      ...row({
++        venueId: "venue-uk-n1001",
++        category: "gin",
++        drinkLabel: "Source-stated house gin",
++        priceGbp: 4 + index,
++        observedAt: "2026-09-28T12:00:00Z",
++      }),
++      servingSize,
++    }));
++
++    expect(listedCategoryPrices(quotes, NOW)).toHaveLength(4);
++    expect(listedCategoryPrices(quotes, NOW, { serving: "100ml" })).toEqual([
++      expect.objectContaining({
++        category: "gin",
++        drinkLabel: "Source-stated house gin",
++        priceGbp: 8,
++        servingSize: "100ml",
++      }),
++    ]);
++  });
++
+   it("does not merge unnamed quotes with unknown servings into a drink identity", () => {
+     const rows = [
+       row({ drinkLabel: undefined, priceGbp: 7, observedAt: "2026-09-29T10:00:00Z" }),
+--- a/__tests__/listedDiscoveryIndex.test.ts
++++ b/__tests__/listedDiscoveryIndex.test.ts
+@@ -103,6 +103,62 @@
+     expect(index.truncated).toBe(false);
+   });
+ 
++  it("keeps all eligible serving groups visible and returns a selected fifth group", async () => {
++    const venueId = "venue-uk-n1001";
++    const servings = ["25ml", "35ml", "50ml", "75ml", "100ml"];
++    const stated = servings.map((servingSize, index) => ({
++      ...row,
++      venueId,
++      category: "gin",
++      drinkLabel: "Source-stated house gin",
++      priceGbp: 4 + index,
++      observedAt: "2026-09-28T12:00:00.000Z",
++      servingSize,
++    }));
++    const unknown = {
++      ...row,
++      venueId,
++      category: "gin",
++      drinkLabel: "Unmeasured bottle gin",
++      servingSize: "Btl",
++      observedAt: "2026-09-28T12:00:00.000Z",
++    };
++    const expired = {
++      ...row,
++      venueId,
++      category: "gin",
++      drinkLabel: "Expired gin",
++      servingSize: "150ml",
++      observedAt: "2020-01-01T00:00:00.000Z",
++    };
++    const quarantined = {
++      ...row,
++      venueId,
++      category: "gin",
++      drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%",
++      priceGbp: 9,
++      sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/",
++      servingSize: "200ml",
++    };
++    readFile.mockResolvedValue(JSON.stringify([...stated, unknown, expired, quarantined]));
++
++    const defaultIndex = await ukPriceBundleCategoryIndex("gin", now);
++    expect(defaultIndex.prices).toHaveLength(4);
++    expect(defaultIndex.truncated).toBe(false);
++    expect(defaultIndex.servingGroups).toEqual(servings);
++
++    const selectedIndex = await ukPriceBundleCategoryIndex("gin", now, "100ml");
++    expect(selectedIndex.prices).toEqual([expect.objectContaining({
++      venueId,
++      category: "gin",
++      drinkLabel: "Source-stated house gin",
++      priceGbp: 8,
++      servingSize: "100ml",
++    })]);
++    expect(selectedIndex.servingGroups).toEqual(servings);
++    expect(selectedIndex.truncated).toBe(false);
++  });
++
+   it("keeps the 1000 quote cap and honest truncation within a selected serving", async () => {
+     readFile.mockResolvedValue(JSON.stringify(Array.from({ length: 1001 }, (_, index) => ({
+       ...row, category: "gin", venueId: `venue-uk-n${index}`, servingSize: "25ml",

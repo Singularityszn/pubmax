@@ -1,0 +1,38 @@
+{
+  "at": "2026-09-30T20:00:06.840630+00:00",
+  "status": "RED",
+  "exitCode": 1,
+  "stats": {
+    "startTime": "2026-09-30T19:38:29.596Z",
+    "duration": 1230207.4849999999,
+    "expected": 1290,
+    "skipped": 24,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "passed": 1290,
+  "failed": 2,
+  "skipped": 24,
+  "workers": 2,
+  "retries": 0,
+  "projects": [
+    "chromium",
+    "chromium-keyless",
+    "chromium-gl",
+    "chromium-sw-gl",
+    "chromium-no-gl"
+  ],
+  "failures": [
+    {
+      "file": "e2e/mobile-heritage-ask.spec.ts",
+      "symptom": "Lore action3 height43.99993896484375 vs exact44"
+    },
+    {
+      "file": "e2e/price-evidence-missions.spec.ts",
+      "symptom": "missing-mission price door did not reveal form;20s retry timed out"
+    }
+  ],
+  "sourceFreeze": "r35-final-source-freeze.json",
+  "sourceHashChanges": [],
+  "limits": "full-five remains RED; no focused replay can replace full acceptance"
+}

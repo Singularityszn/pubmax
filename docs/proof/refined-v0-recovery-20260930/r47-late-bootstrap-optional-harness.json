@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-01T03:56:10.821595+00:00",
+  "path": "__tests__/authProviderBootstrapRace.test.tsx",
+  "status": "SOURCE_TEST_PREPARATION_UNRUN",
+  "patchSha256": "21c5c10c9f2addc9376aa7edca41095543ab66892ba314881fd423054e10ce2b",
+  "bytes": 9170,
+  "beforeSha256": "d931ba9f3e1d1cb7b0606bfca7d67d1fe9b643151b8d29642bdbde2ffeedee75",
+  "afterSha256": "eb90c2789e6984cd7ed4ebb46fd9f0fb5f9e3e9fb0388832f6c4baf000f9ae9c",
+  "scratch": "/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/pubmaxx-r47-optional-auth-harness-qmrgx56y",
+  "sourceChecks": "Scratch check/apply/whitespace/output hash PASS. No maintained tree/index/ref edits.",
+  "production": "Original auth production still held; no invented abort signal or install callback.",
+  "baselineMeaningfulFilter": "npm test -- __tests__/authProviderBootstrapRace.test.tsx -t \"does not resurrect|does not replace\" --maxWorkers=1 --no-file-parallelism",
+  "baselineLimitation": "Cold cancellation signal and preinstall-hook controls require implemented production deps; they are setup limitations on originalMain, not public RED. All assertions retained; first logout abort assertion now follows final visible account assertion so resurrection is checked first.",
+  "lateInstallAcceptance": "Only run real-helper late3 after original6production port is justified by genuine baselineRED. Then run full sibling +3 to reproduce already-entered SDK bug; production repair still awaits failure.",
+  "appliesAfter": "Original7 + r47-auth-baseline-harness-adaptation, and original6production port. Replaces oldlate3 application for optional harness; preserves original d9cdf artifact as historical source pin."
+}

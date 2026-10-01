@@ -1,0 +1,86 @@
+diff --git a/e2e/map-curated-route-intent.spec.ts b/e2e/map-curated-route-intent.spec.ts
+new file mode 100644
+--- /dev/null
++++ b/e2e/map-curated-route-intent.spec.ts
+@@ -0,0 +1,81 @@
++import { expect, test } from "@playwright/test";
++
++import { curatedCrawls } from "../lib/curatedCrawls";
++import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
++
++// Public signed-out route. Basemap alone is doubled; the application's curated
++// catalog, venue records and price endpoints remain untouched. No offer is
++// asserted for these pubs: requested category and unknown money are the contract.
++test.use({
++  viewport: { width: 1440, height: 900 },
++  reducedMotion: "reduce",
++  serviceWorkers: "block",
++  storageState: { cookies: [], origins: [] },
++});
++
++for (const intent of [
++  { query: "routeDrink=vodka", header: "Vodka plan", noun: "vodka stops" },
++  { query: "routeLow=1", header: "Alcohol-free plan", noun: "alcohol-free stops" },
++]) {
++  test(`curated Soho hydration preserves explicit ${intent.query} until native Clear`, async ({ page }, info) => {
++    test.setTimeout(90_000);
++    const crawl = curatedCrawls.find((candidate) => candidate.id === "victorian-soho");
++    expect(crawl, "Committed canonical Soho fixture must exist").toBeDefined();
++    if (!crawl) throw new Error("Committed Victorian Soho fixture missing");
++    const ids = crawl.venueIds;
++    await installDeterministicMapBasemap(page);
++    await page.addInitScript(() => {
++      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
++      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
++      localStorage.setItem("pubmax-tour-v1-done", "1");
++      localStorage.setItem("pubmax_onboarding_dismissed", "1");
++      localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
++      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
++    });
++    // plan=1 opens the existing desktop rail without changing the real seed
++    // policy: pubs still needs curated hydration, with no independent drink lens.
++    const href = `/map?plan=1&mode=build&pubs=${ids.join(",")}&${intent.query}`;
++    expect((await page.goto(href))?.status()).toBe(200);
++    const panel = page.locator(".routePanel:visible");
++    await expect(panel).toHaveCount(1);
++    // This scoped blurb only appears after PubMap adopts activeCrawl from the
++    // real deferred catalog; seeing script bytes alone would not prove adoption.
++    await expect(panel.locator(".routeHeader .description")).toHaveText(crawl.blurb, { timeout: 30_000 });
++    await expect(panel.locator(".routeList > li")).toHaveCount(ids.length);
++    await expect.poll(() => new URL(page.url()).searchParams.get("pubs")?.split(",") ?? []).toEqual(ids);
++    await expect.poll(() => page.evaluate(() => {
++      const raw = localStorage.getItem("pubmax_built_ids");
++      return raw ? JSON.parse(raw) : null;
++    })).toEqual(ids);
++    expect(new URL(page.url()).searchParams.has("drink")).toBe(false);
++    await info.attach("actual-curated-hydration", {
++      contentType: "application/json",
++      body: JSON.stringify({ url: page.url(), canonicalCrawlId: crawl.id, ids,
++        header: await panel.locator(".routeHeader").innerText(),
++        metrics: await panel.locator(".routeMetrics").innerText(),
++        stops: await panel.locator(".routeList").innerText() }, null, 2),
++    });
++
++    await expect(panel.locator(".routeHeader h2")).toHaveText(intent.header);
++    await expect(panel.locator(".routeMetrics")).toContainText("Not recorded");
++    await expect(panel.locator(".routeMetrics")).toContainText(intent.noun);
++    await expect(panel.locator(".routeMetrics")).not.toContainText(/£|estimated round|\bpint stops?\b/i);
++    await expect(panel.getByRole("radio", { name: "Pint", exact: true })).toHaveCount(0);
++    await expect.poll(() => {
++      const params = new URL(page.url()).searchParams;
++      return params.get(intent.query.startsWith("routeLow") ? "routeLow" : "routeDrink");
++    }).toBe(intent.query.startsWith("routeLow") ? "1" : "vodka");
++
++    // Real reader replacement still owns the reset; preserving hydration must
++    // not make explicit route intent immortal after the native Clear action.
++    await page.locator(".controlRail:visible").getByRole("button", { name: "Clear", exact: true }).click();
++    await expect(panel.locator(".routeList > li")).toHaveCount(0);
++    await expect(panel.locator(".routeHeader h2")).toHaveText("Hand-built plan");
++    await expect(panel.getByRole("radio", { name: "Pint", exact: true })).toBeVisible();
++    await expect.poll(() => {
++      const params = new URL(page.url()).searchParams;
++      return ["pubs", "routeDrink", "routeLow"].filter((key) => params.has(key));
++    }).toEqual([]);
++    expect(new URL(page.url()).searchParams.has("drink")).toBe(false);
++  });
++}

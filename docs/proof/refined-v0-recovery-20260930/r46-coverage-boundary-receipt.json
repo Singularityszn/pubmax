@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-01T00:56:43.429370+00:00",
+  "explicitSkips": 24,
+  "files": {
+    "claim-no-birth-date.spec.ts": 1,
+    "gate-z-performance.spec.ts": 1,
+    "performance-budget-ab.spec.ts": 1,
+    "performance-budget.spec.ts": 1,
+    "plan-capability-recovery.spec.ts": 1,
+    "pubpal-concierge-phone.spec.ts": 2,
+    "pubpal-voice-live.spec.ts": 4,
+    "social-open.spec.ts": 4,
+    "ux-lane-perf-verification.spec.ts": 1,
+    "w1-tonight.spec.ts": 8
+  },
+  "coverageBoundary": "1321case suite contains designshots, isolatedperformancejobs, liveprovider, authenticatedplanrecovery andflaggedsocial cases explicitlyskipped. Full-five PASS alone wouldnotcomplete broadgoal.",
+  "materialPending": [
+    "GateZ mobile release targets",
+    "Performancebudget/mergebase/UXlane LCP CLS JSdecoded jobs",
+    "FourPubPalvoice/text realproviderjourneys",
+    "DurableauthenticatedPlancapabilityrecovery",
+    "Fourenabledsocial account/noDOB/friendsvisibilitybrowserjourneys"
+  ],
+  "primaryRepairs": "Four REDs retained. Homefixsourceonly andphone drag nativecausepending. Existingtestassertionsunchanged.",
+  "designShotSkips": 11,
+  "materialSkips": 13
+}

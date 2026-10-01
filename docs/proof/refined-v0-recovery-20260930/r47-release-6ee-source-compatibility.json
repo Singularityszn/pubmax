@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-10-01T03:43:17.726614+00:00",
+  "immutablePatchBase": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+  "observedReleaseHead": "6ee2bfb43c6720bf0159bc23d5617c1a791c0e40",
+  "minimumCompositionSha256": "71ca01beac451c11dceba96d2bb1d499b6b253e24c8397b59ed85635d9def233",
+  "uniqueComparedPaths": 63,
+  "differentPaths": [],
+  "status": "SOURCE_BLOB_COMPATIBLE_RUNTIME_UNRUN",
+  "held": "Original auth production requires release-owner actual RED/repair/GREEN; late3tests sourceonly.",
+  "addOnsInPreparation": [
+    "Remaining Pal provider-dependent UI fixture coverage, preserving real503 keyless negative",
+    "Direct WebGL hook context-loss regression source preparation"
+  ],
+  "runtime": "Core not allocated. Release owner holds runtime; no test/build/browser/server activity launched."
+}

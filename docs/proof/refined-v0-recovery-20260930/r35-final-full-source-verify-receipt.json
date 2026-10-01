@@ -1,0 +1,40 @@
+{
+  "at": "2026-09-30T19:35:36.990323+00:00",
+  "command": "DEPLOYMENT_VERSION=local npm run verify",
+  "exitCode": 0,
+  "sourceFreeze": "r35-final-source-freeze.json",
+  "frozenFileCount": 4250,
+  "frozenHashChanges": [],
+  "counts": [
+    "Test Files  1740 passed | 1 skipped (1741)",
+    "Tests  18622 passed | 6 skipped (18628)",
+    "Test Files  1 passed (1)",
+    "Tests  10 passed (10)",
+    "Test Files  49 passed (49)",
+    "Tests  475 passed (475)",
+    "Test Files  1 passed (1)",
+    "Tests  10 passed (10)"
+  ],
+  "lint": {
+    "errors": 0,
+    "warnings": 17
+  },
+  "freshness": {
+    "advisoryStale": [
+      "area_news"
+    ],
+    "unmeasurableStores": [
+      "night_signal_candidates",
+      "weather",
+      "whats_on"
+    ],
+    "liveFeeds": "unmeasured, not reported fresh"
+  },
+  "audit": "no high/critical vulnerabilities",
+  "log": "/tmp/pubmaxx-r35-final-full-source-verify.log",
+  "limits": [
+    "local disposable PostgreSQL, not production RLS",
+    "six explicit coverage skips",
+    "not browser full-five or provider auth or release proof"
+  ]
+}

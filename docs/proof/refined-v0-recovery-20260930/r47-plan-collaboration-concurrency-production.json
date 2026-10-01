@@ -1,0 +1,48 @@
+{
+  "status": "FROZEN SOURCE READY after actual Root RED; runtime GREEN UNRUN",
+  "scratch": "/tmp/pubmaxx-r47-plan-collaboration-concurrency-production",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-plan-collaboration-concurrency-production.patch",
+  "sha256": "e40c628a44d3f2737b38deb3fcc669c57b921a52218c7576571996703268121c",
+  "bytes": 6595,
+  "baseRoot": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baseHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "files": {
+    "lib/planCollaborationStore.ts": {
+      "before": "5862c504c16ee1b37a3773896869128d3e3dfc273779655e8265d6c387a64ed2",
+      "after": "8e3d7d9a911caa8cc5c2e66449b9e5a87f6eddfeb6f09abf4bec5bdfd6d66a2f"
+    }
+  },
+  "sourceChecks": [
+    "Current Root before pin exact/stable",
+    "git apply --check --whitespace=error PASS",
+    "Fresh scratch application exact after hash PASS",
+    "Entire durable store/safe wrappers unchanged",
+    "Current backup structuredClone/closed DTO retained"
+  ],
+  "actualRED": {
+    "receipt": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/backup-collaboration-current-results.json",
+    "sha256": "b549cf501bcf2e73407d655844cc354dff3815c54022f12c077fd5c16898f2a3",
+    "total": 91,
+    "passed": 89,
+    "failed": 2,
+    "ownedFailures": [
+      "Same-key concurrent proposal creation returns distinct IDs",
+      "Same-key concurrent host decision applies twice; second revision conflicts"
+    ]
+  },
+  "semantics": [
+    "Memory-only per plan/member/operation/key flights",
+    "Existing input validation/member authorization and anchor restrictions before joining",
+    "Settled idempotent result unchanged; joined callers receive structuredClone",
+    "One authority resolution for concurrent creation; one apply for concurrent decision",
+    "Existing constraint/revision/proof/strong quote authority unchanged",
+    "Finally deletes only matching pending promise; reset clears both maps; HMR initializes absent maps"
+  ],
+  "command": "npx vitest run __tests__/planSavedBackupDelivery.test.ts __tests__/planCollaborationRoutes.test.ts __tests__/planCollaboration.test.ts",
+  "limitations": [
+    "No tests/types/lint/build/native/SQL run by child",
+    "Root must execute focused GREEN and final gates",
+    "No generalized queue or durable SQL change",
+    "No maintained Root/Core files changed"
+  ]
+}

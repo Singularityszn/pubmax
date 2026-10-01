@@ -1,0 +1,29 @@
+{
+  "kind": "scratch-only source patch packet",
+  "status": "UNRUN; not applied to maintained tree",
+  "scope": [
+    "lib/planSelectedDrinkPriceEvidence.ts",
+    "lib/planSelectedDrinkPriceEvidence.server.ts",
+    "lib/planGeneration.server.ts"
+  ],
+  "change_note": "Carry listed price evidence through existing plan projection and generation paths. Retain first listing in authoritative projection order per venue so a later neutral or unknown-serving quote cannot overwrite it. Listed evidence remains post-score informational fallback, not ranking input.",
+  "patch": "/tmp/pubmaxx-r47-plan-listed-repair-v2.patch",
+  "patch_sha256": "3a6763c3229f1a767a5aa75fed4b6997b877740740351aee5c1201a3ebedec65",
+  "base_checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "base_files": {
+    "lib/planSelectedDrinkPriceEvidence.ts": "123bce83225f97628f4b47335f789c8a97889bb25589e5544a0f6876f86b94b8",
+    "lib/planSelectedDrinkPriceEvidence.server.ts": "032cb473b640c7e07f2d64dfffa5a4fb23ad2c68d69999ddc318abe17440d1bb",
+    "lib/planGeneration.server.ts": "53825b2674c1aec531c43b8f0bfca110ba7c1e1b1d7b0167950df49ab28949b4"
+  },
+  "current_root_files_verified_equal_base": {
+    "lib/planSelectedDrinkPriceEvidence.ts": "123bce83225f97628f4b47335f789c8a97889bb25589e5544a0f6876f86b94b8",
+    "lib/planSelectedDrinkPriceEvidence.server.ts": "032cb473b640c7e07f2d64dfffa5a4fb23ad2c68d69999ddc318abe17440d1bb",
+    "lib/planGeneration.server.ts": "53825b2674c1aec531c43b8f0bfca110ba7c1e1b1d7b0167950df49ab28949b4"
+  },
+  "candidate_files": {
+    "lib/planSelectedDrinkPriceEvidence.ts": "fe1908a7306b60f5d911786c154452e1450b6ff1c4a8243b9cfe65a02af2dc90",
+    "lib/planSelectedDrinkPriceEvidence.server.ts": "659f9524fdc26fffa83f95734aa8fb078fa2bfd973b9056836084b47f9dd5e28",
+    "lib/planGeneration.server.ts": "ccfb22a9f2a5693835bcfdb8f1522ccb067591e225967d4228e930d4dafb5e05"
+  },
+  "runtime_tests_build": "not run"
+}

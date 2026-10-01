@@ -1,0 +1,27 @@
+{
+  "kind": "test-only synthetic parser regression",
+  "status": "prepared; expected RED not executed",
+  "root_checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "root_head_at_capture": "b4790e8915a809d0747362352396b2fa341782df",
+  "target": "__tests__/ukPriceCrawl.test.ts",
+  "before_sha256": "9a839fe315731a7973cef82ebaf663b1d4f5faf84b97e8af9eb83148439a765c",
+  "after_sha256": "4bb6e683c6420f7480fc0de2ba174aeb8ab1006f184468ecc84037fc4adcc3c4",
+  "patch_path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-vesper-parser-test-first.patch",
+  "patch_sha256": "c94ca21d64e1519e28074b9807f3e8085fe60dc3cbe26328c339fa2c052ef741",
+  "regression_fixture": "Synthetic single menu item: Vesper: vodka, gin, dry vermouth \u00a312.00. The assertion requires one kept cocktail row at \u00a312, with no gin or vodka category row.",
+  "source_diagnosis": "Current parser cocktail vocabulary omits Vesper. Its printed-item fallback chooses the nearest recognized category word; in this fixture that is gin. The receipt identifies the same narrow classifier seam, but the fixture is synthetic and does not replay or validate the retained Sun Tavern observation or its current menu.",
+  "source_evidence": [
+    "lib/harvest/ukPriceCrawl.ts: category word table and itemNameStatesCocktail",
+    "lib/harvest/ukPriceCrawl.ts: printed-item category fallback to nearest category word",
+    "docs/proof/refined-v0-recovery-20260930/r47-sun-tavern-price-truth-source-review.md"
+  ],
+  "validation": "No tests or runtime commands run. No maintained files changed.",
+  "parent_review": {
+    "at": "2026-10-01T10:37:44.625077+00:00",
+    "current_before_root_readonly_applycheck_fresh_scratch_after": "PASS",
+    "all_existing_tests_retained": "PASS exact byte preservation outside one added synthetic case",
+    "source_diagnosis": "Printed Vesper absent from cocktail vocabulary. Single item fallback recognises spirit ingredient words and can classify price as gin. Test checks one cocktail row and forbids extra spirit rows through exact array length. Root actual RED still required.",
+    "proof_limit": "Synthetic parser fixture only. No publisher fetch, historical replay, source amount/measure authenticity, live provider or current menu proof.",
+    "runtime": "UNRUN Root owns meaningful RED and later green; no maintained product/test files changed here."
+  }
+}

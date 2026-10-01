@@ -1,0 +1,96 @@
+{
+  "at": "2026-09-30T11:56:57.622085+00:00",
+  "jobs": [
+    {
+      "wrapperPid": 26185,
+      "groupPid": 26193,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790769236.288084,
+      "command": [
+        "./node_modules/.bin/tsx",
+        "/tmp/pubmaxx-r24-gps-native-diagnostic.mts"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790769258.890323
+    },
+    {
+      "wrapperPid": 16704,
+      "groupPid": 16712,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790769083.398489,
+      "command": [
+        "./node_modules/.bin/tsx",
+        "/tmp/pubmaxx-r24-gps-native-diagnostic.ts"
+      ],
+      "active": false,
+      "exitCode": 1,
+      "ended": 1790769083.5140412
+    },
+    {
+      "wrapperPid": 20318,
+      "groupPid": 20326,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790769137.5387762,
+      "command": [
+        "./node_modules/.bin/playwright",
+        "test",
+        "e2e/map-service-worker.spec.ts",
+        "--project=chromium-sw-gl",
+        "--workers=1",
+        "--retries=0",
+        "--trace=on",
+        "--output=/tmp/pubmaxx-r24-sw-native-red-results"
+      ],
+      "active": false,
+      "exitCode": 1,
+      "ended": 1790769204.598272
+    },
+    {
+      "wrapperPid": 28762,
+      "groupPid": 28770,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790769280.292226,
+      "command": [
+        "./node_modules/.bin/tsx",
+        "/tmp/pubmaxx-r24-base-price-native.mts",
+        "http://localhost:3351",
+        "/tmp/pubmaxx-r24-base-price-native"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790769285.2371242
+    },
+    {
+      "wrapperPid": 17668,
+      "groupPid": 17677,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790769099.696994,
+      "command": [
+        "./node_modules/.bin/tsx",
+        "/tmp/pubmaxx-r24-gps-native-diagnostic.mts"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790769104.70884
+    },
+    {
+      "wrapperPid": 13573,
+      "groupPid": 13581,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790769048.7498932,
+      "command": [
+        "node",
+        "/tmp/pubmaxx-resume-recovery.cjs"
+      ],
+      "active": false,
+      "exitCode": 143,
+      "ended": 1790769384.7697768
+    }
+  ],
+  "liveOwnedProcesses": [],
+  "testPortListeners": "",
+  "allJobsInactive": true,
+  "sourcePatched": false,
+  "verdict": "Three native diagnostic captures completed; no final regression pass"
+}

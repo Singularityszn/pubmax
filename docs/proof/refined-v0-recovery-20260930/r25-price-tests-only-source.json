@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-09-30T12:42:36.135954+00:00",
+  "scope": "Published base prices: tests-only source applied; production patch remains unimplemented",
+  "files": {
+    "__tests__/communityPriceClientState.test.ts": "ba5ea08899cead1ac1a829645f5853e62daffac0bb4c3e9bb7d3456a48d65673",
+    "__tests__/priceSubmitRoute.test.ts": "182595aeb460cdeea8ec7ca4bcbc80ab5dff915449dff42ee47bc5bc7dcf9219",
+    "__tests__/unverifiedPubSheet.test.ts": "28050231c5447caf32e2f61dcb04e728b71704973864c9189527affbd392e9b1",
+    "__tests__/listedCategoryPrices.test.ts": "597c79a891dc2619762a7fa2be95a7827492d6fe21099bf1e51b409020aeaff2"
+  },
+  "runtime": "NOT RUN; pending exclusive root runtime after SDK and Friends actual cleanup",
+  "beforeEvidence": "r24-base-price-native.json and r24-base-price-native.png",
+  "productionDraft": "r25-base-price-production-draft.patch.txt",
+  "publication": "No index/commit/push/PR/merge/deploy/shared SQL",
+  "baseBeer": "Supplemental tests applied; projection/client/base-only API production draft remains unapplied; no serving inference or rank"
+}

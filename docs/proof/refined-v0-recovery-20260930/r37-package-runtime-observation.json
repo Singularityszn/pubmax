@@ -1,0 +1,63 @@
+{
+  "at": "2026-09-30T22:27:00.899364+00:00",
+  "ownerWorktree": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+  "liveMatchingProcesses": [
+    {
+      "pid": 68323,
+      "ppid": 7453,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68323  7453 68323 00:58 npm run verify:no-mistakes"
+    },
+    {
+      "pid": 68354,
+      "ppid": 68323,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68354 68323 68323 00:57 node"
+    },
+    {
+      "pid": 68366,
+      "ppid": 68354,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68366 68354 68323 00:57 npm run verify"
+    },
+    {
+      "pid": 68820,
+      "ppid": 68392,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68820 68392 68323 00:21 npm run coverage"
+    },
+    {
+      "pid": 68855,
+      "ppid": 68820,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68855 68820 68323 00:21 node"
+    },
+    {
+      "pid": 68856,
+      "ppid": 68855,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68856 68855 68323 00:21 node"
+    },
+    {
+      "pid": 68857,
+      "ppid": 68856,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68857 68856 68323 00:21 /Users/karanmanoharan/.hermes/tools/node-26.10.0-darwin-arm64/bin/node"
+    },
+    {
+      "pid": 68858,
+      "ppid": 68856,
+      "pgid": 68323,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+      "livePs": "68858 68856 68323 00:21 /Users/karanmanoharan/.hermes/tools/node-26.10.0-darwin-arm64/bin/node"
+    }
+  ],
+  "boundary": "Read-only PIDs/process titles/cwd observation. No argv/environment payloads or secrets collected. No Core cohort started. Coordinator-owned slot through23:10 UTC; liveness does not prove gate pass."
+}

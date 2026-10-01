@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-30T19:36:34.504868+00:00",
+  "exitCode": 0,
+  "dist": ".next-r35-fullfive",
+  "buildID": "build-TfctsWXpff2fKS",
+  "sourceFreeze": "r35-final-source-freeze.json",
+  "snapshotRestoredAfterWrapper": [
+    "public/data/uk_prices/rows.json",
+    "public/data/uk_prices/manifest.json"
+  ],
+  "postRestoreHashChanges": [],
+  "env": "existing Playwright primary webServer.env, isolated in-memory signing key, fake auth boundary",
+  "log": "/tmp/pubmaxx-r35-fullfive-primary-build.log"
+}

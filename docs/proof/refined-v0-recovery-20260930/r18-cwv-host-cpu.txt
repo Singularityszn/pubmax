@@ -1,0 +1,12 @@
+30355 30248  89.7 410272 /Users/karanmanoharan/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell
+30350 30248  51.0 296832 /Users/karanmanoharan/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell
+91944 12798  42.5 373072 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)
+12817 12798  23.2  64128 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper
+ 1133     1  16.7  78944 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 6941  5770  12.1 145024 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)
+ 7429  5770   5.5 1207504 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)
+30248 30097   3.7 121760 /Users/karanmanoharan/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell
+47135  5770   3.6 189328 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)
+53138 53079   3.1 345552 next-server (v16.3.7)
+ 7453  5770   2.1 772432 /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex
+11146  9872   2.0   2064 /Users/karanmanoharan/.local/bin/codebase-memory-mcp

@@ -1,0 +1,128 @@
+{
+  "status": "SOURCE_READY_RUNTIME_UNRUN",
+  "patch": "r47-serving-group-repair.patch",
+  "patchSha256": "503134aaffa16ff9163a9f9760eb726f81ce339ea7254907da7421d8fe527aff",
+  "patchBytes": 55266,
+  "base": {
+    "checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+    "head": "3bea492cc55c2eaa2e46d98f1d1d64261d653e8d",
+    "authority": "exact current working-tree blobs, not HEAD alone"
+  },
+  "files": [
+    {
+      "path": "app/api/price-submit/route.ts",
+      "beforeSha256": "cb9d9553230448fbe52936218be5c468b1cdf6c98f4a805a0bb6490e168d5b35",
+      "afterSha256": "87e31dd902eef025b70db43c72b68f8693f81c38981108f40ec940a39698512e"
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "a7b0aa3dd44cc16c32f122db97ade3e333c9f5bc3d70ed5a3c823d824c9770b8",
+      "afterSha256": "6bb165fb915f27e3a339768683242ed945e1bf6ead8cdab9fbc3e6f9b6c03ebc"
+    },
+    {
+      "path": "components/PubMapCanvas.tsx",
+      "beforeSha256": "cc1d4a7413d437a51bd0e4761a7eb22f70e6f89d1f19660d5c222869de2844bf",
+      "afterSha256": "d6376cc8e052a7a51203c5b1e12e18fb3609233a2f348c1852cf0bb62fd80283"
+    },
+    {
+      "path": "components/map/DrinkLanePicker.tsx",
+      "beforeSha256": "1894e82d061fe41c56c1f63c04bc808da222e85196e5a7f89035582eb80dbe6a",
+      "afterSha256": "d19f43412188b7cdd09387375e8feb1ad4a4331af5601db34fe3d97af6db6ca6"
+    },
+    {
+      "path": "components/map/MapToolbar.tsx",
+      "beforeSha256": "3079d6f782a5368d51814d3d73b0bcc3bd61e3c831b0bc995548e2b975717ee0",
+      "afterSha256": "e89e45a0c3a1491d2ebcd78429f6e17a63bae9497ea2b0c702eefead991efba9"
+    },
+    {
+      "path": "components/map/MapVenueList.tsx",
+      "beforeSha256": "33c410061e1b3aeca8d900f1a14aecdc86fe56bb2e7f190ce53e25b2236a0d97",
+      "afterSha256": "976695e375240044a5349b10ac0a134dd4467f5e2d0e628855b52174de4707e8"
+    },
+    {
+      "path": "components/map/useCommunityPrices.ts",
+      "beforeSha256": "4ce566964fa6bf599b12d601545c7f052a43a560208a1ec102d44b75d5f94ea3",
+      "afterSha256": "b4a27c9f6aa726b6eb2de90dc1c58ab73e293fd7652353ee2522a6429547eb98"
+    },
+    {
+      "path": "components/map/useCrawlUrl.ts",
+      "beforeSha256": "1a1f824b8c44b1a170c1cd3b3c75867c062879c9b7105fa8475d471cd77d2741",
+      "afterSha256": "4ce682dd80b5e525b02c4d98e7d437dfa48bbd114d8f38de102530d258363f09"
+    },
+    {
+      "path": "components/plan/PlanComposer.tsx",
+      "beforeSha256": "cd0dc87a5efd983e7d2a6dfe3893d06551ba385315d16b73d3b032184f84b35d",
+      "afterSha256": "9f718cad8dac6ccf9209969703e96b88730e76c362f6b503124ed0b5183a92a1"
+    },
+    {
+      "path": "lib/listedPriceComparison.ts",
+      "beforeSha256": "89a231936d0ee9342a239c848f66cacff1c4dab5ef383d5e99dd6bf3c97beb3a",
+      "afterSha256": "0edf00b67ed85054e15a0b2df5eb59f34b80d2629343f8c8cb2152b452f8479c"
+    },
+    {
+      "path": "lib/mapAcceptance.ts",
+      "beforeSha256": "4f1927dce06a15bcadf4164c2ee63fe64fbaea5e70d5d461968ac09c94c8900a",
+      "afterSha256": "04cba762a3df65f43e673c251390558b50d199718e2da49494b23d35e753370f"
+    },
+    {
+      "path": "lib/mapExperienceLens.ts",
+      "beforeSha256": "2cde4a69779e046467b49dee20dd55d2af64539bafcc9402d0993a19f2c481fc",
+      "afterSha256": "02326aa2035a8f90696be0fa7d446b029bab68bf765bb32c13aae3996280cc85"
+    },
+    {
+      "path": "lib/mapVenueList.ts",
+      "beforeSha256": "b237b88667604c584735276cab95ae729459799ca650814ab4b0222f72b3f060",
+      "afterSha256": "bec7136c35efdb61d1bae304e32a4395f5ee27c811947267038f431d00b2d3af"
+    },
+    {
+      "path": "lib/planComposerHandoff.ts",
+      "beforeSha256": "dbb6762ccf9f9816f0034325fa8ab8d0f1fc532a30132f5f66a89a532dd35ea6",
+      "afterSha256": "6213608ff834be9735746428aacc37b77ac88aec0f67e6f9607fda738810ae7c"
+    },
+    {
+      "path": "lib/planDraft.ts",
+      "beforeSha256": "757075709a165ad3ebc596e0315bab7d762c8710025b856343909cf275ae74fe",
+      "afterSha256": "1705a6ec9e032a41b0e77462c93b12da54e5bf7038d2c504710be89a881a6721"
+    },
+    {
+      "path": "lib/planIntake.ts",
+      "beforeSha256": "0b5aba98133d238bf097268611f75f2c92b132d8486a249ce225eadb1fa35452",
+      "afterSha256": "b630ccdebe3332c3ac3094611af6cdb184c9043b5767b1871754a6089b1f4adb"
+    },
+    {
+      "path": "lib/planningIntent.ts",
+      "beforeSha256": "1a75739a4aac2338ce3a4838b1f1a9293ba0813631a6db5990efd87315340cc4",
+      "afterSha256": "4ff353d2ffc5663ca5dfa3c123841cd5aea77f496b446659439d6297d51195e1"
+    },
+    {
+      "path": "lib/pubMap.ts",
+      "beforeSha256": "3bac481fc65c6e985043478853a482e570a4dac477b97063e50410bbe2a6918f",
+      "afterSha256": "90e4f5dce6aa6b791c117eeac479d86f9754b8f55f7015aa130ccd7979b3a4a6"
+    },
+    {
+      "path": "lib/ukPriceBundle.server.ts",
+      "beforeSha256": "1a57875f9b216689b6495494e881baddef0c7188ecfc6049d14c5925de910a8b",
+      "afterSha256": "99013ad0c61604382ef76eeee35af50b425eb3dcb5967a2a7c78b920b0278ee1"
+    }
+  ],
+  "sourceValidation": {
+    "currentWorkingTreeMatchesBefore": true,
+    "scratchApplyCheckWhitespaceError": true,
+    "scratchApplyAfterHashesMatch": true
+  },
+  "runtimeValidation": "UNRUN by this worker. Root owns tests/types/lint/native/performance.",
+  "beforeEvidence": [
+    "Native gin Cheapest unlike-serving RED at 1440 and390; actual public API gin84 rows",
+    "serving-group-contract-red-results.json:44 total39 pass5 fail",
+    "serving-intent-helper-contract-red-results.json:186 total179 pass7 fail (6 intended plus unrelated CLI guard)"
+  ],
+  "limits": [
+    "Listed discovery cap1000 independently; existing community cap unchanged; four/category projection unchanged.",
+    "Explicit serving selection required even one available group. Unknown/community-null/nonselected evidence remains visible unranked; estimates not ranked authority.",
+    "Base pins/list use exact IDs and neutral map authority; base Sheet unchanged retains published source links. Canonical base Plan stop/CTA unsupported in this packet. Existing cold UK-base lookup scans all shards and needs separate bounded authority/city seam.",
+    "Exact selected listed hint survives existing curated acceptance/intake/draft seams, revalidated by separate server owner. Generator serving-group ranking remains incomplete: category-only generation cannot prove cheapest-alcohol Plan completion.",
+    "No generated/raw ledger/producer/quarantine changes. No alias projection overlap. Source application is not runtime or final goal proof.",
+    "Legacy non-drink experience callers retain existing unspecified-serving behavior; selected drink PubMap passes explicit null or group."
+  ],
+  "focusedCommand": "npx vitest run __tests__/listedDiscoveryIndex.test.ts __tests__/mapVenueList.test.ts __tests__/mapVenueListComponent.test.ts __tests__/communityPriceClientState.test.ts __tests__/planningIntent.test.ts __tests__/mapAcceptance.test.ts __tests__/planComposerHandoff.test.ts __tests__/planIntake.test.ts __tests__/mapCrawlUrlSync.test.tsx"
+}

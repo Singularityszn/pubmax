@@ -136,6 +136,7 @@ type VenueInspectorProps = {
   onOpenComposerForLog?: () => void;
   revealRequest?: VenueRevealRequest | null;
   onInterruptReveal?: () => void;
+  onPriceIntentConsumed?: () => void;
 };
 
 function focusPriceDestination(id: string): void {
@@ -195,6 +196,7 @@ export default function VenueInspector({
   onOpenComposerForLog,
   revealRequest = null,
   onInterruptReveal,
+  onPriceIntentConsumed,
 }: VenueInspectorProps) {
   const revealInterrupted =
     revealRequest?.venueId === venue.id && revealRequest.interrupted;
@@ -384,8 +386,14 @@ export default function VenueInspector({
             setPriceSignInVenueId(venue.id);
             focusPriceDestination("venuePriceSignInTitle");
           },
-          openForm: openPriceForm,
-          abandon: () => setPriceSignInVenueId(null),
+          openForm: () => {
+            openPriceForm();
+            onPriceIntentConsumed?.();
+          },
+          abandon: () => {
+            setPriceSignInVenueId(null);
+            onPriceIntentConsumed?.();
+          },
         },
       });
     });
@@ -393,6 +401,7 @@ export default function VenueInspector({
   }, [
     authConfigured,
     authLoading,
+    onPriceIntentConsumed,
     openPriceForm,
     priceSignInVenueId,
     selectTab,

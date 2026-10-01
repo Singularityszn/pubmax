@@ -1,0 +1,292 @@
+{
+  "diagnosticOnly": true,
+  "completed": false,
+  "origin": "http://localhost:3351",
+  "coordinateSource": "public/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json",
+  "first": {
+    "id": "venue-uk-n8308248176",
+    "name": "The Sydney Arms",
+    "lat": 51.48876,
+    "lng": -0.16951
+  },
+  "second": {
+    "id": "venue-uk-w893965349",
+    "name": "The Builder's Arms",
+    "lat": 51.48911,
+    "lng": -0.16774
+  },
+  "expectedAtCapture": {
+    "drinkLabel": "Rioja, Spain",
+    "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+    "observedAt": "2026-09-29T10:40:17.846Z",
+    "quotes": [
+      {
+        "priceGbp": 10.5,
+        "servingSize": "250ml"
+      },
+      {
+        "priceGbp": 5.25,
+        "servingSize": "125ml"
+      }
+    ]
+  },
+  "journeys": [
+    {
+      "width": 390,
+      "completed": false,
+      "transitions": [
+        {
+          "stage": "A-cold",
+          "pubId": "venue-uk-n8308248176",
+          "name": "The Sydney Arms",
+          "url": "http://localhost:3351/map?sel=venue-uk-n8308248176&at=51.4888%2C-0.1695",
+          "text": "The Sydney Arms\nPUBLISHED MENU PRICES\n\n70, Sydney Street, London, SW3 6NJ\n\nPrices on published menus\nWine · Rioja, Spain\n£5.25\n125ml\nPrice seen 29 September 2026 · View menu source\nWine · Rioja, Spain\n£10.50\n250ml\nPrice seen 29 September 2026 · View menu source\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 0
+          }
+        },
+        {
+          "stage": "B",
+          "pubId": "venue-uk-w893965349",
+          "name": "The Builder's Arms",
+          "url": "http://localhost:3351/map?q=The+Builder%27s+Arms&sel=venue-uk-w893965349&at=51.4891%2C-0.1677",
+          "text": "The Builder's Arms\nNO PRICE YET\n\n13, Britten Street, London, SW3 3TW\n\nNobody has logged what a drink costs at this pub - be the first.\n\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Builder's Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 1
+          }
+        }
+      ],
+      "searchOptions": [
+        {
+          "stage": "B",
+          "fromId": "venue-uk-n8308248176",
+          "targetId": "venue-uk-w893965349",
+          "actualId": "venue-uk-w893965349",
+          "role": "option",
+          "ariaLabel": null,
+          "renderedName": "The Builder's Arms",
+          "text": "The Builder's Arms\nNo listed price\n13, Britten Street, London, SW3 3TW\n4.8 km from centre",
+          "bounds": {
+            "x": 21,
+            "y": 161,
+            "width": 348,
+            "height": 67
+          },
+          "at": 1790775204629,
+          "urlBeforeClick": "http://localhost:3351/map"
+        }
+      ],
+      "priceRequests": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "at": 1790775199890
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "at": 1790775204690
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n1368258354&venueId=venue-uk-n2714325413&venueId=venue-uk-n280835217&venueId=venue-uk-n280835439&venueId=venue-uk-n302397766&venueId=venue-uk-n344369989&venueId=venue-uk-n3468565224&venueId=venue-uk-n3500734156&venueId=venue-uk-n441202439&venueId=venue-uk-n443032351&venueId=venue-uk-n5732244222&venueId=venue-uk-n8067670279&venueId=venue-uk-n8067755496&venueId=venue-uk-n8308248176&venueId=venue-uk-n862464724&venueId=venue-uk-n9594135917&venueId=venue-uk-w111787083&venueId=venue-uk-w121083434&venueId=venue-uk-w121083435&venueId=venue-uk-w121558830&venueId=venue-uk-w147249458&venueId=venue-uk-w225536856&venueId=venue-uk-w341418932&venueId=venue-uk-w341419642&venueId=venue-uk-w425003585&venueId=venue-uk-w655597244&venueId=venue-uk-w781302184&venueId=venue-uk-w824641941&venueId=venue-uk-w863832100&venueId=venue-uk-w865707213&venueId=venue-uk-w893965349&venueId=venue-uk-w902771276&venueId=venue-uk-w904652259",
+          "at": 1790775207559
+        }
+      ],
+      "responses": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "selectedId": "venue-uk-n8308248176",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775199909,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":5.25,\"servingSize\":\"125ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"},{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":10.5,\"servingSize\":\"250ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"}]}",
+          "bodyError": null
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "selectedId": "venue-uk-w893965349",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775204717,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[]}",
+          "bodyError": null
+        }
+      ],
+      "requestFailures": [],
+      "pageErrors": [],
+      "errors": [
+        "TimeoutError: locator.fill: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('combobox')\u001b[22m\n"
+      ],
+      "navigationStatus": 200,
+      "failureBody": "Skip to main content\nPUBMAXX\nPUBMAX\nX\nLondon\nThe Builder's Arms\nPints\n9\nDescribe the outing\nTonight\nMap\nPlaces\nOut\nPlan\nYou"
+    },
+    {
+      "width": 1440,
+      "completed": true,
+      "transitions": [
+        {
+          "stage": "A-cold",
+          "pubId": "venue-uk-n8308248176",
+          "name": "The Sydney Arms",
+          "url": "http://localhost:3351/map?sel=venue-uk-n8308248176&at=51.4888%2C-0.1695",
+          "text": "PUBLISHED MENU PRICES\nThe Sydney Arms\n\n70, Sydney Street, London, SW3 6NJ\n\nPrices on published menus\nWine · Rioja, Spain\n£5.25\n125ml\nPrice seen 29 September 2026 · View menu source\nWine · Rioja, Spain\n£10.50\n250ml\nPrice seen 29 September 2026 · View menu source\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 800,
+            "y": 159,
+            "width": 640,
+            "height": 841
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 0
+          }
+        },
+        {
+          "stage": "B",
+          "pubId": "venue-uk-w893965349",
+          "name": "The Builder's Arms",
+          "url": "http://localhost:3351/map?q=The+Builder%27s+Arms&sel=venue-uk-w893965349&at=51.4891%2C-0.1677",
+          "text": "NO PRICE YET\nThe Builder's Arms\n\n13, Britten Street, London, SW3 3TW\n\nNobody has logged what a drink costs at this pub - be the first.\n\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Builder's Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 1212.972412109375,
+            "y": 159,
+            "width": 640,
+            "height": 841
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 1
+          }
+        },
+        {
+          "stage": "A-return",
+          "pubId": "venue-uk-n8308248176",
+          "name": "The Sydney Arms",
+          "url": "http://localhost:3351/map?q=The+Sydney+Arms&sel=venue-uk-n8308248176&at=51.4888%2C-0.1695",
+          "text": "PUBLISHED MENU PRICES\nThe Sydney Arms\n\n70, Sydney Street, London, SW3 6NJ\n\nPrices on published menus\nWine · Rioja, Spain\n£5.25\n125ml\nPrice seen 29 September 2026 · View menu source\nWine · Rioja, Spain\n£10.50\n250ml\nPrice seen 29 September 2026 · View menu source\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 1400.899169921875,
+            "y": 159,
+            "width": 640,
+            "height": 841
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 1
+          }
+        }
+      ],
+      "searchOptions": [
+        {
+          "stage": "B",
+          "fromId": "venue-uk-n8308248176",
+          "targetId": "venue-uk-w893965349",
+          "actualId": "venue-uk-w893965349",
+          "role": "option",
+          "ariaLabel": null,
+          "renderedName": "The Builder's Arms",
+          "text": "The Builder's Arms\nNo listed price\n13, Britten Street, London, SW3 3TW\n129 m from centre",
+          "bounds": {
+            "x": 47.8084716796875,
+            "y": 252.78907775878906,
+            "width": 418,
+            "height": 46.99998474121094
+          },
+          "at": 1790775235699,
+          "urlBeforeClick": "http://localhost:3351/map?q=The+Builder%27s+Arms"
+        },
+        {
+          "stage": "A-return",
+          "fromId": "venue-uk-w893965349",
+          "targetId": "venue-uk-n8308248176",
+          "actualId": "venue-uk-n8308248176",
+          "role": "option",
+          "ariaLabel": null,
+          "renderedName": "The Sydney Arms",
+          "text": "The Sydney Arms\nNo listed price\n70, Sydney Street, London, SW3 6NJ\n129 m from centre",
+          "bounds": {
+            "x": -210,
+            "y": 252,
+            "width": 418,
+            "height": 47
+          },
+          "at": 1790775238966,
+          "urlBeforeClick": "http://localhost:3351/map?q=The+Builder%27s+Arms"
+        }
+      ],
+      "priceRequests": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "at": 1790775233022
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "at": 1790775236533
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n10043607156&venueId=venue-uk-n10749734805&venueId=venue-uk-n11309104133&venueId=venue-uk-n11880037869&venueId=venue-uk-n11926973569&venueId=venue-uk-n11964327570&venueId=venue-uk-n12037729071&venueId=venue-uk-n12162543201&venueId=venue-uk-n12183990594&venueId=venue-uk-n12239882401&venueId=venue-uk-n12244918801&venueId=venue-uk-n12244969401&venueId=venue-uk-n12244978501&venueId=venue-uk-n12245034601&venueId=venue-uk-n12319450501&venueId=venue-uk-n12345146601&venueId=venue-uk-n12349017101&venueId=venue-uk-n12349074001&venueId=venue-uk-n1235254621&venueId=venue-uk-n12437701305&venueId=venue-uk-n12723565027&venueId=venue-uk-n1280271962&venueId=venue-uk-n128329850&venueId=venue-uk-n12920872810&venueId=venue-uk-n12971234554&venueId=venue-uk-n12988179261&venueId=venue-uk-n12988179262&venueId=venue-uk-n13235500301&venueId=venue-uk-n13272883995&venueId=venue-uk-n13273139801&venueId=venue-uk-n13481884401&venueId=venue-uk-n1360505700&venueId=venue-uk-n1360505703&venueId=venue-uk-n1368258354&venueId=venue-uk-n13694805106&venueId=venue-uk-n1375162583&venueId=venue-uk-n13844055265&venueId=venue-uk-n1478210424&venueId=venue-uk-n148782410&venueId=venue-uk-n169384510&venueId=venue-uk-n169440015&venueId=venue-uk-n1895129841&venueId=venue-uk-n1903127186&venueId=venue-uk-n1937328128&venueId=venue-uk-n2007363135&venueId=venue-uk-n2080592567&venueId=venue-uk-n20821133&venueId=venue-uk-n2559609959&venueId=venue-uk-n259774303&venueId=venue-uk-n259774404&venueId=venue-uk-n266481945&venueId=venue-uk-n266481948&venueId=venue-uk-n26699558&venueId=venue-uk-n2714325413&venueId=venue-uk-n27512718&venueId=venue-uk-n27718642&venueId=venue-uk-n280835217&venueId=venue-uk-n280835439&venueId=venue-uk-n2842926233&venueId=venue-uk-n289996602&venueId=venue-uk-n2905796901&venueId=venue-uk-n2905887101&venueId=venue-uk-n290621086&venueId=venue-uk-n295466191",
+          "at": 1790775240560
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n295905003&venueId=venue-uk-n295905009&venueId=venue-uk-n2961946211&venueId=venue-uk-n302397766&venueId=venue-uk-n3058770654&venueId=venue-uk-n30592674&venueId=venue-uk-n311153571&venueId=venue-uk-n3223507051&venueId=venue-uk-n3357929194&venueId=venue-uk-n3357929212&venueId=venue-uk-n344369989&venueId=venue-uk-n348874860&venueId=venue-uk-n348875260&venueId=venue-uk-n348911273&venueId=venue-uk-n3494148572&venueId=venue-uk-n3546349672&venueId=venue-uk-n364654278&venueId=venue-uk-n364654823&venueId=venue-uk-n364655406&venueId=venue-uk-n3688619646&venueId=venue-uk-n3701524147&venueId=venue-uk-n370604215&venueId=venue-uk-n372519530&venueId=venue-uk-n382512980&venueId=venue-uk-n383980821&venueId=venue-uk-n385560795&venueId=venue-uk-n385564475&venueId=venue-uk-n387123683&venueId=venue-uk-n4026677008&venueId=venue-uk-n4360209691&venueId=venue-uk-n443032351&venueId=venue-uk-n452215462&venueId=venue-uk-n452236137&venueId=venue-uk-n452240939&venueId=venue-uk-n456245566&venueId=venue-uk-n4600418644&venueId=venue-uk-n462025244&venueId=venue-uk-n466926232&venueId=venue-uk-n4669839193&venueId=venue-uk-n4855571418&venueId=venue-uk-n4870230621&venueId=venue-uk-n489706578&venueId=venue-uk-n489826802&venueId=venue-uk-n499350848&venueId=venue-uk-n503562786&venueId=venue-uk-n5071317285&venueId=venue-uk-n5198603424&venueId=venue-uk-n5205813437&venueId=venue-uk-n5211863370&venueId=venue-uk-n5213629662&venueId=venue-uk-n5213651231&venueId=venue-uk-n5358972067&venueId=venue-uk-n539689482&venueId=venue-uk-n5471268685&venueId=venue-uk-n5486438559&venueId=venue-uk-n5499048127&venueId=venue-uk-n5501126153&venueId=venue-uk-n5572572357&venueId=venue-uk-n5589808322&venueId=venue-uk-n5636440981&venueId=venue-uk-n566357928&venueId=venue-uk-n568198493&venueId=venue-uk-n5732244222&venueId=venue-uk-n5769481142",
+          "at": 1790775240562
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n5872978615&venueId=venue-uk-n59169435&venueId=venue-uk-n5921940111&venueId=venue-uk-n5921940115&venueId=venue-uk-n5963443750&venueId=venue-uk-n6050608743&venueId=venue-uk-n618653525&venueId=venue-uk-n6333416686&venueId=venue-uk-n6345003065&venueId=venue-uk-n649697427&venueId=venue-uk-n675803384&venueId=venue-uk-n675808547&venueId=venue-uk-n675867856&venueId=venue-uk-n675938370&venueId=venue-uk-n675942580&venueId=venue-uk-n691719964&venueId=venue-uk-n6946467432&venueId=venue-uk-n6952789985&venueId=venue-uk-n7145279137&venueId=venue-uk-n7160855985&venueId=venue-uk-n7519079337&venueId=venue-uk-n7532833476&venueId=venue-uk-n7591017506&venueId=venue-uk-n7619804068&venueId=venue-uk-n7717850285&venueId=venue-uk-n7777211385&venueId=venue-uk-n7857880041&venueId=venue-uk-n7858027226&venueId=venue-uk-n8067670279&venueId=venue-uk-n8067755496&venueId=venue-uk-n8123358074&venueId=venue-uk-n8167917118&venueId=venue-uk-n8202853199&venueId=venue-uk-n8308248176&venueId=venue-uk-n8363665233&venueId=venue-uk-n8427652886&venueId=venue-uk-n862464724&venueId=venue-uk-n8868988383&venueId=venue-uk-n9502835617&venueId=venue-uk-n9594135917&venueId=venue-uk-n9789182118&venueId=venue-uk-w107039274&venueId=venue-uk-w107063289&venueId=venue-uk-w107803104&venueId=venue-uk-w111787083&venueId=venue-uk-w112344676&venueId=venue-uk-w112673208&venueId=venue-uk-w112678856&venueId=venue-uk-w116957518&venueId=venue-uk-w120935754&venueId=venue-uk-w121083434&venueId=venue-uk-w121083435&venueId=venue-uk-w121272357&venueId=venue-uk-w121526242&venueId=venue-uk-w121526267&venueId=venue-uk-w121526273&venueId=venue-uk-w121558830&venueId=venue-uk-w128292693&venueId=venue-uk-w128292738&venueId=venue-uk-w128419853&venueId=venue-uk-w129805303&venueId=venue-uk-w144667841&venueId=venue-uk-w144670484&venueId=venue-uk-w144670488",
+          "at": 1790775240564
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w147249458&venueId=venue-uk-w147249462&venueId=venue-uk-w149060320&venueId=venue-uk-w151284880&venueId=venue-uk-w151288979&venueId=venue-uk-w151789101&venueId=venue-uk-w153698493&venueId=venue-uk-w156614989&venueId=venue-uk-w156620042&venueId=venue-uk-w157779526&venueId=venue-uk-w157779556&venueId=venue-uk-w157779573&venueId=venue-uk-w157779664&venueId=venue-uk-w157779671&venueId=venue-uk-w158919239&venueId=venue-uk-w159039182&venueId=venue-uk-w159407057&venueId=venue-uk-w159741243&venueId=venue-uk-w161490890&venueId=venue-uk-w161525099&venueId=venue-uk-w162477134&venueId=venue-uk-w166891510&venueId=venue-uk-w174444748&venueId=venue-uk-w182697408&venueId=venue-uk-w192794336&venueId=venue-uk-w202193348&venueId=venue-uk-w203984283&venueId=venue-uk-w203986373&venueId=venue-uk-w208892606&venueId=venue-uk-w225536856&venueId=venue-uk-w230385548&venueId=venue-uk-w237795434&venueId=venue-uk-w242294516&venueId=venue-uk-w249211261&venueId=venue-uk-w249211263&venueId=venue-uk-w249211268&venueId=venue-uk-w249343302&venueId=venue-uk-w249343304&venueId=venue-uk-w262477180&venueId=venue-uk-w263674306&venueId=venue-uk-w272019364&venueId=venue-uk-w272084523&venueId=venue-uk-w272198115&venueId=venue-uk-w272198116&venueId=venue-uk-w272299419&venueId=venue-uk-w273610363&venueId=venue-uk-w273610368&venueId=venue-uk-w273610380&venueId=venue-uk-w273631904&venueId=venue-uk-w273697641&venueId=venue-uk-w273720735&venueId=venue-uk-w275127241&venueId=venue-uk-w279570944&venueId=venue-uk-w280980550&venueId=venue-uk-w280980557&venueId=venue-uk-w288392846&venueId=venue-uk-w288392857&venueId=venue-uk-w289953461&venueId=venue-uk-w290081133&venueId=venue-uk-w298212218&venueId=venue-uk-w299039548&venueId=venue-uk-w299039550&venueId=venue-uk-w338696812&venueId=venue-uk-w340180684",
+          "at": 1790775240567
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w340292097&venueId=venue-uk-w342206350&venueId=venue-uk-w363961554&venueId=venue-uk-w364339508&venueId=venue-uk-w364768722&venueId=venue-uk-w367518277&venueId=venue-uk-w418075242&venueId=venue-uk-w421258894&venueId=venue-uk-w428293736&venueId=venue-uk-w447309968&venueId=venue-uk-w447309973&venueId=venue-uk-w448420160&venueId=venue-uk-w448872664&venueId=venue-uk-w449102845&venueId=venue-uk-w449283140&venueId=venue-uk-w469910180&venueId=venue-uk-w475721718&venueId=venue-uk-w475957291&venueId=venue-uk-w477598204&venueId=venue-uk-w477598219&venueId=venue-uk-w477968049&venueId=venue-uk-w531216986&venueId=venue-uk-w538990064&venueId=venue-uk-w54666911&venueId=venue-uk-w547171167&venueId=venue-uk-w551566816&venueId=venue-uk-w556177108&venueId=venue-uk-w572503114&venueId=venue-uk-w572506209&venueId=venue-uk-w582498694&venueId=venue-uk-w582746347&venueId=venue-uk-w589641506&venueId=venue-uk-w592220489&venueId=venue-uk-w603491262&venueId=venue-uk-w605452758&venueId=venue-uk-w607855076&venueId=venue-uk-w607868278&venueId=venue-uk-w608184600&venueId=venue-uk-w629171088&venueId=venue-uk-w629793088&venueId=venue-uk-w631474504&venueId=venue-uk-w633865298&venueId=venue-uk-w655597244&venueId=venue-uk-w749323368&venueId=venue-uk-w765454461&venueId=venue-uk-w781302184&venueId=venue-uk-w803223234&venueId=venue-uk-w807272441&venueId=venue-uk-w809594843&venueId=venue-uk-w813541218&venueId=venue-uk-w824641941&venueId=venue-uk-w824789669&venueId=venue-uk-w824948809&venueId=venue-uk-w829086948&venueId=venue-uk-w835630866&venueId=venue-uk-w835849598&venueId=venue-uk-w836216414&venueId=venue-uk-w836216417&venueId=venue-uk-w836313607&venueId=venue-uk-w837514107&venueId=venue-uk-w837514114&venueId=venue-uk-w861436031&venueId=venue-uk-w863832100&venueId=venue-uk-w865707213",
+          "at": 1790775240569
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w875868241&venueId=venue-uk-w879574206&venueId=venue-uk-w893965349&venueId=venue-uk-w902771276&venueId=venue-uk-w904652259&venueId=venue-uk-w907561728&venueId=venue-uk-w909348524&venueId=venue-uk-w95307390&venueId=venue-uk-w993781439",
+          "at": 1790775240571
+        }
+      ],
+      "responses": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "selectedId": "venue-uk-n8308248176",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775233023,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":5.25,\"servingSize\":\"125ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"},{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":10.5,\"servingSize\":\"250ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"}]}",
+          "bodyError": null
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "selectedId": "venue-uk-w893965349",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775236583,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[]}",
+          "bodyError": null
+        }
+      ],
+      "requestFailures": [],
+      "pageErrors": [],
+      "errors": [],
+      "navigationStatus": 200
+    }
+  ],
+  "errors": [
+    "390: TimeoutError: locator.fill: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('combobox')\u001b[22m\n"
+  ]
+}

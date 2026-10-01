@@ -1,0 +1,16 @@
+diff --git a/__tests__/planAnchoredGenerateRoute.test.ts b/__tests__/planAnchoredGenerateRoute.test.ts
+index ea99ab8..e2b54ea 100644
+--- a/__tests__/planAnchoredGenerateRoute.test.ts
++++ b/__tests__/planAnchoredGenerateRoute.test.ts
+@@ -270,6 +270,11 @@ describe("POST /api/plans/generate — anchored", () => {
+           expect(choice.selectedDrinkPriceEvidence ?? null).toBeNull();
+         }
+       }
++      // A requested-drink route must include an eligible offer, not leave it
++      // exclusively in backups. Unknown serving still forbids amount ranking.
++      expect(body.stops.some((stop) => stop.selectedDrinkPriceEvidence?.category === "gin"),
++        "The primary route must include an eligible requested-category offer")
++        .toBe(true);
+     });
+   });
+ 

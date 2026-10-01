@@ -1,0 +1,7 @@
+{
+  "observedAtUtc": "2026-09-30T16:58:23.986696+00:00",
+  "files": 4247,
+  "changed": [],
+  "scope": "Read-only comparison against tested R28 source freeze. R30 proof documents only added/updated; no local app/browser/test/database/build/install, source repair or publication.",
+  "openRuntime": "No final Core runtime grant; SDK owns current block, integration scheduled next; actual cleanup still required."
+}

@@ -1,0 +1,89 @@
+// UNRUN production ordering diagnostic. Explicit runtime lease required.
+// Real public detail/slim responses held unchanged. Inspector assets must start
+// while selected data remains unavailable. Not an LCP or resource-budget gate.
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
+import { chromium, devices, expect } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs';
+import { serveMapInitScript, SHIPPED_MAP_INIT_SCRIPT } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/helpers/webVitals.ts';
+import { uiUxChromiumLaunchOptions } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/scripts/lib/uiUxBattleTestBrowser.mjs';
+
+const origin = new URL(process.argv[2] ?? 'http://localhost:3351').origin;
+if (!['localhost', '127.0.0.1'].includes(new URL(origin).hostname)) throw new Error('Loopback only');
+const output = process.argv[3] ?? '/tmp/pubmaxx-r20-inspector-order';
+const dist = process.argv[4] ?? '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.next-e2e-recovery';
+const chunks = `${dist}/static/chunks`;
+const inspectorChunks = readdirSync(chunks).filter(name => name.endsWith('.js') && (() => { const body = readFileSync(`${chunks}/${name}`, 'utf8'); return body.includes('venueAddress') && body.includes('venueTabShort'); })());
+if (inspectorChunks.length !== 1) throw new Error(`Exclusive Inspector chunk ownership ambiguous: ${inspectorChunks.length}`);
+const inspectorPath = `/_next/static/chunks/${inspectorChunks[0]}`;
+mkdirSync(output, { recursive: true });
+const report = { diagnosticOnly: true, processPid: process.pid, inspectorPath, held: [], delivered: [], released: false, inspectorRequests: [], detailRequests: 0, errors: [] };
+const flush = () => writeFileSync(`${output}/report.json`, JSON.stringify(report, null, 2) + '\n');
+flush();
+const browser = await chromium.launch(uiUxChromiumLaunchOptions(process.env.UI_UX_BROWSER_CHANNEL));
+let release;
+const barrier = new Promise(resolve => { release = resolve; });
+const deadline = setTimeout(() => { report.errors.push('90s owned diagnostic deadline'); release(); void browser.close(); }, 90_000);
+try {
+  const context = await browser.newContext({ ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, baseURL: origin, serviceWorkers: 'block', storageState: { cookies: [], origins: [{ origin, localStorage: [{ name: 'pubmaxx:analytics-consent:v1', value: 'denied' }, { name: 'pubmax:map-first-visit-arrival:v1', value: 'dismissed' }] }] } });
+  const page = await context.newPage();
+  page.on('pageerror', error => report.errors.push(String(error)));
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.origin !== origin) return;
+    const pathname = url.pathname;
+    if (pathname === inspectorPath) { report.inspectorRequests.push({ whileHeld: !report.released, at: Date.now() }); flush(); }
+    if (pathname === '/api/venue/venue-4xlgb0') report.detailRequests++;
+  });
+  await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+  await page.route(url => url.origin === origin && (url.pathname === '/api/venue/venue-4xlgb0' || /^\/data\/venues_slim(?:\.(?:core|manifest|cell\..+))?\.json$/.test(url.pathname)), async route => {
+    const response = await route.fetch();
+    report.held.push({ pathname: new URL(route.request().url()).pathname, status: response.status() });
+    flush();
+    await barrier;
+    await route.fulfill({ response });
+    report.delivered.push(new URL(route.request().url()).pathname);
+  });
+  await page.goto('/map?sel=venue-4xlgb0', { waitUntil: 'domcontentloaded' });
+  await expect.poll(() => report.held.some(item => item.pathname === '/api/venue/venue-4xlgb0' && item.status === 200), { timeout: 15_000 }).toBe(true);
+  await expect(page.locator('.venueInspector')).toHaveCount(0);
+  report.orderingCheckpoint = { inspectorMounted: false, deliveredCarriers: [...report.delivered], heldCarriers: [...report.held], detailRequests: report.detailRequests };
+  flush();
+  await expect.poll(() => report.inspectorRequests.filter(item => item.whileHeld).length, { timeout: 5_000 }).toBe(1);
+  await expect(page.locator('.venueInspector')).toHaveCount(0);
+  if (report.delivered.length) throw new Error('Selected carrier delivered before concurrency assertion');
+  if (report.released) throw new Error('Data released before concurrency assertion');
+  report.concurrentAssetStart = true;
+  report.released = true;
+  release();
+  flush();
+  const inspector = page.locator('.venueInspector');
+  await expect(inspector).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: 'Princess Louise', exact: true })).toBeVisible();
+  const price = inspector.locator('.trustPill[data-standing="estimate"]');
+  await expect(price).toBeVisible();
+  await expect(price).toContainText('est. £6.50');
+  await expect(price).toContainText('Estimated');
+  const tab = inspector.getByRole('tab', { name: 'Overview', exact: true });
+  await tab.click();
+  await expect(tab).toBeFocused();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+  report.verifiedInspector = { title: 'Princess Louise', standing: 'estimate', figure: 'est. £6.50', activeTab: 'Overview', tabFocused: true };
+  await page.screenshot({ path: `${output}/inspector.png`, fullPage: false });
+  await page.keyboard.press('Escape');
+  await expect(inspector).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => typeof window.__pubmaxPaintedMapTapPoints === 'function' ? window.__pubmaxPaintedMapTapPoints().length : 0), { timeout: 20_000 }).toBeGreaterThan(0);
+  await page.screenshot({ path: `${output}/after.png`, fullPage: false });
+  if (report.detailRequests !== 1 || report.inspectorRequests.length !== 1) throw new Error('Duplicate selected request or Inspector acquisition');
+  if (report.errors.length) throw new Error('Page errors occurred');
+  report.completed = true;
+  await context.close();
+} catch (error) {
+  report.errors.push(String(error));
+  process.exitCode = 1;
+} finally {
+  report.released = true;
+  release();
+  clearTimeout(deadline);
+  await browser.close();
+  flush();
+}

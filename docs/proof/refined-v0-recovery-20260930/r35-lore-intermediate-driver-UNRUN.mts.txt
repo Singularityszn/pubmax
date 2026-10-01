@@ -1,0 +1,179 @@
+// UNRUN diagnostic. Original 390px Lore path, native geometry only.
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { chromium, devices, expect as baseExpect } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs';
+import { uiUxChromiumLaunchOptions } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/scripts/lib/uiUxBattleTestBrowser.mjs';
+
+const origin = new URL(process.argv[2] ?? 'http://localhost:3351').origin;
+if (!['localhost', '127.0.0.1'].includes(new URL(origin).hostname)) throw new Error('Loopback only');
+const output = process.argv[3] ?? '/tmp/pubmaxx-r35-lore-geometry';
+const expect = baseExpect.configure({ timeout: 10_000 });
+mkdirSync(output, { recursive: true });
+const report: any = { diagnosticOnly: true, status: 'RUNNING', origin,
+  venueId: 'venue-xiesdn', viewport: { width: 390, height: 844 },
+  tabs: [], frames: [], animationEvents: [], checks: {}, errors: [] };
+const flush = () => writeFileSync(`${output}/report.json`, JSON.stringify(report, null, 2) + '\n');
+flush();
+let browser: any;
+let context: any;
+const deadline = setTimeout(() => {
+  report.errors.push('120s hard diagnostic deadline'); report.status = 'DEADLINE';
+  flush(); process.exitCode = 2; void browser?.close();
+}, 120_000);
+try {
+  browser = await chromium.launch(uiUxChromiumLaunchOptions(process.env.UI_UX_BROWSER_CHANNEL));
+  context = await browser.newContext({ ...devices['Desktop Chrome'],
+    viewport: report.viewport, baseURL: origin,
+    storageState: { cookies: [], origins: [{ origin, localStorage: [
+      { name: 'pubmaxx:analytics-consent:v1', value: 'denied' },
+      { name: 'pubmax:map-first-visit-arrival:v1', value: 'dismissed' },
+    ] }] } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(20_000);
+  page.on('pageerror', (error: Error) => report.errors.push(String(error)));
+  await page.addInitScript('globalThis.__name = (target, value) => Object.defineProperty(target, "name", { value, configurable: true });');
+  await page.addInitScript(() => {
+    localStorage.setItem('pubmax-tour-v1-done', '1');
+    localStorage.setItem('pubmax_onboarding_dismissed', '1');
+    sessionStorage.setItem('pubmax_onboarding_dismissed', '1');
+    (window as any).__loreAnimationEvents = [];
+    for (const type of ['animationstart', 'animationend', 'animationcancel']) {
+      document.addEventListener(type, (event) => {
+        const animation = event as AnimationEvent;
+        if (!['venueTabPanelIn', 'mobileSheetRise'].includes(animation.animationName)) return;
+        (window as any).__loreAnimationEvents.push({ type, name: animation.animationName,
+          time: performance.now(), elapsedTime: animation.elapsedTime });
+      }, true);
+    }
+  });
+  const navigation = await page.goto('/map?sel=venue-xiesdn&mode=build', { timeout: 30_000 });
+  report.navigationStatus = navigation?.status() ?? null;
+  expect(navigation?.status()).toBe(200);
+  const sheet = page.locator('.mapDrawer.right.open');
+  await expect(sheet).toBeVisible({ timeout: 30_000 });
+  await expect(sheet).toHaveClass(/sheet-half/);
+  const tablist = page.getByRole('tablist', { name: 'Venue detail sections' });
+  await expect(tablist).toBeVisible();
+  for (const label of ['Overview', 'Photos', 'Drinks', 'Stories', 'Lore']) {
+    const tab = tablist.getByRole('tab', { name: label, exact: true });
+    await tab.scrollIntoViewIfNeeded();
+    await expect(tab).toBeVisible();
+    const box = await tab.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
+    report.tabs.push({ label, ...box });
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  await expect.poll(() => page.evaluate(() => Math.max(
+    document.documentElement.scrollWidth - innerWidth, document.body.scrollWidth - innerWidth,
+  ))).toBeLessThanOrEqual(1);
+  await tablist.getByRole('tab', { name: 'Lore', exact: true }).click();
+  await expect(sheet).toHaveClass(/sheet-full/);
+  const panel = page.locator('#venuePanel-story');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('link', { name: 'Wikipedia', exact: true })).toBeVisible();
+  await expect(panel.locator('.placeStories')).toBeVisible();
+  const targets = panel.locator('.heritageFactCite, .placeStoryWalk, .placeStoryCrawl, .placeStorySource');
+  const measure = async (phase: string) => {
+    const frame = await targets.evaluateAll(elements => {
+      const animationState = (element: Element) => element.getAnimations().map(animation => ({
+        name: (animation as CSSAnimation).animationName ?? null,
+        playState: animation.playState, pending: animation.pending,
+        currentTime: animation.currentTime, timing: animation.effect?.getComputedTiming(),
+      }));
+      const panel = document.querySelector('#venuePanel-story')!;
+      const sheet = panel.closest('.mapDrawer')!;
+      const rectData = (element: Element) => {
+        const rect = element.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, top: rect.top, bottom: rect.bottom,
+          width: rect.width, height: rect.height };
+      };
+      return { time: performance.now(), panelTransform: getComputedStyle(panel).transform,
+        panelAnimations: animationState(panel), sheetAnimations: animationState(sheet),
+        sheetMotion: sheet.getAttribute('data-sheet-motion'), sheetRect: rectData(sheet),
+        targets: elements.map((element, index) => {
+          const style = getComputedStyle(element);
+          const ancestors = [];
+          for (let parent: Element | null = element; parent; parent = parent.parentElement) {
+            const parentStyle = getComputedStyle(parent);
+            if (parentStyle.transform !== 'none') ancestors.push({ tag: parent.tagName,
+              className: parent.className, transform: parentStyle.transform });
+          }
+          return { index: index + 1, text: element.textContent?.trim(), href: element.getAttribute('href'),
+            className: element.className, offsetHeight: (element as HTMLElement).offsetHeight,
+            minHeight: style.minHeight, rect: rectData(element), transformedAncestors: ancestors,
+            visible: style.display !== 'none' && style.visibility !== 'hidden' };
+        }).filter(target => target.visible) };
+    });
+    report.frames.push({ phase, ...frame }); flush(); return frame;
+  };
+  const exact44 = (frame: any) => frame.targets.length > 0
+    && frame.targets.every((target: any) => target.rect.width >= 44 && target.rect.height >= 44);
+  const initial = await measure('original-first-frame');
+  report.checks.originalExact44 = exact44(initial);
+  const activeMotion = (frame: any) => [...frame.panelAnimations, ...frame.sheetAnimations]
+    .some(animation => animation.pending || animation.playState === 'running');
+  report.inFlightShortfalls = [];
+  // Sample the actual finite crossfade, not only its first and final frames.
+  // Each group remains one browser task; RAF advances naturally between groups.
+  let motionFrame = initial;
+  for (let index = 0; index < 30 && activeMotion(motionFrame); index++) {
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+    motionFrame = await measure(`in-flight-frame-${index + 1}`);
+    const shortfalls = motionFrame.targets.filter((target: any) =>
+      target.rect.width < 44 || target.rect.height < 44);
+    if (shortfalls.length) report.inFlightShortfalls.push({ time: motionFrame.time,
+      panelTransform: motionFrame.panelTransform, sheetMotion: motionFrame.sheetMotion,
+      targets: shortfalls });
+  }
+  report.checks.inFlightExact44 = report.inFlightShortfalls.length === 0;
+  // Observe actual CSS completion, never a timeout standing in for rest.
+  report.finishedObservations = await panel.evaluate(async element => {
+    const sheet = element.closest('.mapDrawer')!;
+    const animations = [...element.getAnimations(), ...sheet.getAnimations()]
+      .filter(animation => animation.pending || animation.playState === 'running');
+    return Promise.all(animations.map(async animation => {
+      const name = (animation as CSSAnimation).animationName ?? null;
+      const start = performance.now();
+      try { await animation.finished; return { name, start, end: performance.now(), outcome: 'finished' }; }
+      catch { return { name, start, end: performance.now(), outcome: 'cancelled' }; }
+    }));
+  });
+  await expect.poll(async () => {
+    const frame = await measure('motion-rest-poll');
+    return frame.sheetMotion === 'idle' && frame.panelTransform === 'none'
+      && ![...frame.panelAnimations, ...frame.sheetAnimations].some(animation =>
+        animation.pending || animation.playState === 'running');
+  }, { timeout: 15_000 }).toBe(true);
+  const rest = await measure('first-observed-rest');
+  report.checks.restExact44 = exact44(rest);
+  await expect.poll(async () => exact44(await measure('exact44-group-poll')),
+    { timeout: 5_000 }).toBe(true);
+  for (let index = 0; index < 5; index++) {
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+    const frame = await measure(`rest-frame-${index + 1}`);
+    expect(frame.targets.length).toBeGreaterThan(0);
+    for (const target of frame.targets) {
+      expect(target.rect.width, `Lore action ${target.index} width`).toBeGreaterThanOrEqual(44);
+      expect(target.rect.height, `Lore action ${target.index} height`).toBeGreaterThanOrEqual(44);
+    }
+  }
+  report.animationEvents = await page.evaluate(() => (window as any).__loreAnimationEvents);
+  await page.screenshot({ path: `${output}/rest.png`, fullPage: true });
+  report.status = !report.checks.originalExact44 ? 'TRANSIENT_SHORTFALL_OBSERVED'
+    : !report.checks.inFlightExact44 ? 'IN_FLIGHT_SHORTFALL_OBSERVED' : 'ORIGINAL_SAMPLE_PASSED';
+  if (!report.checks.originalExact44 || !report.checks.inFlightExact44) process.exitCode = 1;
+} catch (error) {
+  report.status = 'FAILED'; report.errors.push(String(error)); process.exitCode = 1;
+  const page = context?.pages()[0];
+  if (page && !page.isClosed()) {
+    report.animationEvents = await page.evaluate(() => (window as any).__loreAnimationEvents ?? []).catch(() => []);
+    await page.screenshot({ path: `${output}/failure.png`, fullPage: true }).catch(() => {});
+  }
+} finally {
+  await context?.close().catch(() => {});
+  await browser?.close().catch(() => {});
+  clearTimeout(deadline);
+  report.completed = true; flush();
+}

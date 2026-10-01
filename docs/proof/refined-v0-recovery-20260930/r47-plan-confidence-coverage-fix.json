@@ -1,0 +1,14 @@
+{
+  "status": "scratch-only incremental source patch; not applied; validation UNRUN",
+  "checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scope": [
+    "lib/planGeneration.server.ts"
+  ],
+  "base_sha256": "ccfb22a9f2a5693835bcfdb8f1522ccb067591e225967d4228e930d4dafb5e05",
+  "candidate_sha256": "d3125265a571bee2d7dcf1ac12be477bf2c9afb67917e1bf203a5d2d15c6d1ec",
+  "patch": "/tmp/pubmaxx-r47-plan-confidence-coverage-fix.patch",
+  "patch_sha256": "276d2e4b11e8a5bb89b06a6100882f72612f5326e537edebe33e31b43e46c941",
+  "behavior": "Public confidence uses degraded status if either community or listed index is degraded; otherwise partial if either is truncated; otherwise ready. Existing drinkLensCoverageNote wording remains authoritative. Ranking and candidate selection unchanged.",
+  "red_evidence": ".audit/overnight-20261001/plan-coverage-red-audit-fixture-results.json: 66 total, 64 pass, 2 fail; listed degraded/truncated with community ready emitted no warning.",
+  "tests_build_runtime": "not run by this scratch task"
+}

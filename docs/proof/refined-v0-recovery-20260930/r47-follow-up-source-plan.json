@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-01T00:52:14.742225+00:00",
+  "status": "SOURCE_ONLY_FOLLOW_UP",
+  "baseline": "r46-final-source-freeze.json",
+  "baselineSourceGate": "r46-final-full-source-verify-receipt.json",
+  "baselineFullFive": "r46-fullfive-terminal-receipt.json",
+  "actualCleanup": "r46-actual-runtime-cleanup.json",
+  "home": {
+    "reproduced": "3 originalE2E failures +1 exact consumedHome nativejournal RED",
+    "nativeFinding": "Home button invoked history.back(), landing owned moment pricePicker. No history.go observed.",
+    "cause": "MobileSharedSheet SurfaceNav onHome=requestClose reaches animated onDismiss; PubMap binds onDismiss=Back when parent exists; declared onClose=Home bypassed.",
+    "minimalCorrection": "SurfaceNav onHome=onClose; keepBack/Escape/gesture/scrim callbacks intact; no navowner rewrite justified.",
+    "owner": "Luna source patch; Sol source review; Root runtime",
+    "verification": "New mounted componenttest UNRUN; original4 lifecycle nativebrowser retest and source/fullfive gates pending next explicitresourcegrant."
+  },
+  "phoneDrag": {
+    "actualFailure": "chromium-gl normalLondon UKbase priceflow spec286 expectedsheet-peek observedsheet-half",
+    "sourceLead": "Spec waits class sheet-half before header measurement; snapclass changes synchronously before height spring rests. Dragstart uses renderedheight, so settling largerheight or stale hit coordinates can yield half.",
+    "proofLimit": "Hypothesis only; need native frame/hit target/start/end before changing productorassertion.",
+    "owner": "Solreadonly diagnosis; Root upcomingnativejournal."
+  },
+  "pendingAcceptance": [
+    "Realprovider/PubPal groundedanswers with price provenance and venuecards, owned by releaseRoot",
+    "LatestMain/package1882/composition throughpublisher, no blindrebase",
+    "Durablebill/storage/authprovider andproductionRLS",
+    "StrictCWV/live productionroutes",
+    "Inherited17 complexitywarnings"
+  ],
+  "release": "Goal remainsactive. No merge/deploy/SQL."
+}

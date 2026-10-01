@@ -1,0 +1,80 @@
+--- a/__tests__/listedCategoryPrices.test.ts
++++ b/__tests__/listedCategoryPrices.test.ts
+@@ -167,6 +167,77 @@
+     ]);
+   });
+ 
++  it.each(["forward", "reverse"] as const)(
++    "uses newest named-drink reading across equivalent serving spellings (%s)",
++    (order) => {
++      const older = {
++        ...row({
++          drinkLabel: "Sauvignon Blanc",
++          priceGbp: 4,
++          observedAt: "2026-09-18T10:00:00Z",
++        }),
++        servingSize: "25 ml",
++      };
++      const newer = {
++        ...row({
++          drinkLabel: "Sauvignon Blanc",
++          priceGbp: 6.25,
++          observedAt: "2026-09-28T10:00:00Z",
++        }),
++        servingSize: "25ml",
++      };
++      const input = order === "forward" ? [older, newer] : [newer, older];
++
++      expect(listedCategoryPrices(input, NOW)).toEqual([
++        expect.objectContaining({
++          drinkLabel: "Sauvignon Blanc",
++          priceGbp: 6.25,
++          servingSize: "25ml",
++          observedAt: "2026-09-28T10:00:00Z",
++        }),
++      ]);
++    },
++  );
++
++  it("still compares distinct named drinks by price within a canonical serving", () => {
++    const dearerNewer = {
++      ...row({
++        drinkLabel: "Pinot Noir",
++        priceGbp: 9,
++        observedAt: "2026-09-28T10:00:00Z",
++      }),
++      servingSize: "125 ml",
++    };
++    const cheaperOlder = {
++      ...row({
++        drinkLabel: "House red",
++        priceGbp: 5.25,
++        observedAt: "2026-09-24T10:00:00Z",
++      }),
++      servingSize: "125ml",
++    };
++
++    expect(listedCategoryPrices([dearerNewer, cheaperOlder], NOW)).toEqual([
++      expect.objectContaining({
++        drinkLabel: "House red",
++        priceGbp: 5.25,
++        servingSize: "125ml",
++      }),
++    ]);
++  });
++
++  it("keeps distinct volumes and distinct unranked raw serves for one drink", () => {
++    const quotes = [
++      { ...row({ drinkLabel: "House red", priceGbp: 5 }), servingSize: "125ml" },
++      { ...row({ drinkLabel: "House red", priceGbp: 10 }), servingSize: "250ml" },
++      { ...row({ drinkLabel: "House red", priceGbp: 14 }), servingSize: "carafe" },
++      { ...row({ drinkLabel: "House red", priceGbp: 2 }), servingSize: "small glass" },
++    ];
++
++    expect(listedCategoryPrices(quotes, NOW).map((quote) => quote.servingSize).sort())
++      .toEqual(["125ml", "250ml", "carafe", "small glass"]);
++  });
++
+   it("does not merge unnamed quotes with unknown servings into a drink identity", () => {
+     const rows = [
+       row({ drinkLabel: undefined, priceGbp: 7, observedAt: "2026-09-29T10:00:00Z" }),

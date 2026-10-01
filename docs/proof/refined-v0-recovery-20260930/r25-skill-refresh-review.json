@@ -1,0 +1,762 @@
+{
+  "auditTimeUtc": "2026-09-30 12:47 UTC",
+  "scope": "Read-only freshness/provenance audit of the 13 names in r19-skill-source-inventory.json. No skill installation, overwrite, repo write, test, build, or index operation. Corrected source-catalog and exact local-reference audit; no repo or skill writes.",
+  "sourceOnly": true,
+  "lock": {
+    "path": "/Users/karanmanoharan/.agents/.skill-lock.json",
+    "version": 3,
+    "entries": 108,
+    "updatedToday": 107,
+    "trackedRequestedNames": 6,
+    "remoteRevisionFieldPresent": false,
+    "interpretation": "Lock source/path/folder-hash/timestamps are local install metadata; updatedAt alone is not upstream freshness proof."
+  },
+  "repoBulkRefresh": {
+    "commit": "84740c3ea",
+    "date": "2026-08-21",
+    "note": "This refresh did not touch every selected skill; per-file last-touch values are listed below."
+  },
+  "upstreamChecks": [
+    {
+      "repo": "kunchenguid/gnhf",
+      "path": "skills/gnhf/SKILL.md",
+      "branch": "main",
+      "blobSha1": "d1d041753c3a12166639e81601a6644b02eed66c",
+      "sha256": "b385f541fcdd06f8c764c9b9b7bf3e3cd94e0f61fbd42c85067a572936e5a2b3",
+      "bytes": 8140,
+      "globalBytesMatch": true,
+      "repoUpdatedAt": "2026-09-30T12:35:36Z"
+    },
+    {
+      "repo": "mattpocock/skills",
+      "path": "skills/engineering/diagnosing-bugs/SKILL.md",
+      "branch": "main",
+      "blobSha1": "1b929e29fb519c26b500d3eda744177986883ac8",
+      "sha256": "9168404abda0967a5d32977e3498cd95fda6807018852f3de736a78357c82b40",
+      "bytes": 8530,
+      "globalBytesMatch": true,
+      "repoUpdatedAt": "2026-09-30T12:39:27Z"
+    },
+    {
+      "repo": "mattpocock/skills",
+      "path": "skills/engineering/tdd/SKILL.md",
+      "branch": "main",
+      "blobSha1": "250871ccdfefa7525309acfebda090edf4046882",
+      "sha256": "93ea419b76e9caaf26153b828e984f7c3fb136f4caa67b14af95f32ea965a1cc",
+      "bytes": 3550,
+      "globalBytesMatch": true,
+      "repoUpdatedAt": "2026-09-30T12:39:27Z"
+    },
+    {
+      "repo": "backnotprop/pstack",
+      "path": "skills/unslop/SKILL.md",
+      "branch": "main",
+      "blobSha1": "a3a7dc7baf0bed5fed4fe0f12ea7fcfe48d94c89",
+      "sha256": "c6d2572294d933a428211921069e9a248490e9b466ca59437cb4d9de248600ca",
+      "bytes": 6093,
+      "globalBytesMatch": true,
+      "repoUpdatedAt": "2026-09-30T12:36:15Z"
+    },
+    {
+      "repo": "mattpocock/skills",
+      "path": "skills/engineering/code-review/SKILL.md",
+      "branch": "main",
+      "blobSha1": "e28d7acbf7b3bb4d7817b7eb5d9c105af03f6ec4",
+      "sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
+      "bytes": 6589,
+      "globalBytesMatch": true,
+      "repoUpdatedAt": "2026-09-30T12:39:27Z"
+    },
+    {
+      "repo": "obra/superpowers",
+      "path": "skills/verification-before-completion/SKILL.md",
+      "branch": "main",
+      "blobSha1": "7d45333cc4a49c57a80df6c1fe2fa777a207afbc",
+      "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
+      "bytes": 3646,
+      "globalBytesMatch": true,
+      "repoUpdatedAt": "2026-09-30T12:40:16Z"
+    }
+  ],
+  "skills": [
+    {
+      "name": "gnhf",
+      "lockEntry": {
+        "source": "kunchenguid/gnhf",
+        "sourceType": "github",
+        "sourceUrl": "https://github.com/kunchenguid/gnhf.git",
+        "skillPath": "skills/gnhf/SKILL.md",
+        "skillFolderHash": "cae9d0366ced124fecdf235c600bd4f6dce82b10",
+        "installedAt": "2026-09-03T15:07:47.627Z",
+        "updatedAt": "2026-09-30T06:30:39.589Z"
+      },
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/gnhf/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/gnhf/SKILL.md",
+          "exists": true,
+          "sha256": "70fbdf06917a0207e22fea68e090a9883fa8e9a6b74d911de01855906bca8cb9",
+          "bytes": 8084
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/gnhf/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/gnhf/SKILL.md",
+          "exists": true,
+          "sha256": "70fbdf06917a0207e22fea68e090a9883fa8e9a6b74d911de01855906bca8cb9",
+          "bytes": 8084
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.agents/skills/gnhf/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/gnhf/SKILL.md",
+          "exists": true,
+          "sha256": "b385f541fcdd06f8c764c9b9b7bf3e3cd94e0f61fbd42c85067a572936e5a2b3",
+          "bytes": 8140
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.codex/skills/gnhf/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/gnhf/SKILL.md",
+          "exists": true,
+          "sha256": "b385f541fcdd06f8c764c9b9b7bf3e3cd94e0f61fbd42c85067a572936e5a2b3",
+          "bytes": 8140
+        }
+      ],
+      "uniqueContentHashes": 2,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "intentional project overlay",
+      "disposition": "Preserve local CLI adaptations; do not replace with shared copy. Shared copy is current upstream.",
+      "upstreamCheck": {
+        "repo": "kunchenguid/gnhf",
+        "path": "skills/gnhf/SKILL.md",
+        "branch": "main",
+        "blobSha1": "d1d041753c3a12166639e81601a6644b02eed66c",
+        "sha256": "b385f541fcdd06f8c764c9b9b7bf3e3cd94e0f61fbd42c85067a572936e5a2b3",
+        "bytes": 8140,
+        "globalBytesMatch": true,
+        "repoUpdatedAt": "2026-09-30T12:35:36Z"
+      },
+      "sourceCatalog": "kunchenguid/gnhf"
+    },
+    {
+      "name": "diagnosing-bugs",
+      "lockEntry": {
+        "source": "mattpocock/skills",
+        "sourceType": "github",
+        "sourceUrl": "https://github.com/mattpocock/skills.git",
+        "skillPath": "skills/engineering/diagnosing-bugs/SKILL.md",
+        "skillFolderHash": "de4236cf34757c4e9ea7afe78d46c023213ff254",
+        "installedAt": "2026-09-03T15:07:47.090Z",
+        "updatedAt": "2026-09-30T06:30:12.670Z"
+      },
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/diagnosing-bugs/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/diagnosing-bugs/SKILL.md",
+          "exists": true,
+          "sha256": "b9339b09ee3980808d8c5a35c7251b891b8b1e0036ec4ca37812b976ebddf6b6",
+          "bytes": 8969
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/diagnosing-bugs/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/diagnosing-bugs/SKILL.md",
+          "exists": true,
+          "sha256": "b9339b09ee3980808d8c5a35c7251b891b8b1e0036ec4ca37812b976ebddf6b6",
+          "bytes": 8969
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.agents/skills/diagnosing-bugs/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/diagnosing-bugs/SKILL.md",
+          "exists": true,
+          "sha256": "9168404abda0967a5d32977e3498cd95fda6807018852f3de736a78357c82b40",
+          "bytes": 8530
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.codex/skills/diagnosing-bugs/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/diagnosing-bugs/SKILL.md",
+          "exists": true,
+          "sha256": "9168404abda0967a5d32977e3498cd95fda6807018852f3de736a78357c82b40",
+          "bytes": 8530
+        }
+      ],
+      "uniqueContentHashes": 2,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "project overlay with substantive and style deltas",
+      "disposition": "Preserve CONTEXT.md and post-mortem additions. Clean em-dash punctuation to match root AGENTS if editing this copy.",
+      "upstreamCheck": {
+        "repo": "mattpocock/skills",
+        "path": "skills/engineering/diagnosing-bugs/SKILL.md",
+        "branch": "main",
+        "blobSha1": "1b929e29fb519c26b500d3eda744177986883ac8",
+        "sha256": "9168404abda0967a5d32977e3498cd95fda6807018852f3de736a78357c82b40",
+        "bytes": 8530,
+        "globalBytesMatch": true,
+        "repoUpdatedAt": "2026-09-30T12:39:27Z"
+      },
+      "sourceCatalog": "mattpocock/skills"
+    },
+    {
+      "name": "tdd",
+      "lockEntry": {
+        "source": "mattpocock/skills",
+        "sourceType": "github",
+        "sourceUrl": "https://github.com/mattpocock/skills.git",
+        "skillPath": "skills/engineering/tdd/SKILL.md",
+        "skillFolderHash": "bf1bf5ffcd63aa8abce830f2955a853c121fb463",
+        "installedAt": "2026-09-03T15:07:52.495Z",
+        "updatedAt": "2026-09-30T06:30:12.676Z"
+      },
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/tdd/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/tdd/SKILL.md",
+          "exists": true,
+          "sha256": "adad031f9e79d7f7389fa128f7af8e03344831270e282cf4e40bdacb8418c386",
+          "bytes": 3536
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/tdd/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/tdd/SKILL.md",
+          "exists": true,
+          "sha256": "adad031f9e79d7f7389fa128f7af8e03344831270e282cf4e40bdacb8418c386",
+          "bytes": 3536
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.agents/skills/tdd/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/tdd/SKILL.md",
+          "exists": true,
+          "sha256": "93ea419b76e9caaf26153b828e984f7c3fb136f4caa67b14af95f32ea965a1cc",
+          "bytes": 3550
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.codex/skills/tdd/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/tdd/SKILL.md",
+          "exists": true,
+          "sha256": "93ea419b76e9caaf26153b828e984f7c3fb136f4caa67b14af95f32ea965a1cc",
+          "bytes": 3550
+        }
+      ],
+      "uniqueContentHashes": 2,
+      "repoLastTouched": "84740c3ea (2026-08-21)",
+      "classification": "intentional project policy override",
+      "disposition": "Preserve selective invocation and disable-model-invocation. Resolve overlap with test-driven-development before routing changes.",
+      "upstreamCheck": {
+        "repo": "mattpocock/skills",
+        "path": "skills/engineering/tdd/SKILL.md",
+        "branch": "main",
+        "blobSha1": "250871ccdfefa7525309acfebda090edf4046882",
+        "sha256": "93ea419b76e9caaf26153b828e984f7c3fb136f4caa67b14af95f32ea965a1cc",
+        "bytes": 3550,
+        "globalBytesMatch": true,
+        "repoUpdatedAt": "2026-09-30T12:39:27Z"
+      },
+      "sourceCatalog": "mattpocock/skills"
+    },
+    {
+      "name": "test-driven-development",
+      "lockEntry": null,
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-driven-development/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-driven-development/SKILL.md",
+          "exists": true,
+          "sha256": "7dee67b4af6bdccc7a914ca34533184d64592d0f5b23aeae631538168db14994",
+          "bytes": 9867
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-driven-development/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-driven-development/SKILL.md",
+          "exists": true,
+          "sha256": "7dee67b4af6bdccc7a914ca34533184d64592d0f5b23aeae631538168db14994",
+          "bytes": 9867
+        }
+      ],
+      "uniqueContentHashes": 1,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "repo-vendored; source repository is recorded in dated catalog, but no lock revision",
+      "disposition": "Keep local copy pending owner review. Catalog source is kunchenguid/programbench-bench, without commit/ref. The @testing-anti-patterns.md companion exists. Resolve overlap with tdd before routing or refresh.",
+      "upstreamCheck": null,
+      "sourceCatalog": "kunchenguid/programbench-bench"
+    },
+    {
+      "name": "unslop",
+      "lockEntry": {
+        "source": "backnotprop/pstack",
+        "sourceType": "github",
+        "sourceUrl": "https://github.com/backnotprop/pstack.git",
+        "skillPath": "skills/unslop/SKILL.md",
+        "skillFolderHash": "e19dcc9c531f4609df38bc86c62cf0e8b6d8f444",
+        "installedAt": "2026-09-03T15:07:53.124Z",
+        "updatedAt": "2026-09-30T06:30:03.022Z"
+      },
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/unslop/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/unslop/SKILL.md",
+          "exists": true,
+          "sha256": "181883e539caec8258ec9129e3ba5f133409144a2cbf2aa361158ab94cfc3441",
+          "bytes": 6595
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/unslop/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/unslop/SKILL.md",
+          "exists": true,
+          "sha256": "181883e539caec8258ec9129e3ba5f133409144a2cbf2aa361158ab94cfc3441",
+          "bytes": 6595
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.agents/skills/unslop/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/unslop/SKILL.md",
+          "exists": true,
+          "sha256": "c6d2572294d933a428211921069e9a248490e9b466ca59437cb4d9de248600ca",
+          "bytes": 6093
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.codex/skills/unslop/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/unslop/SKILL.md",
+          "exists": true,
+          "sha256": "c6d2572294d933a428211921069e9a248490e9b466ca59437cb4d9de248600ca",
+          "bytes": 6093
+        }
+      ],
+      "uniqueContentHashes": 2,
+      "repoLastTouched": "84740c3ea (2026-08-21)",
+      "classification": "intentional content overlay; invocation policy differs",
+      "disposition": "Preserve added human-voice guidance. Explicitly review removal of upstream disable-model-invocation before retaining auto-invocation.",
+      "upstreamCheck": {
+        "repo": "backnotprop/pstack",
+        "path": "skills/unslop/SKILL.md",
+        "branch": "main",
+        "blobSha1": "a3a7dc7baf0bed5fed4fe0f12ea7fcfe48d94c89",
+        "sha256": "c6d2572294d933a428211921069e9a248490e9b466ca59437cb4d9de248600ca",
+        "bytes": 6093,
+        "globalBytesMatch": true,
+        "repoUpdatedAt": "2026-09-30T12:36:15Z"
+      },
+      "sourceCatalog": null
+    },
+    {
+      "name": "code-review",
+      "lockEntry": {
+        "source": "mattpocock/skills",
+        "sourceType": "github",
+        "sourceUrl": "https://github.com/mattpocock/skills.git",
+        "skillPath": "skills/engineering/code-review/SKILL.md",
+        "skillFolderHash": "d8e341cee7980127dddda05159bedf25dc853615",
+        "installedAt": "2026-09-03T15:07:46.771Z",
+        "updatedAt": "2026-09-30T06:30:12.669Z"
+      },
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/code-review/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/code-review/SKILL.md",
+          "exists": true,
+          "sha256": "9cf46653dd9c710ea1e6c22423caf31a794c88773bc94bdaa23140277f470442",
+          "bytes": 6634
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/code-review/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/code-review/SKILL.md",
+          "exists": true,
+          "sha256": "9cf46653dd9c710ea1e6c22423caf31a794c88773bc94bdaa23140277f470442",
+          "bytes": 6634
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.agents/skills/code-review/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/code-review/SKILL.md",
+          "exists": true,
+          "sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
+          "bytes": 6589
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.codex/skills/code-review/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/code-review/SKILL.md",
+          "exists": true,
+          "sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
+          "bytes": 6589
+        }
+      ],
+      "uniqueContentHashes": 2,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "project overlay mostly wording/punctuation",
+      "disposition": "Preserve content unless owner wants upstream sync. Normalize em dashes to satisfy root AGENTS; no wholesale replace.",
+      "upstreamCheck": {
+        "repo": "mattpocock/skills",
+        "path": "skills/engineering/code-review/SKILL.md",
+        "branch": "main",
+        "blobSha1": "e28d7acbf7b3bb4d7817b7eb5d9c105af03f6ec4",
+        "sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
+        "bytes": 6589,
+        "globalBytesMatch": true,
+        "repoUpdatedAt": "2026-09-30T12:39:27Z"
+      },
+      "sourceCatalog": "mattpocock/skills"
+    },
+    {
+      "name": "verification-before-completion",
+      "lockEntry": {
+        "source": "obra/superpowers",
+        "sourceType": "github",
+        "sourceUrl": "https://github.com/obra/superpowers.git",
+        "skillPath": "skills/verification-before-completion/SKILL.md",
+        "skillFolderHash": "a4cb0b69aaefeab540947a7f1642bdaad810e37a",
+        "installedAt": "2026-09-30T06:52:16.309Z",
+        "updatedAt": "2026-09-30T06:52:16.309Z"
+      },
+      "copies": [
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.agents/skills/verification-before-completion/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/verification-before-completion/SKILL.md",
+          "exists": true,
+          "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
+          "bytes": 3646
+        },
+        {
+          "scope": "shared",
+          "path": "/Users/karanmanoharan/.codex/skills/verification-before-completion/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.agents/skills/verification-before-completion/SKILL.md",
+          "exists": true,
+          "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
+          "bytes": 3646
+        }
+      ],
+      "uniqueContentHashes": 1,
+      "repoLastTouched": null,
+      "classification": "shared installed only",
+      "disposition": "Current shared copy matches upstream; no project copy to refresh.",
+      "upstreamCheck": {
+        "repo": "obra/superpowers",
+        "path": "skills/verification-before-completion/SKILL.md",
+        "branch": "main",
+        "blobSha1": "7d45333cc4a49c57a80df6c1fe2fa777a207afbc",
+        "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
+        "bytes": 3646,
+        "globalBytesMatch": true,
+        "repoUpdatedAt": "2026-09-30T12:40:16Z"
+      },
+      "sourceCatalog": null
+    },
+    {
+      "name": "audit-security",
+      "lockEntry": null,
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-security/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-security/SKILL.md",
+          "exists": true,
+          "sha256": "498162b01b217b303bfaf815a425192fa4adcce3b6d2c16e35d5bc05bdcfb390",
+          "bytes": 8641
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-security/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-security/SKILL.md",
+          "exists": true,
+          "sha256": "498162b01b217b303bfaf815a425192fa4adcce3b6d2c16e35d5bc05bdcfb390",
+          "bytes": 8641
+        }
+      ],
+      "uniqueContentHashes": 1,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "repo-vendored; dated catalog source label, no lock revision",
+      "disposition": "Keep local copy pending owner review. Catalog source is kensaurus/cursor-kenji; catalog does not pin an immutable revision or prove current freshness.",
+      "upstreamCheck": null,
+      "sourceCatalog": "kensaurus/cursor-kenji"
+    },
+    {
+      "name": "audit-performance",
+      "lockEntry": null,
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-performance/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-performance/SKILL.md",
+          "exists": true,
+          "sha256": "c0203486346207221063e073e1685879d1d0766af57686f31e23334d560d5e4a",
+          "bytes": 7579
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-performance/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-performance/SKILL.md",
+          "exists": true,
+          "sha256": "c0203486346207221063e073e1685879d1d0766af57686f31e23334d560d5e4a",
+          "bytes": 7579
+        }
+      ],
+      "uniqueContentHashes": 1,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "repo-vendored; dated catalog source label, no lock revision",
+      "disposition": "Keep local copy pending owner review. Catalog source is kensaurus/cursor-kenji; catalog does not pin an immutable revision or prove current freshness.",
+      "upstreamCheck": null,
+      "sourceCatalog": "kensaurus/cursor-kenji"
+    },
+    {
+      "name": "audit-ux-journeys",
+      "lockEntry": null,
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-ux-journeys/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-ux-journeys/SKILL.md",
+          "exists": true,
+          "sha256": "2f5d1463ee4d5cbf105f7f76dd817d9cfae8aa2172e8a259af5400ffecf9cb5f",
+          "bytes": 11301
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-ux-journeys/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-ux-journeys/SKILL.md",
+          "exists": true,
+          "sha256": "2f5d1463ee4d5cbf105f7f76dd817d9cfae8aa2172e8a259af5400ffecf9cb5f",
+          "bytes": 11301
+        }
+      ],
+      "uniqueContentHashes": 1,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "repo-vendored; dated catalog source label, no lock revision",
+      "disposition": "Keep local copy pending owner review. Catalog source is kensaurus/cursor-kenji; references/checklist.md exists; catalog does not pin an immutable revision or prove current freshness.",
+      "upstreamCheck": null,
+      "sourceCatalog": "kensaurus/cursor-kenji"
+    },
+    {
+      "name": "test-playwright",
+      "lockEntry": null,
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-playwright/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-playwright/SKILL.md",
+          "exists": true,
+          "sha256": "c217741b830254ec50c8c1d583ed43066de730cc3c2f0b914b12fda1ba51eac4",
+          "bytes": 17640
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-playwright/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-playwright/SKILL.md",
+          "exists": true,
+          "sha256": "c217741b830254ec50c8c1d583ed43066de730cc3c2f0b914b12fda1ba51eac4",
+          "bytes": 17640
+        }
+      ],
+      "uniqueContentHashes": 1,
+      "repoLastTouched": "158e7c375 (2026-08-08)",
+      "classification": "repo-vendored; dated catalog source label, no lock revision",
+      "disposition": "Keep local copy pending owner review. Catalog source is kensaurus/cursor-kenji; explicit cross-skill references exist. Catalog does not pin an immutable revision or prove current freshness.",
+      "upstreamCheck": null,
+      "sourceCatalog": "kensaurus/cursor-kenji"
+    },
+    {
+      "name": "deslop",
+      "lockEntry": null,
+      "copies": [
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/deslop/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/deslop/SKILL.md",
+          "exists": true,
+          "sha256": "2f7b7def74af7ed11f5b44b4d32f0f91fca8c5d1f92bf2171e8d12fd33a0f810",
+          "bytes": 719
+        },
+        {
+          "scope": "project",
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/deslop/SKILL.md",
+          "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/deslop/SKILL.md",
+          "exists": true,
+          "sha256": "2f7b7def74af7ed11f5b44b4d32f0f91fca8c5d1f92bf2171e8d12fd33a0f810",
+          "bytes": 719
+        }
+      ],
+      "uniqueContentHashes": 1,
+      "repoLastTouched": "84740c3ea (2026-08-21)",
+      "classification": "repo-vendored; no matching lock entry or dated catalog source mapping",
+      "disposition": "Keep local copy pending owner review; current source lineage and upstream freshness are unverified. No quarantine or refresh is implied.",
+      "upstreamCheck": null,
+      "sourceCatalog": null
+    },
+    {
+      "name": "greploop",
+      "lockEntry": null,
+      "copies": [],
+      "uniqueContentHashes": 0,
+      "repoLastTouched": null,
+      "classification": "absent from scanned repo/shared copies and lock",
+      "disposition": "Unavailable in scanned project/shared copies and lock. Do not install as part of this audit.",
+      "upstreamCheck": null,
+      "sourceCatalog": null
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "action",
+      "title": "Project overlays shadow current shared copies",
+      "detail": "Five same-name project copies (gnhf, diagnosing-bugs, tdd, unslop, code-review) differ from the shared installed copy. Shared files match checked upstream main files, but project skills are preferred by repository instructions. Lock freshness applies only to shared copies."
+    },
+    {
+      "id": "F2",
+      "severity": "action",
+      "title": "Conflicting TDD skills",
+      "detail": "Project tdd narrows invocation and allows closest practical verification when a test is not viable; test-driven-development requires use for every feature or bugfix and says no production code without a failing test first. The dated installed-skills catalog records its source repository as kunchenguid/programbench-bench; neither the catalog nor lock pins a revision. Resolve policy/routing before refresh."
+    },
+    {
+      "id": "F3",
+      "severity": "review",
+      "title": "Unslop invocation policy changed locally",
+      "detail": "Shared upstream sets disable-model-invocation: true; project copy removes it and says Must always apply. Content expansion may be intentional, but automatic invocation behavior changed."
+    },
+    {
+      "id": "F4",
+      "severity": "review",
+      "title": "Repo-only skills have different provenance evidence",
+      "detail": "The dated installed-skills catalog records source repositories for test-driven-development, audit-security, audit-performance, audit-ux-journeys, and test-playwright, but no immutable refs. deslop has no source mapping in that catalog or selected lock. greploop is absent. Do not treat catalog labels as current freshness proof or as reason to quarantine."
+    },
+    {
+      "id": "F5",
+      "severity": "cleanup",
+      "title": "Reference audit corrected",
+      "detail": "test-driven-development references @testing-anti-patterns.md, which exists; it does not reference tests.md or mocking.md. audit-ux-journeys checklist and test-playwright explicit sibling-skill references exist. gnhf README link resolves to absent .agents/README.md in this checkout; investigate packaging if editing."
+    }
+  ],
+  "sourceCatalog": {
+    "path": "docs/agents/INSTALLED_SKILLS.md",
+    "generatedDate": "2026-08-07",
+    "meaning": "Dated source-repository labels; catalog does not pin upstream commit/ref or source-file hash, so it is not immutable version or current-freshness evidence.",
+    "recordedSources": {
+      "gnhf": "kunchenguid/gnhf",
+      "diagnosing-bugs": "mattpocock/skills",
+      "tdd": "mattpocock/skills",
+      "test-driven-development": "kunchenguid/programbench-bench",
+      "code-review": "mattpocock/skills",
+      "audit-security": "kensaurus/cursor-kenji",
+      "audit-performance": "kensaurus/cursor-kenji",
+      "audit-ux-journeys": "kensaurus/cursor-kenji",
+      "test-playwright": "kensaurus/cursor-kenji"
+    },
+    "catalogDoesNotList": [
+      "unslop",
+      "verification-before-completion",
+      "deslop",
+      "greploop"
+    ],
+    "interpretation": "The first two still have source records in the global lock. deslop has neither a matching lock entry nor a source mapping in this catalog. greploop is absent."
+  },
+  "referenceAudit": [
+    {
+      "name": "gnhf",
+      "path": ".agents/skills/gnhf/SKILL.md",
+      "references": [
+        "../../README.md#agents"
+      ],
+      "result": "From this checkout, resolves to missing .agents/README.md; upstream source-layout README is not packaged beside the installed skill."
+    },
+    {
+      "name": "diagnosing-bugs",
+      "path": ".agents/skills/diagnosing-bugs/SKILL.md",
+      "references": [
+        "CONTEXT.md (conditional prose reference)",
+        "docs/adr/ (prose reference)"
+      ],
+      "result": "Both paths exist in the project."
+    },
+    {
+      "name": "tdd",
+      "path": ".agents/skills/tdd/SKILL.md",
+      "references": [],
+      "result": "No local Markdown file references found."
+    },
+    {
+      "name": "test-driven-development",
+      "path": ".agents/skills/test-driven-development/SKILL.md",
+      "references": [
+        "@testing-anti-patterns.md"
+      ],
+      "result": "Exists at .agents/skills/test-driven-development/testing-anti-patterns.md; no tests.md or mocking.md reference."
+    },
+    {
+      "name": "unslop",
+      "path": ".agents/skills/unslop/SKILL.md",
+      "references": [],
+      "result": "No local Markdown file references found."
+    },
+    {
+      "name": "code-review",
+      "path": ".agents/skills/code-review/SKILL.md",
+      "references": [
+        "docs/agents/issue-tracker.md"
+      ],
+      "result": "Referenced project document exists."
+    },
+    {
+      "name": "verification-before-completion",
+      "path": "~/.agents/skills/verification-before-completion/SKILL.md",
+      "references": [],
+      "result": "No local companion Markdown file references found."
+    },
+    {
+      "name": "audit-security",
+      "path": ".agents/skills/audit-security/SKILL.md",
+      "references": [],
+      "result": "Only external URL reference found; no local Markdown companion."
+    },
+    {
+      "name": "audit-performance",
+      "path": ".agents/skills/audit-performance/SKILL.md",
+      "references": [],
+      "result": "No local Markdown file references found."
+    },
+    {
+      "name": "audit-ux-journeys",
+      "path": ".agents/skills/audit-ux-journeys/SKILL.md",
+      "references": [
+        "references/checklist.md"
+      ],
+      "result": "Exists at .agents/skills/audit-ux-journeys/references/checklist.md."
+    },
+    {
+      "name": "test-playwright",
+      "path": ".agents/skills/test-playwright/SKILL.md",
+      "references": [
+        "protocol-browser-anti-stall/references/playwright-session-coordination.md",
+        "protocol-browser-anti-stall/references/mcp-to-cli-map.md",
+        "references/playwright-session-coordination.md (line-36 shorthand)"
+      ],
+      "result": "Both explicit paths exist under sibling .agents/skills/protocol-browser-anti-stall/references. The line-36 shorthand does not resolve within test-playwright itself."
+    },
+    {
+      "name": "deslop",
+      "path": ".agents/skills/deslop/SKILL.md",
+      "references": [],
+      "result": "No local Markdown file references found."
+    },
+    {
+      "name": "greploop",
+      "path": null,
+      "references": [],
+      "result": "No scanned local or shared skill file."
+    }
+  ]
+}

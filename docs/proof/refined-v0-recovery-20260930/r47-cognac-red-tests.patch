@@ -1,0 +1,101 @@
+--- a/__tests__/ukPriceBundle.test.ts
++++ b/__tests__/ukPriceBundle.test.ts
+@@ -8,6 +8,8 @@
+ import { describe, expect, it } from "vitest";
+ import { readFileSync } from "node:fs";
+ import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
++import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
++import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
+ 
+ import {
+   UK_PRICE_BUNDLE_LANES,
+@@ -16,6 +18,7 @@
+   bundleRowSupersedes,
+   bundleRowsByVenue,
+   ukPriceBundleCollectKey,
++  isCategoryQuarantined,
+   isUkPriceBundleLane,
+   isValidUkPriceBundleRow,
+   parseUkPriceBundleRows,
+@@ -228,6 +231,61 @@
+     const luckySod = { ...listed, sourceUrl: "https://thebrownswood.co.uk/drinks-menu/",
+       category: "whisky", priceGbp: 4.3, drinkLabel: "Lucky Sod –" };
+     expect(authoritativeBundleRows([luckySod])).toEqual([luckySod]);
++  });
++
++  it("withholds retained Courvoisier cognac misfiled as wine before and after measure normalization", () => {
++    const sourceUrl = "https://www.thewhitehartmoreton.co.uk/wine-list";
++    const rawDrinkLabel = "\u200b Courvoisier VSOP Cognac 25ml";
++    const normalizedDrinkLabel = "\u200b Courvoisier VSOP Cognac";
++    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
++      .trim().split("\n").map((line) => JSON.parse(line));
++    const rawSource = ledger.find((row) => row.sourceUrl === sourceUrl && row.category === "wine"
++      && row.priceGbp === 3.95 && row.drinkLabel === rawDrinkLabel);
++    expect(rawSource).toMatchObject({
++      venueId: "venue-uk-w229049090", observedAt: "2026-09-04T13:50:18.415Z",
++    });
++    if (!rawSource) return;
++
++    const rawClaim: UkPriceBundleRow = {
++      ...listed, venueId: rawSource.venueId, name: rawSource.name, category: "wine", priceGbp: 3.95,
++      sourceUrl, publisher: "thewhitehartmoreton.co.uk", observedAt: rawSource.observedAt,
++      drinkLabel: rawDrinkLabel, ...bundleDrinkFieldsFromPrintedName(rawDrinkLabel, "wine"),
++    };
++    expect(rawClaim.drinkLabel).toBe(rawDrinkLabel);
++    expect(isCategoryQuarantined(rawClaim)).toBe(true);
++
++    const normalizedSource = normalizeSiteHarvestLedgerRow(rawSource);
++    expect(normalizedSource).toMatchObject({ drinkLabel: normalizedDrinkLabel, servingSize: "25ml" });
++    const normalizedClaim: UkPriceBundleRow = {
++      ...rawClaim, ...normalizedSource, lane: "site-harvest", standing: "listed",
++      ...bundleDrinkFieldsFromPrintedName(normalizedSource.drinkLabel, "wine"),
++    };
++    expect(isCategoryQuarantined(normalizedClaim)).toBe(true);
++    expect(authoritativeBundleRows([normalizedClaim])).toEqual([]);
++    expect(parseUkPriceBundleRows([normalizedClaim])).toEqual([]);
++    expect(bundlePricesForCategory([normalizedClaim], "wine").listed).toBeNull();
++    expect(listedCategoryPrices([normalizedClaim], Date.parse("2026-09-30T12:00:00.000Z"))).toEqual([]);
++
++    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
++    expect(published.some((row) => row.lane === "site-harvest" && row.sourceUrl === sourceUrl
++      && row.category === "wine" && row.priceGbp === 3.95 && row.drinkLabel === rawDrinkLabel)).toBe(false);
++
++    const genuineWineUrl = "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu";
++    const genuineWineLabel = "a classic Rioja, 13.5% glass";
++    const genuineWineSource = ledger.find((row) => row.sourceUrl === genuineWineUrl && row.category === "wine"
++      && row.priceGbp === 8.2 && row.drinkLabel === genuineWineLabel);
++    expect(genuineWineSource).toBeDefined();
++    if (!genuineWineSource) return;
++    const genuineWine: UkPriceBundleRow = {
++      ...listed, venueId: genuineWineSource.venueId, name: genuineWineSource.name, category: "wine",
++      priceGbp: 8.2, sourceUrl: genuineWineUrl, publisher: "greeneking.co.uk",
++      observedAt: genuineWineSource.observedAt, drinkLabel: genuineWineLabel,
++    };
++    expect(isCategoryQuarantined(genuineWine)).toBe(false);
++    expect(authoritativeBundleRows([genuineWine])).toEqual([genuineWine]);
++    expect(parseUkPriceBundleRows([genuineWine])).toEqual([genuineWine]);
++    expect(listedCategoryPrices([genuineWine], Date.parse("2026-09-30T12:00:00.000Z")))
++      .toEqual([expect.objectContaining({ category: "wine", priceGbp: 8.2, drinkLabel: genuineWineLabel })]);
+   });
+ 
+   it("withholds retained Punch & Judy slash and Spritz claims from wine", () => {
+--- a/__tests__/siteHarvestReconciliation.test.ts
++++ b/__tests__/siteHarvestReconciliation.test.ts
+@@ -475,7 +475,7 @@
+       `${row.drinkLabel}|${row.servingSize}|${row.priceGbp}|${row.observedAt}`;
+     expect(bundledSourceRows.map(identity).sort()).toEqual(sourceRows.map(identity).sort());
+     // This records the September 29 publication, not every later bundle build.
+-    expect(publication.currentBundle).toEqual({ rowCount: 7603, siteHarvestRows: 3083 });
++    expect(publication.currentBundle).toEqual({ rowCount: 7607, siteHarvestRows: 3087 });
+     const ledgerBundleRows: unknown[] = rows.map((row) => ({
+       venueId: row.venueId,
+       name: row.name ?? null,
+@@ -496,7 +496,7 @@
+     const quarantined = validLedgerRows.filter(isCategoryQuarantined);
+     expect(quarantined).toHaveLength(37);
+     const historicalQuarantineCount = publication.currentLedger.rowCount - publication.currentBundle.siteHarvestRows;
+-    expect(historicalQuarantineCount).toBe(23);
++    expect(historicalQuarantineCount).toBe(19);
+     const additionalQuarantines = quarantined.length - historicalQuarantineCount;
+     const publishedSiteRows = bundleRows.filter((row) => row.lane === "site-harvest");
+     expect(bundleRows).toHaveLength(publication.currentBundle.rowCount - additionalQuarantines);

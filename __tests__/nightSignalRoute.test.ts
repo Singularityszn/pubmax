@@ -13,11 +13,8 @@ describe("GET /api/night-signals", () => {
       durable: "ready",
       claims: [],
     });
-    // Keyless, the answer is still derived purely from the shipped snapshot (a
-    // refresh is a redeploy, which purges the edge) — CDN-cacheable, not
-    // no-store. With a durable store the body carries rows a moderator can
-    // change, and `nightSignalFeedApproved.test.ts` holds it to no-store there.
-    expect(response.headers.get("cache-control")).toContain("s-maxage=300");
-    expect(response.headers.get("cache-control")).toContain("stale-while-revalidate");
+    // The merged response includes approved candidate rows whose state or
+    // expiry can change between reads, including in keyless memory storage.
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 });

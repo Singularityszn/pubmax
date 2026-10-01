@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import UnverifiedPubSheet, { HarvestOverlayFields } from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
+import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
 import type {
   MapExperienceLens,
   VenuePriceReadStatus,
@@ -49,6 +50,7 @@ function state(
     loadDrinkCategoryIndex: () => {},
     drinkCategoryIndexStatus: new Map(),
     listedDrinkPrices: new Map(),
+    listedPricesByVenueId: known ? new Map([[pub.id, []]]) : new Map(),
     submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null, pintTrust: null, confirmationOutcome: null }),
     submitVenueSignal: async () => ({ ok: true }),
     submitting: false,
@@ -324,5 +326,87 @@ describe("UnverifiedPubSheet", () => {
     expect(html).toContain("The Red Lion in Clapham");
     expect(html).toContain("https://history.example/red-lion-clapham");
     expect(html).not.toMatch(/href="http:\/\//);
+  });
+});
+
+
+describe("base published menu quote ownership", () => {
+  const listed: ListedCategoryPrice = {
+    source: "listed", category: "wine", drinkLabel: "Rioja, Spain",
+    priceGbp: 10.5, servingSize: "250ml",
+    sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
+    observedAt: "2026-09-29T10:40:17.846Z",
+  };
+  function renderPublished(
+    quotes: ListedCategoryPrice[] | null | undefined,
+    rows: CommunityPrice[] = [],
+    readStatus: VenuePriceReadStatus = "ready",
+    experienceLens: MapExperienceLens = "all",
+    drinkLensCategory: CommunityPrice["drinkCategory"] | null = null,
+  ) {
+    const communityPrices = state(rows, true, readStatus);
+    communityPrices.listedPricesByVenueId = quotes === undefined
+      ? new Map() : new Map([[pub.id, quotes]]);
+    return renderToStaticMarkup(createElement(UnverifiedPubSheet, {
+      pub, communityPrices, experienceLens, drinkLensCategory,
+    }));
+  }
+
+  it("shows an attributable exact-serving menu quote without promoting a base pub", () => {
+    const html = renderPublished([listed]);
+    expect(html).toContain("Prices on published menus");
+    expect(html).toContain("Rioja, Spain");
+    expect(html).toContain("£10.50");
+    expect(html).toContain("250ml");
+    expect(html).toContain("Price seen 29 September 2026");
+    expect(html).toContain(`href="${listed.sourceUrl}"`);
+    expect(html).not.toContain("No price yet");
+    expect(html).not.toContain("that is all we know");
+    expect(html).toContain("Prices never come from OpenStreetMap");
+  });
+
+  it("shows a published beer as unranked and says when its serving was not recorded", () => {
+    const html = renderPublished([{
+      ...listed, category: "beer", drinkLabel: null, priceGbp: 4.9, servingSize: null,
+      sourceUrl: "https://donardbar.co.uk/menus/", observedAt: "2026-09-04T10:00:00Z",
+    }]);
+    expect(html).toContain("£4.90");
+    expect(html).toContain("Serving not recorded");
+    expect(html).toContain("Price seen 4 September 2026");
+    expect(html).toContain('href="https://donardbar.co.uk/menus/"');
+    expect(html).not.toContain("No price yet");
+    expect(html).not.toContain("priceBand-");
+    expect(html).not.toContain("Confirmed");
+    expect(html).not.toContain("per pint");
+  });
+
+  it("keeps published and community claims separate without comparing different drinks", () => {
+    const html = renderPublished([listed], [{
+      id: "community-coffee", venueId: pub.id, drinkCategory: "coffee",
+      priceGbp: 3.2, submittedAt: Date.now(), source: "community", corroborations: 1,
+    }]);
+    expect(html).toContain("£10.50");
+    expect(html).toContain("£3.20");
+    expect(html).toContain("Logged by a PUBMAXXER");
+    expect(html.indexOf("Prices on published menus")).toBeLessThan(html.indexOf("Logged by a PUBMAXXER"));
+  });
+
+  it("does not hide a published reading when community storage is unavailable", () => {
+    expect(renderPublished([listed], [], "degraded")).toContain("Rioja, Spain");
+  });
+
+  it("distinguishes pending and unavailable published reads from successful empty", () => {
+    expect(renderPublished(undefined)).toContain("Checking published menu prices");
+    expect(renderPublished(undefined)).not.toContain("No price yet");
+    expect(renderPublished(null)).toContain("Published menu prices unavailable just now");
+    expect(renderPublished(null)).not.toContain("No price yet");
+    expect(renderPublished([])).toContain("No price yet");
+  });
+
+  it("does not invent a measure or answer another lens with wine", () => {
+    expect(renderPublished([{ ...listed, servingSize: null }])).toContain("Serving not recorded");
+    for (const [lens, category] of [["food", null], ["no-alcohol", null], ["all", "coffee"]] as const) {
+      expect(renderPublished([listed], [], "ready", lens, category)).not.toContain("Rioja, Spain");
+    }
   });
 });

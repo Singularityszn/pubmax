@@ -1,0 +1,28 @@
+{
+  "status": "SOURCE_ONLY_UNRUN_INCREMENTAL_FIX",
+  "file": "components/auth/AuthProvider.tsx",
+  "beforeSha256": "534aeb805c5a87a4d0e819d11198bec9be48e6a20fde94efca647858c5a5e313",
+  "afterSha256": "0a0a57314c638a109db4f82b8b6f771fdd21e2ccd9167cf7105d5d4c7eaebb7f",
+  "patchSha256": "b3a146b9b9840a03ed9db4c47e0f72d54d1399c9522d1966a15f4d8b18d256ca",
+  "bytes": 845,
+  "base": "Root temporarily applied held5d1ce4 auth proposal ONLY to reproduce cutoff; this incremental patch required before final proposal",
+  "actualRed": {
+    "path": ".audit/overnight-20261001/auth-cutoff-intermediate-red-results.json",
+    "total": 15,
+    "passed": 14,
+    "failed": 1,
+    "skipped": 0,
+    "failure": "held cookie clear prelogoutB revived instead of signed-out, line440",
+    "controls": "original+rotated four late-SDK negatives, valid/rotated/StrictMode restore and genuinely postlogoutC passed"
+  },
+  "invariant": "Explicit logout retires pre-logout latest-session fallback. Only buffered post-logout candidate not matching input/actual result can succeed logout. Exact SDK token-pair correlation remains unchanged.",
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFile": true,
+    "runtime": false,
+    "types": false,
+    "lint": false
+  },
+  "focusedCommand": "npx vitest run __tests__/authProviderBootstrapRace.test.tsx __tests__/authCallbackConfirmation.test.tsx __tests__/authSessionBootstrap.test.ts",
+  "supersedesFinalReadinessOf": "r47-late-sdk-auth-repair.patch must compose with this incremental patch; original remains immutable historical intermediate"
+}

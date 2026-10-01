@@ -8,6 +8,7 @@ import { listedServingComparisonKey } from "@/lib/listedPriceComparison";
 import { priceStandingFor } from "@/lib/priceTier";
 import {
   authoritativeBundleRows,
+  bundleRowServingSize,
   bundleRowSupersedes,
   type UkPriceBundleRow,
 } from "@/lib/ukPriceBundle";
@@ -22,22 +23,26 @@ export type ListedCategoryPrice = {
   observedAt: string;
 };
 
-const MAX_QUOTES_PER_CATEGORY = 4;
-const MAX_SOURCE_URL_LENGTH = 2048;
-const MAX_SERVING_LENGTH = 48;
+export const MAX_QUOTES_PER_CATEGORY = 4;
+export const MAX_SOURCE_URL_LENGTH = 2048;
+export const MAX_SERVING_LENGTH = 48;
 
-/** Venue-scoped, attributable non-beer quotes from the approved bundle. */
+/** Venue-scoped approved quotes. Beer is opt-in for the unranked base sheet. */
 export function listedCategoryPrices(
   rows: readonly UkPriceBundleRow[],
   now: number = Date.now(),
+  { includeBeer = false }: { includeBeer?: boolean } = {},
 ): ListedCategoryPrice[] {
+  const categories: readonly DrinkCategory[] = includeBeer
+    ? DRINK_CATEGORIES
+    : DRINK_CATEGORIES.filter((category) => category !== "beer");
   const eligible: { quote: ListedCategoryPrice; index: number; row: UkPriceBundleRow }[] = [];
 
   for (const [index, row] of authoritativeBundleRows(rows).entries()) {
     if (
       row.standing !== "listed" ||
       !isDrinkCategory(row.category) ||
-      row.category === "beer"
+      !categories.includes(row.category)
     ) {
       continue;
     }
@@ -60,8 +65,7 @@ export function listedCategoryPrices(
     ) {
       continue;
     }
-    const rawServing = (row as UkPriceBundleRow & { servingSize?: unknown })
-      .servingSize;
+    const rawServing = bundleRowServingSize(row);
     const servingSize =
       typeof rawServing === "string" &&
       rawServing.trim().length > 0 &&
@@ -115,8 +119,7 @@ export function listedCategoryPrices(
       left.index - right.index,
   );
   const result: ListedCategoryPrice[] = [];
-  for (const category of DRINK_CATEGORIES) {
-    if (category === "beer") continue;
+  for (const category of categories) {
     const bestByServing = new Map<string, (typeof eligible)[number]>();
     const neutral: (typeof eligible)[number][] = [];
     for (const entry of current) {

@@ -1,0 +1,53 @@
+diff --git a/__tests__/authProviderBootstrapRace.test.tsx b/__tests__/authProviderBootstrapRace.test.tsx
+index f155992..6e343e5 100644
+--- a/__tests__/authProviderBootstrapRace.test.tsx
++++ b/__tests__/authProviderBootstrapRace.test.tsx
+@@ -6,6 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
+ 
+ const state = vi.hoisted(() => ({
+   realBootstrap: false,
++  rotateBootstrapTokens: false,
+   sdkSession: null as Session | null,
+   cookieSession: null as Session | null,
+   releaseInstall: null as null | (() => void),
+@@ -42,7 +43,10 @@ vi.mock("@/lib/authClient", () => ({
+       getSession: async () => ({ data: { session: state.sdkSession } }),
+       setSession: async (tokens: { access_token: string; refresh_token: string }) => {
+         const userId = tokens.access_token === "late-a-access" ? "late-a" : "newer-b";
+-        const session = { ...tokens, user: { id: userId, email: `${userId}@example.test` } } as Session;
++        const issuedTokens = state.rotateBootstrapTokens && userId === "late-a"
++          ? { access_token: "late-a-rotated-access", refresh_token: "late-a-rotated-refresh" }
++          : tokens;
++        const session = { ...issuedTokens, user: { id: userId, email: `${userId}@example.test` } } as Session;
+         if (state.realBootstrap && userId === "late-a" && !state.heldInstallEntered) {
+           state.heldInstallEntered = true;
+           await new Promise<void>((resolve) => { state.releaseInstall = resolve; });
+@@ -136,6 +140,7 @@ afterEach(async () => {
+   state.bootstrapSignal = null;
+   state.beforeSetSession = null;
+   state.realBootstrap = false;
++  state.rotateBootstrapTokens = false;
+   state.sdkSession = null;
+   state.cookieSession = null;
+   state.releaseInstall = null;
+@@ -373,3 +378,20 @@ it("keeps a valid cookie restore through StrictMode subscription replay", async
+   expect(state.persistedTokens).toContain("late-a-access");
+   expect(state.sdkSignOutCalls).toBe(0);
+ });
++
++
++it("preserves a valid cookie SDK restore whose event and result use rotated tokens", async () => {
++  state.rotateBootstrapTokens = true;
++  const container = await mountEnteredBootstrap();
++  await act(async () => {
++    state.releaseInstall?.();
++    await state.bootstrapPromise;
++  });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("late-a");
++  expect(state.sdkSession?.access_token).toBe("late-a-rotated-access");
++  expect(state.sdkSession?.refresh_token).toBe("late-a-rotated-refresh");
++  expect(state.cookieSession?.access_token).toBe("late-a-rotated-access");
++  expect(state.cookieSession?.refresh_token).toBe("late-a-rotated-refresh");
++  expect(state.persistedTokens).toContain("late-a-rotated-access");
++  expect(state.sdkSignOutCalls).toBe(0);
++});

@@ -1,0 +1,67 @@
+{
+  "status": "SOURCE_FROZEN_RUNTIME_UNRUN",
+  "createdAt": "2026-10-01T06:58:05.956494+00:00",
+  "releaseWorktree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "releaseHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "scratch": "/tmp/pubmaxx-r47-plan-manual-fifth-repair",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-manual-fifth-repair.patch",
+  "patchSha256": "810186ca22666c720b32ce368fb092c1ecd903bee9eaaa6150aa5b1b748b2093",
+  "patchBytes": 4717,
+  "paths": [
+    {
+      "path": "components/plan/PlanComposer.tsx",
+      "beforeSha256": "9f718cad8dac6ccf9209969703e96b88730e76c362f6b503124ed0b5183a92a1",
+      "afterSha256": "fe2f16a00fc2e408287c5223f30e749794ebfac3ad518ed6969531dcfa04b498",
+      "currentReleaseMatchesBefore": true
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.server.ts",
+      "beforeSha256": "659f9524fdc26fffa83f95734aa8fb078fa2bfd973b9056836084b47f9dd5e28",
+      "afterSha256": "4e345d226e5116593d3c38fa08b485ede1f53adb7b4dd13f46698bc01a74ac0f",
+      "currentReleaseMatchesBefore": true
+    }
+  ],
+  "dependency": {
+    "patch": "r47-listed-serving-cap-after-red.patch",
+    "sha256": "647028d23bd32a0f7b499279ba57a7f5086afb2e54769c079a7092d32763e4df",
+    "reason": "Existing listedCategoryPrices option {serving} must exist before helper typecheck/runtime. Both owned files use current release before blobs, not older Core copies."
+  },
+  "actualRed": {
+    "receipt": ".audit/overnight-20261001/manual-selected-fifth-create-red-results.json",
+    "total": 17,
+    "passed": 14,
+    "failed": 3,
+    "skipped": 0,
+    "failures": [
+      "Exported composerCreatePayload omits valid listed hint when context absent.",
+      "Independent POST201 succeeds but omits exact current listed evidence.",
+      "Full-context selected250ml fifth quote omitted by default4 projection."
+    ],
+    "testPacketSha256": "4ab8a49691a20519106067d7f2e2228c64172635f270fc208a76bc105ae126a4"
+  },
+  "checks": {
+    "currentReleasePins": "PASS",
+    "scratchApplyCheckWhitespaceError": "PASS",
+    "scratchApplication": "PASS",
+    "exactAfterHashes": "PASS",
+    "types": "UNRUN",
+    "lint": "UNRUN",
+    "tests": "UNRUN",
+    "browser": "UNRUN",
+    "build": "UNRUN"
+  },
+  "invariants": [
+    "Manual listed hints are retained without synthesizing full NightContext, but are never accepted on client hint alone.",
+    "Explicit valid context still owns category/zeroProof. Specified malformed context cannot fall back to per-hint lookup.",
+    "Absent-context community hint remains omitted. Existing full-context community corroboration/category and exact report-time match remain unchanged.",
+    "Per-venue plus literal-serving Promise memoization keeps separate measures independent. Existing selected-serving projection happens BEFORE existing four/category cap.",
+    "Current canonical quote amount, category, literal serving, source URL and observedAt still must all match. Existing projection standing/expiry/quarantine validation is unchanged.",
+    "No parser/price taxonomy/generated-data change, cap increase, new endpoint/storage/URL/key or API authority change."
+  ],
+  "runtimeCommand": "npx vitest run __tests__/planSelectedDrinkEvidenceCreate.test.ts __tests__/planSelectedDrinkEvidenceVariant.test.ts __tests__/planSelectedDrinkEvidenceRead.test.ts __tests__/planAnchoredGenerateRoute.test.ts __tests__/planComposerHandoff.test.ts",
+  "limitations": [
+    "Source-only scratch composition is not current release test/runtime proof. Root must run focused cohort, types/lint, fresh production native Map-to-Plan and final gates.",
+    "This packet does not resolve separate base deployed file tracing/cold617 FS costs, UI Cheapest empty-group controls, or accepted-category coverage beyond available approved quotes.",
+    "Manual context-absent per-stop listed hints provide display/provenance continuity; they do not infer a whole-plan serving/category/ranking context."
+  ]
+}

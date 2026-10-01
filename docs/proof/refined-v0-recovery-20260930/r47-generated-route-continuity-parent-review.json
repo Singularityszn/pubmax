@@ -1,0 +1,39 @@
+{
+  "status": "V1_WITHHELD_STATIC_TYPE_BLOCKER_LUNA_V2_PROJECTION_INPROGRESS",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-continuity.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-continuity.json",
+  "patchSha256": "a74517de98e3d11291853523f6aaedcde6b0b783875606118ef2300d156bdb5f",
+  "reviewedAtUTC": "2026-10-01T12:11:31.978061+00:00",
+  "dependency": {
+    "patch": "r47-generated-current-route-transfer-v2.patch",
+    "sha256": "ec083ccc0549e0760b66e043ce4db90804a8052e54e5e449f920fbbb8edf3022",
+    "overlap": "components/PubMap.tsx uses v2 after9f3116 as this before; all other paths captured current Root. Preserve stable activation key and current displayed transfer."
+  },
+  "currentRootReverseDependencyAfterPinVerified": true,
+  "freshScratchAfterPinsVerified": true,
+  "sourceChecks": [
+    "Explicit closed routeDrink/routeLow only, independent of Map lens; no proof/quote/price/private NightContext/GPS URL.",
+    "Shared/restored coordinator context carries current-ID snapshot, no budget/proof restoration. Existing pure current price projection uses matching venue ID and category, existing trusted freshness reader and source/day/serving converter.",
+    "Index responses cannot reactivate retired pricing ownership: there is no async coordinator setter. Functional current state projection bypasses reread after live edits/manual replacement, even when old async loader later fills cache.",
+    "Reverse preserves same-set current-ID associations; manual replace/clear removes owner; existing landed-history context list owns clearing both fields.",
+    "Zero-proof keeps unknown money and no alcoholic quote; no fabricated serving/default pint round.",
+    "Current data may change/expire/unavailable. Source disclosure distinguishes pending/partial/unread while exact quote provenance remains per row."
+  ],
+  "actualPreFixNativeReport": {
+    "report": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/generated-map-continuity-required-red.json",
+    "sha256": "b25a3272365989f0aa76aacb0342b0f5756b59d64799023f9d166fb3ede52647",
+    "result": "Root actual Chromium two failures. Original generated IDs/quote/source/date/nullmoney passed; Reload and native CopyURL/fresh context keep IDs but reset category to manual Pint/beer money."
+  },
+  "runtime": null,
+  "limits": [
+    "Fresh native two-case unchanged guard after new build still required; this packet is not GREEN proof.",
+    "Legacy lens-only URLs do not identify historical generated route intent; manual Pint behavior preserved.",
+    "Secondary crawl-completion shareMapHref and selected-serving continuity remain source concerns requiring own actual UI reproduction/owner before claiming all share paths fixed.",
+    "Reverse acceptance storage-confirmation P2 is separate Root test/producer scope. No corrected Root transfer tests overwritten.",
+    "Global Map/Places/Plan/New, all projects, CWV, current CI, provider/SQL and deployment requirements still open."
+  ],
+  "independentReview": {
+    "finding": "GeneratedMapRoutePricing.context has nullable drinkCategory. Passing context directly to narrower public RouteDrinkIntent is strict TS mismatch. v2 will explicitly project only closed nonnull nonbeer category + zeroProof; no cast/type relaxation.",
+    "scope": "Source static review, compiler not run here."
+  }
+}

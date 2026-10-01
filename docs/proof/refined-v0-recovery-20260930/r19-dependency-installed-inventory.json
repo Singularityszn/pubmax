@@ -1,0 +1,568 @@
+{
+  "sourceOnly": true,
+  "registryFreshnessNotCheckedThisTurn": true,
+  "directDependencies": 70,
+  "allInstalledMatchLock": true,
+  "packages": [
+    {
+      "name": "@ai-sdk/otel",
+      "scope": "dependencies",
+      "requested": "1.0.122",
+      "locked": "1.0.122",
+      "installed": "1.0.122",
+      "matchesLock": true
+    },
+    {
+      "name": "@arizeai/openinference-instrumentation-openai",
+      "scope": "dependencies",
+      "requested": "^4.2.6",
+      "locked": "4.2.7",
+      "installed": "4.2.7",
+      "matchesLock": true
+    },
+    {
+      "name": "@arizeai/openinference-semantic-conventions",
+      "scope": "dependencies",
+      "requested": "^2.11.0",
+      "locked": "2.12.0",
+      "installed": "2.12.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@arizeai/openinference-vercel",
+      "scope": "dependencies",
+      "requested": "^3.2.0",
+      "locked": "3.2.1",
+      "installed": "3.2.1",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor-community/in-app-review",
+      "scope": "dependencies",
+      "requested": "^8.0.0",
+      "locked": "8.0.0",
+      "installed": "8.0.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/android",
+      "scope": "dependencies",
+      "requested": "^8.5.2",
+      "locked": "8.5.2",
+      "installed": "8.5.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/app",
+      "scope": "dependencies",
+      "requested": "^8.1.1",
+      "locked": "8.1.1",
+      "installed": "8.1.1",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/browser",
+      "scope": "dependencies",
+      "requested": "^8.0.4",
+      "locked": "8.0.4",
+      "installed": "8.0.4",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/camera",
+      "scope": "dependencies",
+      "requested": "^8.2.4",
+      "locked": "8.2.4",
+      "installed": "8.2.4",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/haptics",
+      "scope": "dependencies",
+      "requested": "^8.0.2",
+      "locked": "8.0.2",
+      "installed": "8.0.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/push-notifications",
+      "scope": "dependencies",
+      "requested": "^8.1.2",
+      "locked": "8.1.2",
+      "installed": "8.1.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/share",
+      "scope": "dependencies",
+      "requested": "^8.0.2",
+      "locked": "8.0.2",
+      "installed": "8.0.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/splash-screen",
+      "scope": "dependencies",
+      "requested": "^8.0.2",
+      "locked": "8.0.2",
+      "installed": "8.0.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/text-zoom",
+      "scope": "dependencies",
+      "requested": "^8.0.1",
+      "locked": "8.0.1",
+      "installed": "8.0.1",
+      "matchesLock": true
+    },
+    {
+      "name": "@clerk/nextjs",
+      "scope": "dependencies",
+      "requested": "^7.9.8",
+      "locked": "7.9.8",
+      "installed": "7.9.8",
+      "matchesLock": true
+    },
+    {
+      "name": "@elevenlabs/react",
+      "scope": "dependencies",
+      "requested": "^1.16.0",
+      "locked": "1.16.0",
+      "installed": "1.16.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@opentelemetry/api",
+      "scope": "dependencies",
+      "requested": "^1.9.1",
+      "locked": "1.9.1",
+      "installed": "1.9.1",
+      "matchesLock": true
+    },
+    {
+      "name": "@opentelemetry/exporter-trace-otlp-proto",
+      "scope": "dependencies",
+      "requested": "^0.222.0",
+      "locked": "0.222.0",
+      "installed": "0.222.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@opentelemetry/sdk-trace-base",
+      "scope": "dependencies",
+      "requested": "^2.11.0",
+      "locked": "2.11.0",
+      "installed": "2.11.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@radix-ui/react-slot",
+      "scope": "dependencies",
+      "requested": "^1.3.3",
+      "locked": "1.3.3",
+      "installed": "1.3.3",
+      "matchesLock": true
+    },
+    {
+      "name": "@supabase/supabase-js",
+      "scope": "dependencies",
+      "requested": "^2.117.2",
+      "locked": "2.117.2",
+      "installed": "2.117.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@typesafe-ai/sdk",
+      "scope": "dependencies",
+      "requested": "^0.6.0",
+      "locked": "0.6.0",
+      "installed": "0.6.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@vercel/analytics",
+      "scope": "dependencies",
+      "requested": "^2.0.1",
+      "locked": "2.0.1",
+      "installed": "2.0.1",
+      "matchesLock": true
+    },
+    {
+      "name": "@vercel/oidc",
+      "scope": "dependencies",
+      "requested": "3.8.9",
+      "locked": "3.8.9",
+      "installed": "3.8.9",
+      "matchesLock": true
+    },
+    {
+      "name": "@vercel/otel",
+      "scope": "dependencies",
+      "requested": "^2.1.3",
+      "locked": "2.1.3",
+      "installed": "2.1.3",
+      "matchesLock": true
+    },
+    {
+      "name": "@vercel/speed-insights",
+      "scope": "dependencies",
+      "requested": "^2.0.0",
+      "locked": "2.0.0",
+      "installed": "2.0.0",
+      "matchesLock": true
+    },
+    {
+      "name": "ai",
+      "scope": "dependencies",
+      "requested": "7.0.122",
+      "locked": "7.0.122",
+      "installed": "7.0.122",
+      "matchesLock": true
+    },
+    {
+      "name": "class-variance-authority",
+      "scope": "dependencies",
+      "requested": "^0.7.1",
+      "locked": "0.7.1",
+      "installed": "0.7.1",
+      "matchesLock": true
+    },
+    {
+      "name": "clsx",
+      "scope": "dependencies",
+      "requested": "^2.1.1",
+      "locked": "2.1.1",
+      "installed": "2.1.1",
+      "matchesLock": true
+    },
+    {
+      "name": "context.dev",
+      "scope": "dependencies",
+      "requested": "3.3.0",
+      "locked": "3.3.0",
+      "installed": "3.3.0",
+      "matchesLock": true
+    },
+    {
+      "name": "convex",
+      "scope": "dependencies",
+      "requested": "^1.46.0",
+      "locked": "1.46.0",
+      "installed": "1.46.0",
+      "matchesLock": true
+    },
+    {
+      "name": "lucide-react",
+      "scope": "dependencies",
+      "requested": "^1.49.0",
+      "locked": "1.49.0",
+      "installed": "1.49.0",
+      "matchesLock": true
+    },
+    {
+      "name": "maplibre-gl",
+      "scope": "dependencies",
+      "requested": "6.11.2",
+      "locked": "6.11.2",
+      "installed": "6.11.2",
+      "matchesLock": true
+    },
+    {
+      "name": "next",
+      "scope": "dependencies",
+      "requested": "^16.3.7",
+      "locked": "16.3.7",
+      "installed": "16.3.7",
+      "matchesLock": true
+    },
+    {
+      "name": "openai",
+      "scope": "dependencies",
+      "requested": "^7.25.0",
+      "locked": "7.25.0",
+      "installed": "7.25.0",
+      "matchesLock": true
+    },
+    {
+      "name": "parse5",
+      "scope": "dependencies",
+      "requested": "^8.0.1",
+      "locked": "8.0.1",
+      "installed": "8.0.1",
+      "matchesLock": true
+    },
+    {
+      "name": "posthog-js",
+      "scope": "dependencies",
+      "requested": "^1.435.0",
+      "locked": "1.435.1",
+      "installed": "1.435.1",
+      "matchesLock": true
+    },
+    {
+      "name": "react",
+      "scope": "dependencies",
+      "requested": "^19.3.0",
+      "locked": "19.3.0",
+      "installed": "19.3.0",
+      "matchesLock": true
+    },
+    {
+      "name": "react-dom",
+      "scope": "dependencies",
+      "requested": "^19.3.0",
+      "locked": "19.3.0",
+      "installed": "19.3.0",
+      "matchesLock": true
+    },
+    {
+      "name": "server-only",
+      "scope": "dependencies",
+      "requested": "0.0.1",
+      "locked": "0.0.1",
+      "installed": "0.0.1",
+      "matchesLock": true
+    },
+    {
+      "name": "sharp",
+      "scope": "dependencies",
+      "requested": "^0.35.5",
+      "locked": "0.35.5",
+      "installed": "0.35.5",
+      "matchesLock": true
+    },
+    {
+      "name": "tailwind-merge",
+      "scope": "dependencies",
+      "requested": "^3.7.0",
+      "locked": "3.7.0",
+      "installed": "3.7.0",
+      "matchesLock": true
+    },
+    {
+      "name": "web-push",
+      "scope": "dependencies",
+      "requested": "^3.6.7",
+      "locked": "3.6.7",
+      "installed": "3.6.7",
+      "matchesLock": true
+    },
+    {
+      "name": "web-vitals",
+      "scope": "dependencies",
+      "requested": "^6.2.2",
+      "locked": "6.2.2",
+      "installed": "6.2.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@maplibre/maplibre-gl-style-spec",
+      "scope": "devDependencies",
+      "requested": "^26.4.4",
+      "locked": "26.4.4",
+      "installed": "26.4.4",
+      "matchesLock": true
+    },
+    {
+      "name": "@axe-core/playwright",
+      "scope": "devDependencies",
+      "requested": "^4.13.0",
+      "locked": "4.13.0",
+      "installed": "4.13.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/cli",
+      "scope": "devDependencies",
+      "requested": "^8.5.2",
+      "locked": "8.5.2",
+      "installed": "8.5.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/core",
+      "scope": "devDependencies",
+      "requested": "^8.5.2",
+      "locked": "8.5.2",
+      "installed": "8.5.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@capacitor/ios",
+      "scope": "devDependencies",
+      "requested": "^8.5.2",
+      "locked": "8.5.2",
+      "installed": "8.5.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@next/env",
+      "scope": "devDependencies",
+      "requested": "^16.3.7",
+      "locked": "16.3.7",
+      "installed": "16.3.7",
+      "matchesLock": true
+    },
+    {
+      "name": "@playwright/test",
+      "scope": "devDependencies",
+      "requested": "^1.63.0",
+      "locked": "1.63.0",
+      "installed": "1.63.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@tailwindcss/postcss",
+      "scope": "devDependencies",
+      "requested": "^4.3.3",
+      "locked": "4.3.3",
+      "installed": "4.3.3",
+      "matchesLock": true
+    },
+    {
+      "name": "@types/geojson",
+      "scope": "devDependencies",
+      "requested": "^7946.0.16",
+      "locked": "7946.0.16",
+      "installed": "7946.0.16",
+      "matchesLock": true
+    },
+    {
+      "name": "@types/node",
+      "scope": "devDependencies",
+      "requested": "^26.6.3",
+      "locked": "26.6.3",
+      "installed": "26.6.3",
+      "matchesLock": true
+    },
+    {
+      "name": "@types/react",
+      "scope": "devDependencies",
+      "requested": "^19.3.0",
+      "locked": "19.3.0",
+      "installed": "19.3.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@types/react-dom",
+      "scope": "devDependencies",
+      "requested": "^19.3.0",
+      "locked": "19.3.0",
+      "installed": "19.3.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@types/web-push",
+      "scope": "devDependencies",
+      "requested": "^3.6.4",
+      "locked": "3.6.4",
+      "installed": "3.6.4",
+      "matchesLock": true
+    },
+    {
+      "name": "@typescript-eslint/parser",
+      "scope": "devDependencies",
+      "requested": "^8.71.0",
+      "locked": "8.71.0",
+      "installed": "8.71.0",
+      "matchesLock": true
+    },
+    {
+      "name": "@vitest/browser-playwright",
+      "scope": "devDependencies",
+      "requested": "^5.0.2",
+      "locked": "5.0.2",
+      "installed": "5.0.2",
+      "matchesLock": true
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "scope": "devDependencies",
+      "requested": "^5.0.2",
+      "locked": "5.0.2",
+      "installed": "5.0.2",
+      "matchesLock": true
+    },
+    {
+      "name": "eslint",
+      "scope": "devDependencies",
+      "requested": "^10.10.0",
+      "locked": "10.11.0",
+      "installed": "10.11.0",
+      "matchesLock": true
+    },
+    {
+      "name": "eslint-config-next",
+      "scope": "devDependencies",
+      "requested": "^16.3.7",
+      "locked": "16.3.7",
+      "installed": "16.3.7",
+      "matchesLock": true
+    },
+    {
+      "name": "jsdom",
+      "scope": "devDependencies",
+      "requested": "^30.1.0",
+      "locked": "30.1.1",
+      "installed": "30.1.1",
+      "matchesLock": true
+    },
+    {
+      "name": "knip",
+      "scope": "devDependencies",
+      "requested": "^6.38.0",
+      "locked": "6.38.0",
+      "installed": "6.38.0",
+      "matchesLock": true
+    },
+    {
+      "name": "pdfjs-dist",
+      "scope": "devDependencies",
+      "requested": "6.3.289",
+      "locked": "6.3.289",
+      "installed": "6.3.289",
+      "matchesLock": true
+    },
+    {
+      "name": "tailwindcss",
+      "scope": "devDependencies",
+      "requested": "^4.3.2",
+      "locked": "4.3.3",
+      "installed": "4.3.3",
+      "matchesLock": true
+    },
+    {
+      "name": "tsx",
+      "scope": "devDependencies",
+      "requested": "^4.23.13",
+      "locked": "4.23.15",
+      "installed": "4.23.15",
+      "matchesLock": true
+    },
+    {
+      "name": "typescript",
+      "scope": "devDependencies",
+      "requested": "^5.7.2",
+      "locked": "5.9.3",
+      "installed": "5.9.3",
+      "matchesLock": true
+    },
+    {
+      "name": "vitest",
+      "scope": "devDependencies",
+      "requested": "^5.0.2",
+      "locked": "5.0.2",
+      "installed": "5.0.2",
+      "matchesLock": true
+    },
+    {
+      "name": "yaml",
+      "scope": "devDependencies",
+      "requested": "^2.9.1",
+      "locked": "2.9.1",
+      "installed": "2.9.1",
+      "matchesLock": true
+    }
+  ]
+}

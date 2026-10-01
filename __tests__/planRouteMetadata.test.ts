@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isValidElement, type ReactElement, type ReactNode } from "react";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,6 +50,20 @@ function planState(overrides: Partial<PlanState> = {}): PlanState {
     ending: null,
     ...overrides,
   };
+}
+
+function findElement(node: ReactNode, target: unknown): ReactElement<Record<string, unknown>> | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findElement(child, target);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!isValidElement(node)) return null;
+  const element = node as ReactElement<Record<string, unknown>>;
+  if (element.type === target) return element;
+  return findElement(element.props.children as ReactNode, target);
 }
 
 describe("/plan, the blank composer", () => {
@@ -136,5 +151,100 @@ describe("/plan/[id], the public invitation card", () => {
   it("is noindex and follow: one crew's night is not a search result", async () => {
     const metadata = await metadataFor(planState());
     expect(metadata.robots).toMatchObject({ index: false, follow: true });
+  });
+
+  it("passes NightCrawlMode only an explicit safe plan projection", async () => {
+    const privateAnchor = "venue-private-anchor-canary";
+    const privateStop = "venue-private-stop-canary";
+    const privatePlanTitle = "Private plan title canary";
+    const privateCrewName = "Private crew canary";
+    const privateContext = "Private context canary";
+    const privateAction = "private-action-canary";
+    const futurePrivateField = "Future plan field canary";
+    const state = planState({
+      plan: {
+        ...planState().plan,
+        title: privatePlanTitle,
+        anchorVenueId: privateAnchor,
+        anchorSource: "map-search",
+        routeRevision: 7,
+        futurePrivateField,
+      } as PlanState["plan"],
+      stops: [
+        { venueId: privateStop, venueName: "Private stop canary", position: 0 },
+      ],
+      crew: [{ id: "private-member-canary", name: privateCrewName }] as PlanState["crew"],
+      context: {
+        nightArea: AREA.slug,
+        daypart: "evening",
+        partyType: "friends",
+        groupSize: 3,
+        stopCount: 3,
+        budget: "standard",
+        budgetLimitPence: 43210,
+        zeroProof: false,
+        drinkCategory: "wine",
+        wetherspoonsPreferred: false,
+        atmosphere: [privateContext],
+        foodNeeds: [],
+        accessibility: [],
+        transportConstraints: [],
+      },
+      actions: [
+        {
+          id: privateAction,
+          type: "arrived",
+          stopPosition: 0,
+          ending: null,
+          createdAt: "2026-07-24T19:15:00.000Z",
+        },
+      ],
+      ending: null,
+    });
+    planRead.mockResolvedValue({ status: "found", state });
+
+    const [{ default: PlanPage }, { default: NightCrawlMode }] = await Promise.all([
+      import("@/app/plan/[id]/page"),
+      import("@/components/plan/NightCrawlMode"),
+    ]);
+    const page = await PlanPage({
+      params: Promise.resolve({ id: PLAN_ID }),
+      searchParams: Promise.resolve({}),
+    });
+    const nightCrawl = findElement(page, NightCrawlMode);
+    expect(nightCrawl).not.toBeNull();
+
+    const props = nightCrawl!.props;
+    const initialState = props.initialState as PlanState;
+    expect(initialState.plan).toEqual({
+      id: PLAN_ID,
+      title: `Your night out in ${AREA.name}`,
+      startTime: "2026-07-24T19:00:00.000Z",
+      createdAt: "2026-07-24T12:00:00.000Z",
+      routeRevision: 7,
+      status: "ready",
+      outcome: "route",
+      routeReadyAt: "2026-07-24T12:00:00.000Z",
+    });
+    expect(initialState.plan).not.toHaveProperty("anchorVenueId");
+    expect(initialState.plan).not.toHaveProperty("anchorSource");
+    expect(initialState.stops).toEqual([]);
+    expect(initialState.crew).toEqual([]);
+    expect(initialState.context).toBeNull();
+    expect(initialState.actions).toEqual([]);
+    expect(initialState.ending).toBeNull();
+
+    const serializedClientProps = JSON.stringify(props);
+    for (const privateValue of [
+      privateAnchor,
+      privateStop,
+      privatePlanTitle,
+      privateCrewName,
+      privateContext,
+      privateAction,
+      futurePrivateField,
+    ]) {
+      expect(serializedClientProps).not.toContain(privateValue);
+    }
   });
 });

@@ -1,0 +1,303 @@
+{
+  "at": "2026-09-30T16:06:22.678785+00:00",
+  "jobs": [
+    {
+      "label": "faq-red",
+      "wrapperPid": 39948,
+      "groupPid": 39956,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:37:41.231188+00:00",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "__tests__/landingFaq.test.ts"
+      ],
+      "active": false,
+      "exitCode": 1,
+      "endedAt": "2026-09-30T15:37:41.614179+00:00"
+    },
+    {
+      "label": "server-resumed",
+      "wrapperPid": 41309,
+      "groupPid": 41317,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:41:38.998599+00:00",
+      "command": [
+        "node",
+        "/tmp/pubmaxx-resume-recovery.cjs"
+      ],
+      "active": false,
+      "exitCode": 143,
+      "endedAt": "2026-09-30T15:48:01.880494+00:00"
+    },
+    {
+      "label": "faq-after-viewports",
+      "wrapperPid": 50098,
+      "groupPid": 50107,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T16:04:34.933048+00:00",
+      "command": [
+        "node",
+        "/tmp/pubmaxx-r28-faq-after.cjs"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T16:04:35.773895+00:00"
+    },
+    {
+      "label": "webgl-native",
+      "wrapperPid": 35862,
+      "groupPid": 35870,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:29:17.837733+00:00",
+      "command": [
+        "node",
+        "node_modules/tsx/dist/cli.mjs",
+        "/tmp/pubmaxx-r26-webgl-native-diagnostic.mts",
+        "http://localhost:3351",
+        "/tmp/pubmaxx-r28-webgl-native"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:29:35.427506+00:00"
+    },
+    {
+      "label": "webgl-neighbours",
+      "wrapperPid": 43544,
+      "groupPid": 43552,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:48:01.488886+00:00",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "__tests__/webglRecovery.test.ts",
+        "__tests__/landingFaq.test.ts"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:48:01.769438+00:00"
+    },
+    {
+      "label": "server",
+      "wrapperPid": 35486,
+      "groupPid": 35494,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:28:54.515181+00:00",
+      "command": [
+        "node",
+        "/tmp/pubmaxx-resume-recovery.cjs"
+      ],
+      "active": false,
+      "exitCode": 143,
+      "endedAt": "2026-09-30T15:32:55.169463+00:00"
+    },
+    {
+      "label": "fresh-build-server",
+      "wrapperPid": 44052,
+      "groupPid": 44060,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:49:18.409418+00:00",
+      "command": [
+        "node",
+        "/tmp/pubmaxx-start-recovery.cjs"
+      ],
+      "active": false,
+      "exitCode": 143,
+      "endedAt": "2026-09-30T16:05:34.580773+00:00"
+    },
+    {
+      "label": "sw-observed",
+      "wrapperPid": 36911,
+      "groupPid": 36920,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:31:21.291633+00:00",
+      "command": [
+        "env",
+        "PW_PORT=3351",
+        "PW_SKIP_WEBSERVER=1",
+        "PW_MAP_EVIDENCE=0",
+        "PUBMAX_SW_DIAGNOSTIC_OUTPUT=/tmp/pubmaxx-r28-sw-observed",
+        "node",
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        "--config=/tmp/pubmaxx-r27-sw-observed.config.ts"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:31:31.213288+00:00"
+    },
+    {
+      "label": "source-verify",
+      "wrapperPid": 80369,
+      "groupPid": 80483,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:59:02.084753+00:00",
+      "command": [
+        "env",
+        "DEPLOYMENT_VERSION=local",
+        "npm",
+        "run",
+        "verify"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T16:03:15.221004+00:00"
+    },
+    {
+      "label": "faq-green",
+      "wrapperPid": 40208,
+      "groupPid": 40216,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:38:32.774987+00:00",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "__tests__/landingFaq.test.ts",
+        "__tests__/landingAnswers.test.ts",
+        "__tests__/landingFindMyPintHierarchy.test.ts",
+        "__tests__/voiceComplianceAudit.test.ts"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:38:33.474935+00:00"
+    },
+    {
+      "label": "webgl-style-gap",
+      "wrapperPid": 41855,
+      "groupPid": 41863,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:44:16.414618+00:00",
+      "command": [
+        "node",
+        "node_modules/tsx/dist/cli.mjs",
+        "/tmp/pubmaxx-r28-webgl-style-gap-diagnostic.mts",
+        "http://localhost:3351",
+        "/tmp/pubmaxx-r28-webgl-style-gap"
+      ],
+      "active": false,
+      "exitCode": 1,
+      "endedAt": "2026-09-30T15:44:26.976541+00:00"
+    },
+    {
+      "label": "faq-after",
+      "wrapperPid": 49842,
+      "groupPid": 49850,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T16:03:47.086848+00:00",
+      "command": [
+        "node",
+        "/tmp/pubmaxx-r28-faq-after.cjs"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T16:03:47.753992+00:00"
+    },
+    {
+      "label": "faq-centered-viewports",
+      "wrapperPid": 50310,
+      "groupPid": 50319,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T16:05:09.907946+00:00",
+      "command": [
+        "node",
+        "/tmp/pubmaxx-r28-faq-after.cjs"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T16:05:10.753822+00:00"
+    },
+    {
+      "label": "webgl-style-gap-green",
+      "wrapperPid": 44935,
+      "groupPid": 44943,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:50:18.021713+00:00",
+      "command": [
+        "node",
+        "node_modules/tsx/dist/cli.mjs",
+        "/tmp/pubmaxx-r28-webgl-style-gap-diagnostic.mts",
+        "http://localhost:3351",
+        "/tmp/pubmaxx-r28-webgl-style-gap-green"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:50:24.073206+00:00"
+    },
+    {
+      "label": "affected-browser",
+      "wrapperPid": 55021,
+      "groupPid": 55033,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:58:12.853032+00:00",
+      "command": [
+        "env",
+        "PW_PORT=3351",
+        "PW_SKIP_WEBSERVER=1",
+        "PW_MAP_EVIDENCE=0",
+        "node",
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        "e2e/map-webgl-recovery.spec.ts",
+        "e2e/map-service-worker.spec.ts",
+        "e2e/map-uk-base-layer.spec.ts",
+        "--project=chromium-gl",
+        "--project=chromium-sw-gl",
+        "--workers=1",
+        "--retries=0",
+        "--trace=on",
+        "--grep",
+        "preventDefaults webglcontextlost|dispatches webglcontextrestored|target worker replaces|normal London entry|venue-type chips",
+        "--output=/tmp/pubmaxx-r28-affected-browser-results"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:58:47.010328+00:00"
+    }
+  ],
+  "ownedGroups": [
+    35494,
+    35870,
+    36920,
+    39956,
+    40216,
+    41317,
+    41863,
+    43552,
+    44060,
+    44943,
+    49850,
+    50107,
+    50319,
+    55033,
+    80483
+  ],
+  "ownedSurvivors": [],
+  "ports": {
+    "3351": {
+      "returncode": 1,
+      "listeners": ""
+    },
+    "3352": {
+      "returncode": 1,
+      "listeners": ""
+    },
+    "55351": {
+      "returncode": 1,
+      "listeners": ""
+    },
+    "55352": {
+      "returncode": 1,
+      "listeners": ""
+    }
+  },
+  "deadlineWatcher": {
+    "pid": 35185,
+    "terminalExit": 143
+  },
+  "frozenSourceDelta": [],
+  "released": true,
+  "limits": "Actual root cleanup only. No future runtime grant, publication or production release inferred."
+}

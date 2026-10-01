@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-10-01T04:05:47.142688+00:00",
+  "status": "SOURCE_COMPOSITION_PASS_RUNTIME_UNRUN",
+  "base": "040134c5b4b697f775ba4ac8846f43873fbc317c",
+  "scratch": "/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/pubmaxx-r47-parent-price-plan-pal-hry_56r9",
+  "sourceChecks": "Minimal50 then serving2/Paltwo/listedPlan5 incremental test patches scratch sequential apply and whitespace PASS; five final Plan afterhashes match. No maintained source/index/ref changes.",
+  "listedPlanPatch": "r47-listed-plan-acceptance-tests.patch",
+  "listedPlanSha256": "5ce12e55a1c34805e0a6abe45a1b41c3501ead171921c55a669f9a28b870bb39",
+  "listedPlanBytes": 27017,
+  "unitTestScope": "Existing API/store/generator/DTO authority plus actual member HTTP and anonymous preview. ExpectedRED inferred only; sourcefixture mocks explicit.",
+  "held": "All new listedPlan/group-loss test acceptance UNRUN; no production repair or trust widening before genuine failure. Originalauth production remains held separately.",
+  "authHarnessIndependentReview": "Optionaldeps/preservedassertions/nofakesignal source review PASS only; actual no-crash/types tests UNRUN. Baseline named3 cohort first; real lateinstall3 after intermediate original6 justified by RED."
+}

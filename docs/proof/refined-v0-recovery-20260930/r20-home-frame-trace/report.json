@@ -1,0 +1,49 @@
+{
+  "diagnosticOnly": true,
+  "processPid": 61058,
+  "overhead": "Native browser timeline capture; original installed probe only",
+  "samples": [
+    {
+      "run": 0,
+      "interacted": true,
+      "lcpMs": 2572,
+      "cls": 0.004123474988610964,
+      "inpMs": 304,
+      "trace": "sample-0-trace.json"
+    },
+    {
+      "run": 1,
+      "interacted": true,
+      "lcpMs": 1436,
+      "cls": 0.004123474988610964,
+      "inpMs": 88,
+      "trace": "sample-1-trace.json"
+    },
+    {
+      "run": 2,
+      "interacted": true,
+      "lcpMs": 1444,
+      "cls": 0.004123474988610964,
+      "inpMs": 96,
+      "trace": "sample-2-trace.json"
+    },
+    {
+      "run": 3,
+      "interacted": true,
+      "lcpMs": 1428,
+      "cls": 0.004123474988610964,
+      "inpMs": 104,
+      "trace": "sample-3-trace.json"
+    },
+    {
+      "run": 4,
+      "interacted": true,
+      "lcpMs": 1428,
+      "cls": 0.004123474988610964,
+      "inpMs": 88,
+      "trace": "sample-4-trace.json"
+    }
+  ],
+  "errors": [],
+  "completed": true
+}

@@ -1,0 +1,33 @@
+{
+  "status": "V1_WITHHELD_STATIC_NULLABLE_PARSER_INPUT_BLOCKER_V2_REQUIRED",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-confirmed-accepted-stop1-release.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-confirmed-accepted-stop1-release.json",
+  "sha256": "7d3935fa19231bd7d34ca013cd6bfc7e5e3bb86f78a61959d133033a31e145c9",
+  "reviewedAtUTC": "2026-10-01T12:24:29.923134+00:00",
+  "currentBeforeAndScratchAfterPinsMatch": true,
+  "rootCorrectedMountedTestUnchanged": true,
+  "sourceChecks": [
+    "Existing release owner attempts all stores, then confirms SESSION-default intent and both legacy/V2 supplied Plan/route draft keys using existing closed parsers. Read denial returns false; no raw private data exposed.",
+    "Partial canonical-success/legacy-denial remains retryable, rewriting from current canonical draft to preserve current work. It does not resurrect old legacy route or broadly delete unrelated drafts.",
+    "CTA now prevents Link navigation and keeps visible release retry if confirmation false after local current-route transfer succeeds. Original local-write-failure and ordinary manual navigation behavior retained.",
+    "Other callers may continue best-effort behavior ignoring new boolean; existing storage/parse owners reused, no new store/control plane."
+  ],
+  "actualBeforeBusinessRed": {
+    "report": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/generated-stop1-release-storage-required-red.json",
+    "sha256": "d834e08879eb5f47db2227a78e857e388c489a94561b189e3d648ed8a931b9fc",
+    "result": "Root actual 48 tests:47PASS,1FAIL,0skip. Sole readable-session mutations-denied mounted business case defaultPrevented false at193. Earlier local-intent/exotic Storage spy failures were harness defects, not product evidence."
+  },
+  "runtime": null,
+  "limits": [
+    "Direct owner new controls and corrected48-case cohort require Root focusedGREEN; fresh native Reverse/anchored recovery and broad gates not yet proved.",
+    "This confirms readable current browser stores; not a transactional storage guarantee or proof of provider/SQL/deployment.",
+    "Existing PlanComposer ignores boolean and keeps its current local-release behavior; packet claims strict navigation only for Map CTA."
+  ],
+  "independentTypeBlocker": {
+    "finding": "parsePlanningIntent requires string. New V1 passes Storage.getItem return string|null; explicit raw null branch required before closed parser. No cast/widening/read-error swallowing.",
+    "rootApplied": false,
+    "scope": "Root independent static review, actual typecheck GREEN before un-applied V1. This is not runtime business failure.",
+    "sourceOwner": "Existing Sol originalauthor, bounded V2 fullreplacement fromoriginal3beforepins."
+  },
+  "reviewCorrection": "Previous parent source-review pass missed nullable getItem argument to parser requiring string. V1 immutable, do not apply. Runtime not run or green."
+}

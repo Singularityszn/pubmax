@@ -1,0 +1,19 @@
+--- a/__tests__/ukPriceCrawl.test.ts
++++ b/__tests__/ukPriceCrawl.test.ts
+@@ -278,6 +278,16 @@
+     ]);
+   });
+ 
++  it("keeps a named Vesper cocktail out of the single-spirit lane", () => {
++    // Synthetic parser input. It tests the printed name, not publisher replay.
++    const reading = readVenueDrinkPrices(
++      "<p>Vesper: vodka, gin, dry vermouth £12.00</p>",
++    );
++    expect(reading.kept).toEqual([
++      expect.objectContaining({ category: "cocktail", priceGbp: 12 }),
++    ]);
++  });
++
+   it.each([
+     ["a cocktail description on the same line", "<p>Hugo £9 Elderflower spritz, prosecco, mint Guinness £5.90</p>", 5.9, "beer"],
+     ["a zero-strength description on the same line", "<p>Lucky Saint £5.20 0% unfiltered lager Guinness £5.90</p>", 5.9, "beer"],

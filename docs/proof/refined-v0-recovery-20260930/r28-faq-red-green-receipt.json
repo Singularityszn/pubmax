@@ -1,0 +1,28 @@
+{
+  "recordedAt": "2026-09-30T15:41:38.874575+00:00",
+  "files": [
+    "components/landing/LandingFaq.tsx",
+    "__tests__/landingFaq.test.ts"
+  ],
+  "red": {
+    "exitCode": 1,
+    "testsFailed": 2,
+    "testsPassed": 4,
+    "reason": "Mandatory bill and London focus/conditional outside-price contracts absent"
+  },
+  "green": {
+    "exitCode": 0,
+    "files": 4,
+    "testsPassed": 39
+  },
+  "publicWarningRetained": true,
+  "billPrivacyClaimAdded": false,
+  "productionCopyApplied": true,
+  "nativeBrowserAfterProof": "PENDING fresh build",
+  "sourceGate": "PENDING",
+  "published": "NO",
+  "sha256": {
+    "components/landing/LandingFaq.tsx": "70021b969f171591ab19b43bf96fb1ac3799d8f7959994c423d2fb14784ad0dc",
+    "__tests__/landingFaq.test.ts": "92d100aa3a8075009c1fabeeacacc1805163334f5a058ba16b92119d24d63cdc"
+  }
+}

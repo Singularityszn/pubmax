@@ -1,0 +1,60 @@
+{
+  "status": "FROZEN_PRODUCTION_SOURCE_AFTER_ACTUAL_ROOT_MEMORY_RED_RUNTIME_UNRUN_HERE",
+  "scratch": "/tmp/pubmaxx-r47-manual-memory-repair",
+  "patch": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-manual-memory-repair.patch",
+    "sha256": "8739f0ef1d33e806bbb0e6706e8fdf2e9e8cc64779e15757da5109af1359916b",
+    "bytes": 1145
+  },
+  "files": [
+    {
+      "path": "lib/planStore.ts",
+      "beforeSha256": "2ed2ace63318993df520abbdadd572ca9b42b7ec527f8b58708c713c2650576a",
+      "afterSha256": "067335a1894c3c62db2b1c5372d9f1975e6c04c850c3e09ff1667c992574335e",
+      "currentRootBeforeStillExact": true
+    }
+  ],
+  "rootHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "actualRootRed": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/manual-context-memory-sql-and-crew-red-results.json",
+    "sha256": "59c237fb6fd796642536d5370741ebd08b10881c183824d4e270edb8457bb2d7",
+    "total": 62,
+    "passed": 56,
+    "failed": 6,
+    "specificOwnedRegression": [
+      {
+        "path": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+        "test": "Plan create selected drink evidence retains current listed evidence through member route replacement without Night Context",
+        "failure": "AssertionError: expected undefined to deeply equal { category: 'wine', pence: 525, \u2026(4) }"
+      }
+    ]
+  },
+  "behavior": "Absent effective context retains only cleaned server-revalidated listed projection on replacement. Present effective context preserves existing exact category/zeroProof rules. Community remains omitted without context. Route/member/revision/anchor mutation order unchanged.",
+  "socialDependency": "SINGLE export completionFromRow; function implementation unchanged. Reserved Social owner will import this owner rather than duplicate it.",
+  "proposalMemorySibling": {
+    "source": "lib/planCollaborationStore.ts createProposal existing exact resolver; decision route invokes planStore().update callback",
+    "classification": "Same final memory replacement predicate; no independent duplicated predicate found/edited. Proposed backup fields and SQL0177 remain separate ownership."
+  },
+  "checks": {
+    "scratchWhitespaceErrorApply": "PASS_SOURCE_ONLY",
+    "afterHash": "PASS_SOURCE_ONLY",
+    "runtime": "UNRUN_HERE",
+    "sqlEdits": false
+  },
+  "focusedCommand": "npx vitest run __tests__/planSelectedDrinkEvidenceCreate.test.ts __tests__/planSelectedDrinkEvidenceReplaceContextMigrationEffective.test.ts __tests__/planSelectedDrinkEvidenceProposalMigrationEffective.test.ts",
+  "limitations": [
+    "This one predicate does not repair durable SQL NULL-context guards; Root SQL0177 owner/captain separate.",
+    "No backups DTO/store delivery yet; backup production held awaiting own test-only RED.",
+    "Historical or Root cohort successes never replace fresh candidate runtime verification."
+  ],
+  "parentReview": {
+    "at": "2026-10-01T07:48:24.253621+00:00",
+    "patchHash": "PASS",
+    "currentRootBefore": "PASS",
+    "RootApplyCheck": "PASS",
+    "freshScratchAfter": "PASS",
+    "scratch": "/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/pubmaxx-r47-memory-parent-0yq_9dh2",
+    "source": "PASS only listed retention when contextabsent; presentcontextzeroProof/categorysame; no newcleaner or authority bypass; completionFromRow export only, bodyunchanged; proposal calls same update seam",
+    "runtime": "Root GREEN required, CoreUNRUN"
+  }
+}

@@ -1,0 +1,132 @@
+--- a/lib/curatedCrawls.ts
++++ b/lib/curatedCrawls.ts
+@@ -5,8 +5,12 @@
+ } from "@/lib/cities";
+ import { cityAwareMapPath } from "@/lib/cityMapHref";
+ import { cityIdFromVenueId } from "@/lib/cityVenueIds";
+-import type { AltCrawlStyle } from "@/lib/crawlUrl";
+-import type { CrawlStyle } from "@/lib/venues";
++import {
++  encodeCrawl,
++  type AltCrawlStyle,
++  type RouteDrinkIntent,
++} from "@/lib/crawlUrl";
++import { initialFilters, type CrawlStyle } from "@/lib/venues";
+ 
+ // Named "generational" curated crawls — hand-picked routes through pubs that
+ // genuinely cluster in a themed patch of London, so an older drinker's pub
+@@ -383,6 +387,7 @@
+ 
+ export function crawlShareMapHref(input: {
+   venueIds: readonly string[];
++  routeDrinkIntent?: RouteDrinkIntent | null;
+   placeStoryBandId?: string | null;
+   crawlId?: string | null;
+   cityId?: CityId | string | null;
+@@ -403,6 +408,19 @@
+   const params = new URLSearchParams();
+   params.set("mode", "build");
+   params.set("pubs", ids.join(","));
++  if (input.routeDrinkIntent) {
++    const encoded = new URLSearchParams(encodeCrawl({
++      mode: "build",
++      filters: initialFilters,
++      builtIds: ids,
++      selectedVenueId: "",
++      routeDrinkIntent: input.routeDrinkIntent,
++    }));
++    const routeLow = encoded.get("routeLow");
++    const routeDrink = encoded.get("routeDrink");
++    if (routeLow) params.set("routeLow", routeLow);
++    else if (routeDrink) params.set("routeDrink", routeDrink);
++  }
+   const crawlId = input.crawlId?.trim();
+   if (crawlId) params.set("crawl", crawlId);
+   const pack = input.crawls ?? curatedCrawls;
+--- a/components/map/RoutePanel.tsx
++++ b/components/map/RoutePanel.tsx
+@@ -35,7 +35,7 @@
+ import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
+ import "@/components/map/routePanel.css";
+ import type { GeneratedMapRoutePricing } from "@/components/map/pubmap/useMapPlanCoordinator";
+-import { categoryLabel } from "@/lib/drinks";
++import { categoryLabel, isMapLensDrinkCategory } from "@/lib/drinks";
+ 
+ type VenueSignals = Map<
+   string,
+@@ -100,10 +100,23 @@
+     && pricing.venueIds.length === route.length
+     && new Set(route.map((venue) => venue.id)).size === route.length
+     && route.every((venue) => pricing.venueIds.includes(venue.id));
++  const routeDrinkIntent = matches
++    ? pricing.context.zeroProof
++      ? { zeroProof: true }
++      : isMapLensDrinkCategory(pricing.context.drinkCategory)
++          && pricing.context.drinkCategory !== "beer"
++        ? { drinkCategory: pricing.context.drinkCategory, zeroProof: false }
++        : null
++    : null;
+   const pence = matches ? pricing.budget?.estimatedPerPersonPence : null;
+   const roundTotal = !nonPint && typeof pence === "number" && Number.isSafeInteger(pence) && pence >= 0
+     ? pence / 100 : null;
+-  return { drinkLabel, roundTotal, quotes: matches ? pricing.quotes : undefined };
++  return {
++    drinkLabel,
++    roundTotal,
++    quotes: matches ? pricing.quotes : undefined,
++    routeDrinkIntent,
++  };
+ }
+ 
+ export default function RoutePanel({
+@@ -195,6 +208,7 @@
+   // Wave H1: share the walked route as a map deep-link (pubs + optional band).
+   const shareMapHref = crawlShareMapHref({
+     venueIds: route.map((v) => v.id),
++    routeDrinkIntent: generatedPresentation?.routeDrinkIntent,
+     placeStoryBandId,
+     crawlId,
+     cityId,
+--- a/__tests__/curatedCrawls.test.ts
++++ b/__tests__/curatedCrawls.test.ts
+@@ -135,6 +135,40 @@
+     expect(href).toContain(riverside!.venueIds[0]);
+   });
+ 
++  it("shares only current generated drink intent through the crawl URL encoder", () => {
++    const venueIds = ["venue-a", "venue-b"];
++    expect(crawlShareMapHref({ venueIds })).toBe("/map?mode=build&pubs=venue-a%2Cvenue-b");
++
++    const vodka = new URL(crawlShareMapHref({
++      venueIds,
++      routeDrinkIntent: { drinkCategory: "vodka", zeroProof: false },
++    }), "https://pubmaxx.test");
++    expect([...vodka.searchParams.keys()]).toEqual(["mode", "pubs", "routeDrink"]);
++    expect(vodka.searchParams.get("routeDrink")).toBe("vodka");
++    expect(vodka.searchParams.get("drink")).toBeNull();
++    expect(vodka.searchParams.get("serving")).toBeNull();
++
++    const zeroProof = new URL(crawlShareMapHref({
++      venueIds,
++      routeDrinkIntent: { drinkCategory: "vodka", zeroProof: true },
++    }), "https://pubmaxx.test");
++    expect(zeroProof.searchParams.get("routeLow")).toBe("1");
++    expect(zeroProof.searchParams.get("routeDrink")).toBeNull();
++  });
++
++  it.each(["beer", "other"] as const)(
++    "does not share %s as a generated drink-category route intent",
++    (drinkCategory) => {
++      const href = crawlShareMapHref({
++        venueIds: ["venue-a", "venue-b"],
++        routeDrinkIntent: { drinkCategory, zeroProof: false },
++      });
++      const params = new URL(href, "https://pubmaxx.test").searchParams;
++      expect(params.get("routeDrink")).toBeNull();
++      expect(params.get("routeLow")).toBeNull();
++    },
++  );
++
+   it("routes city-prefixed venue shares onto /map/{city}", () => {
+     const href = crawlShareMapHref({
+       venueIds: ["venue-oxf-16404bl", "venue-oxf-n2un97"],

@@ -1,0 +1,23 @@
+{
+  "status": "V2_PARENT_SOURCE_REVIEW_PASS_ROOT_RUNTIME_PENDING",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-confirmed-accepted-stop1-release-v2.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-confirmed-accepted-stop1-release-v2.json",
+  "patchSha256": "9f3cb6d41cfd695e137403c8b6518acffe8ec54f7bc855ee7f7863b0a09ce479",
+  "reviewedAtUTC": "2026-10-01T12:57:47.430368+00:00",
+  "checks": {
+    "original3BeforePinsCurrentRootMatch": true,
+    "freshScratch3AfterPinsMatch": true,
+    "rootReadOnlyApplyCheckWhitespace": true,
+    "correctedRootMountedTestPreserved": true
+  },
+  "delta": "Only explicit rawIntent null branch before string-only closed parser. No cast/type widening, read denial still false, button/owner regressions other than helper identical frozenV1.",
+  "supersedes": {
+    "withheldV1": "7d3935fa19231bd7d34ca013cd6bfc7e5e3bb86f78a61959d133033a31e145c9",
+    "reason": "Parent original source review missed nullable parser argument. V1 immutable, DO NOT APPLY."
+  },
+  "runtime": null,
+  "limits": [
+    "Root independent partial-legacy/caller review continues; this receipt adds static null-type correction and application verification only.",
+    "Run exact original mounted48 cohort plus directowner controls, actual compiler/freshnativeReverse and broadgates. No runtimeGREEN here."
+  ]
+}

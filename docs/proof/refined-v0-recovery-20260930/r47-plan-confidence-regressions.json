@@ -1,0 +1,28 @@
+{
+  "status": "UNRUN; scratch-only test packet, not applied to maintained checkout",
+  "checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scope": [
+    "__tests__/planGenerateRoute.test.ts"
+  ],
+  "expected_current_root_base_sha256": "d2e4e4a52807455b7c8b612d9a20f82633ff74366eefdcb6aaf02c8cecb61dce",
+  "current_root_base_verified_sha256": "d2e4e4a52807455b7c8b612d9a20f82633ff74366eefdcb6aaf02c8cecb61dce",
+  "candidate_sha256": "b6f119651ef56c79988ac8651e24ee70fbdb2f5c2ca100b8c513175401e4ea91",
+  "patch": "/tmp/pubmaxx-r47-plan-confidence-regressions.patch",
+  "patch_sha256": "ef1105484cc7661ed1b87fcbec39c38c5752d3fdd0f591ad6933570da7ba19fc",
+  "cases": [
+    {
+      "listed_index": "degraded",
+      "community_index": "ready",
+      "public_path": "POST /api/plans/generate",
+      "expected_public_confidence": "existing degraded wine-price warning and non-high confidence"
+    },
+    {
+      "listed_index": "truncated",
+      "community_index": "ready",
+      "public_path": "POST /api/plans/generate",
+      "expected_public_confidence": "existing partial wine-price warning and non-high confidence"
+    }
+  ],
+  "expected_red_reason": "Current generator confidence note is based only on the community price index; with community ready and listed index degraded/truncated, no warning is emitted.",
+  "runtime_tests_build": "not run"
+}

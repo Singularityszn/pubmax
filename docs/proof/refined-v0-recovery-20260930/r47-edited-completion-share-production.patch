@@ -1,0 +1,23 @@
+--- a/components/map/RoutePanel.tsx
++++ b/components/map/RoutePanel.tsx
+@@ -100,14 +100,12 @@
+     && pricing.venueIds.length === route.length
+     && new Set(route.map((venue) => venue.id)).size === route.length
+     && route.every((venue) => pricing.venueIds.includes(venue.id));
+-  const routeDrinkIntent = matches
+-    ? pricing.context.zeroProof
+-      ? { zeroProof: true }
+-      : isMapLensDrinkCategory(pricing.context.drinkCategory)
+-          && pricing.context.drinkCategory !== "beer"
+-        ? { drinkCategory: pricing.context.drinkCategory, zeroProof: false }
+-        : null
+-    : null;
++  const routeDrinkIntent = pricing.context.zeroProof
++    ? { zeroProof: true }
++    : isMapLensDrinkCategory(pricing.context.drinkCategory)
++        && pricing.context.drinkCategory !== "beer"
++      ? { drinkCategory: pricing.context.drinkCategory, zeroProof: false }
++      : null;
+   const pence = matches ? pricing.budget?.estimatedPerPersonPence : null;
+   const roundTotal = !nonPint && typeof pence === "number" && Number.isSafeInteger(pence) && pence >= 0
+     ? pence / 100 : null;

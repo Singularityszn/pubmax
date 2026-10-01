@@ -157,6 +157,7 @@ import {
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
+import type { VenueKindVisibility } from "@/lib/venueKindFilters";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
   PAINT_WATCHDOG_INTERVAL_MS,
@@ -228,6 +229,7 @@ maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 
 type PubMapCanvasProps = {
   venues: Venue[];
+  venueKindVisibility: VenueKindVisibility;
   /** Count before the selected-venue force-include, for honest reveal notices. */
   filteredVenueCount?: number;
   /** Parent's slim venue read has settled for the active city. */
@@ -516,6 +518,7 @@ const PUB_PIN_LAYERS = [
 
 export default function PubMapCanvas({
   venues,
+  venueKindVisibility,
   filteredVenueCount = venues.length,
   venueDataReady,
   route,
@@ -2857,9 +2860,8 @@ export default function PubMapCanvas({
       );
     });
 
-    // --- Post-init context loss (iOS Safari P0).
-    // iOS kills WebGL on app-switch / restores bfcache pages with a dead canvas.
-    // MapLibre does not auto-recover → blank basemap + live DOM overlays.
+    // Post-init context loss. MapLibre rebuilds on webglcontextrestored;
+    // this fallback covers contexts still lost after the browser resumes.
     // Policy (all inside the canvas module so #601's code-split stays intact):
     //   (a) canvas `webglcontextlost` → preventDefault + schedule recovery;
     //       `webglcontextrestored` → resize + triggerRepaint
@@ -2887,6 +2889,11 @@ export default function PubMapCanvas({
     const scheduleContextRecovery = (reason: string) => {
       // Coalesce: canvas + map events fire together; don't stack timers.
       if (contextRecoveryTimer) return;
+      // MapLibre removed this style before emitting loss. Retire its queued
+      // scene work so only the restored style can build the next scene.
+      styleGeneration += 1;
+      styleStructureReadyRef.current = false;
+      cancelDeferredWork();
       if (contextLostTimer) clearTimeout(contextLostTimer);
       // Optimistic paint kick in case the browser is about to restore.
       try {
@@ -3442,6 +3449,7 @@ export default function PubMapCanvas({
     applyToMap,
     ukBaseDataRef,
     drawableVenueIds,
+    venueKindVisibility,
     provisionalVenueIds,
     // The Spoons value lens rides THIS layer: most of the pubs it ranks are
     // base pins rather than curated venues, so it is passed through rather

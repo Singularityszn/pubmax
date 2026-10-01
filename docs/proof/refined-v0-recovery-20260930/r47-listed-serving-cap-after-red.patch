@@ -1,0 +1,83 @@
+--- a/lib/listedCategoryPrices.ts
++++ b/lib/listedCategoryPrices.ts
+@@ -3,7 +3,10 @@
+   isDrinkCategory,
+   type DrinkCategory,
+ } from "@/lib/drinks";
+-import { listedServingComparisonKey } from "@/lib/listedPriceComparison";
++import {
++  listedServingComparisonKey,
++  listedServingGroup,
++} from "@/lib/listedPriceComparison";
+ import { priceStandingFor } from "@/lib/priceTier";
+ import {
+   authoritativeBundleRows,
+@@ -30,7 +33,15 @@
+ export function listedCategoryPrices(
+   rows: readonly UkPriceBundleRow[],
+   now: number = Date.now(),
+-  { includeBeer = false }: { includeBeer?: boolean } = {},
++  {
++    includeBeer = false,
++    serving,
++    onServingGroup,
++  }: {
++    includeBeer?: boolean;
++    serving?: string | null;
++    onServingGroup?: (category: DrinkCategory, group: string) => void;
++  } = {},
+ ): ListedCategoryPrice[] {
+   const categories: readonly DrinkCategory[] = includeBeer
+     ? DRINK_CATEGORIES
+@@ -136,10 +147,20 @@
+         right.quote.observedAt.localeCompare(left.quote.observedAt) ||
+         left.index - right.index,
+     );
+-    for (const { quote } of [...comparable, ...neutral].slice(
+-      0,
+-      MAX_QUOTES_PER_CATEGORY,
+-    )) {
++    for (const { quote } of comparable) {
++      const group = listedServingGroup(category, quote.servingSize);
++      if (group) onServingGroup?.(category, group);
++    }
++    const selectedGroup = listedServingGroup(category, serving);
++    const selectedComparable = selectedGroup
++      ? comparable.filter(
++          ({ quote }) => listedServingGroup(category, quote.servingSize) === selectedGroup,
++        )
++      : comparable;
++    const candidates = selectedGroup
++      ? selectedComparable
++      : [...comparable, ...neutral];
++    for (const { quote } of candidates.slice(0, MAX_QUOTES_PER_CATEGORY)) {
+       result.push(quote);
+     }
+   }
+--- a/lib/ukPriceBundle.server.ts
++++ b/lib/ukPriceBundle.server.ts
+@@ -1,6 +1,4 @@
+ import "server-only";
+-
+-import { listedServingGroup } from "@/lib/listedPriceComparison";
+ 
+ import type { DrinkCategory } from "@/lib/drinks";
+ import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+@@ -94,13 +92,12 @@
+   const prices: Array<ReturnType<typeof listedCategoryPrices>[number] & { venueId: string }> = [];
+   let truncated = false;
+   const groups = new Set<string>();
+-  const selected = listedServingGroup(category, serving);
++  const onServingGroup = (groupCategory: DrinkCategory, group: string) => {
++    if (groupCategory === category) groups.add(group);
++  };
+   for (const [venueId, rows] of read.byVenue) {
+-    for (const quote of listedCategoryPrices(rows, now)) {
++    for (const quote of listedCategoryPrices(rows, now, { serving, onServingGroup })) {
+       if (quote.category !== category) continue;
+-      const group = listedServingGroup(category, quote.servingSize);
+-      if (group) groups.add(group);
+-      if (selected && group !== selected) continue;
+       if (prices.length === 1000) { truncated = true; continue; }
+       prices.push({ venueId, ...quote });
+     }

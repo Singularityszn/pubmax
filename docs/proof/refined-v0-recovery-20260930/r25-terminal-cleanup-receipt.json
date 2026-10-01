@@ -1,0 +1,60 @@
+{
+  "recordedAt": "2026-09-30T14:22:11.820503+00:00",
+  "sourceVerifyExitCode": 0,
+  "coverageTestsPassed": 18618,
+  "coverageTestsSkipped": 6,
+  "rlsTestsPassed": 475,
+  "sharedMemoryHarnessPasses": [
+    10,
+    10
+  ],
+  "lintErrors": 0,
+  "baselineLintWarnings": 17,
+  "highCriticalAuditVulnerabilities": 0,
+  "sourceFileCount": 2464,
+  "sourceHashChangesDuringGate": [],
+  "sourceChangesSinceOriginalFullFive": [
+    {
+      "path": "e2e/map-uk-base-layer.spec.ts",
+      "before": "92b42cbb86e706af34194ed6a2dcc77f4268fe687307ff13f6e014abac52c232",
+      "after": "aa51a1c0048ec2e5d3d22f7737a07112b08d02203e36438c12190e12e70409a9"
+    }
+  ],
+  "originalFullFive": {
+    "exitCode": 1,
+    "passed": 1287,
+    "failed": 4,
+    "skipped": 24,
+    "didNotRun": 1
+  },
+  "focusedReplay": {
+    "exitCode": 0,
+    "passed": 5,
+    "seconds": 31.6
+  },
+  "remainingFailures": [
+    "triple zoom under original full-suite conditions",
+    "WebGL recovery first-pin fallback",
+    "SW controllerchange takeover timeout"
+  ],
+  "runtimeCleanup": {
+    "activeOwnedJobs": [],
+    "survivingOwnedGroups": [],
+    "portListeners3351And3352": "",
+    "deadlineWatcher": [],
+    "serverExitCode": 130,
+    "watchdogExitCode": 143
+  },
+  "publication": "none; no index, commit, push, merge, deploy, shared SQL or live account mutation",
+  "acceptance": "unfinished; no full-green claim",
+  "finalSourceManifestSha256": "f7b133d098f544d2fb26c2bcea089fe79ac177419ffcebe7e9d015efbc3bf9c8",
+  "sessions": {
+    "sourceVerify4975": 0,
+    "focusedReplay10184": 0,
+    "nativeZoom76381": 0,
+    "server60826": 130,
+    "watchdog75751": 143,
+    "fullFive55315": 1
+  },
+  "cleanupScope": "Every recorded owned process group absent, including browser/helper/PostgreSQL descendants in those groups; no claim about unrelated owner or user processes. SHM harness hygiene passed before release."
+}

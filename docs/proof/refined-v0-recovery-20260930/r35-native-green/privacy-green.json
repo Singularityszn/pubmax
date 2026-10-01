@@ -1,0 +1,112 @@
+{
+  "diagnosticOnly": true,
+  "completed": true,
+  "origin": "http://localhost:3351",
+  "runtimePrerequisite": "Operator must verify isolated keyless memory-store server and grant runtime before invoking",
+  "setup": {
+    "completed": true,
+    "slimStatus": 200,
+    "generationStatus": 200,
+    "creationStatus": 201,
+    "hostReadStatus": 200,
+    "joinStatus": 200,
+    "guestReadStatus": 200,
+    "anchorVenueId": "venue-11e0hkh",
+    "anchorVenueName": "The Belle Vue",
+    "actualOutcome": "route",
+    "actualStopCount": 3,
+    "hostMemberRead": true,
+    "joinedGuestMemberRead": true,
+    "nativeHostRouteVisible": true
+  },
+  "samples": [
+    {
+      "width": 390,
+      "completed": true,
+      "responses": [
+        {
+          "surface": "nativeDocumentIncludingInlineRsc",
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "anonymousRscRequest",
+          "status": 200,
+          "contentType": "text/x-component",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "anonymousPlanApi",
+          "status": 200,
+          "contentType": "application/json",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "hydratedClientText",
+          "status": 200,
+          "contentType": "text/plain",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        }
+      ],
+      "failures": [],
+      "visibleRouteCount": 0,
+      "visibleCrewRows": 1,
+      "previewVisible": true
+    },
+    {
+      "width": 1440,
+      "completed": true,
+      "responses": [
+        {
+          "surface": "nativeDocumentIncludingInlineRsc",
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "anonymousRscRequest",
+          "status": 200,
+          "contentType": "text/x-component",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "anonymousPlanApi",
+          "status": 200,
+          "contentType": "application/json",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "hydratedClientText",
+          "status": 200,
+          "contentType": "text/plain",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        }
+      ],
+      "failures": [],
+      "visibleRouteCount": 0,
+      "visibleCrewRows": 1,
+      "previewVisible": true
+    }
+  ],
+  "privacyFailures": [],
+  "setupFailures": [],
+  "timedOut": false,
+  "verdict": "GREEN_OBSERVED_BOUNDARY"
+}

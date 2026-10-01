@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-30T22:54:18.530802+00:00",
+  "oldPid37274": "Absent on ps/lsof; not restarted",
+  "currentNativeRepair": {
+    "pid": 45585,
+    "pgid": 45585,
+    "comm": "codex",
+    "cwd": "/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M3T7M0S607HN2YQEW0AVC04Q"
+  },
+  "nativeDriver": {
+    "pid": 47097,
+    "pgid": 47097,
+    "comm": "no-mistakes",
+    "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx"
+  },
+  "observationToolSession": {
+    "id": 24348,
+    "exitCode": 0
+  },
+  "evidence": "Read-only ps PID/PPID/PGID/comm and lsof cwd matched current known review workspace. No environment or argv payloads read. This is liveness only, not gate PASS or release.",
+  "coreBoundary": "Source-only until actual package release plus fresh Root grant; custody extended23:30 cleanup23:27."
+}

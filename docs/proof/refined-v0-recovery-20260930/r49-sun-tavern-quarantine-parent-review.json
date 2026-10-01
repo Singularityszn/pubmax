@@ -1,0 +1,16 @@
+{
+  "status": "SOURCE_REVIEWED_FROZEN_READY_ROOT_RUNTIME_AND_DERIVED_ARTIFACTS_PENDING",
+  "patch": "r49-sun-tavern-quarantine-production.patch",
+  "sha256": "028b9080ac330405458deb0d65e098841e789bf9c49ec958403b77a975e5861a",
+  "currentBeforePinAndScratchAfterPinMatch": true,
+  "testFirstAndRawLedgerHashesUnchanged": true,
+  "scope": "Exactly two source/category/amount/literal-label entries at existing site-harvest listed-fact quarantine owner; all eligible readers already invoke owner. No serving, replacement claim or generic unnamed deletion.",
+  "runtime": null,
+  "sourceEvidence": "r49-sun-tavern-manual-publisher-category-review.json",
+  "rootNeeds": [
+    "Run existing38test suite including exact2RED controls unchanged.",
+    "Official derived bundles regenerate; raw ledger immutable.",
+    "Preserve all5 native positive category tests with source-supported Gin supply, no weakened price/category/unknown-money assertions.",
+    "Fresh final full gates after all follow-ups."
+  ]
+}

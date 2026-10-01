@@ -1,0 +1,15 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_RUNTIME_UNRUN",
+  "patchSha256": "7089ca2c96f778bf679a1c4a8dbbb4694791048a5fbc68150f17e0f646c17aa3",
+  "checks": [
+    "Root exact4beforepins",
+    "patchsha",
+    "Root apply --check --whitespace=error-all",
+    "freshparent scratchapplication exact4afterpins"
+  ],
+  "limits": [
+    "ActualgeneratorRED4before; Root owns focusedGREEN",
+    "Fifthserving authority andmanualnull/base unsupported still open",
+    "No maintainedproduction edits byCore"
+  ]
+}

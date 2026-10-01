@@ -1,0 +1,21 @@
+{
+  "observedAtUtc": "2026-09-30T17:12:53.632752+00:00",
+  "ownerReleaseAt": "2026-09-30T17:09:36.959309+00:00",
+  "ownerCandidate": "fe0cabf5fe26d5eb45af47863d21051442e9d075",
+  "receipt": "/Users/karanmanoharan/.codex/worktrees/936f/pubmaxx/artifacts/no-mistakes-20260930/mcp-id-owned-cleanup-final.json",
+  "recordedPidCount": 128,
+  "recordedGroupCount": 94,
+  "currentOwnedSurvivors": [],
+  "currentListeners": {
+    "8787": [],
+    "3351": [],
+    "3352": [],
+    "55351": [],
+    "55352": []
+  },
+  "gateOwnerTerminalReceipt": {
+    "id": 6060,
+    "exit": 0
+  },
+  "scope": "Independent current OS PID/group and port read. Gate EXIT0 is owner terminal receipt; no gate rerun. No next runtime grant or dependency source handoff inferred."
+}

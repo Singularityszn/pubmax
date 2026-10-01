@@ -1,0 +1,11 @@
+--- a/lib/ukPriceBundle.ts
++++ b/lib/ukPriceBundle.ts
+@@ -139,6 +139,8 @@
+   { sourceUrl: "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", category: "wine", priceGbp: 4.45, drinkLabel: "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose" },
+   { sourceUrl: "https://www.orangetreerichmond.co.uk/food-drink/", category: "wine", priceGbp: 5.35, drinkLabel: ".35 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
+   { sourceUrl: "https://www.theprideofpaddington.co.uk/food-drink/", category: "wine", priceGbp: 3.95, drinkLabel: "50 Elderflower & Raspberry Cooler Orange Blossom, Raspbberry, Elderflower, Soda" },
++  { sourceUrl: "https://www.thesuntavern.co.uk/menu/", category: "gin", priceGbp: 7, drinkLabel: "sics Umbrella Vesper Grey Goose Vodka, Boatyard Gin, Kina L’Aero, Vichy Catalan" },
++  { sourceUrl: "https://www.thesuntavern.co.uk/menu/", category: "beer", priceGbp: 8.5, drinkLabel: "BELFAST COFFEE Bán Poitín, Cold Brew Coffee, Cream, Demerara, Nutmeg" },
+ ];
+ 
+ export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {

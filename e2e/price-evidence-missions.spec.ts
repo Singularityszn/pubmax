@@ -11,6 +11,16 @@ import { attachBill, readPriceSubmission } from "./helpers/priceBill";
 
 const SEED_VENUE_ID = "venue-16pnwmm";
 const SEED_VENUE_NAME = "Prospect of Whitby";
+function isSeedVenueMissionUrl(rawUrl: string): boolean {
+  const url = new URL(rawUrl);
+  const venueIds = url.searchParams.getAll("venueId");
+  return (
+    url.pathname === "/api/price-missions" &&
+    venueIds.length === 1 &&
+    venueIds[0] === SEED_VENUE_ID
+  );
+}
+
 const VIEWPORTS = [
   { width: 320, height: 568 },
   { width: 390, height: 844 },
@@ -55,12 +65,14 @@ async function seedSignedInSession(page: Page): Promise<void> {
 async function installContributorBoundary(
   page: Page,
   options: {
+    deferMission?: boolean;
     failWrite?: boolean;
     missionCategory?: string;
-    missionReason?: "missing" | "provisional" | "stale";
+    missionReason?: "missing" | "provisional" | "stale" | null;
   } = {},
 ): Promise<{
   submitted: Array<{ venueId: string; drinkCategory: string; priceGbp: number; corroborations: number }>;
+  releaseMissionResponse: () => void;
 }> {
   await seedSignedInSession(page);
   const submitted: Array<{
@@ -69,6 +81,12 @@ async function installContributorBoundary(
     priceGbp: number;
     corroborations: number;
   }> = [];
+  let releaseMissionResponse = () => {};
+  const missionResponseGate = options.deferMission
+    ? new Promise<void>((resolve) => {
+        releaseMissionResponse = resolve;
+      })
+    : Promise.resolve();
 
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
     await route.fulfill({
@@ -98,6 +116,7 @@ async function installContributorBoundary(
     });
   });
   await page.route("**/api/price-missions**", async (route) => {
+    await missionResponseGate;
     const url = new URL(route.request().url());
     const venueId = url.searchParams.get("venueId") ?? SEED_VENUE_ID;
     await route.fulfill({
@@ -106,14 +125,16 @@ async function installContributorBoundary(
       body: JSON.stringify({
         status: "ready",
         mission:
-          options.missionReason === "missing"
-            ? { venueId, reason: "missing" }
-            : {
-                venueId,
-                reason: options.missionReason ?? "provisional",
-                drinkCategory: options.missionCategory ?? "beer",
-                observedAt: Date.now() - 3_600_000,
-              },
+          options.missionReason === null
+            ? null
+            : options.missionReason === "missing"
+              ? { venueId, reason: "missing" }
+              : {
+                  venueId,
+                  reason: options.missionReason ?? "provisional",
+                  drinkCategory: options.missionCategory ?? "beer",
+                  observedAt: Date.now() - 3_600_000,
+                },
       }),
     });
   });
@@ -163,7 +184,7 @@ async function installContributorBoundary(
       }),
     });
   });
-  return { submitted };
+  return { submitted, releaseMissionResponse };
 }
 
 async function openVenueSheet(page: Page) {
@@ -358,28 +379,60 @@ test("the credit sentence and its link share one row on a desktop width", async 
   expect(geometry!.linkLeft).toBeGreaterThanOrEqual(geometry!.hintRight - 1);
 });
 
-test("map sheet keeps one-tap prices when the mission is missing", async ({
+test("map sheet keeps one-tap prices when no mission is returned", async ({
   page,
 }) => {
-  await installContributorBoundary(page, { missionReason: "missing" });
+  await installContributorBoundary(page, { missionReason: null });
+  const missionResponse = page.waitForResponse(
+    (response) => isSeedVenueMissionUrl(response.url()),
+  );
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
   const sheet = await openVenueSheet(page);
-  // The composer is folded behind the Overview's one price door until a
-  // mission for this pub opens it (lib/pintTrust.ts, `overviewPriceDoor`).
-  // Whichever answers first is taken: the door, or the form the mission opened.
+  expect((await missionResponse).status()).toBe(200);
   const submit = sheet.locator(".venuePriceSubmit");
   const door = sheet.locator('[data-price-door="log"]');
-  await expect(submit.or(door).first()).toBeVisible({ timeout: 20_000 });
-  if (await door.isVisible()) {
-    await expect(async () => {
-      await door.click();
-      await expect(submit).toBeVisible({ timeout: 1_500 });
-    }).toPass({ timeout: 20_000 });
-  }
+  await expect(door).toBeVisible();
+  await expect(submit).toHaveCount(0);
+  await expect(async () => {
+    await door.click();
+    await expect(submit).toBeVisible({ timeout: 1_500 });
+  }).toPass({ timeout: 20_000 });
+  await expect(door).toHaveCount(0);
   await expect(submit).toBeVisible();
   await expect(submit.locator(".vpsubQuick")).toBeVisible();
   // The beer lane also asks the measure in its own radiogroup (MeasureChips).
+  await expect(
+    submit.getByRole("radiogroup", { name: /What are you drinking at/ }),
+  ).toBeVisible();
+});
+
+test("map sheet opens one-tap prices when a missing-evidence mission resolves late", async ({
+  page,
+}) => {
+  const boundary = await installContributorBoundary(page, {
+    deferMission: true,
+    missionReason: "missing",
+  });
+  const missionRequest = page.waitForRequest(
+    (request) => isSeedVenueMissionUrl(request.url()),
+  );
+  const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+  expect(response?.status()).toBe(200);
+  const sheet = await openVenueSheet(page);
+  await missionRequest;
+
+  const submit = sheet.locator(".venuePriceSubmit");
+  const door = sheet.locator('[data-price-door="log"]');
+  await expect(door).toBeVisible();
+  await expect(submit).toHaveCount(0);
+
+  // A `missing` mission is a generic price ask, not an absent mission. Its
+  // arrival opens the composer and removes the Overview door.
+  boundary.releaseMissionResponse();
+  await expect(submit).toBeVisible({ timeout: 20_000 });
+  await expect(door).toHaveCount(0);
+  await expect(submit.locator(".vpsubQuick")).toBeVisible();
   await expect(
     submit.getByRole("radiogroup", { name: /What are you drinking at/ }),
   ).toBeVisible();

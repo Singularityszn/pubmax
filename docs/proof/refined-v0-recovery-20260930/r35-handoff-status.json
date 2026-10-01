@@ -1,0 +1,318 @@
+{
+  "at": "2026-10-01T00:11:30.551047+00:00",
+  "goal": "active_unfinished",
+  "sourceGate": {
+    "exitCode": 0,
+    "freeze": "r35-final-source-freeze.json",
+    "coveragePassed": 18622,
+    "coverageSkipped": 6,
+    "rlsPassed": 475,
+    "shmPassed": [
+      10,
+      10
+    ]
+  },
+  "fullFive": {
+    "exitCode": 1,
+    "passed": 1290,
+    "failed": 2,
+    "skipped": 24,
+    "receipt": "r35-fullfive-terminal-receipt.json"
+  },
+  "nativeRepairedSymptoms": [
+    "seven exact wrong claims withheld",
+    "printed25mlginservingretained",
+    "anonymous anchored-plan HTML/RSC/API/UI withheld",
+    "false search no-pricecopyremoved"
+  ],
+  "cleanup": "r35-actual-cleanup-receipt.json",
+  "nextSourceOnlyWork": "Superseded by fresh runtime grant. Core reproductions/repairs/focused verification executed; fresh full gate and unchanged full-five pending.",
+  "pendingNativeProbe": {
+    "driver": "r35-lore-intermediate-driver-UNRUN.mts.txt",
+    "sha256": "d9ccd871a0ea2d8a028f967e60df39ec0625821c66fdbbc32e1822930b39acdc",
+    "status": "UNRUN; no resumption before fresh runtime grant"
+  },
+  "newPriceFinding": "r36-prospect-publisher-research.json + recorded r35-prospect-native-api.json; seven exact candidates, no product/data repair yet",
+  "notProved": [
+    "full-fiveGREEN",
+    "whole-datasetpriceaccuracy",
+    "strictCWV",
+    "realproviderGoogle/emailauth",
+    "twosessionauthcacheisolation",
+    "durablebill/pricewrite",
+    "productionRLS/settings",
+    "productionrelease"
+  ],
+  "publication": "no root index/commit/push/PR/merge/deploy",
+  "futureFreezeNote": "After any new test patch, currentsource verification becomes pending. Prior fullsourcegate binds recorded4250freeze only.",
+  "latestSourceFreeze": "r39-source-only-freeze.json",
+  "currentSourceGate": {
+    "status": "PASSED",
+    "receipt": "r46-final-full-source-verify-receipt.json"
+  },
+  "runtime": {
+    "status": "ACTUAL_OWNED_RUNTIME_CLEAN",
+    "receipt": "r36-preview-actual-cleanup-receipt.json",
+    "coreNext": "Source-only until fresh test-runtime handoff; package owner next.",
+    "nextOwnerGrant": "Trusted Root extended same package/native/sharedCI custody through2026-10-01T00:15:00Z, cleanup reserve00:12Z. Core source-only; no app/DB/browser/heavy gate before actual native + runner cleanup and fresh Root grant.",
+    "currentVerifiedWait": "Final476 verify66158 now absent; owner reportsPASS. New finalhead build/browser planned by package owner; not independently observedlive yet. Actual native/runner cleanup + Root grant still pending.",
+    "custodyUpdateAt": "2026-09-30T23:24:59.438665+00:00"
+  },
+  "commentCleanup": "r36-bundle-comment-cleanup.json, 54 lines/3207 bytes removed; executable tokens identical; no runtime speed claim",
+  "latestSourceDeltaFromR35": [
+    "e2e/price-evidence-missions.spec.ts",
+    "lib/ukPriceBundle.ts",
+    "__tests__/authCallbackClient.test.ts",
+    "__tests__/deviceAccountSwitch.test.ts",
+    "__tests__/surfaceReadDedupe.test.ts",
+    "__tests__/ukPriceBundle.test.ts",
+    "__tests__/nightSignalFeedApproved.test.ts"
+  ],
+  "latestUpstreamMain": {
+    "sha": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+    "verifiedAt": "2026-09-30T23:21:29.161279+00:00",
+    "source": "git ls-remote origin refs/heads/main",
+    "previousReviewedBaseline": "af5a08f78afad1091efc7ed97d1906daf9b47db1",
+    "newMainIntegration": "PENDING; no Core checkout/index/HEAD change",
+    "newMergeReview": "r36-main1881-delta-review.md",
+    "integrationNotes": "Compose package scripts and locks; preserve Core disposable-plan-db/dependency updates; merged MCP uses nested lock and nested npm ci in every verify. Prototype local-only proof."
+  },
+  "externalGateHandoff": {
+    "run": "01M3SZNK1M76NZ6V85GX45J6HS",
+    "head": "d21072cdac286ea64e6cc15210dbc00cb4dc90a6",
+    "authoritativeRunStatus": "cancelled",
+    "testStep": "failed,3findings before cancellation; no final gate success",
+    "sdkReportedFailure": "lib/contextDev.ts references Web.scrape/Web.mapUrls absent from installed context.dev2.19.0",
+    "sdkReportedCleanup": "Owned ports/processes clear at runtime cutoff; Core has not independently inspected receipt or gained a runtime handoff.",
+    "boundary": "External SDK checkout evidence, not an executed Core typecheck. Package lane owns compatible dependency reconciliation; no duplicate installation in Core."
+  },
+  "sourceReviewReceipts": [
+    "r36-main-reconciliation.json",
+    "r36-main-price-auth-semantics.md",
+    "r36-main-map-plan-semantics.md",
+    "r36-cache-boundary-regression-review.md",
+    "r36-normalized-quarantine-regression.md",
+    "r36-banned-callback-regression.md"
+  ],
+  "preview": {
+    "status": "ACTUAL_BUILD_PASSED_AND_VISIBLE_BROWSER_CAPTURED",
+    "url": "http://127.0.0.1:3351/map",
+    "buildReceipt": "r36-preview-build-receipt.json",
+    "viewReceipt": "r36-preview-view-receipt.json",
+    "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+    "freeze": "r36-source-only-freeze.json",
+    "buildExitCode": 0,
+    "elapsedSeconds": 40.46,
+    "buildId": "build-TfctsWXpff2fKS",
+    "typecheck": "Next build TypeScript finished16.3s; no skip",
+    "browser": "Actual IAB3 left on Map, marked deliverable; viewport override reset",
+    "screenshots": [
+      {
+        "file": "r36-preview/create-390.jpg",
+        "sha256": "871ec6aae25a0a6112a16db97af47737b9576fc0804bd52eea6c2a3b7df2c21c"
+      },
+      {
+        "file": "r36-preview/map-1440.jpg",
+        "sha256": "240a08f0d7d31662392fd60528cee604c6ced0ebfdf12c019b24a23c25655de7"
+      },
+      {
+        "file": "r36-preview/map-390.jpg",
+        "sha256": "89909054e795b994772448c85c3c6075606dac784da42230625bc881e4053b01"
+      },
+      {
+        "file": "r36-preview/moment-1440.jpg",
+        "sha256": "02c9475f052cf33ea5ccc242b8b7cf9010a672020027428bfac2ca02e33fe4b9"
+      },
+      {
+        "file": "r36-preview/moment-390.jpg",
+        "sha256": "132dfe663057ef5234c39685f04212e4e9d9483433fa633d2bd51b091c8245fe"
+      },
+      {
+        "file": "r36-preview/places-1440.jpg",
+        "sha256": "379ce47cf0576047d964461cc7228d8b40e81af17d2891b588d4204326f935a6"
+      },
+      {
+        "file": "r36-preview/places-390.jpg",
+        "sha256": "19e5d59664d4166e6157aedaa16e29588c71c3adbb7cc201470c49282afe4f93"
+      },
+      {
+        "file": "r36-preview/plan-1440.jpg",
+        "sha256": "d45b46e3daad397f2a507ea0f9bd218854c01dc98449aa4a0876f0dd2460d9b1"
+      },
+      {
+        "file": "r36-preview/plan-390.jpg",
+        "sha256": "ba08563210382d02258a834dd83b4695fa8494c30eb767a41b72ed089faaa19e"
+      }
+    ],
+    "mode": "Keyless local preview. Mainaf5a08f not merged. New unit regressions UNRUN. No provider/durable-write/full-release claim.",
+    "runtime": "ACTUAL_OWNED_RUNTIME_CLEAN at 2026-09-30T21:52:54.292780+00:00",
+    "idleHandoff": "r36-preview-idle-handoff.json",
+    "cleanupReceipt": "r36-preview-actual-cleanup-receipt.json",
+    "urlStatus": "OFFLINE after actual owned cleanup21:52; screenshots/build retained"
+  },
+  "r37SourceAddition": [
+    {
+      "path": "e2e/price-intent-lifecycle.spec.ts",
+      "sha256": "0ed9fb94edef304809a654d4afaa0df756e8b3c006d52eeb8d950e1911364d35",
+      "sourceMain": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+      "byteForByte": true,
+      "cases": 4,
+      "status": "UNRUN"
+    }
+  ],
+  "r37PrivateCacheReview": "r37-private-cache-reachability.md",
+  "currentRuntimeObservation": {
+    "at": "2026-09-30T22:09:20.300711+00:00",
+    "node": "26.10.0",
+    "npm": "12.2.0",
+    "nodePath": "/Users/karanmanoharan/.hermes/tools/node-26.10.0-darwin-arm64/bin/node",
+    "npmLauncher": "/Users/karanmanoharan/.local/lib/node_modules/npm/bin/npm-cli.js",
+    "evidence": "Direct version/readlink commands EXIT0. App tests/build not run with upgraded runtime. Global owner repairing npm prefix before project slot; do not infer tool lane complete."
+  },
+  "r37MountedCacheRegression": {
+    "receipt": "r37-mounted-private-cache-regression.md",
+    "test": "__tests__/profileWithdrawnPage.test.tsx",
+    "status": "UNRUN",
+    "currentFreeze": "r37-source-only-freeze.json",
+    "productAndDataChanged": false,
+    "addedCases": 2,
+    "newFinding": "Already-painted private social links persist across source viewer boundary while B response held; expected RED not run. Counts public, no counts-privacy claim."
+  },
+  "distanceIssueSourceEvidence": "r37-distance-issue-reconciliation.json",
+  "packageLaneObserved": {
+    "at": "2026-09-30T22:46:19.255496+00:00",
+    "worktree": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+    "candidateReported": "5e89393f8",
+    "oldVerifyGroup68323": "Absent from ps/pgrep at22:32; did not restart",
+    "sourceGateOwnerReport": {
+      "unitPassed": 18467,
+      "rlsPassed": 449,
+      "sdkPassed": 8,
+      "existingSkipsAndWarnings": "recorded by owner; Core does not claim zero skips/warnings"
+    },
+    "buildOwnerReport": "Isolated production build passed",
+    "actualBrowserSmokeObserved": "8 existing core-route checks, chromium workers1 retries0: Moment/Social2FAIL hydrationerrors,6PASS. Read terminal owner log; not a Core run.",
+    "smokeLog": "/Users/karanmanoharan/.local/state/pubmaxx-gnhf-20260930/package-refresh/core-browser-smoke.log",
+    "next": "Native review active per owner; read-only ps/cwd resumption check observed Codex PID37274/group37274 in isolated NoMistakes worktree. No release/Core grant. Core source-only.",
+    "matchedBrowserSmokeObserved": "Existing owner matched-env log terminal 8PASS,27.0s, chromium workers1 retries0. Additional observed result, not Core execution. Original 2FAIL preserved.",
+    "matchedSmokeLog": "/Users/karanmanoharan/.local/state/pubmaxx-gnhf-20260930/package-refresh/core-browser-matched-env.log",
+    "advisory": "r37-package-hydration-source-advisory.md",
+    "causalClassification": "Build/start auth-config mismatch source-supported hypothesis. Original artifact/config manifest not proved.",
+    "newerCandidateStatus": {
+      "observedAt": "2026-09-30T22:49:34.171089+00:00",
+      "ownerComment": "Native review caught Context3.4.0, PostHog1.435.5, Slack8.2.0 stable releases; targeted native repair then fresh verification reported.",
+      "claim": "Changes not independently confirmed. Existing source/build/8route PASS binds earlier5e89393f8 candidate, not future repaired package source.",
+      "rootCustodyUpdate": "Root explicitly confirmed normal R1 repair updating authorized manifests/locks for Context3.4.0/PostHog1.435.5/Slack8.2.0; fresh final-head gates required. Extended custody23:30 cleanup23:27.",
+      "latestOwnerReport": {
+        "observedAt": "2026-09-30T23:02:59.370535+00:00",
+        "candidateShortSha": "602c6ac3",
+        "nativeGate": "Owner reported fresh full gate passed; live-evidence actor gathering affected helper/app proof.",
+        "limits": "Three credential-dependent feeds explicitly unmeasurable. Core has not independently read final gate artifact; no current Core gate or production acceptance."
+      },
+      "sourceReceipt": "r40-package-candidate-source-check.json",
+      "candidateVerified": "602c6ac35fac1219a2aa41986f39b7dff92fd4f8",
+      "latestEvidenceReport": {
+        "at": "2026-09-30T23:10:23.121472+00:00",
+        "ownerReport": "App/helper evidence passed; native actor stopped browser/server23:07:14 UTC. Configured Context/Slack transport proof still missing.",
+        "limits": "Root has not independently read browser/build artifacts or cleanup, no full package closure or new Core runtime grant."
+      },
+      "sdkTransportOwnerReport": {
+        "at": "2026-09-30T23:16:56.812929+00:00",
+        "checksPassed": 15,
+        "evidenceLevel": "Owner reports installed real SDK loopback/local-stub checks, no source change/compatibility defect.",
+        "remaining": "Native workflow reruns required full gate. Real vendor authentication and Slack delivery unknown. Core execution/handoff still pending."
+      },
+      "postTransportGateOwnerReport": "Passed again unchanged602c6ac3; no final Test/publication/CI/root runtime handoff accepted by Core.",
+      "rootPublicationStatus": "Fullverify18,467unit/449RLS and mandatory rerun PASS per Root; isolated build/live publicroutes/consent/helperCLI/GIF and15 localSDK contracts PASS. FinalTest verdict then Doc/Lint/Push still pending. Live vendor authentication unknown.",
+      "nativeTestOwnerReport": "GO zero findings, Doc/lint now checks stale Node/compiler guidance. No independent Core final artifact/test execution."
+    },
+    "rootUpdateAt": "2026-09-30T22:51:02.888944+00:00",
+    "publishedCandidate": {
+      "head": "476f0615709faa3c4cb2caf61eed89a02dafb7cd",
+      "pr": 1882,
+      "receipt": "r44-published-package-source-and-ci.json",
+      "status": "UNMERGED; Review scope failed; final local476 gate pending. No production/final update acceptance.",
+      "ci": "Completed failure solely Reviewscope in CI workflow;8 skillhelperpackage paths rejected. Finalhead localverify active. PRunmerged.",
+      "ciReceipt": "r45-review-scope-ci-and-local-verification.json",
+      "finalLocalGateOwnerReport": {
+        "head": "476f0615709faa3c4cb2caf61eed89a02dafb7cd",
+        "unitPassed": 18467,
+        "rlsPassed": 449,
+        "unitSkips": 6,
+        "lintWarnings": 15,
+        "result": "PASS; Core has not independently read raw final gate artifact. Finalhead build/browser next; Review scope failure remains."
+      }
+    }
+  },
+  "sourceResumptionCheck": "r38-source-resumption-check.json",
+  "r38SourceReceipts": [
+    "r38-source-resumption-check.json",
+    "r38-anchor-route-reachability.md",
+    "r38-night-signals-route-reachability.md"
+  ],
+  "r39Regression": {
+    "receipt": "r39-night-signals-cache-regression.md",
+    "review": "r39-night-signals-cache-test-review.md",
+    "file": "__tests__/nightSignalFeedApproved.test.ts",
+    "addedCases": 2,
+    "status": "UNRUN",
+    "sha256": "3c0ff73951e4afa205ba61cbe0e1671a55e4bf27f250555955916e601cd37aca",
+    "runtimeObservation": "r39-runtime-custody-observation.json"
+  },
+  "r40Receipts": [
+    "r40-source-deslop-review.json",
+    "r40-package-candidate-source-check.json"
+  ],
+  "currentRuntime": {
+    "status": "EXCLUSIVE_CORE_GRANTED_AFTER_ACTUAL_PRIOR_CLEANUP_AND_PREFLIGHT",
+    "grantEnd": "2026-10-01T00:45:00Z",
+    "cleanupReserve": "2026-10-01T00:42:00Z",
+    "receipt": "r46-focused-red-repair-status.json",
+    "session": 37092
+  },
+  "currentMainComposition": "Mainf33 price/auth/map/plan behaviors composed narrowly preservingCore; PR1881 helper package/verification script and conflictingSQLlabels still publisher/migration reconciliation. Package476 unmerged and not baseline.",
+  "currentFullFive": {
+    "at": "2026-10-01T00:25:01.466345+00:00",
+    "status": "RUNNING",
+    "session": 37092,
+    "log": "/tmp/pubmaxx-r46-fullfive-final.log",
+    "json": "/tmp/pubmaxx-r46-fullfive-final.json",
+    "freeze": "r46-final-source-freeze.json",
+    "paths": 4252,
+    "sourceAndDataDriftAtStart": [],
+    "workers": 2,
+    "retries": 0,
+    "projects": [
+      "chromium",
+      "chromium-keyless",
+      "chromium-gl",
+      "chromium-sw-gl",
+      "chromium-no-gl"
+    ],
+    "browserPath": "artifacts/r46-browsers",
+    "config": "/tmp/pubmaxx-r46-reuse-built.config.ts",
+    "configDifference": "Retains original full config/projects/use/env; absolute testDir/outputDir, uses completed builds via npm start and reuseExistingServer=false. No assertions, retries, testMatch, device coverage, rate budgets or timeout changes.",
+    "excludedAttempt": "r46-fullfive-custody-interrupted.json",
+    "cleanupReserve": "2026-10-01T00:42:00Z",
+    "grantEnd": "2026-10-01T00:45:00Z"
+  },
+  "preservedPalOwnership": "No tracked dirty changes in PubPal/PalExperience/pal paths as of00:21Z; no new Pal edits during Core runtime.",
+  "extendedGrantReceipt": "r46-runtime-extension-grant.json",
+  "grantEnd": "2026-10-01T00:55:00Z",
+  "cleanupBy": "2026-10-01T00:52:00Z",
+  "r46Terminal": {
+    "at": "2026-10-01T00:49:08.655228+00:00",
+    "status": "RED",
+    "receipt": "r46-fullfive-terminal-receipt.json",
+    "passed": 1293,
+    "skipped": 24,
+    "failed": 4,
+    "sourceDataDrift": []
+  },
+  "r46ActualCleanup": {
+    "status": "RELEASED",
+    "at": "2026-10-01T00:48:44.291717+00:00",
+    "receipt": "r46-actual-runtime-cleanup.json"
+  },
+  "r46Next": "Source-onlyHome wiring fix and siblingBack/Escape/gesture preservation; separatephone drag diagnosis. Runtime requeue viaresourceowner. Production/realprovider/CWV/durablebill/latestMaincomposition pending."
+}

@@ -1,0 +1,33 @@
+{
+  "status": "READ_ONLY_GIN_FIXTURE_CANDIDATE_CURRENT_PUBLISHER_CATEGORY_AMOUNT_MEASURE_MATCH",
+  "manualReadAtUTC": "2026-10-01T11:50:25.372570+00:00",
+  "publisherUrl": "https://thebrownswood.co.uk/drinks-menu/",
+  "publisherEvidence": {
+    "section": "Gin ~ 25 ml",
+    "item": "Sacred",
+    "printedAmountGbp": 4.2
+  },
+  "currentCommittedRow": {
+    "venueId": "venue-1vse4lh",
+    "name": "The Brownswood",
+    "category": "gin",
+    "priceGbp": 4.2,
+    "lane": "site-harvest",
+    "standing": "listed",
+    "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+    "publisher": "thebrownswood.co.uk",
+    "observedAt": "2026-09-21T18:56:51.214Z",
+    "basis": null,
+    "sampleSize": null,
+    "drinkLabel": "Gin ~ 25 ml Sacred \u2013",
+    "servingSize": "25ml"
+  },
+  "sourceOnlyScope": "Current manually read publisher page supports the committed category, amount and literal measure. No new harvest/ingestion or observedAt rewrite.",
+  "rootOwner": "Root preserves all five native category positive assertions and chooses source-supported area/intent/anchor if replacing now-quarantined Sun gin fixture.",
+  "limits": [
+    "Generated London area candidate eligibility and actual positive route supply must be proven by Root browser/runtime, not inferred.",
+    "Brownswood is by Clissold Park, separate from Shoreditch radius; do not force this into existing Shoreditch route or invent proximity.",
+    "No serving/authenticity proof for unnamed Sun spirit rows or global cheapest claim."
+  ],
+  "retrievalLimit": "Web primary-menu HTML supplied with crawl timestamp four days before read; category/amount/printed measure match, no real-time availability guarantee."
+}

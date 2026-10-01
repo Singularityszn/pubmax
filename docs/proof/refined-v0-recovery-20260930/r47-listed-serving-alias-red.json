@@ -1,0 +1,27 @@
+{
+  "capturedAtUtc": "2026-10-01T05:51:26Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-listed-serving-alias/base/__tests__/listedCategoryPrices.test.ts",
+  "scratchCandidate": "/tmp/pubmaxx-r47-listed-serving-alias/candidate/__tests__/listedCategoryPrices.test.ts",
+  "patch": "/tmp/pubmaxx-r47-listed-serving-alias-red.patch",
+  "patchSha256": "3e5357e96844df4b25dc1eff6509b39f690addbd94fd1e65d5f7b1d9a772c06f",
+  "status": "UNRUN",
+  "files": [
+    {
+      "path": "__tests__/listedCategoryPrices.test.ts",
+      "baseSha256": "7e2c97a7fc69afbdc988560c5b98a1799245b01b21be577c9c727eb8adb752a5",
+      "candidateSha256": "3fdbecae091da0f52669de504ccd25f27519230e1854317f8166b804490086d5"
+    }
+  ],
+  "runtimeExecuted": false,
+  "productionFilesChanged": [],
+  "coverage": [
+    "Newer same-named listing wins across equivalent 25 ml / 25ml spellings in either input order, with new amount and observation date.",
+    "Distinct brands remain separate until same-canonical-serving price comparison.",
+    "125ml and 250ml stay distinct; unknown raw servings carafe and small glass remain distinct/unranked."
+  ],
+  "limitations": [
+    "Regression preparation only. The actual failure has not been rerun from this packet.",
+    "Cognac quarantine work remains separate and pending its own actual RED."
+  ]
+}

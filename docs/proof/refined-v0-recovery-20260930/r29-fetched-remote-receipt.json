@@ -1,0 +1,36 @@
+{
+  "at": "2026-09-30T16:35:07.038291+00:00",
+  "fetchExitCode": 0,
+  "refs": {
+    "HEAD": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+    "origin/main": "76de20674da64604af22872ff42ee08fca7f156a",
+    "origin/codex/pr-merge-20260930": "7c1ea925af6cfe5628a6e19a43303deb7756a669",
+    "origin/codex/public-venue-mcp-20260929": "34f11ca2bac0a5c62834378a47d62ffdb4d8f094"
+  },
+  "latestMainIsAncestorOfCandidate": true,
+  "pr1880": {
+    "open": true,
+    "merged": false,
+    "draft": false,
+    "checks": {
+      "passed": 18,
+      "failed": 0,
+      "skipped": 4
+    },
+    "publishedHead": "7c1ea925af6cfe5628a6e19a43303deb7756a669",
+    "localFollowup": "8ff6f51c, awaiting owner publication"
+  },
+  "pr1879": {
+    "open": true,
+    "merged": false,
+    "draft": true,
+    "checks": {
+      "passed": 18,
+      "failed": 0,
+      "skipped": 4
+    },
+    "publishedHead": "34f11ca2bac0a5c62834378a47d62ffdb4d8f094",
+    "laterFinding": "unused venue ID, owner local follow-up pending publication"
+  },
+  "limits": "Read-only GitHub snapshot after fetch. Working files/HEAD preserved. Hosted skips and later local candidates prevent broad acceptance. No pull/rebase, index, commit, publication or merge."
+}

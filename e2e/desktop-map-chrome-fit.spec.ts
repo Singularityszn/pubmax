@@ -322,6 +322,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   page,
 }) => {
   test.setTimeout(120_000);
+  await page.clock.install();
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
@@ -363,6 +364,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     "toolbar before ownership change",
   );
   await captureDrawerExchange(page, "planner-open");
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60_000));
   const ownershipChange = await firstVenueOption.evaluate((option) => {
     const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
     if (!toolbar) throw new Error("desktop toolbar is missing");
@@ -377,52 +379,71 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     Math.abs(ownershipChange.after - ownershipChange.before),
   ).toBeLessThan(16);
 
-  // Fully off-screen is also x < -1, so wait for a frame that is still
-  // crossing rather than sampling after the spring has finished. Under load the
-  // spring can finish before the first sample, so mid-exchange geometry is
-  // asserted only when a crossing frame is caught.
-  let midExchange: { planner: { x: number; width: number }; venue: { x: number; width: number }; toolbar: { x: number; width: number } } | null = null;
-  try {
-    await expect
-      .poll(
-        async () => {
-          const sample = await page.evaluate(() => {
-            const rect = (selector: string) => {
-              const node = document.querySelector<HTMLElement>(selector);
-              if (!node) throw new Error(`Missing ${selector} during drawer exchange`);
-              const { x, width } = node.getBoundingClientRect();
-              return { x, width };
-            };
-            return {
-              planner: rect(".mapDrawer.left.springDrawer"),
-              venue: rect(".mapDrawer.right.springDrawer"),
-              toolbar: rect(".mapToolbar"),
-            };
-          });
-          if (sample.planner.x < -1 && sample.planner.x > -sample.planner.width) {
-            midExchange = sample;
-            return true;
-          }
-          return false;
+  // Code and data keep loading while motion is paused. An available search
+  // option does not prove that the independently loaded Inspector has mounted.
+  await expect(planner).toHaveAttribute("aria-hidden", "true");
+  await expect(venue).toHaveAttribute("aria-hidden", "false");
+  await expect(venue.locator(".venueInspector")).toHaveCount(1, { timeout: 20_000 });
+
+  type ExchangeFrame = {
+    planner: { x: number; width: number; hidden: string | null };
+    venue: { x: number; width: number; hidden: string | null; inspectors: number };
+    toolbar: { x: number; width: number };
+  };
+  let midExchange: ExchangeFrame | null = null;
+  // Step the first crossing, rather than letting wall-clock work skip to the
+  // venue's intentional overshoot while the separate planner spring still exits.
+  for (let frame = 0; frame < 180; frame += 1) {
+    await page.clock.runFor(16);
+    const sample = await page.evaluate(() => {
+      const drawer = (selector: string) => {
+        const node = document.querySelector<HTMLElement>(selector);
+        if (!node) throw new Error(`Missing ${selector} during drawer exchange`);
+        const { x, width } = node.getBoundingClientRect();
+        return { x, width, hidden: node.getAttribute("aria-hidden") };
+      };
+      const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
+      const venue = document.querySelector<HTMLElement>(".mapDrawer.right.springDrawer");
+      if (!toolbar || !venue) throw new Error("Missing exchange surface");
+      const { x, width } = toolbar.getBoundingClientRect();
+      return {
+        planner: drawer(".mapDrawer.left.springDrawer"),
+        venue: {
+          ...drawer(".mapDrawer.right.springDrawer"),
+          inspectors: venue.querySelectorAll(".venueInspector").length,
         },
-        {
-          intervals: [8, 8, 8, 8, 16, 16, 32],
-          timeout: 8_000,
-        },
-      )
-      .toBe(true);
-  } catch {
-    midExchange = null;
+        toolbar: { x, width },
+      };
+    });
+    expect(sample.planner.hidden).toBe("true");
+    expect(sample.venue.hidden).toBe("false");
+    expect(sample.venue.inspectors).toBe(1);
+    if (sample.planner.x < -1 && sample.planner.x > -sample.planner.width) {
+      midExchange = sample;
+      break;
+    }
   }
-  let toolbarMid: { x: number; width: number } | null = null;
-  if (midExchange) {
-    const { planner: plannerMid, venue: venueMid } = midExchange;
-    toolbarMid = midExchange.toolbar;
-    expect(plannerMid.x).toBeLessThan(0);
-    expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
-    expect(venueMid.x).toBeGreaterThan(800);
-    expect(venueMid.x).toBeLessThan(DESKTOP.width);
-    await captureDrawerExchange(page, "mid-exchange");
+  expect(midExchange, "first crossing frame was painted").not.toBeNull();
+  const { planner: plannerMid, venue: venueMid, toolbar: toolbarMid } = midExchange!;
+  expect(plannerMid.x).toBeLessThan(0);
+  expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
+  expect(venueMid.x).toBeGreaterThan(800);
+  expect(venueMid.x).toBeLessThan(DESKTOP.width);
+  await captureDrawerExchange(page, "mid-exchange");
+
+  async function settleDrawers() {
+    let settled = false;
+    for (let frame = 0; frame < 180; frame += 1) {
+      await page.clock.runFor(16);
+      settled = await page.evaluate(() =>
+        [".mapDrawer.left.springDrawer", ".mapDrawer.right.springDrawer"].every((selector) => {
+          const drawer = document.querySelector<HTMLElement>(selector);
+          return drawer !== null && getComputedStyle(drawer).willChange === "auto";
+        }),
+      );
+      if (settled) break;
+    }
+    expect(settled, "both drawer springs reach rest").toBe(true);
   }
 
   await expect(planner).toHaveAttribute("aria-hidden", "true");
@@ -440,7 +461,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     (button as HTMLElement).click();
     return name;
   });
-  await page.waitForTimeout(16);
+  await page.clock.runFor(16);
   const venueAfterRetarget = await renderedBox(
     venue,
     "venue after mid-spring retarget",
@@ -449,6 +470,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     venueBeforeRetarget.x + 10,
   );
 
+  await settleDrawers();
   await expect
     .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
       message: "one desktop drawer owns the surface after exchange",
@@ -487,6 +509,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await expect(planner.locator("#railSearchInput")).toHaveValue(
     "Soho",
   );
+  await settleDrawers();
   await expect
     .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
       message: "Back restores planner as sole desktop drawer",

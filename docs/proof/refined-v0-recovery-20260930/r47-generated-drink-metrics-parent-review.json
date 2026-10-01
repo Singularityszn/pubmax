@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-01T09:51:18.216058+00:00",
+  "packet": "r47-generated-drink-metrics-test-first.json",
+  "patchSHA256": "f38f27573c2c32e4d5ddb6f65b4919c42f321c82f11adb7b0ad4a90bad795e2f",
+  "parentReview": {
+    "currentBeforePin": "PASS",
+    "rootReadOnlyApplyCheck": "PASS",
+    "freshScratchAfterPin": "PASS",
+    "allOriginalActionsAssertionsPreserved": "PASS",
+    "routeListSelectorSource": "PASS"
+  },
+  "nativeExecution": "UNRUN; Root current build/browser owner must run actual Vodka guard before composing production fix",
+  "scope": "Only added7-line guard for existing5nonbeer cases. No fixtures, tolerance, invented quotes or manual Pint alterations."
+}

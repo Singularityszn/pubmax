@@ -1,0 +1,181 @@
+{
+  "startedAt": "2026-09-30T13:32:36.643Z",
+  "finishedAt": "2026-09-30T13:32:58.788Z",
+  "origin": "http://localhost:3351",
+  "route": "/map/manchester",
+  "fixtureStorageState": {
+    "localStorage": {
+      "pubmaxx:analytics-consent:v1": "denied",
+      "pubmax:map-first-visit-arrival:v1": "dismissed",
+      "pubmax-tour-v1-done": "1"
+    },
+    "sessionStorage": {
+      "pubmax_onboarding_dismissed": "1"
+    }
+  },
+  "navigationStatus": 200,
+  "outcome": "location-marker-shown",
+  "detail": null,
+  "clickedAfterEnabled": true,
+  "markerWaitResult": "shown",
+  "browserElapsedMs": 21688.60000000894,
+  "stableObservation": {
+    "durationMs": 18000,
+    "settledPositionRequests": 3,
+    "additionalRequests": 0
+  },
+  "counts": {
+    "geolocationPermissionQueries": 3,
+    "permissionStates": {
+      "granted": 3
+    },
+    "getCurrentPositionRequests": 3,
+    "getCurrentPositionSuccesses": 3,
+    "getCurrentPositionErrors": 0,
+    "getCurrentPositionPending": 0,
+    "buttonStateChanges": 6,
+    "pageErrors": 0
+  },
+  "browserSnapshot": {
+    "href": "http://localhost:3351/map/manchester",
+    "now": {
+      "browserMs": 21776,
+      "wallTime": 1790775178574
+    },
+    "trace": {
+      "started": {
+        "browserMs": 87.3999999910593,
+        "wallTime": 1790775156885
+      },
+      "permissionQueries": {
+        "count": 3,
+        "first": [
+          {
+            "browserMs": 1750.2999999970198,
+            "wallTime": 1790775158548,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1753.0999999940395,
+            "wallTime": 1790775158551,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1753.2000000029802,
+            "wallTime": 1790775158551,
+            "permission": "geolocation",
+            "state": "granted"
+          }
+        ],
+        "last": []
+      },
+      "permissionStateCounts": {
+        "granted": 3
+      },
+      "currentPosition": {
+        "count": 3,
+        "first": [
+          {
+            "browserMs": 1756.3999999910593,
+            "wallTime": 1790775158555,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1756.3999999910593,
+            "wallTime": 1790775158555,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 2000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1768.2000000029802,
+            "wallTime": 1790775158566,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          }
+        ],
+        "last": []
+      },
+      "currentPositionSuccessCount": 3,
+      "currentPositionErrorCount": 0,
+      "buttonStates": {
+        "count": 6,
+        "first": [
+          {
+            "browserMs": 87.3999999910593,
+            "wallTime": 1790775156886,
+            "attached": false,
+            "label": null,
+            "disabled": null
+          },
+          {
+            "browserMs": 1737.3999999910593,
+            "wallTime": 1790775158536,
+            "attached": true,
+            "label": "Near me?",
+            "disabled": false
+          },
+          {
+            "browserMs": 1752.7000000029802,
+            "wallTime": 1790775158551,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 1757.7000000029802,
+            "wallTime": 1790775158556,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          },
+          {
+            "browserMs": 1768.2000000029802,
+            "wallTime": 1790775158566,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 1768.8999999910593,
+            "wallTime": 1790775158567,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          }
+        ],
+        "last": []
+      },
+      "instrumentationErrors": []
+    },
+    "button": {
+      "attached": true,
+      "label": "Refresh",
+      "disabled": false
+    },
+    "locationMarkerShown": true
+  },
+  "pageErrors": {
+    "count": 0,
+    "first": [],
+    "last": []
+  },
+  "screenshotPath": "/tmp/pubmaxx-r25-gps-native-diagnostic.png",
+  "screenshotError": null,
+  "acceptancePassed": true,
+  "simulatedGps": true
+}

@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-01T00:13:51.982728+00:00",
+  "worktree": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+  "scope": "Existing dirty Core corrections preserved; no new messaging edits during this runtime. Root requesting new messaging work must reconcile listed currentdirty files and nearest rules. No outgoing parent message authorization inferred.",
+  "dirtyFiles": [],
+  "runtime": "Core exclusive through00:45Z cleanup00:42; no otherbuild/test/DB cohorts until cleanup"
+}

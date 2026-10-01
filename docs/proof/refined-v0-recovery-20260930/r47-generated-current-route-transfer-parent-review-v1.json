@@ -1,0 +1,6 @@
+{
+  "status": "V1_PACKET_NOT_APPROVED_SOURCE_REVIEW_BLOCKER_SOL_V2_IN_PROGRESS",
+  "patchSha256": "d19356178f001ad06cf61dfbd7d388f2ca6257783f55ba25a62b7167c773e3c3",
+  "finding": "Button calls releaseAcceptedPlanContext() without explicit session planDraft/local routeDraft storage. Owner helper only defaults planning intent; other stores return immediately when undefined. Original accepted Stop1 can reattach on Plan hydration. Fix must use same explicit stores as PlanComposer and cover release/failure controls.",
+  "additionalVersionTrace": "Actual generate route only emits V2 for outcome route anchored context, V1 for unanchored. Keep this limitation explicit; no client signature verification."
+}

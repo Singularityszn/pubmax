@@ -1,0 +1,25 @@
+{
+  "diagnosticOnly": true,
+  "processPid": 4509,
+  "inspectorPath": "/_next/static/chunks/2ea1vza_70h_n.js",
+  "held": [
+    {
+      "pathname": "/api/venue/venue-4xlgb0",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.core.json",
+      "status": 200
+    }
+  ],
+  "delivered": [
+    "/api/venue/venue-4xlgb0",
+    "/data/venues_slim.core.json"
+  ],
+  "released": true,
+  "inspectorRequests": [],
+  "detailRequests": 1,
+  "errors": [
+    "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 1\nReceived: 0\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+  ]
+}

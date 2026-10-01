@@ -1,0 +1,206 @@
+--- a/lib/planSelectedDrinkPriceEvidence.ts
++++ b/lib/planSelectedDrinkPriceEvidence.ts
+@@ -71,14 +71,25 @@
+   context: Pick<NightContext, "drinkCategory" | "zeroProof">,
+ ): SelectedDrinkPriceEvidence | null {
+   if (context.zeroProof || !context.drinkCategory || context.drinkCategory === "beer"
+-    || price?.category !== context.drinkCategory || price.source !== "community"
+-    || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0
+-    || typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) return null;
+-  const reportedAt = new Date(price.submittedAt);
+-  if (!Number.isFinite(reportedAt.getTime())) return null;
++    || price?.category !== context.drinkCategory
++    || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0) return null;
++  if (price.source === "community") {
++    if (typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) return null;
++    const reportedAt = new Date(price.submittedAt);
++    if (!Number.isFinite(reportedAt.getTime())) return null;
++    return cleanSelectedDrinkPriceEvidence({
++      category: context.drinkCategory, pence: Math.round(price.priceGbp * 100),
++      serving: null, source: "community", reportedAt: reportedAt.toISOString(),
++    });
++  }
++  if (price.source !== "listed") return null;
+   return cleanSelectedDrinkPriceEvidence({
+-    category: context.drinkCategory, pence: Math.round(price.priceGbp * 100),
+-    serving: null, source: "community", reportedAt: reportedAt.toISOString(),
++    category: context.drinkCategory,
++    pence: Math.round(price.priceGbp * 100),
++    serving: price.servingSize ?? null,
++    source: "listed",
++    sourceUrl: price.sourceUrl,
++    observedAt: price.observedAt,
+   });
+ }
+ 
+--- a/lib/planSelectedDrinkPriceEvidence.server.ts
++++ b/lib/planSelectedDrinkPriceEvidence.server.ts
+@@ -1,9 +1,11 @@
+ import "server-only";
+ 
+ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
+-import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
++import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
++import { trustedDrinkLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
+ import { cleanNightContext } from "@/lib/nightPlanning";
+ import type { PlanStopTarget } from "@/lib/planRoute";
++import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+ import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ 
+ type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
+@@ -24,26 +26,69 @@
+   if (!requested.some((evidence) => evidence?.category === category)) return targets;
+ 
+   const now = Date.now();
+-  try {
+-    const index = await readCommunityPriceCategoryIndex([category], now);
+-    if (index.degraded || index.truncated) return targets;
+-    const rowsByVenue = new Map<string, typeof index.prices>();
+-    for (const row of index.prices) {
+-      const rows = rowsByVenue.get(row.venueId) ?? [];
+-      rowsByVenue.set(row.venueId, [...rows, row]);
++  const communityRequested = requested.some((evidence) => evidence?.source === "community" && evidence.category === category);
++  const listedRequested = requested.some((evidence) => evidence?.source === "listed" && evidence.category === category);
++  const trustedCommunity = new Map<string, MapLensPrice>();
++  if (communityRequested) {
++    try {
++      const index = await readCommunityPriceCategoryIndex([category], now);
++      if (!index.degraded && !index.truncated) {
++        const rowsByVenue = new Map<string, typeof index.prices>();
++        for (const row of index.prices) {
++          const rows = rowsByVenue.get(row.venueId) ?? [];
++          rowsByVenue.set(row.venueId, [...rows, row]);
++        }
++        for (const [venueId, price] of trustedDrinkLensPrices(rowsByVenue, category, now)) {
++          trustedCommunity.set(venueId, price);
++        }
++      }
++    } catch {
++      // A community read failure cannot invalidate an independently readable listing.
+     }
+-    const trusted = trustedDrinkLensPrices(rowsByVenue, category, now);
+-    return targets.map((stop, position) => {
+-      const hint = requested[position];
+-      const price = trusted.get(stop.venueId);
+-      if (!hint || hint.source !== "community" || hint.category !== category || !price || price.source !== "community"
+-        || typeof price.submittedAt !== "number") return { ...stop };
++  }
++
++  const listedByVenue = new Map<string, Promise<ReturnType<typeof listedCategoryPrices>>>();
++  const listedForVenue = (venueId: string): Promise<ReturnType<typeof listedCategoryPrices>> => {
++    const existing = listedByVenue.get(venueId);
++    if (existing) return existing;
++    const pending = ukPriceBundleRowsFor(venueId)
++      .then((bundle) => bundle.status === "ready" ? listedCategoryPrices(bundle.rows, now) : [])
++      .catch(() => []);
++    listedByVenue.set(venueId, pending);
++    return pending;
++  };
++
++  return Promise.all(targets.map(async (stop, position) => {
++    const hint = requested[position];
++    if (!hint || hint.category !== category) return { ...stop };
++    if (hint.source === "community") {
++      const price = trustedCommunity.get(stop.venueId);
++      if (!price || price.source !== "community" || typeof price.submittedAt !== "number") return { ...stop };
+       const serverEvidence = selectedDrinkPriceEvidenceForPrice(price, context!);
+       return serverEvidence?.source === "community" && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
+         ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
+         : { ...stop };
++    }
++    if (!listedRequested || hint.source !== "listed") return { ...stop };
++
++    const quote = (await listedForVenue(stop.venueId)).find((candidate) =>
++      candidate.category === hint.category
++      && Math.round(candidate.priceGbp * 100) === hint.pence
++      && candidate.servingSize === hint.serving
++      && candidate.sourceUrl === hint.sourceUrl
++      && candidate.observedAt === hint.observedAt,
++    );
++    if (!quote) return { ...stop };
++    const serverEvidence = cleanSelectedDrinkPriceEvidence({
++      category: quote.category,
++      pence: Math.round(quote.priceGbp * 100),
++      serving: quote.servingSize,
++      source: "listed",
++      sourceUrl: quote.sourceUrl,
++      observedAt: quote.observedAt,
+     });
+-  } catch {
+-    return targets;
+-  }
++    return serverEvidence?.source === "listed"
++      ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
++      : { ...stop };
++  }));
+ }
+--- a/lib/planGeneration.server.ts
++++ b/lib/planGeneration.server.ts
+@@ -10,7 +10,7 @@
+ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+ import { haversineKm } from "@/lib/haversine";
+ import { CATEGORY_META } from "@/lib/drinks";
+-import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
++import { drinkLensCoverageNote, readListedDrinkIndex, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
+ import {
+ 	getNightArea,
+ 	isNightAreaRouteReady,
+@@ -48,6 +48,7 @@
+ import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
+ import type { PlanningIntentSource } from "@/lib/planningIntent";
+ import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
++import { ukPriceBundleCategoryIndex } from "@/lib/ukPriceBundle.server";
+ import type { WhatsOnRow } from "@/lib/whatsOn";
+ import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
+ import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
+@@ -305,10 +306,15 @@
+ 	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
+ 		? context.drinkCategory
+ 		: null;
+-	const categoryPriceRows = await readCommunityPriceCategoryIndex(
+-		[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
+-		requestNow,
+-	);
++	const [categoryPriceRows, listedPriceIndex] = await Promise.all([
++		readCommunityPriceCategoryIndex(
++			[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
++			requestNow,
++		).catch(() => ({ prices: [] as CommunityPrice[], truncated: false, degraded: true })),
++		requestedCategory
++			? ukPriceBundleCategoryIndex(requestedCategory, requestNow).catch(() => ({ prices: [], truncated: false, degraded: true }))
++			: Promise.resolve(null),
++	]);
+ 	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
+ 	for (const row of categoryPriceRows.prices) {
+ 		const current = priceRowsByVenue.get(row.venueId) ?? [];
+@@ -319,6 +325,14 @@
+ 	const drinkLensPrices = requestedCategory
+ 		? trustedDrinkLensPrices(priceRowsByVenue, requestedCategory, requestNow)
+ 		: undefined;
++	const listedDrinkPricesByVenue = new Map<string, MapLensPrice>();
++	if (requestedCategory && listedPriceIndex) {
++		for (const price of readListedDrinkIndex(listedPriceIndex.prices, requestedCategory)) {
++			if (!listedDrinkPricesByVenue.has(price.venueId)) {
++				listedDrinkPricesByVenue.set(price.venueId, price);
++			}
++		}
++	}
+ 	const drinkPriceCoverageNote = requestedCategory
+ 		? drinkLensCoverageNote(
+ 			CATEGORY_META[requestedCategory].label.toLowerCase(),
+@@ -345,7 +359,14 @@
+ 				wetherspoonsMatchedIds,
+ 				drinkLensPrices,
+ 			);
+-			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
++			return {
++				venue,
++				distance,
++				tonightEvents,
++				signalClaims,
++				...scored,
++				selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
++			};
+ 		})
+ 		.filter(({ distance, venue, signalClaims }) =>
+ 			distance <= area.radiusKm

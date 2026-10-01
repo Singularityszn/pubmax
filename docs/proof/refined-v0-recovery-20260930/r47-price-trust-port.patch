@@ -1,0 +1,2798 @@
+diff --git a/app/api/price-submit/route.ts b/app/api/price-submit/route.ts
+--- a/app/api/price-submit/route.ts
++++ b/app/api/price-submit/route.ts
+@@ -41,6 +41,8 @@
+ // Reads and reader reports remain keyless. New contributions require configured
+ // authentication plus a completed account profile.
+ 
++import { ukPriceBundleCategoryIndex, ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
++import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+ import { jsonNoStore } from "@/lib/apiResponses";
+ import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
+@@ -557,12 +559,16 @@
+     }
+     const drinkCategory = searchParams.get("drinkCategory");
+     if (isDrinkCategory(drinkCategory)) {
+-      const result = await readCommunityPriceCategoryIndex([drinkCategory]);
++      const [result, listed] = await Promise.all([
++        readCommunityPriceCategoryIndex([drinkCategory]),
++        ukPriceBundleCategoryIndex(drinkCategory),
++      ]);
+       return jsonNoStore(
+         {
+           prices: result.prices,
+-          truncated: result.truncated,
+-          ...(result.degraded ? { degraded: true } : {}),
++          listedPrices: listed.prices,
++          truncated: result.truncated || listed.truncated,
++          ...(result.degraded || listed.degraded ? { degraded: true } : {}),
+         },
+         { status: 200 },
+       );
+@@ -577,19 +583,31 @@
+       }
+       priceVenueId = venueLookup.canonicalId;
+     }
+-    const [result, signalResult] = await Promise.all([
++    // A base id remains outside the curated venue index. Published quotes use
++    // only approved bundle rows keyed by that exact id; no new membership scan
++    // or community authority is involved in this public read.
++    const baseRead = isUkBaseId(priceVenueId);
++    const [result, signalResult, published] = await Promise.all([
+       readCommunityPricesWithStatus(priceVenueId),
+       readCommunityVenueSignalsWithStatus(priceVenueId),
++      baseRead
++        ? ukPriceBundleRowsFor(priceVenueId)
++            .then((bundle) => bundle.status === "unavailable"
++              ? null : listedCategoryPrices(bundle.rows, undefined, { includeBeer: true }))
++            .catch(() => null)
++        : undefined,
+     ]);
++    const listed = baseRead ? { listedPrices: published } : {};
+     const degraded = result.degraded || signalResult.degraded;
+     return jsonNoStore(
+       degraded
+         ? {
+             prices: result.prices,
+             signals: signalResult.signals,
++            ...listed,
+             degraded: true,
+           }
+-        : { prices: result.prices, signals: signalResult.signals },
++        : { prices: result.prices, signals: signalResult.signals, ...listed },
+       { status: 200 },
+     );
+   } catch {
+diff --git a/app/api/venue/[id]/route.ts b/app/api/venue/[id]/route.ts
+--- a/app/api/venue/[id]/route.ts
++++ b/app/api/venue/[id]/route.ts
+@@ -20,6 +20,7 @@
+ import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
+ import { isLimited } from "@/lib/pintDrops";
+ import { clientIp, hashIp } from "@/lib/supabase";
++import { listedCategoryPrices as projectListedCategoryPrices } from "@/lib/listedCategoryPrices";
+ import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+ import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+ import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
+@@ -59,6 +60,8 @@
+     bundle.status === "unavailable"
+       ? null
+       : bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY);
++  const listedCategoryPrices =
++    bundle.status === "unavailable" ? null : projectListedCategoryPrices(bundle.rows);
+ 
+   // WHAT THE TWO OBSERVED PACKS HOLD ABOUT THIS PUB, scoped here for the same
+   // reason the bundle is: the Drinks tab drew a handful of rows about one pub
+@@ -117,6 +120,7 @@
+         contacts,
+         amenityStatus,
+         bundlePrices,
++        listedCategoryPrices,
+         priceUpdates,
+       },
+       busyness,
+diff --git a/lib/listedCategoryPrices.ts b/lib/listedCategoryPrices.ts
+new file mode 100644
+--- /dev/null
++++ b/lib/listedCategoryPrices.ts
+@@ -0,0 +1,150 @@
++import { bundleRowDedupeDrinkKey } from "@/lib/bundleDrinkFields";
++import {
++  DRINK_CATEGORIES,
++  isDrinkCategory,
++  type DrinkCategory,
++} from "@/lib/drinks";
++import { listedServingComparisonKey } from "@/lib/listedPriceComparison";
++import { priceStandingFor } from "@/lib/priceTier";
++import {
++  authoritativeBundleRows,
++  bundleRowServingSize,
++  bundleRowSupersedes,
++  type UkPriceBundleRow,
++} from "@/lib/ukPriceBundle";
++
++export type ListedCategoryPrice = {
++  source: "listed";
++  category: DrinkCategory;
++  drinkLabel: string | null;
++  priceGbp: number;
++  servingSize: string | null;
++  sourceUrl: string;
++  observedAt: string;
++};
++
++export const MAX_QUOTES_PER_CATEGORY = 4;
++export const MAX_SOURCE_URL_LENGTH = 2048;
++export const MAX_SERVING_LENGTH = 48;
++
++/** Venue-scoped approved quotes. Beer is opt-in for the unranked base sheet. */
++export function listedCategoryPrices(
++  rows: readonly UkPriceBundleRow[],
++  now: number = Date.now(),
++  { includeBeer = false }: { includeBeer?: boolean } = {},
++): ListedCategoryPrice[] {
++  const categories: readonly DrinkCategory[] = includeBeer
++    ? DRINK_CATEGORIES
++    : DRINK_CATEGORIES.filter((category) => category !== "beer");
++  const eligible: { quote: ListedCategoryPrice; index: number; row: UkPriceBundleRow }[] = [];
++
++  for (const [index, row] of authoritativeBundleRows(rows).entries()) {
++    if (
++      row.standing !== "listed" ||
++      !isDrinkCategory(row.category) ||
++      !categories.includes(row.category)
++    ) {
++      continue;
++    }
++    const decision = priceStandingFor(
++      {
++        listed: {
++          priceGbp: row.priceGbp,
++          sourceUrl: row.sourceUrl ?? "",
++          observedAt: row.observedAt,
++        },
++      },
++      now,
++    );
++    if (
++      decision.standing !== "listed" ||
++      !decision.sourceUrl ||
++      decision.sourceUrl.length > MAX_SOURCE_URL_LENGTH ||
++      !decision.asOf ||
++      decision.priceGbp === null
++    ) {
++      continue;
++    }
++    const rawServing = bundleRowServingSize(row);
++    const servingSize =
++      typeof rawServing === "string" &&
++      rawServing.trim().length > 0 &&
++      rawServing.length <= MAX_SERVING_LENGTH
++        ? rawServing.trim()
++        : null;
++    eligible.push({
++      quote: {
++        source: "listed",
++        category: row.category,
++        drinkLabel: row.drinkLabel ?? null,
++        priceGbp: decision.priceGbp,
++        servingSize,
++        sourceUrl: decision.sourceUrl,
++        observedAt: decision.asOf,
++      },
++      index,
++      row,
++    });
++  }
++
++  // A later reading of the same named drink and serving replaces its earlier
++  // price. Unnamed rows have no drink identity and stay separate.
++  const currentByDrink = new Map<string, (typeof eligible)[number]>();
++  const unnamed: (typeof eligible)[number][] = [];
++  for (const entry of eligible) {
++    const drinkKey = entry.row.drinkLabel?.trim()
++      ? bundleRowDedupeDrinkKey(entry.row)
++      : "";
++    if (!drinkKey) {
++      unnamed.push(entry);
++      continue;
++    }
++    const servingKey =
++      listedServingComparisonKey(entry.quote.category, entry.quote.servingSize) ??
++      entry.quote.servingSize?.toLowerCase() ??
++      null;
++    const key = JSON.stringify([entry.quote.category, drinkKey, servingKey]);
++    const held = currentByDrink.get(key);
++    if (!held || bundleRowSupersedes(entry.row, held.row)) {
++      currentByDrink.set(key, entry);
++    }
++  }
++
++  // A stated, identical serving can be compared by price. Unknown and mixed
++  // servings retain source order by recency, never a price rank.
++  const current = [...currentByDrink.values(), ...unnamed];
++  current.sort(
++    (left, right) =>
++      right.quote.observedAt.localeCompare(left.quote.observedAt) ||
++      left.index - right.index,
++  );
++  const result: ListedCategoryPrice[] = [];
++  for (const category of categories) {
++    const bestByServing = new Map<string, (typeof eligible)[number]>();
++    const neutral: (typeof eligible)[number][] = [];
++    for (const entry of current) {
++      if (entry.quote.category !== category) continue;
++      const key = listedServingComparisonKey(category, entry.quote.servingSize);
++      if (key === null) {
++        neutral.push(entry);
++        continue;
++      }
++      const current = bestByServing.get(key);
++      if (!current || entry.quote.priceGbp < current.quote.priceGbp) {
++        bestByServing.set(key, entry);
++      }
++    }
++    const comparable = [...bestByServing.values()].sort(
++      (left, right) =>
++        right.quote.observedAt.localeCompare(left.quote.observedAt) ||
++        left.index - right.index,
++    );
++    for (const { quote } of [...comparable, ...neutral].slice(
++      0,
++      MAX_QUOTES_PER_CATEGORY,
++    )) {
++      result.push(quote);
++    }
++  }
++  return result;
++}
+diff --git a/lib/listedPriceComparison.ts b/lib/listedPriceComparison.ts
+new file mode 100644
+--- /dev/null
++++ b/lib/listedPriceComparison.ts
+@@ -0,0 +1,15 @@
++import { isMapLensDrinkCategory } from "@/lib/drinks";
++
++/** Exact serving groups for listed drink quotes. Unknown serves carry no price rank. */
++export function listedServingComparisonKey(
++  category: string,
++  servingSize: string | null | undefined,
++): string | null {
++  if (!isMapLensDrinkCategory(category) || category === "beer" || typeof servingSize !== "string") {
++    return null;
++  }
++  // A bottle label does not prove volume. Mixed measures and drink names cannot
++  // be normalised into one price group either.
++  const match = /^([1-9]\d{0,3})\s*ml(?:\s+(?:glass|shot))?$/i.exec(servingSize.trim());
++  return match ? `${category}:${Number(match[1])}ml` : null;
++}
+diff --git a/lib/ukPriceBundle.server.ts b/lib/ukPriceBundle.server.ts
+--- a/lib/ukPriceBundle.server.ts
++++ b/lib/ukPriceBundle.server.ts
+@@ -1,4 +1,7 @@
+ import "server-only";
++
++import type { DrinkCategory } from "@/lib/drinks";
++import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+ 
+ import { promises as fs } from "fs";
+ import path from "path";
+@@ -83,3 +86,16 @@
+     pending = null;
+   }
+ }
++
++export async function ukPriceBundleCategoryIndex(category: DrinkCategory, now = Date.now()) {
++  const read = await readUkPriceBundle();
++  const prices: Array<ReturnType<typeof listedCategoryPrices>[number] & { venueId: string }> = [];
++  let truncated = false;
++  for (const [venueId, rows] of read.byVenue) {
++    const quote = listedCategoryPrices(rows, now).find((value) => value.category === category);
++    if (!quote) continue;
++    if (prices.length === 1000) { truncated = true; break; }
++    prices.push({ venueId, ...quote });
++  }
++  return { prices, truncated, degraded: read.status === "unavailable" };
++}
+diff --git a/components/map/useCommunityPrices.ts b/components/map/useCommunityPrices.ts
+--- a/components/map/useCommunityPrices.ts
++++ b/components/map/useCommunityPrices.ts
+@@ -25,12 +25,24 @@
+   readContributionGateStatus,
+   type ContributionGateStatus,
+ } from "@/lib/contributionGateStatus";
+-import type { DrinkCategory } from "@/lib/drinks";
++import { DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
++import {
++  MAX_QUOTES_PER_CATEGORY,
++  MAX_SOURCE_URL_LENGTH,
++  MAX_SERVING_LENGTH,
++  type ListedCategoryPrice,
++} from "@/lib/listedCategoryPrices";
++import {
++  UK_PRICE_BUNDLE_DRINK_LABEL_MAX,
++  normalizeUkPriceBundleDrinkLabel,
++} from "@/lib/bundleDrinkFields";
++import { priceStandingFor } from "@/lib/priceTier";
+ import {
+   parseConfirmationOutcome,
+   type PintDropConfirmationOutcome,
+ } from "@/lib/pintDropSecondDrinker";
+ import { PINT_TRUST_STATES, type PintTrustState } from "@/lib/pintTrust";
++import { readListedDrinkIndex, type MapLensPrice } from "@/lib/mapExperienceLens";
+ import type {
+   CategoryPriceIndexStatus,
+   NoAlcoholIndexStatus,
+@@ -149,6 +161,9 @@
+    *  purpose - this is what the venue sheet renders, so every submission shows
+    *  there, dated, whether or not it has earned the map. */
+   byVenueId: Map<string, CommunityPrice[]>;
++  /** Base-sheet menu quotes. Separate from community rows and map authority.
++   * Missing key = unread; [] = ready empty; null = unavailable. */
++  listedPricesByVenueId?: ReadonlyMap<string, readonly ListedCategoryPrice[] | null>;
+   /** Community-observed pub signals loaded by the same per-venue request. */
+   signalsByVenueId: Map<string, CommunityVenueSignal[]>;
+   /** The freshest BEER price at a venue - the pin's CANDIDATE, not its verdict.
+@@ -175,6 +190,7 @@
+    * presented as "no prices logged here".
+    */
+   drinkCategoryIndexStatus: ReadonlyMap<DrinkCategory, CategoryPriceIndexStatus>;
++  listedDrinkPrices: ReadonlyMap<DrinkCategory, MapLensPrice[]>;
+   /** Visibility marks found for UK base pubs read in this session. */
+   provisionalBaseVenueIds: ReadonlySet<string>;
+   /** Read unseen IDs among these on-screen base pubs. */
+@@ -407,6 +423,43 @@
+   return { status: "ready", prices };
+ }
+ 
++/** Published claims have their own read outcome, independent of community. */
++function readVenueListedPrices(value: unknown): ListedCategoryPrice[] | null {
++  if (!value || typeof value !== "object") return null;
++  const listed = (value as { listedPrices?: unknown }).listedPrices;
++  if (!Array.isArray(listed)
++    || listed.length > DRINK_CATEGORIES.length * MAX_QUOTES_PER_CATEGORY) return null;
++  const categoryCounts = new Map<DrinkCategory, number>();
++  const quotes: ListedCategoryPrice[] = [];
++  for (const item of listed) {
++    if (!item || typeof item !== "object") return null;
++    const row = item as Record<string, unknown>;
++    if (row.source !== "listed" || !isDrinkCategory(row.category)
++      || typeof row.priceGbp !== "number" || typeof row.sourceUrl !== "string"
++      || typeof row.observedAt !== "string" || row.sourceUrl.length > MAX_SOURCE_URL_LENGTH
++      || (row.drinkLabel !== null && (typeof row.drinkLabel !== "string"
++        || row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX))
++      || (row.servingSize !== null && (typeof row.servingSize !== "string"
++        || !row.servingSize.trim() || row.servingSize !== row.servingSize.trim()
++        || row.servingSize.length > MAX_SERVING_LENGTH
++        || /[\u0000-\u001f\u007f]/.test(row.servingSize)))) return null;
++    const count = (categoryCounts.get(row.category) ?? 0) + 1;
++    if (count > MAX_QUOTES_PER_CATEGORY) return null;
++    categoryCounts.set(row.category, count);
++    const decision = priceStandingFor({ listed: {
++      priceGbp: row.priceGbp, sourceUrl: row.sourceUrl, observedAt: row.observedAt,
++    } });
++    if (decision.standing !== "listed") return null;
++    quotes.push({
++      source: "listed", category: row.category, priceGbp: row.priceGbp,
++      drinkLabel: normalizeUkPriceBundleDrinkLabel(row.drinkLabel as string | null),
++      servingSize: row.servingSize as string | null,
++      sourceUrl: row.sourceUrl, observedAt: row.observedAt,
++    });
++  }
++  return quotes;
++}
++
+ export type VenueSignalLoad =
+   | { status: "ready"; signals: CommunityVenueSignal[] }
+   | { status: "degraded"; signals: CommunityVenueSignal[] }
+@@ -609,6 +662,12 @@
+   >("idle");
+   // Venues already fetched this session - the sheet re-mounts on every
+   // selection and must not re-hit the API for a venue it already read.
++  const [listedPricesByVenueId, setListedPricesByVenueId] = useState<
++    ReadonlyMap<string, readonly ListedCategoryPrice[] | null>
++  >(() => new Map());
++  const markListedRead = useCallback((venueId: string, quotes: ListedCategoryPrice[] | null) => {
++    setListedPricesByVenueId((current) => new Map(current).set(venueId, quotes));
++  }, []);
+   const loaded = useRef<Set<string>>(new Set());
+   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
+   const loadedSignalRows = useRef<Map<string, CommunityVenueSignal[]>>(
+@@ -631,6 +690,7 @@
+   const [drinkCategoryIndexStatus, setDrinkCategoryIndexStatus] = useState<
+     Map<DrinkCategory, CategoryPriceIndexStatus>
+   >(() => new Map());
++  const [listedDrinkPrices, setListedDrinkPrices] = useState<ReadonlyMap<DrinkCategory, MapLensPrice[]>>(() => new Map());
+   const noAlcoholIndexLoaded = useRef(false);
+   const drinkCategoryIndexesLoaded = useRef<Set<DrinkCategory>>(new Set());
+   const markDrinkCategoryIndex = useCallback(
+@@ -662,9 +722,15 @@
+             discardBody(res);
+             loaded.current.delete(venueId);
+             markVenueRead(venueId, "degraded");
++            if (isUkBaseId(venueId)) markListedRead(venueId, null);
+             return;
+           }
+           const payload = await res.json();
++          if (isUkBaseId(venueId)) {
++            const quotes = readVenueListedPrices(payload);
++            markListedRead(venueId, quotes);
++            if (quotes === null) loaded.current.delete(venueId);
++          }
+           const result = readVenuePriceLoad(payload);
+           const signalResult = readVenueSignalLoad(payload);
+           if (result.status === "invalid" || signalResult.status === "invalid") {
+@@ -726,10 +792,11 @@
+           // Allow a later selection to retry this venue.
+           loaded.current.delete(venueId);
+           markVenueRead(venueId, "degraded");
++          if (isUkBaseId(venueId)) markListedRead(venueId, null);
+         }
+       })();
+     },
+-    [markVenueRead],
++    [markVenueRead, markListedRead],
+   );
+ 
+   const loadNoAlcoholIndex = useCallback(() => {
+@@ -794,7 +861,9 @@
+             discardBody(response);
+             throw new Error("category index unavailable");
+           }
+-          const result = readCategoryPriceIndexLoad(await response.json());
++          const body = await response.json();
++          const result = readCategoryPriceIndexLoad(body);
++          setListedDrinkPrices((current) => new Map(current).set(category, readListedDrinkIndex(body.listedPrices, category)));
+           if (result.status === "invalid") {
+             drinkCategoryIndexesLoaded.current.delete(category);
+             markDrinkCategoryIndex(category, "degraded");
+@@ -1262,12 +1331,14 @@
+ 
+   return {
+     byVenueId,
++    listedPricesByVenueId,
+     signalsByVenueId,
+     freshestByVenueId,
+     noAlcoholIndexStatus,
+     loadNoAlcoholIndex,
+     loadDrinkCategoryIndex,
+     drinkCategoryIndexStatus,
++    listedDrinkPrices,
+     provisionalBaseVenueIds,
+     loadProvisionalBaseVenues,
+     loadVenue,
+diff --git a/components/map/UnverifiedPubSheet.tsx b/components/map/UnverifiedPubSheet.tsx
+--- a/components/map/UnverifiedPubSheet.tsx
++++ b/components/map/UnverifiedPubSheet.tsx
+@@ -6,6 +6,7 @@
+ 
+ import { useAuth } from "@/components/auth/AuthProvider";
+ import PriceBadge from "@/components/PriceBadge";
++import PublishedMenuPrices from "@/components/map/PublishedMenuPrices";
+ import CommunityPriceReport from "@/components/map/CommunityPriceReport";
+ import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
+ import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
+@@ -89,6 +90,27 @@
+   );
+ }
+ 
++function basePriceReadLabel({
++  published,
++  community,
++  unread,
++  communityPending,
++  publishedPending,
++}: {
++  published: boolean;
++  community: boolean;
++  unread: boolean;
++  communityPending: boolean;
++  publishedPending: boolean;
++}) {
++  if (published) return "Published menu prices";
++  if (community) return "Community price";
++  if (unread) return "Prices unread";
++  if (communityPending) return "Checking community prices";
++  if (publishedPending) return "Checking published menu prices";
++  return "No price yet";
++}
++
+ export default function UnverifiedPubSheet({
+   pub,
+   communityPrices,
+@@ -104,6 +126,14 @@
+   const pricesKnown = readStatus === "ready";
+   const readFailed = readStatus === "degraded";
+   const rows = communityPrices.byVenueId.get(pub.id);
++  const listed = communityPrices.listedPricesByVenueId?.get(pub.id);
++  const visibleListed = (listed ?? []).filter((quote) =>
++    experienceLens === "food" ? false
++      : experienceLens === "no-alcohol"
++        ? quote.category === "soft-drink" || quote.category === "alcohol-free"
++        : !drinkLensCategory || quote.category === drinkLensCategory,
++  );
++  const hasPublished = visibleListed.length > 0;
+   const communityPrice = freshestCommunityPrice(
+     experienceLens === "food"
+       ? undefined
+@@ -169,13 +199,13 @@
+       <div className="unverifiedPubHead">
+         <span className="unverifiedPubTag">
+           <Sparkles size={12} aria-hidden="true" />
+-          {communityPrice
+-            ? "Community price"
+-            : pricesKnown
+-              ? "No price yet"
+-              : readFailed
+-                ? "Prices unread"
+-                : "Checking community prices"}
++          {basePriceReadLabel({
++            published: hasPublished,
++            community: Boolean(communityPrice),
++            unread: readFailed || listed === null,
++            communityPending: !pricesKnown,
++            publishedPending: listed === undefined && experienceLens !== "food",
++          })}
+         </span>
+         <h2 className="unverifiedPubName">{pub.name}</h2>
+         {pub.address ? (
+@@ -185,6 +215,14 @@
+           </p>
+         ) : null}
+       </div>
++
++      {experienceLens !== "food" ? (
++        <PublishedMenuPrices
++          prices={visibleListed}
++          unavailable={listed === null}
++          loading={listed === undefined}
++        />
++      ) : null}
+ 
+       {communityPrice ? (
+         <>
+@@ -221,7 +259,7 @@
+             />
+           </div>
+         </>
+-      ) : pricesKnown && experienceLens === "no-alcohol" ? (
++      ) : hasPublished ? null : pricesKnown && experienceLens === "no-alcohol" ? (
+         <p className="unverifiedPubLead">
+           {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
+         </p>
+@@ -235,8 +273,7 @@
+         </p>
+       ) : pricesKnown ? (
+         <p className="unverifiedPubLead">
+-          We know this {placeNoun} is here, and that is all we know. Nobody has
+-          logged what a drink costs - <strong>be the first</strong>.
++          Nobody has logged what a drink costs at this {placeNoun} - <strong>be the first</strong>.
+         </p>
+       ) : readFailed ? (
+         <p className="unverifiedPubLead">
+@@ -268,7 +305,7 @@
+ 
+       {/* ODbL requires attribution wherever these pins are publicly displayed
+           (data/osm/uk/README.md), and it is also the honest provenance line:
+-          the pub's existence is sourced, its price is not. */}
++          OSM sources the location, while each price names its own source. */}
+       <p className="unverifiedPubSource">
+         {placeNoun === "bar" ? "Bar" : "Pub"} location from{" "}
+         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+diff --git a/components/map/inspector/VenueOverviewTab.tsx b/components/map/inspector/VenueOverviewTab.tsx
+--- a/components/map/inspector/VenueOverviewTab.tsx
++++ b/components/map/inspector/VenueOverviewTab.tsx
+@@ -1045,6 +1045,15 @@
+           venueId={venue.id}
+           venueName={venue.name}
+           rows={drinkPriceRows}
++          listedPrices={
++            experienceLens === "no-alcohol"
++              ? venue.listedCategoryPrices === null
++                ? null
++                : venue.listedCategoryPrices?.filter((quote) =>
++                    quote.category === "soft-drink" || quote.category === "alcohol-free",
++                  )
++              : venue.listedCategoryPrices
++          }
+           activeLane={leadLane}
+           laneNoun={leadLaneNoun}
+           readStatus={venueReadStatus}
+diff --git a/components/map/venueDrinkPrices.css b/components/map/venueDrinkPrices.css
+--- a/components/map/venueDrinkPrices.css
++++ b/components/map/venueDrinkPrices.css
+@@ -15,6 +15,44 @@
+   padding: 0;
+   list-style: none;
+   min-width: 0;
++}
++
++.venueListedPrices {
++  display: grid;
++  gap: 4px;
++  min-width: 0;
++}
++
++.venueListedPrices h3 {
++  margin: 0;
++  color: var(--ink);
++  font-size: 0.8rem;
++  font-weight: 700;
++}
++
++.venueListedPriceRow {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) auto;
++  gap: 4px 10px;
++  min-width: 0;
++  padding: 8px 0;
++  border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
++}
++
++.venueListedPriceMeasure,
++.venueListedPriceSource {
++  grid-column: 1 / -1;
++  color: var(--ink-soft);
++  font-size: 0.72rem;
++  overflow-wrap: anywhere;
++}
++
++.venueListedPriceSource a { color: var(--tint-ink-accent); }
++
++.venueListedPriceUnavailable {
++  margin: 0;
++  color: var(--ink-soft);
++  font-size: 0.72rem;
+ }
+ 
+ /* A row is a drink, a figure and a day. The tag column is fixed so the figures
+diff --git a/lib/mapExperienceLens.ts b/lib/mapExperienceLens.ts
+--- a/lib/mapExperienceLens.ts
++++ b/lib/mapExperienceLens.ts
+@@ -1,3 +1,5 @@
++import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++import { priceStandingFor } from "@/lib/priceTier";
+ import {
+   drivesMap,
+   mapCandidateOf,
+@@ -41,7 +43,8 @@
+   priceGbp: number;
+   submittedAt?: number;
+   observedAt?: string;
+-  source: "community" | "sourced-anchor";
++  source: "community" | "sourced-anchor" | "listed";
++  servingSize?: string | null;
+   sourceUrl?: string;
+ };
+ 
+@@ -281,7 +284,7 @@
+     return `Checking ${drinkNoun} prices across the map.`;
+   }
+   if (status === "degraded") {
+-    return `We could not read the ${drinkNoun} prices just now, so none are shown yet.`;
++    return `We could not read the ${drinkNoun} prices from every source just now. Any prices shown come from sources we could read.`;
+   }
+   if (status === "partial") {
+     return `Read from part of the ${drinkNoun} prices, so some are still missing.`;
+@@ -404,3 +407,34 @@
+   }
+   return `No ${noun} prices logged here yet. Food venues still show menu prices we have.`;
+ }
++
++export function readListedDrinkIndex(value: unknown, category: DrinkCategory): MapLensPrice[] {
++  if (!Array.isArray(value)) return [];
++  return value.slice(0, 1000).flatMap((row) => {
++    if (!row || typeof row !== "object" || typeof row.venueId !== "string" || row.category !== category) return [];
++    if (typeof row.observedAt !== "string" || !Number.isFinite(Date.parse(row.observedAt))) return [];
++    const evidence = cleanSelectedDrinkPriceEvidence({
++      category, pence: Math.round(row.priceGbp * 100), serving: row.servingSize,
++      source: row.source, sourceUrl: row.sourceUrl, observedAt: new Date(row.observedAt).toISOString(),
++    });
++    if (evidence?.source !== "listed") return [];
++    return [{ venueId: row.venueId, category, categoryLabel: CATEGORY_META[category].label,
++      priceGbp: evidence.pence / 100, source: "listed" as const, servingSize: evidence.serving,
++      sourceUrl: evidence.sourceUrl, observedAt: evidence.observedAt }];
++  });
++}
++
++export function discoveryDrinkLensPrices(
++  rowsByVenue: ReadonlyMap<string, readonly CommunityPrice[]>,
++  category: DrinkCategory,
++  listed: readonly MapLensPrice[],
++  now: number,
++): Map<string, MapLensPrice> {
++  const prices = trustedDrinkLensPrices(rowsByVenue, category, now);
++  for (const quote of listed) {
++    if (quote.category !== category || quote.source !== "listed" || prices.has(quote.venueId)) continue;
++    if (priceStandingFor({ listed: { priceGbp: quote.priceGbp, sourceUrl: quote.sourceUrl ?? "", observedAt: quote.observedAt ?? "" } }, now).standing !== "listed") continue;
++    prices.set(quote.venueId, quote);
++  }
++  return prices;
++}
+diff --git a/components/map/canvas/geojson.ts b/components/map/canvas/geojson.ts
+--- a/components/map/canvas/geojson.ts
++++ b/components/map/canvas/geojson.ts
+@@ -213,28 +213,29 @@
+   }
+   const lensActive = lensPrices !== null;
+   const lensPrice = lensPrices?.get(venue.id) ?? null;
+-  // A selected drink owns both colour and figure. Missing means unknown,
+-  // never the pub's pint or anchor price. Food anchors have category null
+-  // and remain sheet-only because their figures are not drink prices.
++  // Non-beer quotes do not establish a shared serving group. Only beer uses the pint band or
++  // a bare price tag; a non-beer amount remains on its attributed detail row.
++  // Missing lens prices likewise never fall back to the pub's pint price.
++  const pintLensPrice = lensPrice?.category === "beer" ? lensPrice : null;
+   const bucket = lensActive
+-    ? lensPrice?.category
+-      ? priceBucket(lensPrice.priceGbp)
+-      : 3
++    ? priceBucket(pintLensPrice?.priceGbp ?? null)
+     : venue.priceBand ?? priceBucket(price);
+   const basePriceLabel = formatPinPriceLabel(sourcedPrice);
+   const lensPriceLabel =
+-    lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
+-      ? `${formatPinPriceLabel(lensPrice.priceGbp)} ${lensPrice.categoryLabel}`
++    pintLensPrice && formatPinPriceLabel(pintLensPrice.priceGbp)
++      ? `${formatPinPriceLabel(pintLensPrice.priceGbp)} ${pintLensPrice.categoryLabel}`
+       : null;
+   return {
+     bucket,
+     spoonsBucket: null,
+-    tag: pinPriceTag(
+-      venue.id,
+-      priceStandings,
+-      { lensActive, lensPriceLabel, basePriceLabel },
+-      signals,
+-    ),
++    tag: lensActive && !pintLensPrice
++      ? { label: null, standing: null }
++      : pinPriceTag(
++          venue.id,
++          priceStandings,
++          { lensActive, lensPriceLabel, basePriceLabel },
++          signals,
++        ),
+   };
+ }
+ 
+@@ -350,8 +351,8 @@
+           // UK base pubs are a different source entirely and never come near
+           // this function.
+           //
+-          // Non-pint figures always carry their drink name in the same string.
+-          // A bare whisky or soft-drink number would masquerade as a pint.
++          // A non-beer price needs a known serving before it can earn a pin
++          // figure. MapLensPrice carries none, so those figures stay in detail.
+           ...(tag.label ? { priceLabel: tag.label } : {}),
+           // The standing this pub's price holds. ABSENT rather than "none" when
+           // nothing was passed, so ["has","standing"] separates "we were not
+diff --git a/lib/mapPriceLegend.ts b/lib/mapPriceLegend.ts
+--- a/lib/mapPriceLegend.ts
++++ b/lib/mapPriceLegend.ts
+@@ -162,7 +162,7 @@
+ ];
+ 
+ const NO_ALCOHOL_NOTE =
+-  "The no-alcohol view has no separate pin shape. It uses alcohol-free and soft drink prices. Missing prices stay grey.";
++  "The no-alcohol view has no separate pin shape. Alcohol-free and soft drink prices stay on venue details while serving sizes cannot be compared on pins.";
+ 
+ // The band rows print the thresholds lib/priceBand.ts cut, never a typed
+ // figure, so the legend and the pin cannot name two different £s.
+@@ -372,6 +372,10 @@
+     }
+     return `We could not read the ${drink} prices just now, so no pub is coloured by one yet.`;
+   }
++  if (!hasKnownBand) {
++    const coverage = status === "partial" ? " We read part of the price list." : "";
++    return `Pins stay grey because ${drink} servings cannot be compared here.${coverage} Check venue details for any recorded price and its source.`;
++  }
+   if (status === "partial") {
+     return `Pin colours follow trusted ${drink} prices, read from part of the list. Pubs without one stay unknown.`;
+   }
+@@ -388,7 +392,7 @@
+   if (status === "degraded") {
+     return `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`;
+   }
+-  return `Clusters stay grey because no current venue has a trusted ${drink} price. The number is every venue in the cluster.`;
++  return `Clusters stay grey because ${drink} servings cannot be compared here. The number is every venue in the cluster.`;
+ }
+ 
+ function defaultClusterNote(
+@@ -510,19 +514,34 @@
+     const hasKnownBand = priceBuckets.some((bucket) => bucket !== 3);
+     const unreadable =
+       context.status === "degraded" && !hasKnownBand;
+-    const rows = renderedRows(priceRows(drink), priceBands);
++    const rows = hasKnownBand
++      ? renderedRows(priceRows(drink), priceBands)
++      : priceBuckets.includes(3)
++        ? [
++            {
++              label: "Price not shown on pins",
++              symbol: "?" as const,
++              tone: "grey" as const,
++            },
++          ]
++        : [];
+     return declaredLegend(
+       {
+         rows: unreadable ? rows.slice(-1) : rows,
+         ariaLabel: unreadable
+           ? `${context.label} price colour key, unavailable`
+-          : `${context.label} price colour key`,
++          : hasKnownBand
++            ? `${context.label} price colour key`
++            : `${context.label} map price key`,
+         title: unreadable
+           ? `${context.label} prices unavailable`
+-          : `${context.label} price bands`,
++          : hasKnownBand
++            ? `${context.label} price bands`
++            : `${context.label} view`,
+         hint: drinkHint(drink, context.status, hasKnownBand),
+       },
+       {
++        priceCapFilter: false,
+         clusterNote: drinkClusterNote(
+           drink,
+           context.status,
+diff --git a/components/map/PublishedMenuPrices.tsx b/components/map/PublishedMenuPrices.tsx
+new file mode 100644
+--- /dev/null
++++ b/components/map/PublishedMenuPrices.tsx
+@@ -0,0 +1,62 @@
++import { CATEGORY_META } from "@/lib/drinks";
++import { formatGbp } from "@/lib/formatGbp";
++import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
++
++import "./venueDrinkPrices.css";
++
++const listedDayFormatter = new Intl.DateTimeFormat("en-GB", {
++  day: "numeric",
++  month: "long",
++  year: "numeric",
++  timeZone: "UTC",
++});
++
++export default function PublishedMenuPrices({
++  prices,
++  unavailable,
++  loading = false,
++}: {
++  prices: readonly ListedCategoryPrice[];
++  unavailable: boolean;
++  loading?: boolean;
++}) {
++  if (loading) {
++    return <p className="venueListedPriceUnavailable" role="status">Checking published menu prices.</p>;
++  }
++  if (unavailable) {
++    return (
++      <p className="venueListedPriceUnavailable" role="status">
++        Published menu prices unavailable just now.
++      </p>
++    );
++  }
++  if (prices.length === 0) return null;
++
++  return (
++    <div className="venueListedPrices">
++      <h3>Prices on published menus</h3>
++      <ul className="venueDrinkPricesList">
++        {prices.map((quote, index) => (
++          <li key={`${quote.category}-${quote.sourceUrl}-${index}`} className="venueListedPriceRow">
++            <span className="venueDrinkPriceTag">
++              {CATEGORY_META[quote.category].label}
++              {quote.drinkLabel && quote.drinkLabel !== CATEGORY_META[quote.category].label
++                ? ` · ${quote.drinkLabel}`
++                : null}
++            </span>
++            <span className="venueDrinkPriceFigure">{formatGbp(quote.priceGbp)}</span>
++            <span className="venueListedPriceMeasure">
++              {quote.servingSize || "Serving not recorded"}
++            </span>
++            <span className="venueListedPriceSource">
++              Price seen {listedDayFormatter.format(new Date(quote.observedAt))} ·{" "}
++              <a href={quote.sourceUrl} target="_blank" rel="noopener noreferrer">
++                View menu source
++              </a>
++            </span>
++          </li>
++        ))}
++      </ul>
++    </div>
++  );
++}
+diff --git a/components/map/VenueDrinkPrices.tsx b/components/map/VenueDrinkPrices.tsx
+--- a/components/map/VenueDrinkPrices.tsx
++++ b/components/map/VenueDrinkPrices.tsx
+@@ -16,6 +16,8 @@
+   orderVenueDrinkPrices,
+ } from "@/lib/drinkLanes";
+ import type { DrinkCategory } from "@/lib/drinks";
++import PublishedMenuPrices from "@/components/map/PublishedMenuPrices";
++import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
+ import {
+   drinkLensEmptyVenueNote,
+   type VenuePriceReadStatus,
+@@ -24,6 +26,19 @@
+ import { formatPrice } from "@/lib/venues";
+ 
+ import "./venueDrinkPrices.css";
++
++function emptyLaneNote(
++  hasCommunityRow: boolean,
++  hasOtherLoggedPrice: boolean,
++  hasListedQuote: boolean,
++  laneNoun: string,
++  readStatus: VenuePriceReadStatus,
++): string | null {
++  if (hasCommunityRow || hasOtherLoggedPrice || (hasListedQuote && readStatus === "ready")) {
++    return null;
++  }
++  return drinkLensEmptyVenueNote(laneNoun, readStatus);
++}
+ 
+ /**
+  * What drinkers have logged at ONE pub, one row per drink, the map's lane first.
+@@ -47,6 +62,7 @@
+   venueId,
+   venueName,
+   rows,
++  listedPrices,
+   activeLane,
+   laneNoun,
+   readStatus,
+@@ -63,6 +79,8 @@
+   venueName: string;
+   /** The pub's freshest community price per drink, unfiltered by trust. */
+   rows: readonly CommunityPrice[] | undefined;
++  /** Separately sourced menu quotes. Null means the bundle read failed. */
++  listedPrices?: readonly ListedCategoryPrice[] | null;
+   /** The drink the map is under. Its row leads; its absence is the invite. */
+   activeLane: DrinkCategory;
+   /** That lane inside a sentence: "no cocktail price logged here yet". */
+@@ -98,34 +116,40 @@
+ }) {
+   const ordered = orderVenueDrinkPrices(rows, activeLane);
+   const [lead, ...rest] = ordered;
+-  // A beer figure wears its price BAND (lib/priceBand.ts); the pint terciles
+-  // say nothing about a wine or a cocktail, so every other row stays in ink.
++  // Pint price bands apply to beer only; other categories stay unbanded.
+   const bandArea = priceBandAreaForVenue(venueId);
+   const beerBand = (category: string, priceGbp: number) =>
+     category === "beer" ? priceBand(priceGbp, bandArea) : null;
+   const laneRow = ordered.find((row) => row.inActiveLane) ?? null;
+-  // The empty statement is the shared helper's, so a read that failed or one
+-  // still running can never settle as "nobody has logged this here".
+-  const laneEmptyNote =
+-    laneRow || laneLoggedPriceShown
+-      ? null
+-      : drinkLensEmptyVenueNote(laneNoun, readStatus);
++  const orderedListed = listedPrices?.length
++    ? [...listedPrices].sort((left, right) =>
++        Number(right.category === activeLane) - Number(left.category === activeLane),
++      )
++    : [];
++  const listedLanePresent = orderedListed.some((quote) => quote.category === activeLane);
++  // Keep loading and degraded reads distinct from "no price logged".
++  const laneEmptyNote = emptyLaneNote(
++    Boolean(laneRow),
++    laneLoggedPriceShown,
++    listedLanePresent,
++    laneNoun,
++    readStatus,
++  );
+   const invite =
+-    laneRow || laneLoggedPriceShown || !canLog || inviteOwnedElsewhere
++    laneRow || laneLoggedPriceShown || listedLanePresent || !canLog || inviteOwnedElsewhere
+       ? null
+       : drinkLaneLogInvite(
+           laneNoun,
+-          // One pub's own read is never partial: its rows arrive whole or not
+-          // at all, so the venue scale maps straight onto the index scale.
++          // The venue read is all or nothing. It returns every row or none.
+           readStatus,
+         );
+ 
+-  if (!lead && !laneEmptyNote) return null;
++  if (!lead && !laneEmptyNote && orderedListed.length === 0 && listedPrices !== null) return null;
+ 
+   return (
+     <section
+       className="venueDrinkPrices"
+-      aria-label={`Drink prices logged at ${venueName}`}
++      aria-label={`Drink prices at ${venueName}`}
+     >
+       {lead ? (
+         <div className="contributorPrice communityPriceRow">
+@@ -176,8 +200,7 @@
+         </div>
+       ) : null}
+ 
+-      {/* The pub's other drinks. Each is its own observation with its own tag,
+-          never a second reading of the figure above. */}
++      {/* Other drinks keep their own label, date, and trust note. */}
+       {rest.length > 0 ? (
+         <ul className="venueDrinkPricesList">
+           {rest.map((row) => {
+@@ -207,10 +230,14 @@
+         </ul>
+       ) : null}
+ 
++      <PublishedMenuPrices prices={orderedListed} unavailable={listedPrices === null} />
++
+       {laneEmptyNote ? (
+         <div className="venueDrinkPricesEmpty">
+           <p className="venueDrinkPricesEmptyNote" role="status">
+-            {laneEmptyNote}
++            {listedLanePresent && readStatus === "degraded"
++              ? "Could not read drinker-logged prices just now."
++              : laneEmptyNote}
+           </p>
+           {invite ? (
+             <>
+diff --git a/lib/venues.ts b/lib/venues.ts
+--- a/lib/venues.ts
++++ b/lib/venues.ts
+@@ -154,6 +154,8 @@
+   primaryBorough: string;
+   visibleBoroughs: string[];
+   prices: VenuePrice[];
++  /** Approved menu quotes on detail reads; null means the bundle could not be read. */
++  listedCategoryPrices?: import("@/lib/listedCategoryPrices").ListedCategoryPrice[] | null;
+   cheapestPrice: number | null;
+   cheapestPint: string;
+   averagePrice: number | null;
+diff --git a/lib/ukPriceBundle.ts b/lib/ukPriceBundle.ts
+--- a/lib/ukPriceBundle.ts
++++ b/lib/ukPriceBundle.ts
+@@ -96,8 +96,28 @@
+  * as well as category and price, so other drinks on these menus still publish.
+  */
+ const CATEGORY_QUARANTINE: ReadonlyArray<
+-  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
++  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel" | "servingSize">
+ > = [
++  { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride 500ml" },
++  { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride", servingSize: "500ml" },
++  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "wine", priceGbp: 3, drinkLabel: "Ting Grapefruit Soda 330ml" },
++  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "wine", priceGbp: 3, drinkLabel: "Ting Grapefruit Soda", servingSize: "330ml" },
++  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "beer", priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-" },
++  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "rum", priceGbp: 8, drinkLabel: "Paloma –" },
++  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "vodka", priceGbp: 4, drinkLabel: "Virgin Bloody Mary AF –" },
++  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "coffee", priceGbp: 4.3, drinkLabel: "Liquors Amaretto Lazzaroni –" },
++  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "cocktail", priceGbp: 6, drinkLabel: ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 8.1, drinkLabel: "/" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 7.8, drinkLabel: "/" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "rum", priceGbp: 9, drinkLabel: "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "cocktail", priceGbp: 9, drinkLabel: "## 0% Espresso Martini The classic coffee cocktail shaken with Clean Co Clean V" },
++  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "cocktail", priceGbp: 9, drinkLabel: "Zesty and refreshing Clean Co Clean R with Mexican lime, Moroccan mint and soda" },
+   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "gin", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
+   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "shot", priceGbp: 12, drinkLabel: "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
+   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "whisky", priceGbp: 10, drinkLabel: "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary" },
+@@ -123,8 +143,20 @@
+   return row.lane === "site-harvest" && row.standing === "listed" &&
+     CATEGORY_QUARANTINE.some((item) =>
+       item.sourceUrl === row.sourceUrl && item.category === row.category &&
+-      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel,
++      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel &&
++      (item.servingSize === undefined || item.servingSize === row.servingSize),
+     );
++}
++
++/** Recover this retained menu's literal measure; existing typed servings win. */
++export function bundleRowServingSize(row: UkPriceBundleRow): string | undefined {
++  if (row.servingSize !== undefined) return row.servingSize;
++  if (row.lane === "site-harvest" && row.standing === "listed" &&
++      row.sourceUrl === "https://thebrownswood.co.uk/drinks-menu/" &&
++      row.category === "gin" && row.drinkLabel === "Gin ~ 25 ml Sacred –") {
++    return "25ml";
++  }
++  return undefined;
+ }
+ 
+ function isNonEmptyString(value: unknown): value is string {
+diff --git a/lib/planSelectedDrinkPriceEvidence.ts b/lib/planSelectedDrinkPriceEvidence.ts
+--- a/lib/planSelectedDrinkPriceEvidence.ts
++++ b/lib/planSelectedDrinkPriceEvidence.ts
+@@ -1,8 +1,9 @@
++import type { NightContext } from "@/lib/nightPlanning";
+ import type { MapLensPrice } from "@/lib/mapExperienceLens";
+-import type { NightContext } from "@/lib/nightPlanning";
++
+ import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+ 
+-export type SelectedDrinkPriceEvidence = {
++type CommunitySelectedDrinkPriceEvidence = {
+   category: DrinkCategory;
+   pence: number;
+   serving: null;
+@@ -10,20 +11,58 @@
+   reportedAt: string;
+ };
+ 
++type ListedSelectedDrinkPriceEvidence = {
++  category: DrinkCategory;
++  pence: number;
++  serving: string | null;
++  source: "listed";
++  sourceUrl: string;
++  observedAt: string;
++};
++
++export type SelectedDrinkPriceEvidence = CommunitySelectedDrinkPriceEvidence | ListedSelectedDrinkPriceEvidence;
++
++function canonicalTimestamp(value: unknown): value is string {
++  if (typeof value !== "string") return false;
++  const time = Date.parse(value);
++  return Number.isFinite(time) && new Date(time).toISOString() === value;
++}
++
+ export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPriceEvidence | null {
+   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+   const row = value as Record<string, unknown>;
+-  if (!isDrinkCategory(row.category) || row.category === "beer" || row.source !== "community"
+-    || row.serving !== null || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
+-    || (row.pence as number) > 100_000 || typeof row.reportedAt !== "string") return null;
+-  const time = Date.parse(row.reportedAt);
+-  if (!Number.isFinite(time) || new Date(time).toISOString() !== row.reportedAt) return null;
++  if (!isDrinkCategory(row.category) || row.category === "beer"
++    || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
++    || (row.pence as number) > 100_000) return null;
++  if (row.source === "community") {
++    if (row.serving !== null || !canonicalTimestamp(row.reportedAt)) return null;
++    return {
++      category: row.category,
++      pence: row.pence as number,
++      serving: null,
++      source: "community",
++      reportedAt: row.reportedAt,
++    };
++  }
++  if (row.source !== "listed" || !canonicalTimestamp(row.observedAt)
++    || (row.serving !== null && (typeof row.serving !== "string"
++      || !row.serving.trim() || row.serving !== row.serving.trim() || row.serving.length > 48
++      || /[\u0000-\u001f\u007f]/.test(row.serving)))
++    || typeof row.sourceUrl !== "string" || row.sourceUrl.length > 2048
++    || row.sourceUrl !== row.sourceUrl.trim() || /\s|[\u0000-\u001f\u007f]/.test(row.sourceUrl)) return null;
++  try {
++    const url = new URL(row.sourceUrl);
++    if (!(["https:", "http:"].includes(url.protocol)) || url.username || url.password) return null;
++  } catch {
++    return null;
++  }
+   return {
+     category: row.category,
+     pence: row.pence as number,
+-    serving: null,
+-    source: "community",
+-    reportedAt: row.reportedAt,
++    serving: row.serving,
++    source: "listed",
++    sourceUrl: row.sourceUrl,
++    observedAt: row.observedAt,
+   };
+ }
+ 
+@@ -45,8 +84,9 @@
+ 
+ export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
+   if (!evidence) return null;
+-  const reported = new Date(evidence.reportedAt).toLocaleDateString("en-GB", {
++  const reported = new Date(evidence.source === "community" ? evidence.reportedAt : evidence.observedAt).toLocaleDateString("en-GB", {
+     day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+   });
+-  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, community report ${reported}. Serving size not recorded.`;
++  const serving = evidence.serving ? `Serving ${evidence.serving}.` : "Serving size not recorded.";
++  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, ${evidence.source === "community" ? "community report" : "published menu"} ${reported}. ${serving}`;
+ }
+diff --git a/components/PubMap.tsx b/components/PubMap.tsx
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -473,7 +473,7 @@
+   isMapLensDrinkCategory,
+   lensPricesForVenues,
+   parseMapExperienceLensParam,
+-  trustedDrinkLensPrices,
++  discoveryDrinkLensPrices,
+   trustedNoAlcoholLensPrices,
+   MAP_EXPERIENCE_LENS_URL_PARAM,
+   type CategoryPriceIndexStatus,
+@@ -1890,14 +1890,16 @@
+   const drinkLensPrices = useMemo(
+     () =>
+       mapDrinkLensCategory
+-        ? trustedDrinkLensPrices(
++        ? discoveryDrinkLensPrices(
+             communityPrices.byVenueId,
+             mapDrinkLensCategory,
++            communityPrices.listedDrinkPrices.get(mapDrinkLensCategory) ?? [],
+             experiencePolicyNow,
+           )
+         : null,
+     [
+       communityPrices.byVenueId,
++      communityPrices.listedDrinkPrices,
+       experiencePolicyNow,
+       mapDrinkLensCategory,
+     ],
+diff --git a/scripts/build_uk_price_bundle.mjs b/scripts/build_uk_price_bundle.mjs
+--- a/scripts/build_uk_price_bundle.mjs
++++ b/scripts/build_uk_price_bundle.mjs
+@@ -59,6 +59,7 @@
+ import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
+ import { estimateBaselines } from "@/lib/priceEstimateBaselines";
+ import {
++  bundleRowServingSize,
+   bundleRowSupersedes,
+   isCategoryQuarantined,
+   isValidUkPriceBundleRow,
+@@ -176,6 +177,8 @@
+       report.droppedInvalidRow += 1;
+       return;
+     }
++    const servingSize = bundleRowServingSize(row);
++    if (servingSize !== row.servingSize) row = { ...row, servingSize };
+     const key = ukPriceBundleCollectKey(row);
+     if (!bundleRowSupersedes(row, held.get(key))) return;
+     held.set(key, row);
+@@ -217,11 +220,25 @@
+ /** Lane one: the prices a pub's or a chain's own site stated. */
+ function addSiteHarvestRows(harvestRows, owners, push, report) {
+   for (const ledgerRow of harvestRows) {
++    if (!isHarvestableDrinkUpdateUrl(ledgerRow.sourceUrl ?? "")) {
++      report.droppedRefusedHost += 1;
++      continue;
++    }
++    // Retire exact retained contradictions before wine-label normalization.
++    // The ordinary push guard also checks the canonical claim afterwards.
++    if (isCategoryQuarantined({
++      ...ledgerRow,
++      lane: "site-harvest",
++      standing: "listed",
++      ...bundleDrinkFieldsFromPrintedName(
++        ledgerRow.drinkLabel ?? ledgerRow.drinkName ?? null,
++        ledgerRow.category,
++      ),
++    })) {
++      report.droppedCategoryContradiction += 1;
++      continue;
++    }
+     const row = normalizeSiteHarvestLedgerRow(ledgerRow);
+-    if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
+-      report.droppedRefusedHost += 1;
+-      continue;
+-    }
+     const osmRef =
+       typeof row.venueId === "string"
+         ? row.venueId.replace(/^venue-uk-/, "")
+diff --git a/__tests__/ukPriceBundle.test.ts b/__tests__/ukPriceBundle.test.ts
+--- a/__tests__/ukPriceBundle.test.ts
++++ b/__tests__/ukPriceBundle.test.ts
+@@ -7,6 +7,7 @@
+ 
+ import { describe, expect, it } from "vitest";
+ import { readFileSync } from "node:fs";
++import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+ 
+ import {
+   UK_PRICE_BUNDLE_LANES,
+@@ -109,6 +110,149 @@
+ });
+ 
+ describe("which rows a surface may treat as a fact", () => {
++  it.each([
++    { sourceUrl: "https://thebellonthegreen.com/drinks/", priceGbp: 4, rawLabel: "London Pride 500ml", drinkLabel: "London Pride", servingSize: "500ml" },
++    { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", priceGbp: 3, rawLabel: "Ting Grapefruit Soda 330ml", drinkLabel: "Ting Grapefruit Soda", servingSize: "330ml" },
++  ])("withholds the normalized wrong-wine claim from $sourceUrl", ({ sourceUrl, priceGbp, rawLabel, drinkLabel, servingSize }) => {
++    const raw: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp, drinkLabel: rawLabel };
++    const normalized: UkPriceBundleRow = { ...raw, drinkLabel, servingSize };
++    for (const claim of [raw, normalized]) {
++      expect(isValidUkPriceBundleRow(claim)).toBe(true);
++      expect(parseUkPriceBundleRows([claim])).toEqual([]);
++      expect(authoritativeBundleRows([claim])).toEqual([]);
++      expect(bundlePricesForCategory([claim], "wine").listed).toBeNull();
++      expect(listedCategoryPrices([claim], NOW)).toEqual([]);
++    }
++    const controls: UkPriceBundleRow[] = [
++      { ...normalized, sourceUrl: "https://another-pub.example/menu" },
++      { ...normalized, priceGbp: priceGbp + 1 },
++      { ...normalized, drinkLabel: "House Chardonnay" },
++      { ...normalized, servingSize: "175ml" },
++      { ...normalized, category: "beer" },
++      { ...normalized, lane: "drink-price-update" },
++    ];
++    expect(parseUkPriceBundleRows(controls)).toEqual(controls);
++    expect(authoritativeBundleRows(controls)).toEqual(controls);
++  });
++
++  it("withholds seven exact Prospect claims while retaining their audit rows and neighboring drinks", () => {
++    const sourceUrl = "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu";
++    const now = Date.parse("2026-09-30T12:00:00.000Z");
++    const evidence = [
++      ["wine", 7.8, "/"],
++      ["wine", 11, "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda"],
++      ["wine", 11, "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda"],
++      ["wine", 11, "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda"],
++      ["rum", 9, "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice"],
++      ["cocktail", 9, "## 0% Espresso Martini The classic coffee cocktail shaken with Clean Co Clean V"],
++      ["cocktail", 9, "Zesty and refreshing Clean Co Clean R with Mexican lime, Moroccan mint and soda"],
++    ] as const;
++    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
++      .trim().split("\n").map((line) => JSON.parse(line));
++    for (const [category, priceGbp, drinkLabel] of evidence) {
++      const source = ledger.find((row) => row.sourceUrl === sourceUrl && row.category === category &&
++        row.priceGbp === priceGbp && row.drinkLabel === drinkLabel);
++      expect(source).toBeDefined();
++      const claim: UkPriceBundleRow = { ...listed, sourceUrl, category, priceGbp, drinkLabel,
++        observedAt: source.observedAt };
++      expect(isValidUkPriceBundleRow(claim)).toBe(true);
++      expect(parseUkPriceBundleRows([claim])).toEqual([]);
++      expect(authoritativeBundleRows([claim])).toEqual([]);
++      expect(bundlePricesForCategory([claim], category).listed).toBeNull();
++      expect(listedCategoryPrices([claim], now)).toEqual([]);
++
++      const variants: UkPriceBundleRow[] = [
++        { ...claim, sourceUrl: "https://another-pub.example/menu" },
++        { ...claim, priceGbp: priceGbp + 1 },
++        { ...claim, drinkLabel: "Another printed drink" },
++        { ...claim, category: category === "wine" ? "gin" : "wine" },
++      ];
++      expect(parseUkPriceBundleRows(variants)).toEqual(variants);
++      expect(authoritativeBundleRows(variants)).toEqual(variants);
++      for (const variant of variants) {
++        expect(bundlePricesForCategory([variant], variant.category).listed?.priceGbp)
++          .toBe(variant.priceGbp);
++        expect(listedCategoryPrices([variant], now)).toEqual([
++          expect.objectContaining({ category: variant.category, priceGbp: variant.priceGbp,
++            drinkLabel: variant.drinkLabel, sourceUrl: variant.sourceUrl }),
++        ]);
++      }
++    }
++
++    const retainedControls: UkPriceBundleRow[] = [
++      { ...listed, sourceUrl, category: "wine", priceGbp: 7.6,
++        drinkLabel: "Baron de Ley Reserva Rioja, Spain", lane: "drink-price-update" },
++      { ...listed, sourceUrl, category: "cocktail", priceGbp: 10.5,
++        drinkLabel: "## Margarita A bold blend of Altos Plata Tequila, Mexican lime and blood orange" },
++      { ...listed, sourceUrl, category: "rum", priceGbp: 9 },
++    ];
++    expect(parseUkPriceBundleRows(retainedControls)).toEqual(retainedControls);
++    expect(authoritativeBundleRows(retainedControls)).toEqual(retainedControls);
++    for (const neighbor of retainedControls) {
++      expect(bundlePricesForCategory([neighbor], neighbor.category).listed?.priceGbp)
++        .toBe(neighbor.priceGbp);
++      expect(listedCategoryPrices([neighbor], now)).toEqual([
++        expect.objectContaining({ category: neighbor.category, priceGbp: neighbor.priceGbp,
++          drinkLabel: neighbor.drinkLabel ?? null, sourceUrl }),
++      ]);
++    }
++  });
++
++  it("withholds seven retained category contradictions without removing neighboring claims", () => {
++    const evidence = [
++      ["https://thebellonthegreen.com/drinks/", "wine", 4, "London Pride 500ml"],
++      ["https://thegallimaufry.co.uk/food-drink/", "wine", 3, "Ting Grapefruit Soda 330ml"],
++      ["https://thebrownswood.co.uk/drinks-menu/", "beer", 2.6, "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-"],
++      ["https://thebrownswood.co.uk/drinks-menu/", "rum", 8, "Paloma –"],
++      ["https://thebrownswood.co.uk/drinks-menu/", "vodka", 4, "Virgin Bloody Mary AF –"],
++      ["https://thebrownswood.co.uk/drinks-menu/", "coffee", 4.3, "Liquors Amaretto Lazzaroni –"],
++      ["https://thegallimaufry.co.uk/food-drink/", "cocktail", 6, ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml"],
++    ] as const;
++    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
++      .trim().split("\n").map((line) => JSON.parse(line));
++    for (const [sourceUrl, category, priceGbp, drinkLabel] of evidence) {
++      expect(ledger.some((item) => item.sourceUrl === sourceUrl && item.category === category &&
++        item.priceGbp === priceGbp && item.drinkLabel === drinkLabel)).toBe(true);
++      const claim = { ...listed, sourceUrl, category, priceGbp, drinkLabel };
++      expect(parseUkPriceBundleRows([claim])).toEqual([]);
++      expect(authoritativeBundleRows([claim])).toEqual([]);
++      expect(bundlePricesForCategory([claim], category).listed).toBeNull();
++      const neighbors = [
++        { ...claim, drinkLabel: "Another printed drink" },
++        { ...claim, sourceUrl: "https://another-pub.example/menu" },
++        { ...claim, priceGbp: priceGbp + 1 },
++        { ...claim, category: "other" },
++      ];
++      expect(parseUkPriceBundleRows(neighbors)).toEqual(neighbors);
++    }
++    const luckySod = { ...listed, sourceUrl: "https://thebrownswood.co.uk/drinks-menu/",
++      category: "whisky", priceGbp: 4.3, drinkLabel: "Lucky Sod –" };
++    expect(authoritativeBundleRows([luckySod])).toEqual([luckySod]);
++  });
++
++  it("withholds retained Punch & Judy slash and Spritz claims from wine", () => {
++    const sourceUrl = "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu";
++    const evidence = [
++      [8.1, "/"],
++      [13, "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda"],
++      [13, "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda"],
++      [13, "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda"],
++    ] as const;
++    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
++      .trim().split("\n").map((line) => JSON.parse(line));
++    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
++    for (const [priceGbp, drinkLabel] of evidence) {
++      expect(ledger.some((row) => row.sourceUrl === sourceUrl && row.category === "wine" && row.priceGbp === priceGbp && row.drinkLabel === drinkLabel)).toBe(true);
++      const row: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp, drinkLabel };
++      expect(authoritativeBundleRows([row])).toEqual([]);
++      expect(parseUkPriceBundleRows([row])).toEqual([]);
++      expect(bundlePricesForCategory([row], "wine").listed).toBeNull();
++      expect(published.some((item) => item.lane === "site-harvest" && item.sourceUrl === sourceUrl && item.category === "wine" && item.priceGbp === priceGbp && item.drinkLabel === drinkLabel)).toBe(false);
++    }
++    const genuine: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp: 8.2, drinkLabel: "Baron de Ley Reserva Rioja, Spain" };
++    expect(authoritativeBundleRows([genuine])).toEqual([genuine]);
++  });
++
+   it("withholds retained elderflower and raspberry soda claims misfiled as wine", () => {
+     const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+       .trim()
+diff --git a/__tests__/listedCategoryPrices.test.ts b/__tests__/listedCategoryPrices.test.ts
+new file mode 100644
+--- /dev/null
++++ b/__tests__/listedCategoryPrices.test.ts
+@@ -0,0 +1,204 @@
++import { describe, expect, it } from "vitest";
++
++import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
++import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
++
++const NOW = Date.parse("2026-09-29T12:00:00Z");
++
++function row(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
++  return {
++    venueId: "venue-one",
++    name: "The One",
++    category: "wine",
++    priceGbp: 5.5,
++    lane: "site-harvest",
++    standing: "listed",
++    sourceUrl: "https://pub.example/menu",
++    publisher: "The One",
++    observedAt: "2026-09-20T10:00:00Z",
++    basis: null,
++    sampleSize: null,
++    drinkLabel: "Chardonnay",
++    ...overrides,
++  };
++}
++
++describe("listed category price projection", () => {
++  it("recovers only the retained Brownswood gin's printed serving and preserves provenance", () => {
++    const gin = row({ category: "gin", priceGbp: 4.2,
++      sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", drinkLabel: "Gin ~ 25 ml Sacred –" });
++    expect(listedCategoryPrices([gin], NOW)).toEqual([
++      { source: "listed", category: "gin", priceGbp: 4.2, servingSize: "25ml",
++        sourceUrl: gin.sourceUrl, observedAt: gin.observedAt, drinkLabel: gin.drinkLabel },
++    ]);
++    expect(gin).not.toHaveProperty("servingSize");
++    expect(listedCategoryPrices([{ ...gin, servingSize: "50ml" }], NOW)[0].servingSize).toBe("50ml");
++    for (const unknown of [
++      { ...gin, drinkLabel: "Sacred" },
++      { ...gin, sourceUrl: "https://another-pub.example/menu" },
++      { ...gin, category: "vodka" },
++      { ...gin, lane: "drink-price-update" as const },
++    ]) {
++      expect(listedCategoryPrices([unknown], NOW)[0].servingSize).toBeNull();
++    }
++  });
++
++  it("keeps source, day and only stated serving for eligible non-beer quotes", () => {
++    const rows = [
++      { ...row(), servingSize: "125ml" },
++      row({ priceGbp: 31.5, drinkLabel: "Chardonnay bottle" }),
++      row({ category: "beer", priceGbp: 4.5 }),
++      row({
++        standing: "estimate",
++        sourceUrl: null,
++        basis: "model",
++        sampleSize: 4,
++      }),
++      row({
++        sourceUrl: "https://pub.example/menu",
++        observedAt: "2025-01-01T00:00:00Z",
++      }),
++      row({ sourceUrl: "https://user:pass@pub.example/menu" }),
++    ];
++
++    expect(listedCategoryPrices(rows, NOW)).toEqual([
++      {
++        source: "listed",
++        category: "wine",
++        drinkLabel: "Chardonnay",
++        priceGbp: 5.5,
++        servingSize: "125ml",
++        sourceUrl: "https://pub.example/menu",
++        observedAt: "2026-09-20T10:00:00Z",
++      },
++      {
++        source: "listed",
++        category: "wine",
++        drinkLabel: "Chardonnay bottle",
++        priceGbp: 31.5,
++        servingSize: null,
++        sourceUrl: "https://pub.example/menu",
++        observedAt: "2026-09-20T10:00:00Z",
++      },
++    ]);
++  });
++
++  it("bounds each category without sorting unknown serves by price", () => {
++    const rows = Array.from({ length: 30 }, (_, index) =>
++      row({ drinkLabel: `Wine ${index}`, priceGbp: 30 - index }),
++    );
++    const projected = listedCategoryPrices(rows, NOW);
++    expect(projected.length).toBeLessThanOrEqual(8);
++    expect(projected.map((quote) => quote.drinkLabel)).toEqual(
++      rows.slice(0, projected.length).map((quote) => quote.drinkLabel),
++    );
++  });
++
++  it("keeps the lowest eligible quote in each stated serving group when same-day rows exceed the cap", () => {
++    const rows = [
++      {
++        ...row({ drinkLabel: "Chenin glass", priceGbp: 5.75 }),
++        servingSize: "125ml",
++      },
++      {
++        ...row({ drinkLabel: "Chenin large", priceGbp: 11.5 }),
++        servingSize: "250ml",
++      },
++      {
++        ...row({ drinkLabel: "Malbec glass", priceGbp: 6.75 }),
++        servingSize: "125ml",
++      },
++      {
++        ...row({ drinkLabel: "Malbec large", priceGbp: 13.5 }),
++        servingSize: "250ml",
++      },
++      {
++        ...row({ drinkLabel: "Rioja glass", priceGbp: 5.25 }),
++        servingSize: "125ml",
++      },
++      {
++        ...row({ drinkLabel: "Rioja large", priceGbp: 10.5 }),
++        servingSize: "250ml",
++      },
++      {
++        ...row({ drinkLabel: "Chenin bottle", priceGbp: 31.5 }),
++        servingSize: "Btl",
++      },
++    ];
++
++    const projected = listedCategoryPrices(rows, NOW);
++    expect(projected.length).toBeLessThanOrEqual(4);
++    expect(projected.filter((quote) => quote.servingSize === "125ml")).toEqual([
++      expect.objectContaining({ drinkLabel: "Rioja glass", priceGbp: 5.25 }),
++    ]);
++    expect(projected.filter((quote) => quote.servingSize === "250ml")).toEqual([
++      expect.objectContaining({ drinkLabel: "Rioja large", priceGbp: 10.5 }),
++    ]);
++    expect(projected.find((quote) => quote.servingSize === "Btl")).toEqual(
++      expect.objectContaining({ drinkLabel: "Chenin bottle", priceGbp: 31.5 }),
++    );
++  });
++
++  it("uses the newest reading for one named drink and serving before comparing distinct drinks", () => {
++    const rows = [
++      {
++        ...row({ drinkLabel: "Rioja", priceGbp: 5, observedAt: "2026-07-11T10:00:00Z" }),
++        servingSize: "125ml",
++      },
++      {
++        ...row({ drinkLabel: "Rioja", priceGbp: 6, observedAt: "2026-09-29T10:00:00Z" }),
++        servingSize: "125ml",
++      },
++      {
++        ...row({ drinkLabel: "Chenin", priceGbp: 5.5, observedAt: "2026-09-28T10:00:00Z" }),
++        servingSize: "125ml",
++      },
++    ];
++
++    expect(listedCategoryPrices(rows.slice(0, 2), NOW)).toEqual([
++      expect.objectContaining({
++        drinkLabel: "Rioja",
++        priceGbp: 6,
++        observedAt: "2026-09-29T10:00:00Z",
++      }),
++    ]);
++    expect(listedCategoryPrices(rows, NOW)).toEqual([
++      expect.objectContaining({ drinkLabel: "Chenin", priceGbp: 5.5 }),
++    ]);
++  });
++
++  it("does not merge unnamed quotes with unknown servings into a drink identity", () => {
++    const rows = [
++      row({ drinkLabel: undefined, priceGbp: 7, observedAt: "2026-09-29T10:00:00Z" }),
++      row({ drinkLabel: undefined, priceGbp: 5, observedAt: "2026-09-28T10:00:00Z" }),
++    ];
++
++    expect(listedCategoryPrices(rows, NOW).map((quote) => quote.priceGbp)).toEqual([7, 5]);
++  });
++});
++
++
++describe("base-only published beer projection", () => {
++  it("opts in to listed beer without a pint assumption, rank or estimated quote", () => {
++    const beer = row({
++      venueId: "venue-uk-n10167487694", name: "Donard Bar", category: "beer",
++      priceGbp: 4.9, drinkLabel: undefined, sourceUrl: "https://donardbar.co.uk/menus/",
++      observedAt: "2026-09-04T10:00:00Z",
++    });
++    const rows = [beer, { ...beer, standing: "estimate" as const, sourceUrl: null, priceGbp: 1 }];
++    expect(listedCategoryPrices(rows, NOW)).toEqual([]);
++    expect(listedCategoryPrices(rows, NOW, { includeBeer: true })).toEqual([{
++      source: "listed", category: "beer", drinkLabel: null, priceGbp: 4.9,
++      servingSize: null, sourceUrl: "https://donardbar.co.uk/menus/",
++      observedAt: "2026-09-04T10:00:00Z",
++    }]);
++  });
++
++  it("keeps stated beer quotes in source order rather than cheapest-serving groups", () => {
++    const beers = [7, 4, 6, 5, 3].map((priceGbp, index) => ({
++      ...row({ category: "beer", drinkLabel: `Beer ${index}`, priceGbp }), servingSize: "pint",
++    }));
++    expect(listedCategoryPrices(beers, NOW, { includeBeer: true }).map(quote => quote.priceGbp))
++      .toEqual([7, 4, 6, 5]);
++  });
++});
+diff --git a/__tests__/listedPriceComparison.test.ts b/__tests__/listedPriceComparison.test.ts
+new file mode 100644
+--- /dev/null
++++ b/__tests__/listedPriceComparison.test.ts
+@@ -0,0 +1,35 @@
++import { describe, expect, it } from "vitest";
++
++import { listedServingComparisonKey } from "@/lib/listedPriceComparison";
++
++describe("listed serving comparison", () => {
++  it("groups only the same category and explicitly identical measured serve", () => {
++    expect(listedServingComparisonKey("wine", "125ml")).toBe("wine:125ml");
++    expect(listedServingComparisonKey("wine", "125 ml glass")).toBe("wine:125ml");
++    expect(listedServingComparisonKey("wine", "250ml")).toBe("wine:250ml");
++    expect(listedServingComparisonKey("gin", "25ml shot")).toBe("gin:25ml");
++  });
++
++  it("leaves unknown, bottle, mixed and ambiguous serves incomparable", () => {
++    for (const serving of [
++      null,
++      undefined,
++      "",
++      "Btl",
++      "bottle",
++      "750ml bottle",
++      "125/250ml",
++      "125ml + tonic",
++      "single",
++      "0ml",
++    ]) {
++      expect(listedServingComparisonKey("wine", serving)).toBeNull();
++    }
++  });
++
++  it("does not make beer or unselectable categories part of the drink lens", () => {
++    expect(listedServingComparisonKey("beer", "568ml")).toBeNull();
++    expect(listedServingComparisonKey("other", "125ml")).toBeNull();
++    expect(listedServingComparisonKey("juice", "125ml")).toBeNull();
++  });
++});
+diff --git a/__tests__/listedDiscoveryIndex.test.ts b/__tests__/listedDiscoveryIndex.test.ts
+new file mode 100644
+--- /dev/null
++++ b/__tests__/listedDiscoveryIndex.test.ts
+@@ -0,0 +1,43 @@
++import { beforeEach, describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++const { readFile } = vi.hoisted(() => ({ readFile: vi.fn() }));
++vi.mock("fs", () => ({ promises: { readFile } }));
++
++import { resetUkPriceBundleForTests, ukPriceBundleCategoryIndex } from "@/lib/ukPriceBundle.server";
++import { discoveryDrinkLensPrices, readListedDrinkIndex } from "@/lib/mapExperienceLens";
++
++const now = Date.parse("2026-09-29T12:00:00Z");
++const row = { venueId: "listed-only", name: "Listed", category: "wine", priceGbp: 7.5,
++  lane: "site-harvest", standing: "listed", sourceUrl: "https://pub.example/menu",
++  publisher: "Pub", observedAt: "2026-09-20T12:00:00.000Z", basis: null, sampleSize: null };
++
++beforeEach(() => { resetUkPriceBundleForTests(); readFile.mockReset(); });
++
++describe("bounded listed/community discovery", () => {
++  it("discovers listed-only venues before detail, preferring trusted community on overlap", async () => {
++    readFile.mockResolvedValue(JSON.stringify([row, { ...row, venueId: "both" }, { ...row, venueId: "stale", observedAt: "2025-01-01T00:00:00.000Z" }, { ...row, venueId: "other", category: "cocktail" }]));
++    const index = await ukPriceBundleCategoryIndex("wine", now);
++    const listed = readListedDrinkIndex(index.prices, "wine");
++    const prices = discoveryDrinkLensPrices(new Map([["both", [{ venueId: "both", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 }]]]), "wine", listed, now);
++    expect([...prices.keys()]).toEqual(["both", "listed-only"]);
++    expect(prices.get("both")).toMatchObject({ source: "community", priceGbp: 9 });
++    expect(prices.get("listed-only")).toMatchObject({ source: "listed", priceGbp: 7.5, sourceUrl: row.sourceUrl, observedAt: row.observedAt, servingSize: null });
++    expect(index).toMatchObject({ truncated: false, degraded: false });
++  });
++
++  it("caps cross-venue quotes and reports partial coverage", async () => {
++    readFile.mockResolvedValue(JSON.stringify(Array.from({ length: 1001 }, (_, i) => ({ ...row, venueId: `venue-${i}` }))));
++    const index = await ukPriceBundleCategoryIndex("wine", now);
++    expect(index.prices).toHaveLength(1000);
++    expect(index.truncated).toBe(true);
++  });
++
++  it("fails closed on missing sources and expired client-held listings", async () => {
++    readFile.mockRejectedValue(new Error("unavailable"));
++    expect(await ukPriceBundleCategoryIndex("wine", now)).toEqual({ prices: [], degraded: true, truncated: false });
++    const listed = readListedDrinkIndex([{ ...row, servingSize: null, source: "listed" }], "wine");
++    expect(discoveryDrinkLensPrices(new Map(), "wine", listed, Date.parse("2028-01-01T00:00:00Z")).size).toBe(0);
++    expect(readListedDrinkIndex([{ ...row, source: "listed", servingSize: null, sourceUrl: "javascript:alert(1)" }], "wine")).toEqual([]);
++  });
++});
+diff --git a/__tests__/priceSubmitRoute.test.ts b/__tests__/priceSubmitRoute.test.ts
+--- a/__tests__/priceSubmitRoute.test.ts
++++ b/__tests__/priceSubmitRoute.test.ts
+@@ -14,6 +14,23 @@
+ vi.mock("@/lib/supabase", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("@/lib/supabase")>();
+   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
++});
++
++const listedBundleState = vi.hoisted(() => ({
++  unavailable: false,
++  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
++}));
++vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
++  return {
++    ...actual,
++    ukPriceBundleRowsFor: async (venueId: string) =>
++      listedBundleState.unavailable
++        ? { status: "unavailable" as const, rows: [] }
++        : listedBundleState.rows !== null
++          ? { status: "ready" as const, rows: listedBundleState.rows.filter((row) => row.venueId === venueId) }
++          : actual.ukPriceBundleRowsFor(venueId),
++  };
+ });
+ 
+ const authState = vi.hoisted(() => ({ userId: null as string | null }));
+@@ -269,6 +286,8 @@
+   ukBaseIndexState.unavailable = false;
+   readBackState.override = null;
+   readBackState.statusOverride = null;
++  listedBundleState.unavailable = false;
++  listedBundleState.rows = null;
+   oneTapState.forcedOutcome = undefined;
+   oneTapState.beforeOutcome = null;
+   trustSyncState.override = null;
+@@ -1709,3 +1728,88 @@
+     expect((await res.json()).ok).toBe(true);
+   });
+ });
++
++
++describe("base venue published menu prices", () => {
++  const id = "venue-uk-n8308248176";
++  let restoreClock = () => {};
++  beforeEach(() => {
++    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T00:00:00Z"));
++    restoreClock = () => clock.mockRestore();
++    const row: import("@/lib/ukPriceBundle").UkPriceBundleRow = {
++      venueId: id, name: "The Sydney Arms", category: "wine", priceGbp: 10.5,
++      lane: "site-harvest", standing: "listed", sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
++      publisher: "sydneyarmschelsea.com", observedAt: "2026-09-29T10:40:17.846Z",
++      basis: null, sampleSize: null, servingSize: "250ml", drinkLabel: "Rioja, Spain",
++    };
++    // Reader fixture keeps this contract independent of legitimate menu updates.
++    // The actual serializer and route still decide eligibility and serving groups.
++    listedBundleState.rows = [
++      row, { ...row, priceGbp: 5.25, servingSize: "125ml" },
++      { ...row, standing: "estimate", sourceUrl: null, priceGbp: 1, drinkLabel: "Estimate" },
++      { ...row, observedAt: "2020-01-01T00:00:00.000Z", drinkLabel: "Expired", priceGbp: 1 },
++    ];
++  });
++  afterEach(() => { restoreClock(); });
++
++  it("delivers eligible exact-serving menu quotes separately from community observations", async () => {
++    const response = await GET(get(`?venueId=${id}`));
++    expect(response.status).toBe(200);
++    expect(response.headers.get("cache-control")).toContain("no-store");
++    const body = await response.json();
++    expect(body.prices).toEqual([]);
++    expect(body.signals).toEqual([]);
++    expect(body.listedPrices).toContainEqual({
++      source: "listed", category: "wine", drinkLabel: "Rioja, Spain",
++      priceGbp: 10.5, servingSize: "250ml",
++      sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
++      observedAt: "2026-09-29T10:40:17.846Z",
++    });
++    expect(body.listedPrices).toHaveLength(2);
++    expect(body.listedPrices.every((row: { source: string; category: string }) =>
++      row.source === "listed" && row.category !== "beer")).toBe(true);
++  });
++
++  it("includes a base pub's listed beer with no inferred measure and excludes estimates", async () => {
++    const beerId = "venue-uk-n10167487694";
++    const beer: import("@/lib/ukPriceBundle").UkPriceBundleRow = {
++      venueId: beerId, name: "Donard Bar", category: "beer", priceGbp: 4.9,
++      lane: "site-harvest", standing: "listed", sourceUrl: "https://donardbar.co.uk/menus/",
++      publisher: "donardbar.co.uk", observedAt: "2026-09-04T10:00:00Z",
++      basis: null, sampleSize: null,
++    };
++    listedBundleState.rows = [beer, { ...beer, standing: "estimate", sourceUrl: null, priceGbp: 1 }];
++    const body = await (await GET(get(`?venueId=${beerId}`))).json();
++    expect(body).toEqual({ prices: [], signals: [], listedPrices: [{
++      source: "listed", category: "beer", drinkLabel: null, priceGbp: 4.9,
++      servingSize: null, sourceUrl: "https://donardbar.co.uk/menus/",
++      observedAt: "2026-09-04T10:00:00Z",
++    }] });
++  });
++
++  it("keeps a published quote when community storage is degraded", async () => {
++    readBackState.statusOverride = { prices: [], degraded: true };
++    const body = await (await GET(get(`?venueId=${id}`))).json();
++    expect(body.degraded).toBe(true);
++    expect(body.prices).toEqual([]);
++    expect(body.listedPrices).toEqual(expect.arrayContaining([
++      expect.objectContaining({ drinkLabel: "Rioja, Spain", priceGbp: 10.5, servingSize: "250ml" }),
++    ]));
++  });
++
++  it("keeps community availability independent when the published read fails", async () => {
++    listedBundleState.unavailable = true;
++    const body = await (await GET(get(`?venueId=${id}`))).json();
++    expect(body).toEqual({ prices: [], signals: [], listedPrices: null });
++  });
++
++  it("answers an exact base id with no bundle rows as published-empty without inventing a pub", async () => {
++    const body = await (await GET(get("?venueId=venue-uk-n0000000000"))).json();
++    expect(body).toEqual({ prices: [], signals: [], listedPrices: [] });
++  });
++
++  it("leaves the curated per-venue payload unchanged", async () => {
++    const body = await (await GET(get("?venueId=venue-xjf3n0"))).json();
++    expect(body).not.toHaveProperty("listedPrices");
++  });
++});
+diff --git a/__tests__/communityPriceClientState.test.ts b/__tests__/communityPriceClientState.test.ts
+--- a/__tests__/communityPriceClientState.test.ts
++++ b/__tests__/communityPriceClientState.test.ts
+@@ -1,4 +1,16 @@
+-import { describe, expect, it } from "vitest";
++// @vitest-environment jsdom
++
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { act, createElement, useEffect } from "react";
++import { createRoot, type Root } from "react-dom/client";
++import { useCommunityPrices } from "@/components/map/useCommunityPrices";
++import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
++import type { UkBasePub } from "@/lib/ukBasePubs";
++import { DRINK_CATEGORIES } from "@/lib/drinks";
++
++vi.mock("@/components/auth/AuthProvider", () => ({
++  useAuth: () => ({ user: null, handle: null, identityResolved: true, loading: false, configured: true }),
++}));
+ 
+ import {
+   planProvisionalBaseVenueRead,
+@@ -329,3 +341,186 @@
+     ).toEqual([stored]);
+   });
+ });
++
++
++describe("published menu prices through the selected base read", () => {
++  const pub: UkBasePub = { id: "venue-uk-n123", name: "Test Arms", address: "", lat: 51.49, lng: -0.17, curatedVenueId: "", kind: "pub" };
++  const quote = {
++    source: "listed", category: "wine", drinkLabel: "Rioja, Spain", priceGbp: 10.5,
++    servingSize: "250ml", sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T10:40:17.846Z",
++  };
++  let root: Root | null = null;
++  let restoreClock = () => {};
++  let container: HTMLDivElement;
++  let current: ReturnType<typeof useCommunityPrices>;
++  function Surface({ selected }: { selected: UkBasePub }) {
++    const communityPrices = useCommunityPrices();
++    current = communityPrices;
++    const loadVenue = communityPrices.loadVenue;
++    // Same selected read as VenuePriceEntryPanel; dedupe must absorb both callers.
++    useEffect(() => { loadVenue(selected.id); }, [loadVenue, selected.id]);
++    return createElement(UnverifiedPubSheet, { pub: selected, communityPrices });
++  }
++  function mount(selected = pub) {
++    container = document.createElement("div");
++    document.body.append(container);
++    root = createRoot(container);
++    root.render(createElement(Surface, { selected }));
++  }
++  function mockPriceReads(read: (id: string) => Promise<Response> | Response) {
++    const fetcher = vi.fn((input: RequestInfo | URL) => {
++      const url = new URL(String(input), "http://localhost");
++      if (url.pathname === "/api/price-submit") return read(url.searchParams.get("venueId") ?? "");
++      return Promise.resolve(Response.json({ status: "ready", overlay: null }));
++    });
++    vi.stubGlobal("fetch", fetcher);
++    return fetcher;
++  }
++  beforeEach(() => {
++    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T00:00:00Z"));
++    restoreClock = () => clock.mockRestore();
++    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
++  });
++  afterEach(async () => {
++    await act(async () => { root?.unmount(); });
++    root = null;
++    container?.remove();
++    vi.unstubAllGlobals();
++    restoreClock();
++    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
++  });
++
++  it("uses the existing selected GET and keeps published rows out of community map authority", async () => {
++    const fetcher = mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [quote] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Rioja, Spain");
++    });
++    expect(container.textContent).toContain("250ml");
++    expect(current.byVenueId.get(pub.id)).toEqual([]);
++    expect(current.freshestByVenueId.has(pub.id)).toBe(false);
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++    expect(fetcher.mock.calls.filter(([input]) => String(input).startsWith("/api/price-submit?venueId="))).toHaveLength(1);
++  });
++
++  it("renders an unknown-serving listed beer without community price authority or a second GET", async () => {
++    const beer = { ...quote, category: "beer", drinkLabel: null, priceGbp: 4.9, servingSize: null,
++      sourceUrl: "https://donardbar.co.uk/menus/", observedAt: "2026-09-04T10:00:00Z" };
++    const fetcher = mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [beer] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("£4.90");
++    });
++    expect(container.textContent).toContain("Serving not recorded");
++    expect(container.textContent).not.toContain("No price yet");
++    expect(current.listedPricesByVenueId?.get(pub.id)).toEqual([beer]);
++    expect(current.byVenueId.get(pub.id)).toEqual([]);
++    expect(current.freshestByVenueId.has(pub.id)).toBe(false);
++    expect(fetcher.mock.calls.filter(([input]) => String(input).startsWith("/api/price-submit?venueId="))).toHaveLength(1);
++  });
++
++  it("accepts the bounded four quotes in every category, including neutral beer", async () => {
++    const listedPrices = DRINK_CATEGORIES.flatMap(category => Array.from({ length: 4 }, (_, index) => ({
++      ...quote, category, drinkLabel: `Drink ${category} ${index}`, servingSize: null,
++    })));
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(current.listedPricesByVenueId?.get(pub.id)).toEqual(listedPrices);
++    });
++    expect(container.textContent).not.toContain("Published menu prices unavailable just now");
++    expect(current.byVenueId.get(pub.id)).toEqual([]);
++  });
++
++  it.each([
++    { ...quote, source: "estimate" },
++    { ...quote, sourceUrl: "javascript:alert(1)" },
++    { ...quote, observedAt: "not-a-date" },
++    { ...quote, observedAt: "2024-01-01T00:00:00.000Z" },
++    { ...quote, servingSize: 250 },
++    { ...quote, drinkLabel: {} },
++    { ...quote, drinkLabel: "x".repeat(81) },
++    { ...quote, servingSize: "x".repeat(49) },
++    { ...quote, sourceUrl: `https://pub.example/${"x".repeat(2048)}` },
++  ])("does not render a malformed or expired published claim: %j", async (invalid) => {
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [invalid] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Published menu prices unavailable just now");
++    });
++    expect(container.textContent).not.toContain("£10.50");
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++  });
++
++  it("uses canonical label normalization without changing the quoted measure or amount", async () => {
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [
++      { ...quote, drinkLabel: "  Rioja, Spain  " },
++      { ...quote, drinkLabel: "   ", priceGbp: 5.25, servingSize: "125ml" },
++    ] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Rioja, Spain");
++    });
++    expect(current.listedPricesByVenueId?.get(pub.id)).toEqual([
++      { ...quote, drinkLabel: "Rioja, Spain" },
++      { ...quote, drinkLabel: null, priceGbp: 5.25, servingSize: "125ml" },
++    ]);
++    expect(container.textContent).toContain("250ml");
++    expect(container.textContent).toContain("125ml");
++  });
++
++  it("rejects overfull serving quote groups without changing the community read", async () => {
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: Array.from({ length: 5 }, () => quote) }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Published menu prices unavailable just now");
++    });
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++    expect(container.textContent).not.toContain("£10.50");
++  });
++
++  it("allows a failed published read to retry without changing community availability", async () => {
++    let attempt = 0;
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: attempt++ === 0 ? null : [quote] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Published menu prices unavailable just now");
++    });
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++    await act(async () => { current.loadVenue(pub.id); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Rioja, Spain");
++    });
++    expect(attempt).toBe(2);
++  });
++
++  it("keeps a late A response attached to A after the selected base pub changes to B", async () => {
++    let finishA!: (response: Response) => void;
++    const responseA = new Promise<Response>((resolve) => { finishA = resolve; });
++    const second = { ...pub, id: "venue-uk-n456", name: "Second Arms" };
++    mockPriceReads((id) => id === pub.id ? responseA : Response.json({ prices: [], signals: [], listedPrices: [{ ...quote, drinkLabel: "Chardonnay", priceGbp: 8 }] }));
++    await act(async () => { mount(); });
++    await act(async () => { root!.render(createElement(Surface, { selected: second })); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Chardonnay");
++    });
++    await act(async () => { finishA(Response.json({ prices: [], signals: [], listedPrices: [quote] })); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(current.listedPricesByVenueId?.get(pub.id)).toHaveLength(1);
++    });
++    expect(container.textContent).toContain("Second Arms");
++    expect(container.textContent).toContain("Chardonnay");
++    expect(container.textContent).not.toContain("Rioja, Spain");
++    expect(container.textContent).not.toContain("£10.50");
++  });
++});
+diff --git a/__tests__/unverifiedPubSheet.test.ts b/__tests__/unverifiedPubSheet.test.ts
+--- a/__tests__/unverifiedPubSheet.test.ts
++++ b/__tests__/unverifiedPubSheet.test.ts
+@@ -5,6 +5,7 @@
+ import UnverifiedPubSheet, { HarvestOverlayFields } from "@/components/map/UnverifiedPubSheet";
+ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+ import type { CommunityPrice } from "@/lib/communityPrice";
++import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
+ import type {
+   MapExperienceLens,
+   VenuePriceReadStatus,
+@@ -48,6 +49,8 @@
+     loadNoAlcoholIndex: () => {},
+     loadDrinkCategoryIndex: () => {},
+     drinkCategoryIndexStatus: new Map(),
++    listedDrinkPrices: new Map(),
++    listedPricesByVenueId: known ? new Map([[pub.id, []]]) : new Map(),
+     submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null, pintTrust: null, confirmationOutcome: null }),
+     submitVenueSignal: async () => ({ ok: true }),
+     submitting: false,
+@@ -325,3 +328,85 @@
+     expect(html).not.toMatch(/href="http:\/\//);
+   });
+ });
++
++
++describe("base published menu quote ownership", () => {
++  const listed: ListedCategoryPrice = {
++    source: "listed", category: "wine", drinkLabel: "Rioja, Spain",
++    priceGbp: 10.5, servingSize: "250ml",
++    sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
++    observedAt: "2026-09-29T10:40:17.846Z",
++  };
++  function renderPublished(
++    quotes: ListedCategoryPrice[] | null | undefined,
++    rows: CommunityPrice[] = [],
++    readStatus: VenuePriceReadStatus = "ready",
++    experienceLens: MapExperienceLens = "all",
++    drinkLensCategory: CommunityPrice["drinkCategory"] | null = null,
++  ) {
++    const communityPrices = state(rows, true, readStatus);
++    communityPrices.listedPricesByVenueId = quotes === undefined
++      ? new Map() : new Map([[pub.id, quotes]]);
++    return renderToStaticMarkup(createElement(UnverifiedPubSheet, {
++      pub, communityPrices, experienceLens, drinkLensCategory,
++    }));
++  }
++
++  it("shows an attributable exact-serving menu quote without promoting a base pub", () => {
++    const html = renderPublished([listed]);
++    expect(html).toContain("Prices on published menus");
++    expect(html).toContain("Rioja, Spain");
++    expect(html).toContain("£10.50");
++    expect(html).toContain("250ml");
++    expect(html).toContain("Price seen 29 September 2026");
++    expect(html).toContain(`href="${listed.sourceUrl}"`);
++    expect(html).not.toContain("No price yet");
++    expect(html).not.toContain("that is all we know");
++    expect(html).toContain("Prices never come from OpenStreetMap");
++  });
++
++  it("shows a published beer as unranked and says when its serving was not recorded", () => {
++    const html = renderPublished([{
++      ...listed, category: "beer", drinkLabel: null, priceGbp: 4.9, servingSize: null,
++      sourceUrl: "https://donardbar.co.uk/menus/", observedAt: "2026-09-04T10:00:00Z",
++    }]);
++    expect(html).toContain("£4.90");
++    expect(html).toContain("Serving not recorded");
++    expect(html).toContain("Price seen 4 September 2026");
++    expect(html).toContain('href="https://donardbar.co.uk/menus/"');
++    expect(html).not.toContain("No price yet");
++    expect(html).not.toContain("priceBand-");
++    expect(html).not.toContain("Confirmed");
++    expect(html).not.toContain("per pint");
++  });
++
++  it("keeps published and community claims separate without comparing different drinks", () => {
++    const html = renderPublished([listed], [{
++      id: "community-coffee", venueId: pub.id, drinkCategory: "coffee",
++      priceGbp: 3.2, submittedAt: Date.now(), source: "community", corroborations: 1,
++    }]);
++    expect(html).toContain("£10.50");
++    expect(html).toContain("£3.20");
++    expect(html).toContain("Logged by a PUBMAXXER");
++    expect(html.indexOf("Prices on published menus")).toBeLessThan(html.indexOf("Logged by a PUBMAXXER"));
++  });
++
++  it("does not hide a published reading when community storage is unavailable", () => {
++    expect(renderPublished([listed], [], "degraded")).toContain("Rioja, Spain");
++  });
++
++  it("distinguishes pending and unavailable published reads from successful empty", () => {
++    expect(renderPublished(undefined)).toContain("Checking published menu prices");
++    expect(renderPublished(undefined)).not.toContain("No price yet");
++    expect(renderPublished(null)).toContain("Published menu prices unavailable just now");
++    expect(renderPublished(null)).not.toContain("No price yet");
++    expect(renderPublished([])).toContain("No price yet");
++  });
++
++  it("does not invent a measure or answer another lens with wine", () => {
++    expect(renderPublished([{ ...listed, servingSize: null }])).toContain("Serving not recorded");
++    for (const [lens, category] of [["food", null], ["no-alcohol", null], ["all", "coffee"]] as const) {
++      expect(renderPublished([listed], [], "ready", lens, category)).not.toContain("Rioja, Spain");
++    }
++  });
++});
+diff --git a/__tests__/drinkLaneSurfaces.test.ts b/__tests__/drinkLaneSurfaces.test.ts
+--- a/__tests__/drinkLaneSurfaces.test.ts
++++ b/__tests__/drinkLaneSurfaces.test.ts
+@@ -10,6 +10,7 @@
+ import { MAP_DRINK_LANES } from "@/lib/drinkLanes";
+ import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+ import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
++import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
+ 
+ const authState = vi.hoisted(() => ({
+   current: { user: { id: "acct-1" }, loading: false } as Record<string, unknown>,
+@@ -56,12 +57,14 @@
+   laneNoun,
+   readStatus = "ready",
+   canLog = true,
++  listedPrices,
+ }: {
+   rows: CommunityPrice[] | undefined;
+   activeLane: DrinkCategory;
+   laneNoun: string;
+   readStatus?: VenuePriceReadStatus;
+   canLog?: boolean;
++  listedPrices?: ListedCategoryPrice[] | null;
+ }) {
+   return renderToStaticMarkup(
+     createElement(VenueDrinkPrices, {
+@@ -74,6 +77,7 @@
+       communityPrices,
+       onLogPrice: vi.fn(),
+       canLog,
++      listedPrices,
+     }),
+   );
+ }
+@@ -148,6 +152,63 @@
+ });
+ 
+ describe("VenueDrinkPrices", () => {
++  const wineQuote: ListedCategoryPrice = {
++    source: "listed",
++    category: "wine",
++    drinkLabel: "Chardonnay",
++    priceGbp: 5.5,
++    servingSize: null,
++    sourceUrl: "https://pub.example/menu",
++    observedAt: "2026-09-20T10:00:00Z",
++  };
++
++  it("shows a listed wine quote with its source and unknown serving, without calling it community", () => {
++    const html = renderVenuePrices({
++      rows: [],
++      activeLane: "wine",
++      laneNoun: "wine",
++      listedPrices: [wineQuote],
++    });
++    expect(html).toContain("Chardonnay");
++    expect(html).toContain("Wine · Chardonnay");
++    expect(html).toContain("£5.50");
++    expect(html).toContain("Serving not recorded");
++    expect(html).toContain("20 September 2026");
++    expect(html).toContain('href="https://pub.example/menu"');
++    expect(html).not.toContain("Logged by a PUBMAXXER");
++    expect(html).not.toContain("No wine price logged here yet");
++  });
++
++  it("keeps a listed quote visible when the community read is degraded", () => {
++    const html = renderVenuePrices({
++      rows: [],
++      activeLane: "wine",
++      laneNoun: "wine",
++      readStatus: "degraded",
++      listedPrices: [wineQuote],
++    });
++    expect(html).toContain("£5.50");
++    expect(html).toContain("Could not read drinker-logged prices just now.");
++  });
++
++  it("shows a stated serving and keeps listed-read failure separate from community prices", () => {
++    const html = renderVenuePrices({
++      rows: [price("wine", 6.2, NOW)],
++      activeLane: "wine",
++      laneNoun: "wine",
++      listedPrices: null,
++    });
++    expect(html).toContain("£6.20");
++    expect(html).toContain("Published menu prices unavailable just now.");
++    const withServing = renderVenuePrices({
++      rows: [],
++      activeLane: "wine",
++      laneNoun: "wine",
++      listedPrices: [{ ...wineQuote, servingSize: "125ml" }],
++    });
++    expect(withServing).toContain("125ml");
++    expect(withServing).not.toContain("Serving not recorded");
++  });
+   it("leads with the lane the reader is under, not the last drink logged", () => {
+     const html = renderVenuePrices({
+       rows: [price("coffee", 3.4, NOW), price("cocktail", 12, NOW - 5_000)],
+diff --git a/__tests__/venueRoute.test.ts b/__tests__/venueRoute.test.ts
+--- a/__tests__/venueRoute.test.ts
++++ b/__tests__/venueRoute.test.ts
+@@ -1,8 +1,8 @@
+-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
++import { mkdtempSync, promises as fs, readFileSync, writeFileSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import path from "node:path";
+ 
+-import { beforeEach, describe, expect, it } from "vitest";
++import { beforeEach, describe, expect, it, vi } from "vitest";
+ 
+ import { GET } from "@/app/api/venue/[id]/route";
+ import {
+@@ -12,7 +12,7 @@
+ } from "@/lib/venueDetailIndex";
+ import { resetVenueAliasesForTests } from "@/lib/venueAliases";
+ import { resetUkPriceBundleForTests } from "@/lib/ukPriceBundle.server";
+-import { isValidUkPriceBundleRow } from "@/lib/ukPriceBundle";
++import { isValidUkPriceBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
+ import { venueFromDetailPayload } from "@/lib/venues";
+ import type { SlimVenue } from "@/lib/venuesSlim";
+ 
+@@ -32,6 +32,44 @@
+ });
+ 
+ describe("GET /api/venue/[id]", () => {
++  it("withholds a misfiled mixer while carrying printed gin serving on the existing detail response", async () => {
++    const venueId = "venue-1vse4lh";
++    const observedAt = "2026-09-21T18:56:51.214Z";
++    const sourceUrl = "https://thebrownswood.co.uk/drinks-menu/";
++    const common: UkPriceBundleRow = { venueId, name: "The Brownswood", category: "gin",
++      priceGbp: 4.2, lane: "site-harvest", standing: "listed", sourceUrl,
++      publisher: "thebrownswood.co.uk", observedAt, basis: null, sampleSize: null };
++    const fixture = [
++      { ...common, drinkLabel: "Gin ~ 25 ml Sacred –" },
++      { ...common, category: "beer", priceGbp: 2.6,
++        drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-" },
++      { ...common, category: "whisky", priceGbp: 4.3, drinkLabel: "Lucky Sod –" },
++    ];
++    const readFile = fs.readFile.bind(fs);
++    const bundlePath = path.join(ROOT, "public", "data", "uk_prices", "rows.json");
++    const read = vi.spyOn(fs, "readFile").mockImplementation((file, options) =>
++      String(file) === bundlePath ? Promise.resolve(JSON.stringify(fixture)) : readFile(file, options));
++    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T12:00:00Z"));
++    try {
++      const response = await GET(new Request(`http://localhost/api/venue/${venueId}`), ctx(venueId));
++      const body = await response.json();
++      expect(response.status).toBe(200);
++      expect(body.venue.id).toBe(venueId);
++      expect(body.venue.bundlePrices.listed).toBeNull();
++      expect(body.venue.listedCategoryPrices).toEqual([
++        { source: "listed", category: "whisky", priceGbp: 4.3, servingSize: null,
++          sourceUrl, observedAt, drinkLabel: "Lucky Sod –" },
++        { source: "listed", category: "gin", priceGbp: 4.2, servingSize: "25ml",
++          sourceUrl, observedAt, drinkLabel: "Gin ~ 25 ml Sacred –" },
++      ]);
++      expect(read.mock.calls.filter(([file]) => String(file) === bundlePath)).toHaveLength(1);
++    } finally {
++      read.mockRestore();
++      clock.mockRestore();
++      resetUkPriceBundleForTests();
++    }
++  });
++
+   it("returns full detail for a slim venue id", async () => {
+     const seed = slim.find((venue) => venue.id === "venue-16pnwmm") ?? slim[0];
+     const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));
+@@ -69,6 +107,36 @@
+     if (body.venue.bundlePrices?.estimate) {
+       expect(body.venue.bundlePrices.estimate.sampleSize).toBeGreaterThan(0);
+       expect(body.venue.bundlePrices.estimate.basis.length).toBeGreaterThan(0);
++    }
++  });
++
++  it("exposes bounded, cited non-beer listings without changing the beer field", async () => {
++    const now = Date.parse("2026-09-29T12:00:00Z");
++    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
++    try {
++      const bundle = JSON.parse(
++        readFileSync(path.join(ROOT, "public", "data", "uk_prices", "rows.json"), "utf8"),
++      ) as unknown[];
++      const priced = bundle.filter(isValidUkPriceBundleRow).find(
++        (row) => row.category === "wine" && row.standing === "listed" &&
++          slim.some((venue) => venue.id === row.venueId),
++      );
++      expect(priced).toBeTruthy();
++      const res = await GET(new Request(`http://localhost/api/venue/${priced?.venueId}`), ctx(priced!.venueId));
++      const body = await res.json();
++      expect(res.status).toBe(200);
++      expect(body.venue).toHaveProperty("bundlePrices");
++      expect(body.venue.listedCategoryPrices.length).toBeGreaterThan(0);
++      expect(body.venue.listedCategoryPrices.length).toBeLessThanOrEqual(44);
++      for (const quote of body.venue.listedCategoryPrices) {
++        expect(quote).toMatchObject({ source: "listed", sourceUrl: expect.stringMatching(/^https?:\/\//) });
++        expect(quote.category).not.toBe("beer");
++        expect(Number.isFinite(Date.parse(quote.observedAt))).toBe(true);
++        expect(quote).toHaveProperty("servingSize");
++        expect(quote).not.toHaveProperty("licence");
++      }
++    } finally {
++      clock.mockRestore();
+     }
+   });
+ 
+diff --git a/__tests__/canvas-geojson.test.ts b/__tests__/canvas-geojson.test.ts
+--- a/__tests__/canvas-geojson.test.ts
++++ b/__tests__/canvas-geojson.test.ts
+@@ -369,14 +369,14 @@
+       lensPrices,
+     ).features[0]?.properties ?? {};
+ 
+-    expect(props.priceLabel).toBe("£3.20 Soft drinks");
+-    expect(props.bucket).toBe(priceBucket(3.2));
++    expect(props).not.toHaveProperty("priceLabel");
++    expect(props.bucket).toBe(priceBucket(null));
+     expect(props.drops).toBe(false);
+     expect(props.provisional).toBe(false);
+     expect(venue.cheapestPrice).toBe(6);
+   });
+ 
+-  it("shows whisky as whisky and leaves a pint-only pub unknown", () => {
++  it("keeps whisky and pint-only pubs neutral under a whisky lens", () => {
+     const known = makeVenue({ id: "known", cheapestPrice: 5 });
+     const pintOnly = makeVenue({ id: "pint-only", cheapestPrice: 4 });
+     const lensPrices = new Map([
+@@ -401,11 +401,37 @@
+     ).features;
+ 
+     expect(knownFeature?.properties).toMatchObject({
+-      bucket: priceBucket(6),
+-      priceLabel: "£6 Whisky",
+-    });
++      bucket: priceBucket(null),
++    });
++    expect(knownFeature?.properties).not.toHaveProperty("priceLabel");
+     expect(unknownFeature?.properties?.bucket).toBe(priceBucket(null));
+     expect(unknownFeature?.properties?.priceLabel).toBeUndefined();
++  });
++
++  it("does not colour or price-tag an unknown whisky serving as a pint", () => {
++    const venue = makeVenue({ id: "whisky", cheapestPrice: 5.4 });
++    const lensPrices = new Map([
++      ["whisky", {
++        venueId: "whisky",
++        category: "whisky" as const,
++        categoryLabel: "Whisky",
++        priceGbp: 6,
++        submittedAt: 2_000,
++        source: "community" as const,
++      }],
++    ]);
++    const props = pubsToGeoJSON(
++      [venue],
++      new Map<string, VenueSignal>(),
++      null,
++      "whisky",
++      null,
++      null,
++      lensPrices,
++    ).features[0]?.properties ?? {};
++
++    expect(props.bucket).toBe(priceBucket(null));
++    expect(props).not.toHaveProperty("priceLabel");
+   });
+ 
+   it("suppresses a pub's own sourced pint figure while a view owns the map", () => {
+diff --git a/__tests__/mapPriceLegend.test.ts b/__tests__/mapPriceLegend.test.ts
+--- a/__tests__/mapPriceLegend.test.ts
++++ b/__tests__/mapPriceLegend.test.ts
+@@ -152,6 +152,24 @@
+     expect(legend.hint).not.toContain("pint");
+   });
+ 
++  it("explains neutral drink pins without claiming that venue prices are absent", () => {
++    const legend = mapPriceLegend({
++      kind: "drink",
++      label: "Whisky",
++      noun: "Whisky",
++      status: "ready",
++      renderedState: UNKNOWN_RENDERED_STATE,
++    });
++    expect(legend.rows.map((row) => row.tone)).toEqual(["grey"]);
++    expect(legend.rows[0]?.label).toBe("Price not shown on pins");
++    expect(legend.title).toBe("Whisky view");
++    expect(legend.priceCapFilter).toBe(false);
++    expect(legend.hint).toContain("servings cannot be compared");
++    expect(legend.hint).toContain("venue details");
++    expect(legend.hint).not.toContain("no current venue has");
++    expect(legend.clusterNote).toContain("servings cannot be compared");
++  });
++
+   it("names coffee empty bands without pint or no-alcohol wording", () => {
+     const noun = drinkLensPriceNoun("coffee");
+     const legend = mapPriceLegend({
+@@ -186,6 +204,27 @@
+     );
+     expect(legend.hint).toContain("alcohol-free or soft drink prices");
+     expect(legend.rows.at(-1)?.label).not.toContain("No no-alcohol");
++  });
++
++  it("explains neutral no-alcohol pins without implying missing venue prices", () => {
++    const legend = mapPriceLegend({
++      kind: "drink",
++      label: "No-alcohol",
++      noun: NO_ALCOHOL_LENS_PRICE_NOUN,
++      status: "ready",
++      renderedState: UNKNOWN_RENDERED_STATE,
++    });
++
++    expect(legend.title).toBe("No-alcohol view");
++    expect(legend.rows).toEqual([
++      {
++        label: "Price not shown on pins",
++        symbol: "?",
++        tone: "grey",
++      },
++    ]);
++    expect(legend.noAlcoholNote).toContain("venue details");
++    expect(legend.priceCapFilter).toBe(false);
+   });
+ 
+   it("keeps a truncated read painting trusted prices, saying so", () => {
+diff --git a/__tests__/mapExperienceLens.test.ts b/__tests__/mapExperienceLens.test.ts
+--- a/__tests__/mapExperienceLens.test.ts
++++ b/__tests__/mapExperienceLens.test.ts
+@@ -372,6 +372,12 @@
+     expect(degraded).not.toBeNull();
+   });
+ 
++  it("allows visible prices when one of the listed and community sources fails", () => {
++    const degraded = drinkLensCoverageNote("whisky", "degraded");
++    expect(degraded).toContain("Any prices shown");
++    expect(degraded).not.toContain("none are shown");
++  });
++
+   it("marks an unstarted or in-flight read as unfinished", () => {
+     expect(drinkLensCoverageNote("whisky", "idle")).toContain("Checking");
+     expect(drinkLensCoverageNote("whisky", "loading")).toContain("Checking");
+diff --git a/__tests__/planSelectedDrinkEvidenceVariant.test.ts b/__tests__/planSelectedDrinkEvidenceVariant.test.ts
+new file mode 100644
+--- /dev/null
++++ b/__tests__/planSelectedDrinkEvidenceVariant.test.ts
+@@ -0,0 +1,66 @@
++import { describe, expect, it } from "vitest";
++
++import {
++  cleanSelectedDrinkPriceEvidence,
++  selectedDrinkPriceDescription,
++} from "@/lib/planSelectedDrinkPriceEvidence";
++
++const listed = {
++  category: "wine",
++  pence: 525,
++  serving: "125ml",
++  source: "listed",
++  sourceUrl: "https://example.org/menu",
++  observedAt: "2026-09-29T10:40:17.846Z",
++} as const;
++
++describe("Plan selected drink evidence variants", () => {
++  it("keeps a bounded listed citation and its explicit serving", () => {
++    expect(cleanSelectedDrinkPriceEvidence(listed)).toEqual(listed);
++    expect(selectedDrinkPriceDescription(listed)).toContain("125ml");
++    expect(selectedDrinkPriceDescription(listed)).toContain("published menu");
++  });
++
++  it("marks absent listed serving as unknown", () => {
++    const evidence = { ...listed, serving: null };
++    expect(cleanSelectedDrinkPriceEvidence(evidence)).toEqual(evidence);
++    expect(selectedDrinkPriceDescription(evidence)).toContain(
++      "Serving size not recorded",
++    );
++  });
++
++  it.each([
++    { ...listed, sourceUrl: "javascript:alert(1)" },
++    { ...listed, sourceUrl: "https://example.org/me\nnu" },
++    { ...listed, sourceUrl: "https://person:secret@example.org/menu" },
++    { ...listed, sourceUrl: "https://example.org/" + "x".repeat(2048) },
++    { ...listed, observedAt: "2026-09-29" },
++    { ...listed, serving: "x".repeat(49) },
++    { ...listed, serving: "125\nml" },
++    { ...listed, pence: 0 },
++  ])("rejects malformed listed evidence", (invalid) => {
++    expect(cleanSelectedDrinkPriceEvidence(invalid)).toBeNull();
++  });
++
++  it("preserves the exact five-field community shape", () => {
++    const community = {
++      category: "wine",
++      pence: 550,
++      serving: null,
++      source: "community",
++      reportedAt: "2026-09-25T12:00:00.000Z",
++    };
++    expect(
++      cleanSelectedDrinkPriceEvidence({ ...community, contributor: "private" }),
++    ).toEqual(community);
++    expect(
++      cleanSelectedDrinkPriceEvidence({
++        ...community,
++        sourceUrl: listed.sourceUrl,
++      }),
++    ).toEqual(community);
++    expect(
++      cleanSelectedDrinkPriceEvidence({ ...community, serving: "125ml" }),
++    ).toBeNull();
++  });
++});
+diff --git a/__tests__/lonePintDropLane.test.ts b/__tests__/lonePintDropLane.test.ts
+--- a/__tests__/lonePintDropLane.test.ts
++++ b/__tests__/lonePintDropLane.test.ts
+@@ -137,6 +137,7 @@
+     loadNoAlcoholIndex: noop,
+     loadDrinkCategoryIndex: noop,
+     drinkCategoryIndexStatus: new Map(),
++    listedDrinkPrices: new Map(),
+     provisionalBaseVenueIds: new Set(),
+     loadProvisionalBaseVenues: noop,
+     loadVenue: noop,
+diff --git a/__tests__/overviewPriceDoor.test.ts b/__tests__/overviewPriceDoor.test.ts
+--- a/__tests__/overviewPriceDoor.test.ts
++++ b/__tests__/overviewPriceDoor.test.ts
+@@ -164,6 +164,7 @@
+     loadNoAlcoholIndex: noop,
+     loadDrinkCategoryIndex: noop,
+     drinkCategoryIndexStatus: new Map(),
++    listedDrinkPrices: new Map(),
+     provisionalBaseVenueIds: new Set(),
+     loadProvisionalBaseVenues: noop,
+     loadVenue: noop,
+diff --git a/__tests__/pintPriceSplit.test.ts b/__tests__/pintPriceSplit.test.ts
+--- a/__tests__/pintPriceSplit.test.ts
++++ b/__tests__/pintPriceSplit.test.ts
+@@ -136,6 +136,7 @@
+     loadNoAlcoholIndex: () => {},
+     loadDrinkCategoryIndex: () => {},
+     drinkCategoryIndexStatus: new Map(),
++    listedDrinkPrices: new Map(),
+     provisionalBaseVenueIds: new Set(),
+     loadProvisionalBaseVenues: () => {},
+     loadVenue: () => {},
+diff --git a/__tests__/pintTrust.test.ts b/__tests__/pintTrust.test.ts
+--- a/__tests__/pintTrust.test.ts
++++ b/__tests__/pintTrust.test.ts
+@@ -182,6 +182,7 @@
+     loadNoAlcoholIndex: noop,
+     loadDrinkCategoryIndex: noop,
+     drinkCategoryIndexStatus: new Map(),
++    listedDrinkPrices: new Map(),
+     provisionalBaseVenueIds: new Set(),
+     loadProvisionalBaseVenues: noop,
+     loadVenue: noop,
+diff --git a/__tests__/priceSourcePresentation.test.ts b/__tests__/priceSourcePresentation.test.ts
+--- a/__tests__/priceSourcePresentation.test.ts
++++ b/__tests__/priceSourcePresentation.test.ts
+@@ -145,6 +145,7 @@
+     loadNoAlcoholIndex: noop,
+     loadDrinkCategoryIndex: noop,
+     drinkCategoryIndexStatus: new Map(),
++    listedDrinkPrices: new Map(),
+     provisionalBaseVenueIds: new Set(),
+     loadProvisionalBaseVenues: noop,
+     loadVenue: noop,
+diff --git a/__tests__/venueAreaPriceCompare.test.ts b/__tests__/venueAreaPriceCompare.test.ts
+--- a/__tests__/venueAreaPriceCompare.test.ts
++++ b/__tests__/venueAreaPriceCompare.test.ts
+@@ -327,6 +327,7 @@
+       loadNoAlcoholIndex: noop,
+       loadDrinkCategoryIndex: noop,
+       drinkCategoryIndexStatus: new Map(),
++    listedDrinkPrices: new Map(),
+       provisionalBaseVenueIds: new Set(),
+       loadProvisionalBaseVenues: noop,
+       loadVenue: noop,
+diff --git a/__tests__/venueCommunitySignals.test.ts b/__tests__/venueCommunitySignals.test.ts
+--- a/__tests__/venueCommunitySignals.test.ts
++++ b/__tests__/venueCommunitySignals.test.ts
+@@ -276,6 +276,7 @@
+       loadNoAlcoholIndex: noop,
+       loadDrinkCategoryIndex: noop,
+       drinkCategoryIndexStatus: new Map(),
++      listedDrinkPrices: new Map(),
+       provisionalBaseVenueIds: new Set(),
+       loadProvisionalBaseVenues: noop,
+       loadVenue: noop,
+diff --git a/__tests__/siteHarvestReconciliation.test.ts b/__tests__/siteHarvestReconciliation.test.ts
+--- a/__tests__/siteHarvestReconciliation.test.ts
++++ b/__tests__/siteHarvestReconciliation.test.ts
+@@ -5,10 +5,18 @@
+ import { describe, expect, it, vi } from "vitest";
+ 
+ import {
++  normalizeSiteHarvestLedgerRow,
+   parseSiteHarvestLedgerText,
+   type SiteHarvestLedgerRow,
+ } from "@/lib/siteHarvestLedger";
+ import { isHarvestableDrinkUpdateUrl } from "@/lib/harvest/sourcePolicy";
++import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
++import {
++  bundleRowServingSize,
++  isCategoryQuarantined,
++  isValidUkPriceBundleRow,
++  type UkPriceBundleRow,
++} from "@/lib/ukPriceBundle";
+ 
+ vi.mock("server-only", () => ({}));
+ 
+@@ -459,23 +467,64 @@
+ 
+     const bundleRows = JSON.parse(
+       readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+-    ) as Array<{
+-      sourceUrl: string | null;
+-      lane: string;
+-      drinkLabel?: string;
+-      servingSize?: string;
+-      priceGbp: number;
+-      observedAt: string;
+-    }>;
++    ) as UkPriceBundleRow[];
+     const bundledSourceRows = bundleRows.filter(
+       (row) => row.sourceUrl === publication.sourceUrl && row.lane === "site-harvest",
+     );
+     const identity = (row: { drinkLabel?: string; servingSize?: string; priceGbp?: number; observedAt?: string }) =>
+       `${row.drinkLabel}|${row.servingSize}|${row.priceGbp}|${row.observedAt}`;
+     expect(bundledSourceRows.map(identity).sort()).toEqual(sourceRows.map(identity).sort());
+-    expect(publication.currentBundle).toEqual({
+-      rowCount: bundleRows.length,
+-      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+-    });
++    // This records the September 29 publication, not every later bundle build.
++    expect(publication.currentBundle).toEqual({ rowCount: 7603, siteHarvestRows: 3083 });
++    const ledgerBundleRows: unknown[] = rows.map((row) => ({
++      venueId: row.venueId,
++      name: row.name ?? null,
++      category: row.category,
++      priceGbp: row.priceGbp,
++      lane: "site-harvest",
++      standing: "listed",
++      sourceUrl: row.sourceUrl ?? null,
++      publisher: row.host ?? null,
++      observedAt: row.observedAt,
++      basis: null,
++      sampleSize: null,
++      ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
++      ...bundleDrinkFieldsFromPrintedName(row.drinkLabel ?? row.drinkName ?? null, row.category ?? ""),
++    }));
++    const validLedgerRows = ledgerBundleRows.filter(isValidUkPriceBundleRow);
++    expect(validLedgerRows).toHaveLength(rows.length);
++    const quarantined = validLedgerRows.filter(isCategoryQuarantined);
++    expect(quarantined).toHaveLength(37);
++    const historicalQuarantineCount = publication.currentLedger.rowCount - publication.currentBundle.siteHarvestRows;
++    expect(historicalQuarantineCount).toBe(23);
++    const additionalQuarantines = quarantined.length - historicalQuarantineCount;
++    const publishedSiteRows = bundleRows.filter((row) => row.lane === "site-harvest");
++    expect(bundleRows).toHaveLength(publication.currentBundle.rowCount - additionalQuarantines);
++    expect(publishedSiteRows).toHaveLength(publication.currentBundle.siteHarvestRows - additionalQuarantines);
++
++    // Curated aliases change venue IDs. Every other published claim must still
++    // match its source, including the literal serving recovered by the builder.
++    const claimIdentity = (row: UkPriceBundleRow) => JSON.stringify([
++      row.sourceUrl, row.category, row.priceGbp, row.drinkLabel ?? null,
++      row.observedAt, row.servingSize ?? null,
++    ]);
++    const publishedClaims = publishedSiteRows.map(claimIdentity).sort();
++    for (const row of quarantined) {
++      expect(publishedClaims).not.toContain(claimIdentity(row));
++    }
++    const retainedClaims = validLedgerRows.filter((row) => !isCategoryQuarantined(row))
++      .map((row) => {
++        const normalized = normalizeSiteHarvestLedgerRow({
++          category: row.category, drinkLabel: row.drinkLabel, servingSize: row.servingSize,
++        });
++        return { ...row,
++          ...(normalized.drinkLabel !== undefined ? { drinkLabel: normalized.drinkLabel } : {}),
++          ...(normalized.servingSize !== undefined ? { servingSize: normalized.servingSize } : {}),
++        };
++      })
++      .map((row) => ({ ...row, ...bundleDrinkFieldsFromPrintedName(row.drinkLabel ?? null, row.category) }))
++      .filter((row) => !isCategoryQuarantined(row))
++      .map((row) => claimIdentity({ ...row, servingSize: bundleRowServingSize(row) })).sort();
++    expect(publishedClaims).toEqual(retainedClaims);
+   });
+ });
+diff --git a/lib/planSelectedDrinkPriceEvidence.server.ts b/lib/planSelectedDrinkPriceEvidence.server.ts
+--- a/lib/planSelectedDrinkPriceEvidence.server.ts
++++ b/lib/planSelectedDrinkPriceEvidence.server.ts
+@@ -36,10 +36,10 @@
+     return targets.map((stop, position) => {
+       const hint = requested[position];
+       const price = trusted.get(stop.venueId);
+-      if (!hint || hint.category !== category || !price || price.source !== "community"
++      if (!hint || hint.source !== "community" || hint.category !== category || !price || price.source !== "community"
+         || typeof price.submittedAt !== "number") return { ...stop };
+       const serverEvidence = selectedDrinkPriceEvidenceForPrice(price, context!);
+-      return serverEvidence && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
++      return serverEvidence?.source === "community" && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
+         ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
+         : { ...stop };
+     });
+diff --git a/__tests__/planSelectedDrinkEvidenceCreate.test.ts b/__tests__/planSelectedDrinkEvidenceCreate.test.ts
+--- a/__tests__/planSelectedDrinkEvidenceCreate.test.ts
++++ b/__tests__/planSelectedDrinkEvidenceCreate.test.ts
+@@ -233,4 +233,19 @@
+     const changed = await submit({ ...body, stops: [{ ...body.stops[0], selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }] });
+     expect(changed.status).toBe(409);
+   });
+-});
++  it("does not turn a listed display hint into server-verified community evidence", async () => {
++    const submittedAt = Date.now();
++    const reportedAt = new Date(submittedAt).toISOString();
++    categoryIndexMock.mockResolvedValue({
++      prices: [{ venueId: "venue-a", drinkCategory: "wine", priceGbp: 7.5,
++        submittedAt, source: "community", corroborations: 2 }],
++      degraded: false, truncated: false,
++    });
++    const listed = { category: "wine", pence: 750, serving: "125ml", source: "listed",
++      sourceUrl: "https://pub.example/menu", observedAt: reportedAt, reportedAt };
++    expect((await create("wine", listed)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++    const community = { category: "wine", pence: 750, serving: null, source: "community", reportedAt };
++    expect((await create("wine", community)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(community);
++  });
++
++});

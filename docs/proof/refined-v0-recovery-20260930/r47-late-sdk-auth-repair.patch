@@ -1,0 +1,173 @@
+diff --git a/components/auth/AuthProvider.tsx b/components/auth/AuthProvider.tsx
+index 757e6f7..e851a29 100644
+--- a/components/auth/AuthProvider.tsx
++++ b/components/auth/AuthProvider.tsx
+@@ -295,6 +295,13 @@ function callbackAccountBanned(attempt: AuthCallbackAttempt | null, unownedAccou
+   return Boolean(attempt?.accountBanned || unownedAccountBanned);
+ }
+ 
++type PendingBootstrapInstall = {
++  input: Pick<Session, "access_token" | "refresh_token">;
++  cancelled: boolean;
++  signedOut: boolean;
++  buffered: Session[];
++};
++
+ type PendingCallbackRestore = {
+   input: Session;
+   cancelled: boolean;
+@@ -374,6 +381,7 @@ export function AuthProvider({
+           : "signed-out";
+   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+   const bootstrapAbort = useRef<AbortController | null>(null);
++  const pendingBootstrapInstall = useRef<PendingBootstrapInstall | null>(null);
+   const callbackConfirmationCancelled = useRef(false);
+   const callbackConfirmationInFlight = useRef<Promise<void> | null>(null);
+   const callbackConfirmationInstallingUserId = useRef<string | null>(null);
+@@ -579,7 +587,6 @@ export function AuthProvider({
+ 
+     let active = true;
+     let subscription: { unsubscribe: () => void } | null = null;
+-    let installingRestoredAccessToken: string | null = null;
+     // Session restoration is additive; it must never hold the anonymous app or
+     // Pub Pal onboarding behind an infinite loading screen when the provider is
+     // slow, blocked, or temporarily unavailable. This fail-soft boundary also
+@@ -681,6 +688,14 @@ export function AuthProvider({
+           sessionTransitions.current.currentUserId() === null &&
+           readProviderAuthState("supabase") === "unresolved") return;
+         if (deferPendingRestoreAuthEvent(pendingCallbackRestore.current, event, nextSession)) return;
++        const bootstrapInstall = pendingBootstrapInstall.current;
++        // Retired SDK installs can still emit a rotated session. Buffer until
++        // setSession returns its actual token pair before choosing a successor.
++        if (bootstrapInstall?.cancelled && nextSession &&
++          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
++          bootstrapInstall.buffered.push(nextSession);
++          return;
++        }
+         // A callback accepted before explicit logout can finish setSession
+         // later. It cannot retake the visible account or become a newer login.
+         if (nextSession && isDeferredCancelledAuthEvent(
+@@ -704,11 +719,17 @@ export function AuthProvider({
+         }
+         // A later auth decision owns the session. Cookie restore's own
+         // SIGNED_IN carries the token marked just before setSession.
+-        if (
+-          event === "SIGNED_OUT" ||
+-          (event === "SIGNED_IN" &&
+-            nextSession?.access_token !== installingRestoredAccessToken)
+-        ) {
++        const matchesBootstrapInput = bootstrapInstall && nextSession &&
++          nextSession.access_token === bootstrapInstall.input.access_token &&
++          nextSession.refresh_token === bootstrapInstall.input.refresh_token;
++        if (event === "SIGNED_OUT" || (event === "SIGNED_IN" && !matchesBootstrapInput)) {
++          if (bootstrapInstall) {
++            bootstrapInstall.cancelled = true;
++            if (event === "SIGNED_OUT") {
++              bootstrapInstall.signedOut = true;
++              bootstrapInstall.buffered = [];
++            }
++          }
+           bootstrapController.abort();
+         }
+         const signedIn = updateSession(nextSession ?? null, event);
+@@ -865,6 +886,26 @@ export function AuthProvider({
+         else await supabase.auth.signOut({ scope: "local" });
+       };
+ 
++      const reconcileBootstrapInstall = async (installed: Session | null): Promise<void> => {
++        const pending = pendingBootstrapInstall.current;
++        if (!pending) return;
++        pendingBootstrapInstall.current = null;
++        if (!active || !pending.cancelled) return;
++        const belongsToInstall = (candidate: Session) =>
++          (candidate.access_token === pending.input.access_token &&
++            candidate.refresh_token === pending.input.refresh_token) ||
++          (installed !== null && candidate.access_token === installed.access_token &&
++            candidate.refresh_token === installed.refresh_token);
++        const newer = pending.buffered.findLast((candidate) => !belongsToInstall(candidate)) ??
++          (latestSignedInSession.current && !belongsToInstall(latestSignedInSession.current)
++            ? latestSignedInSession.current : null);
++        if (newer) {
++          await restoreAfterCancelledCallback(newer);
++        } else if (pending.signedOut) {
++          await supabase.auth.signOut({ scope: "local" });
++        }
++      };
++
+       const reconcileCancelledCallbackInstall = async (
+         exchangedSession: Session | null,
+       ) => {
+@@ -1005,11 +1046,13 @@ export function AuthProvider({
+           {
+             signal: bootstrapController.signal,
+             onBeforeSetSession: (restored) => {
+-              installingRestoredAccessToken = restored.access_token;
++              pendingBootstrapInstall.current = {
++                input: restored, cancelled: false, signedOut: false, buffered: [],
++              };
+             },
++            onAfterSetSession: reconcileBootstrapInstall,
+           },
+         ).catch(() => ({ status: "unavailable" } as const)));
+-        installingRestoredAccessToken = null;
+         if (!active) return;
+         // A newer auth event cancels stale cookie restoration, but does not
+         // cancel the independently verified callback confirmation.
+@@ -1241,6 +1284,11 @@ export function AuthProvider({
+       callbackCancellationSignedInVersion.current = signedInVersionAtLogout;
+       setAuthCallbackConfirmation(null);
+       bootstrapAbort.current?.abort();
++      if (pendingBootstrapInstall.current) {
++        pendingBootstrapInstall.current.cancelled = true;
++        pendingBootstrapInstall.current.signedOut = true;
++        pendingBootstrapInstall.current.buffered = [];
++      }
+       updateSession(null, "SIGNED_OUT");
+       setSessionLoading(false);
+       // An accepted callback may already be installing its session. Let that
+diff --git a/lib/authSessionBootstrap.ts b/lib/authSessionBootstrap.ts
+index 59d9c1a..a534a36 100644
+--- a/lib/authSessionBootstrap.ts
++++ b/lib/authSessionBootstrap.ts
+@@ -12,7 +12,7 @@ export type BrowserAuthSession = {
+   setSession: (session: {
+     access_token: string;
+     refresh_token: string;
+-  }) => Promise<{ error: unknown | null }>;
++  }) => Promise<{ data?: { session: Session | null }; error: unknown | null }>;
+ };
+ 
+ export type AuthSessionBootstrapOutcome =
+@@ -31,6 +31,7 @@ export type AuthSessionBootstrapDeps = {
+   redeem?: () => Promise<RedeemResult>;
+   signal?: AbortSignal;
+   onBeforeSetSession?: (session: { access_token: string; refresh_token: string }) => void;
++  onAfterSetSession?: (session: Session | null) => Promise<void> | void;
+ };
+ 
+ /** Two bounded same-origin resume calls can run on a slow mobile connection. */
+@@ -114,12 +115,23 @@ export async function bootstrapAuthSession(
+   // Logout may have cleared both stores while a cookie redemption was held.
+   // Never install that old account into the live SDK after the user leaves.
+   if (deps.signal?.aborted) return { status: "unavailable" };
++  let installed: Session | null = null;
++  let installationFailed = false;
+   try {
+     deps.onBeforeSetSession?.(restored.session);
+     const result = await auth.setSession(restored.session);
+-    if (result.error) return { status: "unavailable" };
++    installed = result.data?.session ?? null;
++    installationFailed = Boolean(result.error);
++  } catch {
++    installationFailed = true;
++  }
++  // Even a failed SDK install can have emitted an auth event before answering.
++  // Finish its owner reconciliation before the bootstrap promise settles.
++  try {
++    await deps.onAfterSetSession?.(installed);
+   } catch {
+     return { status: "unavailable" };
+   }
++  if (installationFailed) return { status: "unavailable" };
+   return { status: "restored", session: restored.session };
+ }

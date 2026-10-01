@@ -11,9 +11,9 @@
 // error tells a reader the city has nothing on.
 
 import snapshot from "@/public/data/night_signals/latest.json";
-import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
+import { jsonNoStore } from "@/lib/apiResponses";
 import { activeNightSignalClaims, type NightSignalClaim } from "@/lib/nightSignalClaims";
-import { nightSignalCandidateStore, nightSignalStoreIsDurable } from "@/lib/nightSignalStore.server";
+import { nightSignalCandidateStore } from "@/lib/nightSignalStore.server";
 import { fireAndForgetPush, maybeBroadcastNightSignalLive } from "@/lib/pushSender";
 
 export async function GET(request: Request): Promise<Response> {
@@ -36,7 +36,6 @@ export async function GET(request: Request): Promise<Response> {
     })),
   ));
 
-  const durableConfigured = nightSignalStoreIsDurable();
   const reviewed = await nightSignalCandidateStore().approved(Date.now());
   const merged = new Map<string, NightSignalClaim>(active.map((claim) => [claim.id, claim]));
   if (reviewed.status === "ready") {
@@ -50,10 +49,7 @@ export async function GET(request: Request): Promise<Response> {
     durable: reviewed.status === "ready" ? ("ready" as const) : ("unavailable" as const),
     claims,
   };
-  // A body that reads mutable rows may not be held at the edge. Without a
-  // durable store the answer is a pure function of the deployment, exactly as
-  // it was before, so that read keeps its cache window.
-  return durableConfigured
-    ? jsonNoStore(body)
-    : jsonCached(body, { sMaxAge: 300, staleWhileRevalidate: 600 });
+  // The merged answer can change when a moderator approves a stored row or
+  // when an approved row expires. That is true of durable and memory stores.
+  return jsonNoStore(body);
 }

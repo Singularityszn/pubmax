@@ -1,0 +1,11 @@
+{
+  "recordedAt": "2026-09-30T12:14:13.084085+00:00",
+  "scope": "Post-R24 loan source-only minimal GPS callback and SW fixture candidates",
+  "files": {
+    "components/PubMap.tsx": "e3c1dfb6f0e8fa7c13f66d03388fe6b5704b154d2af2df77c6664b2990e181b1",
+    "e2e/map-service-worker.spec.ts": "5cddbca5a6e535c4f1e53f114bf0dd7cbb3aae88f00b9c93ea1e311c58d4b5da"
+  },
+  "verification": "No runtime/type/lint/build after these two corrections; R23 artifact is now older application source",
+  "sourceBeforeEvidence": "r24-gps-native.json and r24-sw-original-red.log",
+  "gitPublication": "No index/commit/push/PR/merge/deploy/sharedSQL"
+}

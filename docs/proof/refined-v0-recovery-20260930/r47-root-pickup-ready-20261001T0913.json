@@ -1,0 +1,41 @@
+{
+  "at": "2026-10-01T09:12:27.330774+00:00",
+  "status": "CURRENT_READY_ROOT_PICKUP_FOUR_FROZEN_PACKETS",
+  "packets": [
+    {
+      "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-collaboration-concurrency-production.patch",
+      "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-collaboration-concurrency-production.json",
+      "sha256": "e40c628a44d3f2737b38deb3fcc669c57b921a52218c7576571996703268121c",
+      "currentRootApplyCheck": "PASS afterRoot62performance andUIcomposition",
+      "runtime": "Pending Root; concurrency alreadyactualRED productionready, others test-only before anyproduction"
+    },
+    {
+      "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-map-route-evidence-test-v2.patch",
+      "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-map-route-evidence-test-v2.json",
+      "sha256": "14dc2070fade1187f296d617130a3e8d4744c0483d9b6fca5c953709e043dce5",
+      "currentRootApplyCheck": "PASS afterRoot62performance andUIcomposition",
+      "runtime": "Pending Root; concurrency alreadyactualRED productionready, others test-only before anyproduction"
+    },
+    {
+      "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-backup-idempotency-compat.patch",
+      "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-backup-idempotency-compat.json",
+      "sha256": "c21b85b861c9c6f9fce564e239af14f9b3e669b1d22d21b0855da72a3b9d3651",
+      "currentRootApplyCheck": "PASS afterRoot62performance andUIcomposition",
+      "runtime": "Pending Root; concurrency alreadyactualRED productionready, others test-only before anyproduction"
+    },
+    {
+      "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-alcohol-coverage-test-first.patch",
+      "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-alcohol-coverage-test-first.json",
+      "sha256": "b67083da14103d59436b7dda7ade48b4cad14c6bd4b17ccc8826fcfb93201651",
+      "currentRootApplyCheck": "PASS afterRoot62performance andUIcomposition",
+      "runtime": "Pending Root; concurrency alreadyactualRED productionready, others test-only before anyproduction"
+    }
+  ],
+  "pending": "Luna fullPG mandatory0176-0182 +5twins fixture underSolread-onlyreview, sourcefreeze next. Registry/CI Rootadditive owner preservefriend/group.",
+  "currentSharedPins": {
+    "lib/plan.ts": "ba218fcb001e2da8afaac4212db61a02d34d71715106e8a70c928982df4599b1",
+    "components/plan/PlanComposer.tsx": "3dda1bb6ada6f775f9323eca76bf3673437fd534776f68a1d6e8aab8ba6d60ac",
+    "lib/planCollaborationStore.ts": "5862c504c16ee1b37a3773896869128d3e3dfc273779655e8265d6c387a64ed2"
+  },
+  "overlap": "Do not reapply wholev4. RootpureisPlanId performance change +freshqueryComposer validsubsequentcompositions. Preserve updatedbeforepins."
+}

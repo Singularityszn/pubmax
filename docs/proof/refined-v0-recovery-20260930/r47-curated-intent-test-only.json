@@ -1,0 +1,73 @@
+{
+  "status": "FROZEN: isolated focused RED/GREEN observed; Root/native integration UNRUN",
+  "root": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baseHead": "70147880b91f4da291a46d90d59cf952747bd060",
+  "scratch": "/tmp/pubmaxx-r47-curated-intent-isolated",
+  "patch": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-curated-intent-test-only.patch",
+    "sha256": "a129175bde3133c6de875e852b8560bcb4e85156a6ac54864b4fc3adada094bf"
+  },
+  "files": [
+    {
+      "path": "__tests__/mapSeedCrawl.test.ts",
+      "beforeSha256": "602220c22c6f12bf5091aeb8b9c112c3ee02cc936e8436183e1cb516676a2ee9",
+      "afterSha256": "bf929c314be908d70e7356c08fc142dfb8a46f234e6d81f324af07a3d6580045"
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "lib/crawlUrl.ts",
+      "sha256": "eb43872e1478c6d239d5a98efd2dd43990966ca286467371b2a208e6f71bd4e6",
+      "reason": "Existing closed route intent parser, unchanged by packet"
+    }
+  ],
+  "sourceChecks": {
+    "currentRootBeforeMatches": true,
+    "gitApplyCheckWhitespaceErrorAll": true,
+    "freshScratchApplicationAfterMatches": true
+  },
+  "focusedCommand": "node /Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/node_modules/vitest/vitest.mjs run __tests__/mapSeedCrawl.test.ts --maxWorkers=1 --reporter=json --outputFile=<isolated report.json>",
+  "results": {
+    "red": {
+      "numTotalTests": 18,
+      "numPassedTests": 15,
+      "numFailedTests": 3,
+      "numPendingTests": 0
+    },
+    "green": {
+      "numTotalTests": 18,
+      "numPassedTests": 18,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    }
+  },
+  "rawEvidence": {
+    "red.json": {
+      "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-curated-intent-red.json",
+      "sha256": "b7fb4331f254247e870ba21a231474810be8777ce420479e6bbee7ebe3762c24"
+    },
+    "red.log": {
+      "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-curated-intent-red.log",
+      "sha256": "ff944022b88ca79ffc723225eb49004c74e926d973c57de41346bb343f76773d"
+    },
+    "green.json": {
+      "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-curated-intent-green.json",
+      "sha256": "095ecd29801987e9aa1134e0033d21654da249d7fbdae7098b9a992e276cba5b"
+    },
+    "green.log": {
+      "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-curated-intent-green.log",
+      "sha256": "7aeac7f5b5bdf095116610fdd393441993b6f428231dc1b3e37b12064dba74aa"
+    }
+  },
+  "redExitCode": 1,
+  "greenExitCode": 0,
+  "setupNote": "First isolation launch had zero assertions because static data/freshness_registry.json was absent. Archived separately in scratch as isolation-setup-error.json/log; not counted as behavior RED. Static imported public/data JSON was copied, then actual 18 assertions executed.",
+  "isolation": "Non-secret lib source/configs and statically imported public/data JSON copied. Dependency package symlinks point read-only to installed Root packages; node_modules/.vite-temp and caches are scratch-local. No .env files copied. No maintained product/test edits.",
+  "contract": "Validated explicit public routeDrink/nonbeer or routeLow=1 with actual decoded public stops bypasses curated catalog adoption. Generic curated arrivals, invalid public values and existing independent drink/cocktail lenses preserve behavior. Clearing all route fields does not require catalog.",
+  "scope": "Policy only; no PubMap, crawlUrl, Plan components, data, quote/proof/GPS/timing/storage/reset changes.",
+  "limits": [
+    "Focused pure-policy tests do not prove native UI geometry, Clear action, quote/provenance loading or browser hydration. Root must run permanent solution-agnostic browser acceptance/fresh build/full gates.",
+    "Historical d532 catalog-blurb adoption test is diagnostic pre-fix only. Bypass legitimately does not adopt catalog blurb.",
+    "No full typecheck/lint/build/browser/provider or deployed verification executed in this lane."
+  ]
+}

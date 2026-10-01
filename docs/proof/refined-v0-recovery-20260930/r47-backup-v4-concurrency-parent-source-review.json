@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-01T08:45:17.985164+00:00",
+  "status": "SOURCE_REVIEW_PASS_RUNTIME_UNRUN_ROOT_OWNS_EXECUTION",
+  "backupPatchSHA256": "f3648d9c4ea9c76a436c30fe7aa6f006b3197aef8cb4b912a4a96ead21d938f6",
+  "currentRootBeforePins": "All14 matched; git apply --check whitespace error PASS",
+  "freshScratchAfterPins": "All14 exact after hashes PASS",
+  "v3ToV4": "Only0179 primary context assignment nullif(..., JSONnull), preserving SQLNULL. All10TS and both rollback twins identical.",
+  "rollbackSource": "Prior parent v3 full review: exact0177 replacement/proposal plus0166 context twin; exact0162 create twin. v4 twins unchanged.",
+  "authorityCorrection": "Existing Root exact-approved quote helper rebuilds ID/name-only targets before every return. No raw-hint bypass found; prior diff-only concern retracted.",
+  "reviewedSemantics": [
+    "Historical plain-create hash property order preserved",
+    "Existing saved primary quotes not context-filtered on READ",
+    "Write-time primary and backup category/zeroProof cleanup retained",
+    "Closed DTO reconstruction and canonical backup identity/caps",
+    "Shared completionFromRow single export retained"
+  ],
+  "ComposerOverlap": "Backup edits imports/createpayload only. Root pubpal_ui pending query/location/a11y must compose hunks, never copy whole after blob.",
+  "runOrder": [
+    "Apply/run already-ready9598 PG test before0178 import for actual value-mismatch RED",
+    "Import exactv4 with current Root overlays reconciled",
+    "Run actual backup21 + compatibility + current primary/quote/route suites",
+    "Full0178/0179 PG lifecycle/catalog/twins and effective permission matrix, zero skips",
+    "Final current source/browser/performance/CI/provider and captain durable rollout gates"
+  ],
+  "concurrencyTests": {
+    "sha256": "d905d3c3c83466421a9380d982c64039b8aa344d6c5c08c1538471233351c735",
+    "cases": 2,
+    "beforeAfterCheck": "Parent read source; both current Root before and fresh scratch after exact; applycheck PASS",
+    "status": "Root actual RED required before minimal pending guards",
+    "overlap": "planCollaborationRoutes test shares same055736 before with2e5a null-context sibling. Compose additive cases, record final hashes, do not whole-file overwrite."
+  },
+  "limits": "No tests/types/lint/build/browser/PG/provider writes or migration application here. SQL nested backup CHECK bounds array/count, existing HTTP approval authority and participant RLS remain distinct. Captain alone applies migrations/deploys."
+}

@@ -1,0 +1,65 @@
+{
+  "status": "SOURCE_ONLY_RECONCILIATION",
+  "mainMerge": {
+    "pullRequest": 1880,
+    "mergedAt": "2026-09-30 20:54 UTC",
+    "commit": "af5a08f78afad1091efc7ed97d1906daf9b47db1",
+    "parents": ["76de20674da64604af22872ff42ee08fca7f156a", "2c9b0afc9443e234f00354e2329a0e05ac3b9f87"]
+  },
+  "checkout": { "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1", "mergeBase": "76de20674da64604af22872ff42ee08fca7f156a", "headOrIndexChanged": false },
+  "snapshotIdentity": {
+    "comparisonCapturedAt": "not recorded by the one-off comparison command",
+    "freezeCreatedAt": "2026-09-30T20:52:44.695752+00:00",
+    "freezeSha256": "9a6c90332d607435823c569e3e2139abeee2783aace219a2e6419e01861aabf1",
+    "ukPriceBundleTestSha256AtFreeze": "5e3936f0edc4a96ca8861e18175de6131197074ba0eed77e4da6f099b6071ef7"
+  },
+  "comparison": {
+    "pathSets": { "upstreamVsBase": 322, "headVsBase": 499, "trackedWorktreeVsHead": 85, "union": 612 },
+    "safeTextBytes": { "worktreeEqualsUpstream": 164, "oursOnlyUpstreamEqualsBase": 247, "upstreamOnlyWorktreeEqualsBase": 22, "bothDifferFromBaseAndEachOther": 98, "other": 0 },
+    "excludedPathMetadataOnly": { "proofOrCapture": 72, "otherNontext": 9, "credentialsInChangedUnion": 0 },
+    "method": "Compared exact worktree bytes with base and upstream blobs for safe text paths. Excluded credentials, binary files, screenshots, proof artifacts, and private captures from content reads."
+  },
+  "scopeCountsOverlap": {
+    "price": { "equalsUpstream": 35, "oursOnly": 36, "upstreamOnly": 6, "bothChanged": 25 },
+    "auth": { "equalsUpstream": 25, "oursOnly": 46, "upstreamOnly": 4, "bothChanged": 10 },
+    "map": { "equalsUpstream": 12, "oursOnly": 42, "upstreamOnly": 3, "bothChanged": 11 },
+    "plan": { "equalsUpstream": 41, "oursOnly": 32, "upstreamOnly": 4, "bothChanged": 32 },
+    "sql": { "equalsUpstream": 12, "oursOnly": 14, "upstreamOnly": 2, "bothChanged": 2 }
+  },
+  "criticalPaths": {
+    "priceBothChangedHighlights": ["app/api/price-submit/route.ts", "lib/ukPriceBundle.ts", "scripts/build_uk_price_bundle.mjs", "public/data/uk_prices/manifest.json", "public/data/uk_prices/rows.json", "supabase/migrations/20260929140000_0163_plan_replace_selected_drink_evidence.sql"],
+    "authBothChangedHighlights": ["components/auth/AuthProvider.tsx", "lib/authCallbackClient.ts", "e2e/helpers/authDoubles.ts", "supabase/migrations/20260929140000_0163_plan_replace_selected_drink_evidence.sql"],
+    "authUpstreamOnlyHighlights": ["lib/deviceAccountSwitch.ts", "__tests__/deviceAccountSwitch.test.ts"],
+    "mapBothChangedHighlights": ["components/PubMap.tsx", "components/map/pubmap/useMapKeyboardShortcuts.ts", "components/map/pubmap/useMapSurfaceNavigation.ts", "components/map/pubmap/useSelParamSync.ts", "e2e/map-accessibility.spec.ts"],
+    "mapUpstreamOnlyHighlights": ["components/map/VenueInspector.tsx", "components/mobile/mobileMapShell.css", "e2e/helpers/mapToolbar.ts"],
+    "planBothChangedHighlights": ["app/api/plans/generate/route.ts", "components/plan/PlanComposer.tsx", "lib/planGeneration.server.ts", "lib/planSelectedDrinkPriceEvidence.ts", "e2e/plan-selected-drink-journey.spec.ts"],
+    "planUpstreamOnlyHighlights": ["app/api/plans/[id]/proposals/route.ts", "lib/planDrinkRequest.ts"],
+    "sqlBothChangedHighlights": ["supabase/migrations/20260929140000_0163_plan_replace_selected_drink_evidence.sql", "supabase/migrations/rollback/20260929140000_0163_plan_replace_selected_drink_evidence_rollback.sql"],
+    "sqlUpstreamOnlyHighlights": ["supabase/migrations/20260930120000_0168_plan_proposal_context_evidence.sql", "supabase/migrations/rollback/20260930120000_0168_plan_proposal_context_evidence_rollback.sql"],
+    "sqlOursOnlyHighlights": ["supabase/migrations/20260929190000_0168_plan_listed_drink_evidence.sql", "supabase/migrations/20260929235900_0169_completion_group_snapshot.sql", "supabase/migrations/20260930090000_0170_social_crew_completion.sql", "supabase/migrations/20260930110000_0173_completion_group_active_accounts.sql"],
+    "note": "Path arrays are critical examples, not exhaustive listings."
+  },
+  "migrationNamingReview": {
+    "status": "MANUAL_RECONCILIATION_REQUIRED",
+    "upstreamPath": "supabase/migrations/20260930120000_0168_plan_proposal_context_evidence.sql",
+    "lanePath": "supabase/migrations/20260929190000_0168_plan_listed_drink_evidence.sql",
+    "note": "Separate migrations share 0168 label. Check migration ordering and naming before any application; no SQL was run."
+  },
+  "r36Freeze": {
+    "manifest": "r36-source-only-freeze.json",
+    "declaredPaths": 4250,
+    "safeTextPathsHashChecked": 4209,
+    "safeTextHashDrift": [],
+    "missingPaths": [],
+    "metadataOnlyExcludedPaths": { "binaryOrCapture": 1, "otherNontext": 39, "credentialsOrPrivate": 1 },
+    "manifestPathsNotInGitIndex": ["__tests__/ukBaseStreamingHook.test.tsx", "components/map/PublishedMenuPrices.tsx"],
+    "driftResultTiming": "This no-drift result is for the comparison snapshot, before later test-only edits."
+  },
+  "laterTestOnlyChangesNotInSnapshot": [
+    { "path": "__tests__/ukPriceBundle.test.ts", "change": "normalized-quarantine regression", "status": "UNRUN" },
+    { "path": "__tests__/authCallbackClient.test.ts", "change": "banned-callback regression preparation", "status": "UNRUN" },
+    { "path": "__tests__/deviceAccountSwitch.test.ts", "change": "banned-mint regression", "status": "UNRUN" },
+    { "path": "__tests__/surfaceReadDedupe.test.ts", "change": "boundary cases", "status": "UNRUN" }
+  ],
+  "limits": "R36 is a scoped source freeze, not a whole-index snapshot. Comparison timestamp was not recorded; later test-only edits above are not included in its classifications. No merge, apply, SQL execution, runtime, tests, build, or publication occurred. Full-source, full-five, and strict CWV acceptance remain pending. HEAD and index stayed unchanged."
+}

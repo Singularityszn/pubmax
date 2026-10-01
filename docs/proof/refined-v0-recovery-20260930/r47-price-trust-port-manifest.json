@@ -1,0 +1,482 @@
+{
+  "status": "SOURCE_PACKAGED_RUNTIME_UNRUN",
+  "exactReleaseBase": "ad08000b500b3193f143c4225a067c78f5a7694e",
+  "compatibilityReleaseHead": "4b3ebc10aacc78a567ad0cb408823bd3389f4a2b",
+  "patchSha256": "2f2ee5d246e8ba99b51c0a31f7f5ae72b07ebb2ddc47497e054261fbd4916c4d",
+  "paths": [
+    {
+      "path": "app/api/price-submit/route.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "6c3b326487800c759a62f52e34ec1fd04f15b3a2d83149a3b8ae8d633a1eb60c",
+      "afterSha256": "cb9d9553230448fbe52936218be5c468b1cdf6c98f4a805a0bb6490e168d5b35",
+      "coreInputSha256": "cb9d9553230448fbe52936218be5c468b1cdf6c98f4a805a0bb6490e168d5b35",
+      "currentReleaseSha256": "6c3b326487800c759a62f52e34ec1fd04f15b3a2d83149a3b8ae8d633a1eb60c",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "e78e8de2bdf53e36a3b70bbc18923159b31c4924"
+    },
+    {
+      "path": "app/api/venue/[id]/route.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "63460715bd42aff645326c7693741b144276b8a9005f44b568d30670d5770430",
+      "afterSha256": "8989d8a345ce4b324bab7d0ac22f6ef49abcc3373f6b024b1b809ab862543edd",
+      "coreInputSha256": "8989d8a345ce4b324bab7d0ac22f6ef49abcc3373f6b024b1b809ab862543edd",
+      "currentReleaseSha256": "63460715bd42aff645326c7693741b144276b8a9005f44b568d30670d5770430",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "8aabb23efcb14a21b2ab75a909db4b0925fc9f3a"
+    },
+    {
+      "path": "lib/listedCategoryPrices.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": null,
+      "afterSha256": "cd3bd1bf865bcf7f26e23e55cd618542c19e705353b39be8d61a9d6e8dada4e4",
+      "coreInputSha256": "cd3bd1bf865bcf7f26e23e55cd618542c19e705353b39be8d61a9d6e8dada4e4",
+      "currentReleaseSha256": null,
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": null
+    },
+    {
+      "path": "lib/listedPriceComparison.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": null,
+      "afterSha256": "89a231936d0ee9342a239c848f66cacff1c4dab5ef383d5e99dd6bf3c97beb3a",
+      "coreInputSha256": "89a231936d0ee9342a239c848f66cacff1c4dab5ef383d5e99dd6bf3c97beb3a",
+      "currentReleaseSha256": null,
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": null
+    },
+    {
+      "path": "lib/ukPriceBundle.server.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "fb6d8c2dfa94be308e31eedc5dc62cbd974349682dc9fa2ab8cd40e07894387b",
+      "afterSha256": "5f265615d0dea4ac1bc566b247bee27a10b00c6437d7954327ac2b025514681c",
+      "coreInputSha256": "5f265615d0dea4ac1bc566b247bee27a10b00c6437d7954327ac2b025514681c",
+      "currentReleaseSha256": "fb6d8c2dfa94be308e31eedc5dc62cbd974349682dc9fa2ab8cd40e07894387b",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "1cd6dfdf4c02fa14ae9e70398c3e1af927e9352f"
+    },
+    {
+      "path": "components/map/useCommunityPrices.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "5f958ff073393bd04cdc6ba1c0a6735d9fc63465826b5754b56fb181fa188d5d",
+      "afterSha256": "4ce566964fa6bf599b12d601545c7f052a43a560208a1ec102d44b75d5f94ea3",
+      "coreInputSha256": "4ce566964fa6bf599b12d601545c7f052a43a560208a1ec102d44b75d5f94ea3",
+      "currentReleaseSha256": "5f958ff073393bd04cdc6ba1c0a6735d9fc63465826b5754b56fb181fa188d5d",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "5147234ba99c3328ebf21ca2d6665932bf70d0e8"
+    },
+    {
+      "path": "components/map/UnverifiedPubSheet.tsx",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "cf58419932fecbcae59f93fc0895618b74eb6a18df4dd515cc83d31328e06a48",
+      "afterSha256": "3ac560e5b8a01e37c22c514295f45703e82c5fddbb69889cd1d4a97b650a3297",
+      "coreInputSha256": "3ac560e5b8a01e37c22c514295f45703e82c5fddbb69889cd1d4a97b650a3297",
+      "currentReleaseSha256": "cf58419932fecbcae59f93fc0895618b74eb6a18df4dd515cc83d31328e06a48",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "e5edbe32d2302e9ed14dfd304a6e0af76177fa1c"
+    },
+    {
+      "path": "components/map/inspector/VenueOverviewTab.tsx",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "435eba09a405af4ce5520f7e13de030dcd7ac2931be7646b9376aa5987600a9e",
+      "afterSha256": "9845b47239572006bc2341fdb1383dc7b6e58d5ed0fce4e4496c4cd57d04b53c",
+      "coreInputSha256": "9845b47239572006bc2341fdb1383dc7b6e58d5ed0fce4e4496c4cd57d04b53c",
+      "currentReleaseSha256": "435eba09a405af4ce5520f7e13de030dcd7ac2931be7646b9376aa5987600a9e",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "f2b4bc51da816d99ac30011bc4b5b839bf12d950"
+    },
+    {
+      "path": "components/map/venueDrinkPrices.css",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "d6567ae2f1a27269e345568a796af850d3b23fdf95c8a1ab1f636543cd5b580d",
+      "afterSha256": "5220bffa5d3892d3295e11f82b99a2eadd62ce2ba9610741b57dbf8cca4549c0",
+      "coreInputSha256": "5220bffa5d3892d3295e11f82b99a2eadd62ce2ba9610741b57dbf8cca4549c0",
+      "currentReleaseSha256": "d6567ae2f1a27269e345568a796af850d3b23fdf95c8a1ab1f636543cd5b580d",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "e35d3d1128f6a01c6d3eb2f916b4adb8b4c1270b"
+    },
+    {
+      "path": "lib/mapExperienceLens.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "a89b77dfe8cbafc04105d283a8627bbd4431a86810d5b17655be03e0dd649108",
+      "afterSha256": "1dfc10c4dd19c3cd0d32cf56814c393b2b83aa7f8f72d154157a3ed3125fc6b5",
+      "coreInputSha256": "1dfc10c4dd19c3cd0d32cf56814c393b2b83aa7f8f72d154157a3ed3125fc6b5",
+      "currentReleaseSha256": "a89b77dfe8cbafc04105d283a8627bbd4431a86810d5b17655be03e0dd649108",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "3f053a299ba6acacc958a542634d34074f6cfd49"
+    },
+    {
+      "path": "components/map/canvas/geojson.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "1e996fe1a82bdf59b6d4bd4f6d446548cedfdd0586660af5e63da0e32c90cfb0",
+      "afterSha256": "a215197875fc1fc2033dfd76bd4b61153fbb08d05c22067a8805fd362dd6fe86",
+      "coreInputSha256": "defcebffd72d0e84e93150ef180164f9acc9d7103cffc616fb75032b2959782a",
+      "currentReleaseSha256": "1e996fe1a82bdf59b6d4bd4f6d446548cedfdd0586660af5e63da0e32c90cfb0",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "474184eeba928ad7ad13ba986765e7a97d154dbe"
+    },
+    {
+      "path": "lib/mapPriceLegend.ts",
+      "role": "historical Core price-read/projection/UI dependency",
+      "baseSha256": "3b99c8b31668d60cde2374acda00cc6b417325c0e507a5d231f22b5605ed021d",
+      "afterSha256": "2d5c9b6f30042fc5fecbc2ed851e74eb1fa508949c8426ed9828b97d021589c0",
+      "coreInputSha256": "2d5c9b6f30042fc5fecbc2ed851e74eb1fa508949c8426ed9828b97d021589c0",
+      "currentReleaseSha256": "3b99c8b31668d60cde2374acda00cc6b417325c0e507a5d231f22b5605ed021d",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "f9d707eb9fab26d7a1492e1366ed86af6fca6856"
+    },
+    {
+      "path": "components/map/PublishedMenuPrices.tsx",
+      "role": "shared menu renderer uses existing pure formatter",
+      "baseSha256": null,
+      "afterSha256": "e542b015fd89553e8aa957ef3273f5b27c4a95598caecf06bac4873b7164711b",
+      "coreInputSha256": "c8331de45342d93e8582b4fc0b10e8ddc9b90dee928b9f0c321d7c2163cb4c8a",
+      "currentReleaseSha256": null,
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": null
+    },
+    {
+      "path": "components/map/VenueDrinkPrices.tsx",
+      "role": "listed menu and community render independently",
+      "baseSha256": "5b74db1a50e7e46e523ef255fd31b51c3a3a366bedc2d5b3c4f1fa85811743c1",
+      "afterSha256": "c371ad1d5922d382abd5034584d27756b4a3c6fd3a80777fa08ede724671c08b",
+      "coreInputSha256": "3233fb6c021a2dee6a2438c75cc20a28291483694d15d734e1bf1a5f95b4f747",
+      "currentReleaseSha256": "5b74db1a50e7e46e523ef255fd31b51c3a3a366bedc2d5b3c4f1fa85811743c1",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "7ea17c0a91f0de4242e025ffb07fa0359df89c47"
+    },
+    {
+      "path": "lib/venues.ts",
+      "role": "only optional response metadata type; existing format exports preserved",
+      "baseSha256": "4d5ee63c76425af8cde8d4f01bfbb3b2ba05ea0728fc9eece58231a9dc16e53f",
+      "afterSha256": "c2eb16694e1edc785267c88a87d1cb710a4cf6d69e2478a1d38165b7413ee541",
+      "coreInputSha256": "62bb0363baf06dd8e60f7cf624d1d76f512e1e4c7067b1bbbcf84b4bb6a1c19a",
+      "currentReleaseSha256": "4d5ee63c76425af8cde8d4f01bfbb3b2ba05ea0728fc9eece58231a9dc16e53f",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "2dff162187dc1552d679f5f2fd508578e8a5e594"
+    },
+    {
+      "path": "lib/ukPriceBundle.ts",
+      "role": "exact raw/canonical quarantine and explicit gin serving recovery only",
+      "baseSha256": "269eb18b1c9b72697497dd5bf2cde7a0180906c89b6f586c754ed3f791a1d6d1",
+      "afterSha256": "bfcce0b1a2cfa57188d0f25ea340547ec808d403707a21307471168a689dafbd",
+      "coreInputSha256": "f931b880a613fe3e15374d8882e49f42079928918764387d873c8861b48bce9e",
+      "currentReleaseSha256": "269eb18b1c9b72697497dd5bf2cde7a0180906c89b6f586c754ed3f791a1d6d1",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "062a21ed0fbf3c0a030c505219437d5000452298"
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.ts",
+      "role": "bounded listed evidence validator; release selectedDrinkPriceEvidenceForPrice retained; no Plan generation/DTO copy",
+      "baseSha256": "150280677a9ac2e7eb492b16289ad7af8a65aa68c354ce232bacd0e81123dfea",
+      "afterSha256": "123bce83225f97628f4b47335f789c8a97889bb25589e5544a0f6876f86b94b8",
+      "coreInputSha256": "f2580effe10f5a442e58d1e273d3509a2497d71358cc8c4892a75b2f7708820a",
+      "currentReleaseSha256": "150280677a9ac2e7eb492b16289ad7af8a65aa68c354ce232bacd0e81123dfea",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "095b5c2ba7e4e8a5b3f016fb6edee0c472bd41f3"
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "role": "four-line category metadata bridge; preserve release map ownership",
+      "baseSha256": "d8a335a9813ae50d1bc19d79c54ab3dbdbef7162b8b13c23c95e67accdc89612",
+      "afterSha256": "001a46e2eb9402a26b23509de7039e47f95820360ac774399ebceaa8ecc4d317",
+      "coreInputSha256": "4acd1afb2cee0edfe33d0b146fa1f9fa2b69fc6461d1c9467f901a361d935966",
+      "currentReleaseSha256": "d8a335a9813ae50d1bc19d79c54ab3dbdbef7162b8b13c23c95e67accdc89612",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "194a68f2c6677d108957f75f06ad723727da6934"
+    },
+    {
+      "path": "scripts/build_uk_price_bundle.mjs",
+      "role": "composed producer retains Main legacy wine normalizer, raw-before/canonical-after quarantine, literal gin serving",
+      "baseSha256": "772f36e33369ed5bc939c0dd7ddb4d95c05c9a56fc5d9e69988ba4f224642d38",
+      "afterSha256": "554cd23b91c7ab3d67587289682646ecce196172530c410b80ba27617d53c3b7",
+      "coreInputSha256": "b93b6bc0a9c45f66111b8c416cbefb21b38bea02865f3de0dfddcaeff2f5d9ec",
+      "currentReleaseSha256": "772f36e33369ed5bc939c0dd7ddb4d95c05c9a56fc5d9e69988ba4f224642d38",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "14236105c8254f923a25d5cbad5adda10a3dca3b"
+    },
+    {
+      "path": "__tests__/ukPriceBundle.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "be3b8555c4b3cef511fbaaa79a13ab80e38388d3fe202eaf676ed3350b751a23",
+      "afterSha256": "e83b336b527711a079d93e3d8208908b17d9db345a2c83c322b464b0d1d333d6",
+      "coreInputSha256": "e83b336b527711a079d93e3d8208908b17d9db345a2c83c322b464b0d1d333d6",
+      "currentReleaseSha256": "be3b8555c4b3cef511fbaaa79a13ab80e38388d3fe202eaf676ed3350b751a23",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "54a47e729558f3ee8d206c79a9021a405f3cecbd"
+    },
+    {
+      "path": "__tests__/listedCategoryPrices.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": null,
+      "afterSha256": "7e2c97a7fc69afbdc988560c5b98a1799245b01b21be577c9c727eb8adb752a5",
+      "coreInputSha256": "7e2c97a7fc69afbdc988560c5b98a1799245b01b21be577c9c727eb8adb752a5",
+      "currentReleaseSha256": null,
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": null
+    },
+    {
+      "path": "__tests__/listedPriceComparison.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": null,
+      "afterSha256": "11cfa9748c8376b333e5f81ede34def48d115265dfa61f43c05fb6f5f0c5d059",
+      "coreInputSha256": "11cfa9748c8376b333e5f81ede34def48d115265dfa61f43c05fb6f5f0c5d059",
+      "currentReleaseSha256": null,
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": null
+    },
+    {
+      "path": "__tests__/listedDiscoveryIndex.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": null,
+      "afterSha256": "9c70ebb9e6f6a67716f0b45f8a0195f398028b54d31c40eb5d16942612e72c53",
+      "coreInputSha256": "9c70ebb9e6f6a67716f0b45f8a0195f398028b54d31c40eb5d16942612e72c53",
+      "currentReleaseSha256": null,
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": null
+    },
+    {
+      "path": "__tests__/priceSubmitRoute.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "7debbe271c0d874050296783ff1bc5247c3d9887a2c46ba086b6b7dc3d1fd804",
+      "afterSha256": "182595aeb460cdeea8ec7ca4bcbc80ab5dff915449dff42ee47bc5bc7dcf9219",
+      "coreInputSha256": "182595aeb460cdeea8ec7ca4bcbc80ab5dff915449dff42ee47bc5bc7dcf9219",
+      "currentReleaseSha256": "7debbe271c0d874050296783ff1bc5247c3d9887a2c46ba086b6b7dc3d1fd804",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "38663d78518c4fbf7ff9fac8db78d283901cd338"
+    },
+    {
+      "path": "__tests__/communityPriceClientState.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "52db4ec3cf07f357ad741b3e57c3717e0ebc5369508daa9987b3c8dd6cd154e4",
+      "afterSha256": "ba5ea08899cead1ac1a829645f5853e62daffac0bb4c3e9bb7d3456a48d65673",
+      "coreInputSha256": "ba5ea08899cead1ac1a829645f5853e62daffac0bb4c3e9bb7d3456a48d65673",
+      "currentReleaseSha256": "52db4ec3cf07f357ad741b3e57c3717e0ebc5369508daa9987b3c8dd6cd154e4",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "689a8a70afc76ad2929ae0e441ded53196f67ae3"
+    },
+    {
+      "path": "__tests__/unverifiedPubSheet.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "c5fb537cd821d016939da387879b8aa22cd0732ddbf989c7353d24ec93c87fec",
+      "afterSha256": "28050231c5447caf32e2f61dcb04e728b71704973864c9189527affbd392e9b1",
+      "coreInputSha256": "28050231c5447caf32e2f61dcb04e728b71704973864c9189527affbd392e9b1",
+      "currentReleaseSha256": "c5fb537cd821d016939da387879b8aa22cd0732ddbf989c7353d24ec93c87fec",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "6d60c91793362d5a63945630cea3473732614c98"
+    },
+    {
+      "path": "__tests__/drinkLaneSurfaces.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "e9eb8224c3bae0c9ff2157c31c3d6d4cc8976d2792063b5264a33beb8fd668f9",
+      "afterSha256": "2c5cfa48f0e4355bfd205ae41e1fd0eff408019313c6969e253b31ff7737c3dd",
+      "coreInputSha256": "2c5cfa48f0e4355bfd205ae41e1fd0eff408019313c6969e253b31ff7737c3dd",
+      "currentReleaseSha256": "e9eb8224c3bae0c9ff2157c31c3d6d4cc8976d2792063b5264a33beb8fd668f9",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "586d587daa1aa67693ee2fabc0cd2e9cbe9d92a6"
+    },
+    {
+      "path": "__tests__/venueRoute.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "7b136761297feeda888cf841b4ddd2928ddfea7c2d0c818c50e2dba9168b1c6d",
+      "afterSha256": "64a335efd72a42d582a6d83b2fd82c16ce16ab03ae441fe193d20e08b87f0ddd",
+      "coreInputSha256": "64a335efd72a42d582a6d83b2fd82c16ce16ab03ae441fe193d20e08b87f0ddd",
+      "currentReleaseSha256": "7b136761297feeda888cf841b4ddd2928ddfea7c2d0c818c50e2dba9168b1c6d",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "e9454b6dc15dd37ae8182d7f251dfa61fdcb17d0"
+    },
+    {
+      "path": "__tests__/canvas-geojson.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "833e0ecb9c372c1bd5e5b8f1fcde25f595763f4e9b105ed9602e30d66d819309",
+      "afterSha256": "ecc2c4193cef9f37e8fcafea0cf7659f680a1a287e89b313573730bfbe00aadf",
+      "coreInputSha256": "ecc2c4193cef9f37e8fcafea0cf7659f680a1a287e89b313573730bfbe00aadf",
+      "currentReleaseSha256": "833e0ecb9c372c1bd5e5b8f1fcde25f595763f4e9b105ed9602e30d66d819309",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "9a907561b390cd4918144d857cc19e5476417802"
+    },
+    {
+      "path": "__tests__/mapPriceLegend.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "849faee2f21dd3eee2f095418cc512e7cc9884698726dc79c296720c4ed7f4af",
+      "afterSha256": "fc66371b7b652e4ee7ea67965f0bea0ac0297dc86c5687367f42a1920c90d959",
+      "coreInputSha256": "fc66371b7b652e4ee7ea67965f0bea0ac0297dc86c5687367f42a1920c90d959",
+      "currentReleaseSha256": "849faee2f21dd3eee2f095418cc512e7cc9884698726dc79c296720c4ed7f4af",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "22e295e2ed2a5db8e456b92d88ff516d35cb71d8"
+    },
+    {
+      "path": "__tests__/mapExperienceLens.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": "41b787af5ccdd02de7e761fb888dfd961a94f22747169acdc0f9b02f76c5c83b",
+      "afterSha256": "311c57bfaf1ab969c4b053d9b15e49ae9020c997844be3d9cd0166d019db3eb8",
+      "coreInputSha256": "311c57bfaf1ab969c4b053d9b15e49ae9020c997844be3d9cd0166d019db3eb8",
+      "currentReleaseSha256": "41b787af5ccdd02de7e761fb888dfd961a94f22747169acdc0f9b02f76c5c83b",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "366632ae6fd0cc109264a913bd772c06951c9fdf"
+    },
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceVariant.test.ts",
+      "role": "behavior regression / existing baseline controls",
+      "baseSha256": null,
+      "afterSha256": "16733ef600d579968341a148bad2c184543c207778096b6916d9da284652112d",
+      "coreInputSha256": "16733ef600d579968341a148bad2c184543c207778096b6916d9da284652112d",
+      "currentReleaseSha256": null,
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": null
+    },
+    {
+      "path": "__tests__/lonePintDropLane.test.ts",
+      "role": "required CommunityPricesState fixture field only",
+      "baseSha256": "6f07cf989980a6a6363ae58acbb335ed9be0772a6e798451a73950e3f52dbb6e",
+      "afterSha256": "536f43753671e6c94547f8c3e85840b45bfd793872ee1fcb16f0bda4b3401e45",
+      "coreInputSha256": "536f43753671e6c94547f8c3e85840b45bfd793872ee1fcb16f0bda4b3401e45",
+      "currentReleaseSha256": "6f07cf989980a6a6363ae58acbb335ed9be0772a6e798451a73950e3f52dbb6e",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "222c435a209cae0e688f2203ac20fc7d3922f84e"
+    },
+    {
+      "path": "__tests__/overviewPriceDoor.test.ts",
+      "role": "required CommunityPricesState fixture field only",
+      "baseSha256": "05c6d014525127f85a7c43afece0fcc2b26824857b9ea9f0df654d213325e0f5",
+      "afterSha256": "ce015c8d47cade50adaae0d16f1eac902bbf77420b769cdbf406dbbec54dbe4a",
+      "coreInputSha256": "ce015c8d47cade50adaae0d16f1eac902bbf77420b769cdbf406dbbec54dbe4a",
+      "currentReleaseSha256": "05c6d014525127f85a7c43afece0fcc2b26824857b9ea9f0df654d213325e0f5",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "901688434d48cb9fb315d0d2730939842a4610f5"
+    },
+    {
+      "path": "__tests__/pintPriceSplit.test.ts",
+      "role": "required CommunityPricesState fixture field only",
+      "baseSha256": "11920db09b453ef9b2c33da561799159663939f918bd42e90352ba09a1f47537",
+      "afterSha256": "e8a7f548dda3a4d361955c8fc9c9d8877620c0f2356c9c14a67251d1b65ca8ec",
+      "coreInputSha256": "e8a7f548dda3a4d361955c8fc9c9d8877620c0f2356c9c14a67251d1b65ca8ec",
+      "currentReleaseSha256": "11920db09b453ef9b2c33da561799159663939f918bd42e90352ba09a1f47537",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "9931fc595f9445eb1bb898cc430c352db69fac00"
+    },
+    {
+      "path": "__tests__/pintTrust.test.ts",
+      "role": "required CommunityPricesState fixture field only",
+      "baseSha256": "1d69679fa821d4c74116965f4a3c8588ea6d48c549d42356ee1bfb4aee4dfe4c",
+      "afterSha256": "5b4216d70a16e7997f3c908ac3fd2d019d2971316685ccf1033965e3e801c163",
+      "coreInputSha256": "5b4216d70a16e7997f3c908ac3fd2d019d2971316685ccf1033965e3e801c163",
+      "currentReleaseSha256": "1d69679fa821d4c74116965f4a3c8588ea6d48c549d42356ee1bfb4aee4dfe4c",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "0479b77d3a4d13fd9400b541b0f83a4dc49d668a"
+    },
+    {
+      "path": "__tests__/priceSourcePresentation.test.ts",
+      "role": "required CommunityPricesState fixture field only",
+      "baseSha256": "db2fb04df303acf5a11b2fc3dbaf7f38e92567231a72d8af7ff010324a282486",
+      "afterSha256": "07a8d0ed9d43a5770f6cf716dd70450f2ed237a73e99d5e71eeff2ec6d809bf0",
+      "coreInputSha256": "07a8d0ed9d43a5770f6cf716dd70450f2ed237a73e99d5e71eeff2ec6d809bf0",
+      "currentReleaseSha256": "db2fb04df303acf5a11b2fc3dbaf7f38e92567231a72d8af7ff010324a282486",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "bf9169555eec515388b32f8e85e59573c4a0f3b2"
+    },
+    {
+      "path": "__tests__/venueAreaPriceCompare.test.ts",
+      "role": "required CommunityPricesState fixture field only",
+      "baseSha256": "122597419aaf5adcf39211a92797fcfe3749af2599df40c35a8e6e947abba9c3",
+      "afterSha256": "f7f1af7749ba9b4537924da10db5610a7dde5dd4202de1c0103c54a0de774204",
+      "coreInputSha256": "f7f1af7749ba9b4537924da10db5610a7dde5dd4202de1c0103c54a0de774204",
+      "currentReleaseSha256": "122597419aaf5adcf39211a92797fcfe3749af2599df40c35a8e6e947abba9c3",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "aaf0b647c432f238a49280575e4896aecf5f228e"
+    },
+    {
+      "path": "__tests__/venueCommunitySignals.test.ts",
+      "role": "required CommunityPricesState fixture field only",
+      "baseSha256": "ccb1a781c72690f43304da01772023e0c80290b2c2ffbe78d6e0bb2a0529b7c0",
+      "afterSha256": "0d2dfe41afc92770df57e2d3f3298189213549e243a831bd7edb4163d60390c3",
+      "coreInputSha256": "0d2dfe41afc92770df57e2d3f3298189213549e243a831bd7edb4163d60390c3",
+      "currentReleaseSha256": "ccb1a781c72690f43304da01772023e0c80290b2c2ffbe78d6e0bb2a0529b7c0",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "4a4aa19ac52fe61cbfdeff264c1c6a4cb18008c7"
+    },
+    {
+      "path": "__tests__/siteHarvestReconciliation.test.ts",
+      "role": "preserve historical report/raw fingerprints and exact active quarantines; compare retained claims after release wine normalization",
+      "baseSha256": "789d3d24d2a9941a3c0be025288a718eebdb2d2287f8fb30ad5c0f9cd823d418",
+      "afterSha256": "28ca70e49eb12858032b9e436bcf6c37c9eed13fe911379a8951a641a8822e6d",
+      "coreInputSha256": "cadbccdb4e036f5f61ff5978a53f1535cc661fb1137201828c49f9dd797507fb",
+      "currentReleaseSha256": "789d3d24d2a9941a3c0be025288a718eebdb2d2287f8fb30ad5c0f9cd823d418",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "f6ea671a060b8247ebfd69d036ea1e10960d0367"
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.server.ts",
+      "role": "narrow both union values before reportedAt; preserve Main server-rebuilt community-only create/proposal authority",
+      "baseSha256": "ba5226e170f90692a2a44e3144907e41f6b5d124522a75c7e57dba8882f665db",
+      "afterSha256": "032cb473b640c7e07f2d64dfffa5a4fb23ad2c68d69999ddc318abe17440d1bb",
+      "coreInputSha256": "08661b22877e819e61147c58d9dbbb4c449dff1c102ef49568e7ece00fdc039b",
+      "currentReleaseSha256": "ba5226e170f90692a2a44e3144907e41f6b5d124522a75c7e57dba8882f665db",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "1b92323a4a3a34c25bf2da4af275c4f4e0e64032"
+    },
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+      "role": "real Plan route/store baseline: listed hint rejected, matching trusted community retained; fixture server entitlement explicit",
+      "baseSha256": "7205490d37917c2f47eb55d4b49a9e9251c18a31a8aea48dc08ab9e4e52f2eca",
+      "afterSha256": "9959a61116c952bdb0f6f94e1ce35f7eb7157f5c19312ed5904a4bfed21e9b52",
+      "coreInputSha256": "92bfcf7566d65803f9d6cb62e6c77bc3188c3c14cb0c5ca6cdacd5daf249219b",
+      "currentReleaseSha256": "7205490d37917c2f47eb55d4b49a9e9251c18a31a8aea48dc08ab9e4e52f2eca",
+      "currentReleaseEqualsExactBase": true,
+      "baseGitBlob": "6bb30be29007337970fa0534ee6949438495470c"
+    }
+  ],
+  "validation": {
+    "scratchApplyCheck": "PASS git apply --check --whitespace=error-all in owned scratch/applied",
+    "scratchApply": "PASS git apply --whitespace=error-all in owned scratch/applied",
+    "appliedBytesMatchAfterHashes": "PASS all 42 files",
+    "currentCoreInputHashesUnchanged": "PASS all 42 input files",
+    "currentReleaseTouchedFilesEqualExactBase": "PASS 4b3ebc10 all 42 paths; new files absent on both",
+    "pathInventory": "PASS exact 42 git apply --numstat paths",
+    "runtime": "UNRUN; no tests/lint/types/build/browser/producer executed"
+  },
+  "historicalEvidence": {
+    "receipt": "r46-official-price-bundle-receipt.json",
+    "rawLedgerSha256": "aaf43a4dccda3eb3cf9b6ef9bd37b080932ad31751f8dd9211ef2511d9c8b660",
+    "rowsSha256": "f97dd00e56b1b2f50af976af5dde0dd759f2a5461b5b00d7df557166af514dcc",
+    "manifestSha256": "2f2fdc2a4f2a9443ea8261d182b8b48a1ce6abfab220b175c78354232df40046",
+    "qualification": "Historical Core R46 output only. Composed release producer retaining Main normalization has not run; these are not promised output hashes."
+  },
+  "retainedReleaseContracts": [
+    "Existing POST price/serve validation already present, not copied",
+    "normalizeSiteHarvestLedgerRow and existing wine canonicalization/supersession tests preserved",
+    "selectedDrinkPriceEvidenceForPrice and full release planDrinkRequest preserved",
+    "No private/client data added; base listed read uses existing request and exact venue identity",
+    "Community visibility separate from corroborated authority; unknown serving never fabricated"
+  ],
+  "excluded": [
+    "Generated rows, manifest and raw ledger",
+    "Core VenueInspector intent/refactor changes",
+    "Core formatPrice owner migration",
+    "Core Plan generation/DTO/ranking/query changes",
+    "Permanent nonbeer Cheapest removal or serving-group implementation",
+    "Main-present POST price/serve validation"
+  ],
+  "unresolved": [
+    "Category index reduces each venue/category to one quote and client MapLensPrice drops drink identity. Cross-venue comparable-serving Cheapest is NOT solved. Future native actual category GET/List reproduction, preservation of bounded serving alternatives and explicit serving selection/group needed.",
+    "Plan listed evidence validator is composed for shared metadata reader, but release Plan generation remains its current community-only selector. No claim of full listed-price Plan propagation.",
+    "Fresh official producer required before full gates; generated-data changes must be owned/reviewed separately. Producer retains Main legacy normalizer, so historical Core output hashes cannot establish current output.",
+    "Release full source/bundle/native gates all UNRUN. Historical Core proof does not validate this port."
+  ],
+  "focusedCommand": "npx vitest run __tests__/ukPriceBundle.test.ts __tests__/listedCategoryPrices.test.ts __tests__/listedPriceComparison.test.ts __tests__/listedDiscoveryIndex.test.ts __tests__/priceSubmitRoute.test.ts __tests__/communityPriceClientState.test.ts __tests__/unverifiedPubSheet.test.ts __tests__/drinkLaneSurfaces.test.ts __tests__/venueRoute.test.ts __tests__/canvas-geojson.test.ts __tests__/mapPriceLegend.test.ts __tests__/mapExperienceLens.test.ts __tests__/planSelectedDrinkEvidenceVariant.test.ts __tests__/lonePintDropLane.test.ts __tests__/overviewPriceDoor.test.ts __tests__/pintPriceSplit.test.ts __tests__/pintTrust.test.ts __tests__/priceSourcePresentation.test.ts __tests__/venueAreaPriceCompare.test.ts __tests__/venueCommunitySignals.test.ts __tests__/siteHarvestReconciliation.test.ts __tests__/planSelectedDrinkEvidenceCreate.test.ts __tests__/siteHarvestLedger.test.ts __tests__/ukPriceSourceFormat.test.ts __tests__/contextDevPriceLane.test.ts",
+  "nextRequired": [
+    "Apply/review exact-base patch; reconcile any newer release file hunks",
+    "Run focused tests plus untouched Main normalization controls",
+    "Run approved official price producer and review raw-ledger unchanged plus every generated delta",
+    "Full verify/build; native base/curated/API/cap/late selection and eventual comparable-serving List acceptance"
+  ],
+  "patchBytes": 122863,
+  "productionPaths": 20,
+  "testPaths": 22,
+  "compositionNotes": [
+    "Four PubMap price-reader lines only; release navigation, friends, WebGL and base-kind ownership preserved.",
+    "Main wine normalizer retained; permission-before-raw-quarantine and post-normalization push quarantine remain paired.",
+    "Main full Plan server resolver retained with source discrimination for shared union; listed display hints cannot acquire community authority. Existing real route/store regression includes matching-community control.",
+    "Broader Plan generation/query/DTO and serving-group frontend implementation excluded.",
+    "Current generated count/identity reconciliation and official producer still require fresh verification; historical Core output cannot establish the composed release output."
+  ]
+}

@@ -1,0 +1,155 @@
+diff --git a/lib/planGeneration.server.ts b/lib/planGeneration.server.ts
+index 331cb10b1..31e636720 100644
+--- a/lib/planGeneration.server.ts
++++ b/lib/planGeneration.server.ts
+@@ -26,6 +26,8 @@ import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
+ import { isLimited } from "@/lib/pintDrops";
+ import { reconcilePlanContext } from "@/lib/planGenerationContext";
+ import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
++import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
++import { listedServingGroup } from "@/lib/listedPriceComparison";
+ import { planUsesPintPrices } from "@/lib/planGenerationDto";
+ import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
+ import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
+@@ -303,6 +305,26 @@ export async function preparePlanGeneration(
+ 		current.push(row);
+ 		tonightByVenue.set(row.venueId, current);
+ 	}
++	const acceptedHint = parsedRequest.value.anchor?.selectedDrinkPriceEvidence;
++	let selectedServing: string | null = null;
++	if (acceptedHint && !context.zeroProof && acceptedHint.category === context.drinkCategory) {
++		const anchor = parsedRequest.value.anchor!;
++		const canonical = await resolvePlanningAnchor({ cityId, venueId: anchor.venueId,
++			startsAt: anchor.startsAt, acceptedArea: anchor.acceptedArea, now: requestNow });
++		const rejectHint = (reason: string, message: string) => ({ response: jsonNoStore({
++			grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
++			stops: [], reason, message, operationKey, nightArea: { id: area.slug, ...coverage },
++		}, { status: 200 }) });
++		if (canonical.status === "conflict") return rejectHint(canonical.code, canonical.message);
++		const [verified] = await resolvePlanSelectedDrinkPriceEvidence(
++			[{ venueId: canonical.canonical.venueId, venueName: canonical.display.venueName }],
++			[{ selectedDrinkPriceEvidence: acceptedHint }], context);
++		const approved = verified?.selectedDrinkPriceEvidence;
++		if (!approved) return rejectHint("ANCHOR_ROUTE_CONFLICT",
++			"That accepted menu price could not be checked. Open the pub and choose its current offer again.");
++		selectedServing = approved.source === "listed"
++			? listedServingGroup(approved.category, approved.serving) : null;
++	}
+ 	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
+ 		? context.drinkCategory
+ 		: null;
+@@ -312,7 +334,7 @@ export async function preparePlanGeneration(
+ 			requestNow,
+ 		).catch(() => ({ prices: [] as CommunityPrice[], truncated: false, degraded: true })),
+ 		requestedCategory
+-			? ukPriceBundleCategoryIndex(requestedCategory, requestNow).catch(() => ({ prices: [], truncated: false, degraded: true }))
++			? ukPriceBundleCategoryIndex(requestedCategory, requestNow, selectedServing).catch(() => ({ prices: [], truncated: false, degraded: true }))
+ 			: Promise.resolve(null),
+ 	]);
+ 	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
+@@ -328,7 +350,8 @@ export async function preparePlanGeneration(
+ 	const listedDrinkPricesByVenue = new Map<string, MapLensPrice>();
+ 	if (requestedCategory && listedPriceIndex) {
+ 		for (const price of readListedDrinkIndex(listedPriceIndex.prices, requestedCategory)) {
+-			if (!listedDrinkPricesByVenue.has(price.venueId)) {
++			if ((!selectedServing || listedServingGroup(requestedCategory, price.servingSize) === selectedServing)
++				&& !listedDrinkPricesByVenue.has(price.venueId)) {
+ 				listedDrinkPricesByVenue.set(price.venueId, price);
+ 			}
+ 		}
+@@ -343,6 +366,9 @@ export async function preparePlanGeneration(
+ 					: "ready",
+ 		)
+ 		: null;
++	// Without a chosen, verified measure no non-beer GBP amount is a ranking signal.
++	// Community reports retain their display lane; their null serving cannot join it.
++	const comparableDrinkPrices = selectedServing ? listedDrinkPricesByVenue : undefined;
+ 	const venues = await loadConciergeVenues(cityId);
+ 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
+ 		? await matchedWetherspoonsVenueIds(venues)
+@@ -361,7 +387,7 @@ export async function preparePlanGeneration(
+ 				planningWeather,
+ 				naLensPrices,
+ 				wetherspoonsMatchedIds,
+-				drinkLensPrices,
++				comparableDrinkPrices,
+ 			);
+ 			return {
+ 				venue,
+@@ -369,7 +395,9 @@ export async function preparePlanGeneration(
+ 				tonightEvents,
+ 				signalClaims,
+ 				...scored,
+-				selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
++				selectedDrinkPrice: selectedServing
++					? listedDrinkPricesByVenue.get(venue.id) ?? null
++					: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
+ 			};
+ 		})
+ 		.filter(({ distance, venue, signalClaims }) =>
+diff --git a/lib/planGenerationRanking.ts b/lib/planGenerationRanking.ts
+index f6487e6ca..3549c06c3 100644
+--- a/lib/planGenerationRanking.ts
++++ b/lib/planGenerationRanking.ts
+@@ -23,7 +23,7 @@ function priceAndZeroProof(
+       const price = drinkLensPrices?.get(venue.id);
+       if (price?.category === category && price.priceGbp > 0) {
+         score += Math.min(5, 10 / price.priceGbp);
+-        reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
++        reasons.push(`${price.source === "listed" ? `listed ${price.servingSize ?? ""}` : "corroborated community"} ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
+       }
+     } else if (!context.zeroProof) {
+       const price = venue.cheapestPrice;
+diff --git a/lib/planGenerationRequest.ts b/lib/planGenerationRequest.ts
+index e42f5227e..f39d32be0 100644
+--- a/lib/planGenerationRequest.ts
++++ b/lib/planGenerationRequest.ts
+@@ -21,6 +21,7 @@ import {
+ } from "@/lib/planningIntent";
+ import { isPlanIdempotencyKey } from "@/lib/planStore";
+ import { isPlanStopCount } from "@/lib/planStopCount";
++import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ 
+ export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
+ const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
+@@ -52,6 +53,7 @@ export type PlanGenerationAnchor = {
+   source: PlanningIntentSource;
+   acceptedArea: PlanningIntentArea;
+   startsAt: string | null;
++  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+ };
+ 
+ type PlanGenerationRequest = {
+@@ -124,7 +126,10 @@ function canonicalIsoOrNull(value: unknown): string | null | undefined {
+ /** Parse the optional acceptance anchor. `undefined` return rejects the request. */
+ function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
+   if (value === undefined || value === null) return null;
+-  if (!isPlainRecord(value) || !hasExactKeys(value, ANCHOR_KEYS)) return undefined;
++  if (!isPlainRecord(value) || !(hasExactKeys(value, ANCHOR_KEYS)
++    || hasExactKeys(value, [...ANCHOR_KEYS, "selectedDrinkPriceEvidence"]))) return undefined;
++  const selected = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
++  if (Object.hasOwn(value, "selectedDrinkPriceEvidence") && !selected) return undefined;
+   if (typeof value.venueId !== "string" || !ANCHOR_VENUE_ID_PATTERN.test(value.venueId)) return undefined;
+   if (typeof value.source !== "string" || !(PLANNING_INTENT_SOURCES as readonly string[]).includes(value.source)) {
+     return undefined;
+@@ -138,6 +143,7 @@ function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
+     source: value.source as PlanningIntentSource,
+     acceptedArea,
+     startsAt,
++    ...(selected ? { selectedDrinkPriceEvidence: selected } : {}),
+   };
+ }
+ 
+diff --git a/lib/planIntake.ts b/lib/planIntake.ts
+index 872098a95..ba9bf7d6e 100644
+--- a/lib/planIntake.ts
++++ b/lib/planIntake.ts
+@@ -720,6 +720,8 @@ export function buildPlanGenerationIntakeBody(
+         source: anchor.source,
+         acceptedArea: anchor.acceptedArea,
+         startsAt: anchor.startsAt,
++        ...(selected && !context.zeroProof && context.drinkCategory === selected.category
++          ? { selectedDrinkPriceEvidence: selected } : {}),
+       },
+     } : {}),
+   };

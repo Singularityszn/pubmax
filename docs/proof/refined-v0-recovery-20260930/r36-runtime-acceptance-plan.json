@@ -1,0 +1,152 @@
+{
+  "status": "RUNTIME_GRANTED_RED_REPRODUCED_REPAIRS_IN_PROGRESS",
+  "checkout": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+  "freeze": "r39-source-only-freeze.json",
+  "frozenFiles": 4251,
+  "unverifiedDeltaFromR35": [
+    "e2e/price-evidence-missions.spec.ts",
+    "lib/ukPriceBundle.ts",
+    "__tests__/authCallbackClient.test.ts",
+    "__tests__/deviceAccountSwitch.test.ts",
+    "__tests__/surfaceReadDedupe.test.ts",
+    "__tests__/ukPriceBundle.test.ts",
+    "e2e/price-intent-lifecycle.spec.ts",
+    "__tests__/profileWithdrawnPage.test.tsx",
+    "__tests__/nightSignalFeedApproved.test.ts"
+  ],
+  "boundary": "Fresh explicit Root grant, actual prior-owner cleanup and independent preflight passed. Exclusive Core bounded runtime until00:45UTC; cleanup00:42UTC.",
+  "steps": [
+    {
+      "status": "PASSED",
+      "action": "Confirm fresh Core runtime handoff after actual prior-owner cleanup; capture independent process/port preflight and unchanged source freeze."
+    },
+    {
+      "status": "RED_REPRODUCED_15_FAILED_89_PASSED",
+      "action": "Capture focused RED against preserved candidate before product fixes.",
+      "commands": [
+        "./node_modules/.bin/vitest run __tests__/ukPriceBundle.test.ts -t 'withholds seven exact Prospect claims|withholds the normalized wrong-wine claim'",
+        "./node_modules/.bin/vitest run __tests__/authCallbackClient.test.ts -t 'reports a banned account behind an unowned callback'",
+        "./node_modules/.bin/vitest run __tests__/deviceAccountSwitch.test.ts -t 'separates a refused token'",
+        "./node_modules/.bin/vitest run __tests__/surfaceReadDedupe.test.ts",
+        "npm test -- __tests__/profileWithdrawnPage.test.tsx __tests__/surfaceReadDedupe.test.ts",
+        "./node_modules/.bin/vitest run __tests__/nightSignalFeedApproved.test.ts"
+      ]
+    },
+    {
+      "status": "UNRUN",
+      "action": "Diagnose Lore intermediate geometry before any Lore fix; preserve the 44px minimum assertion.",
+      "driver": "docs/proof/refined-v0-recovery-20260930/r35-lore-intermediate-driver-UNRUN.mts.txt"
+    },
+    {
+      "status": "UNRUN",
+      "action": "After observed RED, compose bounded repairs with latest-main owners while preserving Core work: seven Prospect signatures, raw/canonical quarantine, ban classification and cache boundary retirement with mounted public-reader control. Official builder regeneration and exact data custody only after composition."
+    },
+    {
+      "status": "UNRUN",
+      "action": "Run imported price-intent lifecycle regression before Main Map intent composition; retain controlled-router vs native controls boundary and all existing assertions.",
+      "command": "e2e/price-intent-lifecycle.spec.ts",
+      "sourceReceipt": "r37-upstream-price-intent-regression.md"
+    },
+    {
+      "status": "UNRUN",
+      "action": "Run complete affected unit suites and sibling contracts, including normalized wine dedupe, auth bootstrap/logout/newer-login races, cache abort/validation/storage/finalizer behavior. Reconcile migration labels and owner references before final gate; no shared SQL application."
+    },
+    {
+      "status": "UNRUN",
+      "action": "Run whole price-evidence file and focused Lore coverage against repaired data."
+    },
+    {
+      "status": "UNRUN",
+      "action": "Run fresh source gate against final freeze.",
+      "command": "DEPLOYMENT_VERSION=local npm run verify"
+    },
+    {
+      "status": "UNRUN",
+      "action": "Build primary and keyless production targets with exact Playwright-config environment; restore and verify owned data snapshot."
+    },
+    {
+      "status": "UNRUN",
+      "action": "Run unchanged complete five-project Playwright suite with two workers and zero retries."
+    },
+    {
+      "status": "UNRUN",
+      "action": "Stop only owned processes; confirm owned ports, browsers, and database services are clean."
+    }
+  ],
+  "separateGate": {
+    "status": "UNRUN",
+    "action": "Strict default five-sample CWV sweep in a separate authorized window; do not reduce samples, devices, routes, or budgets."
+  },
+  "publication": "No index, commit, push, merge, deploy, SQL, or live account mutations authorized by this plan.",
+  "latestMain": {
+    "sha": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+    "headUnchanged": true,
+    "mechanicalReceipt": "r36-main-reconciliation.json",
+    "semanticReceipts": [
+      "r36-main-price-auth-semantics.md",
+      "r36-main-map-plan-semantics.md"
+    ],
+    "blockingComposition": [
+      "Raw/canonical exact quarantine with upstream normalization; preserve same-wine serving dedupe.",
+      "Unowned user_banned classification into cancellation/newer-login-aware auth.",
+      "Map price-intent callback, first-pub binding and picker history plus Plan request inference; preserve Core keyboard/reveal ownership and broader listed/backup evidence. Proposal hint mapping already covered centrally.",
+      "Upstream0168 proposal-context SQL and Core0172 already cover equivalent context filtering; upstream0168 conflicts with Core0168 listed evidence. Migration owner reconciles history/rollback custody without duplicate behavior; captain applies SQL."
+    ],
+    "dependencyContract": "Package owner rebases onto main through PR1881. Prior SDK checkout context.dev2.19.0 API mismatch is historical; Core preview TypeScript passed. Final acceptance needs validated package delta and fresh whole source gate.",
+    "previousReviewedBaseline": "af5a08f78afad1091efc7ed97d1906daf9b47db1",
+    "newMergeReview": "r36-main1881-delta-review.md"
+  },
+  "updatedAt": "2026-10-01T00:01:25.637299+00:00",
+  "previewEvidence": {
+    "build": "r36-preview-build-receipt.json",
+    "views": "r36-preview-view-receipt.json",
+    "handoff": "r36-preview-idle-handoff.json",
+    "claim": "Actual local preview and TypeScript pass. New assertions UNRUN; two full E2E failures remain. No provider login or release proof.",
+    "cleanup": "r36-preview-actual-cleanup-receipt.json"
+  },
+  "momentUiFollowup": {
+    "status": "STATIC_CAPTURE_AND_HANDLER_REVIEW_ONLY_NATIVE_TAP_PENDING",
+    "image": "r36-preview/moment-390.jpg",
+    "source": "components/moment/MomentCapture.tsx:584",
+    "observed": "Empty composer presents enabled Save this Moment hero CTA. Source intentionally focuses caption if canSave=false; authenticated footer submit disabled until valid content and auth ready. Save handler refuses missing user and retains draft.",
+    "claimBoundary": "No lost-save or auth-bypass bug established. Existing launchRoutes.d.test.tsx asserts initial label; intake tests submit form directly rather than exercise empty hero CTA.",
+    "nextNativeChecks": [
+      "Fresh anonymous empty draft: tap hero, verify visible caption focus and no save request; assess whether label clearly describes this state.",
+      "Caption-only draft: tap hero, verify sign-in notice retains caption and auth return intent; no live account writes.",
+      "Authenticated local fixture: complete content, tap hero, verify single attempted submission, loading disable and visible refusal/success. Distinguish fixture evidence from real provider or durable DB proof."
+    ],
+    "repairBoundary": "Reproduce native flow before changing button action or copy; preserve one-primary design and private draft semantics."
+  },
+  "privateCacheReachability": {
+    "receipt": "r37-private-cache-reachability.md",
+    "status": "SOURCE_REVIEW_ONLY",
+    "finding": "Normal revision effect cleanup aborts before revision-ref setup; canonical A/B card keys differ. Earlier provider-boundary/pre-cleanup retention interval unresolved. No cross-owner disclosure proved.",
+    "nextSeam": "Existing profileWithdrawnPage mounted component plus actual surface cache/deferred native body, then covers/authedFetch body controls; keep canonical handles and no artificial internal-ref mutation.",
+    "preparedMountedRegression": "r37-mounted-private-cache-regression.md",
+    "command": "npm test -- __tests__/profileWithdrawnPage.test.tsx __tests__/surfaceReadDedupe.test.ts",
+    "claimBoundary": "Two mounted source-prepared cases UNRUN: pending native-body abort safeguard and loaded private social links withdrawal during held next-viewer response. Public counts retained. Generic cache generation bug separate; decoded-body interval and real entitlement unproved.",
+    "loadedPrivateLinks": {
+      "status": "SOURCE_PREPARED_EXPECTED_RED_UNRUN",
+      "test": "__tests__/profileWithdrawnPage.test.tsx:287",
+      "evidence": "Limited API projection withholds social links. Existing followKey reset leaves links retained; header currently renders them during B pending read. Public counts intentionally kept.",
+      "next": "Execute loaded-A/held-B regression before product fix; reproduce native account/provider delivery before claiming live disclosure. Preserve public counts and pending-body safeguards."
+    }
+  },
+  "unusedRouteReview": {
+    "receipts": [
+      "r38-anchor-route-reachability.md",
+      "r38-night-signals-route-reachability.md"
+    ],
+    "finding": "No first-party HTTP consumer found; public contracts/external consumers cannot be ruled out. Keep shared planning resolver and direct snapshot readers. No deletion performed.",
+    "nightSignalsCache": "Non-durable timed admission/mutable store contradict cache-purity claim; durable configured branch no-store. Source evidence only; reproduce clock/admission expiry and cache behavior before change; no hosted CDN replay proof.",
+    "preparedRegression": {
+      "receipt": "r39-night-signals-cache-regression.md",
+      "review": "r39-night-signals-cache-test-review.md",
+      "status": "UNRUN",
+      "command": "./node_modules/.bin/vitest run __tests__/nightSignalFeedApproved.test.ts",
+      "preservedHistoricalControl": "Existing keyless s-maxage assertion preserved until executed RED and policy repair.",
+      "scope": "Direct handler/real memory-store transitions and response headers; no hosted CDN proof."
+    }
+  },
+  "currentEvidence": "r46-focused-red-repair-status.json"
+}

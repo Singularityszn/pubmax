@@ -1,0 +1,479 @@
+{
+  "diagnosticOnly": true,
+  "status": "NO_COPY_MISMATCH_OBSERVED",
+  "origin": "http://localhost:3351",
+  "venueId": "venue-uk-n8308248176",
+  "journeys": [
+    {
+      "viewport": "mobile",
+      "width": 390,
+      "completed": true,
+      "pageErrors": [],
+      "checks": [],
+      "mapNavigationStatus": 200,
+      "servedBundleStatus": 200,
+      "detailApiStatus": 404,
+      "servedBundleListedWineEvidence": [
+        {
+          "drinkLabel": "Chardonnay, Pays D’oc, France",
+          "priceGbp": 5.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Chardonnay, Pays D’oc, France",
+          "priceGbp": 11,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Chenin Blanc, South Africa",
+          "priceGbp": 5.75,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Chenin Blanc, South Africa",
+          "priceGbp": 11.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Côtes de Provence, France",
+          "priceGbp": 6.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Côtes de Provence, France",
+          "priceGbp": 13,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Faithful Hound, South Africa",
+          "priceGbp": 7,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Faithful Hound, South Africa",
+          "priceGbp": 14,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Gavi de Gavi, Italy",
+          "priceGbp": 7,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Gavi de Gavi, Italy",
+          "priceGbp": 14,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Malbec, Argentina",
+          "priceGbp": 6.75,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Malbec, Argentina",
+          "priceGbp": 13.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Merlot, Pays D’Oc, France",
+          "priceGbp": 5.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Merlot, Pays D’Oc, France",
+          "priceGbp": 11,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Montepulciano d’Abruzzo, Italy",
+          "priceGbp": 5.75,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Montepulciano d’Abruzzo, Italy",
+          "priceGbp": 11.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Notorious Pink, France",
+          "priceGbp": 7,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Notorious Pink, France",
+          "priceGbp": 14,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Pinot Grigio, Italy",
+          "priceGbp": 6,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Pinot Grigio, Italy",
+          "priceGbp": 12,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Rioja, Spain",
+          "priceGbp": 5.25,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Rioja, Spain",
+          "priceGbp": 10.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Sauvignon Blanc, New Zealand",
+          "priceGbp": 6.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Sauvignon Blanc, New Zealand",
+          "priceGbp": 13,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        }
+      ],
+      "detailApiListedWineEvidence": [],
+      "result": "MATCHED",
+      "suggestionText": "The Sydney Arms\n70, Sydney Street, London, SW3 6NJ\n4.9 km from centre",
+      "suggestionHasNoListedPrice": false,
+      "hasServedListedWineEvidence": true,
+      "hasApiListedWineEvidence": false,
+      "noListedPriceWithListedEvidence": false
+    },
+    {
+      "viewport": "desktop",
+      "width": 1440,
+      "completed": true,
+      "pageErrors": [],
+      "checks": [],
+      "mapNavigationStatus": 200,
+      "servedBundleStatus": 200,
+      "detailApiStatus": 404,
+      "servedBundleListedWineEvidence": [
+        {
+          "drinkLabel": "Chardonnay, Pays D’oc, France",
+          "priceGbp": 5.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Chardonnay, Pays D’oc, France",
+          "priceGbp": 11,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Chenin Blanc, South Africa",
+          "priceGbp": 5.75,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Chenin Blanc, South Africa",
+          "priceGbp": 11.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Côtes de Provence, France",
+          "priceGbp": 6.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Côtes de Provence, France",
+          "priceGbp": 13,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Faithful Hound, South Africa",
+          "priceGbp": 7,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Faithful Hound, South Africa",
+          "priceGbp": 14,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Gavi de Gavi, Italy",
+          "priceGbp": 7,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Gavi de Gavi, Italy",
+          "priceGbp": 14,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Malbec, Argentina",
+          "priceGbp": 6.75,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Malbec, Argentina",
+          "priceGbp": 13.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Merlot, Pays D’Oc, France",
+          "priceGbp": 5.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Merlot, Pays D’Oc, France",
+          "priceGbp": 11,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Montepulciano d’Abruzzo, Italy",
+          "priceGbp": 5.75,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Montepulciano d’Abruzzo, Italy",
+          "priceGbp": 11.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Notorious Pink, France",
+          "priceGbp": 7,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Notorious Pink, France",
+          "priceGbp": 14,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Pinot Grigio, Italy",
+          "priceGbp": 6,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Pinot Grigio, Italy",
+          "priceGbp": 12,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Rioja, Spain",
+          "priceGbp": 5.25,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Rioja, Spain",
+          "priceGbp": 10.5,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Sauvignon Blanc, New Zealand",
+          "priceGbp": 6.5,
+          "servingSize": "125ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        },
+        {
+          "drinkLabel": "Sauvignon Blanc, New Zealand",
+          "priceGbp": 13,
+          "servingSize": "250ml",
+          "lane": "site-harvest",
+          "standing": "listed",
+          "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+          "observedAt": "2026-09-29T10:40:17.846Z"
+        }
+      ],
+      "detailApiListedWineEvidence": [],
+      "result": "MATCHED",
+      "suggestionText": "The Sydney Arms\n70, Sydney Street, London, SW3 6NJ\n4.9 km from centre",
+      "suggestionHasNoListedPrice": false,
+      "hasServedListedWineEvidence": true,
+      "hasApiListedWineEvidence": false,
+      "noListedPriceWithListedEvidence": false
+    }
+  ],
+  "errors": []
+}

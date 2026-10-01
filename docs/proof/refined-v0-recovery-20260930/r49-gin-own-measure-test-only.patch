@@ -1,0 +1,36 @@
+diff --git a/__tests__/ginPublisherServingScope.test.ts b/__tests__/ginPublisherServingScope.test.ts
+new file mode 100644
+--- /dev/null
++++ b/__tests__/ginPublisherServingScope.test.ts
+@@ -0,0 +1,31 @@
++import { describe, expect, it } from "vitest";
++
++import { readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
++
++// Synthetic reader contracts, not publisher observations or importable prices.
++describe("printed spirit section and item serving scope", () => {
++  it("uses an item's explicit measure instead of its section's different measure", () => {
++    const reading = readVenueDrinkPrices("Gin 25ml\nGordons Gin 50ml £8", "text");
++
++    expect(reading.kept).toEqual([
++      expect.objectContaining({ category: "gin", priceGbp: 8, servingSize: "50ml" }),
++    ]);
++  });
++
++  it("uses the preceding section measure when the item states none", () => {
++    const reading = readVenueDrinkPrices("Gin 25ml\nGordons Gin £4", "text");
++
++    expect(reading.kept).toEqual([
++      expect.objectContaining({ category: "gin", priceGbp: 4, servingSize: "25ml" }),
++    ]);
++  });
++
++  it("never assigns a later section measure to an earlier named item", () => {
++    const reading = readVenueDrinkPrices("Gordons Gin £4\nGin 25ml", "text");
++
++    expect(reading.kept).toEqual([
++      expect.objectContaining({ category: "gin", priceGbp: 4 }),
++    ]);
++    expect(reading.kept[0].servingSize).toBeUndefined();
++  });
++});

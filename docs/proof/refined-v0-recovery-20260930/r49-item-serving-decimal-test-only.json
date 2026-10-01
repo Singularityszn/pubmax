@@ -1,0 +1,51 @@
+{
+  "status": "FROZEN TEST-ONLY; actual fractional measure RED UNRUN",
+  "createdAtUTC": "2026-10-01T14:21:03.238076+00:00",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtPackaging": "6a1c877cc71a975dd3283345f45d4bf7fd1ef293",
+  "scratch": "/tmp/pubmaxx-r49-item-serving-decimal-test",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-item-serving-decimal-test-only.patch",
+  "patchSHA256": "e16831904b2808c5a809af9e92c521e06bb7526dcd8a85f4a1ea16b863e4a64f",
+  "paths": [
+    {
+      "path": "__tests__/ginPublisherSourceRefresh.test.ts",
+      "beforeSHA256": "394978856d48e7164cc3da9a2848316a8113cbaf5c33120f6b9da73b654a5f83",
+      "afterSHA256": "8cd8d88bc6d7bf1feba0adfcb6228661f9f89bb2148b2ac913c71f9d9ef6755d",
+      "currentRootMatchesBefore": true,
+      "originalCompletePrefixPreserved": true
+    }
+  ],
+  "readerDependency": {
+    "path": "lib/harvest/ukPriceCrawl.ts",
+    "SHA256": "b4844ef3191bba8f3850b1fb291bc16092954323aac4b93ab0bed78e01580bb7"
+  },
+  "cases": [
+    "Gin 25ml\\nGordons Gin 12.5ml \u00a38",
+    "Gin 25ml\\nGordons Gin 0.5ml \u00a38"
+  ],
+  "expected": "Each public reader result keeps exactly one Gin \u00a38 item with servingSize undefined: no suffix5ml and no inherited25ml.",
+  "authority": "Synthetic unsupported fractional serving controls only; neither input is a publisher observation or importable price.",
+  "expectedCurrentResult": "Both should FAIL by source inference because own integer matcher matches decimal suffix5ml; no actual execution claimed.",
+  "sourceChecks": {
+    "RootReadonlyApplyCheckWhitespaceErrorAll": "PASS exit0",
+    "freshScratchApply": "PASS exit0",
+    "freshScratchAfterHash": "PASS exact bytes",
+    "completeOriginalTestPrefix": "PASS exact bytes"
+  },
+  "capturedFixturesUnchanged": [
+    {
+      "path": "__tests__/fixtures/harvest/scolt-head-spirits-20261001.json",
+      "SHA256": "83aa2dedd4e0ff658d91db00845099fc821564e55fb3fc81b9de8a78a50fb26a"
+    },
+    {
+      "path": "__tests__/fixtures/harvest/albion-gin-pdfjs-20261001.json",
+      "SHA256": "585ce932e3d2122f836ef2e2d354573507db70d425ac59964ac5d17b030dd5a9"
+    },
+    {
+      "path": "__tests__/fixtures/harvest/albion-spirit-boundaries-pdfjs-20261001.json",
+      "SHA256": "39af5bb5b5c9b778150b51b7f360a2202fefce0e1a7761a3984fb977a2d37755"
+    }
+  ],
+  "command": "npx vitest run __tests__/ginPublisherSourceRefresh.test.ts __tests__/ukPriceCrawl.test.ts __tests__/ukPriceHarvestRead.test.ts __tests__/ukPriceSourceFormat.test.ts",
+  "scope": "One append-only scratch test delta; no reader/fixtures/bundle/data/maintained tree edits or runtime/provider/Git mutations."
+}

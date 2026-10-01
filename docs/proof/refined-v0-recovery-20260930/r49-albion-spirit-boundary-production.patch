@@ -1,0 +1,51 @@
+--- a/lib/harvest/ukPriceCrawl.ts
++++ b/lib/harvest/ukPriceCrawl.ts
+@@ -311,10 +311,10 @@
+ // Only standalone printed headings scope subsequent item lines. An unsupported
+ // recognized section ends the previous scope; a later heading supplies no measure to
+ // an earlier item. Prices and descriptions cannot themselves open a section.
+-const DRINK_SECTION_HEADING = /^(gin|vodka|rum|whisk(?:y|ey)|tequila|shots?|alcohol[- ]free|non[- ]alcoholic|spirits|liqueurs(?: & spirits)?|cognac|brandy|soft drinks(?: & mixers)?|mixers|beers?|wines?|red wines?|white wines?|ros[eé]|cocktails?|coffee|hot drinks)(?:\s+([1-9]\d{0,2})\s*ml)?$/i;
++const DRINK_SECTION_HEADING = /^(gin|vodka|rum|whisk(?:y|ey)|tequila|shots?|alcohol[- ]free|non[- ]alcoholic|spirits|liquors?|liqueurs(?: & spirits)?|cognac|brandy|soft drinks(?: & mixers)?|mixers|beers?|wines?|red wines?|white wines?|ros[eé]|cocktails?|coffee|hot drinks)(?:\s+([1-9]\d{0,2})\s*ml)?$/i;
+ 
+ function printedDrinkSection(text: string, at: number): {
+-  category: DrinkCategory;
++  category: DrinkCategory | null;
+   servingSize?: string;
+ } | null {
+   const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+@@ -323,6 +323,11 @@
+     const heading = DRINK_SECTION_HEADING.exec(lines[index].trim());
+     if (!heading) continue;
+     const category = categoryFor(heading[1]);
++    // Unsupported spirit sections block neighbour-category borrowing. Other
++    // sections end spirit scope without changing their existing item reader.
++    if (/^(?:cognac|brandy|spirits|liquors?|liqueurs(?: & spirits)?)$/i.test(heading[1])) {
++      return { category: null };
++    }
+     if (!category || (!SPIRIT_CATEGORIES.includes(category) && category !== "alcohol-free")) return null;
+     return {
+       category,
+@@ -777,12 +782,18 @@
+   )) {
+     return { drop: "no-category-word-nearby" };
+   }
+-  const decision = section?.category === "alcohol-free"
++  const sectionDecision = section?.category
+     ? { category: section.category, fromMixer: decisionFromLabel?.fromMixer ?? false }
+-    : decisionFromLabel ?? (wineIdentity
+-      ? { category: "wine" as const, fromMixer: false }
+-      : section ? { category: section.category, fromMixer: false }
+-        : categoryDecisionFor(context, at - contextStart));
++    : null;
++  // A printed spirit section plus the same spirit in the item name beats a
++  // wine word in that brand (Tequila Rose), never an own cocktail/AF title or
++  // mixer rejection. A section alone cannot erase named beer or soft drinks.
++  const decision = sectionDecision && (sectionDecision.category === "alcohol-free" || (
++    decisionFromLabel?.category === "wine"
++    && categoriesNamedIn(drinkLabel ?? "").has(sectionDecision.category)
++  )) ? sectionDecision : decisionFromLabel ?? (wineIdentity
++    ? { category: "wine" as const, fromMixer: false }
++    : section ? sectionDecision : categoryDecisionFor(context, at - contextStart));
+   if (!decision) {
+     return {
+       drop: Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby",

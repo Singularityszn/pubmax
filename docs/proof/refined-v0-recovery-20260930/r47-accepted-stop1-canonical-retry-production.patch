@@ -1,0 +1,50 @@
+--- a/lib/planComposerHandoff.ts
++++ b/lib/planComposerHandoff.ts
+@@ -10,7 +10,6 @@
+   PLAN_DRAFT_KEY,
+   PLAN_DRAFT_V2_KEY,
+   parsePlanDraftEnvelope,
+-  readPlanDraftEnvelope,
+   writePlanDraftEnvelope,
+   type ParsedPlanDraft,
+   type StoredPlanDraft,
+@@ -19,7 +18,6 @@
+   PLAN_ROUTE_DRAFT_KEY,
+   PLAN_ROUTE_DRAFT_V2_KEY,
+   parsePlanRouteDraftEnvelope,
+-  readPlanRouteDraftEnvelope,
+   writePlanRouteDraftEnvelope,
+   type ParsedPlanRouteDraft,
+ } from "@/lib/planRouteDraft";
+@@ -238,9 +236,14 @@
+   try {
+     const rawV2 = storage.getItem(PLAN_DRAFT_V2_KEY);
+     const rawV1 = storage.getItem(PLAN_DRAFT_KEY);
+-    const existing = parsePlanDraftEnvelope(rawV2, rawV1, now);
++    const canonical = parsePlanDraftEnvelope(rawV2, null, now);
++    const existing = canonical ?? parsePlanDraftEnvelope(rawV2, rawV1, now);
+     const legacy = parsePlanDraftEnvelope(null, rawV1, now);
+     if (!existing || (!existing.draft.acceptedAnchor && !legacy?.draft.acceptedAnchor)) return;
++    if (canonical && !canonical.draft.acceptedAnchor) {
++      bestEffortRemove(storage, PLAN_DRAFT_KEY);
++      return;
++    }
+     const withoutAcceptance: StoredPlanDraft = { ...existing.draft };
+     delete withoutAcceptance.acceptedAnchor;
+     if (!writePlanDraftEnvelope(withoutAcceptance, "manual", storage, now).v2) {
+@@ -260,9 +263,14 @@
+   try {
+     const rawV2 = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+     const rawV1 = storage.getItem(PLAN_ROUTE_DRAFT_KEY);
+-    const existing = parsePlanRouteDraftEnvelope(rawV2, rawV1, now);
++    const canonical = parsePlanRouteDraftEnvelope(rawV2, null, now);
++    const existing = canonical ?? parsePlanRouteDraftEnvelope(rawV2, rawV1, now);
+     const legacy = parsePlanRouteDraftEnvelope(null, rawV1, now);
+     if (!existing || (!existing.value.anchorVenueId && !legacy?.value.anchorVenueId)) return;
++    if (canonical && !canonical.value.anchorVenueId) {
++      bestEffortRemove(storage, PLAN_ROUTE_DRAFT_KEY);
++      return;
++    }
+     const written = writePlanRouteDraftEnvelope({
+       ...existing.value,
+       anchorVenueId: null,

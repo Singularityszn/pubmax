@@ -1,0 +1,21 @@
+{
+  "recordedAt": "2026-10-01T03:39:24.371672+00:00",
+  "base": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+  "status": "SOURCE_REVIEW_PASS_RUNTIME_UNRUN_AUTH_HELD",
+  "scratch": "/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/pubmaxx-r47-parent-late-bootstrap-impunmjq",
+  "patch": "r47-late-bootstrap-regressions.patch",
+  "patchSha256": "d9cdf72b98a0a58f8161e48825657ccd5f30d7041dc61a99f124b7911c330f6b",
+  "application": "Original 13-path auth candidate then 3-case test patch scratch apply/whitespace and output hash PASS; no maintained source writes.",
+  "testReview": [
+    "Actual bootstrap helper and already-entered SDK install, no abort swallowing.",
+    "Logout and newer login assert rendered identity history plus explicit SDK/cookie doubles.",
+    "Unrevoked restoration is positive control.",
+    "Logout wait allowed until held install released, avoiding false deadlock assertion."
+  ],
+  "boundary": "Runtime is owned by release integration lane; no separate Core auth run. RED is expected by review only, not observed. Original auth production port remains held.",
+  "freeze": {
+    "paths": 4253,
+    "drift": 0
+  },
+  "remaining": "Release owner must reproduce actual RED, repair and prove GREEN; Core then original lifecycle/GL and real category API/UI under explicit runtime allocation."
+}

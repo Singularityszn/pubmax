@@ -1,0 +1,22 @@
+{
+  "observedAtUtc": "2026-09-30T17:16:04.488920+00:00",
+  "handedOffPublishedSource": "fe0cabf5fe26d5eb45af47863d21051442e9d075",
+  "changedTopLevelKeys": [],
+  "changedPackageEntries": [
+    "node_modules/dompurify"
+  ],
+  "changedDomPurifyKeys": [
+    "version",
+    "resolved",
+    "integrity"
+  ],
+  "beforeLockSha256": "ac2133c94536195d300fcbc10b3c12916feb94b0957ef4051b183c99df83910d",
+  "afterLockSha256": "c336f30e9ca752cb4af9ea5be14b6ad8d0e77a22534b02741a416152181730b5",
+  "lockDomPurifyVersion": "3.4.16",
+  "installedDomPurifyVersion": "3.4.15",
+  "frozenR28FileCount": 4247,
+  "changedSinceR28": [
+    "package-lock.json"
+  ],
+  "scope": "Reviewed minimal lock delta only, after explicit SDK source handoff. Other maintained source and all pre-existing lock edits preserved. Installation/build/browser/gate not run. R28 gate/build remain historical; next candidate must install3.4.16 and receive fresh freeze/build/full gates."
+}

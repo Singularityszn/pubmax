@@ -1,0 +1,301 @@
+diff --git a/lib/planningAnchor.server.ts b/lib/planningAnchor.server.ts
+index 3968d19de..d183089e1 100644
+--- a/lib/planningAnchor.server.ts
++++ b/lib/planningAnchor.server.ts
+@@ -1,8 +1,9 @@
+ import "server-only";
+ 
+-import type { CityId } from "@/lib/cities";
++import { CITIES, pointInCityBounds, type CityId } from "@/lib/cities";
++import { isNationalBaseVenueId, venueIdMatchesCity } from "@/lib/cityVenueIds";
++import { lookupUkBasePub } from "@/lib/ukBaseIndex";
+ import { formatGbp } from "@/lib/formatGbp";
+-import { venueIdMatchesCity } from "@/lib/cityVenueIds";
+ import {
+   nearestNightAreaForViewport,
+   isNightAreaRouteReady,
+@@ -148,6 +149,7 @@ export async function resolvePlanningAnchor(
+   if (typeof input.venueId !== "string" || !VENUE_ID_PATTERN.test(input.venueId)) {
+     return conflict("ANCHOR_VENUE_INVALID");
+   }
++  if (isNationalBaseVenueId(input.venueId)) return resolveBasePlanningAnchor(input);
+ 
+   const canonicalVenueId = (await deps.resolveAlias(input.venueId)).trim();
+   if (!canonicalVenueId) return conflict("ANCHOR_VENUE_INVALID");
+@@ -218,3 +220,46 @@ export async function resolvePlanningAnchor(
+ function conflict(code: PlanningAnchorConflict["code"]): PlanningAnchorConflict {
+   return planningAnchorConflict(code);
+ }
++
++/** Base identity stays OSM identity: no curated Venue, prices or amenities are synthesized. */
++async function resolveBasePlanningAnchor(input: ResolvePlanningAnchorInput): Promise<PlanningAnchorResult> {
++  const lookup = await lookupUkBasePub(input.venueId);
++  if (lookup.status !== "ready" || lookup.pub.kind !== "pub") return conflict("ANCHOR_VENUE_INVALID");
++  const pub = lookup.pub;
++  if (!pointInCityBounds(pub.lat, pub.lng, CITIES[input.cityId])) return conflict("ANCHOR_CITY_MISMATCH");
++  if (input.acceptedArea && (input.acceptedArea.kind === "borough"
++    || nearestNightPatch(pub.lat, pub.lng)?.id !== input.acceptedArea.id)) {
++    return conflict("ANCHOR_AREA_CONFLICT");
++  }
++  // This pack has no accessibility or budget evidence. It cannot satisfy an asserted requirement.
++  if (input.requiresStepFreeAccess) return conflict("ANCHOR_ACCESS_CONFLICT");
++  if (typeof input.budgetPerPersonPence === "number" && Number.isFinite(input.budgetPerPersonPence)) {
++    return conflict("ANCHOR_BUDGET_CONFLICT");
++  }
++  const now = typeof input.now === "number" && Number.isFinite(input.now) ? input.now : Date.now();
++  const nightArea = nearestNightAreaForViewport(input.cityId, [pub.lng, pub.lat]);
++  const startsAt = canonicalStartsAt(input.startsAt);
++  return {
++    status: "resolved",
++    display: {
++      venueId: pub.id,
++      venueName: pub.name,
++      areaName: areaNameFor(input.acceptedArea, nightArea?.name ?? null),
++      startLabel: startsAt,
++      priceEvidence: null,
++      routeWindowOk: nightArea ? isNightAreaRouteReady(nightArea, new Date(now)) : true,
++      budgetCompatible: true,
++      accessibilityCompatible: true,
++    },
++    canonical: {
++      cityId: input.cityId,
++      venueId: pub.id,
++      nightAreaSlug: nightArea?.slug ?? null,
++      acceptedArea: input.acceptedArea,
++      coordinates: { lat: pub.lat, lng: pub.lng },
++      startsAt,
++      priceObservedAt: null,
++      priceFreshnessKind: "unknown",
++    },
++  };
++}
+diff --git a/lib/planRoute.ts b/lib/planRoute.ts
+index 75a030bb0..bca1517c7 100644
+--- a/lib/planRoute.ts
++++ b/lib/planRoute.ts
+@@ -1,16 +1,18 @@
+-import { CITIES, type CityId } from "@/lib/cities";
++import { CITIES, pointInCityBounds, type CityId } from "@/lib/cities";
++import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
++import { lookupUkBasePub } from "@/lib/ukBaseIndex";
+ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+ import { cultureWaypointPois } from "@/lib/cultureCrawl.server";
+ import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
+ import type { PlanStopDTO } from "@/lib/plan";
+-import { isPlanStopCount } from "@/lib/planStopCount";
++import { isPlanStopCount, MAX_PLAN_STOP_COUNT } from "@/lib/planStopCount";
+ 
+ export type PlanStopTarget = { venueId: string; venueName: string };
+ 
+ /**
+  * The ONE answer to "may a Plan hold this Stop id, and what is it called".
+- * Two id shapes resolve, both against server-owned data: a listed venue from
+- * the Venue Dataset, and a `place:<poi id>` meeting point from the ambient POI
++ * Listed venues and submitted UK base pub identities resolve against their own
++ * server packs, alongside a `place:<poi id>` meeting point from the ambient POI
+  * layer. Free text resolves to nothing, so it can never be stored.
+  *
+  * Creation is city-scoped and route replacement is not (a Plan persists no
+@@ -19,10 +21,23 @@ export type PlanStopTarget = { venueId: string; venueName: string };
+  */
+ export async function planStopResolver(
+   cityId?: CityId,
++  submitted: readonly unknown[] = [],
+ ): Promise<(raw: unknown) => PlanStopTarget | null> {
+   const cities = cityId ? [cityId] : (Object.keys(CITIES) as CityId[]);
+   const venueLists = await Promise.all(cities.map((city) => loadConciergeVenues(city)));
+-  const venuesById = new Map(venueLists.flat().map((venue) => [venue.id, venue]));
++  const venuesById = new Map<string, PlanStopTarget>(venueLists.flat().map((venue) =>
++    [venue.id, { venueId: venue.id, venueName: venue.name }]));
++  const baseIds = submitted.length <= MAX_PLAN_STOP_COUNT ? [...new Set(submitted.flatMap((raw) => {
++    const id = raw && typeof raw === "object" ? (raw as Record<string, unknown>).venueId : raw;
++    return typeof id === "string" && isNationalBaseVenueId(id) ? [id] : [];
++  }))] : [];
++  for (const id of baseIds) {
++    const lookup = await lookupUkBasePub(id);
++    if (lookup.status === "ready" && lookup.pub.kind === "pub"
++      && cities.some((city) => pointInCityBounds(lookup.pub.lat, lookup.pub.lng, CITIES[city]))) {
++      venuesById.set(id, { venueId: lookup.pub.id, venueName: lookup.pub.name });
++    }
++  }
+   const placesById = new Map(
+     cities.flatMap((city) =>
+       cultureWaypointPois(city).map((poi) => [poi.id, poi] as const),
+@@ -42,19 +57,19 @@ export async function planStopResolver(
+         : null;
+     }
+     const venue = venuesById.get(classified.venueId);
+-    return venue ? { venueId: venue.id, venueName: venue.name } : null;
++    return venue ?? null;
+   };
+ }
+ 
+ /**
+  * Rebuild a proposed route from the server-owned data. A Plan does not persist
+- * a city yet, so replacement accepts only ids that occur in a shipped city
+- * dataset (or that city's POI layer) and always returns their canonical
++ * a city yet, so replacement accepts only canonical ids in shipped city
++ * datasets, their POI layers, or UK base pubs within those city bounds. It returns canonical
+  * display names.
+  */
+ export async function canonicalPlanRoute(raw: unknown): Promise<PlanStopDTO[] | null> {
+   if (!Array.isArray(raw) || !isPlanStopCount(raw.length)) return null;
+-  const resolve = await planStopResolver();
++  const resolve = await planStopResolver(undefined, raw);
+   const stops = raw.map((value, position) => {
+     const target = resolve(value);
+     return target ? { ...target, position } : null;
+diff --git a/app/api/plans/route.ts b/app/api/plans/route.ts
+index aadc8480e..7d4a4a05f 100644
+--- a/app/api/plans/route.ts
++++ b/app/api/plans/route.ts
+@@ -117,7 +117,7 @@ export async function POST(request: Request): Promise<Response> {
+   const submittedStops = Array.isArray(body.stops) ? body.stops : [];
+   // One rule for what a Stop id may be, shared with route replacement: a listed
+   // venue, or a `place:<poi id>` meeting point. Free text resolves to nothing.
+-  const resolveStop = await planStopResolver(cityId);
++  const resolveStop = await planStopResolver(cityId, submittedStops);
+   const resolvedStops = submittedStops.map((raw) => resolveStop(raw));
+   if (resolvedStops.some((stop) => stop === null)) {
+     return publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400);
+diff --git a/lib/planGeneration.server.ts b/lib/planGeneration.server.ts
+index 31e636720..1580c45ec 100644
+--- a/lib/planGeneration.server.ts
++++ b/lib/planGeneration.server.ts
+@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
+ import { jsonNoStore } from "@/lib/apiResponses";
+ import { publicApiError } from "@/lib/apiError";
+ import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
++import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
+ import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
+ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
+ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+@@ -131,6 +132,9 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
+ 		requestNow,
+ 		anchorVenueId,
+ 	);
++	if (!selection.ok && isNationalBaseVenueId(anchorVenueId)) {
++		return baseAnchorOnlyResponse(anchorResolution, params);
++	}
+ 	if (!selection.ok) {
+ 		return anchorConflict(
+ 			"ANCHOR_ROUTE_CONFLICT",
+@@ -424,3 +428,43 @@ export async function preparePlanGeneration(
+ 		anchor: parsedRequest.value.anchor,
+ 	} };
+ }
++
++/** A canonical base pub is a grounded meetup, not a fabricated curated crawl candidate. */
++async function baseAnchorOnlyResponse(
++  anchor: Extract<Awaited<ReturnType<typeof resolvePlanningAnchor>>, { status: "resolved" }>,
++  input: { context: NightContext; intake: ParsedPlanGenerationIntake | null; requestNow: number;
++    operationKey: string; anchor: PlanGenerationAnchor; area: NightArea;
++    coverage: ReturnType<typeof publicNightAreaCoverage> },
++): Promise<{ done: Response }> {
++  const { context, intake, requestNow, operationKey, area, coverage } = input;
++  const coordinates = anchor.canonical.coordinates;
++  const requiredAccess = context.accessibility.length > 0 || Boolean(intake?.handoff.accessibilityNeeds.length);
++  const invalidArea = intake?.exactNightArea && (!coordinates || distanceKm(area.centre,
++    { lat: coordinates.lat, lng: coordinates.lng }) > area.radiusKm);
++  if (requiredAccess || context.budgetLimitPence !== null || invalidArea) {
++    return { done: jsonNoStore({ grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
++      stops: [], reason: requiredAccess ? "ANCHOR_ACCESS_CONFLICT" : invalidArea ? "ANCHOR_AREA_CONFLICT" : "ANCHOR_BUDGET_CONFLICT",
++      message: "We cannot confirm that pub meets those plan requirements. Keep the requirements or choose another pub.",
++      operationKey, nightArea: { id: area.slug, ...coverage } }, { status: 200 }) };
++  }
++  const id = anchor.canonical.venueId;
++  const [approved] = await resolvePlanSelectedDrinkPriceEvidence(
++    [{ venueId: id, venueName: anchor.display.venueName }],
++    [{ selectedDrinkPriceEvidence: input.anchor.selectedDrinkPriceEvidence }], context);
++  let proof: string;
++  try { proof = mintPlanGroundingProofV2({ routeVenueIds: [id], allowedVenueIds: [id], anchorVenueId: id,
++    anchorSource: input.anchor.source, outcome: "anchor-only", operationKey }, requestNow); }
++  catch (error) { const unavailable = planSigningUnavailableResponse(error); if (unavailable) return { done: unavailable }; throw error; }
++  return { done: jsonNoStore({ grounded: true, outcome: "anchor-only", anchored: true, routeReady: false,
++    reason: "ANCHOR_COMPANIONS_INSUFFICIENT", anchorVenueId: id, anchorSource: input.anchor.source,
++    groundingProof: proof, operationKey, inferredContext: context, nightArea: { id: area.slug, ...coverage },
++    stops: [{ venueId: id, venueName: anchor.display.venueName, position: 0,
++      estimatedPintPricePence: null, priceEvidence: null,
++      selectedDrinkPriceEvidence: approved?.selectedDrinkPriceEvidence ?? null, accessEvidence: {},
++      constraintFlags: [{ code: "opening_hours_unconfirmed", message: "Opening hours have not been confirmed." }],
++      operationalEvidence: { openingAtVisit: "unknown", openingSource: null, visitWindow: null,
++        transportBasis: "compact-straight-line" },
++      provenance: [{ kind: "venue_dataset", label: "OpenStreetMap pub location", url: "https://www.openstreetmap.org/copyright" }],
++      alternatives: [] }],
++  }, { status: 200 }) };
++}
+diff --git a/components/PubMap.tsx b/components/PubMap.tsx
+index acd0130fd..52ab1a751 100644
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -3380,7 +3380,7 @@ export default function PubMap({
+   // keeps its richer area and provenance envelope and everything else is a
+   // plain map search.
+   const acceptStop1 = useCallback(() => {
+-    const venue = selectedVenue;
++    const venue = selectedVenue ?? (selectedBasePub?.id === selectedVenueId && selectedBasePub.kind === "pub" ? selectedBasePub : null);
+     if (!venue) return;
+     const price = drinkLensPrices?.get(venue.id);
+     const selectedEvidence = mapDrinkLensCategory
+@@ -3401,7 +3401,7 @@ export default function PubMap({
+     trackEvent("venue_accepted", result.telemetry);
+     trackEvent("planning_handoff_opened", { from: result.telemetry.source, to: "plan" });
+     if (typeof window !== "undefined") window.location.assign(result.destination);
+-  }, [selectedVenue, cityId, mapDrinkLensCategory, drinkLensPrices, drinkServingGroup]);
++  }, [selectedVenue, selectedBasePub, selectedVenueId, cityId, mapDrinkLensCategory, drinkLensPrices, drinkServingGroup]);
+ 
+   const handleUkBasePubClick = useCallback(
+     (pub: UkBasePub) => {
+@@ -5507,6 +5507,8 @@ export default function PubMap({
+       return (
+         <UnverifiedPubSheet
+           pub={selectedBasePub}
++          onAcceptStop1={selectedBasePub.kind === "pub" ? acceptStop1 : undefined}
++          acceptanceError={acceptanceError}
+           communityPrices={communityPrices}
+           experienceLens={experienceLens}
+           drinkLensCategory={mapDrinkLensCategory}
+diff --git a/components/map/UnverifiedPubSheet.tsx b/components/map/UnverifiedPubSheet.tsx
+index 459c66585..98cea3519 100644
+--- a/components/map/UnverifiedPubSheet.tsx
++++ b/components/map/UnverifiedPubSheet.tsx
+@@ -34,6 +34,8 @@ import {
+   type MapExperienceLens,
+ } from "@/lib/mapExperienceLens";
+ 
++import { Button } from "@/components/ui/button";
++
+ import "./unverifiedPubSheet.css";
+ 
+ // The sheet behind a UK base pin - a pub OpenStreetMap knows about but the
+@@ -51,6 +53,8 @@ type UnverifiedPubSheetProps = {
+   experienceLens?: MapExperienceLens;
+   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
+   drinkLensCategory?: DrinkCategory | null;
++  onAcceptStop1?: () => void;
++  acceptanceError?: string | null;
+ };
+ 
+ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverlay }) {
+@@ -116,6 +120,8 @@ export default function UnverifiedPubSheet({
+   communityPrices,
+   experienceLens = "all",
+   drinkLensCategory = null,
++  onAcceptStop1,
++  acceptanceError = null,
+ }: UnverifiedPubSheetProps) {
+   const { user, loading: authLoading, configured: authConfigured } = useAuth();
+   // The base-layer half of the release funnel's third step, through the one
+@@ -282,6 +288,12 @@ export default function UnverifiedPubSheet({
+         </p>
+       ) : null}
+ 
++      {pub.kind === "pub" && onAcceptStop1 ? (
++        <Button type="button" variant="ghost" onClick={onAcceptStop1} aria-label={`Make ${pub.name} Stop 1`}>
++          Make it Stop 1
++        </Button>
++      ) : null}
++      {acceptanceError ? <p role="alert">{acceptanceError}</p> : null}
+       {overlay ? <HarvestOverlayFields overlay={overlay} /> : null}
+ 
+       <VenueSheetPriceEntry

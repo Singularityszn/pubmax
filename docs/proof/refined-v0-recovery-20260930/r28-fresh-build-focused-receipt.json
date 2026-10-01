@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-30T15:59:29.435296+00:00",
+  "buildId": "build-TfctsWXpff2fKS",
+  "frozenFiles": 4247,
+  "sourceDeltaAfterBuild": [],
+  "nativeClassification": "EXERCISED_RECOVERED",
+  "affectedBrowser": {
+    "passed": 5,
+    "seconds": 33.9,
+    "retries": 0,
+    "projects": [
+      "chromium-gl",
+      "chromium-sw-gl"
+    ]
+  },
+  "limits": "Focused passes do not close original full-suite regression, live authentication, device GPS or deployment."
+}

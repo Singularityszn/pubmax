@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-30T19:27:52.597226+00:00",
+  "status": "focused_GREEN",
+  "command": "vitest run __tests__/siteHarvestReconciliation.test.ts __tests__/ukPriceBundle.test.ts __tests__/listedCategoryPrices.test.ts __tests__/venueRoute.test.ts",
+  "exitCode": 0,
+  "testsPassed": 51,
+  "filesPassed": 4,
+  "datasetHashes": {
+    "rows.json": "d234ca852d0ec45f989393c9a27c82a26eb8d1094e4cea820a066c8c49c1fff6",
+    "manifest.json": "3cdb241338228a371384cadd06f2629ce5f23a3da2c598016e62d248b9e811fd"
+  },
+  "log": "/tmp/pubmaxx-r35-focused-green-rerun.log",
+  "limits": "Focused unit evidence, no full gate or production claim."
+}

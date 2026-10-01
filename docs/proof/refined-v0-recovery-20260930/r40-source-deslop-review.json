@@ -1,0 +1,52 @@
+{
+  "at": "2026-09-30T23:06:52.592182+00:00",
+  "skill": ".agents/skills/deslop/SKILL.md",
+  "sourceOnly": true,
+  "baseline": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+  "freeze": "r39-source-only-freeze.json",
+  "reviewed": [
+    {
+      "path": "lib/listedCategoryPrices.ts",
+      "sha256": "cd3bd1bf865bcf7f26e23e55cd618542c19e705353b39be8d61a9d6e8dada4e4",
+      "sameAsPendingFreeze": true
+    },
+    {
+      "path": "lib/listedPriceComparison.ts",
+      "sha256": "89a231936d0ee9342a239c848f66cacff1c4dab5ef383d5e99dd6bf3c97beb3a",
+      "sameAsPendingFreeze": true
+    },
+    {
+      "path": "lib/legacyPintPriceSource.ts",
+      "sha256": "eb8bc230d143bdf3ccc3a84bc3e8eec517e3511b5b1a64525c21bf100c194921",
+      "sameAsPendingFreeze": true
+    },
+    {
+      "path": "lib/mapFirstVisitArrivalStore.ts",
+      "sha256": "dd54e54de80f60c50f9e123fc46ab3d6082a826a39244a684257dbc118966ace",
+      "sameAsPendingFreeze": true
+    },
+    {
+      "path": "components/auth/AuthProvider.tsx",
+      "sha256": "5db136b476c87d7451eee9d2330c47b4261b08fad38c13c887dca919d3e6eb28",
+      "sameAsPendingFreeze": true
+    }
+  ],
+  "decisions": [
+    "Serving-size comparison and unnamed-drink separation comments explain price ranking limits; keep.",
+    "Named legacy publisher URL validation enforces source disclosure; keep.",
+    "Arrival storage exceptions are environmental fallback, not blanket suppression; keep.",
+    "Auth cancellation/newer-login ownership guards explain real races covered by historical Core suite; retain pending fresh verification."
+  ],
+  "edits": [],
+  "scopeLimit": "Bounded review of these files only, not whole-repo deslop completion or current behavior proof.",
+  "runtimeObservation": {
+    "oldNative45585": "Absent23:02; not restarted",
+    "currentNative": {
+      "pid": 21999,
+      "pgid": 21999,
+      "cwd": "/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M3T7M0S607HN2YQEW0AVC04Q"
+    },
+    "observerSession80371": "TerminalEXIT0",
+    "claim": "Direct ps/lsof confirms new native evidence actor live. Does not prove release."
+  }
+}

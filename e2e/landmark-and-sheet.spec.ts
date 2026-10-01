@@ -347,6 +347,7 @@ test("inline drawers keep spring ownership and content through responsive exits"
 }) => {
   test.setTimeout(60_000);
   const errors = watchPageErrors(page);
+  await page.clock.install();
 
   await page.setViewportSize({ width: 700, height: 900 });
   await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
@@ -361,23 +362,45 @@ test("inline drawers keep spring ownership and content through responsive exits"
     ),
   ).toBe("none");
   await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
+  await expect(tabletDrawer.getByRole("heading", { name: "Arnos Arms", exact: true })).toBeVisible();
+  await expect(tabletDrawer).toHaveCSS("will-change", "auto");
   const tabletOpenBox = await tabletDrawer.boundingBox();
   expect(tabletOpenBox).not.toBeNull();
   expect(tabletOpenBox!.y).toBeGreaterThanOrEqual(0);
   expect(tabletOpenBox!.y).toBeLessThan(900);
   expect(tabletOpenBox!.x + tabletOpenBox!.width).toBeLessThanOrEqual(701);
 
-  // The drawer's way out is the shared SurfaceNav pair now, not a bespoke
-  // close (components/ui/surface-nav.tsx).
-  await tabletDrawer.locator(".surfaceNavHome").click();
-  await expect(tabletDrawer).toHaveAttribute("aria-hidden", "true");
-  // The selected venue may clear immediately, but its rendered content stays
-  // in the exiting drawer until the close spring rests.
-  await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
-  await expect
-    .poll(() => tabletDrawer.locator(".venueInspector").count())
-    .toBe(0);
-  await expect.poll(async () => (await tabletDrawer.boundingBox())?.y ?? 0).toBeGreaterThanOrEqual(899);
+  async function closeAndObserveExit(drawer: typeof tabletDrawer, axis: "x" | "y") {
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60_000));
+    // Keep the real SurfaceNav action. Read ownership, content and geometry
+    // together while animation time is paused, then advance the actual spring.
+    await drawer.locator(".surfaceNavHome").click();
+    await expect(drawer).toHaveAttribute("aria-hidden", "true");
+    const snapshot = () => drawer.evaluate((node) => {
+      const { x, y } = node.getBoundingClientRect();
+      return {
+        x,
+        y,
+        hidden: node.getAttribute("aria-hidden"),
+        inspectors: node.querySelectorAll(".venueInspector").length,
+      };
+    });
+    let exit = await snapshot();
+    expect(exit.hidden).toBe("true");
+    expect(exit.inspectors).toBe(1);
+    for (let frame = 0; frame < 180; frame += 1) {
+      await page.clock.runFor(16);
+      exit = await snapshot();
+      expect(exit.hidden).toBe("true");
+      if (exit.inspectors === 0) break;
+      expect(exit.inspectors).toBe(1);
+    }
+    expect(exit.inspectors, "content leaves only after the close spring rests").toBe(0);
+    expect(exit[axis]).toBeGreaterThanOrEqual(899);
+    await page.clock.resume();
+  }
+
+  await closeAndObserveExit(tabletDrawer, "y");
 
   await page.setViewportSize({ width: 900, height: 900 });
   await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
@@ -393,15 +416,14 @@ test("inline drawers keep spring ownership and content through responsive exits"
       (node) => getComputedStyle(node).transitionProperty,
     ),
   ).toBe("none");
+  await expect(compactDesktopDrawer.locator(".venueInspector")).toHaveCount(1);
+  await expect(compactDesktopDrawer.getByRole("heading", { name: "Arnos Arms", exact: true })).toBeVisible();
+  await expect(compactDesktopDrawer).toHaveCSS("will-change", "auto");
   const desktopOpenBox = await compactDesktopDrawer.boundingBox();
   expect(desktopOpenBox).not.toBeNull();
   expect(desktopOpenBox!.x).toBeLessThan(900);
   expect(desktopOpenBox!.x + desktopOpenBox!.width).toBeCloseTo(900, 0);
-  await compactDesktopDrawer.locator(".surfaceNavHome").click();
-  await expect(compactDesktopDrawer).toHaveAttribute("aria-hidden", "true");
-  await expect(compactDesktopDrawer.locator(".venueInspector")).toHaveCount(1);
-  await expect(compactDesktopDrawer.locator(".venueInspector")).toHaveCount(0);
-  await expect.poll(async () => (await compactDesktopDrawer.boundingBox())?.x ?? 0).toBeGreaterThanOrEqual(899);
+  await closeAndObserveExit(compactDesktopDrawer, "x");
 
   expect(errors).toEqual([]);
 });

@@ -1,0 +1,90 @@
+--- /dev/null
++++ b/__tests__/planSavedBackupDeliveryMigrationEffective.test.ts
+@@ -0,0 +1,87 @@
++import { readdirSync } from "node:fs";
++import { join } from "node:path";
++
++import { afterAll, beforeAll, describe, expect, it } from "vitest";
++
++import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
++
++const skipReason = postgresSkipReason();
++const migrations = join(process.cwd(), "supabase/migrations");
++const listedEvidenceMigration = "20261001073000_0176_plan_listed_drink_evidence.sql";
++const manualEvidenceMigration = "20261001073100_0177_plan_manual_selected_evidence.sql";
++const prerequisites = readdirSync(migrations)
++  .filter((entry) => entry.endsWith(".sql") && entry < listedEvidenceMigration)
++  .sort()
++  .map((entry) => join(migrations, entry));
++const listed = {
++  category: "wine",
++  pence: 625,
++  serving: "125ml",
++  source: "listed",
++  sourceUrl: "https://example.org/approved-menu",
++  observedAt: "2026-09-29T10:40:17.846Z",
++};
++const alternatives = [{
++  venueId: "venue-d",
++  venueName: "Canonical d",
++  selectedDrinkPriceEvidence: listed,
++}];
++const route = [
++  { venueId: "venue-a", venueName: "A", position: 0, alternatives },
++  { venueId: "venue-b", venueName: "B", position: 1, alternatives: [] },
++  { venueId: "venue-c", venueName: "C", position: 2, alternatives: [] },
++];
++const planId = "10000000-0000-4000-8000-000000000001";
++const memberId = "20000000-0000-4000-8000-000000000001";
++const token = "11".repeat(32);
++
++let session: PostgresSession | null = null;
++
++function db(): PostgresSession {
++  if (!session) throw new Error("PostgreSQL session unavailable");
++  return session;
++}
++
++function json(value: unknown): string {
++  return `'${JSON.stringify(value).replaceAll("'", "''")}'::jsonb`;
++}
++
++function create(): string {
++  return db().sql(`select public.create_plan_idempotent_atomic(
++    '${planId}'::uuid, 'Backup route', '2026-09-30T19:00:00Z', ${json(route)},
++    '${memberId}'::uuid, 'Host', '${token}', '2026-09-29T12:00:00Z',
++    '${token}', '${token}', null, null, null)`);
++}
++
++function savedAlternatives(): unknown {
++  return JSON.parse(db().sql(`select coalesce(to_jsonb(stop)->'alternatives', 'null'::jsonb)::text
++    from public.plan_stops stop where plan_id = '${planId}' and position = 0`));
++}
++
++beforeAll(async () => {
++  if (skipReason) return;
++  session = await startPostgres({ label: "plan-backup-delivery-current-chain", database: "pubmax_plan_backup_current" });
++  try {
++    db().applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
++    for (const path of prerequisites) db().applyFile(path);
++    db().applyFile(join(migrations, listedEvidenceMigration));
++    db().applyFile(join(migrations, manualEvidenceMigration));
++  } catch (error) {
++    await session.stop();
++    session = null;
++    throw error;
++  }
++}, 600_000);
++
++afterAll(async () => {
++  await session?.stop();
++  session = null;
++});
++
++describe.skipIf(skipReason !== null)("current Plan backup delivery over PostgreSQL", () => {
++  it("retains the submitted canonical backup and its exact listed quote on create", () => {
++    expect(create()).toBe("created");
++    expect(db().sql(`select (night_context is null)::text from public.plans where id = '${planId}'`)).toBe("true");
++    expect(savedAlternatives()).toEqual(alternatives);
++  });
++});

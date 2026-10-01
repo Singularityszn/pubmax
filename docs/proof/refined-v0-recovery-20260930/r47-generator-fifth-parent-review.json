@@ -1,0 +1,11 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_ROOT_ACTUAL_RED_PENDING",
+  "sha256": "62279ce055cf8df9a3da496eda362dbcffd74f831ea229c5c47a0aebc5372550",
+  "checks": [
+    "CurrentRootexacttestbefore",
+    "patchhash",
+    "Rootapplycheck",
+    "freshscratchafterpin"
+  ],
+  "sourceReview": "ActualPOST/3stops/exactacceptedfifth250/companionssource/day/serving/nullpint/V2proof; existingrealprojectorfixturehonorsservingthirdarg; allpreviouscontrolsretained; syntheticnotlivesupply"
+}

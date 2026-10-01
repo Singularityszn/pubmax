@@ -1,0 +1,173 @@
+{
+  "recordedAt": "2026-09-30T11:23:44.213133+00:00",
+  "variant": "R23 afterthree test-onlycorrections, applicationunchanged",
+  "browser": {
+    "session": 13683,
+    "exit": 0,
+    "passed": 7,
+    "durationSeconds": 46.7
+  },
+  "types": {
+    "session": 92142,
+    "exit": 0
+  },
+  "scopedLint": {
+    "session": 17452,
+    "exit": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "testHashes": {
+    "e2e/desktop-map-chrome-fit.spec.ts": "644155fb3e6e2f6fde603daa4b2536ed67b16853260447c454d4e9461e0ffb80",
+    "e2e/landmark-and-sheet.spec.ts": "219b5df733a11ef3d5b2c3cdae513d1874e3b85e407d532f0673b3cd4c64b7c6",
+    "e2e/mobile-discover-coverage.spec.ts": "5ef6a31ffad0cdba13f1db458d18dbff4aa725c67ab0bb2bce1cc4386a80e50a"
+  },
+  "jobs": [
+    {
+      "wrapperPid": 8402,
+      "groupPid": 8410,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790763552.6908338,
+      "command": [
+        "npm",
+        "run",
+        "verify"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790763817.4221299
+    },
+    {
+      "wrapperPid": 7800,
+      "groupPid": 7808,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790766937.571139,
+      "command": [
+        "node",
+        "/tmp/pubmaxx-resume-recovery.cjs"
+      ],
+      "active": false,
+      "exitCode": 143,
+      "ended": 1790767122.842601
+    },
+    {
+      "wrapperPid": 93821,
+      "groupPid": 93829,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790763355.164096,
+      "command": [
+        "node",
+        "/tmp/pubmaxx-resume-recovery.cjs"
+      ],
+      "active": false,
+      "exitCode": 143,
+      "ended": 1790764117.695188
+    },
+    {
+      "wrapperPid": 19478,
+      "groupPid": 19489,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790767124.1519082,
+      "command": [
+        "./node_modules/.bin/eslint",
+        "e2e/desktop-map-chrome-fit.spec.ts",
+        "e2e/landmark-and-sheet.spec.ts",
+        "e2e/mobile-discover-coverage.spec.ts"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790767125.399381
+    },
+    {
+      "wrapperPid": 19441,
+      "groupPid": 19449,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790767122.957827,
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790767126.52406
+    },
+    {
+      "wrapperPid": 10991,
+      "groupPid": 11001,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790766973.9868429,
+      "command": [
+        "./node_modules/.bin/playwright",
+        "test",
+        "e2e/desktop-map-chrome-fit.spec.ts",
+        "e2e/landmark-and-sheet.spec.ts",
+        "e2e/mobile-discover-coverage.spec.ts",
+        "--project=chromium",
+        "--workers=1",
+        "--retries=0",
+        "--trace=retain-on-failure",
+        "--grep",
+        "1440px planner hands|inline drawers keep|drawer retains content while exiting|mobile Discover shows",
+        "--output=/tmp/pubmaxx-r23-drawer-discover-fixed-results"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790767020.9377139
+    },
+    {
+      "wrapperPid": 95801,
+      "groupPid": 95809,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790763389.6443799,
+      "command": [
+        "./node_modules/.bin/playwright",
+        "test",
+        "e2e/map-performance.spec.ts",
+        "e2e/map-unknown-selection.spec.ts",
+        "--project=chromium",
+        "--workers=1",
+        "--retries=0",
+        "--grep",
+        "selected map detail acquires|unknown.*honesty|a bogus|a failed lookup|an aliased|a valid",
+        "--output=/tmp/pubmaxx-r23-order-parity-results"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "ended": 1790763396.112788
+    },
+    {
+      "wrapperPid": 53511,
+      "groupPid": 53519,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "started": 1790765414.373087,
+      "command": [
+        "npm",
+        "run",
+        "test:e2e",
+        "--",
+        "--workers=2",
+        "--retries=0",
+        "--project=chromium",
+        "--project=chromium-keyless",
+        "--project=chromium-gl",
+        "--project=chromium-sw-gl",
+        "--project=chromium-no-gl",
+        "--output=/tmp/pubmaxx-final-five-project-r23-results"
+      ],
+      "active": false,
+      "exitCode": 1,
+      "ended": 1790766827.375639
+    }
+  ],
+  "fullFive": "OriginalfullrunEXIT1;correctedfullrerunPENDING",
+  "finalFullSourceGate": "PENDING aftertestcorrections",
+  "openFailures": [
+    "ManchesterCheckingdisabled",
+    "SWposttakeoverpinreveal"
+  ],
+  "noPublication": true,
+  "heavyCleanupCompletedAt": "2026-09-30T11:18:46.524060Z",
+  "watchdog": "11:22 cleanup issued; no active jobs",
+  "explicitReleaseNotice": "After 11:23:44.213133Z archive repair; late notice, heavy jobs already terminal"
+}

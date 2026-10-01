@@ -1,0 +1,17 @@
+{
+  "observedAtUtc": "2026-09-30T17:04:44.135315+00:00",
+  "rootHead": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "rootLockPreserved": true,
+  "fetchedSDKHead": "fe0cabf5fe26d5eb45af47863d21051442e9d075",
+  "commitChangedFiles": [
+    "package-lock.json"
+  ],
+  "rootDomPurify": "3.4.15",
+  "publishedDomPurify": "3.4.16",
+  "domPurifyEntryChangedKeys": [
+    "integrity",
+    "resolved",
+    "version"
+  ],
+  "notApplied": "SDK owner fresh full gate/cleanup and explicit handoff pending. Source diff and fetch are independent read evidence; not full hosted CI or local gate acceptance."
+}

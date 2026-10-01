@@ -1,0 +1,22 @@
+{
+  "recordedAt": "2026-09-30T13:09:59.745388+00:00",
+  "changes": [
+    {
+      "path": ".agents/skills/gnhf/SKILL.md",
+      "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/gnhf/SKILL.md",
+      "beforeSha256": "70fbdf06917a0207e22fea68e090a9883fa8e9a6b74d911de01855906bca8cb9",
+      "afterSha256": "baa66630fdba017103ad6c374f7f266223a65ab8d303872e0472ce8a1ce7b4db",
+      "change": "Only broken Agents-table link repaired to official upstream anchor; custom policy preserved."
+    },
+    {
+      "path": "skills/gnhf/SKILL.md",
+      "resolvedPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/gnhf/SKILL.md",
+      "beforeSha256": "70fbdf06917a0207e22fea68e090a9883fa8e9a6b74d911de01855906bca8cb9",
+      "afterSha256": "baa66630fdba017103ad6c374f7f266223a65ab8d303872e0472ce8a1ce7b4db",
+      "change": "Only broken Agents-table link repaired to official upstream anchor; custom policy preserved."
+    }
+  ],
+  "officialTarget": "https://github.com/kunchenguid/gnhf#agents",
+  "verification": "Source diff only; official README Agents anchor read. No runtime or skill installation.",
+  "auditCorrections": "Legacy test-driven-development companion exists; dated catalog records origin. Global shared freshness is distinct from project overlays. Current AGENTS governs invocation; no policy refresh or quarantine."
+}

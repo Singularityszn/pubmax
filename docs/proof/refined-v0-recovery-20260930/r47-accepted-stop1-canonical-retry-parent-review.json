@@ -1,0 +1,23 @@
+{
+  "status": "SOURCE_PARENT_REVIEW_PASS_FROZEN_CURRENT_ROOT_RUNTIME_UNRUN",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-accepted-stop1-canonical-retry-production.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-accepted-stop1-canonical-retry-production.json",
+  "sha256": "63912d922695f155b5a22ed42ff3c5e26f3ab582658d913aad736ee0b512f227",
+  "reviewedAtUTC": "2026-10-01T13:28:09.788181+00:00",
+  "checks": {
+    "exactRootBeforePin": true,
+    "freshScratchAfterPin": true,
+    "rootReadOnlyApplyCheck": true,
+    "root53AndMountedTestsUnchanged": true
+  },
+  "sourceChecks": [
+    "Parse canonical independently before fallback; valid already-unheld canonical stays byte-for-byte untouched even when canonical writes denied.",
+    "Only staleV1 cleanup attempted in newbranch. Denied cleanup/read remains unconfirmed by existing finalparserverify; CTA therefore remains blocked. No newstore/privatepayload.",
+    "Initialheldcanon path and sourcefallback behavior retained; no rewrites unrelateddrafts. Two unusedreadimports removed, no ceiling raised."
+  ],
+  "runtime": null,
+  "limits": [
+    "Root actual53case4RED prerequisite covers bothPlan/Route available/deniedlegacycleanup. Exactunchangedcohort GREEN required, plusnativeanchorrecovery andfinalgates.",
+    "No transactionalstorage/provider/production claim."
+  ]
+}

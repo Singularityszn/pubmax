@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-01T00:48:44.291717+00:00",
+  "status": "RELEASED",
+  "ports": {
+    "3351": "",
+    "3352": "",
+    "3353": "",
+    "8787": "",
+    "55351": "",
+    "55352": "",
+    "55401": "",
+    "55402": ""
+  },
+  "ownedProcessMatches": [],
+  "sourcePaths": 4252,
+  "drift": [],
+  "fullFiveSession": 37092,
+  "fullFiveExit": 1,
+  "fullFive": "1293 passed,24 skipped,4 failed;0flaky",
+  "diagnosticSession": 26089,
+  "diagnosticExit": 1,
+  "diagnostic": "One originalconsumedHome assertion reproducedRED; historyjournal nativeHomeclick invokesback, logicalmoment+venue returns topricePicker. No productedit/build/DB/re-run.",
+  "boundary": "Actuallocalownedcleanup only; no merge/deploy/SQL orproductionclaim. Sourcefix and remainingphone drag/pal/release evidence pending."
+}

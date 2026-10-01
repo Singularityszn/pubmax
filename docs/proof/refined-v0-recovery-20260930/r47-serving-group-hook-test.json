@@ -1,0 +1,24 @@
+{
+  "status": "SOURCE_ONLY_TEST_UNRUN",
+  "patchSha256": "b9c7daf0ff3056fb6629a7d8eb813a2d0fa0f85e7fe2f8f905d4e83135d60b07",
+  "bytes": 3212,
+  "files": [
+    {
+      "path": "__tests__/communityPriceClientState.test.ts",
+      "beforeSha256": "ba5ea08899cead1ac1a829645f5853e62daffac0bb4c3e9bb7d3456a48d65673",
+      "afterSha256": "541db79a83fbb0e56941941443b9034980162993e1242a7ee39a780c6e292e68"
+    }
+  ],
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFiles": true,
+    "runtime": false
+  },
+  "focusedCommand": "npx vitest run __tests__/communityPriceClientState.test.ts",
+  "expectedRed": "Inference only: category-only request/dedupe currently produces one request with no serving, instead of two independently owned group requests.",
+  "limits": [
+    "Real mounted useCommunityPrices hook and native Response/deferred-fetch fixture; explicit signedout useAuth double does not prove provider or server entitlement.",
+    "25/50 fixture controls chosen serving ownership, no claimed native group UI/history proof.",
+    "Existing group map keys category:serving are prescribed minimal existing state-map extension, no new storage or framework."
+  ]
+}

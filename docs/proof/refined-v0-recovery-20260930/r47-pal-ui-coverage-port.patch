@@ -1,0 +1,53 @@
+diff --git a/e2e/pal-plan-send.spec.ts b/e2e/pal-plan-send.spec.ts
+--- a/e2e/pal-plan-send.spec.ts
++++ b/e2e/pal-plan-send.spec.ts
+@@ -1,5 +1,6 @@
+ import { expect, test, type Page } from "@playwright/test";
++import { mockPalPlanAnswer } from "./helpers/palProviderDouble";
+ 
+ // Pal Plan send: Pub Pal crawl ask lands in Plan, auto-generates, locks, shares one link.
+ 
+ const PHONE = { width: 390, height: 844 };
+@@ -37,8 +38,9 @@
+   });
+ }
+ 
+ async function palToLockedPlan(page: Page) {
++  await mockPalPlanAnswer(page);
+   await page.goto("/pal/chat");
+   const ask = "Plan a crawl in Soho for 4";
+   await askOnPhone(page, ask);
+   const answer = page.locator(".palChatRow--pal").last();
+diff --git a/e2e/pal-openvenue.spec.ts b/e2e/pal-openvenue.spec.ts
+--- a/e2e/pal-openvenue.spec.ts
++++ b/e2e/pal-openvenue.spec.ts
+@@ -1,7 +1,8 @@
+ import { mkdir, writeFile } from "node:fs/promises";
+ 
+ import { expect, test } from "@playwright/test";
++import { mockPalVenueAnswer } from "./helpers/palProviderDouble";
+ 
+ const PHONE = { width: 390, height: 844 };
+ const SHOTS_DIR = process.env.PAL_OPENVENUE_SHOTS_DIR ?? "";
+ 
+@@ -33,8 +34,9 @@
+     page,
+   }) => {
+     test.setTimeout(120_000);
+ 
++    await mockPalVenueAnswer(page);
+     await page.goto("/pal/chat");
+     await askOnPhone(page, "Quiet-ish near Bank, not pricey");
+ 
+     const card = page.locator(".palChatCard").first();
+@@ -45,9 +47,9 @@
+     await venueLink.click();
+ 
+     await expect(page).toHaveURL(/\/map\?sel=/, { timeout: 45_000 });
+     const venueId = new URL(page.url()).searchParams.get("sel");
+-    expect(venueId).toBeTruthy();
++    expect(venueId).toBe("venue-1h7w6h3");
+ 
+     const inspector = page.locator(".venueInspector");
+     await expect(inspector).toBeAttached({ timeout: 60_000 });
+ 

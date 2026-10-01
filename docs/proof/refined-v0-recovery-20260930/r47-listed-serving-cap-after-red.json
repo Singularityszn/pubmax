@@ -1,0 +1,54 @@
+{
+  "capturedAtUtc": "2026-10-01T06:26:05Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-listed-serving-cap-prod/base",
+  "scratchCandidate": "/tmp/pubmaxx-r47-listed-serving-cap-prod/candidate",
+  "patch": "/tmp/pubmaxx-r47-listed-serving-cap-after-red.patch",
+  "patchSha256": "647028d23bd32a0f7b499279ba57a7f5086afb2e54769c079a7092d32763e4df",
+  "status": "SCRATCH_CANDIDATE_AFTER_ACTUAL_RED_UNRUN",
+  "actualCapRedReportedByParent": {
+    "total": 28,
+    "pass": 22,
+    "fail": 6,
+    "skip": 0,
+    "capFailures": 2,
+    "symptom": "Five groups capped to four before discovery; selected fifth group absent from ready index, truncated false."
+  },
+  "runtimeExecutedByThisAgent": false,
+  "testsExecutedByThisAgent": false,
+  "files": [
+    {
+      "path": "lib/listedCategoryPrices.ts",
+      "baseSha256": "ea9d1ba31b24af90bd5cef573eb9aadc7d95c327f5b470b3394e209479039747",
+      "candidateSha256": "43261c0ecb642d5c63ca4bf34002969e9580ffb75a21bbe28e0243ab24c69df5"
+    },
+    {
+      "path": "lib/ukPriceBundle.server.ts",
+      "baseSha256": "99013ad0c61604382ef76eeee35af50b425eb3dcb5967a2a7c78b920b0278ee1",
+      "candidateSha256": "ae74041c2169be00cad6a0e6db870312e46f271fadb691a6f263e8ea4a06aa49"
+    }
+  ],
+  "design": [
+    "Optional listedCategoryPrices option serving filters the selected canonical group before the existing per-category four-quote slice.",
+    "Projection emits optional onServingGroup(category, group) from the same validated, expiry-filtered, quarantine-filtered and cheapest-per-group projection before selected filtering and four-quote cap.",
+    "Server index gathers complete servingGroups through that callback, then consumes only selected projection rows and preserves the global 1000-row cap/truncation semantics.",
+    "Unknown neutral rows remain in unselected projection, and unknown/expired/quarantined rows do not emit canonical group metadata."
+  ],
+  "limitations": [
+    "Scratch only. No maintained files changed and no runtime GREEN run.",
+    "No change to the global 1000 response cap or per-category four-quote cap."
+  ],
+  "actualCapRedEvidence": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/fifth-serving-anchored-generation-red-results.json",
+  "actualCapRedEvidenceSummary": "28 total, 22 pass, 6 fail; two serving-cap failures and four separate generator failures owned by Sol.",
+  "parentSourceReview": {
+    "status": "PASS",
+    "checks": [
+      "ExactRoot2before",
+      "hash",
+      "Rootapplycheckwhitespace",
+      "freshscratch2after"
+    ],
+    "runtime": "UNRUN_BY_CORE",
+    "actualCapReceiptParentRead": true
+  }
+}

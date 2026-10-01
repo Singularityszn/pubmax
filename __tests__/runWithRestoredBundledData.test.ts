@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -62,17 +70,32 @@ describe("committed bundled data restore", () => {
 });
 
 describe("no-mistakes verify wrapper regression", () => {
-  it("leaves committed bundled data clean after validate-data on this tree", () => {
-    const manifest = join(process.cwd(), "public/data/cities/bath/venues_slim.manifest.json");
-    if (!existsSync(manifest)) return;
-    const before = readFileSync(manifest, "utf8");
-    writeFileSync(manifest, `${before.trimEnd()}\n`, "utf8");
+  it("restores committed bundled data after real validate-data in a disposable checkout", () => {
+    const sourceRoot = process.cwd();
+    const cwd = mkdtempSync(join(tmpdir(), "pubmax-validate-data-checkout-"));
     try {
       execFileSync(
+        "git",
+        ["clone", "--shared", "--no-hardlinks", "--quiet", sourceRoot, cwd],
+      );
+      const nodeModules = join(sourceRoot, "node_modules");
+      expect(existsSync(nodeModules)).toBe(true);
+      symlinkSync(nodeModules, join(cwd, "node_modules"), "dir");
+
+      const manifest = join(cwd, "public/data/cities/bath/venues_slim.manifest.json");
+      expect(existsSync(manifest)).toBe(true);
+      const before = readFileSync(manifest);
+      writeFileSync(manifest, Buffer.concat([before, Buffer.from("\n")]));
+      execFileSync(
         process.execPath,
-        [bundledWrapper, "npm", "run", "validate-data"],
+        [
+          join(cwd, "scripts/run-with-restored-bundled-data.mjs"),
+          "npm",
+          "run",
+          "validate-data",
+        ],
         {
-          cwd: process.cwd(),
+          cwd,
           env: {
             ...process.env,
             DEPLOYMENT_VERSION: "local",
@@ -81,11 +104,15 @@ describe("no-mistakes verify wrapper regression", () => {
           stdio: ["ignore", "pipe", "pipe"],
         },
       );
-      expect(execFileSync("git", ["status", "--short", "public/data"], { encoding: "utf8" })).toBe("");
+      expect(readFileSync(manifest)).toEqual(before);
+      expect(
+        execFileSync("git", ["status", "--short", "public/data"], {
+          cwd,
+          encoding: "utf8",
+        }),
+      ).toBe("");
     } finally {
-      execFileSync("git", ["restore", "--worktree", "--source=HEAD", "--", "public/data"], {
-        cwd: process.cwd(),
-      });
+      rmSync(cwd, { recursive: true, force: true });
     }
   });
 });

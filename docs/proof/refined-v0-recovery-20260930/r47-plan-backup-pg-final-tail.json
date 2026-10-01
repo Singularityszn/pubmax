@@ -1,0 +1,25 @@
+{
+  "status": "FROZEN_PARENT_SOURCE_PASS_ROOT_ACTUAL_PG_PENDING",
+  "scope": "Additive test-only migration-tail correction for the existing single-case backup delivery effective test. Preserve its original create/context/backup assertion unchanged while requiring current migrations 0178-0182 to apply after 0176/0177.",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baselineHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "baselineTestSha256": "c0736ba32147d1f985c6383668d7fa4d976a7c93012fe6c950074cd10a59b872",
+  "targetTestPath": "__tests__/planSavedBackupDeliveryMigrationEffective.test.ts",
+  "scratchBefore": "/tmp/pubmaxx-r47-plan-backup-fullchain-baseline-tail/planSavedBackupDeliveryMigrationEffective.before.test.ts",
+  "scratchAfter": "/tmp/pubmaxx-r47-plan-backup-fullchain-baseline-tail/planSavedBackupDeliveryMigrationEffective.after.test.ts",
+  "scratchAfterSha256": "649d4e4fb14c85673e1731efe6d65f20ad182633f42fa9edfb4c4a5aac5fbb9a",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-backup-pg-final-tail.patch",
+  "patchSha256": "86e0f06470206ff5587eb9922b9cbe2ca1db39ac08bc0f4655daa607ad2ff5ae",
+  "requiredTail": [
+    "20261001090000_0178_plan_route_alternatives.sql",
+    "20261001091000_0179_plan_backup_context_evidence.sql",
+    "20261001092000_0180_completion_group_snapshot.sql",
+    "20261001092100_0181_social_crew_completion.sql",
+    "20261001092200_0182_completion_group_active_accounts.sql"
+  ],
+  "assertionPreservation": "The original test case body remains byte-identical; no assertion, skip, or business expectation is added or removed.",
+  "missingMigrationBehavior": "Each required migration is passed directly to the existing PostgresSession.applyFile path. Missing migrations fail setup; no future-file skip or waiver is introduced.",
+  "runtime": "Not run. Scratch patch only; Root owns execution.",
+  "parentReview": "Fullsource, exactcurrentSQLpins/currenttestbefore/newpath/applycheck/freshscratchafter PASS. Baselinecasebodybyte-identical; fullchainorderedscenario scoped fourRPC/stop surface. Solreviewno deterministicharnessblocker; additionalowner/participant/revocationcontrols sourcechecked.",
+  "scratchEarlierDraftCorrection": "Frozen9598/actual baselineREDunchanged; maintainedtestfixture nowadvances currenttail without assertionwaiver."
+}

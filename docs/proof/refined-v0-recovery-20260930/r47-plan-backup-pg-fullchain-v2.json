@@ -1,0 +1,79 @@
+{
+  "status": "FROZEN_PARENT_SOURCE_PASS_ROOT_ACTUAL_PG_PENDING",
+  "scope": "One additive effective PostgreSQL test for Plan backup-price persistence, authorization, context filtering, and narrowly scoped migration rollback across required migrations 0176-0182.",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baselineHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "newTestPath": "__tests__/planSavedBackupDeliveryFullMigrationEffective.test.ts",
+  "scratchTest": "/tmp/pubmaxx-r47-plan-backup-fullchain-v2/planSavedBackupDeliveryFullMigrationEffective.test.ts",
+  "scratchTestSha256": "71733f1ff1b073933e12868b7289c9692b55a21a0553e575eb4695499e0f5bee",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-backup-pg-fullchain-v2.patch",
+  "patchSha256": "fafbafd646572cbb9561978176c10abb456a774de22c60f5c60ce2acd700f651",
+  "requiredForwardMigrations": [
+    {
+      "path": "supabase/migrations/20261001073000_0176_plan_listed_drink_evidence.sql",
+      "sha256": "b7d98479a4aff578bbde3f69515ba45ae8cf67880dc300f209d6d0861f3eb192"
+    },
+    {
+      "path": "supabase/migrations/20261001073100_0177_plan_manual_selected_evidence.sql",
+      "sha256": "2235bd74230e73e3a926d8eccb2c423b7ea755b54d359ad21b029ceea63e9d7d"
+    },
+    {
+      "path": "supabase/migrations/20261001090000_0178_plan_route_alternatives.sql",
+      "sha256": "49229ded62e00bd6e0363bca3fa1576db394f2ea8e2c05fe0980ae545dba21c8"
+    },
+    {
+      "path": "supabase/migrations/20261001091000_0179_plan_backup_context_evidence.sql",
+      "sha256": "b46c39363c00bc71841112e7ab2d8a5f61f5edf2e983581ce8cf393e5953daa1"
+    },
+    {
+      "path": "supabase/migrations/20261001092000_0180_completion_group_snapshot.sql",
+      "sha256": "60bd8ecc02fe3a9612870649d74c32c610b288379dc44dd0aada881a9f571846"
+    },
+    {
+      "path": "supabase/migrations/20261001092100_0181_social_crew_completion.sql",
+      "sha256": "49a3e49189096f5f9bb957768d207f65c3c3e200c882f8a1c95b423f7d59dced"
+    },
+    {
+      "path": "supabase/migrations/20261001092200_0182_completion_group_active_accounts.sql",
+      "sha256": "18b58f173e1f9eb734b91792697d4a9202e413a5dea1da1024b0edd74bf5f502"
+    }
+  ],
+  "requiredRollbackMigrations": [
+    {
+      "path": "supabase/migrations/rollback/20261001092200_0182_completion_group_active_accounts_rollback.sql",
+      "sha256": "63d067a710c857b936051ee2f16b474d6a5f0eb1e43193e4b03a64e1b2d39ae5"
+    },
+    {
+      "path": "supabase/migrations/rollback/20261001092100_0181_social_crew_completion_rollback.sql",
+      "sha256": "91977e5547e7c9598c8312e0219611d31260abc45fcdb8365ca63b012b2ee7bd"
+    },
+    {
+      "path": "supabase/migrations/rollback/20261001092000_0180_completion_group_snapshot_rollback.sql",
+      "sha256": "fb92d0d8614f06446dfab0a7509697411fdad79bd8eff9e4190b5b86df610e3c"
+    },
+    {
+      "path": "supabase/migrations/rollback/20261001091000_0179_plan_backup_context_evidence_rollback.sql",
+      "sha256": "11d0520e2d47e27cd085018be063c255c3a5ea7409981ea451d9372887413878"
+    },
+    {
+      "path": "supabase/migrations/rollback/20261001090000_0178_plan_route_alternatives_rollback.sql",
+      "sha256": "dad9e1cb033e47ee333f06f56819e58611f553a9af4788372bdf718f1f92e1bb"
+    }
+  ],
+  "setup": "Uses the existing PostgresSession harness and session-fixture.sql; applies migrations preceding 0176, then explicitly applies 0176 and 0177, snapshots the listed backup RPC/catalog surface, then requires 0178-0182. Every forward and rollback path is checked during module initialization; a missing file fails rather than silently skipping.",
+  "coverage": [
+    "Listed and community backup quotes persist through create/replay, route replacement, proposal acceptance/replay, and explicit empty-context filtering.",
+    "Keeps SQL NULL primary evidence distinct from JSON null; filtering removes quote evidence while retaining venue identity.",
+    "Rejects stale-revision and invalid-primary replacements without changing stored route state; rejects non-array and over-24 backup values under the migrated constraint.",
+    "Checks create/replace/proposal/context RPC execution ACLs and service-only helper execution; checks alternatives column SELECT/UPDATE grants.",
+    "Exercises separate owner_user_id and live linked-participant RLS read branches, revoked membership, outsider row filtering, and anon denial using local SET ROLE/JWT claims.",
+    "Reverses 0182 through 0178; verifies backup column/helper removal, primary quote retention, and equality of the four watched backup RPC definitions/ACLs plus plan_stops grants, policies, and constraints to the 0177 snapshot."
+  ],
+  "trustBoundary": "The database constraint validates alternatives JSON-array shape and maximum length only. Nested quote trust/provenance remains enforced by the service/API path and is not proven here.",
+  "fixtureLimit": "The disposable local PostgreSQL fixture exercises migrated SQL, grants, and RLS claims. It does not prove managed Supabase/PostgREST or the full permission matrix. Reverse comparison is deliberately limited to four backup RPCs and plan_stops; it does not claim all completion-group functions altered by 0180-0182 are restored.",
+  "focusedCommand": "./node_modules/.bin/vitest run __tests__/planSavedBackupDeliveryFullMigrationEffective.test.ts",
+  "runtime": "Not run. Scratch test packet only; Root owns execution.",
+  "sourceReview": "Separate owner_user_id and linked-participant RLS branches; revoked membership check; rollback comparison deliberately limited to watched backup RPCs and plan_stops catalog.",
+  "parentReview": "Fullsource, exactcurrentSQLpins/currenttestbefore/newpath/applycheck/freshscratchafter PASS. Baselinecasebodybyte-identical; fullchainorderedscenario scoped fourRPC/stop surface. Solreviewno deterministicharnessblocker; additionalowner/participant/revocationcontrols sourcechecked.",
+  "scratchEarlierDraftCorrection": "Earlierfbd5 preowner scratch regenerated before v2freeze; neverimported/frozen centrally. Usecurrentv2 exacthash only."
+}

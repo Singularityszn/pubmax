@@ -1,0 +1,59 @@
+{
+  "at": "2026-10-01T00:30:41.032461+00:00",
+  "sourceFacts": [
+    {
+      "path": "app/api/pub-pal/chat/route.ts",
+      "exists": true,
+      "currentSha256": "cf47cfc2f795ac965704d0a93e72bf14064e731c94997db505da696d5faa22b0",
+      "sameAsMainf33": true,
+      "trackedDirty": false
+    },
+    {
+      "path": "components/pal/VoiceSession.tsx",
+      "exists": false
+    },
+    {
+      "path": "components/pal/PalExperience.tsx",
+      "exists": true,
+      "currentSha256": "4d45444f9f80e6694757e73eaa5dcb43fd33ede7fe2e8ee7bdc42bdeca0d7371",
+      "sameAsMainf33": true,
+      "trackedDirty": false
+    },
+    {
+      "path": "e2e/pubpal-concierge-phone.spec.ts",
+      "exists": true,
+      "currentSha256": "96050b1a6fcfe9824730242a482471c9b605e4ab026bc62cc0ab8e5b62cb2852",
+      "sameAsMainf33": false,
+      "trackedDirty": false
+    },
+    {
+      "path": "e2e/pal-openvenue.spec.ts",
+      "exists": true,
+      "currentSha256": "f787e97950c419ca26e755c536acd458ffcbdc702fcc42408b2d43f48e341b44",
+      "sameAsMainf33": false,
+      "trackedDirty": false
+    },
+    {
+      "path": "e2e/pal-plan-send.spec.ts",
+      "exists": true,
+      "currentSha256": "e4ccc23942f19b3b687da59bce481535da2d6c0b1de9e3d5c8e6d28552eafb3c",
+      "sameAsMainf33": false,
+      "trackedDirty": false
+    },
+    {
+      "path": "components/pubpal/PubPalVoiceSession.tsx",
+      "currentSha256": "0a83ebf2607374dfa1777cf1a6e6f6ee454eab0710bf533a5a9ba6ee6dab100a",
+      "sameAsMainf33": true,
+      "trackedDirty": false
+    },
+    {
+      "path": "lib/pubPalVoiceSession.ts",
+      "currentSha256": "65f1c8ae78d96a6c23f87f434a2427fb37f3b675c8a8b41852d66e6554e9d740",
+      "sameAsMainf33": true,
+      "trackedDirty": false
+    }
+  ],
+  "ownership": "No new PubPal fixes made in frozenCore candidate; tracked and untracked PubPal overlap inventory empty. Core ownsMap/Plan/cache/profile/auth/price corrections. RootPubPal lane may reproduce/fix in isolated checkout without overlap; source-only while exclusiveCore runtime active through00:55/cleanup00:52.",
+  "scope": "Bytecomparison only. Rootsourcecensus findings treated as valid pending their realruntime reproduction. Corefullfive pass/fail cannot waive typed/chat/voice findings.",
+  "materialTestBoundary": "CurrentCore committed PubPal E2E files differ from mainf33: success journeys install palProviderDouble fixtures, and unavailable provider is an explicit realkeyless503 boundary. They are not proof of real keyless grounded chat. Rootcensus source/UI contradiction remains uncorrected and cannot be waived by full-five. Do not replace Rootrealroute tests with thesefixtures when reconciling currentmain. No edits made here."
+}

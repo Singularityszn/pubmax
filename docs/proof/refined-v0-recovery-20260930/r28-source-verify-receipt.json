@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-30T16:03:47.953748+00:00",
+  "job": {
+    "label": "source-verify",
+    "wrapperPid": 80369,
+    "groupPid": 80483,
+    "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+    "startedAt": "2026-09-30T15:59:02.084753+00:00",
+    "command": [
+      "env",
+      "DEPLOYMENT_VERSION=local",
+      "npm",
+      "run",
+      "verify"
+    ],
+    "active": false,
+    "exitCode": 0,
+    "endedAt": "2026-09-30T16:03:15.221004+00:00"
+  },
+  "frozenSourceCount": 4247,
+  "sourceDelta": [],
+  "testSummary": [
+    "Tests  18618 passed | 6 skipped (18624)",
+    "Tests  10 passed (10)",
+    "Tests  475 passed (475)",
+    "Tests  10 passed (10)"
+  ],
+  "warnings": {
+    "lint": 17,
+    "staleFeeds": [
+      "area_news"
+    ],
+    "unmeasurableStores": [
+      "night_signal_candidates",
+      "weather",
+      "whats_on"
+    ],
+    "liveFeedHealth": "not observed"
+  },
+  "audit": "no high/critical vulnerabilities reported",
+  "limits": "Local source gate and disposable PostgreSQL. No live provider, live policy, full browser or release proof."
+}

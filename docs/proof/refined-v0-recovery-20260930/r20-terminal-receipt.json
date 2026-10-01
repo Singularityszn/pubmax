@@ -1,0 +1,110 @@
+{
+  "date": "2026-09-30",
+  "lease": {
+    "startUTC": "08:47:06",
+    "deadlineUTC": "09:11:15",
+    "cleanupCutoffUTC": "09:12:00",
+    "explicitReleaseUTC": "09:11:29"
+  },
+  "runs": [
+    {
+      "name": "MapLibreholdattempt1",
+      "session": 39242,
+      "exitCode": 1,
+      "verdict": "partialInspectorindependence;25secondpinoraclefailed"
+    },
+    {
+      "name": "API/slimheldorderingRED",
+      "session": 56715,
+      "exitCode": 1,
+      "verdict": "expectedfailurezeroInspectorrequestswhiledataheld"
+    },
+    {
+      "name": "MapLibreholdcontrol",
+      "session": 9061,
+      "exitCode": 1,
+      "verdict": "originalpinoraclefailed; separateEscapecontrol44points"
+    },
+    {
+      "name": "modulefirstheldorderingGREEN",
+      "session": 47338,
+      "exitCode": 0
+    },
+    {
+      "name": "modulefirstselected5",
+      "session": 1054,
+      "exitCode": 0,
+      "samples": 5,
+      "diagnosticOnly": true
+    },
+    {
+      "name": "modulefirstpermanentordering",
+      "session": 59684,
+      "exitCode": 0,
+      "passed": 1
+    },
+    {
+      "name": "modulefirst94unitsandfinaltypes",
+      "session": 12993,
+      "exitCode": 0
+    },
+    {
+      "name": "modulefirstHomeframe5",
+      "session": 49504,
+      "exitCode": 0,
+      "samples": 5,
+      "diagnosticOnly": true,
+      "hostConfounded": true
+    },
+    {
+      "name": "API-firstselectedattempt",
+      "session": 50270,
+      "exitCode": 130,
+      "samples": 2,
+      "completed": false,
+      "verdict": "deadlinepartialNOmedian"
+    },
+    {
+      "name": "API-firstbuildserver",
+      "session": 42078,
+      "buildPassed": true,
+      "serverExitCode": 143
+    },
+    {
+      "name": "deadlinewatchdog",
+      "session": 6299,
+      "exitCode": 0
+    }
+  ],
+  "ownedAbsentPIDs": [
+    97915,
+    31548,
+    4509,
+    46322,
+    50525,
+    61058,
+    84097,
+    87491,
+    93608
+  ],
+  "portsFree": [
+    3351,
+    3352
+  ],
+  "externalBrowser": {
+    "pid": 44622,
+    "parent": 44621,
+    "runnerCwd": "/Users/karanmanoharan/actions-runner-pubmax-2/_work/pubmax/pubmax",
+    "profileBirthUTC": "09:00:02",
+    "leftUntouched": true
+  },
+  "finalSourceGatesPending": [
+    "API-firstpermanentordering",
+    "API-firstselected5comparison",
+    "strictdefault5CWV",
+    "fullfivebrowserprojects",
+    "fullverify",
+    "PRgate"
+  ],
+  "noPublication": true
+}

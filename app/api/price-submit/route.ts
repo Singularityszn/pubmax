@@ -41,7 +41,8 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
-import { ukPriceBundleCategoryIndex } from "@/lib/ukPriceBundle.server";
+import { ukPriceBundleCategoryIndex, ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
@@ -582,19 +583,31 @@ export async function GET(request: Request): Promise<Response> {
       }
       priceVenueId = venueLookup.canonicalId;
     }
-    const [result, signalResult] = await Promise.all([
+    // A base id remains outside the curated venue index. Published quotes use
+    // only approved bundle rows keyed by that exact id; no new membership scan
+    // or community authority is involved in this public read.
+    const baseRead = isUkBaseId(priceVenueId);
+    const [result, signalResult, published] = await Promise.all([
       readCommunityPricesWithStatus(priceVenueId),
       readCommunityVenueSignalsWithStatus(priceVenueId),
+      baseRead
+        ? ukPriceBundleRowsFor(priceVenueId)
+            .then((bundle) => bundle.status === "unavailable"
+              ? null : listedCategoryPrices(bundle.rows, undefined, { includeBeer: true }))
+            .catch(() => null)
+        : undefined,
     ]);
+    const listed = baseRead ? { listedPrices: published } : {};
     const degraded = result.degraded || signalResult.degraded;
     return jsonNoStore(
       degraded
         ? {
             prices: result.prices,
             signals: signalResult.signals,
+            ...listed,
             degraded: true,
           }
-        : { prices: result.prices, signals: signalResult.signals },
+        : { prices: result.prices, signals: signalResult.signals, ...listed },
       { status: 200 },
     );
   } catch {

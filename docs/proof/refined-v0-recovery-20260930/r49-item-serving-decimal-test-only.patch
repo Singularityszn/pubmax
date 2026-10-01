@@ -1,0 +1,21 @@
+--- a/__tests__/ginPublisherSourceRefresh.test.ts
++++ b/__tests__/ginPublisherSourceRefresh.test.ts
+@@ -153,3 +153,18 @@
+     expect(rows[0].servingSize).toBe(servingSize);
+   });
+ });
++
++// Synthetic unsupported fractional measures, not publisher observations.
++describe("fractional item serving is never an integer suffix", () => {
++  it.each([
++    "Gin 25ml\nGordons Gin 12.5ml £8",
++    "Gin 25ml\nGordons Gin 0.5ml £8",
++  ])("keeps unknown serving rather than truncating or inheriting: %s", (text) => {
++    const rows = readVenueDrinkPrices(text, "text").kept;
++
++    expect(rows).toHaveLength(1);
++    expect(rows[0].category).toBe("gin");
++    expect(rows[0].priceGbp).toBe(8);
++    expect(rows[0].servingSize).toBeUndefined();
++  });
++});

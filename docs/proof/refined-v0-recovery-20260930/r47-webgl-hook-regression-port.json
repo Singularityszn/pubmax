@@ -1,0 +1,68 @@
+{
+  "status": "BLOCKED_NO_HONEST_HOOK_ONLY_WEBGL_REGRESSION",
+  "runtime": "UNRUN; no tests/types/build/native browser execution",
+  "releaseBase": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+  "comparisonHead": "6ee2bfb43c6720bf0159bc23d5617c1a791c0e40",
+  "sourceBlobs": [
+    {
+      "path": "components/PubMapCanvas.tsx",
+      "baseSha256": "a3ab7b8d27fcea59a4095be930a92429de326947ddee51b7e3660850acde58b6",
+      "current6eeEqualsBase": true
+    },
+    {
+      "path": "components/map/pubmap/useUkBaseStreaming.ts",
+      "baseSha256": "6a1008d7f5552987d0eff6d2a65abe5cb237b9050f900adf58f9720e0a8750bf",
+      "current6eeEqualsBase": true
+    }
+  ],
+  "patch": null,
+  "patchOmissionReason": "No test-only export: a hook-only fixture cannot exercise or fail on the three changed Canvas-owner lines. An empty or artificial test patch would misstate coverage.",
+  "exactOwner": {
+    "file": "components/PubMapCanvas.tsx",
+    "releaseLine": 2889,
+    "callback": "scheduleContextRecovery",
+    "candidateMutation": [
+      "styleGeneration += 1",
+      "styleStructureReadyRef.current = false",
+      "cancelDeferredWork()"
+    ],
+    "coupledSeams": [
+      "Release applyToMap at lines1042-1054 gates/queues style mutations using Canvas readiness ref",
+      "Release cancelDeferredWork at1482 cancels scene idle/RAF and transit idle/fallback work",
+      "Release accepted style.load handler at2545 advances generation, cancels old work and restores structural readiness",
+      "Deferred Canvas scene/transit continuations compare captured styleGeneration and structural readiness"
+    ]
+  },
+  "whyExistingHookFixtureCannotProveFix": [
+    "useUkBaseStreaming owns viewport request generation, mapReady and scope/suspension; it never subscribes to webglcontextlost, reads Canvas styleGeneration/readiness or calls cancelDeferredWork",
+    "Core ukBaseStreamingHook.test.tsx createMapHarness supplies applyToMap as immediate fn(map), bypassing actual Canvas readiness queue",
+    "Hook in-flight promise resolution calls publish and injected applyToMap. Rerendering mapReady=false exercises existing hook cleanup, not the context-loss hunk",
+    "Both old and candidate hook can pass such readiness/cleanup tests; a handcrafted fake gate in applyToMap would make the fixture itself implement the proposed production fix",
+    "No existing bounded runtime mount of PubMapCanvas owner found in the reviewed tests. mapTileFailure has pure policy tests and source-string assertions, not a coupled Canvas owner mount"
+  ],
+  "outOfScope": [
+    "New mounted MapLibre/Canvas fixture framework",
+    "Production helper extraction merely to export a test seam",
+    "Independently useful stream-kind hook regressions or copying extra Core hook features",
+    "Changing recovery budgets, relaxing fallback or painted-pin oracle"
+  ],
+  "existingNativeEntry": {
+    "temporaryDriver": "/tmp/pubmaxx-r28-webgl-style-gap-diagnostic.mts",
+    "archivedSource": "docs/proof/refined-v0-recovery-20260930/r28-webgl-style-gap-diagnostic.mts.txt",
+    "originalPermanentSpec": "e2e/map-webgl-recovery.spec.ts:18 and :82",
+    "historicalEvidence": [
+      "r28-webgl-style-gap-red/report.json",
+      "r28-webgl-style-gap-green/report.json"
+    ],
+    "qualification": "Historical Core native evidence only. Does not validate latest release or minimal50 composition. Existing driver imports installed Core Playwright/options by absolute path; future owner must confirm intended installed runner/settings and current matching release build before execution."
+  },
+  "smallestFutureAcceptance": [
+    "Fresh matching release build on private loopback origin with service workers blocked and original fixture storage",
+    "Install observer before navigation. At first pubmax:map-style-load while no pubmax:map-scene-built exists, call real WEBGL_lose_context extension once; do not restore during the 800ms recovery interval",
+    "External journal records style mark, fault trigger, actual trusted loss and scene/error timestamps. Classify NOTEXERCISED if actual loss arrives after scene creation; never call this causal PASS",
+    "When gap actually exercised, require cancellation of stale deferred scene work (no native buildScene/getImage error), original no-full-fallback/current mounted canvas oracle, recovery/new canvas and actual painted pub/cluster point",
+    "Keep healthy/unrevoked style-load/restoration control: valid new scene and painted points remain. Preserve original synthetic loss assertions as separate contract, not substitute for real extension failure",
+    "Run unchanged original e2e/map-webgl-recovery.spec.ts in declared chromium-gl project plus timed native gap driver in later exclusively granted GL slot; no thresholds changed"
+  ],
+  "nextOwner": "Release runtime owner; source preparation remains held and no production change made"
+}

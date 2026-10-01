@@ -46,7 +46,16 @@ function previewShareText(preview: PlanPrivacyPreviewDTO): string {
  */
 function redactedInitialState(state: PlanState, safeTitle: string): PlanState {
   return {
-    plan: { ...state.plan, title: safeTitle },
+    plan: {
+      id: state.plan.id,
+      title: safeTitle,
+      startTime: state.plan.startTime,
+      createdAt: state.plan.createdAt,
+      routeRevision: state.plan.routeRevision,
+      status: state.plan.status,
+      outcome: state.plan.outcome,
+      routeReadyAt: state.plan.routeReadyAt,
+    },
     stops: [],
     crew: [],
     context: null,

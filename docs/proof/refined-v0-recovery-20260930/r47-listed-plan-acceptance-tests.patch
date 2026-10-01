@@ -1,0 +1,468 @@
+diff --git a/__tests__/planAnchoredGenerateRoute.test.ts b/__tests__/planAnchoredGenerateRoute.test.ts
+--- a/__tests__/planAnchoredGenerateRoute.test.ts
++++ b/__tests__/planAnchoredGenerateRoute.test.ts
+@@ -1,6 +1,31 @@
+ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
++
++const listedBundleFixture = vi.hoisted(() => ({
++  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
++  status: "ready" as "ready" | "empty" | "unavailable",
++}));
++vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
++  const { listedCategoryPrices } = await import("@/lib/listedCategoryPrices");
++  return {
++    ...actual,
++    ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
++      ? actual.ukPriceBundleRowsFor(venueId)
++      : { status: listedBundleFixture.status, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
++    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number) => {
++      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now);
++      const prices = [...new Set(listedBundleFixture.rows.map((row) => row.venueId))].flatMap((venueId) => {
++        const quote = listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now)
++          .find((value) => value.category === category);
++        return quote ? [{ venueId, ...quote }] : [];
++      });
++      return { prices, truncated: false, degraded: listedBundleFixture.status === "unavailable" };
++    },
++  };
++});
++
+ 
+ const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock, categoryIndexMock } = vi.hoisted(() => ({
+   isLimitedMock: vi.fn(async () => false),
+@@ -141,6 +166,30 @@
+     expect(verdict).toMatchObject({ ok: true, anchored: true, outcome: "route", anchorVenueId: "anchor-venue" });
+   });
+ 
++  it("retains source-stated listed wine on an anchor-only draft without upgrading it to a route", async () => {
++    const now = Date.parse("2026-09-30T12:00:00.000Z");
++    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
++    const observedAt = "2026-09-29T12:00:00.000Z";
++    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
++    loadConciergeVenuesMock.mockResolvedValueOnce([claphamVenue("anchor-venue", 0)]);
++    listedBundleFixture.status = "ready";
++    listedBundleFixture.rows = [{ venueId: "anchor-venue", name: "Anchor", category: "wine", priceGbp: 6.25,
++      drinkLabel: "Chenin", servingSize: "125ml", lane: "site-harvest", standing: "listed",
++      sourceUrl: "https://pub.example/anchor/menu", observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null }];
++    try {
++      const response = await generate({ query: "Quiet wine in Clapham for 2", anchor: ANCHOR });
++      const body = await response.json();
++      expect(response.status, JSON.stringify(body)).toBe(200);
++      expect(body).toMatchObject({ outcome: "anchor-only", routeReady: false, anchorVenueId: "anchor-venue" });
++      expect(body.stops).toHaveLength(1);
++      expect(body.stops[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
++        selectedDrinkPriceEvidence: { category: "wine", pence: 625, serving: "125ml", source: "listed",
++          sourceUrl: "https://pub.example/anchor/menu", observedAt } });
++      expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ["anchor-venue"], body.operationKey))
++        .toMatchObject({ ok: true, anchored: true, outcome: "anchor-only" });
++    } finally { clock.mockRestore(); listedBundleFixture.rows = null; }
++  });
++
+   it("keeps corroborated wine evidence in an anchor-only draft", async () => {
+     const now = Date.now();
+     resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+diff --git a/__tests__/planGenerateRoute.test.ts b/__tests__/planGenerateRoute.test.ts
+--- a/__tests__/planGenerateRoute.test.ts
++++ b/__tests__/planGenerateRoute.test.ts
+@@ -1,6 +1,31 @@
+ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
++
++const listedBundleFixture = vi.hoisted(() => ({
++  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
++  status: "ready" as "ready" | "empty" | "unavailable",
++}));
++vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
++  const { listedCategoryPrices } = await import("@/lib/listedCategoryPrices");
++  return {
++    ...actual,
++    ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
++      ? actual.ukPriceBundleRowsFor(venueId)
++      : { status: listedBundleFixture.status, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
++    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number) => {
++      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now);
++      const prices = [...new Set(listedBundleFixture.rows.map((row) => row.venueId))].flatMap((venueId) => {
++        const quote = listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now)
++          .find((value) => value.category === category);
++        return quote ? [{ venueId, ...quote }] : [];
++      });
++      return { prices, truncated: false, degraded: listedBundleFixture.status === "unavailable" };
++    },
++  };
++});
++
+ 
+ const { isLimitedMock, loadConciergeVenuesMock, categoryIndexMock } = vi.hoisted(() => ({
+   isLimitedMock: vi.fn(async (...args: [
+@@ -197,6 +222,41 @@
+     expect(body).not.toHaveProperty("planId");
+   });
+ 
++  it("delivers source-stated listed wine to generated stops and alternatives when community reads are unavailable", async () => {
++    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
++    const observedAt = new Date(PLAN_GENERATION_TEST_NOW - 1_000).toISOString();
++    loadConciergeVenuesMock.mockResolvedValueOnce(["v1", "v2", "v3", "v4"].map((id) => generatedVenue(id)));
++    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: true });
++    listedBundleFixture.rows = ["v1", "v2", "v3", "v4"].map((venueId, index) => ({
++      venueId, name: `Venue ${venueId}`, category: "wine", priceGbp: 5.25 + index,
++      drinkLabel: `Named wine ${index}`, servingSize: "125ml", lane: "site-harvest", standing: "listed",
++      sourceUrl: `https://pub.example/${venueId}/menu`, observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null,
++    }));
++    listedBundleFixture.status = "ready";
++    try {
++      const response = await POST(new Request("http://localhost/api/plans/generate", {
++        method: "POST", body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
++      }));
++      const body = await response.json();
++      expect(response.status, JSON.stringify(body)).toBe(200);
++      expect(body.inferredContext.drinkCategory).toBe("wine");
++      expect(body.stops).toHaveLength(3);
++      const delivered = [...body.stops, ...body.stops.flatMap((stop: { alternatives: unknown[] }) => stop.alternatives)];
++      expect(delivered.some((stop) => stop.venueId === "v4")).toBe(true);
++      for (const stop of delivered) {
++        const row = listedBundleFixture.rows.find((value) => value.venueId === stop.venueId)!;
++        expect(row).toBeDefined();
++        expect(stop).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
++          selectedDrinkPriceEvidence: { category: "wine", pence: Math.round(row.priceGbp * 100),
++            serving: "125ml", source: "listed", sourceUrl: row.sourceUrl, observedAt } });
++      }
++      expect(verifyPlanGroundingProof(body.groundingProof, body.stops.map((stop: { venueId: string }) => stop.venueId), body.operationKey)).toBe(true);
++    } finally {
++      clock.mockRestore();
++      listedBundleFixture.rows = null;
++    }
++  });
++
+   it("joins trusted wine prices into value ranking without using pint prices", async () => {
+     loadConciergeVenuesMock.mockResolvedValueOnce([
+       generatedVenue("v1", { cheapestPrice: 4 }),
+diff --git a/__tests__/planGenerationDto.test.ts b/__tests__/planGenerationDto.test.ts
+--- a/__tests__/planGenerationDto.test.ts
++++ b/__tests__/planGenerationDto.test.ts
+@@ -66,6 +66,34 @@
+ }
+ 
+ describe("plan generation response projection", () => {
++  it("projects listed source, day, and distinct explicit servings on stops and alternatives without pint evidence", () => {
++    const observedAt = "2026-09-29T12:00:00.000Z";
++    const selected = { ...candidate("selected", -0.1), selectedDrinkPrice: {
++      venueId: "selected", category: "wine" as const, categoryLabel: "Wine", priceGbp: 5.25,
++      source: "listed" as const, servingSize: "125ml", sourceUrl: "https://pub.example/selected/menu", observedAt,
++    } };
++    const alternative = { ...candidate("alternative", -0.099), selectedDrinkPrice: {
++      ...selected.selectedDrinkPrice, venueId: "alternative", priceGbp: 10.5,
++      servingSize: "250ml", sourceUrl: "https://pub.example/alternative/menu",
++    } };
++    const project = (drinkCategory: "wine" | "gin" | "beer", zeroProof = false) => buildPlanGenerationStops({
++      chosen: [selected], candidates: [selected, alternative], groundedStops: null, groundedAlternatives: null,
++      walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] }, area: AREA, planningWeather: null,
++      priceContext: { drinkCategory, zeroProof },
++    });
++    const stops = project("wine");
++    expect(stops[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
++      selectedDrinkPriceEvidence: { category: "wine", pence: 525, serving: "125ml", source: "listed",
++        sourceUrl: "https://pub.example/selected/menu", observedAt } });
++    expect(stops[0].alternatives[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
++      selectedDrinkPriceEvidence: { category: "wine", pence: 1050, serving: "250ml", source: "listed",
++        sourceUrl: "https://pub.example/alternative/menu", observedAt } });
++    for (const guarded of [project("wine", true), project("gin"), project("beer")]) {
++      expect(guarded[0].selectedDrinkPriceEvidence).toBeNull();
++      expect(guarded[0].alternatives[0].selectedDrinkPriceEvidence).toBeNull();
++    }
++  });
++
+   it("keeps selected wine evidence on a priced alternative while leaving an unpriced stop unknown", () => {
+     const selected = candidate("selected", -0.1, { cheapestPrice: 3 });
+     const alternative = candidate("alternative", -0.099, { cheapestPrice: 4 });
+diff --git a/__tests__/planListedPriceResolver.test.ts b/__tests__/planListedPriceResolver.test.ts
+new file mode 100644
+--- /dev/null
++++ b/__tests__/planListedPriceResolver.test.ts
+@@ -0,0 +1,138 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++const fixture = vi.hoisted(() => ({
++  rows: [] as import("@/lib/ukPriceBundle").UkPriceBundleRow[],
++  status: "ready" as "ready" | "empty" | "unavailable",
++  community: vi.fn(),
++}));
++vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
++  return { ...actual, readCommunityPriceCategoryIndex: fixture.community };
++});
++vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
++  return { ...actual, ukPriceBundleRowsFor: async (venueId: string) => ({
++    status: fixture.status, rows: fixture.rows.filter((row) => row.venueId === venueId),
++  }) };
++});
++
++import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
++import { inferNightContext } from "@/lib/nightPlanning";
++import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
++
++const NOW = Date.parse("2026-09-30T12:00:00.000Z");
++const OBSERVED = "2026-09-29T12:00:00.000Z";
++const LISTED = { category: "wine", pence: 525, serving: "125ml", source: "listed",
++  sourceUrl: "https://pub.example/menu", observedAt: OBSERVED };
++function row(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
++  return { venueId: "venue-a", name: "Venue A", category: "wine", priceGbp: 5.25,
++    drinkLabel: "Rioja", servingSize: "125ml", lane: "site-harvest", standing: "listed",
++    sourceUrl: LISTED.sourceUrl, observedAt: OBSERVED, publisher: "Fixture publisher", basis: null,
++    sampleSize: null, ...overrides };
++}
++function resolve(hint: unknown = LISTED, contextChanges = {}, venueId = "venue-a") {
++  return resolvePlanSelectedDrinkPriceEvidence(
++    [{ venueId, venueName: "Canonical pub" }], [{ selectedDrinkPriceEvidence: hint }],
++    { ...inferNightContext("wine").context, drinkCategory: "wine", ...contextChanges },
++  );
++}
++
++describe("Plan listed evidence is rebuilt from the exact server venue bundle", () => {
++  let restoreClock: () => void;
++  beforeEach(() => {
++    const clock = vi.spyOn(Date, "now").mockReturnValue(NOW);
++    restoreClock = () => { clock.mockRestore(); };
++    fixture.rows = [row()];
++    fixture.status = "ready";
++    fixture.community.mockReset();
++    fixture.community.mockResolvedValue({ prices: [], degraded: false, truncated: false });
++  });
++  afterEach(() => { restoreClock(); });
++
++  it.each([
++    { category: "wine", priceGbp: 5.25, servingSize: "125ml", drinkLabel: "Rioja" },
++    { category: "gin", priceGbp: 4.5, servingSize: "25ml", drinkLabel: "Sacred Gin" },
++    { category: "cocktail", priceGbp: 11, servingSize: undefined, drinkLabel: "Negroni" },
++  ] as const)("retains trusted $category with the recorded serving and no client-only fields", async (quote) => {
++    fixture.rows = [row(quote)];
++    const evidence = { ...LISTED, category: quote.category, pence: Math.round(quote.priceGbp * 100),
++      serving: quote.servingSize ?? null };
++    const result = await resolve({ ...evidence, contributor: "private-canary" }, { drinkCategory: quote.category });
++    expect(result[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
++    expect(JSON.stringify(result)).not.toContain("private-canary");
++  });
++
++  it("keeps two source-stated servings at the same pub distinct when re-reading a selected quote", async () => {
++    fixture.rows = [row(), row({ priceGbp: 10.5, servingSize: "250ml" })];
++    expect((await resolve())[0]?.selectedDrinkPriceEvidence).toEqual(LISTED);
++    const large = { ...LISTED, pence: 1050, serving: "250ml" };
++    expect((await resolve(large))[0]?.selectedDrinkPriceEvidence).toEqual(large);
++    expect((await resolve({ ...large, pence: 525 }))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++  });
++
++  it.each([
++    { pence: 100 }, { sourceUrl: "https://attacker.example/menu" },
++    { observedAt: "2026-09-28T12:00:00.000Z" }, { serving: "250ml" }, { category: "gin" },
++  ])("rejects a forged listed hint $pence $sourceUrl $observedAt $serving $category", async (change) => {
++    expect((await resolve({ ...LISTED, ...change }))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++  });
++
++  it.each([
++    { priceGbp: 6 }, { servingSize: "250ml" }, { category: "gin" },
++    { lane: "estimate" as const, standing: "estimate" as const, basis: "model" },
++  ] as const)("rejects a hint when the server row changed or lost listed authority", async (change) => {
++    fixture.rows = [row(change)];
++    expect((await resolve())[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++  });
++
++  it("refuses an expired listed row even when every submitted field matches that row", async () => {
++    const observedAt = "2025-09-28T12:00:00.000Z";
++    fixture.rows = [row({ observedAt })];
++    expect((await resolve({ ...LISTED, observedAt }))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++  });
++
++  it("rejects a superseded same-drink same-serving observation even while its raw row remains", async () => {
++    fixture.rows = [row(), row({ priceGbp: 6, observedAt: "2026-09-30T11:00:00.000Z" })];
++    expect((await resolve())[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++    const updated = { ...LISTED, pence: 600, observedAt: "2026-09-30T11:00:00.000Z" };
++    expect((await resolve(updated))[0]?.selectedDrinkPriceEvidence).toEqual(updated);
++  });
++
++  it("does not transfer another pub's quote or turn a failed bundle read into a verified hint", async () => {
++    expect((await resolve(LISTED, {}, "venue-b"))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++    fixture.status = "unavailable";
++    expect((await resolve())[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++  });
++
++  it("never gives an exact quarantined wrong-category claim Plan authority", async () => {
++    fixture.rows = [row({ priceGbp: 4, drinkLabel: "London Pride", servingSize: "500ml",
++      sourceUrl: "https://thebellonthegreen.com/drinks/" })];
++    const hint = { ...LISTED, pence: 400, serving: "500ml", sourceUrl: "https://thebellonthegreen.com/drinks/" };
++    expect((await resolve(hint))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++  });
++
++  it.each(["degraded", "partial", "throw"] as const)("keeps independently readable listed evidence when community is %s", async (state) => {
++    if (state === "throw") fixture.community.mockRejectedValue(new Error("community unavailable"));
++    else fixture.community.mockResolvedValue({ prices: [], degraded: state === "degraded", truncated: state === "partial" });
++    expect((await resolve())[0]?.selectedDrinkPriceEvidence).toEqual(LISTED);
++  });
++
++  it("retains community verification and refuses uncorroborated community evidence beside listed rows", async () => {
++    const submittedAt = NOW - 1_000;
++    const evidence = { category: "wine", pence: 750, serving: null, source: "community",
++      reportedAt: new Date(submittedAt).toISOString() };
++    const price = { venueId: "venue-a", drinkCategory: "wine", priceGbp: 7.5, submittedAt,
++      source: "community", corroborations: 2 };
++    fixture.community.mockResolvedValue({ prices: [price], degraded: false, truncated: false });
++    expect((await resolve(evidence))[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
++    fixture.community.mockResolvedValue({ prices: [{ ...price, corroborations: 1 }], degraded: false, truncated: false });
++    expect((await resolve(evidence))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++  });
++
++  it.each([{ zeroProof: true }, { drinkCategory: "beer" }, { drinkCategory: "gin" }])(
++    "preserves zero-proof, beer, and selected-category guards", async (contextChanges) => {
++      expect((await resolve(LISTED, contextChanges))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++    },
++  );
++});
+diff --git a/__tests__/planSelectedDrinkEvidenceCreate.test.ts b/__tests__/planSelectedDrinkEvidenceCreate.test.ts
+--- a/__tests__/planSelectedDrinkEvidenceCreate.test.ts
++++ b/__tests__/planSelectedDrinkEvidenceCreate.test.ts
+@@ -1,6 +1,31 @@
+ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
++
++const listedBundleFixture = vi.hoisted(() => ({
++  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
++  status: "ready" as "ready" | "empty" | "unavailable",
++}));
++vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
++  const { listedCategoryPrices } = await import("@/lib/listedCategoryPrices");
++  return {
++    ...actual,
++    ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
++      ? actual.ukPriceBundleRowsFor(venueId)
++      : { status: listedBundleFixture.status, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
++    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number) => {
++      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now);
++      const prices = [...new Set(listedBundleFixture.rows.map((row) => row.venueId))].flatMap((venueId) => {
++        const quote = listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now)
++          .find((value) => value.category === category);
++        return quote ? [{ venueId, ...quote }] : [];
++      });
++      return { prices, truncated: false, degraded: listedBundleFixture.status === "unavailable" };
++    },
++  };
++});
++
+ const { categoryIndexMock } = vi.hoisted(() => ({ categoryIndexMock: vi.fn() }));
+ vi.mock("@/lib/supabase", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("@/lib/supabase")>();
+@@ -24,7 +49,7 @@
+ });
+ 
+ import { POST } from "@/app/api/plans/route";
+-import { PATCH } from "@/app/api/plans/[id]/route";
++import { GET, PATCH } from "@/app/api/plans/[id]/route";
+ import { inferNightContext } from "@/lib/nightPlanning";
+ import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
+ import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
+@@ -50,8 +75,8 @@
+ }
+ 
+ describe("Plan create selected drink evidence", () => {
+-  beforeEach(() => { __resetMemoryPlans(); categoryIndexMock.mockReset(); });
+-  afterEach(() => { __resetMemoryPlans(); });
++  beforeEach(() => { __resetMemoryPlans(); categoryIndexMock.mockReset(); listedBundleFixture.rows = null; listedBundleFixture.status = "ready"; });
++  afterEach(() => { __resetMemoryPlans(); listedBundleFixture.rows = null; });
+ 
+   it.each(["wine", "cocktail"] as const)("saves trusted %s evidence on route replacement and reload", async (category) => {
+     const { body } = await create(category, null);
+@@ -249,3 +274,88 @@
+   });
+ 
+ });
++
++
++describe("Plan listed-price authority and persistence", () => {
++  const now = Date.parse("2026-09-30T12:00:00.000Z");
++  const observedAt = "2026-09-29T12:00:00.000Z";
++  const a = { category: "wine", pence: 525, serving: "125ml", source: "listed",
++    sourceUrl: "https://pub.example/a/menu", observedAt };
++  const b = { ...a, pence: 610, serving: "175ml", sourceUrl: "https://pub.example/b/menu" };
++  let restoreClock: () => void;
++  beforeEach(() => {
++    __resetMemoryPlans();
++    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
++    restoreClock = () => { clock.mockRestore(); };
++    categoryIndexMock.mockReset();
++    categoryIndexMock.mockResolvedValue({ prices: [], degraded: false, truncated: false });
++    listedBundleFixture.status = "ready";
++    listedBundleFixture.rows = [a, b].map((quote, index) => ({
++      venueId: index === 0 ? "venue-a" : "venue-b", name: "Fixture pub", category: "wine",
++      priceGbp: quote.pence / 100, drinkLabel: index === 0 ? "Rioja" : "Chenin",
++      servingSize: quote.serving, sourceUrl: quote.sourceUrl, observedAt,
++      lane: "site-harvest", standing: "listed", publisher: "Fixture publisher", basis: null, sampleSize: null,
++    }));
++  });
++  afterEach(() => { restoreClock(); __resetMemoryPlans(); listedBundleFixture.rows = null; });
++
++  it("re-reads listed wine at create, reloads it, and withholds it from anonymous preview", async () => {
++    const { body, reloaded } = await create("wine", { ...a, contributor: "private-canary" });
++    expect(body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++    expect(reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++    expect(JSON.stringify(buildPlanPrivacyPreview(reloaded))).not.toContain(a.sourceUrl);
++  });
++
++  it("verifies listed wine on route replacement and preserves member reload while redacting anonymous HTTP reads", async () => {
++    const { body } = await create("wine", null);
++    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
++      method: "PATCH", headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
++      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
++        { venueId: "venue-a" }, { venueId: "venue-b", selectedDrinkPriceEvidence: b }, { venueId: "venue-c" },
++      ] }),
++    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
++    const updated = await response.json();
++    expect(response.status, JSON.stringify(updated)).toBe(200);
++    expect(updated.stops[1]?.selectedDrinkPriceEvidence).toEqual(b);
++    const saved = (await memoryPlanStore.get(body.plan.plan.id))!;
++    expect(saved.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
++    expect(saved.stops[1]?.selectedDrinkPriceEvidence).toEqual(b);
++    const memberResponse = await GET(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
++      headers: { authorization: `Bearer ${body.memberToken}` },
++    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
++    expect(memberResponse.status).toBe(200);
++    expect((await memberResponse.json()).stops[1]?.selectedDrinkPriceEvidence).toEqual(b);
++    const anonymousResponse = await GET(new Request(`http://localhost/api/plans/${body.plan.plan.id}`),
++      { params: Promise.resolve({ id: body.plan.plan.id }) });
++    expect(anonymousResponse.status).toBe(200);
++    const preview = await anonymousResponse.json();
++    expect(preview).toMatchObject({ visibility: "preview", stopCount: 3 });
++    for (const canary of [a.sourceUrl, b.sourceUrl, "selectedDrinkPriceEvidence", "private-canary", "venue-b"]) {
++      expect(JSON.stringify(preview)).not.toContain(canary);
++    }
++  });
++
++  it("replays verified listed evidence after a lost response but rejects a changed serving on the same operation key", async () => {
++    const value = { creatorName: "Host", startTime: "2026-09-30T19:00:00.000Z",
++      context: { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" },
++      stops: [{ venueId: "venue-a", selectedDrinkPriceEvidence: a }] };
++    const submit = (body = value) => POST(new Request("http://localhost/api/plans", {
++      method: "POST", headers: { "idempotency-key": "listed-plan-retry", "content-type": "application/json" },
++      body: JSON.stringify(body),
++    }));
++    const first = await submit();
++    const original = await first.json();
++    expect(first.status).toBe(201);
++    expect(original.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++    listedBundleFixture.status = "unavailable";
++    listedBundleFixture.rows = [];
++    const replay = await submit();
++    const replayed = await replay.json();
++    expect(replay.status).toBe(201);
++    expect(replayed.created).toBe(false);
++    expect(replayed.plan.plan.id).toBe(original.plan.plan.id);
++    expect(replayed.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++    const changed = await submit({ ...value, stops: [{ venueId: "venue-a", selectedDrinkPriceEvidence: { ...a, serving: "250ml" } }] });
++    expect(changed.status).toBe(409);
++  });
++});

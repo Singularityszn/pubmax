@@ -1,0 +1,257 @@
+{
+  "status": "SOURCE_PACKAGED_RUNTIME_UNRUN",
+  "base": "ad08000b500b3193f143c4225a067c78f5a7694e",
+  "coreHead": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "coreSource": "Current working-tree R46 repairs, not HEAD alone",
+  "scratch": "/tmp/pubmaxx-r47-auth-cache-port",
+  "patchPath": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-auth-cache-port.patch",
+  "patchSha256": "f8681cdc1aa40a61332726927474dfe7721be37ea6cb3b9c6d7d03896d3bcc90",
+  "files": [
+    {
+      "path": "lib/surfaceDataCache.ts",
+      "kind": "production",
+      "baseBlob": "fea490ccaa11fbec0bcf21d1764904e4a9b077bc",
+      "beforeSha256": "eefdccd18044f804e2c2cffd7d6f3ce2e3f14359a5de41a77ec8c108438ddffb",
+      "afterSha256": "57b5d38e8e8a235d5afa3a5464cba95f6f4c632f86ea55b6747a0f11051575ab",
+      "coreSourceSha256": "57b5d38e8e8a235d5afa3a5464cba95f6f4c632f86ea55b6747a0f11051575ab",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "57b5d38e8e8a235d5afa3a5464cba95f6f4c632f86ea55b6747a0f11051575ab"
+    },
+    {
+      "path": "app/api/night-signals/route.ts",
+      "kind": "production",
+      "baseBlob": "98228a59d28f2b69694bc077937fd16a7b759d65",
+      "beforeSha256": "afa0b8da01967fe8da527b101533fd6e469e481586b57b110818dc7905ad3c9f",
+      "afterSha256": "9bafe6bb00fc2b326e8d174cc1931c86e99b7e187b5e62e29e88ec7a0558c88f",
+      "coreSourceSha256": "9bafe6bb00fc2b326e8d174cc1931c86e99b7e187b5e62e29e88ec7a0558c88f",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "9bafe6bb00fc2b326e8d174cc1931c86e99b7e187b5e62e29e88ec7a0558c88f"
+    },
+    {
+      "path": "app/u/[handle]/ProfilePageClient.tsx",
+      "kind": "production",
+      "baseBlob": "a50a5496db954e80e49d384b99aa2a171581ee98",
+      "beforeSha256": "00a3f92c6a2fea2da78adfb0d668d7c70d59e5328feecbaf1758b6abd6c2f15b",
+      "afterSha256": "1edeaf3327cceebb60c1afb094cba512f2ded81857d71839547ea56593d9dda5",
+      "coreSourceSha256": "1edeaf3327cceebb60c1afb094cba512f2ded81857d71839547ea56593d9dda5",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "1edeaf3327cceebb60c1afb094cba512f2ded81857d71839547ea56593d9dda5"
+    },
+    {
+      "path": "components/auth/AuthProvider.tsx",
+      "kind": "production",
+      "baseBlob": "5a6406b3ea42799e35f9bf703b447e958c3ee033",
+      "beforeSha256": "7424cebf87e50ba4d3585acf1295ee4347484e3a7c25b1eb28d2660b8d444201",
+      "afterSha256": "e5390bfc8ef7d75e381ebd0386db7dfaa067828005248e89f66122ad376ff13f",
+      "coreSourceSha256": "463be6a32ca196b59a1679b6d687f55713f43ea2ca28b1946b7baa93701ba3f5",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [
+        "onboarding Host import migration",
+        "handle-normalizer leaf import migration"
+      ],
+      "scratchAppliedSha256": "e5390bfc8ef7d75e381ebd0386db7dfaa067828005248e89f66122ad376ff13f"
+    },
+    {
+      "path": "lib/authCallbackClient.ts",
+      "kind": "production",
+      "baseBlob": "d17397a02a18029f1a333c73345c0d9921eb46ef",
+      "beforeSha256": "ee6433c9f35e352922b62fab01e71467938c316cfcf1303055d2970500dae3d1",
+      "afterSha256": "3c4d268843fd2f2597477e98b67a3905ca49c423b715245ca0495137cf2a3b02",
+      "coreSourceSha256": "3c4d268843fd2f2597477e98b67a3905ca49c423b715245ca0495137cf2a3b02",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "3c4d268843fd2f2597477e98b67a3905ca49c423b715245ca0495137cf2a3b02"
+    },
+    {
+      "path": "lib/authSessionBootstrap.ts",
+      "kind": "production",
+      "baseBlob": "e3754b60031ca9e6010b8b4aec9ec6fb9558de21",
+      "beforeSha256": "f2e55a91be09ff1b1e394fdd5005da77e9661fb269b2a2dbdb0a4b911e475e48",
+      "afterSha256": "58823d18a3e43fc83e22a806f32a00fc8389b28f95c6ef4897f72f553347cb5d",
+      "coreSourceSha256": "58823d18a3e43fc83e22a806f32a00fc8389b28f95c6ef4897f72f553347cb5d",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "58823d18a3e43fc83e22a806f32a00fc8389b28f95c6ef4897f72f553347cb5d"
+    },
+    {
+      "path": "__tests__/surfaceReadDedupe.test.ts",
+      "kind": "regression",
+      "baseBlob": "31761906901a85d98c96a5535736c2844f685564",
+      "beforeSha256": "d065195633e89fd656212ee452e14612342b4fdeef98c9ec06cce3bb667ecbf6",
+      "afterSha256": "e8b4e67ddb96975a926742551ba2f36819324cc9a870978ea059fd9f4320ad03",
+      "coreSourceSha256": "e8b4e67ddb96975a926742551ba2f36819324cc9a870978ea059fd9f4320ad03",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "e8b4e67ddb96975a926742551ba2f36819324cc9a870978ea059fd9f4320ad03"
+    },
+    {
+      "path": "__tests__/profileWithdrawnPage.test.tsx",
+      "kind": "regression",
+      "baseBlob": "97c3a1746b57d233c30d850993f72f0a834cbf90",
+      "beforeSha256": "48d4f8b12740695c3beddf47e564ed36d57c0300ec7f4ac80f6c24e26eae3d7f",
+      "afterSha256": "3abe0125641348574e55ad88cfd961791fd5871a793864dfc348a468c3d84e6a",
+      "coreSourceSha256": "3abe0125641348574e55ad88cfd961791fd5871a793864dfc348a468c3d84e6a",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "3abe0125641348574e55ad88cfd961791fd5871a793864dfc348a468c3d84e6a"
+    },
+    {
+      "path": "__tests__/nightSignalFeedApproved.test.ts",
+      "kind": "regression",
+      "baseBlob": "9ab677e9e095718625250b319b5d459c6a987341",
+      "beforeSha256": "91e1b59934c790fad644d64f1afda1f79fa984a51e8ee192b25662aede920791",
+      "afterSha256": "6371fcdf8961218fa56d50415482cc456a3060fa2baff547f1f85012d36f3940",
+      "coreSourceSha256": "6371fcdf8961218fa56d50415482cc456a3060fa2baff547f1f85012d36f3940",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "6371fcdf8961218fa56d50415482cc456a3060fa2baff547f1f85012d36f3940"
+    },
+    {
+      "path": "__tests__/authProviderBootstrapRace.test.tsx",
+      "kind": "regression",
+      "baseBlob": null,
+      "beforeSha256": null,
+      "afterSha256": "3500f06e06883972489fc09154438364e0478b938716b4164e6ebc5a3d4b5975",
+      "coreSourceSha256": "d1e59a6be65ad23f75f1488d5c47411d4363291aac4eb4c495bd528633f54671",
+      "releaseBaseExisted": false,
+      "excludedOrAdapted": [
+        "adapted isolation mock to retained release onboarding owner"
+      ],
+      "scratchAppliedSha256": "3500f06e06883972489fc09154438364e0478b938716b4164e6ebc5a3d4b5975"
+    },
+    {
+      "path": "__tests__/authCallbackConfirmation.test.tsx",
+      "kind": "regression",
+      "baseBlob": "2596252fb3e1a3b3641391149a3975379c657a73",
+      "beforeSha256": "943f93e6231657cdcff09a614bb38a4084a106d16cb5a0342e39071e735a1c40",
+      "afterSha256": "8d4353c43b48b71cb63ade91cb41ca901e1ac7bf5e48ecfc4ae804101561ff21",
+      "coreSourceSha256": "4fabc095e02133d3acb61fd9c39350f3713355fd23d2eaec852ebe5e157ff0f3",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [
+        "adapted isolation mock to retained release onboarding owner"
+      ],
+      "scratchAppliedSha256": "8d4353c43b48b71cb63ade91cb41ca901e1ac7bf5e48ecfc4ae804101561ff21"
+    },
+    {
+      "path": "__tests__/authCallbackClient.test.ts",
+      "kind": "regression",
+      "baseBlob": "4ca9a6aac8e41227a46bfa00204978d399e59718",
+      "beforeSha256": "9f640c42847d3115fee365709e9fddab2f52fa46509180b485d454c3e04b2b67",
+      "afterSha256": "9c307201e934427a0a5a2f376713aa63155694704ed1f1e49bd12e079168a82b",
+      "coreSourceSha256": "9c307201e934427a0a5a2f376713aa63155694704ed1f1e49bd12e079168a82b",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "9c307201e934427a0a5a2f376713aa63155694704ed1f1e49bd12e079168a82b"
+    },
+    {
+      "path": "__tests__/authSessionBootstrap.test.ts",
+      "kind": "regression",
+      "baseBlob": "1423aceda61e9fc68e0f761e7fb410912d88a446",
+      "beforeSha256": "4ee42c6cf7f1b250adbe209ed6838479485848ef8797ffea2886c79de4b7ee9b",
+      "afterSha256": "93956f1c23aea5857170b26e021e91f7b2986707374140923ede288d9c0f7207",
+      "coreSourceSha256": "93956f1c23aea5857170b26e021e91f7b2986707374140923ede288d9c0f7207",
+      "releaseBaseExisted": true,
+      "excludedOrAdapted": [],
+      "scratchAppliedSha256": "93956f1c23aea5857170b26e021e91f7b2986707374140923ede288d9c0f7207"
+    }
+  ],
+  "exclusions": [
+    "lib/deviceAccountSwitch.ts import ordering only; release already has ban classification",
+    "No AccountOnboardingHost or handle-normalizer import migration",
+    "No generated data, package/lock, provider policy or SQL changes",
+    "No other Main-present ban classification duplicated"
+  ],
+  "dependencyCorrection": "Earlier r47-security-cache-main-reconciliation matrix overstated Main bootstrap support. Direct blob reads confirm BOTH f33f77e42 and ad08000 lack signal/onBeforeSetSession/pre-install abort guard; lib/authSessionBootstrap.ts six-line delta and its direct regression are required.",
+  "focusedCommand": "npm test -- __tests__/surfaceReadDedupe.test.ts __tests__/surfaceDataCache.test.ts __tests__/profileWithdrawnPage.test.tsx __tests__/nightSignalFeedApproved.test.ts __tests__/authProviderBootstrapRace.test.tsx __tests__/authCallbackConfirmation.test.tsx __tests__/authCallbackClient.test.ts __tests__/authSessionBootstrap.test.ts __tests__/deviceAccountSwitch.test.ts",
+  "historicalEvidence": [
+    "r46-focused-red-repair-status.json: 15 focused RED, then 312 focused GREEN across 15 files",
+    "r46-final-full-source-verify-receipt.json: actual Core verify GREEN, not composed release proof",
+    "r46-fullfive-terminal-receipt.json: separate Home/drag RED remains"
+  ],
+  "validation": {
+    "patchApplication": "PASS: git apply --check then git apply without --index in scratch/applied; all 13 applied files equal intended after SHA256",
+    "whitespace": "PASS: --whitespace=error-all at source application",
+    "pathInventory": "PASS: exact 13 manifest paths equal git apply --numstat; 6 production and 7 regression",
+    "coreInputDrift": "NONE: all 13 Core inputs still equal captured SHA256 after scratch application",
+    "futureFocusedCommandPaths": "PASS: all named baseline paths exist in exact release base or are the new added regression",
+    "runtime": "UNRUN: no focused tests, lint/typecheck, build, browser, actual provider/CDN/entitlement proof"
+  },
+  "compositionNotes": [
+    "Provider cancellation changes must stay coupled: aborted bootstrap/install event ownership, pending callback cancellation, newer same-account tokens and cross-tab logout reconciliation. Ban/unavailable classification remains release semantics.",
+    "Public old callers retain callback delivery but cannot retain old generation snapshots. New same-key callers start independent work; old finalizer cannot delete new entry.",
+    "Private-profile social links/stored overlay are gated by revision/route readiness; public follower counts remain unchanged.",
+    "Feed tests exercise actual keyless memory admission and exact expiry before header assertions. No invented CDN replay.",
+    "Provider isolation mocks target retained AccountOnboarding facade, not Core Host path. Baseline controls and new cancellation cases remain; no whole provider overwrite is needed."
+  ],
+  "unresolvedSeams": [],
+  "diffStat": [
+    {
+      "path": "lib/surfaceDataCache.ts",
+      "addedLines": 20,
+      "removedLines": 10
+    },
+    {
+      "path": "app/api/night-signals/route.ts",
+      "addedLines": 5,
+      "removedLines": 9
+    },
+    {
+      "path": "app/u/[handle]/ProfilePageClient.tsx",
+      "addedLines": 4,
+      "removedLines": 3
+    },
+    {
+      "path": "components/auth/AuthProvider.tsx",
+      "addedLines": 271,
+      "removedLines": 20
+    },
+    {
+      "path": "lib/authCallbackClient.ts",
+      "addedLines": 2,
+      "removedLines": 0
+    },
+    {
+      "path": "lib/authSessionBootstrap.ts",
+      "addedLines": 6,
+      "removedLines": 0
+    },
+    {
+      "path": "__tests__/surfaceReadDedupe.test.ts",
+      "addedLines": 167,
+      "removedLines": 2
+    },
+    {
+      "path": "__tests__/profileWithdrawnPage.test.tsx",
+      "addedLines": 207,
+      "removedLines": 4
+    },
+    {
+      "path": "__tests__/nightSignalFeedApproved.test.ts",
+      "addedLines": 53,
+      "removedLines": 8
+    },
+    {
+      "path": "__tests__/authProviderBootstrapRace.test.tsx",
+      "addedLines": 222,
+      "removedLines": 0
+    },
+    {
+      "path": "__tests__/authCallbackConfirmation.test.tsx",
+      "addedLines": 551,
+      "removedLines": 4
+    },
+    {
+      "path": "__tests__/authCallbackClient.test.ts",
+      "addedLines": 1,
+      "removedLines": 0
+    },
+    {
+      "path": "__tests__/authSessionBootstrap.test.ts",
+      "addedLines": 28,
+      "removedLines": 4
+    }
+  ]
+}

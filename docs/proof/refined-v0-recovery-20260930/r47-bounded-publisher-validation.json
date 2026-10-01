@@ -1,0 +1,81 @@
+{
+  "recordedAt": "2026-10-01T01:30:01.340595+00:00",
+  "status": "OBSERVED_CATEGORY_CONTRADICTION_PERMISSION_UNRESOLVED",
+  "freeze": "r47-source-freeze.json",
+  "bundleSha256": "f97dd00e56b1b2f50af976af5dde0dd759f2a5461b5b00d7df557166af514dcc",
+  "oldManor": {
+    "url": "https://www.the-old-manor.co.uk/food-drink/",
+    "robots": {
+      "url": "https://www.the-old-manor.co.uk/robots.txt",
+      "httpStatus": 200,
+      "checkedAt": "2026-10-01T01:23:45Z",
+      "result": "Wildcard excludes wp-admin; named menu path allowed. Robots alone does not establish continued-use permission."
+    },
+    "pageObservation": {
+      "observedDuring": "2026-10-01T01:24:00Z to 2026-10-01T01:29:00Z",
+      "toolFreshness": "Web reader reports crawled today; this is not a separately measured live menu HTTP receipt.",
+      "heading": "Summer Spritzers",
+      "entries": [
+        {
+          "publisherName": "Raspberry Honeybee",
+          "priceGbp": 11
+        },
+        {
+          "publisherName": "Rhubarb Rosé",
+          "priceGbp": 10
+        }
+      ],
+      "matchingEvidence": "Named entries and ingredient descriptions match the two frozen rows. Page also duplicates entries in another spritz list. No serving amount stated for these entries.",
+      "inference": "Current publisher context contradicts using these mixed drinks as bare vodka and shot observations. Taxonomy review pending; no replacement category or serving invented."
+    },
+    "permission": "Menu footer exposes privacy and reCAPTCHA links but no site-use terms establishing continued commercial evidence use. Ambiguous permission: no further remote reads, assets, PDFs or JS/API expansion.",
+    "frozenRows": [
+      {
+        "venueId": "venue-uk-w42452556",
+        "category": "shot",
+        "priceGbp": 10,
+        "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+        "observedAt": "2026-09-21T19:01:51.697Z",
+        "drinkLabel": "Rhubarb Rosé Lillet Rosé, Fever-Tree Rhubarb & Raspberry Tonic",
+        "servingSize": null,
+        "rowIdentitySha256": "d986898fbc86e09d34f7e0ccf46ea3cc092f631a0483f58ead824d7d5a2042bd",
+        "identityBoundary": "Bundle has no individual row id; tuple and canonical row hash identify frozen entry."
+      },
+      {
+        "venueId": "venue-uk-w42452556",
+        "category": "vodka",
+        "priceGbp": 11,
+        "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+        "observedAt": "2026-09-21T19:01:51.697Z",
+        "drinkLabel": "Sapling Raspberry & Hibiscus Vodka, Beesou Honey, Fever-Tree Blood Orange Soda",
+        "servingSize": null,
+        "rowIdentitySha256": "2df940b67509005e87d7c42ba3e6459d5f31d430549fb025ad6192e5a7441a1d",
+        "identityBoundary": "Bundle has no individual row id; tuple and canonical row hash identify frozen entry."
+      }
+    ]
+  },
+  "greeneKing": {
+    "menuUrl": "https://www.greeneking.co.uk/pubs/lancashire/taps/menu",
+    "robots": {
+      "url": "https://www.greeneking.co.uk/robots.txt",
+      "httpStatus": 200,
+      "checkedAt": "2026-10-01T01:21:42Z",
+      "result": "Named public menu path allowed by wildcard rules."
+    },
+    "menuObservation": "Web reader reports cached two weeks earlier; JavaScript-required page does not expose sampled drink or amount. Candidate rum/cocktail claims remain UNVERIFIED. Linked PDF not followed.",
+    "terms": {
+      "url": "https://www.greeneking.co.uk/terms-conditions",
+      "toolFreshness": "Crawled today",
+      "paraphrase": "Website-use section restricts use to personal purposes and reserves content/data rights. This may narrow local registry permission for attributed facts.",
+      "boundary": "Not a legal verdict. Source-governance owner reviews permission mismatch before continued use."
+    },
+    "result": "STOPPED_PERMISSION_UNRESOLVED_PRICE_UNVERIFIED"
+  },
+  "boundaries": [
+    "Read-only thin publisher lane; no crawl, harvest, paid provider, credentials or browser/test/build/DB runtime.",
+    "No product, tests, source-policy, source registry, generated bundle or raw ledger changed.",
+    "Publisher observation is separate from source-use permission and from API/native UI proof.",
+    "Current offer, availability, ranking comparability and serving remain unverified.",
+    "Native category/API and amount-ordering acceptance pending fresh Core runtime grant."
+  ]
+}

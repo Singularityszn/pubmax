@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-30T19:30:23.193183+00:00",
+  "exitCode": 0,
+  "testsPassed": 5,
+  "command": "vitest run __tests__/runWithRestoredBundledData.test.ts",
+  "callerDatasetPreserved": true,
+  "datasetHashes": {
+    "rows.json": "d234ca852d0ec45f989393c9a27c82a26eb8d1094e4cea820a066c8c49c1fff6",
+    "manifest.json": "3cdb241338228a371384cadd06f2629ce5f23a3da2c598016e62d248b9e811fd"
+  },
+  "failingBeforeEvidence": "r35-first-full-gate-red.json captures two caller dataset files reverted by on-tree restore; repaired test runs real wrapper/validate-data in disposable local HEAD checkout."
+}

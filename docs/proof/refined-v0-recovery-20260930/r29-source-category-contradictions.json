@@ -1,0 +1,60 @@
+{
+  "at": "2026-09-30T16:19:28.734717+00:00",
+  "sourceHashes": {
+    "lib/ukPriceBundle.ts": "00a75afc5e162190174c83db3bbe7e17ed493d285e58ce0ed1c495132e4cc3a6",
+    "lib/listedCategoryPrices.ts": "015db0952965f9244d2ac0964aba1d8032d276be92529d0d488468feea2b31ad",
+    "components/map/PublishedMenuPrices.tsx": "c8331de45342d93e8582b4fc0b10e8ddc9b90dee928b9f0c321d7c2163cb4c8a"
+  },
+  "rows": [
+    {
+      "venueId": "venue-1ctgk0m",
+      "name": "The Bell on the Green",
+      "category": "wine",
+      "priceGbp": 4,
+      "lane": "site-harvest",
+      "standing": "listed",
+      "sourceUrl": "https://thebellonthegreen.com/drinks/",
+      "publisher": "thebellonthegreen.com",
+      "observedAt": "2026-09-21T18:25:47.604Z",
+      "basis": null,
+      "sampleSize": null,
+      "drinkLabel": "London Pride 500ml"
+    },
+    {
+      "venueId": "venue-1vse4lh",
+      "name": "The Brownswood",
+      "category": "beer",
+      "priceGbp": 2.6,
+      "lane": "site-harvest",
+      "standing": "listed",
+      "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+      "publisher": "thebrownswood.co.uk",
+      "observedAt": "2026-09-21T18:56:51.214Z",
+      "basis": null,
+      "sampleSize": null,
+      "drinkLabel": "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-",
+      "drinkSubtype": "beer-ale"
+    },
+    {
+      "venueId": "venue-bri-1o203s4",
+      "name": "The Gallimaufry",
+      "category": "wine",
+      "priceGbp": 3,
+      "lane": "site-harvest",
+      "standing": "listed",
+      "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+      "publisher": "thegallimaufry.co.uk",
+      "observedAt": "2026-09-04T13:40:39.833Z",
+      "basis": null,
+      "sampleSize": null,
+      "drinkLabel": "Ting Grapefruit Soda 330ml"
+    }
+  ],
+  "exactQuarantineLabelMatches": {
+    "London Pride 500ml": false,
+    "Ting Grapefruit Soda 330ml": false,
+    "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-": false
+  },
+  "finding": "Printed item contradicts assigned category. Current exact quarantine excludes none of these labels; eligible projection accepts assigned category. Native/API reproduction required before repair.",
+  "limits": "Committed source review only; no runtime reproduction, source fetch, parser verdict or live UI assertion."
+}

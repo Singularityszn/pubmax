@@ -1,0 +1,57 @@
+--- a/e2e/map-uk-base-layer.spec.ts
++++ b/e2e/map-uk-base-layer.spec.ts
+@@ -124,7 +124,7 @@
+       await route.fulfill({
+         status: 200,
+         contentType: "application/json",
+-        body: JSON.stringify({ prices: [], signals: [] }),
++        body: JSON.stringify({ prices: [], signals: [], listedPrices: [] }),
+       });
+       return;
+     }
+@@ -232,6 +232,8 @@
+         if (!sel?.startsWith("venue-uk-")) return null;
+         firstPinId = pin.id;
+         firstName = name;
++        await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
++        await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+         await priceField.fill(TYPED_PRICE);
+         await expect(priceField).toHaveValue(TYPED_PRICE);
+         return name;
+@@ -265,6 +267,26 @@
+   }
+ 
+   await priceField.blur();
++  // The price was entered in the expanded modal sheet. Keep it mounted,
++  // collapse to half, then drag to peek before choosing another map pin.
++  const phoneSheet = page.locator(".mobileSharedSheet");
++  const openedSheet = await phoneSheet.elementHandle();
++  expect(openedSheet).not.toBeNull();
++  await phoneSheet.getByRole("button", { name: "Collapse sheet", exact: true }).click();
++  await expect(phoneSheet).toHaveClass(/sheet-half/);
++  const headerBox = await phoneSheet.locator(".mobileSharedSheetHeader").boundingBox();
++  expect(headerBox).not.toBeNull();
++  const dragX = headerBox!.x + 18;
++  const dragY = headerBox!.y + headerBox!.height - 10;
++  await page.mouse.move(dragX, dragY);
++  await page.mouse.down();
++  await page.mouse.move(dragX, dragY + 260, { steps: 12 });
++  await page.waitForTimeout(150);
++  await page.mouse.up();
++  await expect(phoneSheet).toHaveClass(/sheet-peek/);
++  await expect(phoneSheet).not.toHaveAttribute("aria-modal", "true");
++  await expect(page.locator("main.appShell")).not.toHaveAttribute("inert", "");
++  await expect(priceField).toHaveValue(TYPED_PRICE);
+ 
+   await expect
+     .poll(
+@@ -295,6 +317,9 @@
+     .not.toBeNull();
+ 
+   switched = true;
++  expect(await openedSheet!.evaluate((node) =>
++    node.isConnected && node === document.querySelector(".mobileSharedSheet"),
++  )).toBe(true);
+ 
+   const opened = firstName !== null;
+   expect(opened, "a UK base pin should be tappable somewhere on a zoomed-in map").toBe(true);

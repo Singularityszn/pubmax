@@ -1,0 +1,12 @@
+{
+  "scope": "Anonymous public deployment metadata only; not proof local fixes are deployed or build is accepted.",
+  "observedAtUtc": "2026-09-30T16:55:49.315634+00:00",
+  "url": "https://pubmaxxing.com/api/version",
+  "status": 200,
+  "cacheControl": "no-store, no-cache, must-revalidate, max-age=0",
+  "edge": "MISS",
+  "bodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+  "version": {
+    "ok": true
+  }
+}

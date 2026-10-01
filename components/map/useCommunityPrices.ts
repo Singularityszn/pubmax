@@ -25,7 +25,18 @@ import {
   readContributionGateStatus,
   type ContributionGateStatus,
 } from "@/lib/contributionGateStatus";
-import type { DrinkCategory } from "@/lib/drinks";
+import { DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import {
+  MAX_QUOTES_PER_CATEGORY,
+  MAX_SOURCE_URL_LENGTH,
+  MAX_SERVING_LENGTH,
+  type ListedCategoryPrice,
+} from "@/lib/listedCategoryPrices";
+import {
+  UK_PRICE_BUNDLE_DRINK_LABEL_MAX,
+  normalizeUkPriceBundleDrinkLabel,
+} from "@/lib/bundleDrinkFields";
+import { priceStandingFor } from "@/lib/priceTier";
 import {
   parseConfirmationOutcome,
   type PintDropConfirmationOutcome,
@@ -150,6 +161,9 @@ export type CommunityPricesState = {
    *  purpose - this is what the venue sheet renders, so every submission shows
    *  there, dated, whether or not it has earned the map. */
   byVenueId: Map<string, CommunityPrice[]>;
+  /** Base-sheet menu quotes. Separate from community rows and map authority.
+   * Missing key = unread; [] = ready empty; null = unavailable. */
+  listedPricesByVenueId?: ReadonlyMap<string, readonly ListedCategoryPrice[] | null>;
   /** Community-observed pub signals loaded by the same per-venue request. */
   signalsByVenueId: Map<string, CommunityVenueSignal[]>;
   /** The freshest BEER price at a venue - the pin's CANDIDATE, not its verdict.
@@ -409,6 +423,43 @@ export function readVenuePriceLoad(value: unknown): VenuePriceLoad {
   return { status: "ready", prices };
 }
 
+/** Published claims have their own read outcome, independent of community. */
+function readVenueListedPrices(value: unknown): ListedCategoryPrice[] | null {
+  if (!value || typeof value !== "object") return null;
+  const listed = (value as { listedPrices?: unknown }).listedPrices;
+  if (!Array.isArray(listed)
+    || listed.length > DRINK_CATEGORIES.length * MAX_QUOTES_PER_CATEGORY) return null;
+  const categoryCounts = new Map<DrinkCategory, number>();
+  const quotes: ListedCategoryPrice[] = [];
+  for (const item of listed) {
+    if (!item || typeof item !== "object") return null;
+    const row = item as Record<string, unknown>;
+    if (row.source !== "listed" || !isDrinkCategory(row.category)
+      || typeof row.priceGbp !== "number" || typeof row.sourceUrl !== "string"
+      || typeof row.observedAt !== "string" || row.sourceUrl.length > MAX_SOURCE_URL_LENGTH
+      || (row.drinkLabel !== null && (typeof row.drinkLabel !== "string"
+        || row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX))
+      || (row.servingSize !== null && (typeof row.servingSize !== "string"
+        || !row.servingSize.trim() || row.servingSize !== row.servingSize.trim()
+        || row.servingSize.length > MAX_SERVING_LENGTH
+        || /[\u0000-\u001f\u007f]/.test(row.servingSize)))) return null;
+    const count = (categoryCounts.get(row.category) ?? 0) + 1;
+    if (count > MAX_QUOTES_PER_CATEGORY) return null;
+    categoryCounts.set(row.category, count);
+    const decision = priceStandingFor({ listed: {
+      priceGbp: row.priceGbp, sourceUrl: row.sourceUrl, observedAt: row.observedAt,
+    } });
+    if (decision.standing !== "listed") return null;
+    quotes.push({
+      source: "listed", category: row.category, priceGbp: row.priceGbp,
+      drinkLabel: normalizeUkPriceBundleDrinkLabel(row.drinkLabel as string | null),
+      servingSize: row.servingSize as string | null,
+      sourceUrl: row.sourceUrl, observedAt: row.observedAt,
+    });
+  }
+  return quotes;
+}
+
 export type VenueSignalLoad =
   | { status: "ready"; signals: CommunityVenueSignal[] }
   | { status: "degraded"; signals: CommunityVenueSignal[] }
@@ -611,6 +662,12 @@ export function useCommunityPrices(): CommunityPricesState {
   >("idle");
   // Venues already fetched this session - the sheet re-mounts on every
   // selection and must not re-hit the API for a venue it already read.
+  const [listedPricesByVenueId, setListedPricesByVenueId] = useState<
+    ReadonlyMap<string, readonly ListedCategoryPrice[] | null>
+  >(() => new Map());
+  const markListedRead = useCallback((venueId: string, quotes: ListedCategoryPrice[] | null) => {
+    setListedPricesByVenueId((current) => new Map(current).set(venueId, quotes));
+  }, []);
   const loaded = useRef<Set<string>>(new Set());
   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
   const loadedSignalRows = useRef<Map<string, CommunityVenueSignal[]>>(
@@ -665,9 +722,15 @@ export function useCommunityPrices(): CommunityPricesState {
             discardBody(res);
             loaded.current.delete(venueId);
             markVenueRead(venueId, "degraded");
+            if (isUkBaseId(venueId)) markListedRead(venueId, null);
             return;
           }
           const payload = await res.json();
+          if (isUkBaseId(venueId)) {
+            const quotes = readVenueListedPrices(payload);
+            markListedRead(venueId, quotes);
+            if (quotes === null) loaded.current.delete(venueId);
+          }
           const result = readVenuePriceLoad(payload);
           const signalResult = readVenueSignalLoad(payload);
           if (result.status === "invalid" || signalResult.status === "invalid") {
@@ -729,10 +792,11 @@ export function useCommunityPrices(): CommunityPricesState {
           // Allow a later selection to retry this venue.
           loaded.current.delete(venueId);
           markVenueRead(venueId, "degraded");
+          if (isUkBaseId(venueId)) markListedRead(venueId, null);
         }
       })();
     },
-    [markVenueRead],
+    [markVenueRead, markListedRead],
   );
 
   const loadNoAlcoholIndex = useCallback(() => {
@@ -1267,6 +1331,7 @@ export function useCommunityPrices(): CommunityPricesState {
 
   return {
     byVenueId,
+    listedPricesByVenueId,
     signalsByVenueId,
     freshestByVenueId,
     noAlcoholIndexStatus,

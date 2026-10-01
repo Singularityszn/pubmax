@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-30T20:05:04.610055+00:00",
+  "exitCode": 1,
+  "total": 6,
+  "passed": 5,
+  "failed": 1,
+  "workers": 1,
+  "retries": 0,
+  "repeatEach": 3,
+  "sourceChanged": false,
+  "lore": {
+    "passed": 3,
+    "failed": 0,
+    "originalWholeFiveFailureRetained": true
+  },
+  "priceMissingMission": {
+    "passed": 2,
+    "failed": 1,
+    "repeatFailure": "door retry20.5s while artifact already shows composer"
+  },
+  "limits": "Repetition classification only; no repair/full acceptance claim",
+  "log": "/tmp/pubmaxx-r35-original-failure-focused-diagnostic.log"
+}

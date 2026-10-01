@@ -1,0 +1,11 @@
+{
+  "base": "6690d5946c62f60793b76c8edf8d6336720bd8b6",
+  "path": "e2e/map-uk-base-layer.spec.ts",
+  "beforeSha256": "7f7c0e78fb1919133a620930417fd96d1aea851dd71c78e2e3d4f9a027429a76",
+  "afterSha256": "6a554091e0dcb433ea0444fbaf04b37b950620e3f2416c1a9ed744903563ee76",
+  "patchSha256": "03e072382dbf707773c4b86b44d655128e363d2b6027b6dba02b26eac7255ac8",
+  "status": "SOURCE_ACCEPTANCE_SLICE_UNRUN",
+  "boundary": "Exports unchanged R46 expanded-sheet/collapse/260px drag and150ms pausedrelease/peek/nonmodal/notinert/same-mounted-sheet assertions. No product fix or weakened tolerance. Excludes separate new UKkind/sourcedmenu cases. Current release baseline lacks this added drag coverage; old existing suite cannot establish it.",
+  "historical": "OriginalR46 Core normalLondon case RED at sheet-peek assertion; exact currentrelease nativecauseunproved.",
+  "sourceCheck": "Scratchgitapply--check --whitespace=error-all PASS; no real source/index/ref mutation or browser execution."
+}

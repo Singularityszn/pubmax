@@ -1,0 +1,103 @@
+--- a/__tests__/planSelectedDrinkEvidenceCreate.test.ts
++++ b/__tests__/planSelectedDrinkEvidenceCreate.test.ts
+@@ -48,6 +48,7 @@
+   return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
+ });
+ 
++import { composerCreatePayload } from "@/components/plan/PlanComposer";
+ import { POST } from "@/app/api/plans/route";
+ import { GET, PATCH } from "@/app/api/plans/[id]/route";
+ import { inferNightContext } from "@/lib/nightPlanning";
+@@ -333,8 +334,92 @@
+     for (const canary of [a.sourceUrl, b.sourceUrl, "selectedDrinkPriceEvidence", "private-canary", "venue-b"]) {
+       expect(JSON.stringify(preview)).not.toContain(canary);
+     }
++  });
++
++  it("keeps listed evidence on a manual create payload without Night Context", () => {
++    const matched = { ...inferNightContext("wine").context, drinkCategory: "wine" as const, zeroProof: false };
++    const payloadFor = (
++      context: Parameters<typeof composerCreatePayload>[0]["context"],
++      selectedDrinkPriceEvidence: unknown,
++    ) => composerCreatePayload({
++      title: "Manual wine stop",
++      creatorName: "Host",
++      startTime: "2026-09-30T19:00:00.000Z",
++      stops: [{ venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence }],
++      context,
++    });
++
++    const manual = payloadFor(null, a);
++    expect(manual).not.toHaveProperty("context");
++    expect(manual.stops).toEqual([{
++      venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence: a,
++    }]);
++    expect(payloadFor(null, {
++      category: "wine", pence: 525, serving: null, source: "community", reportedAt: observedAt,
++    }).stops).toEqual([{ venueId: "venue-a", venueName: "Fixture pub" }]);
++    expect(payloadFor(matched, a).stops).toEqual([{
++      venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence: a,
++    }]);
++    expect(payloadFor({ ...matched, drinkCategory: "cocktail" }, a).stops).toEqual([
++      { venueId: "venue-a", venueName: "Fixture pub" },
++    ]);
++    expect(payloadFor({ ...matched, zeroProof: true }, a).stops).toEqual([
++      { venueId: "venue-a", venueName: "Fixture pub" },
++    ]);
+   });
+ 
++  it("verifies and reloads a listed quote on manual create when Night Context is absent", async () => {
++    const requestBody = {
++      title: "Manual wine stop",
++      creatorName: "Host",
++      startTime: "2026-09-30T19:00:00.000Z",
++      stops: [{ venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence: a }],
++    };
++    const response = await POST(new Request("http://localhost/api/plans", {
++      method: "POST",
++      headers: { "idempotency-key": `manual-listed-${++sequence}`, "content-type": "application/json" },
++      body: JSON.stringify(requestBody),
++    }));
++    const body = await response.json();
++    expect(response.status, JSON.stringify(body)).toBe(201);
++    expect(body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++    const reloaded = await memoryPlanStore.get(body.plan.plan.id);
++    expect(reloaded?.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++  });
++
++  it("verifies a selected fifth wine serving at create without raising the four-quote projection cap", async () => {
++    const servings = ["125ml", "150ml", "175ml", "200ml", "250ml"];
++    const selectedSourceUrl = "https://pub.example/selected/menu";
++    listedBundleFixture.rows = servings.map((servingSize, index) => ({
++      venueId: "venue-a",
++      name: "Fixture pub",
++      category: "wine",
++      priceGbp: [5.25, 5.5, 5.75, 6, 6.5][index]!,
++      drinkLabel: "Rioja",
++      servingSize,
++      sourceUrl: selectedSourceUrl,
++      observedAt,
++      lane: "site-harvest",
++      standing: "listed",
++      publisher: "Fixture publisher",
++      basis: null,
++      sampleSize: null,
++    }));
++    const fifthServing = {
++      category: "wine",
++      pence: 650,
++      serving: "250ml",
++      source: "listed",
++      sourceUrl: selectedSourceUrl,
++      observedAt,
++    };
++
++    const { body, reloaded } = await create("wine", fifthServing);
++
++    expect(body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(fifthServing);
++    expect(reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(fifthServing);
++  });
++
+   it("replays verified listed evidence after a lost response but rejects a changed serving on the same operation key", async () => {
+     const value = { creatorName: "Host", startTime: "2026-09-30T19:00:00.000Z",
+       context: { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" },

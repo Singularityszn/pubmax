@@ -1,0 +1,49 @@
+diff --git a/__tests__/authProviderBootstrapRace.test.tsx b/__tests__/authProviderBootstrapRace.test.tsx
+--- a/__tests__/authProviderBootstrapRace.test.tsx
++++ b/__tests__/authProviderBootstrapRace.test.tsx
+@@ -1,5 +1,5 @@
+ // @vitest-environment jsdom
+-import { act, createElement, useEffect } from "react";
++import { act, createElement, StrictMode, useEffect } from "react";
+ import { createRoot, type Root } from "react-dom/client";
+ import type { Session } from "@supabase/supabase-js";
+ import { afterEach, expect, it, vi } from "vitest";
+@@ -286,15 +286,16 @@
+ // These tests use the actual bootstrap helper, a held SDK setSession and the
+ // rendered public auth context. Cookie/SDK state are explicit local doubles;
+ // they do not establish a real provider or server entitlement.
+-async function mountEnteredBootstrap() {
++async function mountEnteredBootstrap(strict = false) {
+   state.realBootstrap = true;
+   // Durable cookie A is present while the local SDK initially has no session.
+   state.cookieSession = { access_token: "late-a-access", refresh_token: "late-a-refresh",
+     user: { id: "late-a", email: "late-a@example.test" } } as Session;
+   const container = document.createElement("div");
+   root = createRoot(container);
+-  await act(async () => root?.render(createElement(AuthProvider,
+-    { clerkIntegrationConfigured: false }, createElement(Viewer))));
++  const viewer = createElement(AuthProvider,
++    { clerkIntegrationConfigured: false }, createElement(Viewer));
++  await act(async () => root?.render(strict ? createElement(StrictMode, null, viewer) : viewer));
+   await vi.waitFor(() => expect(state.releaseInstall).toBeTypeOf("function"));
+   expect(state.heldInstallEntered).toBe(true);
+   expect(state.bootstrapSignal?.aborted).toBe(false);
+@@ -357,3 +358,18 @@
+   expect(state.cookieSession?.user.id).toBe("late-a");
+   expect(state.persistedTokens).toContain("late-a-access");
+ });
++
++
++it("keeps a valid cookie restore through StrictMode subscription replay", async () => {
++  const container = await mountEnteredBootstrap(true);
++  await act(async () => {
++    state.releaseInstall?.();
++    await state.bootstrapPromise;
++  });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("late-a");
++  expect(state.bootstrapSignal?.aborted).toBe(false);
++  expect(state.sdkSession?.user.id).toBe("late-a");
++  expect(state.cookieSession?.user.id).toBe("late-a");
++  expect(state.persistedTokens).toContain("late-a-access");
++  expect(state.sdkSignOutCalls).toBe(0);
++});

@@ -1,0 +1,18 @@
+{
+  "recordedAt": "2026-09-30T14:04:52.175991+00:00",
+  "exitCode": 1,
+  "passed": 1287,
+  "failed": 4,
+  "skipped": 24,
+  "didNotRun": 1,
+  "durationMinutes": 24.5,
+  "sourceChanges": [],
+  "failureKinds": [
+    "base price fixture omits listedPrices and unread correctly differs from no price",
+    "base kind-filter precondition triplezoom finalthreshold failed",
+    "synthetic WebGL recovery fell into first-pin readiness fallback",
+    "SW takeover controllerchange wait timedout180sec"
+  ],
+  "traceLocation": "/tmp/pubmaxx-r25-fullfive-results",
+  "status": "RED. Earlier focused GPS/SW passes remain narrower proof, not whole regression acceptance."
+}

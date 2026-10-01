@@ -1,0 +1,16 @@
+{
+  "base_commit": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "candidate": "uncommittedR18 plus API-firstInspectorwarm and permanentorderingcase; finalfullgatesPENDING",
+  "files": {
+    "components/PubMap.tsx": "c2970b1e9200b1c20461e7baf42b3fe5804d1453c630969e5038296da2c173c9",
+    "components/PubMapCanvas.tsx": "686b2240afabaa103fac02c5709deb63409f121a354a54abaa9372e14a1fc87d",
+    "components/map/MapToolbar.tsx": "3079d6f782a5368d51814d3d73b0bcc3bd61e3c831b0bc995548e2b975717ee0",
+    "components/map/pubmap/useUkBaseStreaming.ts": "faf400563df8a2c29cf240ae4f9ad93017d14fe4136776bc42666d23830b7a77",
+    "lib/venueKindFilters.ts": "03572d483bcf0291736b3fd1b4fcf1c4d23f4f0b11322a056f02869c188b4927",
+    "__tests__/venueKindFilters.test.ts": "ea8941b6f4243cab8bee588485ebc54120d85ebba1867bce30dc339a8a2963d7",
+    "__tests__/ukBaseStreamingHook.test.tsx": "b0dc582cc3421713a8a347095258bfff71632b0d75fe997cbddfc48e0e4feffe",
+    "e2e/map-accessibility.spec.ts": "61bb50cf09aad85e883033fdc866370f44da433cbaa234b0ee4e5bb19561a852",
+    "e2e/map-uk-base-layer.spec.ts": "92b42cbb86e706af34194ed6a2dcc77f4268fe687307ff13f6e014abac52c232",
+    "e2e/map-performance.spec.ts": "7c1ad0926425f36f447a5907c59a5ff7468487d601910191f8b35de2f3a0da27"
+  }
+}

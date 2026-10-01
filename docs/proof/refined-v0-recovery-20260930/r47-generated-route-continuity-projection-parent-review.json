@@ -1,0 +1,32 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_INCREMENTAL_READY_ROOT_RUNTIME_UNRUN",
+  "reviewedAtUTC": "2026-10-01T12:31:23.388941+00:00",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-continuity-projection-production.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-continuity-projection-production.json",
+  "patchSha256": "e2ecfdaa897dd0058f1d1da04e17cc40e5f2603614e3c561b2813225b35a012a",
+  "path": "components/PubMap.tsx",
+  "beforeSha256": "bdb7171ad47bda90fde04d83dfd1bfaaabbfb55057b6a21dfbaf3c838fdc1642",
+  "afterSha256": "a0d9bb67621d3049e9cb990061f88b11b8c899ceef9d58b43bb1d183f0c21dd7",
+  "checks": {
+    "onlyExplicitPublicProjectionDelta": true,
+    "rootReadOnlyApplyCheck": true,
+    "freshScratchApplyCheckAndAfterPin": true,
+    "scratchWhitespaceCheck": true
+  },
+  "fullReplayPacket": {
+    "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-continuity-v2.patch",
+    "sha256": "35eb2f3ba947c0a14e8b0aa66191333447e93720b11c9f1089e2c10f27a6cd5c",
+    "purpose": "Full replacement from original seven before-pins. DO NOT apply atop Root applied V1. Current Root uses incremental projection packet only."
+  },
+  "sourceReview": [
+    "Nullable NightContext drinkCategory never forwarded as nullable public RouteDrinkIntent field. Zero-proof projects only explicit true; non-null non-beer category projects closed category plus false; beer/no category projects null.",
+    "No cast, type relaxation, quote, source, price, private plan context or GPS is added to URL. All other six V1 after-pins remain unchanged.",
+    "Existing memo dependency already covers context; no asynchronous ownership change."
+  ],
+  "runtime": null,
+  "limits": [
+    "Compiler and runtime checks UNRUN here. Root owns focused suites, fresh native Reload/Copy URL and final gates.",
+    "Crawl completion share path is separate known P2. Root owns actual RED before bounded source repair.",
+    "Strict accepted-stop release packet remains separate. Corrected mounted test must be preserved."
+  ]
+}

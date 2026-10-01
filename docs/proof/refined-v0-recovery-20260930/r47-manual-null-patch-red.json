@@ -1,0 +1,34 @@
+{
+  "capturedAtUtc": "2026-10-01T07:21:14Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baseDependsOn": [
+    "f65d6e3a1ee75626bee16de7cf42ad022b01cf7d9c78f233813fb56b879cf7d8 fifth-serving PATCH regression applied (test base after it: ede1293d06a7203b3814ff968a9482291b25d7f0b9b281e00c006e8b89a4c148).",
+    "The manual-create and PATCH evidence-forwarding helper change (810) must be applied first; it is expected to make the context-free POST baseline pass. Run this case before the memory-store update repair."
+  ],
+  "scratchBase": "/tmp/pubmaxx-r47-manual-null-patch-red/base/__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+  "scratchCandidate": "/tmp/pubmaxx-r47-manual-null-patch-red/candidate/__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-manual-null-patch-red.patch",
+  "patchSha256": "b97acef067d9990a2bc5e14d622eeeff3bad28c0d8fe2e272bba9d37b5d70bd6",
+  "status": "UNRUN_TEST_FIRST",
+  "files": [
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+      "baseSha256": "ede1293d06a7203b3814ff968a9482291b25d7f0b9b281e00c006e8b89a4c148",
+      "candidateSha256": "c5d2750af91618cb5595a86360653ac8e634e2ae5703bdd012e452373683d77d"
+    }
+  ],
+  "runtimeExecuted": false,
+  "productionFilesChanged": [],
+  "coverage": [
+    "Context-free POST with a current server-listed wine quote establishes exact quote and null-context baseline.",
+    "Same-canonical-venue replacement PATCH omits context and preserves the quote in response, memory store and authenticated member GET.",
+    "Anonymous preview shape remains restricted and excludes stop IDs, quote field, source URL and private contributor canary."
+  ],
+  "expectedRed": "After 810 and f65 but before memoryPlanStore update correction, PATCH reaches the null-context update path; that path removes the listed evidence, failing the exact response assertion.",
+  "limits": [
+    "Scratch-only test packet. No tests/runtime/production edits by this agent.",
+    "SQL migration 0167 behavior is outside this packet; SQL tracing is owned by release_inventory.",
+    "Existing explicit-category, zero-proof, forged, expired, override and prior privacy tests remain unchanged."
+  ],
+  "parentReview": "PASS exactRootafterf65before/hash/check/freshscratchafter; actualPOST+canonical3stopreplacementPATCH+store/memberGET+anonymousredaction. No fakehelper/doublesadded; runtimeUNRUN."
+}

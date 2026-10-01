@@ -195,9 +195,9 @@ type MapToolbarProps = {
   experienceSummary: string;
   onExperienceLensChange: (lens: MapExperienceLens) => void;
   /**
-   * The venue-type toggles, at 641px and wider (PlanAstra item 9). Absent on a
-   * base-pub-only arrival, where no curated kind is on the map to filter, and
-   * absent on a phone, which reads the same toggles in its Filters sheet.
+   * The venue-type toggles, at 641px and wider (PlanAstra item 9). They also
+   * filter UK base pubs and bars, so a base-led view keeps this one control and
+   * its active count. Phones read the same toggles in their Filters sheet.
    */
   venueKindVisibility?: VenueKindVisibility;
   onVenueKindVisibilityChange?: (next: VenueKindVisibility) => void;

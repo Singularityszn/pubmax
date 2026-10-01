@@ -1,0 +1,27 @@
+summary: "18 passed, 0 failed, 4 skipped, 22 total"
+checks[22]{name,conclusion}:
+  Browser law pins,pass
+  Review scope,pass
+  Effective RLS (Postgres 16 + PostgREST 14),pass
+  zizmor (workflows),pass
+  "Full browser suite (${{ matrix.shard }}/2)",skip
+  Lint and typecheck,pass
+  osv-scanner (lockfile),pass
+  Freshness release gate,pass
+  Semgrep CE (SAST),pass
+  Production build,pass
+  Unit tests (1/2),pass
+  Unit tests (2/2),pass
+  Coverage,pass
+  Cursor Bugbot,pass
+  Macroscope - Approvability Check,skip
+  Macroscope - Correctness Check,skip
+  Supabase Preview,skip
+  CodeRabbit,pass
+  "Cursor Approval Agent: Pull Request Router and Approver",pass
+  Vercel Preview Comments,pass
+  Vercel – chengdu,pass
+  Vercel – pubmaxx,pass
+help[2]:
+  Run `gh-axi pr view 1879` to see PR details
+  Run `gh-axi pr merge 1879` to merge when ready

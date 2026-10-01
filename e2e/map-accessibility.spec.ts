@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { rowsFromSlimPayload } from "../lib/slimPayload";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };
@@ -151,9 +151,16 @@ async function openVenueListWithKeyboard(page: Page): Promise<Locator> {
   await tabTo(page, list);
   await page.keyboard.press("Enter");
 
-  const firstVenue = page.locator(".mapVenueListItem").first();
-  await expect(firstVenue).toBeFocused();
-  return firstVenue;
+  // Streamed rows can reorder while Chromium keeps focus on the same venue.
+  const focusedVenue = page.locator(".mapVenueListItem:focus");
+  await expect(focusedVenue).toBeVisible();
+  const focusedVenueId = await focusedVenue.getAttribute("data-venue-id");
+  expect(focusedVenueId).toBeTruthy();
+  const venueById = page.locator(
+    `.mapVenueListItem[data-venue-id="${focusedVenueId}"]`,
+  );
+  await expect(venueById).toBeFocused();
+  return venueById;
 }
 
 test.describe("map keyboard and screen-reader venue path", () => {
@@ -208,6 +215,16 @@ test.describe("map keyboard and screen-reader venue path", () => {
     page,
   }) => {
     test.setTimeout(180_000);
+    const ukBaseRequests: string[] = [];
+    const pendingUkBaseRequests = new Set<Request>();
+    page.on("request", (request) => {
+      const path = new URL(request.url()).pathname;
+      if (!path.startsWith("/data/uk_base/")) return;
+      ukBaseRequests.push(path);
+      pendingUkBaseRequests.add(request);
+    });
+    page.on("requestfinished", (request) => pendingUkBaseRequests.delete(request));
+    page.on("requestfailed", (request) => pendingUkBaseRequests.delete(request));
     await page.goto("/map");
     await openVenueListWithKeyboard(page);
 
@@ -271,26 +288,85 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .not.toEqual(beforeMoveIds);
 
+    // The viewport stream starts after a 180 ms settle debounce. Finish that
+    // read before counting requests, so a late zoom shard is not blamed on a
+    // subsequent kind toggle.
+    await page.waitForTimeout(250);
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-uk-base-status", "ready");
+    await expect.poll(() => pendingUkBaseRequests.size).toBe(0);
     const curatedRows = page.locator('.mapVenueListItem:not([data-venue-id^="venue-uk-"])');
-    const barRows = curatedRows.filter({ has: page.locator(".mapVenueListItemMeta > span:first-child", { hasText: /^Bar$/ }) });
-    const pubRows = curatedRows.filter({ has: page.locator(".mapVenueListItemMeta > span:first-child", { hasText: /^Pub$/ }) });
-    const barIds = await barRows.evaluateAll((items) => items.map((item) => item.getAttribute("data-venue-id")!));
-    expect(barIds.length).toBeGreaterThan(0);
-    const retainedPubId = await pubRows.first().getAttribute("data-venue-id");
-    expect(retainedPubId).toBeTruthy();
-    // The venue-type chips live in the toolbar's Filters panel (#1631).
-    await page.getByRole("button", { name: /^Filters:/ }).click();
-    const bars = page
-      .getByRole("dialog", { name: "Filters" })
-      .getByRole("button", { name: "Bars", exact: true });
+    const curatedBars = curatedRows.filter({ has: page.locator(".mapVenueListItemMeta > span:first-child", { hasText: /^Bar$/ }) });
+    const curatedPubs = curatedRows.filter({ has: page.locator(".mapVenueListItemMeta > span:first-child", { hasText: /^Pub$/ }) });
+    const baseRows = page.locator('.mapVenueListItem[data-venue-id^="venue-uk-"]');
+    const baseBars = baseRows.filter({ hasText: "Other bar · no listed price" });
+    const basePubs = baseRows.filter({ hasText: "Other pub · no listed price" });
+    const ids = (locator: Locator) => locator.evaluateAll((items) =>
+      items.map((item) => item.getAttribute("data-venue-id")!).filter(Boolean),
+    );
+    const curatedBarIds = await ids(curatedBars);
+    const curatedPubIds = await ids(curatedPubs);
+    await expect.poll(() => baseBars.count(), { timeout: 30_000 }).toBeGreaterThan(0);
+    const baseBarIds = await ids(baseBars);
+    const basePubIds = await ids(basePubs);
+    expect(curatedBarIds.length).toBeGreaterThan(0);
+    expect(curatedPubIds.length).toBeGreaterThan(0);
+    expect(baseBarIds.length).toBeGreaterThan(0);
+    expect(basePubIds.length).toBeGreaterThan(0);
+    expect(ukBaseRequests.length).toBeGreaterThan(0);
+    const requestsBeforeToggle = ukBaseRequests.length;
+    const filters = page.getByRole("button", { name: /^Filters:/ });
+    await filters.click();
+    const panel = page.getByRole("dialog", { name: "Filters" });
+    const bars = panel.getByRole("button", { name: "Bars", exact: true });
     await expect(bars).toHaveAttribute("aria-pressed", "true");
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
-    await expect(barRows).toHaveCount(0);
-    await expect.poll(() => rows.evaluateAll((items, removed) => items
-      .map((item) => item.getAttribute("data-venue-id"))
-      .filter((id) => id !== null && removed.includes(id)), barIds)).toEqual([]);
-    await expect(page.locator(`.mapVenueListItem[data-venue-id="${retainedPubId}"]`)).toBeVisible();
+    await filters.click();
+    await expect(curatedBars).toHaveCount(0);
+    await expect(baseBars).toHaveCount(0);
+    await expect.poll(() => ids(rows).then((present) =>
+      present.filter((id) => [...curatedBarIds, ...baseBarIds].includes(id))),
+    ).toEqual([]);
+    await expect(page.locator(`.mapVenueListItem[data-venue-id="${basePubIds[0]}"]`)).toBeVisible();
+    expect(ukBaseRequests).toHaveLength(requestsBeforeToggle);
+
+    await filters.click();
+    await bars.click();
+    await expect(bars).toHaveAttribute("aria-pressed", "true");
+    await filters.click();
+    await expect.poll(async () => (await ids(baseBars)).sort(), { timeout: 20_000 })
+      .toEqual([...baseBarIds].sort());
+    expect(ukBaseRequests).toHaveLength(requestsBeforeToggle);
+
+    await filters.click();
+    const pints = panel.getByRole("button", { name: "Pints", exact: true });
+    await pints.click();
+    await expect(pints).toHaveAttribute("aria-pressed", "false");
+    await filters.click();
+    await expect(curatedPubs).toHaveCount(0);
+    await expect(basePubs).toHaveCount(0);
+    await expect.poll(() => ids(rows).then((present) =>
+      present.filter((id) => [...curatedPubIds, ...basePubIds].includes(id))),
+    ).toEqual([]);
+    await expect(baseBars.first()).toBeVisible();
+    expect(ukBaseRequests).toHaveLength(requestsBeforeToggle);
+
+    // A bar selected from the surviving base rows still has a shareable cold
+    // restore, independent of the viewport's filter or streaming callback.
+    const selectedBarId = await baseBars.first().getAttribute("data-venue-id");
+    expect(selectedBarId).toBeTruthy();
+    const selectedBar = page.locator(`.mapVenueListItem[data-venue-id="${selectedBarId}"]`);
+    const baseBarName = await selectedBar.locator(".mapVenueListItemName").innerText();
+    await selectedBar.click();
+    const unverified = page.locator(".unverifiedPub");
+    await expect(unverified).toBeVisible();
+    await expect(unverified.locator(".unverifiedPubName")).toHaveText(baseBarName.trim());
+    const barUrl = page.url();
+    expect(new URL(barUrl).searchParams.get("sel")).toBe(selectedBarId);
+    expect(new URL(barUrl).searchParams.has("at")).toBe(true);
+    await page.goto(barUrl);
+    await expect(unverified).toBeVisible({ timeout: 45_000 });
+    await expect(unverified.locator(".unverifiedPubName")).toHaveText(baseBarName.trim());
   });
 
   test("drops old base-pub rows during a disjoint pan before the next shard fetch", async ({
@@ -377,14 +453,14 @@ test.describe("map keyboard and screen-reader venue path", () => {
     // sibling spec. This case pins Escape on the venue drawer with the list
     // still open underneath — the regression path from List view.
     await openVenueListFromLayers(page);
-    const chosenVenue = page.locator(".mapVenueListItem").first();
-    await chosenVenue.focus();
-    await expect(chosenVenue).toBeFocused();
-    const chosenVenueId = await chosenVenue.getAttribute("data-venue-id");
+    const chosenVenueCandidate = page.locator(".mapVenueListItem").first();
+    const chosenVenueId = await chosenVenueCandidate.getAttribute("data-venue-id");
     expect(chosenVenueId).toBeTruthy();
-    const chosenVenueAfterClose = page.locator(
+    const chosenVenue = page.locator(
       `.mapVenueListItem[data-venue-id="${chosenVenueId}"]`,
     );
+    await chosenVenue.focus();
+    await expect(chosenVenue).toBeFocused();
     await page.keyboard.press("Enter");
 
     const drawer = page.locator(".mapDrawer.right.open");
@@ -400,7 +476,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
-    await expect(chosenVenueAfterClose).toBeFocused({ timeout: 15_000 });
+    await expect(chosenVenue).toBeFocused({ timeout: 15_000 });
   });
 
   test("returns Escape focus to a keyboard-selected search result", async ({

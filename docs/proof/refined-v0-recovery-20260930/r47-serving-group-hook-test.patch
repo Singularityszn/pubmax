@@ -1,0 +1,56 @@
+diff --git a/__tests__/communityPriceClientState.test.ts b/__tests__/communityPriceClientState.test.ts
+index e28eac1b4..7ad8e2a00 100644
+--- a/__tests__/communityPriceClientState.test.ts
++++ b/__tests__/communityPriceClientState.test.ts
+@@ -390,6 +390,51 @@ describe("published menu prices through the selected base read", () => {
+     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
+   });
+ 
++  it("isolates deferred category reads by explicit serving and preserves within-group dedupe", async () => {
++    const completions = new Map<string, (response: Response) => void>();
++    const categoryRequests: string[] = [];
++    const fetcher = vi.fn((input: RequestInfo | URL) => {
++      const url = new URL(String(input), "http://localhost");
++      if (url.searchParams.has("drinkCategory")) {
++        const serving = url.searchParams.get("serving") ?? "none";
++        categoryRequests.push(serving);
++        return new Promise<Response>((resolve) => { completions.set(serving, resolve); });
++      }
++      return Promise.resolve(Response.json({ prices: [], signals: [], listedPrices: [] }));
++    });
++    vi.stubGlobal("fetch", fetcher);
++    await act(async () => { mount(); });
++    // The second argument is the intended optional extension to the existing loader.
++    const load = current.loadDrinkCategoryIndex as (category: "gin", serving?: string) => void;
++    act(() => { load("gin", "25ml"); load("gin", "50ml"); load("gin", "25ml"); });
++    expect(categoryRequests).toEqual(["25ml", "50ml"]);
++    const single = { ...quote, venueId: pub.id, category: "gin", drinkLabel: "Published gin",
++      priceGbp: 4.2, servingSize: "25ml" };
++    const double = { ...single, priceGbp: 7.9, servingSize: "50ml" };
++    await act(async () => {
++      completions.get("50ml")!(Response.json({ prices: [], listedPrices: [double],
++        servingGroups: ["25ml", "50ml"], truncated: false }));
++    });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect((current.listedDrinkPrices as ReadonlyMap<string, unknown>).get("gin:50ml"))
++        .toEqual([expect.objectContaining({ servingSize: "50ml", priceGbp: 7.9 })]);
++    });
++    await act(async () => {
++      completions.get("25ml")!(Response.json({ prices: [], listedPrices: [single],
++        servingGroups: ["25ml", "50ml"], truncated: false }));
++    });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect((current.listedDrinkPrices as ReadonlyMap<string, unknown>).get("gin:25ml"))
++        .toEqual([expect.objectContaining({ servingSize: "25ml", priceGbp: 4.2 })]);
++    });
++    expect((current.listedDrinkPrices as ReadonlyMap<string, unknown>).get("gin:50ml"))
++      .toEqual([expect.objectContaining({ servingSize: "50ml", priceGbp: 7.9 })]);
++    expect(current.freshestByVenueId.has(pub.id)).toBe(false);
++    expect(categoryRequests).toEqual(["25ml", "50ml"]);
++  });
++
+   it("uses the existing selected GET and keeps published rows out of community map authority", async () => {
+     const fetcher = mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [quote] }));
+     await act(async () => { mount(); });

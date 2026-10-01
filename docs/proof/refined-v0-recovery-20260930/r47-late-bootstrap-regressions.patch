@@ -1,0 +1,207 @@
+diff --git a/__tests__/authProviderBootstrapRace.test.tsx b/__tests__/authProviderBootstrapRace.test.tsx
+--- a/__tests__/authProviderBootstrapRace.test.tsx
++++ b/__tests__/authProviderBootstrapRace.test.tsx
+@@ -1,10 +1,20 @@
+ // @vitest-environment jsdom
+-import { act, createElement } from "react";
++import { act, createElement, useEffect } from "react";
+ import { createRoot, type Root } from "react-dom/client";
+ import type { Session } from "@supabase/supabase-js";
+ import { afterEach, expect, it, vi } from "vitest";
+ 
+ const state = vi.hoisted(() => ({
++  realBootstrap: false,
++  sdkSession: null as Session | null,
++  cookieSession: null as Session | null,
++  releaseInstall: null as null | (() => void),
++  bootstrapPromise: null as Promise<unknown> | null,
++  signOutPromise: null as Promise<void> | null,
++  sdkSignOutCalls: 0,
++  persistedTokens: [] as string[],
++  visibleAccounts: [] as string[],
++  heldInstallEntered: false,
+   authEvent: null as null | ((event: string, session: Session | null) => void),
+   resolveBootstrap: null as null | ((result:
+     | { status: "local"; session: Session }
+@@ -29,11 +39,31 @@
+         state.authEvent = callback;
+         return { data: { subscription: { unsubscribe: vi.fn() } } };
+       },
+-      signOut: async () => { state.authEvent?.("SIGNED_OUT", null); },
++      getSession: async () => ({ data: { session: state.sdkSession } }),
++      setSession: async (tokens: { access_token: string; refresh_token: string }) => {
++        const userId = tokens.access_token === "late-a-access" ? "late-a" : "newer-b";
++        const session = { ...tokens, user: { id: userId, email: `${userId}@example.test` } } as Session;
++        if (state.realBootstrap && userId === "late-a" && !state.heldInstallEntered) {
++          state.heldInstallEntered = true;
++          await new Promise<void>((resolve) => { state.releaseInstall = resolve; });
++        }
++        // setSession already entered the SDK: aborting bootstrap does not cancel
++        // this installation or its event. Repairs must own both explicitly.
++        state.sdkSession = session;
++        state.authEvent?.("SIGNED_IN", session);
++        return { data: { session }, error: null };
++      },
++      signOut: async () => {
++        state.sdkSignOutCalls += 1;
++        state.sdkSession = null;
++        state.authEvent?.("SIGNED_OUT", null);
++      },
+     },
+   }),
+ }));
+-vi.mock("@/lib/authSessionBootstrap", () => ({
++vi.mock("@/lib/authSessionBootstrap", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/authSessionBootstrap")>();
++  return ({
+   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
+   bootstrapAuthSession: (_auth: unknown, deps: {
+     signal: AbortSignal;
+@@ -41,13 +71,34 @@
+   }) => {
+     state.bootstrapSignal = deps.signal;
+     state.beforeSetSession = deps.onBeforeSetSession;
++    if (state.realBootstrap) {
++      state.bootstrapPromise = actual.bootstrapAuthSession(
++        _auth as import("@/lib/authSessionBootstrap").BrowserAuthSession,
++        { ...deps,
++          onBeforeSetSession: deps.onBeforeSetSession ?? undefined,
++          readHint: async () => ({ status: "present", hint: { maskedEmail: "a@…test" } }),
++          redeem: async () => ({ status: "restored", session: {
++            access_token: "late-a-access", refresh_token: "late-a-refresh",
++          } }),
++        },
++      );
++      return state.bootstrapPromise;
++    }
+     return new Promise((resolve) => { state.resolveBootstrap = resolve; });
+   },
+-}));
+-vi.mock("@/lib/authSessionResumeClient", () => ({
+-  clearPersistedSession: async () => {},
+-  persistSessionForResume: async () => "persisted",
+-}));
++  });
++});
++vi.mock("@/lib/authSessionResumeClient", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/authSessionResumeClient")>();
++  return { ...actual,
++    clearPersistedSession: async () => { state.cookieSession = null; },
++    persistSessionForResume: async (session: Session) => {
++      state.persistedTokens.push(session.access_token);
++      state.cookieSession = session;
++      return "persisted" as const;
++    },
++  };
++});
+ vi.mock("@/lib/authRedirect", () => ({
+   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax:auth-fragment-restored",
+   scrubAuthCallback: async () => null,
+@@ -70,9 +121,10 @@
+ 
+ function Viewer() {
+   const auth = useAuth();
++  useEffect(() => { state.visibleAccounts.push(auth.user?.id ?? "signed-out"); }, [auth.user?.id]);
+   return createElement("div", null,
+     createElement("span", { "data-testid": "viewer" }, auth.user?.id ?? "signed-out"),
+-    createElement("button", { onClick: () => { void auth.signOut("device"); } }, "Sign out"),
++    createElement("button", { onClick: () => { state.signOutPromise = auth.signOut("device"); } }, "Sign out"),
+   );
+ }
+ 
+@@ -83,6 +135,16 @@
+   state.resolveBootstrap = null;
+   state.bootstrapSignal = null;
+   state.beforeSetSession = null;
++  state.realBootstrap = false;
++  state.sdkSession = null;
++  state.cookieSession = null;
++  state.releaseInstall = null;
++  state.bootstrapPromise = null;
++  state.signOutPromise = null;
++  state.sdkSignOutCalls = 0;
++  state.persistedTokens = [];
++  state.visibleAccounts = [];
++  state.heldInstallEntered = false;
+   localStorage.clear();
+   sessionStorage.clear();
+ });
+@@ -220,3 +282,78 @@
+   await act(async () => state.resolveBootstrap?.({ status: "restored", session }));
+   expect(state.bootstrapSignal?.aborted).toBe(false);
+ });
++
++// These tests use the actual bootstrap helper, a held SDK setSession and the
++// rendered public auth context. Cookie/SDK state are explicit local doubles;
++// they do not establish a real provider or server entitlement.
++async function mountEnteredBootstrap() {
++  state.realBootstrap = true;
++  // Durable cookie A is present while the local SDK initially has no session.
++  state.cookieSession = { access_token: "late-a-access", refresh_token: "late-a-refresh",
++    user: { id: "late-a", email: "late-a@example.test" } } as Session;
++  const container = document.createElement("div");
++  root = createRoot(container);
++  await act(async () => root?.render(createElement(AuthProvider,
++    { clerkIntegrationConfigured: false }, createElement(Viewer))));
++  await vi.waitFor(() => expect(state.releaseInstall).toBeTypeOf("function"));
++  expect(state.heldInstallEntered).toBe(true);
++  expect(state.bootstrapSignal?.aborted).toBe(false);
++  return container;
++}
++
++it("retires an already-entered cookie SDK installation after explicit logout", async () => {
++  const container = await mountEnteredBootstrap();
++  await act(async () => { container.querySelector("button")?.click(); });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("signed-out");
++  expect(state.bootstrapSignal?.aborted).toBe(true);
++  const visibleAfterLogout = state.visibleAccounts.length;
++
++  // Original code can complete logout here. A correct repair may instead keep
++  // SDK cleanup pending, while its visible logout takes effect immediately.
++  await act(async () => {
++    state.releaseInstall?.();
++    await state.bootstrapPromise;
++    await state.signOutPromise;
++  });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("signed-out");
++  expect(state.visibleAccounts.slice(visibleAfterLogout)).not.toContain("late-a");
++  expect(state.sdkSession).toBeNull();
++  expect(state.cookieSession).toBeNull();
++  expect(state.persistedTokens).not.toContain("late-a-access");
++});
++
++it("keeps a newer login when an older entered cookie SDK installation emits late SIGNED_IN", async () => {
++  const container = await mountEnteredBootstrap();
++  const newer = { access_token: "newer-b-access", refresh_token: "newer-b-refresh",
++    user: { id: "newer-b", email: "b@example.test" } } as Session;
++  await act(async () => {
++    state.sdkSession = newer;
++    state.authEvent?.("SIGNED_IN", newer);
++  });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("newer-b");
++  expect(state.bootstrapSignal?.aborted).toBe(true);
++  const visibleAfterNewLogin = state.visibleAccounts.length;
++
++  await act(async () => {
++    state.releaseInstall?.();
++    await state.bootstrapPromise;
++  });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("newer-b");
++  expect(state.visibleAccounts.slice(visibleAfterNewLogin)).not.toContain("late-a");
++  expect(state.sdkSession?.user.id).toBe("newer-b");
++  expect(state.cookieSession?.user.id).toBe("newer-b");
++  expect(state.persistedTokens).not.toContain("late-a-access");
++});
++
++it("publishes and persists an unrevoked cookie SDK installation", async () => {
++  const container = await mountEnteredBootstrap();
++  await act(async () => {
++    state.releaseInstall?.();
++    await state.bootstrapPromise;
++  });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("late-a");
++  expect(state.bootstrapSignal?.aborted).toBe(false);
++  expect(state.sdkSession?.user.id).toBe("late-a");
++  expect(state.cookieSession?.user.id).toBe("late-a");
++  expect(state.persistedTokens).toContain("late-a-access");
++});

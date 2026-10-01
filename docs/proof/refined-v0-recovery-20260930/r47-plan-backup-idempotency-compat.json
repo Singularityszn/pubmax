@@ -1,0 +1,24 @@
+{
+  "status": "FROZEN_TEST_ONLY_ROOT_READY",
+  "scope": "Test-only compatibility case for a same-key Plan create replay across saved-backup support.",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baselineHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "originalTestPath": "__tests__/planSavedBackupDelivery.test.ts",
+  "originalTestSha256": "4d765cb5e7f1186c4e2a1d7d762d7ce25576d3c6f1da3fd49d658afbd127bbc3",
+  "scratchPatchedTest": "/tmp/pubmaxx-r47-plan-backup-idempotency-compat/planSavedBackupDelivery.test.ts",
+  "scratchPatchedTestSha256": "b175073f7f214f96a6bc9b4297e53bf7332a184d6e7e97fbe8df2e7c60e807b6",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-backup-idempotency-compat.patch",
+  "patchSha256": "c21b85b861c9c6f9fce564e239af14f9b3e669b1d22d21b0855da72a3b9d3651",
+  "testBehavior": "Seeds memoryPlanStore with same canonical clean plan, idempotency key, and historical id/name/listed-hint stop serialization; posts identical request through actual route; expects HTTP 201 replay, created:false, same plan id, revision 1, and same stops.",
+  "sourceDerivedRisk": "Adding generated position to idempotencyStops changes JSON request hash and can turn historical replay into 409. Current checked-in route omits position; this case is intended to guard a candidate that adds backup serialization.",
+  "responseContract": "201 on replay, verified in app/api/plans/route.ts and existing __tests__/planIdempotencyRoutes.test.ts.",
+  "runtime": "Not run by this agent; Root owns tests/runtime.",
+  "focusedCommand": "./node_modules/.bin/vitest run __tests__/planSavedBackupDelivery.test.ts -t 'replays an existing create key after backup support keeps the deployed hash shape'",
+  "sourceHashes": {
+    "app/api/plans/route.ts": "a85d2b8bf786091a4325123a7307b250ff78ce4da8bb9af7682b508f1b877e8b",
+    "lib/planStore.ts": "067335a1894c3c62db2b1c5372d9f1975e6c04c850c3e09ff1667c992574335e"
+  },
+  "parentReview": "CurrentRootbefore,patchhash,whitespace applycheck,freshscratchafter PASS. Read actual seed/historical property order/API path andfixturequotes. RuntimeUNRUN.",
+  "parentCorrection": "Prior request for replay200 incorrect; current contract201+created:false preserved.",
+  "cases": 1
+}

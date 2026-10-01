@@ -1,0 +1,33 @@
+{
+  "status": "TEST_ONLY_SOURCE_READY_RUNTIME_UNRUN",
+  "patchSha256": "4cbb4dc7599407e048ca04c0463fada10499b019837e264bf912f6be0577daee",
+  "patchBytes": 12441,
+  "baseHead": "d6fd8de81a0b83f5b194beaaa2851bc2de37cbb6",
+  "files": [
+    {
+      "path": "__tests__/planningAnchorResolver.test.ts",
+      "beforeSha256": "63c319a73301e4c7dd853ee9c0132fd6501bb038a8d9ee5d6101e4be23d2b9bd",
+      "afterSha256": "3ef3c3ae7e759b780afa6b1633bab059ea04069eca6b0d01f128404b360f409d"
+    },
+    {
+      "path": "__tests__/planAnchoredGenerateRoute.test.ts",
+      "beforeSha256": "eff00a26fb78b60065cee3abbf981a118264c57e8def24956b9ee9fceffe21cf",
+      "afterSha256": "c0ed0eb2ca406b2c19a0b15dab40e4ac8510540ebbee7c9eeed1065f172ec8c8"
+    },
+    {
+      "path": "__tests__/planAnchoredCreateRoute.test.ts",
+      "beforeSha256": "83d39b66c7d5f02fe066d0d5607756e94948813c1d4775ecdbb9d7211ca53802",
+      "afterSha256": "2d0bdf14844ba91b12e9bf7713c08991e04d1f495348779d7276820e56bf7bbf"
+    }
+  ],
+  "sourceChecks": "scratch apply/check whitespace=error and resulting hashes PASS; no tests/types/lint executed",
+  "fixture": "Existing lookupUkBasePub doubled with exact committed Sydney pack record; no base record in curated/concierge lists, no invented prices/amenities. Existing HTTP handlers/store/grounding/privacy run real.",
+  "expectedRed": "Inference only: default planningAnchor rejects base; generator cannot form an anchor candidate absent concierge catalogue; canonical create/route replacement reject base. Existing negatives unchanged.",
+  "policyLimit": "Existing ukBasePubs/ukBaseIndex comments intentionally exclude base from crawl router. New accepted real-pub Plan expectation is release-owner authorized goal expansion, not evidence old implementation is accidental. Governing rules retain pub/bar distinction and no fabricated base price.",
+  "limits": [
+    "No production correction included. Genuine runtime RED required before correction.",
+    "Real provider/durable SQL/native browser and complete selected-serving Plan rank are not proved by this packet.",
+    "Canonical base lookup currently cold scans617 shards; test double is not performance proof. Scope/city/access/accepted area must not be bypassed."
+  ],
+  "command": "npx vitest run __tests__/planningAnchorResolver.test.ts __tests__/planAnchoredGenerateRoute.test.ts __tests__/planAnchoredCreateRoute.test.ts"
+}

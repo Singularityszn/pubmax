@@ -1,0 +1,28 @@
+{
+  "status": "FROZEN_TEST_ONLY_PARENT_SOURCE_PASS_ROOT_ACTUAL_RED_PENDING",
+  "scope": "Two focused cases preserving validated listed/community price evidence through Map and WebMCP Plan transfers.",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baselineHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "originalTest": "__tests__/mapRouteTransfer.test.ts",
+  "originalTestSha256": "df5892a414bcc65ae7f602f10003841c31702fa1c5b6ca4c6f71c2c294bafea6",
+  "scratchPatchedTest": "/tmp/pubmaxx-r47-map-route-evidence-v2/mapRouteTransfer.test.ts",
+  "scratchPatchedTestSha256": "71eecb260ed273d546484aa8f741d0bbc5d7e323473ca19649badb7a2a914f03",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-map-route-evidence-test-v2.patch",
+  "patchSha256": "14dc2070fade1187f296d617130a3e8d4744c0483d9b6fca5c953709e043dce5",
+  "cases": [
+    "Map transfer and WebMCP save path retain exact listed/community primary and backup citations after closed-envelope cleaning; assert private metadata, coordinates, and personal URL are stripped.",
+    "Malformed unsafe citations are stripped while canonical backup identities remain, and 25 alternatives remain rejected by the existing 24-item bound."
+  ],
+  "fixtureTime": "NOW 2026-07-24T12:00:00.000Z; quote observations 2026-07-23, avoiding future timestamps.",
+  "sourceHashes": {
+    "lib/mapRouteTransfer.ts": "1f9283bd83f4f9bbf5d35aba0f66f6be12af3c56ec72d362f54b94205fd9e4bd",
+    "lib/planRouteDraft.ts": "5efcc5d451c5d4f317b8e80f39c4331342605c8fb2609f86433622f060e39e79",
+    "lib/webmcp/board.ts": "32eeaaee2c4643565d1e1b3691876a332c30d98b6325b1d13b4fef8c7f8aa9e3",
+    "components/plan/MapRouteTransferButton.tsx": "52ebe8b8b18d0c337810ba32ab58e3e18ac497d756d88047ccaed159a5532157"
+  },
+  "sourceDerivedExpectedRed": "Current map-route mapping drops selectedDrinkPriceEvidence before closed draft-envelope cleaning; existing cleaner supports canonical listed/community evidence. Root owns execution.",
+  "focusedCommand": "./node_modules/.bin/vitest run __tests__/mapRouteTransfer.test.ts -t 'carries listed and community evidence|strips malformed citations'",
+  "runtime": "Not run. Scratch artifacts only; no maintained tree changes.",
+  "parentReview": "Fullsource2cases/no duplicate cases, validprior-dayquote fixtures. Existingclosedquote cleaner matches both variants; allcurrentRootsource/testpins+check+freshscratchafter PASS.",
+  "limitations": "Draft syntax/field/privacy transport proof only, no provider/price approval/native verification; Rootactualmustfail missingevidencebefore production."
+}

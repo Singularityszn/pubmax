@@ -1,0 +1,18 @@
+diff --git a/components/PubMap.tsx b/components/PubMap.tsx
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -3257,7 +3257,13 @@
+       () => ({
+         mode,
+         filters,
+-        routeDrinkIntent: generatedPricing?.context ?? null,
++        routeDrinkIntent: generatedPricing
++          ? generatedPricing.context.zeroProof
++            ? { zeroProof: true }
++            : generatedPricing.context.drinkCategory && generatedPricing.context.drinkCategory !== "beer"
++              ? { drinkCategory: generatedPricing.context.drinkCategory, zeroProof: false }
++              : null
++          : null,
+         builtIds,
+         selectedVenueId,
+         bandId: activeBandId,

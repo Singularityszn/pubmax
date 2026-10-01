@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Selective source-only port proposal for shared pub/bar filters on the streamed UK base map, plus one isolated WebGL deferred-work cancellation hunk.",
+  "status": "DRAFT_ONLY_UNRUN",
+  "portBase": {
+    "commit": "6690d5946c62f60793b76c8edf8d6336720bd8b6",
+    "label": "Root candidate base"
+  },
+  "releaseBase": {
+    "commit": "ad08000b500b3193f143c4225a067c78f5a7694e",
+    "label": "fixed release base"
+  },
+  "baseCompatibility": {
+    "result": "selected map source paths are byte-identical between portBase and releaseBase",
+    "checkedPaths": [
+      "components/PubMap.tsx",
+      "components/PubMapCanvas.tsx",
+      "components/mobile/MobileSharedSheet.tsx",
+      "components/map/pubmap/useUkBaseStreaming.ts",
+      "components/map/MapToolbar.tsx",
+      "lib/venueKindFilters.ts"
+    ],
+    "note": "This checks only the named map source seam; it does not establish full-tree equivalence or release behavior."
+  },
+  "frozenCoreSource": {
+    "manifest": "docs/proof/refined-v0-recovery-20260930/r47-source-freeze.json",
+    "createdAt": "2026-10-01T00:59:53.484253+00:00",
+    "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+    "status": "UNVERIFIED_SOURCE_ONLY",
+    "fileCount": 4253,
+    "wholeFileHashes": {
+      "lib/venueKindFilters.ts": "03572d483bcf0291736b3fd1b4fcf1c4d23f4f0b11322a056f02869c188b4927",
+      "components/PubMap.tsx": "4acd1afb2cee0edfe33d0b146fa1f9fa2b69fc6461d1c9467f901a361d935966",
+      "components/PubMapCanvas.tsx": "d446589570a35d67b3bf5128de545643ac68c1568fe7901b59ba2f4aaed7abd8",
+      "components/map/pubmap/useUkBaseStreaming.ts": "faf400563df8a2c29cf240ae4f9ad93017d14fe4136776bc42666d23830b7a77",
+      "components/map/MapToolbar.tsx": "3079d6f782a5368d51814d3d73b0bcc3bd61e3c831b0bc995548e2b975717ee0",
+      "__tests__/venueKindFilters.test.ts": "ea8941b6f4243cab8bee588485ebc54120d85ebba1867bce30dc339a8a2963d7"
+    }
+  },
+  "patch": {
+    "path": "docs/proof/refined-v0-recovery-20260930/r47-map-base-kind-port.patch",
+    "sha256": "19dd45960644901deb8dca192ad9390cb457f0280a7753bce10d61d50d05a6b0",
+    "bytes": 15074,
+    "changedPathCount": 6,
+    "paths": [
+      {
+        "path": "lib/venueKindFilters.ts",
+        "baseSha256": "320bc4e8e3ec51a0696bf205dca1512c2da85f0d43716390b67c1f05d3e09639",
+        "selectiveOutputSha256": "03572d483bcf0291736b3fd1b4fcf1c4d23f4f0b11322a056f02869c188b4927",
+        "outputEqualsWholeFrozenCoreFile": true
+      },
+      {
+        "path": "components/PubMap.tsx",
+        "baseSha256": "d8a335a9813ae50d1bc19d79c54ab3dbdbef7162b8b13c23c95e67accdc89612",
+        "selectiveOutputSha256": "f74fbe559728885bcad979e15355be0ffa98f8a88cac1ac01803906af90cd0a3",
+        "outputEqualsWholeFrozenCoreFile": false
+      },
+      {
+        "path": "components/PubMapCanvas.tsx",
+        "baseSha256": "a3ab7b8d27fcea59a4095be930a92429de326947ddee51b7e3660850acde58b6",
+        "selectiveOutputSha256": "cc1d4a7413d437a51bd0e4761a7eb22f70e6f89d1f19660d5c222869de2844bf",
+        "outputEqualsWholeFrozenCoreFile": false
+      },
+      {
+        "path": "components/map/pubmap/useUkBaseStreaming.ts",
+        "baseSha256": "6a1008d7f5552987d0eff6d2a65abe5cb237b9050f900adf58f9720e0a8750bf",
+        "selectiveOutputSha256": "faf400563df8a2c29cf240ae4f9ad93017d14fe4136776bc42666d23830b7a77",
+        "outputEqualsWholeFrozenCoreFile": true
+      },
+      {
+        "path": "components/map/MapToolbar.tsx",
+        "baseSha256": "c5fad81f3b2695ea4ae4ff2f9670fef45f320969e7050140ad07fc30977e7356",
+        "selectiveOutputSha256": "3079d6f782a5368d51814d3d73b0bcc3bd61e3c831b0bc995548e2b975717ee0",
+        "outputEqualsWholeFrozenCoreFile": true
+      },
+      {
+        "path": "__tests__/venueKindFilters.test.ts",
+        "baseSha256": "70d4272275ee9e6c8bf0815a881f73fe41fc302cf180d43c024fea74145481b8",
+        "selectiveOutputSha256": "ea8941b6f4243cab8bee588485ebc54120d85ebba1867bce30dc339a8a2963d7",
+        "outputEqualsWholeFrozenCoreFile": true
+      }
+    ],
+    "selectiveCompositionNote": "false whole-file matches are intentional: PubMap, PubMapCanvas, and useUkBaseStreaming contain other Core hunks omitted from this proposal.",
+    "appliedToReleaseCheckout": false
+  },
+  "includedBehavior": [
+    "One shared pub/bar visibility policy filters the UK base canvas and List model, and keeps the filter control enabled in base-led view.",
+    "Kind toggles repaint the resident viewport answer without another shard read or camera debounce.",
+    "Cold selected-UK-pub restore can still find a row hidden by the current kind toggle.",
+    "Context loss advances style generation, marks style structure unready, and cancels queued deferred scene work before recovery."
+  ],
+  "preservedReleaseOwnership": [
+    "MobileSharedSheet animated requestHome behavior is absent from patch.",
+    "Release price-intent flow and friend-location layer/onMapInstance seam are absent from patch.",
+    "No camera, bearingSnap, lazy-import, menu, or venue-ranking hunks are included."
+  ],
+  "verification": {
+    "scratchRoot": "/tmp/pubmaxx-r47-map-port",
+    "patchDryRunAgainstPortBaseScratch": "PASS (6690d5946c62f60793b76c8edf8d6336720bd8b6)",
+    "patchAppliedToPortBaseScratch": "PASS",
+    "patchDryRunAgainstReleaseBaseScratch": "PASS (ad08000b500b3193f143c4225a067c78f5a7694e)",
+    "patchAppliedToReleaseBaseScratch": "PASS",
+    "bothScratchOutputsMatchSelectiveComposition": "PASS for all six allowlisted files",
+    "allowlistedPathsOnly": "PASS",
+    "addedLineTrailingWhitespace": "NONE",
+    "unitTests": "UNRUN",
+    "lintOrTypecheck": "UNRUN",
+    "build": "UNRUN",
+    "browserOrNativeMap": "UNRUN",
+    "fullReleaseAcceptance": "UNRUN"
+  },
+  "remainingDecisionsAndLimits": [
+    "The WebGL cancellation hunk applies independently, but no changed frozen-Core test directly isolates generation invalidation and deferred-work cancellation; keep its behavior marked UNRUN.",
+    "Historical Core R46 evidence does not verify this patch against the release base.",
+    "Review and apply only after release-owner composition review, then run focused checks, a fresh full source gate, and the complete release browser acceptance."
+  ],
+  "acceptanceBoundary": "This is a handoff patch only. No product source, tests, runtime state, ref, or index was changed; no release/runtime success is claimed."
+}

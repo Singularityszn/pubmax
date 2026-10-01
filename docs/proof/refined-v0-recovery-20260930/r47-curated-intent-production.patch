@@ -1,0 +1,16 @@
+diff --git a/lib/mapSeedCrawlPolicy.ts b/lib/mapSeedCrawlPolicy.ts
+--- a/lib/mapSeedCrawlPolicy.ts
++++ b/lib/mapSeedCrawlPolicy.ts
+@@ -1,9 +1,11 @@
+-import { seedCrawlState } from "@/lib/crawlUrl";
++import { routeDrinkIntentFromSearch, seedCrawlState } from "@/lib/crawlUrl";
+ import { isDrinkShapeArrival } from "@/lib/mapArrival";
+ 
+ /** Whether a map arrival needs the deferred curated-crawl catalog. */
+ export function mapSeedNeedsCuratedCrawlLookup(search: string): boolean {
+   if (isDrinkShapeArrival(search)) return false;
+   const seeded = seedCrawlState(search);
++  // Catalog adoption replaces stops; explicit public route intent owns these stops.
++  if (seeded.builtIds.length > 0 && routeDrinkIntentFromSearch(search)) return false;
+   return Boolean(seeded.crawlId) || seeded.builtIds.length >= 2;
+ }

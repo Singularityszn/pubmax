@@ -1,0 +1,190 @@
+// UNRUN. Native-browser diagnostic; requires the parent-owned server on loopback:3351.
+// It does not intercept requests or mutate account data.
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { chromium, expect } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs';
+import { expectMapToolbarReady, mapToolbar } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/helpers/mapToolbar.ts';
+import { uiUxChromiumLaunchOptions } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/scripts/lib/uiUxBattleTestBrowser.mjs';
+
+const origin = new URL(process.argv[2] ?? 'http://localhost:3351').origin;
+if (!['localhost', '127.0.0.1'].includes(new URL(origin).hostname)) {
+  throw new Error('Loopback-only diagnostic');
+}
+const output = process.argv[3] ?? '/tmp/pubmaxx-r35-search-copy';
+const venueId = 'venue-uk-n8308248176';
+const venueName = 'The Sydney Arms';
+const report: Record<string, any> = {
+  diagnosticOnly: true,
+  status: 'RUNNING',
+  origin,
+  venueId,
+  journeys: [],
+  errors: [],
+};
+mkdirSync(output, { recursive: true });
+const flush = () => writeFileSync(`${output}/report.json`, `${JSON.stringify(report, null, 2)}\n`);
+flush();
+
+let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+let activeContext: Awaited<ReturnType<NonNullable<typeof browser>['newContext']>> | undefined;
+const deadline = setTimeout(() => {
+  report.errors.push('115-second diagnostic deadline reached');
+  flush();
+  void browser?.close();
+}, 115_000);
+
+try {
+  browser = await chromium.launch(uiUxChromiumLaunchOptions(process.env.UI_UX_BROWSER_CHANNEL));
+  const contexts = [
+    { name: 'mobile', width: 390, height: 844 },
+    { name: 'desktop', width: 1440, height: 900 },
+  ];
+
+  for (const viewport of contexts) {
+    const journal: Record<string, any> = {
+      viewport: viewport.name,
+      width: viewport.width,
+      completed: false,
+      pageErrors: [],
+      checks: [],
+    };
+    report.journeys.push(journal);
+    flush();
+    try {
+      activeContext = await browser.newContext({
+        viewport: { width: viewport.width, height: viewport.height },
+        baseURL: origin,
+        storageState: {
+          cookies: [],
+          origins: [{
+            origin,
+            localStorage: [
+              { name: 'pubmaxx:analytics-consent:v1', value: 'denied' },
+              { name: 'pubmax:map-first-visit-arrival:v1', value: 'dismissed' },
+            ],
+          }],
+        },
+      });
+      const page = await activeContext.newPage();
+      page.setDefaultTimeout(18_000);
+      page.on('pageerror', (error) => journal.pageErrors.push(String(error)));
+
+      const response = await page.goto('/map', { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      journal.mapNavigationStatus = response?.status() ?? null;
+      if (!response || response.status() !== 200) throw new Error(`Map navigation status ${journal.mapNavigationStatus}`);
+
+      let search;
+      if (viewport.width === 390) {
+        // The mobile search is opened through its visible map control.
+        const openSearch = page.getByRole('button', { name: 'Search the map' });
+        await expect(async () => {
+          if (!(await page.getByRole('combobox', { name: 'Search pubs' }).isVisible().catch(() => false))) {
+            await openSearch.click();
+          }
+          await expect(page.getByRole('combobox', { name: 'Search pubs' })).toBeVisible({ timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+        search = page.getByRole('combobox', { name: 'Search pubs' });
+      } else {
+        await expectMapToolbarReady(page, 45_000);
+        search = mapToolbar(page).getByRole('combobox', { name: 'Search pubs' });
+      }
+
+      // Independent real reads establish whether the served bundle and the
+      // detail response carry listed rows for this exact base-pub id.
+      const [bundleResponse, detailResponse] = await Promise.all([
+        page.request.get(`${origin}/data/uk_prices/rows.json`, { timeout: 20_000 }),
+        page.request.get(`${origin}/api/venue/${venueId}`, { timeout: 20_000 }),
+      ]);
+      journal.servedBundleStatus = bundleResponse.status();
+      journal.detailApiStatus = detailResponse.status();
+      let bundleRows: any[] = [];
+      if (bundleResponse.ok()) {
+        const body = await bundleResponse.json();
+        bundleRows = Array.isArray(body) ? body : Array.isArray(body?.rows) ? body.rows : [];
+      }
+      const listedBundleRows = bundleRows.filter((row) =>
+        row?.venueId === venueId && row?.standing === 'listed' && row?.category === 'wine');
+      journal.servedBundleListedWineEvidence = listedBundleRows.map((row) => ({
+        drinkLabel: row.drinkLabel ?? null,
+        priceGbp: row.priceGbp ?? null,
+        servingSize: row.servingSize ?? null,
+        lane: row.lane ?? null,
+        standing: row.standing ?? null,
+        sourceUrl: row.sourceUrl ?? null,
+        observedAt: row.observedAt ?? null,
+      }));
+
+      let apiListedRows: any[] = [];
+      if (detailResponse.ok()) {
+        const body = await detailResponse.json();
+        const venue = body?.venue;
+        journal.detailApiVenueId = venue?.id ?? null;
+        journal.detailApiVenueName = venue?.name ?? null;
+        apiListedRows = Array.isArray(venue?.listedCategoryPrices)
+          ? venue.listedCategoryPrices.filter((row: any) => row?.category === 'wine')
+          : [];
+      }
+      journal.detailApiListedWineEvidence = apiListedRows.map((row) => ({
+        drinkLabel: row.drinkLabel ?? null,
+        priceGbp: row.priceGbp ?? null,
+        servingSize: row.servingSize ?? null,
+        sourceUrl: row.sourceUrl ?? null,
+        observedAt: row.observedAt ?? null,
+      }));
+
+      await search.click();
+      await search.fill('Sydney Arms');
+      const listbox = page.getByRole('listbox', { name: 'Search suggestions' });
+      await expect(listbox).toBeVisible();
+      const option = listbox.locator(`[data-venue-id="${venueId}"]`);
+      try {
+        await expect(option).toBeVisible({ timeout: 25_000 });
+        journal.result = 'MATCHED';
+        journal.suggestionText = (await option.innerText()).trim();
+        journal.suggestionHasNoListedPrice = /\bNo listed price\b/i.test(journal.suggestionText);
+      } catch {
+        // Keep a genuine search miss distinct from a server/browser setup failure.
+        journal.result = 'SEARCH_RESULT_MISSING';
+        journal.suggestionText = null;
+        journal.suggestionHasNoListedPrice = false;
+        journal.listboxText = (await listbox.innerText().catch(() => '')).trim();
+      }
+      journal.hasServedListedWineEvidence = listedBundleRows.length > 0;
+      journal.hasApiListedWineEvidence = apiListedRows.length > 0;
+      journal.noListedPriceWithListedEvidence = journal.suggestionHasNoListedPrice
+        && (journal.hasApiListedWineEvidence || journal.hasServedListedWineEvidence);
+      journal.pageErrors = [...journal.pageErrors];
+      await page.screenshot({ path: `${output}/${viewport.width}-suggestions.png`, fullPage: true });
+      journal.completed = true;
+    } catch (error) {
+      journal.status = 'SETUP_FAILED';
+      journal.setupError = String(error);
+      const page = activeContext?.pages()[0];
+      if (page && !page.isClosed()) {
+        await page.screenshot({ path: `${output}/${viewport.width}-setup-failure.png`, fullPage: true }).catch(() => {});
+      }
+    } finally {
+      await activeContext?.close().catch(() => {});
+      activeContext = undefined;
+      flush();
+    }
+  }
+  report.status = report.journeys.some((journey: any) => !journey.completed)
+    ? 'SETUP_FAILED'
+    : report.journeys.some((journey: any) => journey.noListedPriceWithListedEvidence)
+      ? 'RED'
+      : report.journeys.some((journey: any) => journey.result === 'SEARCH_RESULT_MISSING')
+        ? 'SEARCH_RESULT_MISSING'
+        : 'NO_COPY_MISMATCH_OBSERVED';
+} catch (error) {
+  report.status = 'SETUP_FAILED';
+  report.errors.push(String(error));
+} finally {
+  clearTimeout(deadline);
+  await activeContext?.close().catch(() => {});
+  await browser?.close().catch(() => {});
+  flush();
+}
+
+if (report.status === 'RED' || report.status === 'SETUP_FAILED' || report.status === 'SEARCH_RESULT_MISSING') {
+  process.exitCode = 1;
+}

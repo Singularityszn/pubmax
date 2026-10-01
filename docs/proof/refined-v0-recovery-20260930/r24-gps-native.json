@@ -1,0 +1,455 @@
+{
+  "startedAt": "2026-09-30T11:53:56.561Z",
+  "finishedAt": "2026-09-30T11:54:18.803Z",
+  "origin": "http://localhost:3351",
+  "route": "/map/manchester",
+  "fixtureStorageState": {
+    "localStorage": {
+      "pubmaxx:analytics-consent:v1": "denied",
+      "pubmax:map-first-visit-arrival:v1": "dismissed",
+      "pubmax-tour-v1-done": "1"
+    },
+    "sessionStorage": {
+      "pubmax_onboarding_dismissed": "1"
+    }
+  },
+  "navigationStatus": 200,
+  "outcome": "location-marker-shown",
+  "detail": null,
+  "clickedAfterEnabled": true,
+  "markerWaitResult": "shown",
+  "browserElapsedMs": 21796.39999999106,
+  "counts": {
+    "geolocationPermissionQueries": 49740,
+    "permissionStates": {
+      "granted": 49740
+    },
+    "getCurrentPositionRequests": 49735,
+    "getCurrentPositionSuccesses": 49734,
+    "getCurrentPositionErrors": 0,
+    "getCurrentPositionPending": 1,
+    "buttonStateChanges": 6925,
+    "pageErrors": 0
+  },
+  "browserSnapshot": {
+    "href": "http://localhost:3351/map/manchester",
+    "now": {
+      "browserMs": 21832.89999999106,
+      "wallTime": 1790769258560
+    },
+    "trace": {
+      "started": {
+        "browserMs": 36.5,
+        "wallTime": 1790769236763
+      },
+      "permissionQueries": {
+        "count": 49740,
+        "first": [
+          {
+            "browserMs": 1769.2999999970198,
+            "wallTime": 1790769238496,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1772.199999988079,
+            "wallTime": 1790769238499,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1772.2999999970198,
+            "wallTime": 1790769238499,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1772.3999999910593,
+            "wallTime": 1790769238499,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1772.3999999910593,
+            "wallTime": 1790769238499,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1775.699999988079,
+            "wallTime": 1790769238503,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1782.3999999910593,
+            "wallTime": 1790769238509,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 1787.699999988079,
+            "wallTime": 1790769238515,
+            "permission": "geolocation",
+            "state": "granted"
+          }
+        ],
+        "last": [
+          {
+            "browserMs": 21830.79999999702,
+            "wallTime": 1790769258558,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 21831.09999999404,
+            "wallTime": 1790769258558,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 21831.39999999106,
+            "wallTime": 1790769258558,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 21831.69999998808,
+            "wallTime": 1790769258559,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 21832,
+            "wallTime": 1790769258559,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 21832.19999998808,
+            "wallTime": 1790769258559,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 21832.5,
+            "wallTime": 1790769258559,
+            "permission": "geolocation",
+            "state": "granted"
+          },
+          {
+            "browserMs": 21832.79999999702,
+            "wallTime": 1790769258560,
+            "permission": "geolocation",
+            "state": "granted"
+          }
+        ]
+      },
+      "permissionStateCounts": {
+        "granted": 49740
+      },
+      "currentPosition": {
+        "count": 49735,
+        "first": [
+          {
+            "browserMs": 1778.199999988079,
+            "wallTime": 1790769238505,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 2000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1778.0999999940395,
+            "wallTime": 1790769238505,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1778.0999999940395,
+            "wallTime": 1790769238505,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1783.8999999910593,
+            "wallTime": 1790769238511,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1803.699999988079,
+            "wallTime": 1790769238531,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1805,
+            "wallTime": 1790769238532,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1805.699999988079,
+            "wallTime": 1790769238533,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 1807.699999988079,
+            "wallTime": 1790769238535,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          }
+        ],
+        "last": [
+          {
+            "browserMs": 21831.09999999404,
+            "wallTime": 1790769258558,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 21831.39999999106,
+            "wallTime": 1790769258558,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 21831.69999998808,
+            "wallTime": 1790769258559,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 21832,
+            "wallTime": 1790769258559,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 21832.19999998808,
+            "wallTime": 1790769258559,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 21832.5,
+            "wallTime": 1790769258559,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 21832.79999999702,
+            "wallTime": 1790769258560,
+            "state": "success",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          },
+          {
+            "browserMs": 21832.79999999702,
+            "wallTime": 1790769258560,
+            "state": "pending",
+            "options": {
+              "enableHighAccuracy": false,
+              "timeout": 5000,
+              "maximumAge": 60000
+            }
+          }
+        ]
+      },
+      "currentPositionSuccessCount": 49734,
+      "currentPositionErrorCount": 0,
+      "buttonStates": {
+        "count": 6925,
+        "first": [
+          {
+            "browserMs": 36.599999994039536,
+            "wallTime": 1790769236763,
+            "attached": false,
+            "label": null,
+            "disabled": null
+          },
+          {
+            "browserMs": 1755.3999999910593,
+            "wallTime": 1790769238482,
+            "attached": true,
+            "label": "Near me?",
+            "disabled": false
+          },
+          {
+            "browserMs": 1774.5,
+            "wallTime": 1790769238501,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 1786.0999999940395,
+            "wallTime": 1790769238513,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          },
+          {
+            "browserMs": 1803.5,
+            "wallTime": 1790769238530,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 1804.699999988079,
+            "wallTime": 1790769238532,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          },
+          {
+            "browserMs": 1805,
+            "wallTime": 1790769238532,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 1807.0999999940395,
+            "wallTime": 1790769238534,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          }
+        ],
+        "last": [
+          {
+            "browserMs": 4858.199999988079,
+            "wallTime": 1790769241585,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          },
+          {
+            "browserMs": 4858.29999999702,
+            "wallTime": 1790769241585,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 4859,
+            "wallTime": 1790769241586,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          },
+          {
+            "browserMs": 4859.199999988079,
+            "wallTime": 1790769241586,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 4913.79999999702,
+            "wallTime": 1790769241641,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          },
+          {
+            "browserMs": 4925.899999991059,
+            "wallTime": 1790769241653,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          },
+          {
+            "browserMs": 5367.0999999940395,
+            "wallTime": 1790769242094,
+            "attached": true,
+            "label": "Refresh",
+            "disabled": false
+          },
+          {
+            "browserMs": 5374.699999988079,
+            "wallTime": 1790769242102,
+            "attached": true,
+            "label": "Checking…",
+            "disabled": true
+          }
+        ]
+      },
+      "instrumentationErrors": []
+    },
+    "button": {
+      "attached": true,
+      "label": "Checking…",
+      "disabled": true
+    },
+    "locationMarkerShown": true
+  },
+  "pageErrors": {
+    "count": 0,
+    "first": [],
+    "last": []
+  },
+  "screenshotPath": "/tmp/pubmaxx-r24-gps-native-diagnostic.png",
+  "screenshotError": null
+}

@@ -1,0 +1,62 @@
+{
+  "at": "2026-09-30T22:15:08.893558+00:00",
+  "issue": 1843,
+  "issueStateObserved": "OPEN via gh-axi fresh read",
+  "main": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+  "fixCommit": "6bf8ac3a5",
+  "finding": "Both app and script delegates already use lib/greatCircle.mjs. No duplicate refactor needed.",
+  "paths": [
+    {
+      "path": "lib/greatCircle.mjs",
+      "sha256": "0960aba2d25ab59083677bf8d60b3f04967d162d37bc7668e6be0af0f0ce5171",
+      "sameAsMain": true,
+      "sameAsVerifiedR35": true,
+      "includedInR35Freeze": true,
+      "sameAsCurrentCoreHead": true
+    },
+    {
+      "path": "lib/greatCircle.d.mts",
+      "sha256": "29c5058f8599030a6fb9956cf293e4983ea0bb84128e31dd743769fe513bfb73",
+      "sameAsMain": true,
+      "sameAsVerifiedR35": true,
+      "includedInR35Freeze": true,
+      "sameAsCurrentCoreHead": true
+    },
+    {
+      "path": "lib/haversine.ts",
+      "sha256": "347e73ad2450fb0a4c82630b9df0b6af527238537c7388915489f2fc85ddc592",
+      "sameAsMain": true,
+      "sameAsVerifiedR35": true,
+      "includedInR35Freeze": true,
+      "sameAsCurrentCoreHead": true
+    },
+    {
+      "path": "scripts/lib/geo.mjs",
+      "sha256": "25b54fde16bd13af463aa1b1762ecab4ffd624ac06594af0771a2c1da366c1a6",
+      "sameAsMain": true,
+      "sameAsVerifiedR35": null,
+      "includedInR35Freeze": false,
+      "sameAsCurrentCoreHead": true
+    },
+    {
+      "path": "__tests__/haversine.test.ts",
+      "sha256": "c34a9081c8f881870e408b5a072a953aa8b8c6d9ebbec3eecca366f9200437de",
+      "sameAsMain": true,
+      "sameAsVerifiedR35": true,
+      "includedInR35Freeze": true,
+      "sameAsCurrentCoreHead": true
+    },
+    {
+      "path": "__tests__/scriptGeo.test.ts",
+      "sha256": "36a010f6dc7ac876fa0edd1025e309de3efb15e332d535ccd154ae2ef68a4904",
+      "sameAsMain": true,
+      "sameAsVerifiedR35": true,
+      "includedInR35Freeze": true,
+      "sameAsCurrentCoreHead": true
+    }
+  ],
+  "sourceGate": "Historical complete verify EXIT0 at19:35. Five of six relevant files match its recorded freeze. scripts/lib/geo.mjs is outside that freeze; current file equals both Core HEAD and main, but no exact R35 hash is recorded. No fresh focused test or current-runtime execution claimed.",
+  "gateLog": "/tmp/pubmaxx-r35-final-full-source-verify.log",
+  "proofScope": "Current published source resolves duplicate formula ownership. Earlier whole verify is supporting historical evidence only; current six files equal main and Core HEAD. No new tests/runtime or GitHub mutations. No release/browser claim.",
+  "publicationOwnerNext": "Inspect issue acceptance and close with exact source/test evidence if owner agrees. Root did not post or close issue."
+}

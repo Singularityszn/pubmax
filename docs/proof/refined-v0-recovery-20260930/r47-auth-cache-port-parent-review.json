@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-01T02:59:57.637210+00:00",
+  "base": "ad08000b500b3193f143c4225a067c78f5a7694e",
+  "patchSha256": "f8681cdc1aa40a61332726927474dfe7721be37ea6cb3b9c6d7d03896d3bcc90",
+  "manifestSha256": "cf3c097e27c33717c96bc5f467aa473d3e76a7f226047d3a160e312f355e1f6f",
+  "parentReview": "Exact paths/base input hashes and patch digest match; retained release onboarding/handle imports; bootstrap dependency corrected.",
+  "pathCount": 13,
+  "frozenPaths": 4253,
+  "drift": [],
+  "status": "SOURCE_REVIEW_ONLY_RUNTIME_UNRUN",
+  "serialFocusedCommand": "npm test -- __tests__/surfaceReadDedupe.test.ts __tests__/surfaceDataCache.test.ts __tests__/profileWithdrawnPage.test.tsx __tests__/nightSignalFeedApproved.test.ts __tests__/authProviderBootstrapRace.test.tsx __tests__/authCallbackConfirmation.test.tsx __tests__/authCallbackClient.test.ts __tests__/authSessionBootstrap.test.ts __tests__/deviceAccountSwitch.test.ts --maxWorkers=1 --no-file-parallelism",
+  "requiredAfterGrant": "Fresh release-head focused units, verify/build, native sign-in/sign-out/account-switch and cache/profile boundary journeys. No R46/PR1882 result validates this composed patch."
+}

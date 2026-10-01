@@ -1,0 +1,19 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_INCREMENTAL_READY_ROOT_RUNTIME",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-edited-completion-share-production.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-edited-completion-share-production.json",
+  "sha256": "a9f91b21462bb2cd9893d1b66c5c495442f488d796ce2ac175bf0f47f59c9865",
+  "reviewedAtUTC": "2026-10-01T13:30:03.145550+00:00",
+  "checks": {
+    "currentRootBeforePin": true,
+    "freshScratchAfterPin": true,
+    "rootReadOnlyApplyWhitespace": true,
+    "rootOriginal21ControlsUnchanged": true
+  },
+  "sourceChecks": [
+    "Only requestedintent projection moves outside exactsnapshotmatching; retainedcoordinatorcontext afterpickeredit remains publiccategory/zeroProof owner.",
+    "Captured oldquote/budget matchguard remainsunchanged. CurrentrenderedIDs stillhelperinput. ManualReplace/Clear resetpricingcontext viaexistingowner. No privatefields or newencoder."
+  ],
+  "runtime": null,
+  "actualBefore": "21 mountedcases19PASS2FAIL0skip, currentidsabcd/nullmoney/no stalequotesPASS butcompletionhrefdropsintent. Nativefresh editedrecipient/Copy+Open andcompiler/broadgatesRootpending."
+}

@@ -1,0 +1,104 @@
+diff --git a/__tests__/planAnchoredGenerateRoute.test.ts b/__tests__/planAnchoredGenerateRoute.test.ts
+--- a/__tests__/planAnchoredGenerateRoute.test.ts
++++ b/__tests__/planAnchoredGenerateRoute.test.ts
+@@ -78,7 +78,7 @@
+ 
+ import { POST } from "@/app/api/plans/generate/route";
+ import { preparePlanGeneration } from "@/lib/planGeneration.server";
+-import { verifyAnchoredPlanGroundingProofV2 } from "@/lib/planGrounding.server";
++import { verifyAnchoredPlanGroundingProofV2, verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+ import type { ConciergeVenue } from "@/lib/concierge/rank";
+ import type { PlanIntakeHandoff } from "@/lib/planIntake";
+ import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+@@ -186,6 +186,91 @@
+   });
+   afterEach(() => {
+     delete process.env.PLAN_IDEMPOTENCY_SECRET;
++  });
++
++  it("keeps an eligible category offer discoverable beyond closer unpriced backups without ranking its unknown measure", async () => {
++    // Business-contract fixtures, not claims about a real menu: all pubs fit
++    // the existing Clapham radius, but the sole current gin offer is farther
++    // than three route stops and two nearer alternatives. No accepted anchor
++    // or serving is invented by this unanchored phone generation request.
++    const nearIds = ["near-0", "near-1", "near-2", "near-3", "near-4"];
++    const venues = [
++      ...nearIds.map((id, index) => claphamVenue(id, index)),
++      claphamVenue("category-offer", 10),
++    ];
++    const offer = listedQuote("category-offer", 7, undefined, {
++      category: "gin", drinkLabel: "Fixture gin", publisher: "Fixture menu publisher",
++    });
++    const rows = [
++      offer,
++      listedQuote("near-0", 0.1, "125ml", { category: "wine" }),
++      listedQuote("near-1", 0.2, undefined, {
++        category: "gin", drinkLabel: "Expired fixture gin", observedAt: "2025-09-29T12:00:00.000Z",
++      }),
++    ];
++    await withServingFixtures(venues, rows, async () => {
++      const requestBody = { query: "cheap gin in Clapham for 2", context: { daypart: "evening" } };
++      const prepare = () => preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
++        method: "POST", body: JSON.stringify(requestBody),
++      }));
++      const first = await prepare();
++      expect("prepared" in first).toBe(true);
++      if (!("prepared" in first)) return;
++      expect(first.prepared.anchor).toBeNull();
++      expect(first.prepared.candidates.find(({ venue }) => venue.id === "category-offer")?.selectedDrinkPrice)
++        .toMatchObject({ category: "gin", source: "listed", servingSize: null, priceGbp: 7 });
++      for (const id of ["near-0", "near-1"]) {
++        expect(first.prepared.candidates.find(({ venue }) => venue.id === id)?.selectedDrinkPrice).toBeNull();
++      }
++      const originalScores = first.prepared.candidates.map(({ venue, score }) => ({ id: venue.id, score }));
++      // Quote availability may retain a choice. A lower raw amount with no
++      // recorded serving must not become a comparison or change its rank.
++      offer.priceGbp = 0.1;
++      try {
++        const changedAmount = await prepare();
++        expect("prepared" in changedAmount).toBe(true);
++        if (!("prepared" in changedAmount)) return;
++        expect(changedAmount.prepared.candidates.find(({ venue }) => venue.id === "category-offer")?.selectedDrinkPrice)
++          .toMatchObject({ category: "gin", source: "listed", servingSize: null, priceGbp: 0.1 });
++        expect(changedAmount.prepared.candidates.map(({ venue, score }) => ({ id: venue.id, score })))
++          .toEqual(originalScores);
++      } finally {
++        offer.priceGbp = 7;
++      }
++      type QuotedStop = { venueId: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence | null; alternatives?: QuotedStop[] };
++      const response = await generate(requestBody);
++      const body = await response.json() as {
++        grounded: boolean; operationKey: string; groundingProof: string; stops: QuotedStop[];
++        budgetSummary: { estimatedPerPersonPence: number | null; estimatedCrewPence: number | null; basis: string };
++      };
++      expect(response.status, JSON.stringify(body)).toBe(200);
++      expect(body.grounded).toBe(true);
++      expect(body.stops).toHaveLength(3);
++      expect(body.budgetSummary).toMatchObject({ estimatedPerPersonPence: null,
++        estimatedCrewPence: null, basis: "selected-drink-price-unavailable" });
++      for (const stop of body.stops) expect(stop.alternatives?.length ?? 0).toBeLessThanOrEqual(2);
++      const choices = body.stops.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
++      const routeIds = body.stops.map((stop) => stop.venueId);
++      expect(verifyPlanGroundingProof(body.groundingProof, routeIds, body.operationKey)).toBe(true);
++      for (const [index, stop] of body.stops.entries()) {
++        for (const alternative of stop.alternatives ?? []) {
++          const swapped = routeIds.map((id, position) => position === index ? alternative.venueId : id);
++          expect(verifyPlanGroundingProof(body.groundingProof, swapped, body.operationKey)).toBe(true);
++        }
++      }
++      expect(resolvePlanningAnchorMock).not.toHaveBeenCalled();
++      // Coverage, not Cheapest: at least one route/backup choice exposes the
++      // current category evidence, without requiring a price-ordered primary.
++      expect(choices.find((stop) => stop.venueId === "category-offer"),
++        "An eligible current category offer must remain discoverable when nearer pubs have no offer")
++        .toMatchObject({ selectedDrinkPriceEvidence: { category: "gin", pence: 700, serving: null,
++          source: "listed", sourceUrl: offer.sourceUrl, observedAt: SERVING_OBSERVED } });
++      for (const choice of choices) {
++        if (choice.venueId === "near-0" || choice.venueId === "near-1") {
++          expect(choice.selectedDrinkPriceEvidence ?? null).toBeNull();
++        }
++      }
++    });
+   });
+ 
+   it.each([

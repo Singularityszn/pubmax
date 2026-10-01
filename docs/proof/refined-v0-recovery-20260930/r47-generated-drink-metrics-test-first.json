@@ -1,0 +1,40 @@
+{
+  "status": "FROZEN_TEST_ONLY_UNRUN",
+  "rootWorktree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratch": "/tmp/pubmaxx-r47-generated-drink-metrics-test",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-generated-drink-metrics-test-first.patch",
+  "patchSha256": "f38f27573c2c32e4d5ddb6f65b4919c42f321c82f11adb7b0ad4a90bad795e2f",
+  "baseHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "paths": [
+    {
+      "path": "e2e/all-alcohol-journey.spec.ts",
+      "beforeSha256": "80be07f002ef10f5e90b76102529c525a253b8e282b40de6dafab8242617b897",
+      "afterSha256": "0a0ecaddb2ce88cb5cc160e299256d74e7c1da65dc113fe14b1734f2799da5b9"
+    }
+  ],
+  "semantics": [
+    "Keeps every original action and assertion; adds native Map summary guard only for existing five non-beer journeys.",
+    "Guard follows actual generate HTTP200/null budget/category/zeroProof checks, and waits original generic route list count plus visible metrics before negative copy assertions.",
+    "Rejects generic estimated-round and pint-stop claims for generated unknown-serving nonbeer route; attributable per-stop GBP quotes remain allowed.",
+    "No manual Pint selection/action or manual-Pint regression modified.",
+    "No interception, fixture response, route modification, native measurement tolerance, or added sleeps."
+  ],
+  "evidence": {
+    "priorActualVodkaFailure": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/vodka-handoff-baseline.json",
+    "sourceReview": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-generated-drink-route-panel-source-review.md",
+    "newExpectedRed": "Current captured native .routeMetrics contains \u00a312.70 estimated round and3pintstops; new assertion expectedRED but not executed."
+  },
+  "sourceValidation": {
+    "scratchApplyCheck": "PASS",
+    "freshAfterBytes": "PASS",
+    "whitespace": "PASS (content-diff exit1, no diagnostics)",
+    "rootBeforeStable": true
+  },
+  "runtime": "UNRUN; Root owns fresh native run and production repair",
+  "limitations": [
+    "Auth helper is explicit fixture double, not actual provider entitlement proof.",
+    "Approved raw-quote semantic truth and incomplete primary coverage for four categories remain separate.",
+    "Original generated route list count gates activation; exact route quote/source/Plan assertions remain unchanged later in each case."
+  ],
+  "focusedCommand": "npx playwright test e2e/all-alcohol-journey.spec.ts --grep \"Vodka:\" --project=chromium --workers=1 --retries=0"
+}

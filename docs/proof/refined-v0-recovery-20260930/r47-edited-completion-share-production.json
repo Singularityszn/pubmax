@@ -1,0 +1,38 @@
+{
+  "task": "Retain generated category/zeroProof intent through current route edits without reusing stale pricing snapshots",
+  "status": "source-only proposed incremental patch; not applied by this lane",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "b4a30f2b0366e7ddd6a96316ce92281be0636b64",
+  "scratchCheckout": "/tmp/pubmaxx-r47-edited-completion-share-scratch",
+  "requires": "The earlier r47-generated-route-completion-share patch (77e87521eab71c5692bcdf860ee01ffbaf32f589174e48162ea6f04f8bca1871) is already applied in Root source.",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-edited-completion-share-production.patch",
+  "patchSha256": "a9f91b21462bb2cd9893d1b66c5c495442f488d796ce2ac175bf0f47f59c9865",
+  "files": [
+    {
+      "path": "components/map/RoutePanel.tsx",
+      "rootBeforeSha256": "4c23397b5febdc1f434c52432d1bb9f44e40a8e6b9e1efcf5605678b6e874e0b",
+      "proposedAfterSha256": "7288d3bcadc2969f051c2b92a0d8656716185cfa3c8e3c5dc81ad735075e6dbb"
+    }
+  ],
+  "behavior": [
+    "Derive routeDrinkIntent from retained generated pricing context even when stop-set mismatch invalidates old money/quote snapshots.",
+    "Keep existing exact stop-set match as the guard for generated budget and quotes.",
+    "Manual Replace and Clear remain responsible for clearing generated context; this patch does not alter those owners."
+  ],
+  "sourceReproduction": {
+    "redReceipt": ".audit/overnight-20261001/edited-completion-share-required-red.json",
+    "redSha256": "818cd6fe23fb84d8ab4f419db6aea6eba49e2895afb264d63e371208bb517a19",
+    "testFile": "__tests__/generatedMapRoutePricing.test.tsx",
+    "testFileSha256": "16838e7760ab6d29181f7ac0ea6488243535deb2138fd7190a1725a4814375b2",
+    "result": "21 total, 19 passed, 2 failed, 0 skipped. Real picker edits retained context but sharing emitted no public intent for Gin and zeroProof."
+  },
+  "validation": {
+    "tests": "UNRUN; Root owns tests and browser/build/full gates.",
+    "typesLintBuildBrowser": "UNRUN.",
+    "patchApplication": "PASS: git apply --check against captured Root source; read-only check, no files modified."
+  },
+  "limits": [
+    "This patch does not reuse stale budget or quote data for an edited stop set.",
+    "No serving preference, quote, source, price, proof or private context is serialized."
+  ]
+}

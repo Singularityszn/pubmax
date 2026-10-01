@@ -1,0 +1,45 @@
+{
+  "status": "SOURCE_READY_RUNTIME_UNRUN",
+  "patchSha256": "7089ca2c96f778bf679a1c4a8dbbb4694791048a5fbc68150f17e0f646c17aa3",
+  "patchBytes": 8237,
+  "baseHead": "dffdcea45b05b7263557e493060b008e180044eb",
+  "files": [
+    {
+      "path": "lib/planGeneration.server.ts",
+      "beforeSha256": "d3125265a571bee2d7dcf1ac12be477bf2c9afb67917e1bf203a5d2d15c6d1ec",
+      "afterSha256": "3040093518babfbcf3047c7813c5e4d75b76cf567f2562979ab0d5b71d3f06a3"
+    },
+    {
+      "path": "lib/planGenerationRanking.ts",
+      "beforeSha256": "2afd8cc698621d2d49f264e0845c24c3c619d19e5ca4d1a4efca942b61557a76",
+      "afterSha256": "f15c9e258e84c9b6b5ec23d50e42bc52cc341ecfc65b8fccda8ff88f47181954"
+    },
+    {
+      "path": "lib/planGenerationRequest.ts",
+      "beforeSha256": "262d90fc65a4b842752542bcb7a345c59da58361583619ccb70bde2088d8a9b7",
+      "afterSha256": "85792edba88921173422e82567dedd6fa51a97b228e515a85d9201763f9dffe3"
+    },
+    {
+      "path": "lib/planIntake.ts",
+      "beforeSha256": "b630ccdebe3332c3ac3094611af6cdb184c9043b5767b1871754a6089b1f4adb",
+      "afterSha256": "131455a6d6070b22d3e12ddf77be8109e0305d8f6259d154b6058b196bc0ae5d"
+    }
+  ],
+  "sourceChecks": "Current Root before pins match; scratch apply/check whitespace=error + exact resulting hashes PASS. No runtime by worker.",
+  "actualBeforeEvidence": "Root fifth-serving-anchored-generation-red-results.json28total22PASS6FAIL; generator four intended optional hint400 failures before this repair. Cap2 failures remain separate Luna owner.",
+  "contracts": [
+    "Legacy exact4 anchor keys remain valid; optional cleaned selected hint only.",
+    "Explicit category/zeroProof overrides win and incompatible hint omitted by intake/ignored by server.",
+    "Canonical accepted venue and current exact approved quote revalidated before selected group index/rank. Forged/expired hint gets existing anchored conflict envelope.",
+    "Only approved source-stated chosen serving enters nonbeer amount score. Community/null/nonselected measures remain informational. Published reason identifies listed rather than community.",
+    "Existing late downstream canonical resolver/optimizer remains active. No base promotion or fake candidate."
+  ],
+  "limits": [
+    "Base canonical acceptance remains unsupported in this4path packet; separate genuine RED pending.",
+    "Manual null-context create remains pending Luna regression and subsequent correction.",
+    "Selected fifth-serving exact authority lookup still uses existing capped projection; Luna projection option must be coordinated if its accepted-hint scope widens.",
+    "No explicit-serving query guessed when optional accepted hint absent; amount ranking omitted then while metadata remains. No final cheapest-alcohol release claim.",
+    "Source-only application is not current focused/native/build/full/performance proof."
+  ],
+  "command": "npx vitest run __tests__/planAnchoredGenerateRoute.test.ts __tests__/planGenerationRequest.test.ts __tests__/planIntake.test.ts"
+}

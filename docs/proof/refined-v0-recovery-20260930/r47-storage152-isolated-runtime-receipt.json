@@ -1,0 +1,86 @@
+{
+  "createdAtUTC": "2026-10-01T14:06:29Z",
+  "status": "isolated focused runtime PASS; Root authoritative rerun still required",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtReceipt": "15b4d85cdc966f25174bfd8340f86d431a20843b",
+  "scratch": "/private/tmp/pubmaxx-r47-storage152-20261001T140402Z",
+  "sourceCopyManifest": "/tmp/pubmaxx-r47-storage152-20261001T140402Z.json",
+  "candidatePatch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-accepted-stop1-legacy-compatibility-production.patch",
+  "candidatePatchSHA256": "c60b2106e0ba6a5c7990c74cc20111cd53a96510d408a02c13dd77110a6c9f91",
+  "candidateHelperSHA256": "6fbc6223a34be4429bfd06781c9efec89cba808baa4471a29004be813f76ef58",
+  "candidateRootBeforeSHA256": "ff3b7cf9e8bf0cf2c3daadfa6f7650679b25d2a2923b2937ddec135e4d807977",
+  "candidateScratchAfterSHA256": "6fbc6223a34be4429bfd06781c9efec89cba808baa4471a29004be813f76ef58",
+  "baselineReceipt": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/route-transfer-sharing-storage-green-v3.json",
+  "baselineReceiptSHA256": "183b7d8b6f8236a4766368ab1540a479dcb2514cdaa9cc917f10b76cb1c5a387",
+  "cohort": {
+    "paths": [
+      "__tests__/crawlUrl.test.ts",
+      "__tests__/curatedCrawls.test.ts",
+      "__tests__/generatedMapRoutePricing.test.tsx",
+      "__tests__/mapCrawlUrlSync.test.tsx",
+      "__tests__/mapRouteTransfer.test.ts",
+      "__tests__/mapRouteTransferButton.test.ts",
+      "__tests__/planComposerHandoff.test.ts"
+    ],
+    "counts": {
+      "numTotalTestSuites": 26,
+      "numPassedTestSuites": 26,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 152,
+      "numPassedTests": 152,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    },
+    "perFile": [
+      {
+        "path": "__tests__/crawlUrl.test.ts",
+        "tests": 41,
+        "status": "passed"
+      },
+      {
+        "path": "__tests__/curatedCrawls.test.ts",
+        "tests": 16,
+        "status": "passed"
+      },
+      {
+        "path": "__tests__/generatedMapRoutePricing.test.tsx",
+        "tests": 21,
+        "status": "passed"
+      },
+      {
+        "path": "__tests__/mapCrawlUrlSync.test.tsx",
+        "tests": 24,
+        "status": "passed"
+      },
+      {
+        "path": "__tests__/mapRouteTransfer.test.ts",
+        "tests": 17,
+        "status": "passed"
+      },
+      {
+        "path": "__tests__/mapRouteTransferButton.test.ts",
+        "tests": 5,
+        "status": "passed"
+      },
+      {
+        "path": "__tests__/planComposerHandoff.test.ts",
+        "tests": 28,
+        "status": "passed"
+      }
+    ],
+    "resultJSON": "/tmp/pubmaxx-r47-storage152-20261001T140402Z-results.json",
+    "resultJSONSHA256": "8f002d995e0fcac654a75c91abb366e09da25b383ab006de031033c4c7408987"
+  },
+  "command": "vitest run __tests__/crawlUrl.test.ts __tests__/curatedCrawls.test.ts __tests__/generatedMapRoutePricing.test.tsx __tests__/mapCrawlUrlSync.test.tsx __tests__/mapRouteTransfer.test.ts __tests__/mapRouteTransferButton.test.ts __tests__/planComposerHandoff.test.ts --maxWorkers=1 --fsModuleCachePath <scratch>/node_modules/.vitest-cache --reporter=json --outputFile=<scratch-results>.json",
+  "runtime": "Vitest 5.0.3, Node v26.10.0; one execution, exit 0, 2.92s",
+  "isolation": "Copied current Root worktree excluding .git, .env*, package registry credentials, .audit, build outputs, docs/proof, and skill caches. Package dependency entries symlink to installed Root dependencies; scratch-local .vite and .vitest-cache directories contain runtime caches. Empty environment with scratch HOME; no provider keys inherited.",
+  "rootSourceWrites": "None by this lane. Scratch copy had pre-candidate helper ff3b...; by receipt time Root checkout itself had the same candidate after-hash 6fbc... (Root-side application observed). All seven test files still match captured baseline hashes. Root git-status entry count was 29 at copy and receipt; no broader concurrent-diff claim.",
+  "limits": [
+    "No PostgreSQL, browser, server, build, install, provider, or network tests.",
+    "Does not replace Root current-checkout verification or broader gates."
+  ],
+  "rootHelperSHA256AtScratchCopy": "ff3b7cf9e8bf0cf2c3daadfa6f7650679b25d2a2923b2937ddec135e4d807977",
+  "rootHelperSHA256AtReceipt": "6fbc6223a34be4429bfd06781c9efec89cba808baa4471a29004be813f76ef58"
+}

@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-01T00:49:53.554152+00:00",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "files": {
+    "package.json": "535d6a1cee9f782c9a21634f1ba54b76c01ee72c7072c63e744c4defb7606831",
+    "package-lock.json": "c336f30e9ca752cb4af9ea5be14b6ad8d0e77a22534b02741a416152181730b5",
+    "node_modules/.package-lock.json": "327a1eb1427577c464eaf3b957e614fe504d00c403b597b02adb52e6b6f61ed2"
+  },
+  "selectedInstalledVersions": {
+    "next": "16.3.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2",
+    "@playwright/test": "1.63.0",
+    "@elevenlabs/react": "1.16.0",
+    "@supabase/supabase-js": "2.117.2"
+  },
+  "candidateLockToInstalledVersionMismatches": [],
+  "boundary": "ActualdirtyCorecandidate dependencycustody. Mainf33 maydiffer; thisreceipt makesno freshnpmci/build/provider/productionclaim."
+}

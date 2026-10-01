@@ -1,0 +1,105 @@
+{
+  "traceRetainedAt": "/tmp/pubmaxx-r24-sw-native-red-results/map-service-worker-target--f8742-r-and-purges-poisoned-tiles-chromium-sw-gl/trace.zip",
+  "targetTakeoverResult": {
+    "value": {
+      "o": [
+        {
+          "k": "controller",
+          "v": {
+            "s": "http://localhost:3351/sw.js?v=rollout-target-1790769142285&cache-policy=write-safe-v1"
+          }
+        },
+        {
+          "k": "states",
+          "v": {
+            "a": [
+              {
+                "s": "installing"
+              },
+              {
+                "s": "installed"
+              },
+              {
+                "s": "activating"
+              },
+              {
+                "s": "activated"
+              }
+            ],
+            "id": 2
+          }
+        },
+        {
+          "k": "waiting",
+          "v": {
+            "v": "null"
+          }
+        }
+      ],
+      "id": 1
+    }
+  },
+  "venueNetwork": [
+    {
+      "at": "2026-09-30T11:52:20.485Z",
+      "url": "http://localhost:3351/data/venues_slim.core.json",
+      "status": 200,
+      "failure": null,
+      "page": "page@614fbef2500b46233df048b738c016b8",
+      "frame": "frame@6f7d96c40b05eeafc5f4536aa7e90b8d",
+      "originPort": 3351,
+      "bodySha": "9d2d56a5245d735db6a3ded5508f4ff7083548e3.json"
+    },
+    {
+      "at": "2026-09-30T11:52:21.419Z",
+      "url": "http://localhost:3351/data/venues_slim.manifest.json?v=local",
+      "status": 200,
+      "failure": null,
+      "page": "page@614fbef2500b46233df048b738c016b8",
+      "frame": "frame@6f7d96c40b05eeafc5f4536aa7e90b8d",
+      "originPort": 3351,
+      "bodySha": "74d5df088b8b4d6fd9b820296240ebcd47105e7a.json"
+    },
+    {
+      "at": "2026-09-30T11:52:24.491Z",
+      "url": "http://localhost:3351/data/venues_slim.manifest.json?v=local",
+      "status": 200,
+      "failure": null,
+      "page": null,
+      "frame": null,
+      "originPort": 3351,
+      "bodySha": "74d5df088b8b4d6fd9b820296240ebcd47105e7a.json"
+    },
+    {
+      "at": "2026-09-30T11:52:24.483Z",
+      "url": "http://localhost:3351/data/venues_slim.manifest.json?v=local",
+      "status": 200,
+      "failure": null,
+      "page": "page@614fbef2500b46233df048b738c016b8",
+      "frame": "frame@6f7d96c40b05eeafc5f4536aa7e90b8d",
+      "originPort": null,
+      "bodySha": "74d5df088b8b4d6fd9b820296240ebcd47105e7a.json"
+    },
+    {
+      "at": "2026-09-30T11:52:24.599Z",
+      "url": "http://localhost:3351/data/venues_slim.core.json",
+      "status": 200,
+      "failure": null,
+      "page": null,
+      "frame": null,
+      "originPort": 3351,
+      "bodySha": "9d2d56a5245d735db6a3ded5508f4ff7083548e3.json"
+    },
+    {
+      "at": "2026-09-30T11:52:24.592Z",
+      "url": "http://localhost:3351/data/venues_slim.core.json",
+      "status": -1,
+      "failure": "net::ERR_FAILED",
+      "page": "page@614fbef2500b46233df048b738c016b8",
+      "frame": "frame@6f7d96c40b05eeafc5f4536aa7e90b8d",
+      "originPort": null,
+      "bodySha": null
+    }
+  ],
+  "limitation": "Original oracle unchanged; full reveal trace array was not captured. Screenshot, failed reveal predicate and request events retained."
+}

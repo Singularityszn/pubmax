@@ -1,0 +1,9 @@
+{
+  "status": "TEST_ONLY_SOURCE_READY_RUNTIME_UNRUN",
+  "patchSha256": "7e476dcac6032f4910e233404418184c41e252c1406349477fecfbeb8924368c",
+  "path": "__tests__/planComposerHandoff.test.ts",
+  "beforeSha256": "908b75106bb6146847ee40a98cac534a555962c5eaa857647a6e0ed15321ddce",
+  "afterSha256": "9cc48875b07113761c72166f2d9add50b2e931292d4de22eba3aa02ae70dc7cd",
+  "reason": "Default storedPlan Stop1 venue-a contradicted accepted venue-intent. Fixture now represents real accepted Stop1 while preserving reload assertions and production authority arbitration. Original intended RED before reload assertion remains valid; corrected late acceptance UNRUN.",
+  "sourceApplyWhitespaceAndHashes": true
+}

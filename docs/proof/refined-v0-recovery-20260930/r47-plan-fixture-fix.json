@@ -1,0 +1,15 @@
+{
+  "root": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "patch": "/tmp/pubmaxx-r47-plan-fixture-fix.patch",
+  "files": {
+    "__tests__/planListedPriceResolver.test.ts": {
+      "rootBeforeSha256": "48513eaa1a1e5c043e51ba7ff8217001520b0db2742c3201b5a81600249e92fe",
+      "scratchAfterSha256": "76b0e0a024eeb484a991cb72dd0dbf786219ac67a57c4c0d3174ab2f784f216f"
+    },
+    "__tests__/planGenerateRoute.test.ts": {
+      "rootBeforeSha256": "6f7ee8115bd2921d36bbe8b1a2e2c93870e13ffe2b1e69b188901ea7010e39f4",
+      "scratchAfterSha256": "d2e4e4a52807455b7c8b612d9a20f82633ff74366eefdcb6aaf02c8cecb61dce"
+    }
+  },
+  "patchSha256": "b6f0729cc71373930e321406581337829b03b464fd2ebc0879d5a1d3544edb90"
+}

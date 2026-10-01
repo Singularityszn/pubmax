@@ -1,0 +1,15 @@
+// UNRUN. Requires a future granted slot and declared fresh production server.
+import { defineConfig } from "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs";
+import base from "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/playwright.config";
+export default defineConfig({
+  ...base,
+  testDir: "/tmp/pubmaxx-r27-sw-observed-case",
+  testMatch: "pubmaxx-r27-sw-observed.spec.ts",
+  webServer: undefined,
+  projects: base.projects?.filter(project => project.name === "chromium-sw-gl").map(project => ({ ...project, testMatch: "pubmaxx-r27-sw-observed.spec.ts" })),
+  workers: 1,
+  retries: 0,
+  reporter: "list",
+  use: { ...base.use, baseURL: "http://localhost:3351", trace: "on" },
+  outputDir: "/tmp/pubmaxx-r27-sw-observed-results",
+});

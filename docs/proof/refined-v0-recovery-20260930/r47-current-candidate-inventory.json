@@ -1,0 +1,569 @@
+{
+  "at": "2026-10-01T03:12:32.319880+00:00",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "freeze": "r47-source-freeze.json",
+  "frozenPaths": 4253,
+  "trackedWorkingDeltaPaths": 104,
+  "groups": {
+    "appSourceAndTests": [
+      {
+        "path": "__tests__/authCallbackClient.test.ts",
+        "sha256": "9c307201e934427a0a5a2f376713aa63155694704ed1f1e49bd12e079168a82b"
+      },
+      {
+        "path": "__tests__/authCallbackConfirmation.test.tsx",
+        "sha256": "4fabc095e02133d3acb61fd9c39350f3713355fd23d2eaec852ebe5e157ff0f3"
+      },
+      {
+        "path": "__tests__/communityPriceClientState.test.ts",
+        "sha256": "ba5ea08899cead1ac1a829645f5853e62daffac0bb4c3e9bb7d3456a48d65673"
+      },
+      {
+        "path": "__tests__/deviceAccountSwitch.test.ts",
+        "sha256": "7833c345048bdc41741f2bc6b29adb4bd907f883aeb58b58733a81488ceb66ca"
+      },
+      {
+        "path": "__tests__/landingFaq.test.ts",
+        "sha256": "92d100aa3a8075009c1fabeeacacc1805163334f5a058ba16b92119d24d63cdc"
+      },
+      {
+        "path": "__tests__/listedCategoryPrices.test.ts",
+        "sha256": "7e2c97a7fc69afbdc988560c5b98a1799245b01b21be577c9c727eb8adb752a5"
+      },
+      {
+        "path": "__tests__/nightPlanning.test.ts",
+        "sha256": "4b147ce42324e2022eee6baa0bbc5897338ce6026af94aece535e0606f6bfeb9"
+      },
+      {
+        "path": "__tests__/nightSignalFeedApproved.test.ts",
+        "sha256": "6371fcdf8961218fa56d50415482cc456a3060fa2baff547f1f85012d36f3940"
+      },
+      {
+        "path": "__tests__/nightSignalRoute.test.ts",
+        "sha256": "b1fc0ee554b07cdcc2f06a420bc3ec4f4280a680f0259d9f421d463abf1b3ccf"
+      },
+      {
+        "path": "__tests__/planRouteMetadata.test.ts",
+        "sha256": "fe1d6669cca0592e947aa5c3bba2571a0e5fe93fbc1622864694f779a14a6adb"
+      },
+      {
+        "path": "__tests__/priceSubmitRoute.test.ts",
+        "sha256": "182595aeb460cdeea8ec7ca4bcbc80ab5dff915449dff42ee47bc5bc7dcf9219"
+      },
+      {
+        "path": "__tests__/profileWithdrawnPage.test.tsx",
+        "sha256": "3abe0125641348574e55ad88cfd961791fd5871a793864dfc348a468c3d84e6a"
+      },
+      {
+        "path": "__tests__/runWithRestoredBundledData.test.ts",
+        "sha256": "a95b8a19f8aee682bd19fa19601d07be9c64ccd603345dea3ceba334a82daa75"
+      },
+      {
+        "path": "__tests__/siteHarvestReconciliation.test.ts",
+        "sha256": "cadbccdb4e036f5f61ff5978a53f1535cc661fb1137201828c49f9dd797507fb"
+      },
+      {
+        "path": "__tests__/surfaceReadDedupe.test.ts",
+        "sha256": "e8b4e67ddb96975a926742551ba2f36819324cc9a870978ea059fd9f4320ad03"
+      },
+      {
+        "path": "__tests__/ukPriceBundle.test.ts",
+        "sha256": "e83b336b527711a079d93e3d8208908b17d9db345a2c83c322b464b0d1d333d6"
+      },
+      {
+        "path": "__tests__/unverifiedPubSheet.test.ts",
+        "sha256": "28050231c5447caf32e2f61dcb04e728b71704973864c9189527affbd392e9b1"
+      },
+      {
+        "path": "__tests__/venueKindFilters.test.ts",
+        "sha256": "ea8941b6f4243cab8bee588485ebc54120d85ebba1867bce30dc339a8a2963d7"
+      },
+      {
+        "path": "__tests__/venuePriceLane.test.ts",
+        "sha256": "7d35f3e5f367388fa7dc796c1d4882f6760fb056d164d533fca0f66548259331"
+      },
+      {
+        "path": "__tests__/venueRoute.test.ts",
+        "sha256": "64a335efd72a42d582a6d83b2fd82c16ce16ab03ae441fe193d20e08b87f0ddd"
+      },
+      {
+        "path": "app/api/night-signals/route.ts",
+        "sha256": "9bafe6bb00fc2b326e8d174cc1931c86e99b7e187b5e62e29e88ec7a0558c88f"
+      },
+      {
+        "path": "app/api/price-submit/route.ts",
+        "sha256": "cb9d9553230448fbe52936218be5c468b1cdf6c98f4a805a0bb6490e168d5b35"
+      },
+      {
+        "path": "app/plan/[id]/page.tsx",
+        "sha256": "8c9f675d856c37d8b12bd2094ae41b1437edf7695c4bddcef7a7fd1594988c82"
+      },
+      {
+        "path": "app/u/[handle]/ProfilePageClient.tsx",
+        "sha256": "1edeaf3327cceebb60c1afb094cba512f2ded81857d71839547ea56593d9dda5"
+      },
+      {
+        "path": "components/PubMap.tsx",
+        "sha256": "4acd1afb2cee0edfe33d0b146fa1f9fa2b69fc6461d1c9467f901a361d935966"
+      },
+      {
+        "path": "components/PubMapCanvas.tsx",
+        "sha256": "d446589570a35d67b3bf5128de545643ac68c1568fe7901b59ba2f4aaed7abd8"
+      },
+      {
+        "path": "components/auth/AuthProvider.tsx",
+        "sha256": "463be6a32ca196b59a1679b6d687f55713f43ea2ca28b1946b7baa93701ba3f5"
+      },
+      {
+        "path": "components/landing/LandingFaq.tsx",
+        "sha256": "70021b969f171591ab19b43bf96fb1ac3799d8f7959994c423d2fb14784ad0dc"
+      },
+      {
+        "path": "components/map/MapSearchSuggest.tsx",
+        "sha256": "c9a3dd4220bdda329dcb6363e56781610c1f1bef0bd382bec4b5d066cba57eaa"
+      },
+      {
+        "path": "components/map/MapToolbar.tsx",
+        "sha256": "3079d6f782a5368d51814d3d73b0bcc3bd61e3c831b0bc995548e2b975717ee0"
+      },
+      {
+        "path": "components/map/UnverifiedPubSheet.tsx",
+        "sha256": "3ac560e5b8a01e37c22c514295f45703e82c5fddbb69889cd1d4a97b650a3297"
+      },
+      {
+        "path": "components/map/VenueDrinkPrices.tsx",
+        "sha256": "3233fb6c021a2dee6a2438c75cc20a28291483694d15d734e1bf1a5f95b4f747"
+      },
+      {
+        "path": "components/map/VenueInspector.tsx",
+        "sha256": "b6daae944caef92e091ff24a30a8e3f7583b1dae786c5e8f0096f257d277f838"
+      },
+      {
+        "path": "components/map/canvas/webglRecovery.ts",
+        "sha256": "96ff7455eadbbe8a69bf2962b316ab8cece70c9f1aee93005b23e839cff79ce4"
+      },
+      {
+        "path": "components/map/pubmap/useMapSurfaceNavigation.ts",
+        "sha256": "b521740b80e9074c9a449c49f8968999c8054e585efe2f3d48255e27bffae7a2"
+      },
+      {
+        "path": "components/map/pubmap/useUkBaseStreaming.ts",
+        "sha256": "faf400563df8a2c29cf240ae4f9ad93017d14fe4136776bc42666d23830b7a77"
+      },
+      {
+        "path": "components/map/useCommunityPrices.ts",
+        "sha256": "4ce566964fa6bf599b12d601545c7f052a43a560208a1ec102d44b75d5f94ea3"
+      },
+      {
+        "path": "components/mobile/MobileSharedSheet.tsx",
+        "sha256": "d0caa8f05b4f46c6df235e96187d9d393bf8c5a42cb0d7216f4c950d256d4364"
+      },
+      {
+        "path": "e2e/desktop-map-chrome-fit.spec.ts",
+        "sha256": "644155fb3e6e2f6fde603daa4b2536ed67b16853260447c454d4e9461e0ffb80"
+      },
+      {
+        "path": "e2e/landmark-and-sheet.spec.ts",
+        "sha256": "219b5df733a11ef3d5b2c3cdae513d1874e3b85e407d532f0673b3cd4c64b7c6"
+      },
+      {
+        "path": "e2e/map-accessibility.spec.ts",
+        "sha256": "61bb50cf09aad85e883033fdc866370f44da433cbaa234b0ee4e5bb19561a852"
+      },
+      {
+        "path": "e2e/map-performance.spec.ts",
+        "sha256": "7c1ad0926425f36f447a5907c59a5ff7468487d601910191f8b35de2f3a0da27"
+      },
+      {
+        "path": "e2e/map-service-worker.spec.ts",
+        "sha256": "5cddbca5a6e535c4f1e53f114bf0dd7cbb3aae88f00b9c93ea1e311c58d4b5da"
+      },
+      {
+        "path": "e2e/map-uk-base-layer.spec.ts",
+        "sha256": "aa51a1c0048ec2e5d3d22f7737a07112b08d02203e36438c12190e12e70409a9"
+      },
+      {
+        "path": "e2e/mobile-discover-coverage.spec.ts",
+        "sha256": "5ef6a31ffad0cdba13f1db458d18dbff4aa725c67ab0bb2bce1cc4386a80e50a"
+      },
+      {
+        "path": "e2e/price-evidence-missions.spec.ts",
+        "sha256": "c9b40d16eaef5173883f2abff2bf564d8cfcad921ce45a18e47048e9d3529ed9"
+      },
+      {
+        "path": "lib/authCallbackClient.ts",
+        "sha256": "3c4d268843fd2f2597477e98b67a3905ca49c423b715245ca0495137cf2a3b02"
+      },
+      {
+        "path": "lib/deviceAccountSwitch.ts",
+        "sha256": "f0803cdbb64bb02e64c13c7895d84008e97f17b237cf49e3257af62bee4168c7"
+      },
+      {
+        "path": "lib/drinkCategoryFromText.ts",
+        "sha256": "56d14955e8873f34e0c33a1ce51f7d6f960fbd6ad16b511cca0acdb69f554549"
+      },
+      {
+        "path": "lib/listedCategoryPrices.ts",
+        "sha256": "cd3bd1bf865bcf7f26e23e55cd618542c19e705353b39be8d61a9d6e8dada4e4"
+      },
+      {
+        "path": "lib/nightPlanning.ts",
+        "sha256": "b39f329101741fc089a8ad0846e273582eaa85ac4519cbd8a33322ff468eb7da"
+      },
+      {
+        "path": "lib/surfaceDataCache.ts",
+        "sha256": "57b5d38e8e8a235d5afa3a5464cba95f6f4c632f86ea55b6747a0f11051575ab"
+      },
+      {
+        "path": "lib/ukPriceBundle.ts",
+        "sha256": "f931b880a613fe3e15374d8882e49f42079928918764387d873c8861b48bce9e"
+      },
+      {
+        "path": "lib/venueKindFilters.ts",
+        "sha256": "03572d483bcf0291736b3fd1b4fcf1c4d23f4f0b11322a056f02869c188b4927"
+      },
+      {
+        "path": "package-lock.json",
+        "sha256": "c336f30e9ca752cb4af9ea5be14b6ad8d0e77a22534b02741a416152181730b5"
+      },
+      {
+        "path": "package.json",
+        "sha256": "535d6a1cee9f782c9a21634f1ba54b76c01ee72c7072c63e744c4defb7606831"
+      },
+      {
+        "path": "scripts/build_uk_price_bundle.mjs",
+        "sha256": "b93b6bc0a9c45f66111b8c416cbefb21b38bea02865f3de0dfddcaeff2f5d9ec"
+      }
+    ],
+    "toolingOnly": [
+      {
+        "path": ".agents/skills/gnhf/SKILL.md",
+        "sha256": "baa66630fdba017103ad6c374f7f266223a65ab8d303872e0472ce8a1ce7b4db"
+      },
+      {
+        "path": "skills/gnhf/SKILL.md",
+        "sha256": "baa66630fdba017103ad6c374f7f266223a65ab8d303872e0472ce8a1ce7b4db"
+      }
+    ],
+    "generatedData": [
+      {
+        "path": "public/data/uk_prices/manifest.json",
+        "sha256": "2f2fdc2a4f2a9443ea8261d182b8b48a1ce6abfab220b175c78354232df40046"
+      },
+      {
+        "path": "public/data/uk_prices/rows.json",
+        "sha256": "f97dd00e56b1b2f50af976af5dde0dd759f2a5461b5b00d7df557166af514dcc"
+      }
+    ],
+    "existingProofOutputs": [
+      {
+        "path": "docs/proof/account-deletion-real/after-data-doors-1440.png",
+        "sha256": "7519244c0f5c6212fb01025be37ca814f0b77f75422de0e5dc32b86d13227a44"
+      },
+      {
+        "path": "docs/proof/account-deletion-real/after-data-doors-390.png",
+        "sha256": "6d933e968a52a8883b72a7db199d41e8170fa0ddade504396426a5320d653870"
+      },
+      {
+        "path": "docs/proof/account-deletion-real/after-data-doors-768.png",
+        "sha256": "5003c1a0ca39c28b685463020cdce5b5a05828b045032f60f8471f56ab10cc7c"
+      },
+      {
+        "path": "docs/proof/account-deletion/after-delete-confirm-390.png",
+        "sha256": "d743832832e96a3483ae9221940647fbed14a68ad17c9c9427999c9f254fba50"
+      },
+      {
+        "path": "docs/proof/account-deletion/after-you-signed-out-390.png",
+        "sha256": "5e90c067ea36d3a7615469991ef3456bda3bde32ac82077f2ec2d19ed408a6ec"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-plan-stop-count-1280.png",
+        "sha256": "dca293302ded31ed005007571f8d7fbedc099fb6537cda034cbf885cb05dd220"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-plan-stop-count-390.png",
+        "sha256": "e09bf7e856b6c98cba225a6bd0686c9d480202c83793f6f02e48a02d62f1425b"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-price-chips-1280.png",
+        "sha256": "fc6b9b3a050dc83ff72128dca0a37d89ba34c104659e48b7b56405ee658a3cd2"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-price-chips-390.png",
+        "sha256": "ff37a7ad8ca28b9192892c2bb258cee913ca49692d6d87bbb02c4b7bc75f3d0b"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-profile-editor-1280.png",
+        "sha256": "1803184371b696fbdcc97091bc85d53c43643053aa5edd18ad7dda4b9acf7d60"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-profile-editor-390.png",
+        "sha256": "609a801b8801f02cded5d67afb46162330fa4d6a1e841c24a1701fd2ed056712"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-pubs-zone-chips-1280.png",
+        "sha256": "4a3cdeae735e295ff1136ef65ab40af17ae0093586e975cea6491ba3ab5b40ad"
+      },
+      {
+        "path": "docs/proof/design-review-followups/after-pubs-zone-chips-390.png",
+        "sha256": "5779d02b3b65887ca483a5071d2aa5ba7de84f2476b36872226dab4ee811ab6c"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-after-1440x900.png",
+        "sha256": "12812985ecf0e9c238f4c11a1de260f880e91ca81c6ddabea38b3852a0249020"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-after-390x844.png",
+        "sha256": "ebd50e1e7b977a461538f054fe926efa1b698f3834eaab68f7fe755a5a7a3516"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-after-768x1024.png",
+        "sha256": "1876947eb07e49943bf43e06035d22c580a93372c16f6bae03dd51cd6e8cdafa"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-before-1440x900.png",
+        "sha256": "c1a1de8b1587135618a1f683e54854c3230533fdde652676c5eee17f819d25a9"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-before-390x844.png",
+        "sha256": "7219787f08ce20c271ab93f17cbc014db2d6f3a0e0f522f5d472b77507fb9f3a"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-before-768x1024.png",
+        "sha256": "ed6e94234058bb07f0ef19566ed85f47490853fe1be6a77a6416d18b609ee199"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-empty-1440x900.png",
+        "sha256": "c15ff4e4e53793f53be422ba3ee902afb346964c41db41e35c734dc2693c7775"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-empty-390x844.png",
+        "sha256": "6a048dc66621e5359d2a1c21cae5a667f5df1f5afdbb158f1df5a36907fdd690"
+      },
+      {
+        "path": "docs/proof/dm-privacy/inbox-degraded-empty-768x1024.png",
+        "sha256": "e310c37cbcbb140ef55046a28b31c3980468e002d09d1fc5c4d65fa5080f9ea5"
+      },
+      {
+        "path": "docs/proof/moment-photo-editor/moment-editor-390.png",
+        "sha256": "49068a452fcc98561011edb2c298d675fb7672108020edb3aed5110ad50e1e38"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/composer-no-bill-1440.png",
+        "sha256": "8b9b46fb4c0c6b93592288a9ee273858706ce208aa6c7a316cf0f4d63d13c8a7"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/composer-no-bill-390.png",
+        "sha256": "c7726d2a00740ca396e30ce24432b4a4a915e7aa43b0b3dc0ca5659577e9f068"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/composer-with-bill-1440.png",
+        "sha256": "5810057939ad99ab71f04b83e8ccc83cedd7e79dea558fe9b7a797538467b48a"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/composer-with-bill-390.png",
+        "sha256": "db6d182e074a161b7d4d13cd7aedfc03ec2b07f4783c8ea2031a1ef48e7a87fa"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/spill-bill-asked-1440.png",
+        "sha256": "78186f0f3c910fc9f1bfe96b29c33d67af0c1fbf4e7b70740731d749bf0d529e"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/spill-bill-asked-390.png",
+        "sha256": "237d0a4010a87c7208d316b6bac1f3cfad53f4174a3199ed29cc0e4d23b2a348"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/spill-bill-ready-1440.png",
+        "sha256": "e7c6d38fe5ce0ee370cb753b73f41a9b20e2b9c6903b1e936b5e7999bf5349c9"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/spill-bill-ready-390.png",
+        "sha256": "7ef0cc776738c8a9776d04a1a1b3c36ff96675697f4e5cd24764d8ddce930bb7"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/split-overview-1440.png",
+        "sha256": "fe47adcac4419e7f03700015e49bfa61d9646b3b8b441a9e0290e515c3521a74"
+      },
+      {
+        "path": "docs/proof/price-two-drinkers-receipt/split-overview-390.png",
+        "sha256": "db5591fd007f091de912fc8fcb648855500ed00e19a2f0bf9e3a4ab0db7724cb"
+      },
+      {
+        "path": "docs/proof/venue-acceptance/accepted-map-390-dark.png",
+        "sha256": "632c80a1c3bbb95ac0e8a3fa8c681add78c18500d70498adaf9fecca7c67e675"
+      },
+      {
+        "path": "docs/proof/venue-acceptance/accepted-map-390-light.png",
+        "sha256": "69c8e60cf1c76fea45ee1db895745da800b485e945880129036caed9e7e214c7"
+      },
+      {
+        "path": "docs/proof/venue-acceptance/accepted-plan-390-dark.png",
+        "sha256": "f8bade23fe7e22a84adc2dd6c28859ad37da7a04b4f2915691c11b285ab6d28a"
+      },
+      {
+        "path": "docs/proof/venue-acceptance/accepted-plan-390-light.png",
+        "sha256": "da179740f59d51fad5484a138cc78ac985fa755ec699be34af5a43deb4824f49"
+      },
+      {
+        "path": "docs/screenshots/near-desk-mode/desk-soho-390-dark.png",
+        "sha256": "5f484a7a791ee41d6db366a3e5ef3e05a5eae7d1999e82abacf996f2d26f3d14"
+      },
+      {
+        "path": "docs/screenshots/near-desk-mode/desk-soho-390-light.png",
+        "sha256": "dc6a1a28b8ba6a2d5c8f15c32fbf5172cea5fbf49cb3b92b12171c4af99c30e9"
+      },
+      {
+        "path": "docs/screenshots/out-l1/out-390-dark.png",
+        "sha256": "38b9dbd565f2aa7a62a09f55ae67a69ce79f7e64fc2100ca718b7e7c4542329c"
+      },
+      {
+        "path": "docs/screenshots/out-l1/out-390-light.png",
+        "sha256": "2c72f82adb240ad83b6fe3e836aa8533782321b78c37ef1d3b82701d12af9414"
+      }
+    ],
+    "docs": [
+      {
+        "path": "docs/EMAIL_DIGEST.md",
+        "sha256": "a30c9dfa07a6babf699011aeb1a761949ddc1e07efd1e779a66ebf5d80d9ba49"
+      },
+      {
+        "path": "docs/plans/PlanAstra.md",
+        "sha256": "517686e71b340c739f3142ee0ce1c839171f078a3d31d56509062433d74f651e"
+      }
+    ]
+  },
+  "untrackedFrozenPaths": [
+    "__tests__/ukBaseStreamingHook.test.tsx",
+    "components/map/PublishedMenuPrices.tsx",
+    "e2e/price-intent-lifecycle.spec.ts",
+    "lib/planDrinkRequest.ts",
+    "__tests__/mobileSheetHomeNavigation.test.tsx"
+  ],
+  "toolingPatchSha256": "62de0211495956701a08ea910d93b6a4d1e1406f754406c85b3c2c54efed3c7c",
+  "releaseBase": "ad08000b500b3193f143c4225a067c78f5a7694e",
+  "commitBoundary": "HEAD alone is not candidate: preserve working-tree repairs and new files. No clean release commit or publication while current ports remain unverified. Prefer semantic port patches; whole Core file replacement can remove valid release behavior.",
+  "runtime": "UNGRANTED; no Core commands/server/tests restarted. Current release runtime was independently observed at127.0.0.1:3317 in overnight-venue-read-convergence, PID32669.",
+  "fourFailuresBoundary": "Four R46 Core browser failures, not proved release defects. Three lifecycle Home failures plus normalLondon GL sheet drag. Release already has animated requestHome and exact four-case lifecycle spec.",
+  "next": "Root can run identical lifecycle spec against own fresh integrated artifact; retain release requestHome. GL drag needs native geometry before further source correction. Comparable-serving all-alcohol end state remains open.",
+  "gitStatusEntries": [
+    " M .agents/skills/gnhf/SKILL.md",
+    " M __tests__/authCallbackClient.test.ts",
+    " M __tests__/authCallbackConfirmation.test.tsx",
+    " M __tests__/communityPriceClientState.test.ts",
+    " M __tests__/deviceAccountSwitch.test.ts",
+    " M __tests__/landingFaq.test.ts",
+    " M __tests__/listedCategoryPrices.test.ts",
+    " M __tests__/nightPlanning.test.ts",
+    " M __tests__/nightSignalFeedApproved.test.ts",
+    " M __tests__/nightSignalRoute.test.ts",
+    " M __tests__/planRouteMetadata.test.ts",
+    " M __tests__/priceSubmitRoute.test.ts",
+    " M __tests__/profileWithdrawnPage.test.tsx",
+    " M __tests__/runWithRestoredBundledData.test.ts",
+    " M __tests__/siteHarvestReconciliation.test.ts",
+    " M __tests__/surfaceReadDedupe.test.ts",
+    " M __tests__/ukPriceBundle.test.ts",
+    " M __tests__/unverifiedPubSheet.test.ts",
+    " M __tests__/venueKindFilters.test.ts",
+    " M __tests__/venuePriceLane.test.ts",
+    " M __tests__/venueRoute.test.ts",
+    " M app/api/night-signals/route.ts",
+    " M app/api/price-submit/route.ts",
+    " M app/plan/[id]/page.tsx",
+    " M app/u/[handle]/ProfilePageClient.tsx",
+    " M components/PubMap.tsx",
+    " M components/PubMapCanvas.tsx",
+    " M components/auth/AuthProvider.tsx",
+    " M components/landing/LandingFaq.tsx",
+    " M components/map/MapSearchSuggest.tsx",
+    " M components/map/MapToolbar.tsx",
+    " M components/map/UnverifiedPubSheet.tsx",
+    " M components/map/VenueDrinkPrices.tsx",
+    " M components/map/VenueInspector.tsx",
+    " M components/map/canvas/webglRecovery.ts",
+    " M components/map/pubmap/useMapSurfaceNavigation.ts",
+    " M components/map/pubmap/useUkBaseStreaming.ts",
+    " M components/map/useCommunityPrices.ts",
+    " M components/mobile/MobileSharedSheet.tsx",
+    " M docs/EMAIL_DIGEST.md",
+    " M docs/plans/PlanAstra.md",
+    " M docs/proof/account-deletion-real/after-data-doors-1440.png",
+    " M docs/proof/account-deletion-real/after-data-doors-390.png",
+    " M docs/proof/account-deletion-real/after-data-doors-768.png",
+    " M docs/proof/account-deletion/after-delete-confirm-390.png",
+    " M docs/proof/account-deletion/after-you-signed-out-390.png",
+    " M docs/proof/design-review-followups/after-plan-stop-count-1280.png",
+    " M docs/proof/design-review-followups/after-plan-stop-count-390.png",
+    " M docs/proof/design-review-followups/after-price-chips-1280.png",
+    " M docs/proof/design-review-followups/after-price-chips-390.png",
+    " M docs/proof/design-review-followups/after-profile-editor-1280.png",
+    " M docs/proof/design-review-followups/after-profile-editor-390.png",
+    " M docs/proof/design-review-followups/after-pubs-zone-chips-1280.png",
+    " M docs/proof/design-review-followups/after-pubs-zone-chips-390.png",
+    " M docs/proof/dm-privacy/inbox-degraded-after-1440x900.png",
+    " M docs/proof/dm-privacy/inbox-degraded-after-390x844.png",
+    " M docs/proof/dm-privacy/inbox-degraded-after-768x1024.png",
+    " M docs/proof/dm-privacy/inbox-degraded-before-1440x900.png",
+    " M docs/proof/dm-privacy/inbox-degraded-before-390x844.png",
+    " M docs/proof/dm-privacy/inbox-degraded-before-768x1024.png",
+    " M docs/proof/dm-privacy/inbox-degraded-empty-1440x900.png",
+    " M docs/proof/dm-privacy/inbox-degraded-empty-390x844.png",
+    " M docs/proof/dm-privacy/inbox-degraded-empty-768x1024.png",
+    " M docs/proof/moment-photo-editor/moment-editor-390.png",
+    " M docs/proof/price-two-drinkers-receipt/composer-no-bill-1440.png",
+    " M docs/proof/price-two-drinkers-receipt/composer-no-bill-390.png",
+    " M docs/proof/price-two-drinkers-receipt/composer-with-bill-1440.png",
+    " M docs/proof/price-two-drinkers-receipt/composer-with-bill-390.png",
+    " M docs/proof/price-two-drinkers-receipt/spill-bill-asked-1440.png",
+    " M docs/proof/price-two-drinkers-receipt/spill-bill-asked-390.png",
+    " M docs/proof/price-two-drinkers-receipt/spill-bill-ready-1440.png",
+    " M docs/proof/price-two-drinkers-receipt/spill-bill-ready-390.png",
+    " M docs/proof/price-two-drinkers-receipt/split-overview-1440.png",
+    " M docs/proof/price-two-drinkers-receipt/split-overview-390.png",
+    " M docs/proof/venue-acceptance/accepted-map-390-dark.png",
+    " M docs/proof/venue-acceptance/accepted-map-390-light.png",
+    " M docs/proof/venue-acceptance/accepted-plan-390-dark.png",
+    " M docs/proof/venue-acceptance/accepted-plan-390-light.png",
+    " M docs/screenshots/near-desk-mode/desk-soho-390-dark.png",
+    " M docs/screenshots/near-desk-mode/desk-soho-390-light.png",
+    " M docs/screenshots/out-l1/out-390-dark.png",
+    " M docs/screenshots/out-l1/out-390-light.png",
+    " M e2e/desktop-map-chrome-fit.spec.ts",
+    " M e2e/landmark-and-sheet.spec.ts",
+    " M e2e/map-accessibility.spec.ts",
+    " M e2e/map-performance.spec.ts",
+    " M e2e/map-service-worker.spec.ts",
+    " M e2e/map-uk-base-layer.spec.ts",
+    " M e2e/mobile-discover-coverage.spec.ts",
+    " M e2e/price-evidence-missions.spec.ts",
+    " M lib/authCallbackClient.ts",
+    " M lib/deviceAccountSwitch.ts",
+    " M lib/drinkCategoryFromText.ts",
+    " M lib/listedCategoryPrices.ts",
+    " M lib/nightPlanning.ts",
+    " M lib/surfaceDataCache.ts",
+    " M lib/ukPriceBundle.ts",
+    " M lib/venueKindFilters.ts",
+    " M package-lock.json",
+    " M package.json",
+    " M public/data/uk_prices/manifest.json",
+    " M public/data/uk_prices/rows.json",
+    " M scripts/build_uk_price_bundle.mjs",
+    " M skills/gnhf/SKILL.md",
+    "?? __tests__/mobileSheetHomeNavigation.test.tsx",
+    "?? __tests__/ukBaseStreamingHook.test.tsx",
+    "?? components/map/PublishedMenuPrices.tsx",
+    "?? docs/proof/refined-v0-recovery-20260930/",
+    "?? docs/screenshots/tonight-vibe-chips/",
+    "?? e2e/price-intent-lifecycle.spec.ts",
+    "?? lib/planDrinkRequest.ts"
+  ],
+  "gitStatusEntryCount": 111,
+  "mapLifecycleSpecIdentity": {
+    "path": "e2e/price-intent-lifecycle.spec.ts",
+    "identicalCoreAndRelease": true,
+    "sha256": "0ed9fb94edef304809a654d4afaa0df756e8b3c006d52eeb8d950e1911364d35",
+    "boundary": "All four original cases already exist in ad08000; no test port required."
+  },
+  "mapGlAcceptanceDelta": "Release normalLondon spec lacks added R46 expanded-sheet/collapse/260px drag/peek assertions. Existing release suite green without these assertions does not verify that lifecycle. Export original assertions separately; keep 150ms pause, distance, class and same-mounted-sheet identity unchanged pending geometry reproduction."
+}

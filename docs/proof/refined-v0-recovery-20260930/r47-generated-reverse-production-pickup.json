@@ -1,0 +1,13 @@
+{
+  "kind": "Discovery pointer only; existing frozen producer unchanged",
+  "status": "PARENT_SOURCE_REVIEW_PASS_READY_ROOT_RUNTIME_UNRUN",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-current-route-transfer-v2.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-current-route-transfer-v2.json",
+  "parentReview": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-current-route-transfer-parent-review-v2.json",
+  "patchSha256": "ec083ccc0549e0760b66e043ce4db90804a8052e54e5e449f920fbbb8edf3022",
+  "doNotApply": "V1 d193 withheld because acceptance stores omitted; never apply v1 or both versions.",
+  "nativeActualRedSha256": "1bccf07d1b5b1b1540c67f1f6830c7e572a58f34c646c986ddcbf81a88e21f28",
+  "limits": "Reload/shared-link continuity separately inprogress. Root owns tests/build/browser. Captain SQL/deploy unchanged.",
+  "otherReadyPickup": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-sun-tavern-quarantine-production.json",
+  "recordedAtUTC": "2026-10-01T11:53:40.920546+00:00"
+}

@@ -1,0 +1,406 @@
+--- a/__tests__/crawlUrl.test.ts
++++ b/__tests__/crawlUrl.test.ts
+@@ -5,6 +5,7 @@
+   encodeCrawl,
+   decodeCrawl,
+   seedCrawlState,
++  routeDrinkIntentFromSearch,
+   type CrawlUrlState,
+ } from "@/lib/crawlUrl";
+ import { initialFilters } from "@/components/map/ControlRail";
+@@ -375,3 +376,36 @@
+     });
+   });
+ });
++
++
++describe("public route drink intent", () => {
++  it("round-trips route category separately from a different Map lens without quote/proof/context metadata", () => {
++    const encoded = encodeCrawl({ ...sample, filters: { ...sample.filters, drinkCategory: "wine" },
++      routeDrinkIntent: { drinkCategory: "vodka", zeroProof: false } });
++    expect(decodeCrawl(new URLSearchParams(encoded)).filters?.drinkCategory).toBe("wine");
++    expect(routeDrinkIntentFromSearch(encoded)).toEqual({ drinkCategory: "vodka", zeroProof: false });
++    expect(decodeCrawl(new URLSearchParams(encoded)).routeDrinkIntent).toEqual({ drinkCategory: "vodka", zeroProof: false });
++    expect([...new URLSearchParams(encoded).keys()].filter((key) => key.startsWith("route"))).toEqual(["routeDrink"]);
++    expect(encoded).not.toMatch(/pence|sourceUrl|proof|observedAt|nightArea/);
++  });
++
++  it("zero-proof wins without a truthy false value or an alcoholic category", () => {
++    const encoded = encodeCrawl({ ...sample, routeDrinkIntent: { drinkCategory: "gin", zeroProof: true } });
++    expect(new URLSearchParams(encoded).has("routeDrink")).toBe(false);
++    expect(routeDrinkIntentFromSearch(encoded)).toEqual({ zeroProof: true });
++    expect(routeDrinkIntentFromSearch("pubs=a,b&routeLow=false")).toBeNull();
++    expect(routeDrinkIntentFromSearch("pubs=a,b&routeLow=0&routeDrink=vodka"))
++      .toEqual({ drinkCategory: "vodka", zeroProof: false });
++  });
++
++  it.each(["pubs=a,b&routeDrink=unknown", "pubs=a,b&routeDrink=beer", "pubs=a,b&routeDrink=Gin",
++    "routeDrink=gin", "pubs=&routeDrink=gin", "pubs=a,b&drink=gin", "pubs=a,b&low=1"])("ignores unsupported or legacy lens-only intent %s", (search) => {
++    expect(routeDrinkIntentFromSearch(search)).toBeNull();
++  });
++
++  it("clears route metadata when manual ownership replaces it or removes the stops", () => {
++    expect(encodeCrawl(sample)).not.toMatch(/routeDrink|routeLow/);
++    expect(encodeCrawl({ ...sample, builtIds: [], routeDrinkIntent: { drinkCategory: "gin", zeroProof: false } }))
++      .not.toMatch(/routeDrink|routeLow/);
++  });
++});
+--- a/__tests__/generatedMapRoutePricing.test.tsx
++++ b/__tests__/generatedMapRoutePricing.test.tsx
+@@ -16,10 +16,13 @@
+ 
+ import RoutePanel from "@/components/map/RoutePanel";
+ import {
++  currentMapRoutePricing,
+   useMapPlanCoordinator,
+   useMapPlanPresentation,
+ } from "@/components/map/pubmap/useMapPlanCoordinator";
+ import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
++import { routeDrinkIntentFromSearch } from "@/lib/crawlUrl";
++import type { MapLensPrice } from "@/lib/mapExperienceLens";
+ import type { AltCrawlStyle } from "@/lib/crawlUrl";
+ import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import type { Venue } from "@/lib/venues";
+@@ -99,14 +102,16 @@
+ 
+ function Harness({
+   generated = generatedPlan(), activationIds = ORIGINAL_IDS,
+-  suggestedIds = ["a", "b", "d"],
++  suggestedIds = ["a", "b", "d"], currentPrices = new Map(),
+ }: {
+   generated?: GeneratedMobilePlan;
+   activationIds?: string[];
+   suggestedIds?: string[];
++  currentPrices?: ReadonlyMap<string, MapLensPrice>;
+ }) {
+   const coordinator = useMapPlanCoordinator({
+     mode: "build", builtIds: ORIGINAL_IDS, routeMapped: true,
++    routeDrinkIntent: routeDrinkIntentFromSearch(window.location.search),
+     planningOpen: false, nightArea: "piccadilly-soho",
+   });
+   const [altStyle, setAltStyle] = useState<AltCrawlStyle>("pint");
+@@ -127,7 +132,7 @@
+     <RoutePanel
+       mode={coordinator.mode} crawlStyle="cheapest" altStyle={altStyle}
+       onAltStyleChange={setAltStyle} route={presentation.route}
+-      generatedPricing={coordinator.generatedPricing} filteredVenues={VENUES}
++      generatedPricing={currentMapRoutePricing(coordinator.generatedPricing, currentPrices)} filteredVenues={VENUES}
+       builtIds={coordinator.builtIds} activeVenueId={undefined}
+       venueSignals={SELECTED_SIGNALS} routeMapped={coordinator.routeMapped}
+       poisPath={null} onMapRoute={() => coordinator.setRouteMapped(true)}
+@@ -349,3 +354,61 @@
+     }
+   });
+ });
++
++
++describe("restored public route drink intent", () => {
++  const currentPrices = new Map<string, MapLensPrice>([["a", {
++    venueId: "a", category: "gin", categoryLabel: "Gin", priceGbp: 7,
++    source: "listed", servingSize: null, sourceUrl: "https://pub.example/category-offer/menu",
++    observedAt: "2026-09-29T12:00:00.000Z",
++  }], ["not-in-route", {
++    venueId: "not-in-route", category: "gin", categoryLabel: "Gin", priceGbp: 3,
++    source: "listed", servingSize: "25ml", sourceUrl: "https://pub.example/other/menu",
++    observedAt: "2026-09-29T12:00:00.000Z",
++  }]]);
++
++  it("restores requested category with unknown money, then renders a currently supplied exact-ID quote", async () => {
++    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeDrink=gin&drink=wine");
++    await mount();
++    expect(host.querySelector("h2")?.textContent).toBe("Gin plan");
++    expectUnknownRound("gin stops");
++    expectNoQuotes();
++    await mount({ currentPrices });
++    expect(rowFor("a").querySelector("p")?.textContent).toBe("Gin £7.00, published menu 29 Sept 2026. Serving size not recorded.");
++    expect(host.querySelector('.routeList a[href="https://pub.example/other/menu"]')).toBeNull();
++    expectUnknownRound("gin stops");
++    await mount({ currentPrices: new Map() });
++    expectNoQuotes();
++    expect(rowFor("a").querySelector("p")?.textContent).toBe("Gin price not recorded");
++  });
++
++  it("never reapplies reread quotes after a live add/remove edit", async () => {
++    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeDrink=gin");
++    await mount({ currentPrices });
++    expect(rowFor("a").querySelector("p")?.textContent).toContain("published menu");
++    await click("Fixture pub d£5.50 · WestminsterAdd", host.querySelector(".venuePicker")!);
++    expectUnknownRound("gin stops");
++    expectNoQuotes();
++    await click("Fixture pub d£5.50 · WestminsterRemove", host.querySelector(".venuePicker")!);
++    expectNoQuotes();
++    await click("Replace with manual route");
++    expect(host.querySelector("h2")?.textContent).toBe("Hand-built plan");
++    expect(metricText()).toContain("£16.50estimated round");
++  });
++
++  it("restores zero-proof without borrowing supplied alcohol quotes or manual pint money", async () => {
++    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeLow=1&routeDrink=gin");
++    await mount({ currentPrices });
++    expect(host.querySelector("h2")?.textContent).toBe("Alcohol-free plan");
++    expectUnknownRound("alcohol-free stops");
++    expectNoQuotes();
++  });
++
++  it("keeps legacy lens-only manual Pint routes under their existing owner", async () => {
++    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&drink=gin");
++    await mount({ currentPrices });
++    expect(host.querySelector("h2")?.textContent).toBe("Hand-built plan");
++    expect(metricText()).toContain("£16.50estimated round");
++    expectNoQuotes();
++  });
++});
+--- a/__tests__/mapCrawlUrlSync.test.tsx
++++ b/__tests__/mapCrawlUrlSync.test.tsx
+@@ -71,7 +71,7 @@
+   holdCleanUrl?: boolean;
+   maxPrice?: number;
+   zone?: Filters["zone"];
+-  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId">;
++  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId" | "routeDrinkIntent">;
+   pending?: boolean;
+   landmarkId?: string;
+ }) {
+@@ -574,3 +574,28 @@
+     expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
+   });
+ });
++
++
++describe("public route intent at the landed history owner", () => {
++  it("keeps independent route/lens intent, then removes route intent on actual Home after manual replacement", async () => {
++    window.history.replaceState({ root: true }, "", "/map?mode=build&pubs=a,b,c&routeDrink=vodka&drink=gin");
++    await act(async () => root.render(createElement(HistoryHarness, {
++      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ["a", "b", "c"],
++        routeDrinkIntent: { drinkCategory: "vodka", zeroProof: false } },
++    })));
++    act(() => vi.advanceTimersByTime(300));
++    expect(new URLSearchParams(window.location.search).get("routeDrink")).toBe("vodka");
++    expect(new URLSearchParams(window.location.search).get("drink")).toBe("gin");
++    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
++    await act(async () => root.render(createElement(HistoryHarness, {
++      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ["c", "b"], routeDrinkIntent: null },
++    })));
++    await traverseHistory(() => closeHistorySurfaces());
++    const landed = new URLSearchParams(window.location.search);
++    expect(landed.has("routeDrink")).toBe(false);
++    expect(landed.has("routeLow")).toBe(false);
++    expect(landed.get("drink")).toBe("gin");
++    expect(landed.get("pubs")).toBe("c,b");
++    expect(window.history.state.root).toBe(true);
++  });
++});
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -347,9 +347,10 @@
+   { ssr: false },
+ );
+ import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
+-import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
++import { currentMapRoutePricing, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+ import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
+ import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
++import { routeDrinkIntentFromSearch } from "@/lib/crawlUrl";
+ import type { AltCrawlStyle } from "@/lib/crawlUrl";
+ import {
+   clearFavoritePint,
+@@ -1624,6 +1625,7 @@
+     activateGeneratedPlan,
+   } = useMapPlanCoordinator({
+     mode: seed.mode,
++    routeDrinkIntent: routeDrinkIntentFromSearch(arrivalSearch),
+     builtIds: seed.builtIds,
+     routeMapped: seed.routeMapped,
+     nightArea: restoredSession.nightArea,
+@@ -1949,6 +1951,20 @@
+       mapDrinkLensCategory,
+     ],
+   );
++  const restoredRouteCategory = generatedPricing?.readCurrentQuotes && !generatedPricing.context.zeroProof
++    ? generatedPricing.context.drinkCategory ?? null : null;
++  useEffect(() => {
++    if (restoredRouteCategory) loadDrinkCategoryIndex(restoredRouteCategory);
++  }, [loadDrinkCategoryIndex, restoredRouteCategory]);
++  const currentRoutePricing = useMemo(() => currentMapRoutePricing(
++    generatedPricing,
++    restoredRouteCategory ? discoveryDrinkLensPrices(
++      communityPrices.byVenueId, restoredRouteCategory,
++      communityPrices.listedDrinkPrices.get(restoredRouteCategory) ?? [], experiencePolicyNow,
++    ) : new Map(),
++  ), [generatedPricing, restoredRouteCategory, communityPrices.byVenueId, communityPrices.listedDrinkPrices, experiencePolicyNow]);
++  const restoredRoutePriceStatus = restoredRouteCategory
++    ? communityPrices.drinkCategoryIndexStatus.get(restoredRouteCategory) ?? "idle" : null;
+   const noAlcoholLensPrices = useMemo(
+     () =>
+       trustedNoAlcoholLensPrices(
+@@ -3241,6 +3257,13 @@
+       () => ({
+         mode,
+         filters,
++        routeDrinkIntent: generatedPricing
++          ? generatedPricing.context.zeroProof
++            ? { zeroProof: true }
++            : generatedPricing.context.drinkCategory && generatedPricing.context.drinkCategory !== "beer"
++              ? { drinkCategory: generatedPricing.context.drinkCategory, zeroProof: false }
++              : null
++          : null,
+         builtIds,
+         selectedVenueId,
+         bandId: activeBandId,
+@@ -3251,6 +3274,7 @@
+       [
+         mode,
+         filters,
++        generatedPricing?.context,
+         builtIds,
+         selectedVenueId,
+         activeBandId,
+@@ -5412,7 +5436,7 @@
+       ) : null}
+       <RoutePanel
+         mode={mode}
+-        generatedPricing={generatedPricing}
++        generatedPricing={currentRoutePricing}
+         crawlStyle={filters.crawlStyle}
+         altStyle={altStyle}
+         onAltStyleChange={setAltStyle}
+@@ -5441,6 +5465,11 @@
+         poisPath={city.poisPath}
+         onRoundStarted={setActiveRoundStartedCode}
+       >
++        {restoredRoutePriceStatus && restoredRoutePriceStatus !== "ready" ? <p role="status">
++          {restoredRoutePriceStatus === "degraded" ? "Current drink prices could not be read. Try again by reopening this route."
++            : restoredRoutePriceStatus === "partial" ? "Some current drink prices could not be read. Prices shown keep their source and date."
++              : "Checking current drink prices. The round total is not recorded."}
++        </p> : null}
+         {renderPlannerEmptyState()}
+       </RoutePanel>
+       {plannerFoot}
+--- a/components/map/pubmap/useMapPlanCoordinator.ts
++++ b/components/map/pubmap/useMapPlanCoordinator.ts
+@@ -8,16 +8,37 @@
+ import { isPubVenue } from "@/lib/venueKindFilters";
+ import type { Venue } from "@/lib/venues";
+ import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
+-import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++
++import type { RouteDrinkIntent } from "@/lib/crawlUrl";
++import type { MapLensPrice } from "@/lib/mapExperienceLens";
+ 
+ export type GeneratedMapRoutePricing = {
++  /** Only explicit shared/restored intent rereads current public price authority. */
++  readCurrentQuotes?: boolean;
+   context: Pick<GeneratedMobilePlan["context"], "drinkCategory" | "zeroProof">;
+   budget: GeneratedMobilePlan["budget"] | null;
+   venueIds: readonly string[];
+   quotes: ReadonlyMap<string, SelectedDrinkPriceEvidence>;
+ };
+ 
++/** Restored intent never restores a generated budget or server proof. */
++export function currentMapRoutePricing(
++  pricing: GeneratedMapRoutePricing | null,
++  currentPrices: ReadonlyMap<string, MapLensPrice>,
++): GeneratedMapRoutePricing | null {
++  if (!pricing?.readCurrentQuotes) return pricing;
++  const quotes = new Map<string, SelectedDrinkPriceEvidence>();
++  for (const id of pricing.venueIds) {
++    const price = currentPrices.get(id);
++    const quote = price?.venueId === id ? selectedDrinkPriceEvidenceForPrice(price, pricing.context) : null;
++    if (quote) quotes.set(id, quote);
++  }
++  return { ...pricing, budget: null, quotes };
++}
++
+ type InitialPlanState = {
++  routeDrinkIntent?: RouteDrinkIntent | null;
+   mode: CrawlMode;
+   builtIds: string[];
+   routeMapped: boolean;
+@@ -29,7 +50,9 @@
+ export function useMapPlanCoordinator(initial: InitialPlanState) {
+   const [mode, setMode] = useState<CrawlMode>(initial.mode);
+   const [builtIds, setBuiltIdsState] = useState<string[]>(initial.builtIds);
+-  const [generatedPricing, setGeneratedPricing] = useState<GeneratedMapRoutePricing | null>(null);
++  const [generatedPricing, setGeneratedPricing] = useState<GeneratedMapRoutePricing | null>(() => initial.routeDrinkIntent && initial.builtIds.length
++    ? { context: initial.routeDrinkIntent, venueIds: [...initial.builtIds], budget: null, quotes: new Map(), readCurrentQuotes: true }
++    : null);
+   const [routeMapped, setRouteMapped] = useState(initial.routeMapped);
+   const [planningOpen, setPlanningOpen] = useState(initial.planningOpen);
+   const [plannedNightArea, setPlannedNightArea] = useState<NightAreaSlug | null>(initial.nightArea);
+@@ -38,7 +61,7 @@
+   const setBuiltIds = useCallback<Dispatch<SetStateAction<string[]>>>((ids) => {
+     setBuiltIdsState(ids);
+     setGeneratedPricing((current) => current
+-      ? { ...current, budget: null, quotes: new Map() }
++      ? { ...current, budget: null, quotes: new Map(), readCurrentQuotes: false }
+       : null);
+   }, []);
+   const replaceBuiltIds = useCallback((ids: string[]) => {
+--- a/components/map/useCrawlUrl.ts
++++ b/components/map/useCrawlUrl.ts
+@@ -94,7 +94,7 @@
+ const CRAWL_CONTEXT_PARAMS = [
+   "mode", "style", "max", "stops", "win", "drops", "low",
+   "cocktails", "food", "q", "drink", "brand", "sub", "topshelf",
+-  "zone", "pubs", "band", "alt", "crawl",
++  "zone", "pubs", "band", "alt", "crawl", "routeDrink", "routeLow",
+ ] as const;
+ 
+ function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean): void {
+--- a/lib/crawlUrl.ts
++++ b/lib/crawlUrl.ts
+@@ -10,7 +10,7 @@
+   normalizeBrandQuery,
+   parseDrinkCategoryParam,
+ } from "@/lib/drinkBrands";
+-import { isMapLensDrinkCategory } from "@/lib/drinks";
++import { isMapLensDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+ import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+ import { parseZoneParam } from "@/lib/zones";
+ import { clamp } from "@/lib/mathClamp";
+@@ -46,7 +46,20 @@
+ // Decode is defensive: unknown/malformed params are ignored, numbers clamp to
+ // the slider bounds, unknown styles drop. It NEVER throws on bad input.
+ 
++export type RouteDrinkIntent = { drinkCategory?: DrinkCategory; zeroProof: boolean };
++
++/** Public requested drink only. No price, proof or private planning context. */
++export function routeDrinkIntentFromSearch(search: string): RouteDrinkIntent | null {
++  const params = new URLSearchParams(search);
++  if (!params.get("pubs")?.trim()) return null;
++  if (params.get("routeLow") === "1") return { zeroProof: true };
++  const category = params.get("routeDrink");
++  return category && category !== "beer" && isMapLensDrinkCategory(category)
++    ? { drinkCategory: category, zeroProof: false } : null;
++}
++
+ export type CrawlUrlState = {
++  routeDrinkIntent?: RouteDrinkIntent | null;
+   mode: CrawlMode;
+   filters: Filters;
+   builtIds: string[];
+@@ -144,7 +157,13 @@
+   // Zone lens: only a concrete 1–6 zone is encoded ("" / "all" is the default).
+   const zone = parseZoneParam(filters.zone);
+   if (zone !== null && zone !== "all") params.set("zone", String(zone));
+-  if (builtIds.length) params.set("pubs", builtIds.join(","));
++  if (builtIds.length) {
++    params.set("pubs", builtIds.join(","));
++    const intent = state.routeDrinkIntent;
++    if (intent?.zeroProof === true) params.set("routeLow", "1");
++    else if (intent?.drinkCategory && intent.drinkCategory !== "beer"
++      && isMapLensDrinkCategory(intent.drinkCategory)) params.set("routeDrink", intent.drinkCategory);
++  }
+   if (selectedVenueId) params.set("sel", selectedVenueId);
+   // Only encode a band when one is active — off is the default.
+   if (state.bandId) params.set("band", state.bandId);
+@@ -288,6 +307,8 @@
+     out.altStyle = alt as AltCrawlStyle;
+   }
+ 
++  const routeDrinkIntent = routeDrinkIntentFromSearch(params.toString());
++  if (routeDrinkIntent) out.routeDrinkIntent = routeDrinkIntent;
+   return out;
+ }
+ 

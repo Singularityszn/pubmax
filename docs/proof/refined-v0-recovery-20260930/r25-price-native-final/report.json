@@ -1,0 +1,483 @@
+{
+  "diagnosticOnly": true,
+  "completed": true,
+  "origin": "http://localhost:3351",
+  "coordinateSource": "public/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json",
+  "first": {
+    "id": "venue-uk-n8308248176",
+    "name": "The Sydney Arms",
+    "lat": 51.48876,
+    "lng": -0.16951
+  },
+  "second": {
+    "id": "venue-uk-w893965349",
+    "name": "The Builder's Arms",
+    "lat": 51.48911,
+    "lng": -0.16774
+  },
+  "expectedAtCapture": {
+    "drinkLabel": "Rioja, Spain",
+    "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+    "observedAt": "2026-09-29T10:40:17.846Z",
+    "quotes": [
+      {
+        "priceGbp": 10.5,
+        "servingSize": "250ml"
+      },
+      {
+        "priceGbp": 5.25,
+        "servingSize": "125ml"
+      }
+    ]
+  },
+  "journeys": [
+    {
+      "width": 390,
+      "completed": true,
+      "transitions": [
+        {
+          "stage": "A-cold",
+          "pubId": "venue-uk-n8308248176",
+          "name": "The Sydney Arms",
+          "url": "http://localhost:3351/map?sel=venue-uk-n8308248176&at=51.4888%2C-0.1695",
+          "text": "The Sydney Arms\nPUBLISHED MENU PRICES\n\n70, Sydney Street, London, SW3 6NJ\n\nPrices on published menus\nWine · Rioja, Spain\n£5.25\n125ml\nPrice seen 29 September 2026 · View menu source\nWine · Rioja, Spain\n£10.50\n250ml\nPrice seen 29 September 2026 · View menu source\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 0
+          }
+        },
+        {
+          "stage": "B",
+          "pubId": "venue-uk-w893965349",
+          "name": "The Builder's Arms",
+          "url": "http://localhost:3351/map?q=The+Builder%27s+Arms&sel=venue-uk-w893965349&at=51.4891%2C-0.1677",
+          "text": "The Builder's Arms\nNO PRICE YET\n\n13, Britten Street, London, SW3 3TW\n\nNobody has logged what a drink costs at this pub - be the first.\n\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Builder's Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 1
+          }
+        },
+        {
+          "stage": "A-return",
+          "pubId": "venue-uk-n8308248176",
+          "name": "The Sydney Arms",
+          "url": "http://localhost:3351/map?q=The+Sydney+Arms&sel=venue-uk-n8308248176&at=51.4888%2C-0.1695",
+          "text": "The Sydney Arms\nPUBLISHED MENU PRICES\n\n70, Sydney Street, London, SW3 6NJ\n\nPrices on published menus\nWine · Rioja, Spain\n£5.25\n125ml\nPrice seen 29 September 2026 · View menu source\nWine · Rioja, Spain\n£10.50\n250ml\nPrice seen 29 September 2026 · View menu source\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 1
+          }
+        }
+      ],
+      "searchOptions": [
+        {
+          "stage": "B",
+          "fromId": "venue-uk-n8308248176",
+          "targetId": "venue-uk-w893965349",
+          "actualId": "venue-uk-w893965349",
+          "role": "option",
+          "ariaLabel": null,
+          "renderedName": "The Builder's Arms",
+          "text": "The Builder's Arms\nNo listed price\n13, Britten Street, London, SW3 3TW\n4.8 km from centre",
+          "bounds": {
+            "x": 21,
+            "y": 161,
+            "width": 348,
+            "height": 67
+          },
+          "at": 1790775382238,
+          "urlBeforeClick": "http://localhost:3351/map"
+        },
+        {
+          "stage": "A-return",
+          "fromId": "venue-uk-w893965349",
+          "targetId": "venue-uk-n8308248176",
+          "actualId": "venue-uk-n8308248176",
+          "role": "option",
+          "ariaLabel": null,
+          "renderedName": "The Sydney Arms",
+          "text": "The Sydney Arms\nNo listed price\n70, Sydney Street, London, SW3 6NJ\n792 m from centre",
+          "bounds": {
+            "x": 21,
+            "y": 161,
+            "width": 348,
+            "height": 67
+          },
+          "at": 1790775384635,
+          "urlBeforeClick": "http://localhost:3351/map?q=The+Builder%27s+Arms"
+        }
+      ],
+      "searchOpenings": [
+        {
+          "stage": "B",
+          "expandedBefore": "false",
+          "comboboxVisibleBefore": false,
+          "clicked": true,
+          "at": 1790775381354
+        },
+        {
+          "stage": "A-return",
+          "expandedBefore": "true",
+          "comboboxVisibleBefore": true,
+          "clicked": false,
+          "at": 1790775384428
+        }
+      ],
+      "priceRequests": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "at": 1790775377272
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "at": 1790775382301
+        }
+      ],
+      "responses": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "selectedId": "venue-uk-n8308248176",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775377273,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":5.25,\"servingSize\":\"125ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"},{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":10.5,\"servingSize\":\"250ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"}]}",
+          "bodyError": null
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "selectedId": "venue-uk-w893965349",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775382324,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[]}",
+          "bodyError": null
+        }
+      ],
+      "requestFailures": [],
+      "pageErrors": [],
+      "errors": [],
+      "navigationStatus": 200
+    },
+    {
+      "width": 1440,
+      "completed": true,
+      "transitions": [
+        {
+          "stage": "A-cold",
+          "pubId": "venue-uk-n8308248176",
+          "name": "The Sydney Arms",
+          "url": "http://localhost:3351/map?sel=venue-uk-n8308248176&at=51.4888%2C-0.1695",
+          "text": "PUBLISHED MENU PRICES\nThe Sydney Arms\n\n70, Sydney Street, London, SW3 6NJ\n\nPrices on published menus\nWine · Rioja, Spain\n£5.25\n125ml\nPrice seen 29 September 2026 · View menu source\nWine · Rioja, Spain\n£10.50\n250ml\nPrice seen 29 September 2026 · View menu source\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 800,
+            "y": 159,
+            "width": 640,
+            "height": 841
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 0
+          }
+        },
+        {
+          "stage": "B",
+          "pubId": "venue-uk-w893965349",
+          "name": "The Builder's Arms",
+          "url": "http://localhost:3351/map?q=The+Builder%27s+Arms&sel=venue-uk-w893965349&at=51.4891%2C-0.1677",
+          "text": "NO PRICE YET\nThe Builder's Arms\n\n13, Britten Street, London, SW3 3TW\n\nNobody has logged what a drink costs at this pub - be the first.\n\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Builder's Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 1440,
+            "y": 159,
+            "width": 640,
+            "height": 841
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 1
+          }
+        },
+        {
+          "stage": "A-return",
+          "pubId": "venue-uk-n8308248176",
+          "name": "The Sydney Arms",
+          "url": "http://localhost:3351/map?q=The+Sydney+Arms&sel=venue-uk-n8308248176&at=51.4888%2C-0.1695",
+          "text": "PUBLISHED MENU PRICES\nThe Sydney Arms\n\n70, Sydney Street, London, SW3 6NJ\n\nPrices on published menus\nWine · Rioja, Spain\n£5.25\n125ml\nPrice seen 29 September 2026 · View menu source\nWine · Rioja, Spain\n£10.50\n250ml\nPrice seen 29 September 2026 · View menu source\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+          "bounds": {
+            "x": 1394.40234375,
+            "y": 159,
+            "width": 640,
+            "height": 841
+          },
+          "priceRequestCounts": {
+            "venue-uk-n8308248176": 1,
+            "venue-uk-w893965349": 1
+          }
+        }
+      ],
+      "searchOptions": [
+        {
+          "stage": "B",
+          "fromId": "venue-uk-n8308248176",
+          "targetId": "venue-uk-w893965349",
+          "actualId": "venue-uk-w893965349",
+          "role": "option",
+          "ariaLabel": null,
+          "renderedName": "The Builder's Arms",
+          "text": "The Builder's Arms\nNo listed price\n13, Britten Street, London, SW3 3TW\n129 m from centre",
+          "bounds": {
+            "x": 8.71368408203125,
+            "y": 255.8385009765625,
+            "width": 418,
+            "height": 47
+          },
+          "at": 1790775388711,
+          "urlBeforeClick": "http://localhost:3351/map"
+        },
+        {
+          "stage": "A-return",
+          "fromId": "venue-uk-w893965349",
+          "targetId": "venue-uk-n8308248176",
+          "actualId": "venue-uk-n8308248176",
+          "role": "option",
+          "ariaLabel": null,
+          "renderedName": "The Sydney Arms",
+          "text": "The Sydney Arms\nNo listed price\n70, Sydney Street, London, SW3 6NJ\n129 m from centre",
+          "bounds": {
+            "x": -210,
+            "y": 252,
+            "width": 418,
+            "height": 47
+          },
+          "at": 1790775392321,
+          "urlBeforeClick": "http://localhost:3351/map?q=The+Builder%27s+Arms"
+        }
+      ],
+      "searchOpenings": [],
+      "priceRequests": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "at": 1790775386349
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "at": 1790775389883
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n10034149592&venueId=venue-uk-n10043607156&venueId=venue-uk-n10054383793&venueId=venue-uk-n10062643211&venueId=venue-uk-n10081778430&venueId=venue-uk-n10092511647&venueId=venue-uk-n10142422635&venueId=venue-uk-n10203027526&venueId=venue-uk-n10213894393&venueId=venue-uk-n10245706076&venueId=venue-uk-n10251693509&venueId=venue-uk-n10251784717&venueId=venue-uk-n10263469468&venueId=venue-uk-n1039290554&venueId=venue-uk-n10582361575&venueId=venue-uk-n10605014605&venueId=venue-uk-n10657112281&venueId=venue-uk-n10688404230&venueId=venue-uk-n10749734805&venueId=venue-uk-n10788813799&venueId=venue-uk-n10798047276&venueId=venue-uk-n10803150329&venueId=venue-uk-n108035448&venueId=venue-uk-n10895507318&venueId=venue-uk-n10915942905&venueId=venue-uk-n10924079510&venueId=venue-uk-n10937912505&venueId=venue-uk-n10978406409&venueId=venue-uk-n11007684249&venueId=venue-uk-n11023162216&venueId=venue-uk-n1103275887&venueId=venue-uk-n11045432726&venueId=venue-uk-n11052596810&venueId=venue-uk-n11059547105&venueId=venue-uk-n11061470043&venueId=venue-uk-n11061898248&venueId=venue-uk-n11074881722&venueId=venue-uk-n1112173685&venueId=venue-uk-n1112173731&venueId=venue-uk-n1112173743&venueId=venue-uk-n1112173867&venueId=venue-uk-n1112220305&venueId=venue-uk-n1112222569&venueId=venue-uk-n11128539820&venueId=venue-uk-n11132327385&venueId=venue-uk-n11132327387&venueId=venue-uk-n11138456127&venueId=venue-uk-n11141901933&venueId=venue-uk-n11141927241&venueId=venue-uk-n11146695407&venueId=venue-uk-n11159464805&venueId=venue-uk-n1116251530&venueId=venue-uk-n11163028502&venueId=venue-uk-n11163251905&venueId=venue-uk-n11198021569&venueId=venue-uk-n11225891677&venueId=venue-uk-n11226664637&venueId=venue-uk-n11230560302&venueId=venue-uk-n11237179441&venueId=venue-uk-n11245454657&venueId=venue-uk-n11249207039&venueId=venue-uk-n11259926289&venueId=venue-uk-n11266838561&venueId=venue-uk-n1126719636",
+          "at": 1790775391359
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n11269168690&venueId=venue-uk-n11269168697&venueId=venue-uk-n11269168700&venueId=venue-uk-n11278392523&venueId=venue-uk-n11283320224&venueId=venue-uk-n11294886973&venueId=venue-uk-n11297978581&venueId=venue-uk-n11298000169&venueId=venue-uk-n11304573103&venueId=venue-uk-n11309104133&venueId=venue-uk-n11340695339&venueId=venue-uk-n11343785904&venueId=venue-uk-n1134441899&venueId=venue-uk-n11345532276&venueId=venue-uk-n1141570209&venueId=venue-uk-n11425509908&venueId=venue-uk-n11433080973&venueId=venue-uk-n11442310285&venueId=venue-uk-n11445942141&venueId=venue-uk-n1144626359&venueId=venue-uk-n11470415255&venueId=venue-uk-n1149064292&venueId=venue-uk-n1150003215&venueId=venue-uk-n11510595169&venueId=venue-uk-n11530376172&venueId=venue-uk-n11530645097&venueId=venue-uk-n11545207226&venueId=venue-uk-n11555019775&venueId=venue-uk-n11581831870&venueId=venue-uk-n11584542458&venueId=venue-uk-n11584565987&venueId=venue-uk-n11596498449&venueId=venue-uk-n11603173108&venueId=venue-uk-n116097320&venueId=venue-uk-n116097730&venueId=venue-uk-n11619853863&venueId=venue-uk-n1163880380&venueId=venue-uk-n1164110889&venueId=venue-uk-n11674123843&venueId=venue-uk-n11687714203&venueId=venue-uk-n11692082702&venueId=venue-uk-n11692121380&venueId=venue-uk-n11774863026&venueId=venue-uk-n11831460716&venueId=venue-uk-n11855303669&venueId=venue-uk-n11869927808&venueId=venue-uk-n11880037869&venueId=venue-uk-n11926973569&venueId=venue-uk-n11930261951&venueId=venue-uk-n11933104648&venueId=venue-uk-n11939631569&venueId=venue-uk-n11943184085&venueId=venue-uk-n11944450170&venueId=venue-uk-n11945356076&venueId=venue-uk-n11964327570&venueId=venue-uk-n11989049172&venueId=venue-uk-n12007863407&venueId=venue-uk-n12007863429&venueId=venue-uk-n12037729071&venueId=venue-uk-n12045676386&venueId=venue-uk-n12066051477&venueId=venue-uk-n12077012446&venueId=venue-uk-n12077551178&venueId=venue-uk-n12083746969",
+          "at": 1790775392077
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n12083747070&venueId=venue-uk-n12115547778&venueId=venue-uk-n1215861506&venueId=venue-uk-n12162543201&venueId=venue-uk-n12173310046&venueId=venue-uk-n12183990594&venueId=venue-uk-n12198799907&venueId=venue-uk-n12229930329&venueId=venue-uk-n12231843057&venueId=venue-uk-n12236249704&venueId=venue-uk-n12239597137&venueId=venue-uk-n12239831101&venueId=venue-uk-n12239882401&venueId=venue-uk-n12242124301&venueId=venue-uk-n12242566001&venueId=venue-uk-n12244918801&venueId=venue-uk-n12244969401&venueId=venue-uk-n12244978501&venueId=venue-uk-n12245034601&venueId=venue-uk-n12248019901&venueId=venue-uk-n12248646901&venueId=venue-uk-n12248980301&venueId=venue-uk-n12250692107&venueId=venue-uk-n12279739003&venueId=venue-uk-n1230827961&venueId=venue-uk-n12319450501&venueId=venue-uk-n12337813779&venueId=venue-uk-n12345146601&venueId=venue-uk-n12349017101&venueId=venue-uk-n12349074001&venueId=venue-uk-n12351951301&venueId=venue-uk-n1235254621&venueId=venue-uk-n12360296201&venueId=venue-uk-n12410053304&venueId=venue-uk-n12427775501&venueId=venue-uk-n12431593816&venueId=venue-uk-n12437062771&venueId=venue-uk-n12437701305&venueId=venue-uk-n12457180001&venueId=venue-uk-n12463675901&venueId=venue-uk-n12496273774&venueId=venue-uk-n12507179079&venueId=venue-uk-n12507179080&venueId=venue-uk-n1251663447&venueId=venue-uk-n12529152052&venueId=venue-uk-n12531850552&venueId=venue-uk-n12531850553&venueId=venue-uk-n12532959124&venueId=venue-uk-n12532959125&venueId=venue-uk-n12532983505&venueId=venue-uk-n12534156760&venueId=venue-uk-n12534156761&venueId=venue-uk-n12552033724&venueId=venue-uk-n12561097383&venueId=venue-uk-n12569588804&venueId=venue-uk-n12569614013&venueId=venue-uk-n12571340214&venueId=venue-uk-n12572448542&venueId=venue-uk-n12572448556&venueId=venue-uk-n12572448571&venueId=venue-uk-n12572448581&venueId=venue-uk-n12572448583&venueId=venue-uk-n12572476234&venueId=venue-uk-n12572476255",
+          "at": 1790775392110
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n12572476260&venueId=venue-uk-n12591246001&venueId=venue-uk-n12595899238&venueId=venue-uk-n12599228001&venueId=venue-uk-n12599552601&venueId=venue-uk-n12633147087&venueId=venue-uk-n12633199507&venueId=venue-uk-n12633199509&venueId=venue-uk-n12633199521&venueId=venue-uk-n12633199535&venueId=venue-uk-n1265087042&venueId=venue-uk-n12679983901&venueId=venue-uk-n12690790848&venueId=venue-uk-n12691350161&venueId=venue-uk-n12691350162&venueId=venue-uk-n12691350163&venueId=venue-uk-n12691350164&venueId=venue-uk-n12694273701&venueId=venue-uk-n12723565027&venueId=venue-uk-n1275835684&venueId=venue-uk-n12797270622&venueId=venue-uk-n12797314961&venueId=venue-uk-n1280271962&venueId=venue-uk-n12802855961&venueId=venue-uk-n12814480101&venueId=venue-uk-n12815047301&venueId=venue-uk-n12816615429&venueId=venue-uk-n12826360201&venueId=venue-uk-n12827193551&venueId=venue-uk-n128329850&venueId=venue-uk-n12836989701&venueId=venue-uk-n12847089778&venueId=venue-uk-n12847089779&venueId=venue-uk-n12855041571&venueId=venue-uk-n12876936674&venueId=venue-uk-n12877542100&venueId=venue-uk-n12889012255&venueId=venue-uk-n12890502869&venueId=venue-uk-n12892234883&venueId=venue-uk-n12920872810&venueId=venue-uk-n12920922056&venueId=venue-uk-n12920922063&venueId=venue-uk-n12920922066&venueId=venue-uk-n12922953975&venueId=venue-uk-n12925868314&venueId=venue-uk-n12926562968&venueId=venue-uk-n12943500101&venueId=venue-uk-n12949901342&venueId=venue-uk-n12952885350&venueId=venue-uk-n12953571736&venueId=venue-uk-n12961239334&venueId=venue-uk-n12971234554&venueId=venue-uk-n12977876046&venueId=venue-uk-n12988179261&venueId=venue-uk-n12988179262&venueId=venue-uk-n12992481401&venueId=venue-uk-n12992760626&venueId=venue-uk-n12997749797&venueId=venue-uk-n12997756180&venueId=venue-uk-n12997774502&venueId=venue-uk-n12997774504&venueId=venue-uk-n12997775906&venueId=venue-uk-n13006281748&venueId=venue-uk-n13054215867",
+          "at": 1790775392113
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n13103481999&venueId=venue-uk-n13108594401&venueId=venue-uk-n13116885908&venueId=venue-uk-n13169280634&venueId=venue-uk-n13179269420&venueId=venue-uk-n13191255035&venueId=venue-uk-n1322154184&venueId=venue-uk-n13235500301&venueId=venue-uk-n1324709953&venueId=venue-uk-n13253165457&venueId=venue-uk-n13261924816&venueId=venue-uk-n13272883995&venueId=venue-uk-n13273139801&venueId=venue-uk-n13284007987&venueId=venue-uk-n13290010041&venueId=venue-uk-n13291319468&venueId=venue-uk-n13291319469&venueId=venue-uk-n132960560&venueId=venue-uk-n13315502601&venueId=venue-uk-n13327212416&venueId=venue-uk-n13333760101&venueId=venue-uk-n13357808701&venueId=venue-uk-n13367060313&venueId=venue-uk-n13376685635&venueId=venue-uk-n13386371751&venueId=venue-uk-n13391567944&venueId=venue-uk-n13409071887&venueId=venue-uk-n13422145254&venueId=venue-uk-n13435875145&venueId=venue-uk-n13458460865&venueId=venue-uk-n13461061541&venueId=venue-uk-n13463177801&venueId=venue-uk-n1346356021&venueId=venue-uk-n13471045447&venueId=venue-uk-n13475879226&venueId=venue-uk-n13481884401&venueId=venue-uk-n13518978862&venueId=venue-uk-n13546608838&venueId=venue-uk-n13547039540&venueId=venue-uk-n13550924140&venueId=venue-uk-n13566401973&venueId=venue-uk-n13571496100&venueId=venue-uk-n13571511902&venueId=venue-uk-n13571511983&venueId=venue-uk-n13577534201&venueId=venue-uk-n13577578001&venueId=venue-uk-n13593370823&venueId=venue-uk-n1360505700&venueId=venue-uk-n1360505703&venueId=venue-uk-n13606401801&venueId=venue-uk-n13614350462&venueId=venue-uk-n13615796191&venueId=venue-uk-n13623633561&venueId=venue-uk-n13667302001&venueId=venue-uk-n13672459527&venueId=venue-uk-n1368258354&venueId=venue-uk-n13694805106&venueId=venue-uk-n13694833518&venueId=venue-uk-n13705318213&venueId=venue-uk-n13717302373&venueId=venue-uk-n13717302375&venueId=venue-uk-n1374255594&venueId=venue-uk-n1375162583&venueId=venue-uk-n1375172418",
+          "at": 1790775392125
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n1375172419&venueId=venue-uk-n1377064259&venueId=venue-uk-n13808620782&venueId=venue-uk-n13809413503&venueId=venue-uk-n13844055265&venueId=venue-uk-n1387549550&venueId=venue-uk-n1389431871&venueId=venue-uk-n13895481182&venueId=venue-uk-n13930553501&venueId=venue-uk-n13954233701&venueId=venue-uk-n13955535798&venueId=venue-uk-n13957205983&venueId=venue-uk-n13962013613&venueId=venue-uk-n13965587101&venueId=venue-uk-n13968960248&venueId=venue-uk-n13970985701&venueId=venue-uk-n13991142771&venueId=venue-uk-n13993595609&venueId=venue-uk-n13997136521&venueId=venue-uk-n14021854263&venueId=venue-uk-n14022328912&venueId=venue-uk-n14046886803&venueId=venue-uk-n14077604701&venueId=venue-uk-n1420042285&venueId=venue-uk-n142435502&venueId=venue-uk-n1478210424&venueId=venue-uk-n148782410&venueId=venue-uk-n1496718867&venueId=venue-uk-n1497452168&venueId=venue-uk-n1497452177&venueId=venue-uk-n1497452179&venueId=venue-uk-n1517871629&venueId=venue-uk-n1522909770&venueId=venue-uk-n15262028&venueId=venue-uk-n1532645515&venueId=venue-uk-n1538908200&venueId=venue-uk-n1547392947&venueId=venue-uk-n1561417481&venueId=venue-uk-n1574814548&venueId=venue-uk-n1587485161&venueId=venue-uk-n1598393379&venueId=venue-uk-n1600324548&venueId=venue-uk-n1601053417&venueId=venue-uk-n160548974&venueId=venue-uk-n1620855355&venueId=venue-uk-n1656384035&venueId=venue-uk-n1662542806&venueId=venue-uk-n1662606928&venueId=venue-uk-n1666149588&venueId=venue-uk-n1669491400&venueId=venue-uk-n166967411&venueId=venue-uk-n1678321931&venueId=venue-uk-n1684709914&venueId=venue-uk-n1689387894&venueId=venue-uk-n1689387895&venueId=venue-uk-n169384510&venueId=venue-uk-n169440015&venueId=venue-uk-n1695378571&venueId=venue-uk-n1707216586&venueId=venue-uk-n1708682030&venueId=venue-uk-n1713315332&venueId=venue-uk-n1754142781&venueId=venue-uk-n175684023&venueId=venue-uk-n1769294100",
+          "at": 1790775392127
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n1786388184&venueId=venue-uk-n1828784790&venueId=venue-uk-n1895129841&venueId=venue-uk-n1903127186&venueId=venue-uk-n192399976&venueId=venue-uk-n1936274782&venueId=venue-uk-n1937328128&venueId=venue-uk-n1962911438&venueId=venue-uk-n1963875541&venueId=venue-uk-n1985574418&venueId=venue-uk-n1993188851&venueId=venue-uk-n2007363135&venueId=venue-uk-n2018688106&venueId=venue-uk-n2068080583&venueId=venue-uk-n2080592567&venueId=venue-uk-n20821133&venueId=venue-uk-n20973312&venueId=venue-uk-n20973316&venueId=venue-uk-n2151137768&venueId=venue-uk-n2153030788&venueId=venue-uk-n21593232&venueId=venue-uk-n21593236&venueId=venue-uk-n21593237&venueId=venue-uk-n21593238&venueId=venue-uk-n21686579&venueId=venue-uk-n21693791&venueId=venue-uk-n2182219226&venueId=venue-uk-n2208150035&venueId=venue-uk-n2252043080&venueId=venue-uk-n2252043085&venueId=venue-uk-n2252043099&venueId=venue-uk-n2252043107&venueId=venue-uk-n2252633852&venueId=venue-uk-n2261572101&venueId=venue-uk-n2267462478&venueId=venue-uk-n2287275689&venueId=venue-uk-n2296112253&venueId=venue-uk-n230058460&venueId=venue-uk-n2310523851&venueId=venue-uk-n2316821043&venueId=venue-uk-n2333320764&venueId=venue-uk-n2334811789&venueId=venue-uk-n2343155744&venueId=venue-uk-n2366231797&venueId=venue-uk-n246518042&venueId=venue-uk-n246519847&venueId=venue-uk-n2476984665&venueId=venue-uk-n247957492&venueId=venue-uk-n248074287&venueId=venue-uk-n248444184&venueId=venue-uk-n248453431&venueId=venue-uk-n248546654&venueId=venue-uk-n248921516&venueId=venue-uk-n248921520&venueId=venue-uk-n248921522&venueId=venue-uk-n248921524&venueId=venue-uk-n248921525&venueId=venue-uk-n248932665&venueId=venue-uk-n248933565&venueId=venue-uk-n2492718707&venueId=venue-uk-n249310455&venueId=venue-uk-n249672846&venueId=venue-uk-n249672865&venueId=venue-uk-n250080453",
+          "at": 1790775392129
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n250080603&venueId=venue-uk-n2531024418&venueId=venue-uk-n25471087&venueId=venue-uk-n25473538&venueId=venue-uk-n25475187&venueId=venue-uk-n25475914&venueId=venue-uk-n25496840&venueId=venue-uk-n255012045&venueId=venue-uk-n25510381&venueId=venue-uk-n255747947&venueId=venue-uk-n2558617434&venueId=venue-uk-n2559609959&venueId=venue-uk-n25597628&venueId=venue-uk-n2561724243&venueId=venue-uk-n256404255&venueId=venue-uk-n25717653&venueId=venue-uk-n25717655&venueId=venue-uk-n2573598074&venueId=venue-uk-n25744507&venueId=venue-uk-n25746185&venueId=venue-uk-n257937397&venueId=venue-uk-n25831302&venueId=venue-uk-n25831313&venueId=venue-uk-n25894993&venueId=venue-uk-n259245834&venueId=venue-uk-n259248888&venueId=venue-uk-n259253467&venueId=venue-uk-n259774303&venueId=venue-uk-n259774404&venueId=venue-uk-n2604725263&venueId=venue-uk-n26065903&venueId=venue-uk-n261000393&venueId=venue-uk-n261245915&venueId=venue-uk-n261310647&venueId=venue-uk-n261348576&venueId=venue-uk-n26197017&venueId=venue-uk-n2624195137&venueId=venue-uk-n262443436&venueId=venue-uk-n2626207035&venueId=venue-uk-n262637210&venueId=venue-uk-n26310696&venueId=venue-uk-n2636979676&venueId=venue-uk-n264041224&venueId=venue-uk-n2642857190&venueId=venue-uk-n264513354&venueId=venue-uk-n264790279&venueId=venue-uk-n264796527&venueId=venue-uk-n264797750&venueId=venue-uk-n264797790&venueId=venue-uk-n264803342&venueId=venue-uk-n265649310&venueId=venue-uk-n265662292&venueId=venue-uk-n265664308&venueId=venue-uk-n26610587&venueId=venue-uk-n26610590&venueId=venue-uk-n26610612&venueId=venue-uk-n266324793&venueId=venue-uk-n2664108831&venueId=venue-uk-n266481945&venueId=venue-uk-n266481948&venueId=venue-uk-n266560384&venueId=venue-uk-n266680230&venueId=venue-uk-n266819667&venueId=venue-uk-n266877019",
+          "at": 1790775392131
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n26699558&venueId=venue-uk-n267432002&venueId=venue-uk-n268430691&venueId=venue-uk-n2686817210&venueId=venue-uk-n2686818516&venueId=venue-uk-n2686831352&venueId=venue-uk-n2686843329&venueId=venue-uk-n269253652&venueId=venue-uk-n269255191&venueId=venue-uk-n269859953&venueId=venue-uk-n269866730&venueId=venue-uk-n27017235&venueId=venue-uk-n270420472&venueId=venue-uk-n271387709&venueId=venue-uk-n2714325413&venueId=venue-uk-n271516102&venueId=venue-uk-n271949863&venueId=venue-uk-n273509342&venueId=venue-uk-n273533110&venueId=venue-uk-n2736321581&venueId=venue-uk-n27364392&venueId=venue-uk-n2737653447&venueId=venue-uk-n27411557&venueId=venue-uk-n2749842102&venueId=venue-uk-n27512718&venueId=venue-uk-n275452092&venueId=venue-uk-n276369831&venueId=venue-uk-n2766493528&venueId=venue-uk-n27718642&venueId=venue-uk-n277906484&venueId=venue-uk-n277909036&venueId=venue-uk-n2782322520&venueId=venue-uk-n278291760&venueId=venue-uk-n278312956&venueId=venue-uk-n279391479&venueId=venue-uk-n279391483&venueId=venue-uk-n279651322&venueId=venue-uk-n280145696&venueId=venue-uk-n280525285&venueId=venue-uk-n280592972&venueId=venue-uk-n280606863&venueId=venue-uk-n280606917&venueId=venue-uk-n280606925&venueId=venue-uk-n280835217&venueId=venue-uk-n280835439&venueId=venue-uk-n281455014&venueId=venue-uk-n2831429756&venueId=venue-uk-n283218340&venueId=venue-uk-n2842926233&venueId=venue-uk-n287240464&venueId=venue-uk-n287243496&venueId=venue-uk-n287442502&venueId=venue-uk-n287553265&venueId=venue-uk-n287612487&venueId=venue-uk-n287749130&venueId=venue-uk-n2878409925&venueId=venue-uk-n288026530&venueId=venue-uk-n288045288&venueId=venue-uk-n288170087&venueId=venue-uk-n289009571&venueId=venue-uk-n289075156&venueId=venue-uk-n289830212&venueId=venue-uk-n289996602&venueId=venue-uk-n29039088",
+          "at": 1790775392132
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n2905796901&venueId=venue-uk-n2905887101&venueId=venue-uk-n290621074&venueId=venue-uk-n290621086&venueId=venue-uk-n2916237763&venueId=venue-uk-n291754220&venueId=venue-uk-n2917627046&venueId=venue-uk-n2917627047&venueId=venue-uk-n291953084&venueId=venue-uk-n291981188&venueId=venue-uk-n292183282&venueId=venue-uk-n292234943&venueId=venue-uk-n292705417&venueId=venue-uk-n292705418&venueId=venue-uk-n293390260&venueId=venue-uk-n293506221&venueId=venue-uk-n293516727&venueId=venue-uk-n2935383884&venueId=venue-uk-n2935383885&venueId=venue-uk-n293754855&venueId=venue-uk-n294001546&venueId=venue-uk-n294162222&venueId=venue-uk-n2945792753&venueId=venue-uk-n294599679&venueId=venue-uk-n294659404&venueId=venue-uk-n294765140&venueId=venue-uk-n294950903&venueId=venue-uk-n295466191&venueId=venue-uk-n2957167676&venueId=venue-uk-n295905003&venueId=venue-uk-n295905009&venueId=venue-uk-n295971752&venueId=venue-uk-n295975604&venueId=venue-uk-n295975606&venueId=venue-uk-n295979629&venueId=venue-uk-n2961946211&venueId=venue-uk-n296614817&venueId=venue-uk-n296620391&venueId=venue-uk-n296889741&venueId=venue-uk-n296891969&venueId=venue-uk-n2979737106&venueId=venue-uk-n298220599&venueId=venue-uk-n298220963&venueId=venue-uk-n298347049&venueId=venue-uk-n298347050&venueId=venue-uk-n298702963&venueId=venue-uk-n299308588&venueId=venue-uk-n299310964&venueId=venue-uk-n299595796&venueId=venue-uk-n299615545&venueId=venue-uk-n300500863&venueId=venue-uk-n3010451545&venueId=venue-uk-n3010570949&venueId=venue-uk-n3014236564&venueId=venue-uk-n301516360&venueId=venue-uk-n302011571&venueId=venue-uk-n302013654&venueId=venue-uk-n302397766&venueId=venue-uk-n302410081&venueId=venue-uk-n303189871&venueId=venue-uk-n303585906&venueId=venue-uk-n304132917&venueId=venue-uk-n304145828&venueId=venue-uk-n304421987",
+          "at": 1790775392134
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n304464944&venueId=venue-uk-n3050203354&venueId=venue-uk-n305415271&venueId=venue-uk-n305415323&venueId=venue-uk-n305415324&venueId=venue-uk-n305415325&venueId=venue-uk-n305587200&venueId=venue-uk-n305760823&venueId=venue-uk-n30585304&venueId=venue-uk-n3058770654&venueId=venue-uk-n30592674&venueId=venue-uk-n306135577&venueId=venue-uk-n306553504&venueId=venue-uk-n306659436&venueId=venue-uk-n306666717&venueId=venue-uk-n3068306969&venueId=venue-uk-n306966699&venueId=venue-uk-n30793153&venueId=venue-uk-n3095255026&venueId=venue-uk-n311153571&venueId=venue-uk-n311188199&venueId=venue-uk-n3114630761&venueId=venue-uk-n311481378&venueId=venue-uk-n311877348&venueId=venue-uk-n311974960&venueId=venue-uk-n312156665&venueId=venue-uk-n312159181&venueId=venue-uk-n3123726786&venueId=venue-uk-n312669400&venueId=venue-uk-n313181168&venueId=venue-uk-n313234121&venueId=venue-uk-n31452360&venueId=venue-uk-n3154058988&venueId=venue-uk-n3154333461&venueId=venue-uk-n316763478&venueId=venue-uk-n316763495&venueId=venue-uk-n316763576&venueId=venue-uk-n3196094985&venueId=venue-uk-n3206271866&venueId=venue-uk-n3218826552&venueId=venue-uk-n3223507051&venueId=venue-uk-n322959268&venueId=venue-uk-n3247084424&venueId=venue-uk-n3247084435&venueId=venue-uk-n3280571386&venueId=venue-uk-n32921722&venueId=venue-uk-n3292939264&venueId=venue-uk-n33101954&venueId=venue-uk-n331298014&venueId=venue-uk-n331318827&venueId=venue-uk-n331362139&venueId=venue-uk-n3320744028&venueId=venue-uk-n332118048&venueId=venue-uk-n333125738&venueId=venue-uk-n333125744&venueId=venue-uk-n333205448&venueId=venue-uk-n3340684901&venueId=venue-uk-n3340684903&venueId=venue-uk-n3357569149&venueId=venue-uk-n3357929194&venueId=venue-uk-n3357929212&venueId=venue-uk-n3358823520&venueId=venue-uk-n3362469515&venueId=venue-uk-n3370865591",
+          "at": 1790775392136
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n3371176988&venueId=venue-uk-n3376484693&venueId=venue-uk-n338463555&venueId=venue-uk-n338472534&venueId=venue-uk-n338504993&venueId=venue-uk-n338505255&venueId=venue-uk-n339394917&venueId=venue-uk-n343538002&venueId=venue-uk-n343538005&venueId=venue-uk-n344084670&venueId=venue-uk-n344369989&venueId=venue-uk-n344652892&venueId=venue-uk-n3447788453&venueId=venue-uk-n344791683&venueId=venue-uk-n344875284&venueId=venue-uk-n344875712&venueId=venue-uk-n345871050&venueId=venue-uk-n345886748&venueId=venue-uk-n3468565224&venueId=venue-uk-n347412853&venueId=venue-uk-n347419938&venueId=venue-uk-n348357935&venueId=venue-uk-n348426433&venueId=venue-uk-n3485070520&venueId=venue-uk-n348605949&venueId=venue-uk-n348605966&venueId=venue-uk-n348782665&venueId=venue-uk-n348817410&venueId=venue-uk-n348867089&venueId=venue-uk-n348874860&venueId=venue-uk-n348875260&venueId=venue-uk-n348911273&venueId=venue-uk-n3493582134&venueId=venue-uk-n3494148572&venueId=venue-uk-n3497250394&venueId=venue-uk-n3500734156&venueId=venue-uk-n350437645&venueId=venue-uk-n3527007903&venueId=venue-uk-n352930271&venueId=venue-uk-n3546349672&venueId=venue-uk-n355416909&venueId=venue-uk-n3576622823&venueId=venue-uk-n3592458098&venueId=venue-uk-n360045160&venueId=venue-uk-n362359474&venueId=venue-uk-n362582983&venueId=venue-uk-n3636961931&venueId=venue-uk-n3639031393&venueId=venue-uk-n3639471792&venueId=venue-uk-n364654278&venueId=venue-uk-n364654823&venueId=venue-uk-n364655175&venueId=venue-uk-n364655406&venueId=venue-uk-n364783974&venueId=venue-uk-n366073061&venueId=venue-uk-n366073245&venueId=venue-uk-n3688619646&venueId=venue-uk-n369119280&venueId=venue-uk-n369119286&venueId=venue-uk-n369829177&venueId=venue-uk-n369879097&venueId=venue-uk-n370092612&venueId=venue-uk-n3701524147&venueId=venue-uk-n370187947",
+          "at": 1790775392138
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n370604215&venueId=venue-uk-n371050910&venueId=venue-uk-n371063206&venueId=venue-uk-n371520154&venueId=venue-uk-n371583850&venueId=venue-uk-n371601279&venueId=venue-uk-n372519530&venueId=venue-uk-n3735026264&venueId=venue-uk-n3735134810&venueId=venue-uk-n3740809968&venueId=venue-uk-n3750381862&venueId=venue-uk-n375792331&venueId=venue-uk-n375848733&venueId=venue-uk-n3761643192&venueId=venue-uk-n3767594694&venueId=venue-uk-n377500818&venueId=venue-uk-n377720122&venueId=venue-uk-n3787420113&venueId=venue-uk-n3790295357&venueId=venue-uk-n3790320757&venueId=venue-uk-n3793532459&venueId=venue-uk-n3796258892&venueId=venue-uk-n3796261415&venueId=venue-uk-n3796265628&venueId=venue-uk-n3796265638&venueId=venue-uk-n3796992525&venueId=venue-uk-n379822491&venueId=venue-uk-n379822603&venueId=venue-uk-n3799624401&venueId=venue-uk-n3801496832&venueId=venue-uk-n380568360&venueId=venue-uk-n3813178074&venueId=venue-uk-n3813864109&venueId=venue-uk-n3815898017&venueId=venue-uk-n3822113518&venueId=venue-uk-n382512980&venueId=venue-uk-n3827161422&venueId=venue-uk-n3835357195&venueId=venue-uk-n3835357209&venueId=venue-uk-n3837237761&venueId=venue-uk-n383932467&venueId=venue-uk-n383970848&venueId=venue-uk-n383980821&venueId=venue-uk-n3845915784&venueId=venue-uk-n385018022&venueId=venue-uk-n385560795&venueId=venue-uk-n385564475&venueId=venue-uk-n385597414&venueId=venue-uk-n387123683&venueId=venue-uk-n388116718&venueId=venue-uk-n3892264316&venueId=venue-uk-n3895190286&venueId=venue-uk-n389596655&venueId=venue-uk-n3898185143&venueId=venue-uk-n3931711557&venueId=venue-uk-n393464353&venueId=venue-uk-n4009487830&venueId=venue-uk-n401529129&venueId=venue-uk-n4020316989&venueId=venue-uk-n402386714&venueId=venue-uk-n4026677008&venueId=venue-uk-n403454627&venueId=venue-uk-n4067222289&venueId=venue-uk-n408124683",
+          "at": 1790775392140
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n408561640&venueId=venue-uk-n4090944751&venueId=venue-uk-n410936555&venueId=venue-uk-n410949906&venueId=venue-uk-n411115264&venueId=venue-uk-n411115268&venueId=venue-uk-n4117637268&venueId=venue-uk-n4117642056&venueId=venue-uk-n4130496749&venueId=venue-uk-n415580971&venueId=venue-uk-n4171866104&venueId=venue-uk-n4172844859&venueId=venue-uk-n419139639&venueId=venue-uk-n4225629089&venueId=venue-uk-n4232559416&venueId=venue-uk-n4238029494&venueId=venue-uk-n4250008044&venueId=venue-uk-n425175495&venueId=venue-uk-n425177250&venueId=venue-uk-n425362689&venueId=venue-uk-n425451848&venueId=venue-uk-n425720634&venueId=venue-uk-n4270686794&venueId=venue-uk-n4285984291&venueId=venue-uk-n429249941&venueId=venue-uk-n429346224&venueId=venue-uk-n430432974&venueId=venue-uk-n4346566513&venueId=venue-uk-n4356348697&venueId=venue-uk-n4360076798&venueId=venue-uk-n4360084491&venueId=venue-uk-n4360209691&venueId=venue-uk-n4360262743&venueId=venue-uk-n441202439&venueId=venue-uk-n443032351&venueId=venue-uk-n4430908427&venueId=venue-uk-n4432949304&venueId=venue-uk-n4436107496&venueId=venue-uk-n4437784594&venueId=venue-uk-n444540131&venueId=venue-uk-n4452603012&venueId=venue-uk-n4467119633&venueId=venue-uk-n446882323&venueId=venue-uk-n446882529&venueId=venue-uk-n4470034364&venueId=venue-uk-n4470162948&venueId=venue-uk-n4475883290&venueId=venue-uk-n448921712&venueId=venue-uk-n4500393142&venueId=venue-uk-n4503830991&venueId=venue-uk-n4508195375&venueId=venue-uk-n451152&venueId=venue-uk-n451154&venueId=venue-uk-n4520491034&venueId=venue-uk-n452215462&venueId=venue-uk-n452236137&venueId=venue-uk-n452240939&venueId=venue-uk-n452433527&venueId=venue-uk-n4542454920&venueId=venue-uk-n4548682168&venueId=venue-uk-n4549195917&venueId=venue-uk-n4556231158&venueId=venue-uk-n4558839822&venueId=venue-uk-n4559315025",
+          "at": 1790775392141
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n456245566&venueId=venue-uk-n4564380187&venueId=venue-uk-n4564625488&venueId=venue-uk-n4566427252&venueId=venue-uk-n4580662705&venueId=venue-uk-n459250820&venueId=venue-uk-n459269359&venueId=venue-uk-n459805640&venueId=venue-uk-n4600418644&venueId=venue-uk-n460531077&venueId=venue-uk-n4605839898&venueId=venue-uk-n460668847&venueId=venue-uk-n4607932812&venueId=venue-uk-n4608992745&venueId=venue-uk-n462025244&venueId=venue-uk-n4620456889&venueId=venue-uk-n4620456890&venueId=venue-uk-n4637449094&venueId=venue-uk-n4642335170&venueId=venue-uk-n4665750869&venueId=venue-uk-n466926232&venueId=venue-uk-n4669839193&venueId=venue-uk-n46714849&venueId=venue-uk-n4680953869&venueId=venue-uk-n4684785733&venueId=venue-uk-n4691563242&venueId=venue-uk-n4699715433&venueId=venue-uk-n4701327856&venueId=venue-uk-n470247703&venueId=venue-uk-n470345638&venueId=venue-uk-n470349600&venueId=venue-uk-n4707521922&venueId=venue-uk-n471488497&venueId=venue-uk-n4719617987&venueId=venue-uk-n4719617989&venueId=venue-uk-n472446463&venueId=venue-uk-n472493110&venueId=venue-uk-n4729848044&venueId=venue-uk-n475257316&venueId=venue-uk-n475868738&venueId=venue-uk-n475933772&venueId=venue-uk-n4773897755&venueId=venue-uk-n4774214523&venueId=venue-uk-n4776719573&venueId=venue-uk-n4778412048&venueId=venue-uk-n477938811&venueId=venue-uk-n4779511343&venueId=venue-uk-n4779511347&venueId=venue-uk-n4784656730&venueId=venue-uk-n4800206587&venueId=venue-uk-n480829681&venueId=venue-uk-n4810177421&venueId=venue-uk-n4813283891&venueId=venue-uk-n4820061722&venueId=venue-uk-n4821946845&venueId=venue-uk-n4829005475&venueId=venue-uk-n4841343672&venueId=venue-uk-n4855571418&venueId=venue-uk-n486718049&venueId=venue-uk-n4870125121&venueId=venue-uk-n4870230621&venueId=venue-uk-n4872154792&venueId=venue-uk-n48928595&venueId=venue-uk-n4894490332",
+          "at": 1790775392142
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n489706578&venueId=venue-uk-n489826802&venueId=venue-uk-n491564007&venueId=venue-uk-n4917918321&venueId=venue-uk-n49300405&venueId=venue-uk-n49311908&venueId=venue-uk-n49314952&venueId=venue-uk-n49319602&venueId=venue-uk-n4935127421&venueId=venue-uk-n4962404908&venueId=venue-uk-n496843507&venueId=venue-uk-n4969009412&venueId=venue-uk-n4969009471&venueId=venue-uk-n4969009472&venueId=venue-uk-n497149330&venueId=venue-uk-n4972504270&venueId=venue-uk-n4975270291&venueId=venue-uk-n499350848&venueId=venue-uk-n501851083&venueId=venue-uk-n503562786&venueId=venue-uk-n503882231&venueId=venue-uk-n5041508418&venueId=venue-uk-n505769332&venueId=venue-uk-n5071317285&venueId=venue-uk-n5072847479&venueId=venue-uk-n5093413925&venueId=venue-uk-n5111090308&venueId=venue-uk-n5121352970&venueId=venue-uk-n5141625722&venueId=venue-uk-n5162894281&venueId=venue-uk-n5180126323&venueId=venue-uk-n5180196621&venueId=venue-uk-n5192841322&venueId=venue-uk-n5196663660&venueId=venue-uk-n5198603424&venueId=venue-uk-n5202423829&venueId=venue-uk-n5205813437&venueId=venue-uk-n5207369221&venueId=venue-uk-n520913454&venueId=venue-uk-n5211863370&venueId=venue-uk-n5213629662&venueId=venue-uk-n5213651231&venueId=venue-uk-n5213657021&venueId=venue-uk-n5214874722&venueId=venue-uk-n5238249940&venueId=venue-uk-n5238258490&venueId=venue-uk-n5246106940&venueId=venue-uk-n5273528326&venueId=venue-uk-n52755412&venueId=venue-uk-n529116489&venueId=venue-uk-n529116490&venueId=venue-uk-n5291904117&venueId=venue-uk-n5314020623&venueId=venue-uk-n5335200242&venueId=venue-uk-n5335967421&venueId=venue-uk-n5341699217&venueId=venue-uk-n5348724022&venueId=venue-uk-n534961998&venueId=venue-uk-n534962782&venueId=venue-uk-n534993842&venueId=venue-uk-n5358972067&venueId=venue-uk-n5373783084&venueId=venue-uk-n5380125357&venueId=venue-uk-n5396322682",
+          "at": 1790775392144
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n539689482&venueId=venue-uk-n5413211373&venueId=venue-uk-n5415379722&venueId=venue-uk-n5417354028&venueId=venue-uk-n541788336&venueId=venue-uk-n5418886554&venueId=venue-uk-n5426645563&venueId=venue-uk-n5430565222&venueId=venue-uk-n546305120&venueId=venue-uk-n5471268685&venueId=venue-uk-n5486438559&venueId=venue-uk-n5493122124&venueId=venue-uk-n5499048127&venueId=venue-uk-n5501126153&venueId=venue-uk-n550437192&venueId=venue-uk-n5513818707&venueId=venue-uk-n5565387243&venueId=venue-uk-n5572572357&venueId=venue-uk-n5579047822&venueId=venue-uk-n5581331121&venueId=venue-uk-n5581349921&venueId=venue-uk-n5589808322&venueId=venue-uk-n5593327043&venueId=venue-uk-n559985361&venueId=venue-uk-n5613874725&venueId=venue-uk-n5627784305&venueId=venue-uk-n5636440981&venueId=venue-uk-n5641663540&venueId=venue-uk-n565470149&venueId=venue-uk-n5659383343&venueId=venue-uk-n566152754&venueId=venue-uk-n566313869&venueId=venue-uk-n566357928&venueId=venue-uk-n5681428211&venueId=venue-uk-n568198493&venueId=venue-uk-n569524162&venueId=venue-uk-n569524165&venueId=venue-uk-n5717663193&venueId=venue-uk-n5722196422&venueId=venue-uk-n5725782622&venueId=venue-uk-n5732244222&venueId=venue-uk-n5732244224&venueId=venue-uk-n573854610&venueId=venue-uk-n5769481142&venueId=venue-uk-n5773764455&venueId=venue-uk-n581058547&venueId=venue-uk-n5814211892&venueId=venue-uk-n5823918891&venueId=venue-uk-n5828118121&venueId=venue-uk-n5843761645&venueId=venue-uk-n5872978615&venueId=venue-uk-n587741450&venueId=venue-uk-n587760188&venueId=venue-uk-n587768035&venueId=venue-uk-n587850226&venueId=venue-uk-n588512651&venueId=venue-uk-n5895010908&venueId=venue-uk-n59169435&venueId=venue-uk-n5919090000&venueId=venue-uk-n591974938&venueId=venue-uk-n592029659&venueId=venue-uk-n592036684&venueId=venue-uk-n592037510&venueId=venue-uk-n5921940111",
+          "at": 1790775392145
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n5921940115&venueId=venue-uk-n5924359950&venueId=venue-uk-n592642006&venueId=venue-uk-n593452626&venueId=venue-uk-n593553106&venueId=venue-uk-n5938625417&venueId=venue-uk-n5944221385&venueId=venue-uk-n5963443750&venueId=venue-uk-n5966510485&venueId=venue-uk-n596791858&venueId=venue-uk-n596791860&venueId=venue-uk-n5973415691&venueId=venue-uk-n5993913372&venueId=venue-uk-n599572738&venueId=venue-uk-n6010143371&venueId=venue-uk-n601521583&venueId=venue-uk-n601523012&venueId=venue-uk-n6019687353&venueId=venue-uk-n6019922913&venueId=venue-uk-n603120730&venueId=venue-uk-n6032331351&venueId=venue-uk-n6044678286&venueId=venue-uk-n6050608743&venueId=venue-uk-n6052873806&venueId=venue-uk-n605393006&venueId=venue-uk-n605393296&venueId=venue-uk-n605393557&venueId=venue-uk-n6066714467&venueId=venue-uk-n6068950377&venueId=venue-uk-n6082105350&venueId=venue-uk-n6082897373&venueId=venue-uk-n6087048896&venueId=venue-uk-n6101019033&venueId=venue-uk-n610464569&venueId=venue-uk-n6107217185&venueId=venue-uk-n6119354792&venueId=venue-uk-n6124611920&venueId=venue-uk-n615621429&venueId=venue-uk-n6169800470&venueId=venue-uk-n6185626255&venueId=venue-uk-n618596228&venueId=venue-uk-n618653525&venueId=venue-uk-n6219914470&venueId=venue-uk-n622515303&venueId=venue-uk-n623428274&venueId=venue-uk-n6284663193&venueId=venue-uk-n630503145&venueId=venue-uk-n631298788&venueId=venue-uk-n631298804&venueId=venue-uk-n6333416686&venueId=venue-uk-n6345003065&venueId=venue-uk-n6351723681&venueId=venue-uk-n6353763693&venueId=venue-uk-n6358222785&venueId=venue-uk-n6364969835&venueId=venue-uk-n6381240591&venueId=venue-uk-n6386688885&venueId=venue-uk-n6386762785&venueId=venue-uk-n638738965&venueId=venue-uk-n639114112&venueId=venue-uk-n639184315&venueId=venue-uk-n6425259206&venueId=venue-uk-n646585258&venueId=venue-uk-n647873586",
+          "at": 1790775392146
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n6488078275&venueId=venue-uk-n649697427&venueId=venue-uk-n6518747139&venueId=venue-uk-n6535620516&venueId=venue-uk-n6541871585&venueId=venue-uk-n6558486186&venueId=venue-uk-n6561669265&venueId=venue-uk-n656954583&venueId=venue-uk-n658951692&venueId=venue-uk-n658958423&venueId=venue-uk-n658958431&venueId=venue-uk-n6594761643&venueId=venue-uk-n661145403&venueId=venue-uk-n661280195&venueId=venue-uk-n662192233&venueId=venue-uk-n663260803&venueId=venue-uk-n6634608910&venueId=venue-uk-n664966081&venueId=venue-uk-n6654658786&venueId=venue-uk-n666475908&venueId=venue-uk-n666918951&venueId=venue-uk-n666918952&venueId=venue-uk-n666920103&venueId=venue-uk-n6677415686&venueId=venue-uk-n670648653&venueId=venue-uk-n6712472096&venueId=venue-uk-n675803384&venueId=venue-uk-n675808547&venueId=venue-uk-n675867856&venueId=venue-uk-n675938370&venueId=venue-uk-n675942580&venueId=venue-uk-n676853367&venueId=venue-uk-n6795775062&venueId=venue-uk-n6796796385&venueId=venue-uk-n6802993456&venueId=venue-uk-n6804185211&venueId=venue-uk-n6846599926&venueId=venue-uk-n6849378456&venueId=venue-uk-n6854773171&venueId=venue-uk-n687158190&venueId=venue-uk-n6875392459&venueId=venue-uk-n6900790806&venueId=venue-uk-n691632516&venueId=venue-uk-n691636621&venueId=venue-uk-n691719964&venueId=venue-uk-n692162535&venueId=venue-uk-n692190788&venueId=venue-uk-n6939589391&venueId=venue-uk-n694474726&venueId=venue-uk-n6946467432&venueId=venue-uk-n6952789985&venueId=venue-uk-n702773347&venueId=venue-uk-n703528109&venueId=venue-uk-n7039548576&venueId=venue-uk-n7039559892&venueId=venue-uk-n7040675187&venueId=venue-uk-n7056928285&venueId=venue-uk-n7061825385&venueId=venue-uk-n7072523485&venueId=venue-uk-n7083390802&venueId=venue-uk-n7083636098&venueId=venue-uk-n7099537759&venueId=venue-uk-n7125946896&venueId=venue-uk-n7125946901",
+          "at": 1790775392148
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n7138194618&venueId=venue-uk-n7138296487&venueId=venue-uk-n7145279137&venueId=venue-uk-n7160855985&venueId=venue-uk-n7175641509&venueId=venue-uk-n7176852708&venueId=venue-uk-n7206285566&venueId=venue-uk-n721555244&venueId=venue-uk-n7218160943&venueId=venue-uk-n7226161458&venueId=venue-uk-n7250542203&venueId=venue-uk-n7259912747&venueId=venue-uk-n7278439484&venueId=venue-uk-n737210971&venueId=venue-uk-n7398105829&venueId=venue-uk-n7398105830&venueId=venue-uk-n7398105831&venueId=venue-uk-n7398105832&venueId=venue-uk-n739967562&venueId=venue-uk-n7519079337&venueId=venue-uk-n752177862&venueId=venue-uk-n7532833476&venueId=venue-uk-n7543984781&venueId=venue-uk-n7549942987&venueId=venue-uk-n7550093574&venueId=venue-uk-n7550117864&venueId=venue-uk-n7590593053&venueId=venue-uk-n7591017506&venueId=venue-uk-n7619804068&venueId=venue-uk-n7717850285&venueId=venue-uk-n771818091&venueId=venue-uk-n7769775510&venueId=venue-uk-n7777211385&venueId=venue-uk-n7787383387&venueId=venue-uk-n7787387487&venueId=venue-uk-n7804014021&venueId=venue-uk-n7857880041&venueId=venue-uk-n7858027226&venueId=venue-uk-n7908687362&venueId=venue-uk-n7929807779&venueId=venue-uk-n7931302526&venueId=venue-uk-n7944207930&venueId=venue-uk-n796482320&venueId=venue-uk-n796931869&venueId=venue-uk-n802966782&venueId=venue-uk-n8040044501&venueId=venue-uk-n8067670279&venueId=venue-uk-n8067755496&venueId=venue-uk-n812151434&venueId=venue-uk-n8123358074&venueId=venue-uk-n8132648120&venueId=venue-uk-n815265120&venueId=venue-uk-n815398933&venueId=venue-uk-n8167917118&venueId=venue-uk-n8202853199&venueId=venue-uk-n821344055&venueId=venue-uk-n8263743019&venueId=venue-uk-n830477754&venueId=venue-uk-n8308248176&venueId=venue-uk-n831456411&venueId=venue-uk-n8324913615&venueId=venue-uk-n833772427&venueId=venue-uk-n8355222754&venueId=venue-uk-n8363665233",
+          "at": 1790775392150
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n8427652886&venueId=venue-uk-n849731685&venueId=venue-uk-n851223228&venueId=venue-uk-n855066534&venueId=venue-uk-n858431027&venueId=venue-uk-n8601783081&venueId=venue-uk-n8620475154&venueId=venue-uk-n862464724&venueId=venue-uk-n863838579&venueId=venue-uk-n8648598325&venueId=venue-uk-n8712438600&venueId=venue-uk-n8719383575&venueId=venue-uk-n8736343364&venueId=venue-uk-n881370103&venueId=venue-uk-n8821717717&venueId=venue-uk-n8830280452&venueId=venue-uk-n8832359649&venueId=venue-uk-n8868988383&venueId=venue-uk-n8907146649&venueId=venue-uk-n8910681399&venueId=venue-uk-n8958159317&venueId=venue-uk-n896149763&venueId=venue-uk-n8987999517&venueId=venue-uk-n899374404&venueId=venue-uk-n9006872322&venueId=venue-uk-n9008497215&venueId=venue-uk-n9008497216&venueId=venue-uk-n9008507519&venueId=venue-uk-n9008509217&venueId=venue-uk-n9008509218&venueId=venue-uk-n9026571820&venueId=venue-uk-n904362356&venueId=venue-uk-n9088367540&venueId=venue-uk-n9155455917&venueId=venue-uk-n9196054531&venueId=venue-uk-n9205363977&venueId=venue-uk-n9233569169&venueId=venue-uk-n9248865690&venueId=venue-uk-n9270736983&venueId=venue-uk-n9306966309&venueId=venue-uk-n9316184134&venueId=venue-uk-n931625776&venueId=venue-uk-n931625778&venueId=venue-uk-n931625780&venueId=venue-uk-n931631872&venueId=venue-uk-n9351013737&venueId=venue-uk-n9368778356&venueId=venue-uk-n9394266492&venueId=venue-uk-n9394928620&venueId=venue-uk-n9445518216&venueId=venue-uk-n9502835617&venueId=venue-uk-n9584098212&venueId=venue-uk-n9594135917&venueId=venue-uk-n9657161178&venueId=venue-uk-n9669097717&venueId=venue-uk-n9739982235&venueId=venue-uk-n9762808911&venueId=venue-uk-n9764009553&venueId=venue-uk-n9789182118&venueId=venue-uk-n9804281120&venueId=venue-uk-n9805127546&venueId=venue-uk-n9805131739&venueId=venue-uk-n9812080617&venueId=venue-uk-n98170592",
+          "at": 1790775392152
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-n9827692318&venueId=venue-uk-n9829140325&venueId=venue-uk-n9833906511&venueId=venue-uk-n9838026526&venueId=venue-uk-n9878756230&venueId=venue-uk-n9908253789&venueId=venue-uk-n993017354&venueId=venue-uk-n9951633784&venueId=venue-uk-n9962758030&venueId=venue-uk-n996533375&venueId=venue-uk-n9999530508&venueId=venue-uk-w100013433&venueId=venue-uk-w100013449&venueId=venue-uk-w1001831569&venueId=venue-uk-w1002485821&venueId=venue-uk-w1002485834&venueId=venue-uk-w100264369&venueId=venue-uk-w100267362&venueId=venue-uk-w100268281&venueId=venue-uk-w100275592&venueId=venue-uk-w100442829&venueId=venue-uk-w100614943&venueId=venue-uk-w100615020&venueId=venue-uk-w1006732886&venueId=venue-uk-w100674156&venueId=venue-uk-w1007077773&venueId=venue-uk-w1007692612&venueId=venue-uk-w100799936&venueId=venue-uk-w100822478&venueId=venue-uk-w100835971&venueId=venue-uk-w1009113808&venueId=venue-uk-w1009113811&venueId=venue-uk-w1010697200&venueId=venue-uk-w1013159521&venueId=venue-uk-w101328284&venueId=venue-uk-w101328343&venueId=venue-uk-w101328387&venueId=venue-uk-w1013543384&venueId=venue-uk-w101530109&venueId=venue-uk-w101530130&venueId=venue-uk-w101694683&venueId=venue-uk-w1018511173&venueId=venue-uk-w1018603663&venueId=venue-uk-w102403099&venueId=venue-uk-w1026053464&venueId=venue-uk-w1026061437&venueId=venue-uk-w102777880&venueId=venue-uk-w1030316322&venueId=venue-uk-w103106894&venueId=venue-uk-w103106895&venueId=venue-uk-w1038752219&venueId=venue-uk-w104112035&venueId=venue-uk-w1047662587&venueId=venue-uk-w1052068584&venueId=venue-uk-w1059879142&venueId=venue-uk-w1061817830&venueId=venue-uk-w107035580&venueId=venue-uk-w107039274&venueId=venue-uk-w107044526&venueId=venue-uk-w107063289&venueId=venue-uk-w107155373&venueId=venue-uk-w107275360&venueId=venue-uk-w107521318&venueId=venue-uk-w107530526",
+          "at": 1790775392153
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w1076851225&venueId=venue-uk-w107710473&venueId=venue-uk-w107755382&venueId=venue-uk-w107796329&venueId=venue-uk-w107803104&venueId=venue-uk-w107827281&venueId=venue-uk-w108251970&venueId=venue-uk-w1089066015&venueId=venue-uk-w1089936277&venueId=venue-uk-w1090201138&venueId=venue-uk-w1090549508&venueId=venue-uk-w109187435&venueId=venue-uk-w1093802500&venueId=venue-uk-w1095220538&venueId=venue-uk-w110467983&venueId=venue-uk-w110479652&venueId=venue-uk-w110512372&venueId=venue-uk-w1106581292&venueId=venue-uk-w1106823471&venueId=venue-uk-w110753811&venueId=venue-uk-w111787083&venueId=venue-uk-w112344676&venueId=venue-uk-w112528246&venueId=venue-uk-w112544263&venueId=venue-uk-w112564610&venueId=venue-uk-w112673208&venueId=venue-uk-w112678856&venueId=venue-uk-w113115182&venueId=venue-uk-w1132258533&venueId=venue-uk-w115190097&venueId=venue-uk-w1155385349&venueId=venue-uk-w115595349&venueId=venue-uk-w115978901&venueId=venue-uk-w1164917391&venueId=venue-uk-w1168160316&venueId=venue-uk-w116957518&venueId=venue-uk-w1169647919&venueId=venue-uk-w117232134&venueId=venue-uk-w1175033346&venueId=venue-uk-w117607358&venueId=venue-uk-w117861610&venueId=venue-uk-w1182778179&venueId=venue-uk-w1183431703&venueId=venue-uk-w1183431711&venueId=venue-uk-w1183431715&venueId=venue-uk-w1183654746&venueId=venue-uk-w118720825&venueId=venue-uk-w1187589494&venueId=venue-uk-w118806519&venueId=venue-uk-w1191618802&venueId=venue-uk-w1194233515&venueId=venue-uk-w119438268&venueId=venue-uk-w119439310&venueId=venue-uk-w119476480&venueId=venue-uk-w119476490&venueId=venue-uk-w119903501&venueId=venue-uk-w1199596936&venueId=venue-uk-w1208115927&venueId=venue-uk-w1208480794&venueId=venue-uk-w120935754&venueId=venue-uk-w121083434&venueId=venue-uk-w121083435&venueId=venue-uk-w1210875022&venueId=venue-uk-w1211008216",
+          "at": 1790775392155
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w121101761&venueId=venue-uk-w121101785&venueId=venue-uk-w1211583959&venueId=venue-uk-w1211647587&venueId=venue-uk-w1211922928&venueId=venue-uk-w121272357&venueId=venue-uk-w121526242&venueId=venue-uk-w121526267&venueId=venue-uk-w121526273&venueId=venue-uk-w121558830&venueId=venue-uk-w121897859&venueId=venue-uk-w122260658&venueId=venue-uk-w123092742&venueId=venue-uk-w1232304253&venueId=venue-uk-w1233009537&venueId=venue-uk-w123318572&venueId=venue-uk-w123372224&venueId=venue-uk-w123702996&venueId=venue-uk-w1238736065&venueId=venue-uk-w1238928087&venueId=venue-uk-w1240005017&venueId=venue-uk-w1240322213&venueId=venue-uk-w1248129184&venueId=venue-uk-w1249142247&venueId=venue-uk-w125751676&venueId=venue-uk-w126145232&venueId=venue-uk-w1275812271&venueId=venue-uk-w1282119568&venueId=venue-uk-w128292693&venueId=venue-uk-w128292738&venueId=venue-uk-w128419853&venueId=venue-uk-w128568070&venueId=venue-uk-w1288548017&venueId=venue-uk-w129805303&venueId=venue-uk-w130524644&venueId=venue-uk-w130873539&venueId=venue-uk-w1308852871&venueId=venue-uk-w131196049&venueId=venue-uk-w1311966735&venueId=venue-uk-w1315886898&venueId=venue-uk-w1316914002&venueId=venue-uk-w131925577&venueId=venue-uk-w132202715&venueId=venue-uk-w132319674&venueId=venue-uk-w132612884&venueId=venue-uk-w1327090619&venueId=venue-uk-w134071472&venueId=venue-uk-w1341558980&venueId=venue-uk-w134708045&venueId=venue-uk-w134708046&venueId=venue-uk-w134777475&venueId=venue-uk-w1355051274&venueId=venue-uk-w136012106&venueId=venue-uk-w1360397272&venueId=venue-uk-w138339524&venueId=venue-uk-w138428151&venueId=venue-uk-w1385726376&venueId=venue-uk-w1396546690&venueId=venue-uk-w139911657&venueId=venue-uk-w140087010&venueId=venue-uk-w140144134&venueId=venue-uk-w140144150&venueId=venue-uk-w140469340&venueId=venue-uk-w140515796",
+          "at": 1790775392156
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w140517896&venueId=venue-uk-w1413004282&venueId=venue-uk-w141393953&venueId=venue-uk-w1421634492&venueId=venue-uk-w142194849&venueId=venue-uk-w142241624&venueId=venue-uk-w142300246&venueId=venue-uk-w142306062&venueId=venue-uk-w142306063&venueId=venue-uk-w142313535&venueId=venue-uk-w142371465&venueId=venue-uk-w142371494&venueId=venue-uk-w142371498&venueId=venue-uk-w142390003&venueId=venue-uk-w142390004&venueId=venue-uk-w1424762272&venueId=venue-uk-w142680573&venueId=venue-uk-w143214350&venueId=venue-uk-w144667841&venueId=venue-uk-w144670484&venueId=venue-uk-w144670488&venueId=venue-uk-w144713460&venueId=venue-uk-w145481097&venueId=venue-uk-w146543172&venueId=venue-uk-w146549714&venueId=venue-uk-w146986819&venueId=venue-uk-w146986827&venueId=venue-uk-w146986838&venueId=venue-uk-w146989373&venueId=venue-uk-w146989396&venueId=venue-uk-w146989400&venueId=venue-uk-w147004014&venueId=venue-uk-w147191437&venueId=venue-uk-w147249458&venueId=venue-uk-w147249462&venueId=venue-uk-w1472842938&venueId=venue-uk-w147314581&venueId=venue-uk-w147338881&venueId=venue-uk-w147495183&venueId=venue-uk-w147495191&venueId=venue-uk-w147734606&venueId=venue-uk-w1477769887&venueId=venue-uk-w147997976&venueId=venue-uk-w148011247&venueId=venue-uk-w148155199&venueId=venue-uk-w148305760&venueId=venue-uk-w148677469&venueId=venue-uk-w148695430&venueId=venue-uk-w148723643&venueId=venue-uk-w148878074&venueId=venue-uk-w148888023&venueId=venue-uk-w148893860&venueId=venue-uk-w149052141&venueId=venue-uk-w149060320&venueId=venue-uk-w149070185&venueId=venue-uk-w149070189&venueId=venue-uk-w149382915&venueId=venue-uk-w149390344&venueId=venue-uk-w150563483&venueId=venue-uk-w150574019&venueId=venue-uk-w150695607&venueId=venue-uk-w151161058&venueId=venue-uk-w151171737&venueId=venue-uk-w151284880",
+          "at": 1790775392158
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w151288979&venueId=venue-uk-w151297126&venueId=venue-uk-w151490690&venueId=venue-uk-w151524248&venueId=venue-uk-w151542785&venueId=venue-uk-w151789101&venueId=venue-uk-w152992911&venueId=venue-uk-w153027823&venueId=venue-uk-w153690421&venueId=venue-uk-w153698493&venueId=venue-uk-w153701571&venueId=venue-uk-w153779530&venueId=venue-uk-w154117129&venueId=venue-uk-w154856396&venueId=venue-uk-w154856436&venueId=venue-uk-w154952350&venueId=venue-uk-w155001536&venueId=venue-uk-w155062259&venueId=venue-uk-w155265199&venueId=venue-uk-w155341971&venueId=venue-uk-w155343103&venueId=venue-uk-w155354349&venueId=venue-uk-w155363856&venueId=venue-uk-w155363890&venueId=venue-uk-w155363891&venueId=venue-uk-w155366810&venueId=venue-uk-w155367405&venueId=venue-uk-w155428083&venueId=venue-uk-w155428084&venueId=venue-uk-w155488603&venueId=venue-uk-w155488605&venueId=venue-uk-w155494899&venueId=venue-uk-w155724663&venueId=venue-uk-w155724665&venueId=venue-uk-w155731385&venueId=venue-uk-w155906194&venueId=venue-uk-w156211836&venueId=venue-uk-w156614989&venueId=venue-uk-w156620042&venueId=venue-uk-w156720845&venueId=venue-uk-w156725307&venueId=venue-uk-w156731564&venueId=venue-uk-w156734415&venueId=venue-uk-w156734417&venueId=venue-uk-w157021561&venueId=venue-uk-w157026553&venueId=venue-uk-w157221865&venueId=venue-uk-w157236295&venueId=venue-uk-w157236301&venueId=venue-uk-w157247469&venueId=venue-uk-w157258551&venueId=venue-uk-w157322970&venueId=venue-uk-w157322996&venueId=venue-uk-w157322999&venueId=venue-uk-w157323000&venueId=venue-uk-w157323017&venueId=venue-uk-w157617680&venueId=venue-uk-w157757561&venueId=venue-uk-w157759518&venueId=venue-uk-w157767121&venueId=venue-uk-w157767122&venueId=venue-uk-w157771389&venueId=venue-uk-w157779526&venueId=venue-uk-w157779556",
+          "at": 1790775392159
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w157779573&venueId=venue-uk-w157779664&venueId=venue-uk-w157779671&venueId=venue-uk-w158919239&venueId=venue-uk-w159039182&venueId=venue-uk-w159052524&venueId=venue-uk-w159061758&venueId=venue-uk-w159244751&venueId=venue-uk-w159296346&venueId=venue-uk-w159407057&venueId=venue-uk-w159731315&venueId=venue-uk-w159741243&venueId=venue-uk-w159751191&venueId=venue-uk-w159922613&venueId=venue-uk-w159922620&venueId=venue-uk-w159924468&venueId=venue-uk-w159925738&venueId=venue-uk-w159925745&venueId=venue-uk-w159925752&venueId=venue-uk-w160096670&venueId=venue-uk-w160138936&venueId=venue-uk-w160163216&venueId=venue-uk-w160279486&venueId=venue-uk-w160527361&venueId=venue-uk-w160669972&venueId=venue-uk-w160683906&venueId=venue-uk-w161255236&venueId=venue-uk-w161289706&venueId=venue-uk-w161420189&venueId=venue-uk-w161420190&venueId=venue-uk-w161490890&venueId=venue-uk-w161490892&venueId=venue-uk-w161525099&venueId=venue-uk-w161720577&venueId=venue-uk-w162477134&venueId=venue-uk-w163272356&venueId=venue-uk-w163286177&venueId=venue-uk-w163644465&venueId=venue-uk-w163644470&venueId=venue-uk-w163644475&venueId=venue-uk-w163827695&venueId=venue-uk-w163995943&venueId=venue-uk-w163997057&venueId=venue-uk-w163997070&venueId=venue-uk-w164010931&venueId=venue-uk-w164243084&venueId=venue-uk-w164244210&venueId=venue-uk-w164245940&venueId=venue-uk-w164475530&venueId=venue-uk-w164475557&venueId=venue-uk-w164475566&venueId=venue-uk-w164475611&venueId=venue-uk-w164483444&venueId=venue-uk-w164527293&venueId=venue-uk-w164534104&venueId=venue-uk-w164534150&venueId=venue-uk-w164570576&venueId=venue-uk-w164845188&venueId=venue-uk-w164845189&venueId=venue-uk-w164845194&venueId=venue-uk-w165015162&venueId=venue-uk-w165018306&venueId=venue-uk-w165488538&venueId=venue-uk-w165589488",
+          "at": 1790775392161
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w166320158&venueId=venue-uk-w166688581&venueId=venue-uk-w166891510&venueId=venue-uk-w167261940&venueId=venue-uk-w168980864&venueId=venue-uk-w169291627&venueId=venue-uk-w170228123&venueId=venue-uk-w170525606&venueId=venue-uk-w171081629&venueId=venue-uk-w171299014&venueId=venue-uk-w172055438&venueId=venue-uk-w172055445&venueId=venue-uk-w172306189&venueId=venue-uk-w173544268&venueId=venue-uk-w173773738&venueId=venue-uk-w174444748&venueId=venue-uk-w175157358&venueId=venue-uk-w175158234&venueId=venue-uk-w179004382&venueId=venue-uk-w179791111&venueId=venue-uk-w182697408&venueId=venue-uk-w182781312&venueId=venue-uk-w182783888&venueId=venue-uk-w182913386&venueId=venue-uk-w183024352&venueId=venue-uk-w183362087&venueId=venue-uk-w183366008&venueId=venue-uk-w185312889&venueId=venue-uk-w186152883&venueId=venue-uk-w187242347&venueId=venue-uk-w187272264&venueId=venue-uk-w187581780&venueId=venue-uk-w188091841&venueId=venue-uk-w188549801&venueId=venue-uk-w188766830&venueId=venue-uk-w189811893&venueId=venue-uk-w190104590&venueId=venue-uk-w190355898&venueId=venue-uk-w190626268&venueId=venue-uk-w190897364&venueId=venue-uk-w190897365&venueId=venue-uk-w191304258&venueId=venue-uk-w191304272&venueId=venue-uk-w191317959&venueId=venue-uk-w192328204&venueId=venue-uk-w192794336&venueId=venue-uk-w192794418&venueId=venue-uk-w193308924&venueId=venue-uk-w193375860&venueId=venue-uk-w193375861&venueId=venue-uk-w195008372&venueId=venue-uk-w195029749&venueId=venue-uk-w195200692&venueId=venue-uk-w195649317&venueId=venue-uk-w195649318&venueId=venue-uk-w195649319&venueId=venue-uk-w196657745&venueId=venue-uk-w196917803&venueId=venue-uk-w197691952&venueId=venue-uk-w197695792&venueId=venue-uk-w198218569&venueId=venue-uk-w198577468&venueId=venue-uk-w198639606&venueId=venue-uk-w199398431",
+          "at": 1790775392162
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w199398466&venueId=venue-uk-w199925624&venueId=venue-uk-w200217289&venueId=venue-uk-w200221363&venueId=venue-uk-w200356056&venueId=venue-uk-w200855783&venueId=venue-uk-w200855784&venueId=venue-uk-w202193348&venueId=venue-uk-w202339356&venueId=venue-uk-w202339357&venueId=venue-uk-w202757769&venueId=venue-uk-w203180588&venueId=venue-uk-w203526627&venueId=venue-uk-w203530059&venueId=venue-uk-w203984283&venueId=venue-uk-w203986373&venueId=venue-uk-w204000375&venueId=venue-uk-w204031258&venueId=venue-uk-w204148499&venueId=venue-uk-w204717697&venueId=venue-uk-w204733070&venueId=venue-uk-w204733077&venueId=venue-uk-w204735066&venueId=venue-uk-w204738603&venueId=venue-uk-w205275925&venueId=venue-uk-w205407098&venueId=venue-uk-w205408905&venueId=venue-uk-w205593042&venueId=venue-uk-w205876522&venueId=venue-uk-w207282617&venueId=venue-uk-w208892606&venueId=venue-uk-w208904536&venueId=venue-uk-w209257299&venueId=venue-uk-w209682393&venueId=venue-uk-w210891582&venueId=venue-uk-w211490632&venueId=venue-uk-w214590379&venueId=venue-uk-w217955523&venueId=venue-uk-w219045183&venueId=venue-uk-w220287079&venueId=venue-uk-w220287081&venueId=venue-uk-w220783467&venueId=venue-uk-w220801895&venueId=venue-uk-w221310845&venueId=venue-uk-w222031886&venueId=venue-uk-w222077186&venueId=venue-uk-w223934463&venueId=venue-uk-w224040348&venueId=venue-uk-w224432174&venueId=venue-uk-w224892755&venueId=venue-uk-w225302691&venueId=venue-uk-w225442612&venueId=venue-uk-w225442626&venueId=venue-uk-w225465143&venueId=venue-uk-w225465195&venueId=venue-uk-w225536856&venueId=venue-uk-w225552211&venueId=venue-uk-w225675061&venueId=venue-uk-w225754347&venueId=venue-uk-w225785469&venueId=venue-uk-w226063421&venueId=venue-uk-w226382772&venueId=venue-uk-w226743215&venueId=venue-uk-w226909129",
+          "at": 1790775392163
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w226909130&venueId=venue-uk-w227827311&venueId=venue-uk-w227830213&venueId=venue-uk-w227929500&venueId=venue-uk-w228113389&venueId=venue-uk-w228900858&venueId=venue-uk-w229533245&venueId=venue-uk-w230252979&venueId=venue-uk-w230259989&venueId=venue-uk-w230373565&venueId=venue-uk-w230385548&venueId=venue-uk-w230419025&venueId=venue-uk-w230788987&venueId=venue-uk-w231202433&venueId=venue-uk-w232592409&venueId=venue-uk-w23376385&venueId=venue-uk-w23376430&venueId=venue-uk-w235395299&venueId=venue-uk-w235396553&venueId=venue-uk-w236653740&venueId=venue-uk-w237044752&venueId=venue-uk-w237487429&venueId=venue-uk-w237795434&venueId=venue-uk-w237999207&venueId=venue-uk-w238385297&venueId=venue-uk-w239482111&venueId=venue-uk-w240442388&venueId=venue-uk-w240823308&venueId=venue-uk-w241713664&venueId=venue-uk-w242294516&venueId=venue-uk-w242607346&venueId=venue-uk-w244772119&venueId=venue-uk-w244772122&venueId=venue-uk-w244772127&venueId=venue-uk-w244772128&venueId=venue-uk-w244772129&venueId=venue-uk-w244884781&venueId=venue-uk-w244884784&venueId=venue-uk-w244884785&venueId=venue-uk-w244895533&venueId=venue-uk-w244895534&venueId=venue-uk-w249211261&venueId=venue-uk-w249211263&venueId=venue-uk-w249211268&venueId=venue-uk-w249340692&venueId=venue-uk-w249343302&venueId=venue-uk-w249343304&venueId=venue-uk-w251032188&venueId=venue-uk-w251068938&venueId=venue-uk-w251492809&venueId=venue-uk-w256331320&venueId=venue-uk-w256915441&venueId=venue-uk-w257148829&venueId=venue-uk-w257197869&venueId=venue-uk-w257334015&venueId=venue-uk-w257338682&venueId=venue-uk-w260681370&venueId=venue-uk-w260843129&venueId=venue-uk-w262258278&venueId=venue-uk-w262265768&venueId=venue-uk-w262477180&venueId=venue-uk-w262600569&venueId=venue-uk-w262898252&venueId=venue-uk-w263674306",
+          "at": 1790775392164
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w264032017&venueId=venue-uk-w264128874&venueId=venue-uk-w264131977&venueId=venue-uk-w264213601&venueId=venue-uk-w265265245&venueId=venue-uk-w267306006&venueId=venue-uk-w267306007&venueId=venue-uk-w270424950&venueId=venue-uk-w270765497&venueId=venue-uk-w271632957&venueId=venue-uk-w271641413&venueId=venue-uk-w271645802&venueId=venue-uk-w272019364&venueId=venue-uk-w272084523&venueId=venue-uk-w272100745&venueId=venue-uk-w272100746&venueId=venue-uk-w272198115&venueId=venue-uk-w272198116&venueId=venue-uk-w272299419&venueId=venue-uk-w272507642&venueId=venue-uk-w272507751&venueId=venue-uk-w273610363&venueId=venue-uk-w273610368&venueId=venue-uk-w273610380&venueId=venue-uk-w273631904&venueId=venue-uk-w273697641&venueId=venue-uk-w273720735&venueId=venue-uk-w273759179&venueId=venue-uk-w273890986&venueId=venue-uk-w274050569&venueId=venue-uk-w274050580&venueId=venue-uk-w274708128&venueId=venue-uk-w275127241&venueId=venue-uk-w275292695&venueId=venue-uk-w276100290&venueId=venue-uk-w276146932&venueId=venue-uk-w277929200&venueId=venue-uk-w277929202&venueId=venue-uk-w277929211&venueId=venue-uk-w277929217&venueId=venue-uk-w277929219&venueId=venue-uk-w278118730&venueId=venue-uk-w279007871&venueId=venue-uk-w279088481&venueId=venue-uk-w279088487&venueId=venue-uk-w279171114&venueId=venue-uk-w279322541&venueId=venue-uk-w279322556&venueId=venue-uk-w279322559&venueId=venue-uk-w279533213&venueId=venue-uk-w279570939&venueId=venue-uk-w279570944&venueId=venue-uk-w280980550&venueId=venue-uk-w280980557&venueId=venue-uk-w280985110&venueId=venue-uk-w281133713&venueId=venue-uk-w281941500&venueId=venue-uk-w281941502&venueId=venue-uk-w281942022&venueId=venue-uk-w282348815&venueId=venue-uk-w284450394&venueId=venue-uk-w284934739&venueId=venue-uk-w288035711&venueId=venue-uk-w288355243",
+          "at": 1790775392166
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w28836414&venueId=venue-uk-w288392846&venueId=venue-uk-w288392857&venueId=venue-uk-w288532780&venueId=venue-uk-w288984963&venueId=venue-uk-w289953461&venueId=venue-uk-w290081133&venueId=venue-uk-w290457617&venueId=venue-uk-w291687162&venueId=venue-uk-w291698477&venueId=venue-uk-w291700402&venueId=venue-uk-w293285859&venueId=venue-uk-w294646443&venueId=venue-uk-w294886275&venueId=venue-uk-w294886276&venueId=venue-uk-w295706350&venueId=venue-uk-w296756574&venueId=venue-uk-w296861478&venueId=venue-uk-w298212218&venueId=venue-uk-w299039548&venueId=venue-uk-w299039550&venueId=venue-uk-w299662731&venueId=venue-uk-w300860985&venueId=venue-uk-w300898455&venueId=venue-uk-w303225529&venueId=venue-uk-w305492454&venueId=venue-uk-w30729269&venueId=venue-uk-w30741911&venueId=venue-uk-w30838121&venueId=venue-uk-w309399252&venueId=venue-uk-w309646651&venueId=venue-uk-w31025059&venueId=venue-uk-w310350976&venueId=venue-uk-w31052744&venueId=venue-uk-w310789678&venueId=venue-uk-w310872642&venueId=venue-uk-w31200563&venueId=venue-uk-w31235539&venueId=venue-uk-w31293000&venueId=venue-uk-w31293177&venueId=venue-uk-w31324086&venueId=venue-uk-w31340567&venueId=venue-uk-w314257067&venueId=venue-uk-w314760744&venueId=venue-uk-w314760755&venueId=venue-uk-w31625611&venueId=venue-uk-w31900825&venueId=venue-uk-w31915414&venueId=venue-uk-w319902239&venueId=venue-uk-w321214835&venueId=venue-uk-w321282532&venueId=venue-uk-w321282534&venueId=venue-uk-w321967936&venueId=venue-uk-w32257667&venueId=venue-uk-w324737722&venueId=venue-uk-w325208608&venueId=venue-uk-w326328749&venueId=venue-uk-w32826147&venueId=venue-uk-w331966112&venueId=venue-uk-w331995902&venueId=venue-uk-w332576811&venueId=venue-uk-w333082445&venueId=venue-uk-w334243397&venueId=venue-uk-w337127150",
+          "at": 1790775392167
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w338696812&venueId=venue-uk-w33893568&venueId=venue-uk-w339202679&venueId=venue-uk-w339465008&venueId=venue-uk-w340180684&venueId=venue-uk-w340292097&venueId=venue-uk-w340292515&venueId=venue-uk-w340395024&venueId=venue-uk-w341418932&venueId=venue-uk-w341419642&venueId=venue-uk-w342206350&venueId=venue-uk-w344367973&venueId=venue-uk-w345140316&venueId=venue-uk-w345696147&venueId=venue-uk-w347393523&venueId=venue-uk-w348798642&venueId=venue-uk-w350999691&venueId=venue-uk-w352696768&venueId=venue-uk-w352893194&venueId=venue-uk-w352905274&venueId=venue-uk-w353735190&venueId=venue-uk-w354074631&venueId=venue-uk-w35428104&venueId=venue-uk-w356687576&venueId=venue-uk-w357280502&venueId=venue-uk-w357280516&venueId=venue-uk-w357280518&venueId=venue-uk-w357564841&venueId=venue-uk-w357565938&venueId=venue-uk-w360905405&venueId=venue-uk-w361094607&venueId=venue-uk-w361312259&venueId=venue-uk-w361341226&venueId=venue-uk-w362240472&venueId=venue-uk-w363039919&venueId=venue-uk-w363961554&venueId=venue-uk-w364339508&venueId=venue-uk-w364743399&venueId=venue-uk-w364768722&venueId=venue-uk-w365916813&venueId=venue-uk-w366223826&venueId=venue-uk-w366291167&venueId=venue-uk-w366327440&venueId=venue-uk-w366327540&venueId=venue-uk-w366327549&venueId=venue-uk-w366382271&venueId=venue-uk-w367518277&venueId=venue-uk-w368797311&venueId=venue-uk-w369188797&venueId=venue-uk-w371174113&venueId=venue-uk-w372116667&venueId=venue-uk-w372701658&venueId=venue-uk-w372808122&venueId=venue-uk-w372953882&venueId=venue-uk-w373262266&venueId=venue-uk-w373272365&venueId=venue-uk-w373272377&venueId=venue-uk-w373347592&venueId=venue-uk-w373406676&venueId=venue-uk-w373706264&venueId=venue-uk-w373706266&venueId=venue-uk-w373710180&venueId=venue-uk-w373710205&venueId=venue-uk-w374036067",
+          "at": 1790775392168
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w374461268&venueId=venue-uk-w374780156&venueId=venue-uk-w376872583&venueId=venue-uk-w377056423&venueId=venue-uk-w378578236&venueId=venue-uk-w378840185&venueId=venue-uk-w378840186&venueId=venue-uk-w379838816&venueId=venue-uk-w380853128&venueId=venue-uk-w381748316&venueId=venue-uk-w383103312&venueId=venue-uk-w38325241&venueId=venue-uk-w387574439&venueId=venue-uk-w38769659&venueId=venue-uk-w389564046&venueId=venue-uk-w391389796&venueId=venue-uk-w391904298&venueId=venue-uk-w392465039&venueId=venue-uk-w395000517&venueId=venue-uk-w395695853&venueId=venue-uk-w395988684&venueId=venue-uk-w397429638&venueId=venue-uk-w397628362&venueId=venue-uk-w397868797&venueId=venue-uk-w401973264&venueId=venue-uk-w404333920&venueId=venue-uk-w405915943&venueId=venue-uk-w406033702&venueId=venue-uk-w408226105&venueId=venue-uk-w40917016&venueId=venue-uk-w409316355&venueId=venue-uk-w409334180&venueId=venue-uk-w411359426&venueId=venue-uk-w411359430&venueId=venue-uk-w412076101&venueId=venue-uk-w413193939&venueId=venue-uk-w413304152&venueId=venue-uk-w413367881&venueId=venue-uk-w416068944&venueId=venue-uk-w416439002&venueId=venue-uk-w416601731&venueId=venue-uk-w418075242&venueId=venue-uk-w418385090&venueId=venue-uk-w42030132&venueId=venue-uk-w420411288&venueId=venue-uk-w420501808&venueId=venue-uk-w420644092&venueId=venue-uk-w421258894&venueId=venue-uk-w421566584&venueId=venue-uk-w421792158&venueId=venue-uk-w421882353&venueId=venue-uk-w421882356&venueId=venue-uk-w422540678&venueId=venue-uk-w422540680&venueId=venue-uk-w422540681&venueId=venue-uk-w422666464&venueId=venue-uk-w422986678&venueId=venue-uk-w424790398&venueId=venue-uk-w425003585&venueId=venue-uk-w42527973&venueId=venue-uk-w425809832&venueId=venue-uk-w425809862&venueId=venue-uk-w426236899&venueId=venue-uk-w427341994",
+          "at": 1790775392169
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w427900370&venueId=venue-uk-w428293736&venueId=venue-uk-w428337483&venueId=venue-uk-w428337511&venueId=venue-uk-w428744489&venueId=venue-uk-w429066804&venueId=venue-uk-w429089060&venueId=venue-uk-w429273275&venueId=venue-uk-w42935883&venueId=venue-uk-w430448024&venueId=venue-uk-w430451203&venueId=venue-uk-w430938730&venueId=venue-uk-w431085582&venueId=venue-uk-w431545353&venueId=venue-uk-w436595961&venueId=venue-uk-w436678592&venueId=venue-uk-w436849635&venueId=venue-uk-w439016355&venueId=venue-uk-w439037559&venueId=venue-uk-w439335533&venueId=venue-uk-w440123089&venueId=venue-uk-w441509845&venueId=venue-uk-w44157617&venueId=venue-uk-w444200909&venueId=venue-uk-w444593912&venueId=venue-uk-w444642776&venueId=venue-uk-w444744679&venueId=venue-uk-w445139621&venueId=venue-uk-w445564923&venueId=venue-uk-w445566137&venueId=venue-uk-w447182149&venueId=venue-uk-w447309968&venueId=venue-uk-w447309973&venueId=venue-uk-w447950556&venueId=venue-uk-w448420160&venueId=venue-uk-w448779543&venueId=venue-uk-w448872664&venueId=venue-uk-w449102845&venueId=venue-uk-w449266220&venueId=venue-uk-w449283140&venueId=venue-uk-w451480071&venueId=venue-uk-w451564160&venueId=venue-uk-w451645113&venueId=venue-uk-w451762775&venueId=venue-uk-w452856397&venueId=venue-uk-w454553582&venueId=venue-uk-w454663250&venueId=venue-uk-w456681384&venueId=venue-uk-w457300035&venueId=venue-uk-w457644936&venueId=venue-uk-w458113481&venueId=venue-uk-w458856257&venueId=venue-uk-w458942013&venueId=venue-uk-w459672112&venueId=venue-uk-w460379480&venueId=venue-uk-w461624372&venueId=venue-uk-w465306936&venueId=venue-uk-w465890007&venueId=venue-uk-w466005405&venueId=venue-uk-w466647109&venueId=venue-uk-w467012110&venueId=venue-uk-w468562255&venueId=venue-uk-w468834929&venueId=venue-uk-w469649790",
+          "at": 1790775392170
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w469650891&venueId=venue-uk-w469650901&venueId=venue-uk-w469688061&venueId=venue-uk-w469910180&venueId=venue-uk-w471980170&venueId=venue-uk-w473654293&venueId=venue-uk-w474237299&venueId=venue-uk-w474249421&venueId=venue-uk-w474345654&venueId=venue-uk-w474422893&venueId=venue-uk-w474840743&venueId=venue-uk-w475181226&venueId=venue-uk-w475410870&venueId=venue-uk-w475491527&venueId=venue-uk-w475721718&venueId=venue-uk-w475957291&venueId=venue-uk-w477598204&venueId=venue-uk-w477598219&venueId=venue-uk-w477964006&venueId=venue-uk-w477968049&venueId=venue-uk-w480686698&venueId=venue-uk-w481010121&venueId=venue-uk-w483759575&venueId=venue-uk-w485638354&venueId=venue-uk-w487479499&venueId=venue-uk-w491695960&venueId=venue-uk-w492091342&venueId=venue-uk-w497785764&venueId=venue-uk-w498824930&venueId=venue-uk-w499396671&venueId=venue-uk-w501361093&venueId=venue-uk-w501641166&venueId=venue-uk-w501842066&venueId=venue-uk-w502509287&venueId=venue-uk-w502991820&venueId=venue-uk-w503225516&venueId=venue-uk-w507095501&venueId=venue-uk-w50826303&venueId=venue-uk-w50885254&venueId=venue-uk-w509649624&venueId=venue-uk-w512346650&venueId=venue-uk-w513305723&venueId=venue-uk-w514560030&venueId=venue-uk-w516163788&venueId=venue-uk-w516754454&venueId=venue-uk-w516912955&venueId=venue-uk-w517111347&venueId=venue-uk-w517877764&venueId=venue-uk-w520149634&venueId=venue-uk-w522314555&venueId=venue-uk-w522699909&venueId=venue-uk-w523388241&venueId=venue-uk-w523388255&venueId=venue-uk-w523400975&venueId=venue-uk-w524526224&venueId=venue-uk-w525700383&venueId=venue-uk-w527245738&venueId=venue-uk-w529246698&venueId=venue-uk-w529246740&venueId=venue-uk-w529667796&venueId=venue-uk-w530088186&venueId=venue-uk-w530088481&venueId=venue-uk-w531216986&venueId=venue-uk-w531373357",
+          "at": 1790775392172
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w531572661&venueId=venue-uk-w531572671&venueId=venue-uk-w532061943&venueId=venue-uk-w533228529&venueId=venue-uk-w533670749&venueId=venue-uk-w533902320&venueId=venue-uk-w536043069&venueId=venue-uk-w536399756&venueId=venue-uk-w536515003&venueId=venue-uk-w538990064&venueId=venue-uk-w539369586&venueId=venue-uk-w541721956&venueId=venue-uk-w542748010&venueId=venue-uk-w544344833&venueId=venue-uk-w544897741&venueId=venue-uk-w545664029&venueId=venue-uk-w546566227&venueId=venue-uk-w546566232&venueId=venue-uk-w54666911&venueId=venue-uk-w547171167&venueId=venue-uk-w547238388&venueId=venue-uk-w547522392&venueId=venue-uk-w547522399&venueId=venue-uk-w551566816&venueId=venue-uk-w553138189&venueId=venue-uk-w553157392&venueId=venue-uk-w553157400&venueId=venue-uk-w556177108&venueId=venue-uk-w558371976&venueId=venue-uk-w558503742&venueId=venue-uk-w558503751&venueId=venue-uk-w559103590&venueId=venue-uk-w559282490&venueId=venue-uk-w560417509&venueId=venue-uk-w565171598&venueId=venue-uk-w565171613&venueId=venue-uk-w565171617&venueId=venue-uk-w568747636&venueId=venue-uk-w568747643&venueId=venue-uk-w568747644&venueId=venue-uk-w569138307&venueId=venue-uk-w569138325&venueId=venue-uk-w571610201&venueId=venue-uk-w572503114&venueId=venue-uk-w572506209&venueId=venue-uk-w572670795&venueId=venue-uk-w579389935&venueId=venue-uk-w579402933&venueId=venue-uk-w582498694&venueId=venue-uk-w582746347&venueId=venue-uk-w582966821&venueId=venue-uk-w587320522&venueId=venue-uk-w587565218&venueId=venue-uk-w587954378&venueId=venue-uk-w587954386&venueId=venue-uk-w587954387&venueId=venue-uk-w587954391&venueId=venue-uk-w587954409&venueId=venue-uk-w589348089&venueId=venue-uk-w589641506&venueId=venue-uk-w589699814&venueId=venue-uk-w592220489&venueId=venue-uk-w593167141&venueId=venue-uk-w593373600",
+          "at": 1790775392173
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w593535886&venueId=venue-uk-w594763297&venueId=venue-uk-w597454245&venueId=venue-uk-w600916017&venueId=venue-uk-w601291041&venueId=venue-uk-w601823724&venueId=venue-uk-w60186067&venueId=venue-uk-w60273942&venueId=venue-uk-w603491262&venueId=venue-uk-w605452758&venueId=venue-uk-w606507213&venueId=venue-uk-w607855076&venueId=venue-uk-w607868278&venueId=venue-uk-w608184600&venueId=venue-uk-w60890308&venueId=venue-uk-w614423170&venueId=venue-uk-w616081584&venueId=venue-uk-w61977971&venueId=venue-uk-w621622012&venueId=venue-uk-w624517498&venueId=venue-uk-w625338336&venueId=venue-uk-w626162189&venueId=venue-uk-w627999454&venueId=venue-uk-w629171088&venueId=venue-uk-w629300448&venueId=venue-uk-w629793088&venueId=venue-uk-w631252074&venueId=venue-uk-w631474504&venueId=venue-uk-w633865298&venueId=venue-uk-w636155743&venueId=venue-uk-w637516538&venueId=venue-uk-w638542125&venueId=venue-uk-w638542138&venueId=venue-uk-w640280048&venueId=venue-uk-w640280851&venueId=venue-uk-w648689210&venueId=venue-uk-w651644530&venueId=venue-uk-w65382138&venueId=venue-uk-w655249175&venueId=venue-uk-w655597244&venueId=venue-uk-w65658313&venueId=venue-uk-w658688685&venueId=venue-uk-w659258969&venueId=venue-uk-w659467810&venueId=venue-uk-w660792782&venueId=venue-uk-w663004043&venueId=venue-uk-w665469557&venueId=venue-uk-w667230136&venueId=venue-uk-w668568684&venueId=venue-uk-w671115966&venueId=venue-uk-w671119848&venueId=venue-uk-w671497302&venueId=venue-uk-w67234436&venueId=venue-uk-w672780137&venueId=venue-uk-w67383553&venueId=venue-uk-w673989153&venueId=venue-uk-w67449821&venueId=venue-uk-w676767336&venueId=venue-uk-w67827145&venueId=venue-uk-w678633914&venueId=venue-uk-w678633921&venueId=venue-uk-w680363356&venueId=venue-uk-w680896798&venueId=venue-uk-w680918475",
+          "at": 1790775392175
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w681581511&venueId=venue-uk-w681825215&venueId=venue-uk-w682382151&venueId=venue-uk-w68424243&venueId=venue-uk-w684584616&venueId=venue-uk-w684595016&venueId=venue-uk-w68510578&venueId=venue-uk-w685395571&venueId=venue-uk-w686252742&venueId=venue-uk-w68807961&venueId=venue-uk-w688991974&venueId=venue-uk-w689405276&venueId=venue-uk-w691555964&venueId=venue-uk-w696129533&venueId=venue-uk-w696153286&venueId=venue-uk-w696153292&venueId=venue-uk-w696155924&venueId=venue-uk-w698319681&venueId=venue-uk-w70298958&venueId=venue-uk-w70320037&venueId=venue-uk-w70609598&venueId=venue-uk-w70913303&venueId=venue-uk-w71081306&venueId=venue-uk-w71336800&venueId=venue-uk-w71408528&venueId=venue-uk-w71408536&venueId=venue-uk-w71408542&venueId=venue-uk-w71500781&venueId=venue-uk-w726988825&venueId=venue-uk-w72773168&venueId=venue-uk-w729179400&venueId=venue-uk-w733941338&venueId=venue-uk-w73416766&venueId=venue-uk-w739178496&venueId=venue-uk-w739710241&venueId=venue-uk-w743269175&venueId=venue-uk-w744634826&venueId=venue-uk-w745483505&venueId=venue-uk-w749323368&venueId=venue-uk-w749898372&venueId=venue-uk-w750447445&venueId=venue-uk-w751026061&venueId=venue-uk-w75117566&venueId=venue-uk-w751430300&venueId=venue-uk-w753467777&venueId=venue-uk-w75392997&venueId=venue-uk-w75422589&venueId=venue-uk-w756195971&venueId=venue-uk-w756311627&venueId=venue-uk-w75640208&venueId=venue-uk-w76046344&venueId=venue-uk-w761312030&venueId=venue-uk-w76174399&venueId=venue-uk-w765454461&venueId=venue-uk-w76844522&venueId=venue-uk-w76866041&venueId=venue-uk-w770081717&venueId=venue-uk-w772671772&venueId=venue-uk-w775813753&venueId=venue-uk-w775919714&venueId=venue-uk-w77739551&venueId=venue-uk-w77739560&venueId=venue-uk-w77739567&venueId=venue-uk-w77755297",
+          "at": 1790775392176
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w77765224&venueId=venue-uk-w77765241&venueId=venue-uk-w77765242&venueId=venue-uk-w777761485&venueId=venue-uk-w778627033&venueId=venue-uk-w779442726&venueId=venue-uk-w781302184&venueId=venue-uk-w78230784&venueId=venue-uk-w78342499&venueId=venue-uk-w784394726&venueId=venue-uk-w790740459&venueId=venue-uk-w790879751&venueId=venue-uk-w791132629&venueId=venue-uk-w79504992&venueId=venue-uk-w79813535&venueId=venue-uk-w800089338&venueId=venue-uk-w800089340&venueId=venue-uk-w80208385&venueId=venue-uk-w803223234&venueId=venue-uk-w803510674&venueId=venue-uk-w803764529&venueId=venue-uk-w806213988&venueId=venue-uk-w807272441&venueId=venue-uk-w807556793&venueId=venue-uk-w809354345&venueId=venue-uk-w809594843&venueId=venue-uk-w809951119&venueId=venue-uk-w810273931&venueId=venue-uk-w810341385&venueId=venue-uk-w810341396&venueId=venue-uk-w813457443&venueId=venue-uk-w813541218&venueId=venue-uk-w814357479&venueId=venue-uk-w81459093&venueId=venue-uk-w814956451&venueId=venue-uk-w815099778&venueId=venue-uk-w815099779&venueId=venue-uk-w815659573&venueId=venue-uk-w815659597&venueId=venue-uk-w816170887&venueId=venue-uk-w818616935&venueId=venue-uk-w82110441&venueId=venue-uk-w82459256&venueId=venue-uk-w824641941&venueId=venue-uk-w824789669&venueId=venue-uk-w824948809&venueId=venue-uk-w82732716&venueId=venue-uk-w82770789&venueId=venue-uk-w82770796&venueId=venue-uk-w82770817&venueId=venue-uk-w82770837&venueId=venue-uk-w82770847&venueId=venue-uk-w82770848&venueId=venue-uk-w82770869&venueId=venue-uk-w82770915&venueId=venue-uk-w829086948&venueId=venue-uk-w832071957&venueId=venue-uk-w835331043&venueId=venue-uk-w835359400&venueId=venue-uk-w835395161&venueId=venue-uk-w835484036&venueId=venue-uk-w835630866&venueId=venue-uk-w835762994&venueId=venue-uk-w835849598",
+          "at": 1790775392177
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w836216414&venueId=venue-uk-w836216417&venueId=venue-uk-w836313607&venueId=venue-uk-w836367566&venueId=venue-uk-w836947870&venueId=venue-uk-w837365134&venueId=venue-uk-w837365135&venueId=venue-uk-w837514107&venueId=venue-uk-w837514114&venueId=venue-uk-w838373839&venueId=venue-uk-w840360163&venueId=venue-uk-w844981115&venueId=venue-uk-w847530472&venueId=venue-uk-w848656875&venueId=venue-uk-w848656899&venueId=venue-uk-w849284661&venueId=venue-uk-w849284678&venueId=venue-uk-w849462086&venueId=venue-uk-w849493954&venueId=venue-uk-w850126738&venueId=venue-uk-w85166223&venueId=venue-uk-w85166329&venueId=venue-uk-w85192380&venueId=venue-uk-w854337125&venueId=venue-uk-w85817497&venueId=venue-uk-w861436031&venueId=venue-uk-w863500628&venueId=venue-uk-w863516669&venueId=venue-uk-w863832100&venueId=venue-uk-w865707213&venueId=venue-uk-w86678068&venueId=venue-uk-w875868241&venueId=venue-uk-w87853299&venueId=venue-uk-w87939544&venueId=venue-uk-w879574206&venueId=venue-uk-w87977984&venueId=venue-uk-w880067176&venueId=venue-uk-w881580509&venueId=venue-uk-w893965349&venueId=venue-uk-w89719962&venueId=venue-uk-w89968893&venueId=venue-uk-w89970679&venueId=venue-uk-w902771276&venueId=venue-uk-w904652259&venueId=venue-uk-w90650944&venueId=venue-uk-w90650951&venueId=venue-uk-w907561728&venueId=venue-uk-w90830735&venueId=venue-uk-w90830736&venueId=venue-uk-w909348524&venueId=venue-uk-w911213761&venueId=venue-uk-w916682836&venueId=venue-uk-w919638432&venueId=venue-uk-w921356497&venueId=venue-uk-w922721396&venueId=venue-uk-w925218087&venueId=venue-uk-w929791965&venueId=venue-uk-w930360465&venueId=venue-uk-w930548529&venueId=venue-uk-w934330566&venueId=venue-uk-w935053788&venueId=venue-uk-w935593053&venueId=venue-uk-w936639321&venueId=venue-uk-w93710844",
+          "at": 1790775392179
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w93710849&venueId=venue-uk-w93710851&venueId=venue-uk-w93710880&venueId=venue-uk-w937498584&venueId=venue-uk-w940451832&venueId=venue-uk-w94069703&venueId=venue-uk-w94069704&venueId=venue-uk-w941142501&venueId=venue-uk-w942555974&venueId=venue-uk-w944382658&venueId=venue-uk-w945438537&venueId=venue-uk-w946022259&venueId=venue-uk-w94758909&venueId=venue-uk-w94758918&venueId=venue-uk-w948721326&venueId=venue-uk-w949737844&venueId=venue-uk-w950017049&venueId=venue-uk-w95125312&venueId=venue-uk-w952012500&venueId=venue-uk-w952014248&venueId=venue-uk-w95243702&venueId=venue-uk-w95243769&venueId=venue-uk-w95307390&venueId=venue-uk-w953306259&venueId=venue-uk-w953834864&venueId=venue-uk-w953962864&venueId=venue-uk-w955830217&venueId=venue-uk-w956665216&venueId=venue-uk-w957099697&venueId=venue-uk-w95806698&venueId=venue-uk-w958434661&venueId=venue-uk-w961153760&venueId=venue-uk-w962636590&venueId=venue-uk-w966387179&venueId=venue-uk-w968208603&venueId=venue-uk-w970789379&venueId=venue-uk-w970789393&venueId=venue-uk-w970859357&venueId=venue-uk-w971536330&venueId=venue-uk-w97175520&venueId=venue-uk-w97202478&venueId=venue-uk-w97209483&venueId=venue-uk-w972149539&venueId=venue-uk-w97237916&venueId=venue-uk-w972617699&venueId=venue-uk-w973079813&venueId=venue-uk-w973123074&venueId=venue-uk-w973132221&venueId=venue-uk-w97553868&venueId=venue-uk-w980176235&venueId=venue-uk-w982457191&venueId=venue-uk-w982884990&venueId=venue-uk-w98515735&venueId=venue-uk-w98526005&venueId=venue-uk-w98535839&venueId=venue-uk-w98535843&venueId=venue-uk-w98535850&venueId=venue-uk-w98535852&venueId=venue-uk-w98612270&venueId=venue-uk-w986906891&venueId=venue-uk-w986920651&venueId=venue-uk-w987440460&venueId=venue-uk-w987866346&venueId=venue-uk-w99057959",
+          "at": 1790775392180
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?scope=provisional-base&venueId=venue-uk-w99067531&venueId=venue-uk-w99275253&venueId=venue-uk-w993439403&venueId=venue-uk-w993781413&venueId=venue-uk-w993781439&venueId=venue-uk-w99379732&venueId=venue-uk-w99379745&venueId=venue-uk-w99379749&venueId=venue-uk-w99379796&venueId=venue-uk-w99431569&venueId=venue-uk-w99475943&venueId=venue-uk-w995869078&venueId=venue-uk-w995954634&venueId=venue-uk-w996071727&venueId=venue-uk-w996134486&venueId=venue-uk-w996506223&venueId=venue-uk-w996743268&venueId=venue-uk-w99790830&venueId=venue-uk-w99813922&venueId=venue-uk-w99869572&venueId=venue-uk-w99869588&venueId=venue-uk-w99928994&venueId=venue-uk-w99929008&venueId=venue-uk-w99952313&venueId=venue-uk-w99952327&venueId=venue-uk-w99952332",
+          "at": 1790775392181
+        }
+      ],
+      "responses": [
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+          "selectedId": "venue-uk-n8308248176",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775386350,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":5.25,\"servingSize\":\"125ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"},{\"source\":\"listed\",\"category\":\"wine\",\"drinkLabel\":\"Rioja, Spain\",\"priceGbp\":10.5,\"servingSize\":\"250ml\",\"sourceUrl\":\"https://www.sydneyarmschelsea.com/menu/\",\"observedAt\":\"2026-09-29T10:40:17.846Z\"}]}",
+          "bodyError": null
+        },
+        {
+          "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-w893965349",
+          "selectedId": "venue-uk-w893965349",
+          "status": 200,
+          "fromServiceWorker": false,
+          "at": 1790775389935,
+          "body": "{\"prices\":[],\"signals\":[],\"listedPrices\":[]}",
+          "bodyError": null
+        }
+      ],
+      "requestFailures": [],
+      "pageErrors": [],
+      "errors": [],
+      "navigationStatus": 200
+    }
+  ],
+  "errors": []
+}

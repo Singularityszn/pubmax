@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-10-01T03:58:02.732846+00:00",
+  "status": "HELD_SOURCE_ONLY_RUNTIME_UNRUN",
+  "purpose": "Original exact6 production chunks split for later adoption after original7 tests+optional harness, avoiding reapplying test hunks. No change to production contents.",
+  "originalPatch": "r47-auth-cache-port.patch",
+  "originalSha256": "f8681cdc1aa40a61332726927474dfe7721be37ea6cb3b9c6d7d03896d3bcc90",
+  "sha256": "b0228c67d58560fbe26184ce0df9f758fde047f278f57ea7ba92946db4fa7dfd",
+  "bytes": 27488,
+  "paths": [
+    "lib/surfaceDataCache.ts",
+    "app/api/night-signals/route.ts",
+    "app/u/[handle]/ProfilePageClient.tsx",
+    "components/auth/AuthProvider.tsx",
+    "lib/authCallbackClient.ts",
+    "lib/authSessionBootstrap.ts"
+  ],
+  "sourceChecks": "Original chunks copied exactly; source scratch check/apply/whitespace and six before/after hashes PASS against040134c5b",
+  "scratch": "/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/pubmaxx-r47-auth-production-six-1dqam1yl",
+  "acceptance": "Do not adopt until genuine baseline public/cohortRED; late3 still exposes known enteredSDKbug and requires actualRED->minimalrepair->GREEN. Not a validated fix."
+}

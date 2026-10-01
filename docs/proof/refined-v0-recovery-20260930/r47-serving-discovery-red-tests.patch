@@ -1,0 +1,46 @@
+diff --git a/__tests__/listedDiscoveryIndex.test.ts b/__tests__/listedDiscoveryIndex.test.ts
+--- a/__tests__/listedDiscoveryIndex.test.ts
++++ b/__tests__/listedDiscoveryIndex.test.ts
+@@ -41,3 +41,42 @@
+     expect(readListedDrinkIndex([{ ...row, source: "listed", servingSize: null, sourceUrl: "javascript:alert(1)" }], "wine")).toEqual([]);
+   });
+ });
++
++
++describe("listed serving alternatives survive discovery reads", () => {
++  it("keeps a venue's stated serving groups even when an unknown-serving quote is newer", async () => {
++    readFile.mockResolvedValue(JSON.stringify([
++      { ...row, drinkLabel: "House wine bottle", priceGbp: 31.5,
++        observedAt: "2026-09-28T12:00:00.000Z" },
++      { ...row, drinkLabel: "Rioja", priceGbp: 6.5, servingSize: "125ml",
++        observedAt: "2026-09-27T12:00:00.000Z" },
++      { ...row, drinkLabel: "Rioja", priceGbp: 11, servingSize: "250ml",
++        observedAt: "2026-09-27T12:00:00.000Z" },
++    ]));
++
++    const index = await ukPriceBundleCategoryIndex("wine", now);
++
++    expect(index.prices).toHaveLength(3);
++    expect(index.prices).toEqual(expect.arrayContaining([
++      expect.objectContaining({ venueId: "listed-only", drinkLabel: "Rioja",
++        priceGbp: 6.5, servingSize: "125ml", source: "listed" }),
++      expect.objectContaining({ venueId: "listed-only", drinkLabel: "Rioja",
++        priceGbp: 11, servingSize: "250ml", source: "listed" }),
++      expect.objectContaining({ venueId: "listed-only", drinkLabel: "House wine bottle",
++        priceGbp: 31.5, servingSize: null, source: "listed" }),
++    ]));
++    expect(index).toMatchObject({ truncated: false, degraded: false });
++  });
++
++  it("keeps the source-stated drink name with a listed offer in the client reader", () => {
++    const listed = readListedDrinkIndex([
++      { ...row, source: "listed", drinkLabel: "Rioja", servingSize: "125ml" },
++    ], "wine");
++
++    expect(listed).toEqual([
++      expect.objectContaining({ venueId: "listed-only", drinkLabel: "Rioja",
++        category: "wine", priceGbp: 7.5, servingSize: "125ml", source: "listed",
++        sourceUrl: row.sourceUrl, observedAt: row.observedAt }),
++    ]);
++  });
++});

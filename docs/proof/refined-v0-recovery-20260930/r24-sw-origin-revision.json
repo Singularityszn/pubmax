@@ -1,0 +1,18 @@
+{
+  "recordedAt": "2026-09-30T11:55:12.509361+00:00",
+  "probe": "Direct origin HTTP after original native SW failure; bypasses browser worker",
+  "responses": [
+    {
+      "path": "/data/venues_slim.manifest.json",
+      "status": 200,
+      "revision": "local",
+      "rows": null
+    },
+    {
+      "path": "/data/venues_slim.core.json",
+      "status": 200,
+      "revision": "local",
+      "rows": 135
+    }
+  ]
+}

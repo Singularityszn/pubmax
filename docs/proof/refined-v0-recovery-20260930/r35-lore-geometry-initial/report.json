@@ -1,0 +1,2721 @@
+{
+  "diagnosticOnly": true,
+  "status": "ORIGINAL_SAMPLE_PASSED",
+  "origin": "http://localhost:3351",
+  "venueId": "venue-xiesdn",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "tabs": [
+    {
+      "label": "Overview",
+      "width": 77.46875,
+      "height": 44
+    },
+    {
+      "label": "Photos",
+      "width": 60.953125,
+      "height": 44
+    },
+    {
+      "label": "Drinks",
+      "width": 57.90625,
+      "height": 44
+    },
+    {
+      "label": "Stories",
+      "width": 61.265625,
+      "height": 44
+    },
+    {
+      "label": "Lore",
+      "width": 46.40625,
+      "height": 44
+    }
+  ],
+  "frames": [
+    {
+      "phase": "original-first-frame",
+      "time": 5520,
+      "panelTransform": "matrix(1, 0, 0, 1, 0, 6)",
+      "panelAnimations": [
+        {
+          "name": "venueTabPanelIn",
+          "playState": "running",
+          "pending": true,
+          "currentTime": 0,
+          "timing": {
+            "delay": 0,
+            "direction": "normal",
+            "duration": 150,
+            "easing": "linear",
+            "endDelay": 0,
+            "fill": "backwards",
+            "iterationStart": 0,
+            "iterations": 1,
+            "activeDuration": 150,
+            "currentIteration": 0,
+            "endTime": 150,
+            "localTime": 0,
+            "progress": 0
+          }
+        }
+      ],
+      "sheetAnimations": [],
+      "sheetMotion": "settling",
+      "sheetRect": {
+        "x": 0,
+        "y": 364.78125,
+        "top": 364.78125,
+        "bottom": 844,
+        "width": 390,
+        "height": 479.21875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 988.3125,
+            "top": 988.3125,
+            "bottom": 1032.3125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 1176.078125,
+            "top": 1176.078125,
+            "bottom": 1220.078125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 1284.03125,
+            "top": 1284.03125,
+            "bottom": 1328.03125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2419.921875,
+            "top": 2419.921875,
+            "bottom": 2463.921875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2473.921875,
+            "top": 2473.921875,
+            "bottom": 2517.921875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2527.921875,
+            "top": 2527.921875,
+            "bottom": 2571.921875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2777.3125,
+            "top": 2777.3125,
+            "bottom": 2821.3125,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2831.3125,
+            "top": 2831.3125,
+            "bottom": 2875.3125,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2885.3125,
+            "top": 2885.3125,
+            "bottom": 2929.3125,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "DIV",
+              "className": "venueTabPanel",
+              "transform": "matrix(1, 0, 0, 1, 0, 6)"
+            },
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "motion-rest-poll",
+      "time": 5885.5,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "settling",
+      "sheetRect": {
+        "x": 0,
+        "y": 70.015625,
+        "top": 70.015625,
+        "bottom": 844,
+        "width": 390,
+        "height": 773.984375
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 687.546875,
+            "top": 687.546875,
+            "bottom": 731.546875,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 875.3125,
+            "top": 875.3125,
+            "bottom": 919.3125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 983.265625,
+            "top": 983.265625,
+            "bottom": 1027.265625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2119.15625,
+            "top": 2119.15625,
+            "bottom": 2163.15625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2173.15625,
+            "top": 2173.15625,
+            "bottom": 2217.15625,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2227.15625,
+            "top": 2227.15625,
+            "bottom": 2271.15625,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2476.546875,
+            "top": 2476.546875,
+            "bottom": 2520.546875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2530.546875,
+            "top": 2530.546875,
+            "bottom": 2574.546875,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2584.546875,
+            "top": 2584.546875,
+            "bottom": 2628.546875,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "motion-rest-poll",
+      "time": 5988.5999999940395,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "settling",
+      "sheetRect": {
+        "x": 0,
+        "y": 68.8125,
+        "top": 68.8125,
+        "bottom": 844,
+        "width": 390,
+        "height": 775.1875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 686.34375,
+            "top": 686.34375,
+            "bottom": 730.34375,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 874.109375,
+            "top": 874.109375,
+            "bottom": 918.109375,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 982.0625,
+            "top": 982.0625,
+            "bottom": 1026.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2117.953125,
+            "top": 2117.953125,
+            "bottom": 2161.953125,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2171.953125,
+            "top": 2171.953125,
+            "bottom": 2215.953125,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2225.953125,
+            "top": 2225.953125,
+            "bottom": 2269.953125,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2475.34375,
+            "top": 2475.34375,
+            "bottom": 2519.34375,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2529.34375,
+            "top": 2529.34375,
+            "bottom": 2573.34375,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2583.34375,
+            "top": 2583.34375,
+            "bottom": 2627.34375,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full sheet-settling",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "motion-rest-poll",
+      "time": 6896.799999982119,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "first-observed-rest",
+      "time": 6914.199999988079,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "exact44-group-poll",
+      "time": 6917.699999988079,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "rest-frame-1",
+      "time": 7382.0999999940395,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "rest-frame-2",
+      "time": 7404.899999976158,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "rest-frame-3",
+      "time": 7476.299999982119,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "rest-frame-4",
+      "time": 7567.5999999940395,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "phase": "rest-frame-5",
+      "time": 7655.399999976158,
+      "panelTransform": "none",
+      "panelAnimations": [],
+      "sheetAnimations": [],
+      "sheetMotion": "idle",
+      "sheetRect": {
+        "x": 0,
+        "y": 67.53125,
+        "top": 67.53125,
+        "bottom": 844,
+        "width": 390,
+        "height": 776.46875
+      },
+      "targets": [
+        {
+          "index": 1,
+          "text": "Source",
+          "href": "https://historicengland.org.uk/listing/the-list/list-entry/1264051",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 192.203125,
+            "y": 685.0625,
+            "top": 685.0625,
+            "bottom": 729.0625,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 2,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 153.5,
+            "y": 872.828125,
+            "top": 872.828125,
+            "bottom": 916.828125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 3,
+          "text": "Source",
+          "href": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho",
+          "className": "heritageFactCite",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 146.828125,
+            "y": 980.78125,
+            "top": 980.78125,
+            "bottom": 1024.78125,
+            "width": 60.15625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 4,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&band=royal-civic",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2116.671875,
+            "top": 2116.671875,
+            "bottom": 2160.671875,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 5,
+          "text": "Westminster & Whitehall",
+          "href": "/crawls#westminster-civic",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2170.671875,
+            "top": 2170.671875,
+            "bottom": 2214.671875,
+            "width": 149.890625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 6,
+          "text": "UK Parliament: Living Heritage",
+          "href": "https://www.parliament.uk/about/living-heritage/",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2224.671875,
+            "top": 2224.671875,
+            "bottom": 2268.671875,
+            "width": 203.21875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 7,
+          "text": "Walk this story",
+          "href": "/map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&band=fleet-street-writers",
+          "className": "placeStoryWalk",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2474.0625,
+            "top": 2474.0625,
+            "bottom": 2518.0625,
+            "width": 117.296875,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 8,
+          "text": "Fleet Street & the Writers",
+          "href": "/crawls#fleet-street-writers",
+          "className": "placeStoryCrawl",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2528.0625,
+            "top": 2528.0625,
+            "bottom": 2572.0625,
+            "width": 152.140625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "index": 9,
+          "text": "British Library: Fleet Street",
+          "href": "https://www.bl.uk/collection-guides/newspapers",
+          "className": "placeStorySource",
+          "offsetHeight": 44,
+          "minHeight": "44px",
+          "rect": {
+            "x": 62,
+            "y": 2582.0625,
+            "top": 2582.0625,
+            "bottom": 2626.0625,
+            "width": 179.90625,
+            "height": 44
+          },
+          "transformedAncestors": [
+            {
+              "tag": "SECTION",
+              "className": "mapDrawer mobileSharedSheet right open sheet-full",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)"
+            }
+          ],
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "animationEvents": [
+    {
+      "type": "animationstart",
+      "name": "venueTabPanelIn",
+      "time": 3394.5,
+      "elapsedTime": 0
+    },
+    {
+      "type": "animationend",
+      "name": "venueTabPanelIn",
+      "time": 3394.5,
+      "elapsedTime": 0.15
+    },
+    {
+      "type": "animationstart",
+      "name": "venueTabPanelIn",
+      "time": 5650.699999988079,
+      "elapsedTime": 0
+    },
+    {
+      "type": "animationend",
+      "name": "venueTabPanelIn",
+      "time": 5879.5999999940395,
+      "elapsedTime": 0.15
+    }
+  ],
+  "checks": {
+    "originalExact44": true,
+    "restExact44": true
+  },
+  "errors": [],
+  "navigationStatus": 200,
+  "finishedObservations": [
+    {
+      "name": "venueTabPanelIn",
+      "start": 5525.5,
+      "end": 5879.399999976158,
+      "outcome": "finished"
+    }
+  ],
+  "completed": true
+}

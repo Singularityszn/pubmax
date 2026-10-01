@@ -1,0 +1,114 @@
+{
+  "at": "2026-09-30T21:52:54.292780+00:00",
+  "status": "ACTUAL_OWNED_RUNTIME_CLEAN",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "latestMain": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+  "sourceFreeze": "r36-source-only-freeze.json",
+  "filesChecked": 4250,
+  "hashDrift": [],
+  "ownedProcessGroup1757Rows": [],
+  "ownedActiveJobs": [],
+  "guardPid": 659,
+  "guardAlive": false,
+  "ports": {
+    "3351": {
+      "exitCode": 1,
+      "listeners": "",
+      "stderr": ""
+    },
+    "3352": {
+      "exitCode": 1,
+      "listeners": "",
+      "stderr": ""
+    },
+    "8787": {
+      "exitCode": 1,
+      "listeners": "",
+      "stderr": ""
+    },
+    "55351": {
+      "exitCode": 1,
+      "listeners": "",
+      "stderr": ""
+    },
+    "55352": {
+      "exitCode": 1,
+      "listeners": "",
+      "stderr": ""
+    }
+  },
+  "completedServer": [
+    {
+      "label": "r36-preview-server",
+      "groupPid": 1757,
+      "exitCode": 143,
+      "endedAt": "2026-09-30T21:52:00.039112+00:00",
+      "active": false
+    }
+  ],
+  "guardActions": {
+    "at": "2026-09-30T21:52:00.017778+00:00",
+    "actions": [
+      {
+        "label": "r36-preview-server",
+        "groupPid": 1757,
+        "action": "TERM"
+      }
+    ],
+    "scope": "Only recorded owned r36-preview process groups"
+  },
+  "sessions": {
+    "server64561": "terminal143 after owned deadline TERM; intentional",
+    "guard42532": "terminal0"
+  },
+  "preservedPreview": "Nine screenshot files plus build and view receipts retained; user IAB production tab untouched. No live local server remains.",
+  "handoff": "Core build/browser/test runtime released. Package owner can apply independent preflight before its slot. No Core test grant inferred.",
+  "preservedScreenshotHashes": [
+    {
+      "file": "r36-preview/create-390.jpg",
+      "sha256": "871ec6aae25a0a6112a16db97af47737b9576fc0804bd52eea6c2a3b7df2c21c",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/map-1440.jpg",
+      "sha256": "240a08f0d7d31662392fd60528cee604c6ced0ebfdf12c019b24a23c25655de7",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/map-390.jpg",
+      "sha256": "89909054e795b994772448c85c3c6075606dac784da42230625bc881e4053b01",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/moment-1440.jpg",
+      "sha256": "02c9475f052cf33ea5ccc242b8b7cf9010a672020027428bfac2ca02e33fe4b9",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/moment-390.jpg",
+      "sha256": "132dfe663057ef5234c39685f04212e4e9d9483433fa633d2bd51b091c8245fe",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/places-1440.jpg",
+      "sha256": "379ce47cf0576047d964461cc7228d8b40e81af17d2891b588d4204326f935a6",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/places-390.jpg",
+      "sha256": "19e5d59664d4166e6157aedaa16e29588c71c3adbb7cc201470c49282afe4f93",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/plan-1440.jpg",
+      "sha256": "d45b46e3daad397f2a507ea0f9bd218854c01dc98449aa4a0876f0dd2460d9b1",
+      "matches": true
+    },
+    {
+      "file": "r36-preview/plan-390.jpg",
+      "sha256": "ba08563210382d02258a834dd83b4695fa8494c30eb767a41b72ed089faaa19e",
+      "matches": true
+    }
+  ],
+  "previewBuildArtifactExists": true
+}

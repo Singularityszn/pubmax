@@ -1,0 +1,10 @@
+{
+  "status": "SOURCE_REVIEWED_FROZEN_ROOT_RUNTIME_PENDING",
+  "patch": "r49-vesper-parser-production.patch",
+  "sha256": "75bf0401804309c7e6b0b3346d839179082ab9daa8a666e5fced8f85895fef37",
+  "beforeAfterPinsVerified": true,
+  "syntheticRegressionRetained": true,
+  "freshScratchApplication": true,
+  "scope": "One named cocktail token in existing title/category vocabulary; zero-alcohol and ingredient precedence unchanged. Existing retained ledger is not repaired by parser change.",
+  "runtime": null
+}

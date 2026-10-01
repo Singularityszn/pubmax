@@ -63,7 +63,7 @@ Historical file references can name planned files or older source locations.
 | Price evidence | [pintDropAgreement.ts](../../lib/pintDropAgreement.ts), [pintDropConfirmation.ts](../../lib/pintDropConfirmation.ts), [pintDropSecondDrinker.ts](../../lib/pintDropSecondDrinker.ts). | Confirmation requires independent verified authority, agreement on the exact price and drink, and the valid measure/window. Self-rechecks and anonymous observations cannot supply independence. |
 | Founding Member numbers | [CONTEXT.md](../../CONTEXT.md) and [foundingMembers.ts](../../lib/foundingMembers.ts). | Numbers are never recycled. Removing test accounts leaves gaps. Reclaiming 9, 11 or 12 is not an option. |
 | Identity and age | [CONTEXT.md](../../CONTEXT.md), [contributionIdentity.server.ts](../../lib/contributionIdentity.server.ts), [socialLaunch.ts](../../lib/socialLaunch.ts). | Preserve each route's existing authority and adult rules. A plan document cannot waive them. |
-| Measurement | #1576 explicitly adopts weekly groups that complete and repeat. The draft defines the 28-day window. [METRICS.md](../analytics/METRICS.md) documents the available proxy. | The group outcome is accepted. Its aggregate implementation and evidence remain missing; the weekly device proxy does not replace it. See 8.9. |
+| Measurement | #1576 explicitly adopts weekly groups that complete and repeat. The draft defines the 28-day window. [METRICS.md](../analytics/METRICS.md) documents the device proxy and private store measure. | The group outcome is accepted. `completion_group_week` has source implementation and disposable PostgreSQL coverage; live migration and production reporting remain unverified. The weekly device proxy does not replace it. See 8.9. |
 | London first | [#1576](https://github.com/Singularityszn/pubmax/issues/1576) excludes new-city implementation. | Existing four-city supply belongs to #1522. Its reference below does not widen this plan. |
 | D10 Pint Index | The captain kept the hold on 10 September 2026. `pintIndexMeetsAdmissionFloor` in [pintIndexArchive.ts](../../lib/pintIndexArchive.ts) is the rule, and [lib/AGENTS.md](../../lib/AGENTS.md) records it. | Main's bounded interpretation admits any single UTC month represented in the validated snapshot. One borough must reach the monthly target through unique pubs. Counts never pool across months; no freshness condition applies. The hold covers the sitemap row and the hub's `robots` index directive alone; the route, its links and the dated editions stay. |
 | D9 city picker | `/places` is the one picker. It carries the canonical and the single sitemap row, and `/choose-city` has no page: it answers a 308 at the edge ([cityPickerRoute.ts](../../lib/cityPickerRoute.ts), [proxy.ts](../../proxy.ts)). Rule and pins in [app/AGENTS.md](../../app/AGENTS.md). | The redirect policy is decided and shipped. Every surface links the picker at one address. |
@@ -92,11 +92,9 @@ Recommendations from the original draft remain proposals.
 | P2 | Define the unspecified `/r/<code>` face proposal, or remove it from scope. | Name the destination, consent and public fields. No acceptance behaviour can be inferred from a title alone. |
 | P3 | Set any Product Hunt or press campaign scope, launch date, approved copy and destination. | This remains outside the tree; a plan is not permission to publish or contact anyone. |
 
-M1 is an implementation and evidence gap, not a request to reselect the north star.
-The 6 September 17:15 comment on #1576 already adopted the group outcome and its store-side roll-up.
-Reconcile the canonical metrics documentation, implement the approved aggregate against real schema, and prove qualifying and excluded cohorts.
-A decision to replace that goal would need explicit approval; replacing it is not required for routine closeout.
-The supplemental median interval still needs a stated calculation rule before it can be reported.
+M1's source implementation and disposable PostgreSQL proof are complete. Live migration and production reporting remain unverified.
+The 6 September 17:15 comment on #1576 adopted the group outcome and its store-side roll-up. This does not reopen that decision.
+The supplemental median interval remains undefined and unimplemented. Do not report it.
 
 D7 is engineering work: remove avoidable whole-city payloads through the existing venue boundary.
 The draft prefers per-venue reads over compressed whole-city reads.
@@ -485,40 +483,37 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 ### 8.9 Measurement: preserve the 28-day outcome and the reporting limits
 
 The 6 September draft records an adopted goal: weekly groups that complete a Planned Night and repeat.
-A qualifying group has at least two accounts. Completion means a saved Plan ending.
-Repeat means the same group, or at least two shared members, completes another Plan within 28 days.
-Keep this outcome in the decision record. Do not rename a weekly device rate as this result.
+A completion qualifies when its completion-time snapshot contains at least two distinct active accounts.
+A repeat is a later completion on another Plan within 28 days, with at least two shared accounts.
+The week labels the later completion. [METRICS.md](../analytics/METRICS.md) section 2.2 owns the full contract and edge cases.
+Do not rename the weekly device proxy as this group outcome.
 
-The draft proposed store-side aggregation over completed Plans and participating seats:
+The implemented private function returns these fields:
 
-| Proposed measure | Original definition | Status |
-|---|---|---|
-| `completed_group_outings_week` | Completed Plans in the ISO week with at least two non-revoked members at completion. | Blocked on implementation and schema validation; the group outcome is adopted. |
-| `repeat_groups_week` | Qualifying completions with at least two shared members in a completion during the prior 28 days. | Blocked on implementation. Validate table/identity bindings and the membership-at-completion rule. |
-| `groups_completed`, `groups_repeated` | Counts from those aggregates. | Unavailable as proven group outcomes in the current event stream. |
-| `repeat_rate` | `groups_repeated / groups_completed` for that completed-night cohort. | Undefined for an empty denominator; never replace it with a device ratio. |
-| `median_days_between_repeats` | Days between qualifying group completions. | Blocked on a documented interval rule and query proof. This does not reopen the adopted core outcome. |
+| Output | Definition |
+|---|---|
+| `week_start` | Start of the UTC ISO week containing `p_day`. |
+| `groups_completed` | Qualifying completion snapshots in that week. |
+| `groups_repeated` | Qualifying later completions with a qualifying earlier completion on another Plan in the prior 28 days. |
+| `repeat_rate` | `groups_repeated / groups_completed`; `NULL` when the denominator is zero. |
 
-The original view sketch named `plan_id`, `host_user_id`, `member_ids[]`, stops and city.
-It also proposed `plans` joined to `plan_crew_members`.
-These are design notes, not proof that the schema or retained history supports the query.
-No migration or aggregate is introduced by this document.
-Any accepted implementation must validate membership, revocation, deletion and access rules against the real store contract.
-Read no messages. Publish aggregate counts only; do not add identity joins to analytics events.
+`median_days_between_repeats` is not an output. It remains undefined and unimplemented because no interval rule has been adopted. It is supplemental, not part of the accepted group outcome.
 
-The current canonical [METRICS.md](../analytics/METRICS.md) reports weekly accepted Plans, crew commitments and completed nights separately.
-Its repeat proxy follows consenting `distinct_id` devices into the next ISO week.
-It cannot join a guest's `crew_committed` event to another device's `plan_completed` for the same night.
-It cannot prove two shared members or 28-day group repetition.
-Even its proposed completion-receipt crew boolean would not close the group-identity repeat gap.
-M1 remains the engineering reconciliation between the reporting proxy and the adopted outcome above.
-The completed-group measure needs its own store proof; adding words to this document cannot provide it.
+Migration [0169](../../supabase/migrations/20260929235900_0169_completion_group_snapshot.sql) records completion-time account snapshots and defines `pubmax_private.completion_group_week(p_day)`. Migration [0170](../../supabase/migrations/20260930090000_0170_social_crew_completion.sql) adds authorized Social Crew completion through the same snapshot path. Migration [0173](../../supabase/migrations/20260930110000_0173_completion_group_active_accounts.sql) handles active-account identity checks during snapshotting and deletion.
+
+The disposable PostgreSQL suites [completionGroupSnapshotEffective.test.ts](../../__tests__/completionGroupSnapshotEffective.test.ts) and [socialCrewCompletionEffective.test.ts](../../__tests__/socialCrewCompletionEffective.test.ts) cover qualifying, excluded and empty cohorts, shared-member repeats, service-only access, concurrency and deletion. The [30 September R18 local gate](../proof/refined-v0-recovery-20260930/r18-source-verify-final.log) records both suites as passing. It precedes the later Inspector-loading change and is not the current candidate's final gate. These tests apply migrations to disposable databases. They do not confirm that migrations 0169, 0170 or 0173 are applied to a shared or production database, or that a live dashboard or report reads the aggregate.
+
+Completions before 0169 have no membership snapshot and remain unmeasured, not zero-member nights. The function exposes aggregate counts to `service_role`; it does not return account keys or Plan IDs. This plan adds no second metric or view.
+
+The event proxy remains separate. It follows consenting `distinct_id` devices into the next ISO week and cannot join a guest's `crew_committed` event to another device's `plan_completed` for the same night. It cannot establish two shared accounts or a 28-day group repeat.
+`crewNight` is now implemented as a server-minted boolean on `plan_completed` for whether one completion's roster reached `CREW_NIGHT_MIN_PARTICIPANTS`; it does not identify groups across Plans. Production event delivery has not been verified. See [METRICS.md](../analytics/METRICS.md) section 2.3.
+
+Guest-only depth remains unmeasured. `guest_plan_participated` was deleted from the event registry. Section 6 of [TRACKING_PLAN.md](../analytics/TRACKING_PLAN.md) and [analyticsEmitterFence.test.ts](../../__tests__/analyticsEmitterFence.test.ts) record the removal.
 
 [TRACKING_PLAN.md](../analytics/TRACKING_PLAN.md) remains authoritative for event names, emitters and the release metric.
 The release metric is first meaningful action within 60 seconds, not Weekly Meaningful Nights.
 The original draft incorrectly treated every invite stage as a same-device funnel.
 Invites cross devices; weekly sends/opens are counts or a labelled aggregate ratio, not a joined conversion proof.
-`guest_plan_participated` is registered without an emitter; registration does not make guest depth measurable.
 Server-minted price confirmations do not create analytics events without a consenting actor.
 
 Filter product queries to `environment = 'production'` and retain release/schema attribution.
@@ -526,10 +521,7 @@ Unattributed history cannot be called production. Product events have no `$sessi
 Use the verified outcome delivery contract for kept actions and retain each metric's denominator.
 The six loop-moment events remain supporting pairs, not additional meaningful core actions.
 
-Acceptance remains blocked on M1 implementation and proof.
-Record the adopted outcome, population, repeat window and reporting limits in the canonical metric document.
-The adopted store aggregate needs a reviewed schema query and known examples for qualifying, non-qualifying and empty cohorts.
-Until then, report the current proxy by its actual name and mark the 28-day group measure unmeasured.
+Production reporting remains blocked on live migration and dashboard/report verification. The source implementation and disposable PostgreSQL examples are present. The prior local gate does not establish live database state or reporting. Until those checks pass, report the device proxy by its actual name and mark the 28-day production result unverified.
 Numeric D1/D7/D30 cohort targets and staged rollout thresholds remain within #1522; this plan supplies no invented targets.
 
 #### Measurement evidence checkpoint for #1522
@@ -613,7 +605,7 @@ Each accepted wave requires relevant proof and a captain-owned deploy. None of t
 **Wave 5: the stores and the city.** iOS and Android submission, the share target, the historic index as walks, drink pages for every brand, the P2 debt. Proves: the same product in the stores; the SEO front door has a photo.
 
 At each accepted wave, report the release metric and release-labelled performance against current budgets.
-Report the canonical weekly device proxy separately. The 28-day group measure remains unmeasured until M1 is implemented and validated.
+Report the canonical weekly device proxy separately. `completion_group_week` has source implementation and disposable PostgreSQL coverage, but its live migration and reporting remain unverified. Do not present the 28-day result as a production measure until those checks pass.
 A count of accounts with another person in their lot also needs a defined store query; do not infer it from device events.
 
 ---

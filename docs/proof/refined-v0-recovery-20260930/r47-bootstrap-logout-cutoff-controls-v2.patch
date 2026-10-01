@@ -1,0 +1,125 @@
+diff --git a/__tests__/authProviderBootstrapRace.test.tsx b/__tests__/authProviderBootstrapRace.test.tsx
+index 7476e5d..b6f472a 100644
+--- a/__tests__/authProviderBootstrapRace.test.tsx
++++ b/__tests__/authProviderBootstrapRace.test.tsx
+@@ -7,6 +7,8 @@ import { afterEach, expect, it, vi } from "vitest";
+ const state = vi.hoisted(() => ({
+   realBootstrap: false,
+   rotateBootstrapTokens: false,
++  holdCookieClear: false,
++  releaseCookieClear: null as null | (() => void),
+   sdkSession: null as Session | null,
+   cookieSession: null as Session | null,
+   releaseInstall: null as null | (() => void),
+@@ -42,7 +44,8 @@ vi.mock("@/lib/authClient", () => ({
+       },
+       getSession: async () => ({ data: { session: state.sdkSession } }),
+       setSession: async (tokens: { access_token: string; refresh_token: string }) => {
+-        const userId = tokens.access_token === "late-a-access" ? "late-a" : "newer-b";
++        const userId = tokens.access_token === "late-a-access" ? "late-a"
++          : tokens.access_token === "newer-c-access" ? "newer-c" : "newer-b";
+         const issuedTokens = state.rotateBootstrapTokens && userId === "late-a"
+           ? { access_token: "late-a-rotated-access", refresh_token: "late-a-rotated-refresh" }
+           : tokens;
+@@ -95,7 +98,12 @@ vi.mock("@/lib/authSessionBootstrap", async (importOriginal) => {
+ vi.mock("@/lib/authSessionResumeClient", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("@/lib/authSessionResumeClient")>();
+   return { ...actual,
+-    clearPersistedSession: async () => { state.cookieSession = null; },
++    clearPersistedSession: async () => {
++      if (state.holdCookieClear) {
++        await new Promise<void>((resolve) => { state.releaseCookieClear = resolve; });
++      }
++      state.cookieSession = null;
++    },
+     persistSessionForResume: async (session: Session) => {
+       state.persistedTokens.push(session.access_token);
+       state.cookieSession = session;
+@@ -141,6 +149,8 @@ afterEach(async () => {
+   state.beforeSetSession = null;
+   state.realBootstrap = false;
+   state.rotateBootstrapTokens = false;
++  state.holdCookieClear = false;
++  state.releaseCookieClear = null;
+   state.sdkSession = null;
+   state.cookieSession = null;
+   state.releaseInstall = null;
+@@ -399,3 +409,78 @@ it("preserves a valid cookie SDK restore whose event and result use rotated toke
+   expect(state.persistedTokens).toContain("late-a-rotated-access");
+   expect(state.sdkSignOutCalls).toBe(0);
+ });
++
++
++it("does not revive a pre-logout login while cookie clearing is held and bootstrap finishes", async () => {
++  const container = await mountEnteredBootstrap();
++  const newerB = { access_token: "newer-b-access", refresh_token: "newer-b-refresh",
++    user: { id: "newer-b", email: "b@example.test" } } as Session;
++  await act(async () => {
++    state.sdkSession = newerB;
++    state.authEvent?.("SIGNED_IN", newerB);
++  });
++  expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("newer-b");
++  state.holdCookieClear = true;
++  try {
++    await act(async () => { container.querySelector("button")?.click(); });
++    await vi.waitFor(() => expect(state.releaseCookieClear).toBeTypeOf("function"));
++    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("signed-out");
++    const visibleAfterLogout = state.visibleAccounts.length;
++    const persistedAfterLogout = state.persistedTokens.length;
++
++    // The explicit logout has cleared public identity but has not reached the
++    // SDK SIGNED_OUT event. B is an earlier login, not a post-logout successor.
++    await act(async () => {
++      state.releaseInstall?.();
++      await state.bootstrapPromise;
++    });
++    state.releaseCookieClear?.();
++    await act(async () => { await state.signOutPromise; });
++
++    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("signed-out");
++    expect(state.visibleAccounts.slice(visibleAfterLogout)).not.toContain("late-a");
++    expect(state.visibleAccounts.slice(visibleAfterLogout)).not.toContain("newer-b");
++    expect(state.sdkSession).toBeNull();
++    expect(state.cookieSession).toBeNull();
++    expect(state.persistedTokens.slice(persistedAfterLogout)).toEqual([]);
++  } finally {
++    state.releaseInstall?.();
++    state.releaseCookieClear?.();
++    await act(async () => { await state.bootstrapPromise; await state.signOutPromise; });
++  }
++});
++
++it("preserves a genuinely post-logout login while cookie clearing and bootstrap are held", async () => {
++  const container = await mountEnteredBootstrap();
++  const newerB = { access_token: "newer-b-access", refresh_token: "newer-b-refresh",
++    user: { id: "newer-b", email: "b@example.test" } } as Session;
++  await act(async () => {
++    state.sdkSession = newerB;
++    state.authEvent?.("SIGNED_IN", newerB);
++  });
++  state.holdCookieClear = true;
++  try {
++    await act(async () => { container.querySelector("button")?.click(); });
++    await vi.waitFor(() => expect(state.releaseCookieClear).toBeTypeOf("function"));
++    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("signed-out");
++    const newerC = { access_token: "newer-c-access", refresh_token: "newer-c-refresh",
++      user: { id: "newer-c", email: "c@example.test" } } as Session;
++    await act(async () => {
++      state.sdkSession = newerC;
++      state.authEvent?.("SIGNED_IN", newerC);
++      state.releaseInstall?.();
++      await state.bootstrapPromise;
++    });
++    state.releaseCookieClear?.();
++    await act(async () => { await state.signOutPromise; });
++
++    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("newer-c");
++    expect(state.sdkSession?.user.id).toBe("newer-c");
++    expect(state.cookieSession?.user.id).toBe("newer-c");
++    expect(state.persistedTokens).toContain("newer-c-access");
++  } finally {
++    state.releaseInstall?.();
++    state.releaseCookieClear?.();
++    await act(async () => { await state.bootstrapPromise; await state.signOutPromise; });
++  }
++});

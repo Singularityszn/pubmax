@@ -1,0 +1,19 @@
+{
+  "recordedAt": "2026-09-30T20:51:53.163Z",
+  "path": "lib/ukPriceBundle.ts",
+  "level": "Static TypeScript token comparison only; no app, test, build, server, database or browser execution",
+  "before": {
+    "lines": 345,
+    "bytes": 18673
+  },
+  "after": {
+    "lines": 291,
+    "bytes": 15466
+  },
+  "executableTokensEqual": true,
+  "tokenSHA256": "b83e7b5d7b9a1d4633b48c0d806357d952b4c6a49e8ecde2d039b3d40768770b",
+  "limits": [
+    "No measured runtime speed or bundle-size improvement claimed.",
+    "Fresh complete source gate remains pending for latest candidate."
+  ]
+}

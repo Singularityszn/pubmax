@@ -1,0 +1,17 @@
+{
+  "recordedAt": "2026-09-30T13:39:23.350790+00:00",
+  "primaryBuildId": "build-TfctsWXpff2fKS",
+  "keylessBuildId": "build-TfctsWXpff2fKS",
+  "sourceCount": 2464,
+  "sourceChanges": [],
+  "projects": [
+    "chromium",
+    "chromium-keyless",
+    "chromium-gl",
+    "chromium-sw-gl",
+    "chromium-no-gl"
+  ],
+  "workers": 2,
+  "retries": 0,
+  "status": "RUNNING; no result yet"
+}

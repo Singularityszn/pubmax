@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-01T09:56:15.288172+00:00",
+  "uiPacket": "/Users/karanmanoharan/.codex/worktrees/overnight-map-quote-transfer/pubmaxx/.audit/map-quote-transfer-production.patch",
+  "patchSha256": "868e11665a72218f3df538a8a5ad09e25b91518474e37ee54003a6cb75d3e4b7",
+  "before": "1f9283bd83f4f9bbf5d35aba0f66f6be12af3c56ec72d362f54b94205fd9e4bd",
+  "after": "599ff160e1bb597250995bf15843c6b3a16adc7438ec33cd90a5387a584aeb2f",
+  "rootCurrentAtReview": "1f9283bd83f4f9bbf5d35aba0f66f6be12af3c56ec72d362f54b94205fd9e4bd",
+  "parentSourceReview": "PASS. Same explicit closed mapping and existing canonical evidence cleaner for primary/backups as earlier075d. Differences are local variable name, return type annotation and formatting; no new authority or raw spread.",
+  "freshScratchApplyAndAfterPins": "PASS",
+  "singleCandidate": "Root UI owner to import this599f candidate OR original0f024, never stack. Earlier075d retained frozen standby, no duplicate implementation remains active.",
+  "runtime": "Root focused Map/WebMCP/quote/cap/GPS/context GREEN and freshbrowser remain pending."
+}

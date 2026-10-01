@@ -1,0 +1,30 @@
+{
+  "capturedAtUtc": "2026-10-01T06:38:32Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-plan-manual-and-fifth-serving/base/__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+  "scratchCandidate": "/tmp/pubmaxx-r47-plan-manual-and-fifth-serving/candidate/__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-manual-fifth-serving-red.patch",
+  "patchSha256": "4ab8a49691a20519106067d7f2e2228c64172635f270fc208a76bc105ae126a4",
+  "status": "UNRUN_TEST_FIRST",
+  "files": [
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+      "baseSha256": "c334b0cc3deca81911007b2d9f1f6fe93cee6a148ae5cc056089642147c5e5d1",
+      "candidateSha256": "138508f4ba26410c878a5e6a64957594ab42cfc3e88b547eecbddc0d3884f9b9"
+    }
+  ],
+  "runtimeExecuted": false,
+  "productionFilesChanged": [],
+  "coverage": [
+    "Actual composerCreatePayload retains exact listed quote when context is null while community hint remains omitted.",
+    "Matching explicit category remains accepted; mismatched category and zeroProof remain excluded.",
+    "Direct manual context-free POST verifies exact current listed quote from server rows and persists/reloads it, independently of composer payload construction.",
+    "Full wine-context create verifies the fifth of five source-stated servings and exact quote despite default four/category projection cap."
+  ],
+  "limitations": [
+    "No tests/runtime were run by this agent.",
+    "Route and composer tests intentionally await actual RED and Sol production fix.",
+    "Existing forged, expired, override, zeroProof and privacy controls remain unchanged."
+  ],
+  "parentSourceReview": "PASS exactRootbase/hash/Rootapplycheck/freshscratchafter; literalcategorytyped, actualcomposerexport anddirectindependentPOST; runtimeUNRUN"
+}

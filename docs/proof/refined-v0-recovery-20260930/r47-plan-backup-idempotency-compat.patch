@@ -1,0 +1,42 @@
+--- a/__tests__/planSavedBackupDelivery.test.ts
++++ b/__tests__/planSavedBackupDelivery.test.ts
+@@ -226,4 +226,39 @@
+       { venueId: "venue-e", venueName: "Canonical e" },
+     ]);
+   });
++
++  it("replays an existing create key after backup support keeps the deployed hash shape", async () => {
++    const idempotencyKey = "saved-backup-historical-create";
++    const startTime = "2026-09-30T19:00:00Z";
++    const oldIdempotencyStops = [
++      { venueId: "venue-d", venueName: "Canonical d", selectedDrinkPriceEvidence: quote },
++      { venueId: "venue-b", venueName: "Canonical b" },
++      { venueId: "venue-c", venueName: "Canonical c" },
++    ];
++    const seeded = await memoryPlanStore.create({
++      creatorName: "Host",
++      startTime,
++      stops: oldIdempotencyStops,
++    }, { idempotencyKey, idempotencyStops: oldIdempotencyStops });
++    expect(seeded.ok).toBe(true);
++    if (!seeded.ok) throw new Error(`Could not seed historical Plan: ${seeded.error}`);
++
++    const response = await createPlan(new Request("http://localhost/api/plans", {
++      method: "POST",
++      headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
++      body: JSON.stringify({
++        creatorName: "Host",
++        startTime,
++        stops: [
++          { venueId: "venue-d", selectedDrinkPriceEvidence: quote },
++          { venueId: "venue-b" },
++          { venueId: "venue-c" },
++        ],
++      }),
++    }));
++    const replay = await response.json();
++    expect(response.status, JSON.stringify(replay)).toBe(201);
++    expect(replay).toMatchObject({ created: false, plan: { plan: { id: seeded.plan.plan.id, routeRevision: 1 } } });
++    expect(replay.plan.stops).toEqual(seeded.plan.stops);
++  });
+ });

@@ -1,0 +1,45 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_DIAGNOSTIC_NATIVE_RED_UNRUN",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-curated-route-intent-test-only.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-curated-route-intent-test-only.json",
+  "sha256": "d53218154df784d1b1c77a001c484a5a90019c93c6cf3ce256e88dcc542b94bd",
+  "reviewedAtUTC": "2026-10-01T12:45:58.502022+00:00",
+  "freshScratchAfterPinAndRootApplyCheck": true,
+  "sourcePinChecks": [
+    {
+      "path": "lib/curatedCrawls.ts",
+      "matches": true
+    },
+    {
+      "path": "lib/mapSeedCrawlPolicy.ts",
+      "matches": true
+    },
+    {
+      "path": "lib/mapSeedCrawl.ts",
+      "matches": true
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "matches": false
+    },
+    {
+      "path": "components/map/pubmap/useMapPlanCoordinator.ts",
+      "matches": true
+    },
+    {
+      "path": "e2e/map-generated-route-continuity.spec.ts",
+      "matches": true
+    },
+    {
+      "path": "playwright.config.ts",
+      "matches": true
+    }
+  ],
+  "checks": [
+    "Real committed ordered Soho IDs, actual app catalog/price endpoints untouched, map tiles only doubled, fresh signed-out desktop.",
+    "Scoped active-crawl blurb distinguishes actual pre-fix catalog adoption from script presence. IDs and storage/assertions precede category and unknownmoney guards.",
+    "Native Clear verifies user replacement can retire authority; no fake quote/private source fixture."
+  ],
+  "importantLimit": "V1 is diagnostic pre-fix reproduction. Mandatory scoped catalog blurb may overconstrain a valid future fix that bypasses lookup for explicit public route intent, analogous to independent Map drink arrival. Original diagnostic packet retained; producer owns source V2 or permanent post-fix assertion contract after actual RED. No weakening existing Root original continuity cases.",
+  "runtime": null
+}

@@ -1,0 +1,53 @@
+{
+  "origin": "http://localhost:3351",
+  "route": "/",
+  "mode": "reference",
+  "diagnosticOnly": true,
+  "processPid": 72357,
+  "attributionOverhead": "Original installed observers only",
+  "samples": [
+    {
+      "run": 0,
+      "interacted": true,
+      "lcpMs": 3896,
+      "cls": 0.0041862046771071445,
+      "inpMs": 264,
+      "details": null
+    },
+    {
+      "run": 1,
+      "interacted": true,
+      "lcpMs": 1428,
+      "cls": 0.004123474988610964,
+      "inpMs": 88,
+      "details": null
+    },
+    {
+      "run": 2,
+      "interacted": true,
+      "lcpMs": 1432,
+      "cls": 0.004123474988610964,
+      "inpMs": 88,
+      "details": null
+    },
+    {
+      "run": 3,
+      "interacted": true,
+      "lcpMs": 1436,
+      "cls": 0.004123474988610964,
+      "inpMs": 88,
+      "details": null
+    },
+    {
+      "run": 4,
+      "interacted": true,
+      "lcpMs": 1432,
+      "cls": 0.004123474988610964,
+      "inpMs": 96,
+      "details": null
+    }
+  ],
+  "errors": [],
+  "requests": [],
+  "completed": true
+}

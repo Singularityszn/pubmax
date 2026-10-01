@@ -1,0 +1,140 @@
+diff --git a/__tests__/planningIntent.test.ts b/__tests__/planningIntent.test.ts
+index 11073e0f7..1348b15b0 100644
+--- a/__tests__/planningIntent.test.ts
++++ b/__tests__/planningIntent.test.ts
+@@ -379,3 +379,23 @@ describe("PlanningIntent change announcement", () => {
+     expect(() => clearPlanningIntent({ storage })).not.toThrow();
+   });
+ });
++
++describe("selected published offer PlanningIntent handoff", () => {
++  it("round-trips exact selected evidence under the existing bounded envelope", () => {
++    const selected = {
++      category: "gin" as const, pence: 420, serving: "25ml", source: "listed" as const,
++      sourceUrl: "https://example.com/published-menu", observedAt: new Date(NOW - 60_000).toISOString(),
++    };
++    const input = { ...INPUT, selectedDrinkPriceEvidence: selected };
++    const created = createPlanningIntent(input, NOW);
++    expect(created).not.toBeNull();
++    expect(created).toHaveProperty("selectedDrinkPriceEvidence", selected);
++    const storage = memoryStorage();
++    expect(writePlanningIntent(input, { storage, now: NOW })).not.toBeNull();
++    expect(readPlanningIntent({ storage, now: NOW + 1_000 })).toHaveProperty("selectedDrinkPriceEvidence", selected);
++    expect(parsePlanningIntent(validRaw({ selectedDrinkPriceEvidence: { ...selected, sourceUrl: "javascript:alert(1)" } }), NOW)).toBeNull();
++    expect(parsePlanningIntent(validRaw({ selectedDrinkPriceEvidence: { ...selected, category: "beer" } }), NOW)).toBeNull();
++    expect(parsePlanningIntent(validRaw({ selectedDrinkPriceEvidence: { ...selected, privateToken: "unexpected" } }), NOW)).toBeNull();
++    expect(parsePlanningIntent(validRaw(), NOW)).not.toHaveProperty("selectedDrinkPriceEvidence");
++  });
++});
+diff --git a/__tests__/mapAcceptance.test.ts b/__tests__/mapAcceptance.test.ts
+index 6c0fdc0c9..81bb294cf 100644
+--- a/__tests__/mapAcceptance.test.ts
++++ b/__tests__/mapAcceptance.test.ts
+@@ -626,3 +626,21 @@ describe("canonicalizeAcceptedArrivalSelection", () => {
+     });
+   });
+ });
++
++describe("Map acceptance selected published offer", () => {
++  it("persists exact selection without inventing dated arrival provenance", () => {
++    const selected = {
++      category: "gin" as const, pence: 420, serving: "25ml", source: "listed" as const,
++      sourceUrl: "https://example.com/published-menu", observedAt: new Date(NOW - 60_000).toISOString(),
++    };
++    const storage = memoryStorage();
++    const input = { cityId: "london" as const, acceptedVenueId: ACCEPTED_VENUE,
++      search: "?drink=gin&serving=25ml", selectedDrinkPriceEvidence: selected };
++    expect(acceptMapVenue(input, { storage, now: NOW }).accepted).toBe(true);
++    expect(storedIntent(storage)).toMatchObject({
++      acceptedVenueId: ACCEPTED_VENUE, acceptedArea: null, startsAt: null,
++      displayEvidence: { kind: "directory", observedAt: null },
++      selectedDrinkPriceEvidence: selected,
++    });
++  });
++});
+diff --git a/__tests__/planComposerHandoff.test.ts b/__tests__/planComposerHandoff.test.ts
+index 49d7343a0..d5a515a96 100644
+--- a/__tests__/planComposerHandoff.test.ts
++++ b/__tests__/planComposerHandoff.test.ts
+@@ -564,3 +564,28 @@ describe("composer template + lifecycle helpers", () => {
+     expect(londonServiceDateLabel("not-a-date")).toBeNull();
+   });
+ });
++
++describe("accepted published offer composer hydration", () => {
++  it("retains the exact untrusted hint through hydration, draft reload and provisional Stop 1", () => {
++    const selected = {
++      category: "gin" as const, pence: 420, serving: "25ml", source: "listed" as const,
++      sourceUrl: "https://example.com/published-menu", observedAt: new Date(NOW - 60_000).toISOString(),
++    };
++    const base = intent();
++    expect(base).not.toBeNull();
++    const accepted = { ...base!, selectedDrinkPriceEvidence: selected };
++    const hydration = resolveComposerHydration({ planDraft: null, routeDraft: null,
++      intakeDraft: null, planningIntent: accepted, rememberedArea: null });
++    expect(hydration.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);
++    const input = { acceptedVenueId: hydration.heldVenueId, selectedDrinkPriceEvidence: selected };
++    expect(seedProvisionalStop1(input)).toHaveProperty("selectedDrinkPriceEvidence", selected);
++    const storage = memoryStorage();
++    const draft = storedPlan({ acceptedAnchor: hydration.acceptedAnchor! as NonNullable<StoredPlanDraft["acceptedAnchor"]> });
++    writePlanDraftEnvelope(draft, "planning-intent", storage, NOW);
++    const restored = readPlanDraftEnvelope(storage, NOW + 1_000);
++    expect(restored?.draft.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);
++    const rehydrated = resolveComposerHydration({ planDraft: restored, routeDraft: null,
++      intakeDraft: null, planningIntent: null, rememberedArea: null });
++    expect(rehydrated.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);
++  });
++});
+diff --git a/__tests__/planIntake.test.ts b/__tests__/planIntake.test.ts
+index 88c59bf4d..25498bfab 100644
+--- a/__tests__/planIntake.test.ts
++++ b/__tests__/planIntake.test.ts
+@@ -428,3 +428,20 @@ describe("intake accessibility and entry invariants", () => {
+     expect(html).toContain('href="/pal/chat"');
+   });
+ });
++
++describe("accepted offer generation intake category", () => {
++  it("carries the selected category without weakening explicit zero-proof or category changes", () => {
++    const selected = { category: "gin" as const, pence: 420, serving: "25ml",
++      source: "listed" as const, sourceUrl: "https://example.com/published-menu",
++      observedAt: "2026-07-24T11:59:00.000Z" };
++    const anchor = { venueId: "venue-intent", source: "map-search" as const,
++      cityId: "london" as const, acceptedArea: null, startsAt: null,
++      selectedDrinkPriceEvidence: selected };
++    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, {}, anchor).context)
++      .toMatchObject({ drinkCategory: "gin" });
++    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, { drinkCategory: "wine" }, anchor).context)
++      .toMatchObject({ drinkCategory: "wine" });
++    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, { zeroProof: true }, anchor).context)
++      .not.toHaveProperty("drinkCategory", "gin");
++  });
++});
+diff --git a/__tests__/mapCrawlUrlSync.test.tsx b/__tests__/mapCrawlUrlSync.test.tsx
+index 31fb06d90..e5b2cb524 100644
+--- a/__tests__/mapCrawlUrlSync.test.tsx
++++ b/__tests__/mapCrawlUrlSync.test.tsx
+@@ -534,3 +534,23 @@ describe("crawl URL after Map history traversal", () => {
+     expect(window.location.pathname + window.location.search).toBe("/map");
+   });
+ });
++
++describe("selected serving crawl URL continuity", () => {
++  it("keeps an explicit serving for the same category and retires it when category changes or clears", async () => {
++    window.history.replaceState({}, "", "/map?drink=gin&serving=25ml&contribute=price");
++    await act(async () => root.render(createElement(Harness, { query: "Brownswood", pending: false, drinkCategory: "gin" })));
++    act(() => vi.advanceTimersByTime(300));
++    expect(new URLSearchParams(window.location.search).get("serving")).toBe("25ml");
++    expect(new URLSearchParams(window.location.search).get("contribute")).toBe("price");
++    await act(async () => root.render(createElement(Harness, { query: "Brownswood", pending: false, drinkCategory: "wine" })));
++    act(() => vi.advanceTimersByTime(300));
++    expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
++    window.history.replaceState(window.history.state, "", "/map?drink=wine&serving=125ml");
++    await act(async () => root.render(createElement(Harness, { query: "Sydney", pending: false, drinkCategory: "wine" })));
++    act(() => vi.advanceTimersByTime(300));
++    expect(new URLSearchParams(window.location.search).get("serving")).toBe("125ml");
++    await act(async () => root.render(createElement(Harness, { query: "Sydney", pending: false, drinkCategory: "" })));
++    act(() => vi.advanceTimersByTime(300));
++    expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
++  });
++});

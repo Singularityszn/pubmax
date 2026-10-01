@@ -1,0 +1,33 @@
+{
+  "status": "SOURCE_FROZEN_TEST_ONLY_RUNTIME_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "b4790e8915a809d0747362352396b2fa341782df",
+  "scratch": "/tmp/pubmaxx-r47-unknown-serving-wine-fixture",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-unknown-serving-wine-fixture.patch",
+  "patchSha256": "883d9fa9de55fef661f6caa1033d6aabc7e1fad92999fe0027d0edcaa167d7f5",
+  "files": [
+    {
+      "path": "__tests__/planGenerateRoute.test.ts",
+      "beforeSha256": "b6f119651ef56c79988ac8651e24ee70fbdb2f5c2ca100b8c513175401e4ea91",
+      "afterSha256": "dd754a2293be0408b76e643bdcc5358e1c31ef407fb74e0e94900e081988a49c"
+    }
+  ],
+  "scope": "Only outdated unknown-serving community-wine case replaced; all other test bytes unchanged",
+  "semantics": [
+    "Current reports 9/7 change to 2/20 within community input bounds; both exact candidate order and score remain unchanged",
+    "Two corroborated quote projections retain category/source/submitted time with no serving inference",
+    "One-corroboration report remains excluded despite known beer prices; no unknown-serving value or pint reasons",
+    "Actual POST retains original attribution 900/700 pennies with null serving/pint authority and null per-person/crew budget",
+    "Fresh clock and empty listed-reader fixture are locally scoped and restored in finally",
+    "No production or data edits; does not change expected order to current hardcoded venue sequence"
+  ],
+  "sourceChecks": {
+    "currentBeforePin": true,
+    "scratchApplyCheck": true,
+    "whitespaceError": true,
+    "freshAfterBytes": true,
+    "unchangedOtherCases": true
+  },
+  "runtime": "UNRUN; Root owns focused execution and broader gate",
+  "focusedCommand": "npx vitest run __tests__/planGenerateRoute.test.ts"
+}

@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-01T10:11:34.054987+00:00",
+  "patchSha256": "883d9fa9de55fef661f6caa1033d6aabc7e1fad92999fe0027d0edcaa167d7f5",
+  "parentSourceReview": "PASS currentpins/read-onlyRootapply/freshscratchafter/unchanged59othercases",
+  "businessChecks": "Trust attribution/current source/date/nullserving, uncorroborated exclusion, community9/7 to2/20 amountmutation leaves exactcandidateIDorder/scores unchanged, actualPOST retainsquotes and nullnonbeerbudgets/pintfields",
+  "testChangeReason": "Actual fullverify failureoldtest expectedunknown-measure cheaperGBPfirst; accepted noamount-rankinglaw makes that expectation invalid",
+  "scope": "Single test fixture change, no production/data/schema/authority modification",
+  "runtime": "UNRUN; Root focused60case generator suite and fullgate required"
+}

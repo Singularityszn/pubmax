@@ -1,0 +1,18 @@
+diff --git a/e2e/all-alcohol-journey.spec.ts b/e2e/all-alcohol-journey.spec.ts
+index d46c348..25d98cb 100644
+--- a/e2e/all-alcohol-journey.spec.ts
++++ b/e2e/all-alcohol-journey.spec.ts
+@@ -171,6 +171,13 @@ for (const journey of journeys) {
+       nightArea: "shoreditch", drinkCategory: journey.category, zeroProof: false,
+     });
+     expect(generated.stops?.length).toBeGreaterThan(0);
++    // The generated non-beer route has no comparable serving/budget. Its
++    // generic Map summary must not replace that with a default pint bill.
++    await expect(page.locator(".routePanel .routeList > li")).toHaveCount(generated.stops!.length);
++    const generatedRouteMetrics = page.locator(".routePanel .routeMetrics");
++    await expect(generatedRouteMetrics).toBeVisible();
++    await expect(generatedRouteMetrics).not.toContainText(/estimated round/i);
++    await expect(generatedRouteMetrics).not.toContainText(/\bpint stops?\b/i);
+     const candidates = generated.stops!.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
+     const quoted = candidates.filter((candidate) => candidate.selectedDrinkPriceEvidence);
+     expect(quoted.length, `Shoreditch route should surface a ${journey.category} attributable quote`).toBeGreaterThan(0);

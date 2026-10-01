@@ -1,0 +1,32 @@
+{
+  "status": "SOURCE_TEST_PREPARATION_UNRUN_PRODUCTION_HELD",
+  "releaseBase": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+  "appliesAfter": "r47-auth-cache-port.patch (f8681cdc1aa40a61332726927474dfe7721be37ea6cb3b9c6d7d03896d3bcc90)",
+  "path": "__tests__/authProviderBootstrapRace.test.tsx",
+  "beforeSha256": "3500f06e06883972489fc09154438364e0478b938716b4164e6ebc5a3d4b5975",
+  "afterSha256": "f7fe756afcb7cd8eba306a76fde9fc2ba29999d457b506aab66f3e02b09c61d3",
+  "patchSha256": "d9cdf72b98a0a58f8161e48825657ccd5f30d7041dc61a99f124b7911c330f6b",
+  "coreFileSha256AtPreparation": "d1e59a6be65ad23f75f1488d5c47411d4363291aac4eb4c495bd528633f54671",
+  "scratch": "/tmp/pubmaxx-r47-late-bootstrap",
+  "validation": "Source prepared only; runtime/test/type/lint/build/browser UNRUN. Parent owns actual RED before production repair.",
+  "fixtureContract": [
+    "Actual bootstrapAuthSession helper executes getSession/hint/redeem/preinstall check and enters SDK setSession before boundary",
+    "Local SDK double intentionally ignores AbortSignal after entry and emits real callback SIGNED_IN when released; cancellation is never swallowed",
+    "SDK session and cookie state are explicit fixture doubles, not live provider/server proof",
+    "Newer B delivered through SDK callback with SDK state B; later held A overwrites SDK and emits event, so repair must preserve B",
+    "Logout UI immediate; test permits correct implementation to defer SDK cleanup until pending install settles, avoiding a forced premature completion contract"
+  ],
+  "expectedCurrentResults": [
+    "logout late install: expected RED; aborted result suppression does not stop late subscription publication/persistence",
+    "newer login late install: expected RED; stale install event can replace B before result suppression",
+    "unrevoked restoration: expected PASS baseline control"
+  ],
+  "command": "npm test -- __tests__/authProviderBootstrapRace.test.tsx __tests__/authCallbackConfirmation.test.tsx __tests__/authCallbackClient.test.ts __tests__/authSessionBootstrap.test.ts __tests__/deviceAccountSwitch.test.ts --maxWorkers=1 --no-file-parallelism",
+  "minimalRepairOutline": "Keep current bootstrap owner and install marker coupled until the actual SDK operation settles. Before updateSession/remember/persist, discriminate revoked marked bootstrap events from genuine newer login. Preserve/restore newer account SDK session or clear stale SDK installation after settlement; do not delay essential auth bootstrap. Actual RED required before selecting repair. No production patch included.",
+  "sourceValidation": {
+    "scratchApplyCheck": "PASS --whitespace=error-all against original 13-path auth/cache composed test",
+    "scratchApply": "PASS; applied output matches afterSha256",
+    "maintainedCoreInputUnchanged": "PASS",
+    "runtime": "UNRUN, expected RED is inference only"
+  }
+}

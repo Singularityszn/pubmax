@@ -1,0 +1,58 @@
+{
+  "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+  "statusCode": 200,
+  "scrapeId": "01a0f401-012c-70f4-82e6-aa2202dfc39e",
+  "method": "Firecrawl live JavaScript-rendered scrape, maxAge 0, basic proxy; primary menu research, not local browser runtime or physical DOM proof",
+  "permission": {
+    "liveRobotsStatus": 200,
+    "robotsScrapeId": "01a0f400-e554-7712-882d-fd5a572c0256",
+    "sourcePolicyId": "greene-king-menu-prices",
+    "pathPermitted": true,
+    "noChallengeBypass": true
+  },
+  "observedItems": [
+    {
+      "name": "Limoncello Spritz",
+      "priceGbp": 11,
+      "section": "spritz cocktail section"
+    },
+    {
+      "name": "Aperol Spritz",
+      "priceGbp": 11,
+      "section": "spritz cocktail section"
+    },
+    {
+      "name": "St Germain Hugo Spritz",
+      "priceGbp": 11,
+      "section": "spritz cocktail section"
+    },
+    {
+      "name": "0% Bloody Mary",
+      "priceGbp": 9,
+      "section": "zero-alcohol cocktail section"
+    },
+    {
+      "name": "0% Espresso Martini",
+      "priceGbp": 9,
+      "section": "zero-alcohol cocktail section"
+    },
+    {
+      "name": "0% Mojito",
+      "priceGbp": 9,
+      "section": "zero-alcohol cocktail section"
+    }
+  ],
+  "findings": [
+    "Three retained wine claims identify spritz cocktails, not wine offers.",
+    "Two retained alcoholic cocktail claims identify items within publisher's zero-alcohol section.",
+    "One retained rum claim contains the description of a zero-alcohol cocktail.",
+    "Slash label is a separator between multiple wine glass prices, not an item identity."
+  ],
+  "limits": [
+    "Current publisher context does not verify historical menu completeness or refresh old observation dates.",
+    "No recategorization, replacement price or serving measure authorized by this evidence alone.",
+    "No claim that all 459 syntax flags are wrong prices."
+  ],
+  "recordedAt": "2026-09-30T20:36:17.195996+00:00",
+  "requestTimeNote": "Live requests followed current UTC20:28:03 preflight; exact request completion timestamp not separately measured."
+}

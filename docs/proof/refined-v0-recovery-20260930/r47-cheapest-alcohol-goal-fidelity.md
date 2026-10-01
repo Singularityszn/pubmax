@@ -1,0 +1,41 @@
+# R47 cheapest-alcohol goal fidelity
+
+Source review, 1 October 2026. Only this receipt and a supersession warning in `r47-price-comparability-repair-plan.md` changed. No product, test or data edits; no runtime or network. Proposed checks are UNRUN. Home/drag remain immediate priorities.
+
+The user's goal includes finding cheapest wine and other alcohol. Permanently removing Cheapest from every selected drink lane would not fulfil that goal. Neutral Nearest is a possible temporary guard against the currently unsupported mixed-serving amount sort, conditional on native reproduction, not the release end-state.
+
+## Two different comparisons
+
+| Question | Existing contract | Consequence |
+| --- | --- | --- |
+| Is this a newer reading or corroboration of the same price claim? | `listedCategoryPrices.ts:90-110` replaces older readings of the same named drink/serve. `pintDropAgreement.ts:12-22` requires same drink, measure and pennies for that Pint Drop lane; community prices have their own tolerance. | Do not merge unrelated drinks, measures or reports into one confirmed claim. The Pint Drop rule is not a universal category-ranking prohibition. |
+| Which eligible offer is cheapest within a category and explicitly identical serving? | `listedCategoryPrices.ts:113-147` groups by `listedServingComparisonKey` and takes the lowest amount across distinct drinks. `__tests__/listedCategoryPrices.test.ts:142-167` retains newer Rioja £6/125ml, then selects Chenin £5.50/125ml over it. | Different wines can compete as cheapest 125ml wine offers. They must not be presented as the same wine or as corroborating one another. |
+
+`listedPriceComparison.ts:3-14` accepts category plus explicit positive ml, optionally `glass`/`shot`; it intentionally receives no brand/name. Its existing tests reject unknown, bottle-only, mixed and ambiguous servings. Thus same named drink is not an extra prerequisite for generic category-offer ordering. An explicitly selected same-brand comparison would be a different, narrower feature.
+
+The applicable measure law, `docs/rules/lib-prices-trust-and-drinks.md:39`, prohibits scaling or inventing a measure. The non-beer rule at line 55 separates selected-category evidence from pint authority, keeps current unmeasured pins neutral, and requires partial/degraded disclosure. Line 59 preserves the default pint lane. None of these rules prohibits the existing same-serving category comparison. `public/data/uk_prices/README.md:37` makes serving source-stated; lines 90-92 keep different explicit servings and unknown servings distinct.
+
+## Current obstacle is lost serving groups, not a brand-equivalence requirement
+
+`ukPriceBundleCategoryIndex` (`lib/ukPriceBundle.server.ts:90-100`) calls the already bounded projection, then `.find(category)`: only one quote per venue survives. That first quote is not necessarily the selected serving because projection groups are ordered by recency. `readListedDrinkIndex` (`lib/mapExperienceLens.ts:411-424`) carries serving/source/date but discards the available drink label. `discoveryDrinkLensPrices` at lines 433-438 then reduces to one entry per venue; an authoritative community entry without a recorded ml can displace a known-serving listed offer. Finally, `mapVenueListSortPrice` (`lib/mapVenueList.ts:153-162`) sorts any positive active-lens amount without a serving-group check.
+
+Adding a serving comparator only at the final sort cannot recover a quote that was discarded earlier. Nor does merely displaying the surviving serving make £4 unknown gin comparable with £4.20/25ml gin. Unknown evidence can remain useful and visible without becoming an amount rank. Corroboration/age authority and serving comparability are separate requirements; uncorroborated reports still remain visible on their own sheet under the existing visibility rule, not map authority. Estimates must retain their estimate status and cannot silently join a listed-price ordering.
+
+## Smallest legitimate end-state path
+
+1. Preserve existing eligible category/serving representatives until the reader chooses a serving group. Reuse `listedCategoryPrices` and the existing category GET, rather than create another endpoint or price pipeline. A bounded response retaining its category quotes instead of `.find` can supply real available groups; alternatively, select the requested explicit group before the per-venue reduction. Choice must be based on returned/source-stated servings, not a guessed 25ml/125ml default.
+2. Choose an explicit group such as Wine / 125ml or Gin / 25ml, then reduce to one eligible offer per venue for that group and sort those amounts. Preserve known drink labels through the current reader for honest offer metadata. This permits different wines/brands within the labelled category and measure, without asserting drink identity or comparable alcohol strength.
+3. Keep unknown, other-measure and non-authoritative reports visible under honest unranked presentation. They must not take the cheaper first position by raw pounds, masquerade as the chosen serving, or suppress an eligible listed offer merely because both belong to the same venue. Default pint sorting and price-authority gates stay unchanged; no conversion, recategorisation or inferred serving.
+4. Label scope accurately, for example cheapest listed 125ml wine offers available in this view, with actual source/date and serving on each offer. Preserve the existing partial/degraded distinction. A neutral discovery view remains available when no comparable group is supplied; it must say coverage is absent rather than claim the goal completed.
+
+These are existing owner seams: `listedCategoryPrices`/`ukPriceBundle.server` and the category GET for projection, `mapExperienceLens`/`useCommunityPrices` for retained evidence and keyed reads, and PubMap/List for group choice, order and metadata. No new generic comparison framework or brand alias resolver is necessary. If requesting a group server-side, the existing category read/dedupe key must also distinguish that group; a category-only cache would return the wrong quotes after switching serving.
+
+Bounds need explicit treatment before implementation: projection currently admits at most four quotes per category, and the category index/client reader cap at 1,000 entries. Returning more representatives within the same cap may reduce venue coverage; selecting a serving after the four-quote cap may already have lost that group. Do not silently raise limits or claim a complete market. Select the requested group before lossy reduction where necessary, or disclose the bounded supplied subset and measure the existing API/route ceilings. The precise serving-choice presentation and treatment of available-but-capped groups remain design decisions, not settled by this receipt.
+
+Current explicit wine measures in the reviewed bundle are base-venue records. Their unranked base presentation and suspension under the present price lens mean fixing the curated List comparator alone does not prove usable cheapest-wine discovery. Preserve base identity and truthful coverage in the eventual path; adding a priced offer must not promote a base venue into curated status. This is a source coverage constraint, not permission to broaden the immediate patch.
+
+## Required future proof
+
+First reproduce the actual known-25ml versus unknown gin ordering using the real category GET and native List at 390/1440, including any community override. Then protect the existing Rioja/Chenin business contract, same-drink newer-reading behaviour, distinct 125/250ml groups, unknown unranked visibility, authority/expiry and capped coverage in meaningful tests. Native GREEN must exercise a real eligible same-serving pair, actual group switching, correct names/measures/provenance and selectable venue identity. A synthetic test pair is not native supply proof. Empty real wine groups remain an acceptance gap, not a passing Cheapest case.
+
+No new semantic prohibition on different brands is supported by the reviewed source. The legitimate goal is comparable category offers plus honest unknowns, not omission of alcohol price discovery. Implementation remains conditional on native evidence and the owner's later runtime/source grant.

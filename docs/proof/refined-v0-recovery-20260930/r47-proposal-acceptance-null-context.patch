@@ -1,0 +1,140 @@
+--- a/__tests__/planCollaborationRoutes.test.ts
++++ b/__tests__/planCollaborationRoutes.test.ts
+@@ -12,12 +12,25 @@
+   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+   return { ...actual, isLimited: async () => false };
+ });
++const listedBundleFixture = vi.hoisted(() => ({
++  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
++}));
++vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
++  return {
++    ...actual,
++    ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
++      ? actual.ukPriceBundleRowsFor(venueId)
++      : { status: "ready" as const, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
++  };
++});
+ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
+   return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
+ });
+ 
+ import { POST as CREATE } from "@/app/api/plans/route";
++import { GET as READ_PLAN } from "@/app/api/plans/[id]/route";
+ import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
+ import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
+ import { POST as REDEEM_INVITE } from "@/app/api/plans/[id]/invites/redeem/route";
+@@ -35,7 +48,12 @@
+ const proposalCtx = (id: string, proposalId: string) => ({ params: Promise.resolve({ id, proposalId }) });
+ const route = [{ venueId: "venue-1f5ygjb" }, { venueId: "venue-xjf3n0" }, { venueId: "venue-3h52h" }];
+ 
+-beforeEach(() => { __resetMemoryPlans(); __resetPlanCollaboration(); categoryIndexMock.mockReset(); });
++beforeEach(() => {
++  __resetMemoryPlans();
++  __resetPlanCollaboration();
++  categoryIndexMock.mockReset();
++  listedBundleFixture.rows = null;
++});
+ 
+ async function createPlan() {
+   const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+@@ -81,6 +99,97 @@
+     expect((await memoryPlanStore.get(host.plan.plan.id))?.stops[1]?.selectedDrinkPriceEvidence).toEqual(evidence);
+   });
+ 
++  it("keeps approved listed evidence when a context-free guest proposal is accepted", async () => {
++    const observedAt = new Date(Date.now() - 60_000).toISOString();
++    const listedEvidence = {
++      category: "wine", pence: 525, serving: "125ml", source: "listed",
++      sourceUrl: "https://venue.example/menu", observedAt,
++    };
++    const communityEvidence = {
++      category: "wine", pence: 700, serving: null, source: "community",
++      reportedAt: new Date(Date.now() - 30_000).toISOString(),
++    };
++    listedBundleFixture.rows = [{
++      venueId: route[1]!.venueId, name: "Canonical venue", category: "wine",
++      priceGbp: 5.25, drinkLabel: "Rioja", servingSize: "125ml", lane: "site-harvest",
++      standing: "listed", sourceUrl: listedEvidence.sourceUrl, observedAt,
++      publisher: "Fixture publisher", basis: null, sampleSize: null,
++    }];
++    categoryIndexMock.mockResolvedValue({
++      prices: [{
++        venueId: route[2]!.venueId, drinkCategory: "wine", priceGbp: 7,
++        submittedAt: Date.now() - 30_000, source: "community", corroborations: 2,
++      }],
++      degraded: false, truncated: false,
++    });
++
++    const created = await CREATE(new Request(URL, {
++      method: "POST",
++      headers: { "idempotency-key": "proposal-listed-null-context-host" },
++      body: JSON.stringify({
++        startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
++        creatorName: "Host",
++        context: null,
++        stops: route,
++      }),
++    }));
++    expect(created.status).toBe(201);
++    const host = await created.json() as Awaited<ReturnType<typeof createPlan>>;
++    const planId = host.plan.plan.id;
++    expect((await memoryPlanStore.get(planId))?.context).toBeNull();
++
++    const guest = await (await joinInvited(host)).json() as { memberToken: string };
++    const proposalResponse = await CREATE_PROPOSAL(new Request(URL + "/" + planId + "/proposals", {
++      method: "POST",
++      headers: { authorization: "Bearer " + guest.memberToken, "idempotency-key": "proposal-listed-null-context" },
++      body: JSON.stringify({
++        context: null,
++        reason: "Keep the checked menu quote",
++        expectedRouteRevision: 1,
++        stops: route.map((stop, index) => index === 1
++          ? { ...stop, selectedDrinkPriceEvidence: { ...listedEvidence, contributor: "private-canary" } }
++          : index === 2 ? { ...stop, selectedDrinkPriceEvidence: communityEvidence } : stop),
++        resolvedConstraintIds: [],
++      }),
++    }), ctx(planId));
++    expect(proposalResponse.status).toBe(201);
++    const proposal = await proposalResponse.json() as {
++      proposal: { id: string; stops: Array<{ selectedDrinkPriceEvidence?: unknown }> };
++    };
++    expect(proposal.proposal.stops[1]?.selectedDrinkPriceEvidence).toEqual(listedEvidence);
++    expect(proposal.proposal.stops[2]?.selectedDrinkPriceEvidence).toBeUndefined();
++    expect(categoryIndexMock).not.toHaveBeenCalled();
++
++    const denied = await DECIDE(new Request(URL + "/" + planId + "/proposals/" + proposal.proposal.id + "/decision", {
++      method: "POST",
++      headers: { authorization: "Bearer " + guest.memberToken, "idempotency-key": "proposal-listed-null-guest-decision" },
++      body: JSON.stringify({ decision: "accepted" }),
++    }), proposalCtx(planId, proposal.proposal.id));
++    expect(denied.status).toBe(403);
++    expect((await memoryPlanStore.get(planId))?.stops[1]?.selectedDrinkPriceEvidence).toBeUndefined();
++
++    const accepted = await DECIDE(new Request(URL + "/" + planId + "/proposals/" + proposal.proposal.id + "/decision", {
++      method: "POST",
++      headers: { authorization: "Bearer " + host.memberToken, "idempotency-key": "proposal-listed-null-host-decision" },
++      body: JSON.stringify({ decision: "accepted" }),
++    }), proposalCtx(planId, proposal.proposal.id));
++    expect(accepted.status).toBe(200);
++    const saved = await memoryPlanStore.get(planId);
++    expect(saved?.context).toBeNull();
++    expect(saved?.stops[1]?.selectedDrinkPriceEvidence).toEqual(listedEvidence);
++
++    const reloaded = await READ_PLAN(new Request(URL + "/" + planId, {
++      headers: { authorization: "Bearer " + host.memberToken },
++    }), ctx(planId));
++    expect(reloaded.status).toBe(200);
++    const memberPlan = await reloaded.json() as {
++      context: unknown;
++      stops: Array<{ selectedDrinkPriceEvidence?: unknown }>;
++    };
++    expect(memberPlan.context).toBeNull();
++    expect(memberPlan.stops[1]?.selectedDrinkPriceEvidence).toEqual(listedEvidence);
++  });
++
+   it("omits forged and degraded proposal prices", async () => {
+     const created = await CREATE(new Request(URL, { method: "POST", headers: { "idempotency-key": "proposal-price-refusal" }, body: JSON.stringify({
+       startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), creatorName: "Host", stops: route,

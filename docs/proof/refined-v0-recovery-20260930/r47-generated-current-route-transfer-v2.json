@@ -1,0 +1,82 @@
+{
+  "status": "SOURCE_FROZEN_PRODUCTION_AND_UNIT_CONTROLS_RUNTIME_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "6f7be486df3a35a00fbec410fdc6cb4bfde37ae2",
+  "scratch": "/tmp/pubmaxx-r47-generated-transfer-repair-v2",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-generated-current-route-transfer-v2.patch",
+  "patchSha256": "ec083ccc0549e0760b66e043ce4db90804a8052e54e5e449f920fbbb8edf3022",
+  "files": [
+    {
+      "path": "__tests__/mapRouteTransfer.test.ts",
+      "beforeSha256": "71eecb260ed273d546484aa8f741d0bbc5d7e323473ca19649badb7a2a914f03",
+      "afterSha256": "2bf6059afee2b1b874596c9834b44aee1bf88b9b723c4bc55648294c9c20e44e",
+      "rootBeforeStillMatches": true
+    },
+    {
+      "path": "__tests__/mapRouteTransferButton.test.ts",
+      "beforeSha256": "d06539dc28aceb15bf2d209fe0e02535cebca79acee39ac29a7696ba7da5f839",
+      "afterSha256": "c49d9cfbab34ac846d5c96d46eda161606e7589d145597079003e472984697eb",
+      "rootBeforeStillMatches": true
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "cb8e8280036a8d6febfe51215582feed56bebdd92ea8f54f705e9f3c26f10085",
+      "afterSha256": "9f3116a82fc17aacf9a55541778339138f7e7c8393bc79bda3258bb2761d3956",
+      "rootBeforeStillMatches": true
+    },
+    {
+      "path": "components/plan/MapRouteTransferButton.tsx",
+      "beforeSha256": "52ebe8b8b18d0c337810ba32ab58e3e18ac497d756d88047ccaed159a5532157",
+      "afterSha256": "21c5d1413930dedd6b6c6e1e7704dae8971e022329fd6c279912ca3f57971886",
+      "rootBeforeStillMatches": true
+    },
+    {
+      "path": "components/plan/MobilePlanActivation.tsx",
+      "beforeSha256": "e77c1ba913d3e82ad333ffdd9c53ed04913244680964bc630ed91a51408b78f6",
+      "afterSha256": "93cd163bc44010605df5346817d1033ccd14e6734c11d291d336ef22eb9f044a",
+      "rootBeforeStillMatches": true
+    },
+    {
+      "path": "lib/mapRouteTransfer.ts",
+      "beforeSha256": "599ff160e1bb597250995bf15843c6b3a16adc7438ec33cd90a5387a584aeb2f",
+      "afterSha256": "1648ff4c0b3c9aa6a89a2dd86ef9b27ebb9dc3c6d65046b80f99d73b41d16db1",
+      "rootBeforeStillMatches": true
+    }
+  ],
+  "sourceValidation": {
+    "rootApplyCheck": true,
+    "freshScratchApply": true,
+    "freshScratchAfterHashesMatch": true,
+    "currentRootBeforePinsMatch": true
+  },
+  "actualBeforeEvidence": {
+    "report": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/generated-reverse-transfer-required-red.json",
+    "sha256": "1bccf07d1b5b1b1540c67f1f6830c7e572a58f34c646c986ddcbf81a88e21f28",
+    "result": "Root native Chromium 1 FAIL,0 SKIP,0 flaky,retries0: generated guards and actual Map reversed names/IDs pass, Plan combobox names retain original order at115. Prior textbox-role failure is not business evidence."
+  },
+  "behavior": [
+    "PubMap passes actual displayed route IDs/names, retaining existing stable activation key and all557 pricing behavior.",
+    "Unchanged route retains identical draft; same unique stop-set unanchored reorder retains original proof/operation and exact per-stop/backup quote attachments. No new proof mint in production. Existing server V1 validation still checks signature, candidate membership, operation and expiry.",
+    "Changed identities/Suggest carry current IDs/names/category as stale preview with old money,quote hints,proof,key,revision and timing/confidence retired. Existing Plan refresh action remains. No captured-original write fallback.",
+    "V2 changed order never reuses exact-order proof. Moved accepted Stop1 blocks first transfer, requires explicit release/review action calling existing three-owner acceptance release after successful current-draft write; unchanged Stop1 remains held with stale preview.",
+    "Write failure cancels navigation, retains route and visible retry. Original null-response manual navigation preserved.",
+    "Original result confidence/budget/timing/endings display only while original ordered IDs match displayed route; changed route gets truthful current-route review note.",
+    "Explicit anchored release passes actual sessionStorage Plan draft and localStorage route draft to existing acceptance owner. New mounted control proves blocked move retains intent/session acceptance, explicit release retires both and current reversed local route remains."
+  ],
+  "focusedCommand": "npx vitest run __tests__/mapRouteTransfer.test.ts __tests__/mapRouteTransferButton.test.ts __tests__/planGrounding.test.ts __tests__/planComposerHandoff.test.ts",
+  "nativeCommand": "PW_SKIP_WEBSERVER=1 PW_PORT=3371 npx playwright test e2e/map-generated-route-reverse-transfer.spec.ts --project=chromium --workers=1 --retries=0",
+  "runtimeStatus": "No tests/types/lint/build/browser/server executed here. Root owns fresh build/native/focused/broad verification. New direct unit controls UNRUN; existing native business RED is actual precondition.",
+  "ownership": "Six paths only. Original all-alcohol journey, f38f, e510 corrected native testcase unchanged. No maintained Root/Core source, generated/raw data, SQL, Git index/ref or runtime edits.",
+  "limits": [
+    "Reload and CopyURL/fresh-context actual separate REDs are NOT repaired by this packet. Next independent continuity scope uses fresh after pins.",
+    "No copied proof is authenticated client-side. Existing draft codec only inspects expiry/readability; final server canonicalizes/revalidates quote authority.",
+    "Edited routes become existing explicit refreshable previews; packet does not claim exact edited-route grounding, permanent sharing, DB migration proof or live publisher/provider truth. Anchored browser release/recovery and current response caps need Root acceptance.",
+    "3371 command port is illustrative: Root selects actual owned server matching declared env/signing configuration.",
+    "Actual generate route209-222 always mints V1 for unanchored and V2 when anchorContext exists. No client proof-version decoder introduced; arbitrary mismatched body/token remains server-rejected, not client-authenticated."
+  ],
+  "sourceCheckErrors": [],
+  "supersedes": {
+    "patch": "r47-generated-current-route-transfer.patch",
+    "reason": "Withheld: explicit release omitted session/local storage arguments; v2 fixes existing three-owner call."
+  }
+}

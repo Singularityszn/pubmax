@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-10-01T07:44:32.202543+00:00",
+  "owner": "Root SQL release_inventory",
+  "method": "Read-only parent source and actual local PG receipt review; no Core edits or SQL applications.",
+  "files": [
+    {
+      "path": "supabase/migrations/20261001073000_0176_plan_listed_drink_evidence.sql",
+      "sha256": "b7d98479a4aff578bbde3f69515ba45ae8cf67880dc300f209d6d0861f3eb192"
+    },
+    {
+      "path": "supabase/migrations/rollback/20261001073000_0176_plan_listed_drink_evidence_rollback.sql",
+      "sha256": "7b48b7b3d90d1d172dc2c2b9d3d4e7774ffb77034f60bd948657d4124d77eb52"
+    }
+  ],
+  "sourceReview": [
+    "Forward widens existing closed five-field community constraint to exact six-field listed variant, bounded category/amount/serving/citation/date; no RPC/grants/RLS changes.",
+    "SQL NULL evidence remains allowed; JSON null unsupported control correctly removed by Root test-only correction.",
+    "Rollback clears listed stop evidence and removes listed citations from pending route proposals before restoring community-only CHECK. Community retained. Listed display evidence discarded, rollback is not lossless.",
+    "Rollback ordering with future backup fields still needs current0178/0179 integration; this pair alone adds no alternatives columns."
+  ],
+  "runtimeReceipt": "Root listed-create-current-chain-pg-green-results.json25/25 pass, nofail/skip. Disposablelocal PG, no production application.",
+  "acceptanceLimit": "Captain must approve exact final lineage/twins and apply; final production durable journey not proved."
+}

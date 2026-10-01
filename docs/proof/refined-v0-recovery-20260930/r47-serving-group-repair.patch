@@ -1,0 +1,1151 @@
+diff --git a/app/api/price-submit/route.ts b/app/api/price-submit/route.ts
+index 7f6741e34..e8785a858 100644
+--- a/app/api/price-submit/route.ts
++++ b/app/api/price-submit/route.ts
+@@ -41,6 +41,8 @@
+ // Reads and reader reports remain keyless. New contributions require configured
+ // authentication plus a completed account profile.
+ 
++import { listedServingGroup } from "@/lib/listedPriceComparison";
++
+ import { ukPriceBundleCategoryIndex, ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+ import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+@@ -559,14 +561,20 @@ export async function GET(request: Request): Promise<Response> {
+     }
+     const drinkCategory = searchParams.get("drinkCategory");
+     if (isDrinkCategory(drinkCategory)) {
++      const requestedServing = searchParams.get("serving");
++      const serving = listedServingGroup(drinkCategory, requestedServing);
++      if (requestedServing !== null && !serving) {
++        return jsonNoStore({ error: "Choose a source-stated serving size." }, { status: 400 });
++      }
+       const [result, listed] = await Promise.all([
+         readCommunityPriceCategoryIndex([drinkCategory]),
+-        ukPriceBundleCategoryIndex(drinkCategory),
++        ukPriceBundleCategoryIndex(drinkCategory, Date.now(), serving),
+       ]);
+       return jsonNoStore(
+         {
+           prices: result.prices,
+           listedPrices: listed.prices,
++          ...(listed.servingGroups ? { servingGroups: listed.servingGroups } : {}),
+           truncated: result.truncated || listed.truncated,
+           ...(result.degraded || listed.degraded ? { degraded: true } : {}),
+         },
+diff --git a/components/PubMap.tsx b/components/PubMap.tsx
+index 0de419d4e..acd0130fd 100644
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -623,6 +623,8 @@ import {
+   builtStopCountFor,
+   phonePlannerOrder,
+ } from "@/lib/pubMap";
++import { drinkCategoryIndexKey, listedServingGroup } from "@/lib/listedPriceComparison";
++import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
+ import { explicitMapIntent } from "@/lib/explicitMapIntent";
+ import {
+   parseUkPlaceIndex,
+@@ -1866,16 +1868,33 @@ export default function PubMap({
+     activeDrinkLane,
+     defaultDrinkLane: DEFAULT_DRINK_LANE,
+   }).activeMapDrinkLane;
++  const drinkServingGroup = mapDrinkLensCategory
++    ? listedServingGroup(mapDrinkLensCategory, searchParams.get("serving")) : null;
++  const drinkServingGroups = mapDrinkLensCategory
++    ? communityPrices.drinkServingGroups?.get(mapDrinkLensCategory) ?? [] : [];
++  const changeDrinkServingGroup = useCallback((serving: string | null) => {
++    if (!mapDrinkLensCategory) return;
++    const params = new URLSearchParams(window.location.search);
++    const group = listedServingGroup(mapDrinkLensCategory, serving);
++    params.set("drink", mapDrinkLensCategory);
++    if (group) params.set("serving", group); else params.delete("serving");
++    const state = { ...window.history.state };
++    delete state.__NA;
++    window.history.replaceState(state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`);
++  }, [mapDrinkLensCategory]);
+   useEffect(() => {
+     if (mapDrinkLensCategory) {
+       loadDrinkCategoryIndex(mapDrinkLensCategory);
++      if (drinkServingGroup) loadDrinkCategoryIndex(mapDrinkLensCategory, drinkServingGroup);
+     }
+-  }, [loadDrinkCategoryIndex, mapDrinkLensCategory]);
++  }, [loadDrinkCategoryIndex, mapDrinkLensCategory, drinkServingGroup]);
+   // Whichever cross-venue index is answering the map right now reports its own
+   // completeness, so the price key never claims a read it did not finish.
+   const drinkIndexStatus: CategoryPriceIndexStatus = useMemo(
+     () =>
+-      drinkIndexStatusFor(
++      mapDrinkLensCategory && drinkServingGroup
++        ? communityPrices.drinkCategoryIndexStatus.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup)) ?? "idle"
++        : drinkIndexStatusFor(
+         mapDrinkLensCategory,
+         experienceLens,
+         communityPrices.drinkCategoryIndexStatus,
+@@ -1883,6 +1902,7 @@ export default function PubMap({
+       ),
+     [
+       mapDrinkLensCategory,
++      drinkServingGroup,
+       experienceLens,
+       communityPrices.drinkCategoryIndexStatus,
+       communityPrices.noAlcoholIndexStatus,
+@@ -1894,13 +1914,18 @@ export default function PubMap({
+         ? discoveryDrinkLensPrices(
+             communityPrices.byVenueId,
+             mapDrinkLensCategory,
+-            communityPrices.listedDrinkPrices.get(mapDrinkLensCategory) ?? [],
++            [
++              ...(communityPrices.listedDrinkPrices.get(mapDrinkLensCategory) ?? []),
++              ...(drinkServingGroup ? communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup)) ?? [] : []),
++            ],
+             experiencePolicyNow,
++            drinkServingGroup,
+           )
+         : null,
+     [
+       communityPrices.byVenueId,
+       communityPrices.listedDrinkPrices,
++      drinkServingGroup,
+       experiencePolicyNow,
+       mapDrinkLensCategory,
+     ],
+@@ -2935,7 +2960,13 @@ export default function PubMap({
+     drinkLensPrices,
+     experienceLensPrices,
+   );
+-  const activeLensLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
++  const mapCanvasLensPrices = useMemo(() => mapDrinkLensCategory
++    ? new Map([...(drinkLensPrices ?? [])].filter(([, price]) => price.source === "listed"
++      && drinkServingGroup !== null && listedServingGroup(mapDrinkLensCategory, price.servingSize) === drinkServingGroup))
++    : activeLensPrices, [mapDrinkLensCategory, drinkLensPrices, drinkServingGroup, activeLensPrices]);
++  const activeLensBaseLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
++  const activeLensLabel = mapDrinkLensCategory && drinkServingGroup
++    ? `${activeLensBaseLabel} · ${drinkServingGroup}` : activeLensBaseLabel;
+   // The name a heading wears is not always the name a sentence wants: the
+   // no-alcohol lens is titled with a negative, and "no no-alcohol price
+   // logged" hides the one fact that is about the pub.
+@@ -3008,8 +3039,11 @@ export default function PubMap({
+         drinkIndexStatus,
+         mapListSortMode,
+         venueSignals,
++        mapDrinkLensCategory ? drinkServingGroup : undefined,
+       ),
+     [
++      mapDrinkLensCategory,
++      drinkServingGroup,
+       activeLensNoun,
+       activeLensPrices,
+       drinkIndexStatus,
+@@ -3068,9 +3102,13 @@ export default function PubMap({
+           venueKindVisibility,
+         ),
+         mapViewport.center,
++        undefined,
++        drinkLensPrices,
++        mapListSortMode,
++        mapDrinkLensCategory ? drinkServingGroup : undefined,
+       );
+     },
+-    [cityId, mapViewport.center, renderedBasePubs, venueKindVisibility, visibleVenueState],
++    [cityId, mapViewport.center, renderedBasePubs, venueKindVisibility, visibleVenueState, drinkLensPrices, mapListSortMode, mapDrinkLensCategory, drinkServingGroup],
+   );
+   // The place the map is OVER, and whether it is off the curated city.
+   // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
+@@ -3344,10 +3382,16 @@ export default function PubMap({
+   const acceptStop1 = useCallback(() => {
+     const venue = selectedVenue;
+     if (!venue) return;
++    const price = drinkLensPrices?.get(venue.id);
++    const selectedEvidence = mapDrinkLensCategory
++      && (!drinkServingGroup || (price?.source === "listed"
++        && listedServingGroup(mapDrinkLensCategory, price.servingSize) === drinkServingGroup))
++      ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: mapDrinkLensCategory, zeroProof: false }) : null;
+     const result = acceptMapVenue({
+       cityId,
+       acceptedVenueId: venue.id,
+       search: currentSearch(),
++      ...(selectedEvidence ? { selectedDrinkPriceEvidence: selectedEvidence } : {}),
+     });
+     if (!result.accepted || !result.telemetry || !result.destination) {
+       setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
+@@ -3357,7 +3401,7 @@ export default function PubMap({
+     trackEvent("venue_accepted", result.telemetry);
+     trackEvent("planning_handoff_opened", { from: result.telemetry.source, to: "plan" });
+     if (typeof window !== "undefined") window.location.assign(result.destination);
+-  }, [selectedVenue, cityId]);
++  }, [selectedVenue, cityId, mapDrinkLensCategory, drinkLensPrices, drinkServingGroup]);
+ 
+   const handleUkBasePubClick = useCallback(
+     (pub: UkBasePub) => {
+@@ -3556,10 +3600,11 @@ export default function PubMap({
+   // clears the favourite too rather than leaving it set and inert.
+   const changeDrinkLane = useCallback(
+     (lane: DrinkCategory) => {
++      changeDrinkServingGroup(null);
+       setFilters((current) => applyDrinkLane(current, lane));
+       if (lane !== DEFAULT_DRINK_LANE) changeFavoritePint(null);
+     },
+-    [changeFavoritePint, setFilters],
++    [changeFavoritePint, setFilters, changeDrinkServingGroup],
+   );
+ 
+   // The brand refinement inside the pint lane. It names the lane explicitly so
+@@ -5921,6 +5966,9 @@ export default function PubMap({
+             <DrinkLanePicker
+               lane={activeMapDrinkLane}
+               status={drinkIndexStatus}
++              servingGroups={drinkServingGroups}
++              servingGroup={drinkServingGroup}
++              onServingGroupChange={changeDrinkServingGroup}
+               variant="sheet"
+               onChange={(lane) => {
+                 changeDrinkLane(lane);
+@@ -6056,6 +6104,8 @@ export default function PubMap({
+         onSelectUkBasePub={handleUkBasePubClick}
+         onPrefetchVenue={prefetchVenueDetail}
+         sortMode={mapListSortMode}
++        drinkCategory={mapDrinkLensCategory}
++        servingGroup={drinkServingGroup}
+         onSortModeChange={setMapListSortMode}
+         backLabel={mapListOpen && mapSurfaceId === "venue-list" ? mapSurfaceTrail.backLabel : null}
+         onBack={mapSurfaceTrail.back}
+@@ -6277,7 +6327,7 @@ export default function PubMap({
+         drinkCategory={experienceLens === "all" ? filters.drinkCategory || null : null}
+         whatsOnByVenue={whatsOnTonight.summary}
+         provisionalVenueIds={provisionalVenueIds}
+-        lensPrices={activeLensPrices}
++        lensPrices={mapCanvasLensPrices}
+         spoonsValue={spoonsValueLane}
+         lensNoun={activeLensNoun?.toLowerCase() ?? null}
+         lensIndexStatus={drinkIndexStatus}
+@@ -6355,6 +6405,9 @@ export default function PubMap({
+         onDrinkBrandChange={changeDrinkBrand}
+         onDrinkLaneChange={changeDrinkLane}
+         drinkLaneStatus={drinkIndexStatus}
++        drinkServingGroups={drinkServingGroups}
++        drinkServingGroup={drinkServingGroup}
++        onDrinkServingGroupChange={changeDrinkServingGroup}
+         spoonsValueOn={spoonsValueOn}
+         spoonsValueLens={spoonsValueLens}
+         onSpoonsValueChange={changeSpoonsValue}
+diff --git a/components/PubMapCanvas.tsx b/components/PubMapCanvas.tsx
+index a438c4a36..dfe770eca 100644
+--- a/components/PubMapCanvas.tsx
++++ b/components/PubMapCanvas.tsx
+@@ -3459,9 +3459,9 @@ export default function PubMapCanvas({
+     // base pins rather than curated venues, so it is passed through rather
+     // than suspending the layer the way an experience view does.
+     spoonsValue,
+-    // A non-null lensPrices map is the one signal that an experience view owns
+-    // the map, the same one the curated pins read below.
+-    suspended: lensPrices !== null,
++    // Experience views suspend the neutral base layer; a selected drink does
++    // not. Base identity and source remain neutral while its list can carry a quote.
++    suspended: lensPrices !== null && drinkCategory === null,
+     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
+     // a held one has simply not been asked for yet and starts the moment the
+     // priced pins are on screen.
+diff --git a/components/map/DrinkLanePicker.tsx b/components/map/DrinkLanePicker.tsx
+index e574458f8..ff83258c5 100644
+--- a/components/map/DrinkLanePicker.tsx
++++ b/components/map/DrinkLanePicker.tsx
+@@ -28,12 +28,18 @@ export default function DrinkLanePicker({
+   status = "ready",
+   variant = "panel",
+   onChange,
++  servingGroups = [],
++  servingGroup = null,
++  onServingGroupChange,
+ }: {
+   lane: DrinkCategory;
+   /** How complete the selected lane's cross-venue read was, for the note. */
+   status?: CategoryPriceIndexStatus;
+   variant?: "panel" | "sheet";
+   onChange: (lane: DrinkCategory) => void;
++  servingGroups?: readonly string[];
++  servingGroup?: string | null;
++  onServingGroupChange?: (serving: string | null) => void;
+ }) {
+   const active = MAP_DRINK_LANES.find((option) => option.category === lane);
+   // A lane still loading, or one we could not read, must not be worded as a
+@@ -84,6 +90,18 @@ export default function DrinkLanePicker({
+           );
+         })}
+       </div>
++      {!active?.isDefault && onServingGroupChange ? (
++        <>
++          <p className="drinkLanePickerNote">Choose a recorded serving to compare menu prices. Serving not recorded: unknown servings and community reports stay visible, unranked.</p>
++          <div className="drinkLanePickerOptions" role="group" aria-label="Serving size for price comparison">
++            <button type="button" className={`drinkLanePickerOption${servingGroup === null ? " isSelected" : ""}`}
++              aria-pressed={servingGroup === null} onClick={() => onServingGroupChange(null)}>All servings · unranked</button>
++            {servingGroups.map((group) => <button key={group} type="button"
++              className={`drinkLanePickerOption${servingGroup === group ? " isSelected" : ""}`}
++              aria-pressed={servingGroup === group} onClick={() => onServingGroupChange(group)}>{group}</button>)}
++          </div>
++        </>
++      ) : null}
+       {/* What the chosen lane can and cannot do. The pint lane keeps the map it
+           always had; every other lane colours pins only where drinkers have
+           logged and confirmed that drink, so its silence is honest rather than
+@@ -91,7 +109,7 @@ export default function DrinkLanePicker({
+       <p className="drinkLanePickerNote">
+         {active?.isDefault
+           ? "Pin colours follow the cheapest pint on record."
+-          : `Pin colours follow confirmed ${active?.noun ?? "drink"} prices that drinkers logged. Pubs without one stay unknown.`}
++          : `Published menu prices and confirmed ${active?.noun ?? "drink"} reports appear where recorded. Choose the same serving to compare menu prices.`}
+       </p>
+       {note ? (
+         <p className="drinkLanePickerStatus" role="status" aria-live="polite">
+diff --git a/components/map/MapToolbar.tsx b/components/map/MapToolbar.tsx
+index 0776d54db..4c5944ae4 100644
+--- a/components/map/MapToolbar.tsx
++++ b/components/map/MapToolbar.tsx
+@@ -146,6 +146,9 @@ type MapToolbarProps = {
+   onDrinkLaneChange: (lane: DrinkCategory) => void;
+   /** Completeness of the active lane's cross-venue read, for its own note. */
+   drinkLaneStatus: CategoryPriceIndexStatus;
++  drinkServingGroups?: readonly string[];
++  drinkServingGroup?: string | null;
++  onDrinkServingGroupChange?: (serving: string | null) => void;
+   /** The Spoons value lens, which shares this panel with the drink lanes. */
+   spoonsValueOn: boolean;
+   spoonsValueLens: SpoonsValueLensState;
+@@ -216,6 +219,9 @@ export default function MapToolbar({
+   onDrinkBrandChange,
+   onDrinkLaneChange,
+   drinkLaneStatus,
++  drinkServingGroups,
++  drinkServingGroup,
++  onDrinkServingGroupChange,
+   spoonsValueOn,
+   spoonsValueLens,
+   onSpoonsValueChange,
+@@ -447,6 +453,9 @@ export default function MapToolbar({
+           <DrinkLanePicker
+             lane={activeLane}
+             status={drinkLaneStatus}
++            servingGroups={drinkServingGroups}
++            servingGroup={drinkServingGroup}
++            onServingGroupChange={onDrinkServingGroupChange}
+             onChange={onDrinkLaneChange}
+           />
+           <SpoonsValueLensControl
+diff --git a/components/map/MapVenueList.tsx b/components/map/MapVenueList.tsx
+index 9c9f732d6..c60d3c6e7 100644
+--- a/components/map/MapVenueList.tsx
++++ b/components/map/MapVenueList.tsx
+@@ -5,6 +5,9 @@ import { MapPin } from "lucide-react";
+ 
+ import CompactVenuePrice from "@/components/map/CompactVenuePrice";
+ import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
++import { combineMapVenueListRows } from "@/lib/mapVenueList";
++import type { DrinkCategory } from "@/lib/drinks";
++import type { MapLensPrice } from "@/lib/mapExperienceLens";
+ import type {
+   MapVenueListModel,
+   MapVenueListSortMode,
+@@ -45,6 +48,8 @@ export default function MapVenueList({
+   onBack,
+   onHome,
+   homeTitle = "the map",
++  drinkCategory = null,
++  servingGroup = null,
+ }: {
+   model: MapVenueListModel;
+   ukBaseModel: UkBasePubListModel;
+@@ -64,6 +69,8 @@ export default function MapVenueList({
+   onBack?: () => void;
+   onHome?: () => void;
+   homeTitle?: string;
++  drinkCategory?: DrinkCategory | null;
++  servingGroup?: string | null;
+ }) {
+   const panelId = useId();
+   const total = model.total + ukBaseModel.total;
+@@ -72,7 +79,9 @@ export default function MapVenueList({
+   const firstVenueRef = useRef<HTMLButtonElement>(null);
+   const closeButtonRef = useRef<HTMLButtonElement>(null);
+   const venueFocusAssignedRef = useRef(false);
+-  const firstCuratedId = model.rows[0]?.id;
++  const groupedRows = drinkCategory ? combineMapVenueListRows(model.rows, ukBaseModel.rows, sortMode) : null;
++  const firstCombinedId = groupedRows?.[0]?.id;
++  const firstCuratedId = groupedRows ? undefined : model.rows[0]?.id;
+   const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
+ 
+   // The list opens from Layers, so the way back is this panel's own SurfaceNav
+@@ -100,7 +109,7 @@ export default function MapVenueList({
+       }
+     });
+     return () => cancelAnimationFrame(frame);
+-  }, [firstBaseId, firstCuratedId, open]);
++  }, [firstBaseId, firstCuratedId, firstCombinedId, open]);
+ 
+   // Closed, this component owns nothing on screen: the way IN is Layers, so a
+   // named landmark region holding no content would only pad every screen
+@@ -181,7 +190,30 @@ export default function MapVenueList({
+             </p>
+           ) : (
+             <div className="mapVenueListGroups">
+-              {model.rows.length > 0 ? (
++              {groupedRows ? (
++                <section className="mapVenueListGroup" aria-label="Drink offers and other venues">
++                  <h3 className="mapVenueListGroupTitle">{servingGroup ? `${servingGroup} menu prices` : "Choose a serving to compare menu prices"}</h3>
++                  <p className="mapVenueListCoverage">Other servings and community reports remain visible, unranked. Prices cover the published menus we have, not every offer.</p>
++                  <ul className="mapVenueListItems" aria-label="Drink offers and other venues">
++                    {groupedRows.map((row) => <li key={row.id}>
++                      <button ref={row.id === firstCombinedId ? firstVenueRef : undefined}
++                        id={`map-venue-list-item-${row.id}`} type="button" className="mapVenueListItem"
++                        data-venue-id={row.id} onClick={() => "pub" in row ? onSelectUkBasePub(row.pub) : onSelectVenue(row.id)}
++                        onPointerEnter={() => { if (!("pub" in row)) onPrefetchVenue(row.id); }}
++                        onFocus={() => { if (!("pub" in row)) onPrefetchVenue(row.id); }}>
++                        <span className="mapVenueListItemName"><MapPin size={14} aria-hidden="true" />{row.name}</span>
++                        <span className="mapVenueListItemMeta">
++                          {typeof row.distanceKm === "number" ? <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span> : null}
++                          <span className="mapVenueListCompactPrice"><span>{row.priceLabel}</span>
++                            {row.lensPrice ? <PriceProvenance price={row.lensPrice} ranked={row.sortPrice != null} /> : null}
++                          </span>
++                        </span>
++                      </button>
++                    </li>)}
++                  </ul>
++                </section>
++              ) : null}
++              {!groupedRows && model.rows.length > 0 ? (
+                 <section className="mapVenueListGroup" aria-label="Listed pubs and venues">
+                   <h3 className="mapVenueListGroupTitle">Listed pubs and venues</h3>
+                   <ul className="mapVenueListItems" aria-label="Listed pubs and venues">
+@@ -222,7 +254,7 @@ export default function MapVenueList({
+                   </ul>
+                 </section>
+               ) : null}
+-              {ukBaseModel.rows.length > 0 ? (
++              {!groupedRows && ukBaseModel.rows.length > 0 ? (
+                 <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs and bars with no listed price">
+                   <h3 className="mapVenueListGroupTitle">Other pubs and bars · no listed price</h3>
+                   <ul className="mapVenueListItems" aria-label="Other pubs and bars with no listed price">
+@@ -260,3 +292,17 @@ export default function MapVenueList({
+     </section>
+   );
+ }
++
++function PriceProvenance({ price, ranked }: { price: MapLensPrice; ranked: boolean }) {
++  let publisher = "Published menu";
++  if (price.sourceUrl) {
++    try { publisher = new URL(price.sourceUrl).hostname; } catch { /* Keep neutral source label. */ }
++  }
++  const date = price.observedAt ?? (price.submittedAt === undefined || !Number.isFinite(price.submittedAt) ? null : new Date(price.submittedAt).toISOString());
++  return <span className="mapVenueListPriceProvenance">
++    {price.drinkLabel ? `${price.drinkLabel} · ` : ""}{price.servingSize ?? "Serving not recorded"}
++    {` · ${price.source === "community" ? "Community report" : publisher}`}
++    {date ? ` · ${new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}
++    {!ranked ? " · Unranked" : ""}
++  </span>;
++}
+diff --git a/components/map/useCommunityPrices.ts b/components/map/useCommunityPrices.ts
+index cebe0ff9a..3b21a4a67 100644
+--- a/components/map/useCommunityPrices.ts
++++ b/components/map/useCommunityPrices.ts
+@@ -25,6 +25,7 @@ import {
+   readContributionGateStatus,
+   type ContributionGateStatus,
+ } from "@/lib/contributionGateStatus";
++import { drinkCategoryIndexKey, listedServingGroup } from "@/lib/listedPriceComparison";
+ import { DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+ import {
+   MAX_QUOTES_PER_CATEGORY,
+@@ -182,15 +183,16 @@ export type CommunityPricesState = {
+   /** Load soft-drink and alcohol-free rows across venues once per session. */
+   loadNoAlcoholIndex: () => void;
+   /** Load one selected drink category across venues once per session. */
+-  loadDrinkCategoryIndex: (category: DrinkCategory) => void;
++  loadDrinkCategoryIndex: (category: DrinkCategory, serving?: string | null) => void;
+   /**
+    * State of each cross-venue selected-drink read, on the same three-way scale
+    * the no-alcohol index reports: a truncated-but-successful scan is "partial"
+    * and keeps its trusted figures, a failed one is "degraded" and may never be
+    * presented as "no prices logged here".
+    */
+-  drinkCategoryIndexStatus: ReadonlyMap<DrinkCategory, CategoryPriceIndexStatus>;
+-  listedDrinkPrices: ReadonlyMap<DrinkCategory, MapLensPrice[]>;
++  drinkCategoryIndexStatus: ReadonlyMap<string, CategoryPriceIndexStatus>;
++  listedDrinkPrices: ReadonlyMap<string, MapLensPrice[]>;
++  drinkServingGroups?: ReadonlyMap<DrinkCategory, readonly string[]>;
+   /** Visibility marks found for UK base pubs read in this session. */
+   provisionalBaseVenueIds: ReadonlySet<string>;
+   /** Read unseen IDs among these on-screen base pubs. */
+@@ -688,13 +690,14 @@ export function useCommunityPrices(): CommunityPricesState {
+     [],
+   );
+   const [drinkCategoryIndexStatus, setDrinkCategoryIndexStatus] = useState<
+-    Map<DrinkCategory, CategoryPriceIndexStatus>
++    Map<string, CategoryPriceIndexStatus>
+   >(() => new Map());
+-  const [listedDrinkPrices, setListedDrinkPrices] = useState<ReadonlyMap<DrinkCategory, MapLensPrice[]>>(() => new Map());
++  const [listedDrinkPrices, setListedDrinkPrices] = useState<ReadonlyMap<string, MapLensPrice[]>>(() => new Map());
++  const [drinkServingGroups, setDrinkServingGroups] = useState<ReadonlyMap<DrinkCategory, readonly string[]>>(() => new Map());
+   const noAlcoholIndexLoaded = useRef(false);
+-  const drinkCategoryIndexesLoaded = useRef<Set<DrinkCategory>>(new Set());
++  const drinkCategoryIndexesLoaded = useRef<Set<string>>(new Set());
+   const markDrinkCategoryIndex = useCallback(
+-    (category: DrinkCategory, status: CategoryPriceIndexStatus) => {
++    (category: string, status: CategoryPriceIndexStatus) => {
+       setDrinkCategoryIndexStatus((current) => {
+         if (current.get(category) === status) return current;
+         const next = new Map(current);
+@@ -848,14 +851,16 @@ export function useCommunityPrices(): CommunityPricesState {
+   }, []);
+ 
+   const loadDrinkCategoryIndex = useCallback(
+-    (category: DrinkCategory) => {
+-      if (drinkCategoryIndexesLoaded.current.has(category)) return;
+-      drinkCategoryIndexesLoaded.current.add(category);
+-      markDrinkCategoryIndex(category, "loading");
++    (category: DrinkCategory, serving?: string | null) => {
++      const group = listedServingGroup(category, serving);
++      const key = drinkCategoryIndexKey(category, group);
++      if (drinkCategoryIndexesLoaded.current.has(key)) return;
++      drinkCategoryIndexesLoaded.current.add(key);
++      markDrinkCategoryIndex(key, "loading");
+       void (async () => {
+         try {
+           const response = await fetch(
+-            `/api/price-submit?drinkCategory=${encodeURIComponent(category)}`,
++            `/api/price-submit?drinkCategory=${encodeURIComponent(category)}${group ? `&serving=${encodeURIComponent(group)}` : ""}`,
+           );
+           if (!response.ok) {
+             discardBody(response);
+@@ -863,10 +868,16 @@ export function useCommunityPrices(): CommunityPricesState {
+           }
+           const body = await response.json();
+           const result = readCategoryPriceIndexLoad(body);
+-          setListedDrinkPrices((current) => new Map(current).set(category, readListedDrinkIndex(body.listedPrices, category)));
++          if (Array.isArray(body.servingGroups) && body.servingGroups.length <= 9999) {
++            const groups = body.servingGroups.map((value: unknown) => typeof value === "string" ? listedServingGroup(category, value) : null);
++            if (groups.every((value: string | null) => value !== null)) {
++              setDrinkServingGroups((current) => new Map(current).set(category, [...new Set(groups)] as string[]));
++            }
++          }
++          setListedDrinkPrices((current) => new Map(current).set(key, readListedDrinkIndex(body.listedPrices, category)));
+           if (result.status === "invalid") {
+-            drinkCategoryIndexesLoaded.current.delete(category);
+-            markDrinkCategoryIndex(category, "degraded");
++            drinkCategoryIndexesLoaded.current.delete(key);
++            markDrinkCategoryIndex(key, "degraded");
+             return;
+           }
+           for (const row of result.prices) {
+@@ -887,10 +898,10 @@ export function useCommunityPrices(): CommunityPricesState {
+             return next;
+           });
+           if (result.status === "degraded") {
+-            drinkCategoryIndexesLoaded.current.delete(category);
++            drinkCategoryIndexesLoaded.current.delete(key);
+           }
+           markDrinkCategoryIndex(
+-            category,
++            key,
+             result.status === "degraded"
+               ? "degraded"
+               : result.truncated
+@@ -898,8 +909,8 @@ export function useCommunityPrices(): CommunityPricesState {
+                 : "ready",
+           );
+         } catch {
+-          drinkCategoryIndexesLoaded.current.delete(category);
+-          markDrinkCategoryIndex(category, "degraded");
++          drinkCategoryIndexesLoaded.current.delete(key);
++          markDrinkCategoryIndex(key, "degraded");
+         }
+       })();
+     },
+@@ -1339,6 +1350,7 @@ export function useCommunityPrices(): CommunityPricesState {
+     loadDrinkCategoryIndex,
+     drinkCategoryIndexStatus,
+     listedDrinkPrices,
++    drinkServingGroups,
+     provisionalBaseVenueIds,
+     loadProvisionalBaseVenues,
+     loadVenue,
+diff --git a/components/map/useCrawlUrl.ts b/components/map/useCrawlUrl.ts
+index e3123c58b..18f3fb3ff 100644
+--- a/components/map/useCrawlUrl.ts
++++ b/components/map/useCrawlUrl.ts
+@@ -2,6 +2,7 @@
+ 
+ import { useCallback, useEffect, useRef } from "react";
+ 
++import { listedServingGroup } from "@/lib/listedPriceComparison";
+ import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
+ 
+ // (a) seedCrawlState reads the URL once on mount for a lazy useState initializer;
+@@ -45,6 +46,9 @@ export function mergeCrawlUrlSearch(
+     const value = live.get(key);
+     if (value !== null && !params.has(key)) params.set(key, value);
+   }
++  const category = params.get("drink");
++  const serving = category && category === live.get("drink") ? listedServingGroup(category, live.get("serving")) : null;
++  if (serving) params.set("serving", serving);
+   const crawl = live.get("crawl");
+   if (preserveCrawlParam && crawl !== null && !params.has("crawl")) {
+     params.set("crawl", crawl);
+diff --git a/components/plan/PlanComposer.tsx b/components/plan/PlanComposer.tsx
+index 343bd786b..94de9478c 100644
+--- a/components/plan/PlanComposer.tsx
++++ b/components/plan/PlanComposer.tsx
+@@ -1045,9 +1045,13 @@ function initialComposerStops(
+       alternatives: [],
+     })) ?? [];
+   if (recoveredRouteDraft?.stops.length) return recoveredRouteDraft.stops;
+-  if (recoveredPlanStops.length) return recoveredPlanStops;
++  if (recoveredPlanStops.length) return recoveredPlanStops.map((stop, index) =>
++    index === 0 && stop.venueId === handoff?.heldVenueId && handoff.acceptedAnchor?.selectedDrinkPriceEvidence
++      ? { ...stop, selectedDrinkPriceEvidence: handoff.acceptedAnchor.selectedDrinkPriceEvidence } : stop,
++  );
+   const provisional = seedProvisionalStop1({
+     acceptedVenueId: handoff?.heldVenueId,
++    selectedDrinkPriceEvidence: handoff?.acceptedAnchor?.selectedDrinkPriceEvidence,
+     recoveredRouteStops: recoveredRouteDraft?.stops,
+     recoveredPlanStops,
+   });
+@@ -1306,7 +1310,12 @@ function PlanComposerForm({
+   const [conciergeNote, setConciergeNote] = useState("");
+   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
+   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
+-  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
++  // Acceptance carries one drink choice, not a complete inferred night. Existing
++  // recovered route context and later explicit edits retain their precedence.
++  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(() =>
++    !routeDraftFields.nightContext && handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
++      ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {},
++  );
+   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
+   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
+   // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
+diff --git a/lib/listedPriceComparison.ts b/lib/listedPriceComparison.ts
+index 176773d9a..f4bfd567b 100644
+--- a/lib/listedPriceComparison.ts
++++ b/lib/listedPriceComparison.ts
+@@ -13,3 +13,15 @@ export function listedServingComparisonKey(
+   const match = /^([1-9]\d{0,3})\s*ml(?:\s+(?:glass|shot))?$/i.exec(servingSize.trim());
+   return match ? `${category}:${Number(match[1])}ml` : null;
+ }
++
++/** Canonical source-stated volume, shared by query choices and comparison. */
++export function listedServingGroup(category: string, serving: string | null | undefined): string | null {
++  const key = listedServingComparisonKey(category, serving);
++  return key ? key.slice(key.indexOf(":") + 1) : null;
++}
++
++/** Existing per-category state maps keep each explicit serving read independent. */
++export function drinkCategoryIndexKey(category: string, serving?: string | null): string {
++  const group = listedServingGroup(category, serving);
++  return group ? `${category}:${group}` : category;
++}
+diff --git a/lib/mapAcceptance.ts b/lib/mapAcceptance.ts
+index fe49e2668..041a468f2 100644
+--- a/lib/mapAcceptance.ts
++++ b/lib/mapAcceptance.ts
+@@ -1,3 +1,4 @@
++import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ // Map-originated Venue acceptance (trusted-handoff §4.8).
+ //
+ // Turning an inspected Venue into an accepted Stop 1 from the Map writes a
+@@ -78,6 +79,8 @@ export type MapAcceptanceInput = {
+   acceptedVenueId: string;
+   /** The frozen Map arrival search, used to recognise an accepted handoff. */
+   search?: string;
++  /** Public display hint, revalidated against server-owned prices when a Plan is written. */
++  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+ };
+ 
+ export type MapAcceptanceResult = {
+@@ -106,6 +109,7 @@ function planningIntentInput(intent: PlanningIntentV1): PlanningIntentInput {
+     acceptedArea: intent.acceptedArea,
+     startsAt: intent.startsAt,
+     displayEvidence: intent.displayEvidence,
++    ...(intent.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: intent.selectedDrinkPriceEvidence } : {}),
+   };
+ }
+ 
+@@ -297,7 +301,10 @@ export function acceptMapVenue(
+     intentInput = planningIntentInput(arrivalIntent);
+   }
+ 
+-  const intent = writePlanningIntent(intentInput, options);
++  const intent = writePlanningIntent({
++    ...intentInput,
++    ...(input.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: input.selectedDrinkPriceEvidence } : {}),
++  }, options);
+   if (!intent) {
+     return { accepted: false, destination: null, telemetry: null };
+   }
+diff --git a/lib/mapExperienceLens.ts b/lib/mapExperienceLens.ts
+index ac1478b64..f95eae66a 100644
+--- a/lib/mapExperienceLens.ts
++++ b/lib/mapExperienceLens.ts
+@@ -1,3 +1,5 @@
++import { listedServingGroup } from "@/lib/listedPriceComparison";
++
+ import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
+ import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import { priceStandingFor } from "@/lib/priceTier";
+@@ -432,10 +434,17 @@ export function discoveryDrinkLensPrices(
+   category: DrinkCategory,
+   listed: readonly MapLensPrice[],
+   now: number,
++  serving?: string | null,
+ ): Map<string, MapLensPrice> {
++  const selected = listedServingGroup(category, serving);
+   const prices = trustedDrinkLensPrices(rowsByVenue, category, now);
+   for (const quote of listed) {
+-    if (quote.category !== category || quote.source !== "listed" || prices.has(quote.venueId)) continue;
++    if (quote.category !== category || quote.source !== "listed") continue;
++    const existing = prices.get(quote.venueId);
++    const matches = selected !== null && listedServingGroup(category, quote.servingSize) === selected;
++    const existingMatches = existing?.source === "listed" && selected !== null
++      && listedServingGroup(category, existing.servingSize) === selected;
++    if (existing && (!matches || existingMatches)) continue;
+     if (priceStandingFor({ listed: { priceGbp: quote.priceGbp, sourceUrl: quote.sourceUrl ?? "", observedAt: quote.observedAt ?? "" } }, now).standing !== "listed") continue;
+     prices.set(quote.venueId, quote);
+   }
+diff --git a/lib/mapVenueList.ts b/lib/mapVenueList.ts
+index 5c19f165e..fe5c3bf52 100644
+--- a/lib/mapVenueList.ts
++++ b/lib/mapVenueList.ts
+@@ -1,3 +1,4 @@
++import { listedServingGroup } from "@/lib/listedPriceComparison";
+ import { formatGbp } from "@/lib/formatGbp";
+ import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
+ import { haversineKm } from "@/lib/haversine";
+@@ -31,12 +32,14 @@ export const MAP_VENUE_LIST_LIMIT = 60;
+ /** How List view orders the pubs currently in view. Default stays nearest. */
+ export type MapVenueListSortMode = "nearest" | "cheapest";
+ 
++export type MapVenueListRow = LogNearbyCandidate & { lensPrice?: MapLensPrice; sortPrice?: number | null };
++
+ export type MapVenueListModel = {
+   /**
+    * Rows to render. Default order is nearest-first to the viewport centre when
+    * known; "cheapest" ranks priced pubs ascending and leaves unpriced pubs last.
+    */
+-  rows: LogNearbyCandidate[];
++  rows: MapVenueListRow[];
+   /** Total venues currently on the map (pre-cap). */
+   total: number;
+   /** Rows actually shown (post-cap). */
+@@ -56,16 +59,14 @@ export type MapVenueListModel = {
+  * The list is the DOM parallel to the unpriced pins, so it names what OSM
+  * states: a bar reads as a bar. Neither kind carries a price.
+  */
+-type UkBasePubListLabel =
+-  | "Other pub · no listed price"
+-  | "Other bar · no listed price";
+-
+-type UkBasePubListRow = {
++export type UkBasePubListRow = {
+   id: string;
+   name: string;
+-  priceLabel: UkBasePubListLabel;
++  priceLabel: string;
+   distanceKm?: number;
+   pub: UkBasePub;
++  lensPrice?: MapLensPrice;
++  sortPrice?: number | null;
+ };
+ 
+ export type UkBasePubListModel = {
+@@ -150,18 +151,33 @@ function mapVenueListPintPriceLabel(
+  * via venueSignals. A bare non-pub figure without complete provenance is not
+  * shown on the row, so it cannot climb the cheapest sort.
+  */
+-function mapVenueListSortPrice(
+-  venue: Venue,
+-  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+-  venueSignals: MapVenueListVenueSignals | null = null,
+-): number | null {
+-  if (lensPrices !== null) {
+-    const price = lensPrices.get(venue.id)?.priceGbp;
+-    return typeof price === "number" && Number.isFinite(price) && price > 0
+-      ? price
+-      : null;
+-  }
+-  return mapVenueListPintPrice(venue, venueSignals);
++function comparableLensAmount(price: MapLensPrice | undefined, serving?: string | null): number | null {
++  if (!price || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0) return null;
++  // Experience-only legacy callers retain their own quantity contract. Selected
++  // drink lanes always supply null or a chosen group, so unknown serves never rank.
++  if (serving === undefined) return price.priceGbp;
++  if (price.source !== "listed" || !price.category || !serving) return null;
++  const selected = listedServingGroup(price.category, serving);
++  return selected && listedServingGroup(price.category, price.servingSize) === selected ? price.priceGbp : null;
++}
++
++function byComparablePrice(left: { sortPrice?: number | null; name: string; id: string; distanceKm?: number },
++  right: { sortPrice?: number | null; name: string; id: string; distanceKm?: number }): number {
++  const a = left.sortPrice ?? null;
++  const b = right.sortPrice ?? null;
++  if (a !== null && b !== null) return a - b || left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
++  if (a !== null) return -1;
++  if (b !== null) return 1;
++  return (left.distanceKm ?? Infinity) - (right.distanceKm ?? Infinity)
++    || left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
++}
++
++/** One serving group ranks across both catalogues; base identity stays intact. */
++export function combineMapVenueListRows(curated: readonly MapVenueListRow[], base: readonly UkBasePubListRow[],
++  sortMode: MapVenueListSortMode): Array<MapVenueListRow | UkBasePubListRow> {
++  const rows = [...curated, ...base];
++  return sortMode === "cheapest" ? rows.sort(byComparablePrice) : rows.sort((a, b) =>
++    (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+ }
+ 
+ /**
+@@ -182,6 +198,7 @@ export function buildMapVenueListModel(
+   lensStatus: CategoryPriceIndexStatus = "ready",
+   sortMode: MapVenueListSortMode = "nearest",
+   venueSignals: MapVenueListVenueSignals | null = null,
++  serving?: string | null,
+ ): MapVenueListModel {
+   const total = venues.length;
+   const origin =
+@@ -206,6 +223,7 @@ export function buildMapVenueListModel(
+           return {
+             ...row,
+             priceLabel: mapVenueListPintPriceLabel(item, venueSignals),
++            sortPrice: mapVenueListPintPrice(item, venueSignals),
+             priceBand: priceBand(pint, priceBandAreaForVenue(item.id)),
+           };
+         })
+@@ -213,6 +231,8 @@ export function buildMapVenueListModel(
+           const lensPrice = lensPrices.get(row.id);
+           return {
+             ...row,
++            ...(lensPrice ? { lensPrice } : {}),
++            sortPrice: comparableLensAmount(lensPrice, serving),
+             priceLabel: lensPrice
+               ? `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`
+               : unknownLabel,
+@@ -222,15 +242,7 @@ export function buildMapVenueListModel(
+                 : null,
+           };
+         });
+-  const rows =
+-    sortMode === "cheapest"
+-      ? sortMapVenueListRowsCheapest(
+-          labelledRows,
+-          venues,
+-          lensPrices,
+-          venueSignals,
+-        )
+-      : labelledRows;
++  const rows = sortMode === "cheapest" ? [...labelledRows].sort(byComparablePrice) : labelledRows;
+   return {
+     rows,
+     total,
+@@ -241,44 +253,13 @@ export function buildMapVenueListModel(
+   };
+ }
+ 
+-function sortMapVenueListRowsCheapest(
+-  rows: LogNearbyCandidate[],
+-  venues: Venue[],
+-  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+-  venueSignals: MapVenueListVenueSignals | null,
+-): LogNearbyCandidate[] {
+-  const venueById = new Map(venues.map((venue) => [venue.id, venue]));
+-  return [...rows].sort((left, right) => {
+-    const leftVenue = venueById.get(left.id);
+-    const rightVenue = venueById.get(right.id);
+-    const leftPrice = leftVenue
+-      ? mapVenueListSortPrice(leftVenue, lensPrices, venueSignals)
+-      : null;
+-    const rightPrice = rightVenue
+-      ? mapVenueListSortPrice(rightVenue, lensPrices, venueSignals)
+-      : null;
+-    if (leftPrice !== null && rightPrice !== null) {
+-      return (
+-        leftPrice - rightPrice ||
+-        left.name.localeCompare(right.name) ||
+-        left.id.localeCompare(right.id)
+-      );
+-    }
+-    if (leftPrice !== null) return -1;
+-    if (rightPrice !== null) return 1;
+-    return (
+-      (left.distanceKm ?? Number.POSITIVE_INFINITY) -
+-        (right.distanceKm ?? Number.POSITIVE_INFINITY) ||
+-      left.name.localeCompare(right.name) ||
+-      left.id.localeCompare(right.id)
+-    );
+-  });
+-}
+-
+ export function buildUkBasePubListModel(
+   pubs: UkBasePub[],
+   viewportCenter: [number, number] | null,
+   limit: number = pubs.length,
++  lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
++  sortMode: MapVenueListSortMode = "nearest",
++  serving?: string | null,
+ ): UkBasePubListModel {
+   const origin =
+     viewportCenter &&
+@@ -289,8 +270,11 @@ export function buildUkBasePubListModel(
+   const rows = pubs.map<UkBasePubListRow>((pub) => ({
+     id: pub.id,
+     name: pub.name,
+-    priceLabel:
+-      pub.kind === "bar"
++    ...(lensPrices?.get(pub.id) ? { lensPrice: lensPrices.get(pub.id),
++      sortPrice: comparableLensAmount(lensPrices.get(pub.id), serving) } : {}),
++    priceLabel: lensPrices?.get(pub.id)
++      ? `${lensPrices.get(pub.id)!.categoryLabel} · ${formatGbp(lensPrices.get(pub.id)!.priceGbp)}`
++      : pub.kind === "bar"
+         ? "Other bar · no listed price"
+         : "Other pub · no listed price",
+     ...(origin
+@@ -307,6 +291,7 @@ export function buildUkBasePubListModel(
+         left.id.localeCompare(right.id),
+     );
+   }
++  if (sortMode === "cheapest") rows.sort(byComparablePrice);
+   const bounded = rows.slice(0, Math.max(0, Math.floor(limit)));
+   return {
+     rows: bounded,
+diff --git a/lib/planComposerHandoff.ts b/lib/planComposerHandoff.ts
+index 592453590..075a67e37 100644
+--- a/lib/planComposerHandoff.ts
++++ b/lib/planComposerHandoff.ts
+@@ -1,3 +1,4 @@
++import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import {
+   arbitratePlanDrafts,
+   type DraftArbitrationConflict,
+@@ -72,6 +73,7 @@ export type ComposerHydration = {
+     acceptedArea: PlanningIntentArea;
+     startsAt: string | null;
+     expiresAt: string | null;
++    selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+   } | null;
+   area: PlanningIntentArea;
+   /** Show the accepted Venue/area/date summary before intake. */
+@@ -140,6 +142,8 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput):
+         startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
+           ? input.planningIntent.startsAt
+           : result.startsAt.value,
++        ...(result.acceptedVenueId.source === "planning-intent" && input.planningIntent?.selectedDrinkPriceEvidence
++          ? { selectedDrinkPriceEvidence: input.planningIntent.selectedDrinkPriceEvidence } : {}),
+         expiresAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
+           ? input.planningIntent.expiresAt
+           : null,
+@@ -292,6 +296,7 @@ export function releaseAcceptedPlanContext(
+ }
+ 
+ export type ProvisionalStopSeed = {
++  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+   key: 1;
+   venueId: string;
+   venueName: string;
+@@ -329,6 +334,7 @@ export const UNRESOLVED_ACCEPTED_VENUE_LABEL = "The pub you kept";
+  */
+ export function seedProvisionalStop1(input: {
+   acceptedVenueId: string | null | undefined;
++  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+   venues?: ReadonlyArray<SeedVenue> | null;
+   recoveredRouteStops?: ReadonlyArray<SeedStop> | null;
+   recoveredPlanStops?: ReadonlyArray<SeedStop> | null;
+@@ -340,12 +346,14 @@ export function seedProvisionalStop1(input: {
+   if ((input.recoveredRouteStops?.length ?? 0) > 0 || (input.recoveredPlanStops?.length ?? 0) > 0) {
+     return null;
+   }
++  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(input.selectedDrinkPriceEvidence);
+   const indexed = input.venues?.find((venue) => venue.id.trim() === venueId);
+   const venueName = indexed?.name.trim() || UNRESOLVED_ACCEPTED_VENUE_NAME;
+   return {
+     key: 1,
+     venueId,
+     venueName,
++    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+     alternatives: [],
+   };
+ }
+diff --git a/lib/planDraft.ts b/lib/planDraft.ts
+index 695d48504..ef01220af 100644
+--- a/lib/planDraft.ts
++++ b/lib/planDraft.ts
+@@ -1,3 +1,4 @@
++import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import { DAY_MS } from "@/lib/dayMs";
+ import { CITIES, type CityId } from "@/lib/cities";
+ import { LONDON_BOROUGHS } from "@/lib/boroughs";
+@@ -32,6 +33,7 @@ export type StoredPlanDraft = {
+     acceptedArea: PlanningIntentArea;
+     startsAt: string | null;
+     expiresAt: string;
++    selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+   };
+ };
+ 
+@@ -139,7 +141,8 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
+         stops: stops as StoredPlanDraft["stops"],
+       };
+     }
+-    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
++    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)
++      && !hasExactKeys(anchor, [...ACCEPTED_ANCHOR_KEYS, "selectedDrinkPriceEvidence"])) return null;
+     const venueId = boundedText(anchor.venueId, 200);
+     const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
+       ? anchor.source as PlanningIntentSource
+@@ -160,7 +163,11 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
+           ? area as PlanningIntentArea
+           : undefined;
+     if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
+-    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt };
++    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(anchor.selectedDrinkPriceEvidence);
++    if (anchor.selectedDrinkPriceEvidence !== undefined && !selectedDrinkPriceEvidence) return null;
++    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt,
++      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
++    };
+   }
+   return {
+     title,
+diff --git a/lib/planIntake.ts b/lib/planIntake.ts
+index 8043d7d01..872098a95 100644
+--- a/lib/planIntake.ts
++++ b/lib/planIntake.ts
+@@ -1,3 +1,4 @@
++import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import {
+   NIGHT_PATCHES,
+   resolveNightPatch,
+@@ -666,6 +667,7 @@ export type PlanGenerationIntakeBody = {
+ 
+ export type PlanGenerationAnchorInput = PlanGenerationWireAnchor & {
+   cityId?: CityId | null;
++  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+ };
+ 
+ /** Remove values inherited from an earlier intake before applying its current answers. */
+@@ -697,7 +699,12 @@ export function buildPlanGenerationIntakeBody(
+   anchor?: PlanGenerationAnchorInput | null,
+ ): PlanGenerationIntakeBody {
+   const cleanQuery = query.trim();
++  const selected = cleanSelectedDrinkPriceEvidence(anchor?.selectedDrinkPriceEvidence);
++  // A recovered night or a deliberate edit owns its category; the acceptance
++  // seeds only an unanswered choice, never replaces an existing one.
+   const context = {
++    ...(selected && !explicitContext.zeroProof && !currentContext?.zeroProof
++      ? { drinkCategory: selected.category } : {}),
+     ...stripPlanIntakeOwnedContext(currentContext),
+     ...explicitContext,
+     ...planIntakeNightContextPatch(draft),
+diff --git a/lib/planningIntent.ts b/lib/planningIntent.ts
+index c64bd1986..b8487e5a0 100644
+--- a/lib/planningIntent.ts
++++ b/lib/planningIntent.ts
+@@ -1,3 +1,4 @@
++import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import { LONDON_BOROUGHS } from "@/lib/boroughs";
+ import { CITIES, type CityId } from "@/lib/cities";
+ import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
+@@ -52,6 +53,7 @@ export type PlanningIntentV1 = {
+     kind: PlanningIntentEvidenceKind;
+     observedAt: string | null;
+   };
++  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+   acceptedAt: string;
+   expiresAt: string;
+ };
+@@ -218,7 +220,8 @@ export function parsePlanningIntent(
+     return null;
+   }
+ 
+-  if (!isPlainRecord(value) || !hasExactKeys(value, INTENT_KEYS)) return null;
++  if (!isPlainRecord(value) || (!hasExactKeys(value, INTENT_KEYS)
++    && !hasExactKeys(value, [...INTENT_KEYS, "selectedDrinkPriceEvidence"]))) return null;
+   if (value.version !== 1) return null;
+   if (!isOneOf(value.source, PLANNING_INTENT_SOURCES)) return null;
+   if (!isCityId(value.cityId)) return null;
+@@ -227,6 +230,20 @@ export function parsePlanningIntent(
+     !VENUE_ID_PATTERN.test(value.acceptedVenueId)
+   ) return null;
+ 
++  let selectedDrinkPriceEvidence: SelectedDrinkPriceEvidence | null = null;
++  if (value.selectedDrinkPriceEvidence !== undefined) {
++    const hint = value.selectedDrinkPriceEvidence;
++    if (!isPlainRecord(hint)) return null;
++    const keys = hint.source === "listed"
++      ? ["category", "pence", "serving", "source", "sourceUrl", "observedAt"]
++      : ["category", "pence", "serving", "source", "reportedAt"];
++    if (!hasExactKeys(hint, keys)) return null;
++    selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(hint);
++    if (!selectedDrinkPriceEvidence) return null;
++    const observed = selectedDrinkPriceEvidence.source === "listed"
++      ? selectedDrinkPriceEvidence.observedAt : selectedDrinkPriceEvidence.reportedAt;
++    if (Date.parse(observed) > now + PLANNING_INTENT_MAX_FUTURE_SKEW_MS) return null;
++  }
+   const acceptedArea = parseArea(value.acceptedArea);
+   if (acceptedArea === undefined) return null;
+ 
+@@ -263,6 +280,7 @@ export function parsePlanningIntent(
+       kind: value.displayEvidence.kind,
+       observedAt,
+     },
++    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+     acceptedAt: acceptedAt.value,
+     expiresAt: expiresAt.value,
+   };
+diff --git a/lib/pubMap.ts b/lib/pubMap.ts
+index 27698e34d..a3b434367 100644
+--- a/lib/pubMap.ts
++++ b/lib/pubMap.ts
+@@ -398,7 +398,7 @@ export function mapDrinkLensSelection(input: {
+ export function drinkIndexStatusFor(
+   mapDrinkLensCategory: DrinkCategory | null,
+   experienceLens: MapExperienceLens,
+-  drinkCategoryIndexStatus: ReadonlyMap<DrinkCategory, CategoryPriceIndexStatus>,
++  drinkCategoryIndexStatus: ReadonlyMap<string, CategoryPriceIndexStatus>,
+   noAlcoholIndexStatus: CategoryPriceIndexStatus,
+ ): CategoryPriceIndexStatus {
+   if (mapDrinkLensCategory) {
+diff --git a/lib/ukPriceBundle.server.ts b/lib/ukPriceBundle.server.ts
+index a7beddacd..75ab2d64c 100644
+--- a/lib/ukPriceBundle.server.ts
++++ b/lib/ukPriceBundle.server.ts
+@@ -1,5 +1,7 @@
+ import "server-only";
+ 
++import { listedServingGroup } from "@/lib/listedPriceComparison";
++
+ import type { DrinkCategory } from "@/lib/drinks";
+ import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+ 
+@@ -87,16 +89,23 @@ export function resetUkPriceBundleForTests(): void {
+   }
+ }
+ 
+-export async function ukPriceBundleCategoryIndex(category: DrinkCategory, now = Date.now()) {
++export async function ukPriceBundleCategoryIndex(category: DrinkCategory, now = Date.now(), serving?: string | null) {
+   const read = await readUkPriceBundle();
+   const prices: Array<ReturnType<typeof listedCategoryPrices>[number] & { venueId: string }> = [];
+   let truncated = false;
+-  venues: for (const [venueId, rows] of read.byVenue) {
++  const groups = new Set<string>();
++  const selected = listedServingGroup(category, serving);
++  for (const [venueId, rows] of read.byVenue) {
+     for (const quote of listedCategoryPrices(rows, now)) {
+       if (quote.category !== category) continue;
+-      if (prices.length === 1000) { truncated = true; break venues; }
++      const group = listedServingGroup(category, quote.servingSize);
++      if (group) groups.add(group);
++      if (selected && group !== selected) continue;
++      if (prices.length === 1000) { truncated = true; continue; }
+       prices.push({ venueId, ...quote });
+     }
+   }
+-  return { prices, truncated, degraded: read.status === "unavailable" };
++  return { prices, truncated, degraded: read.status === "unavailable",
++    ...(read.status !== "unavailable" ? { servingGroups: [...groups].sort((a, b) => parseInt(a, 10) - parseInt(b, 10)) } : {}),
++  };
+ }

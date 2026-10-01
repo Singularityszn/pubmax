@@ -1,0 +1,83 @@
+diff --git a/components/plan/PlanComposer.tsx b/components/plan/PlanComposer.tsx
+index 94de9478c..387f9db10 100644
+--- a/components/plan/PlanComposer.tsx
++++ b/components/plan/PlanComposer.tsx
+@@ -748,8 +748,9 @@ export function composerCreatePayload(input: {
+       return {
+         venueId,
+         venueName,
+-        ...(evidence && input.context && !input.context.zeroProof
+-          && evidence.category === input.context.drinkCategory
++        ...(evidence && (input.context
++          ? !input.context.zeroProof && evidence.category === input.context.drinkCategory
++          : evidence.source === "listed")
+           ? { selectedDrinkPriceEvidence: evidence } : {}),
+       };
+     }),
+diff --git a/lib/planSelectedDrinkPriceEvidence.server.ts b/lib/planSelectedDrinkPriceEvidence.server.ts
+index 63033ad86..aeeb4febb 100644
+--- a/lib/planSelectedDrinkPriceEvidence.server.ts
++++ b/lib/planSelectedDrinkPriceEvidence.server.ts
+@@ -18,18 +18,23 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
+ ): Promise<PricedPlanStopTarget[]> {
+   const targets = stops.map(({ venueId, venueName }) => ({ venueId, venueName }));
+   const context = cleanNightContext(rawContext);
++  const contextAbsent = rawContext === null || rawContext === undefined;
+   const category = context?.zeroProof ? null : context?.drinkCategory;
+-  if (!category || category === "beer") return targets;
++  // A manual Plan may carry a listed display hint without inventing Night Context.
++  // An explicit context still owns category/zero-proof; malformed context cannot fall back.
++  if (!contextAbsent && (!category || category === "beer")) return targets;
+   const requested = submitted.map((raw) => cleanSelectedDrinkPriceEvidence(
+     raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null,
+   ));
+-  if (!requested.some((evidence) => evidence?.category === category)) return targets;
++  if (!requested.some((evidence) => contextAbsent
++    ? evidence?.source === "listed" : evidence?.category === category)) return targets;
+ 
+   const now = Date.now();
+   const communityRequested = requested.some((evidence) => evidence?.source === "community" && evidence.category === category);
+-  const listedRequested = requested.some((evidence) => evidence?.source === "listed" && evidence.category === category);
++  const listedRequested = requested.some((evidence) => evidence?.source === "listed"
++    && (contextAbsent || evidence.category === category));
+   const trustedCommunity = new Map<string, MapLensPrice>();
+-  if (communityRequested) {
++  if (communityRequested && category) {
+     try {
+       const index = await readCommunityPriceCategoryIndex([category], now);
+       if (!index.degraded && !index.truncated) {
+@@ -48,19 +53,20 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
+   }
+ 
+   const listedByVenue = new Map<string, Promise<ReturnType<typeof listedCategoryPrices>>>();
+-  const listedForVenue = (venueId: string): Promise<ReturnType<typeof listedCategoryPrices>> => {
+-    const existing = listedByVenue.get(venueId);
++  const listedForVenue = (venueId: string, serving: string | null): Promise<ReturnType<typeof listedCategoryPrices>> => {
++    const key = JSON.stringify([venueId, serving]);
++    const existing = listedByVenue.get(key);
+     if (existing) return existing;
+     const pending = ukPriceBundleRowsFor(venueId)
+-      .then((bundle) => bundle.status === "ready" ? listedCategoryPrices(bundle.rows, now) : [])
++      .then((bundle) => bundle.status === "ready" ? listedCategoryPrices(bundle.rows, now, { serving }) : [])
+       .catch(() => []);
+-    listedByVenue.set(venueId, pending);
++    listedByVenue.set(key, pending);
+     return pending;
+   };
+ 
+   return Promise.all(targets.map(async (stop, position) => {
+     const hint = requested[position];
+-    if (!hint || hint.category !== category) return { ...stop };
++    if (!hint || (contextAbsent ? hint.source !== "listed" : hint.category !== category)) return { ...stop };
+     if (hint.source === "community") {
+       const price = trustedCommunity.get(stop.venueId);
+       if (!price || price.source !== "community" || typeof price.submittedAt !== "number") return { ...stop };
+@@ -71,7 +77,7 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
+     }
+     if (!listedRequested || hint.source !== "listed") return { ...stop };
+ 
+-    const quote = (await listedForVenue(stop.venueId)).find((candidate) =>
++    const quote = (await listedForVenue(stop.venueId, hint.serving)).find((candidate) =>
+       candidate.category === hint.category
+       && Math.round(candidate.priceGbp * 100) === hint.pence
+       && candidate.servingSize === hint.serving

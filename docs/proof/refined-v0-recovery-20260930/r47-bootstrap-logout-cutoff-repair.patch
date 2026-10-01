@@ -1,0 +1,14 @@
+diff --git a/components/auth/AuthProvider.tsx b/components/auth/AuthProvider.tsx
+index e851a29..b02fb60 100644
+--- a/components/auth/AuthProvider.tsx
++++ b/components/auth/AuthProvider.tsx
+@@ -897,7 +897,8 @@ export function AuthProvider({
+           (installed !== null && candidate.access_token === installed.access_token &&
+             candidate.refresh_token === installed.refresh_token);
+         const newer = pending.buffered.findLast((candidate) => !belongsToInstall(candidate)) ??
+-          (latestSignedInSession.current && !belongsToInstall(latestSignedInSession.current)
++          (!pending.signedOut && latestSignedInSession.current &&
++            !belongsToInstall(latestSignedInSession.current)
+             ? latestSignedInSession.current : null);
+         if (newer) {
+           await restoreAfterCancelledCallback(newer);

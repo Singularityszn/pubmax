@@ -1,0 +1,53 @@
+{
+  "at": "2026-10-01T11:16:04.422557+00:00",
+  "kind": "Current read-only acceptance findings, no install/source changes",
+  "primaryGhParentRead": {
+    "repo": "Singularityszn/pubmax",
+    "pr": 1882,
+    "title": "chore: refresh project dependencies and TypeScript tooling",
+    "state": "OPEN",
+    "checks": {
+      "passed": 17,
+      "failed": 1,
+      "skipped": 4,
+      "total": 22
+    },
+    "failed": "Review scope",
+    "fullBrowserSuite": "SKIPPED",
+    "method": "gh-axi pr view1882 andpr checks1882 fresh parentreads; not finalcombinedRootCI or finaldeploy proof"
+  },
+  "LunaReadOnlyDetails": {
+    "prBase": "f33f77e42",
+    "prHead": "476f0615",
+    "scopeGap": "Eight README/orchestrate/Poteto helper package/lock paths under obsolete genericproject skill/mirror layouts conflict with latestMain1885 canonical SOURCES.md layout. Root must semantically reconcile accepted tool/lock changes into global/UI skills ownership, never waive scope gate.",
+    "pathsFamilies": [
+      ".agents/skills/enhance-readme",
+      ".agents/skills/orchestrate",
+      ".agents/skills/poteto-mode",
+      "skills/enhance-readme"
+    ],
+    "installedCandidateVersionsBeforeMainRebase": {
+      "nodeEngine": "^22.22.2 || ^24.15.0 || >=26.0.0",
+      "next": "16.3.8",
+      "react": "19.3.0",
+      "typescriptCompilerApi": "6.0.2",
+      "nativeTypecheck": "TypeScript7native compiler used explicitly; compilerAPI distinct",
+      "vitestCoverage": "5.0.3",
+      "playwright": "1.63.0",
+      "eslint": "10.11.0",
+      "jsdom": "30.1.1",
+      "ai": "7.0.124",
+      "otel": "1.0.124",
+      "DOMPurify": "3.4.16"
+    },
+    "skillsAuditLimit": "HistoricalR25 sampled13of108 globalentries and sixsharedupstream byte matches onSep30; cannot prove allglobalfresh today. GlobalGNHF exists; latestMain1885 removes genericprojectduplicate mirrors and pins retainedUI packs.",
+    "registryLimit": "HistoricalSep30R19 npmquery not fresh current registry-latest evidence; candidate versions are source lock contents, not newest ecosystem claim."
+  },
+  "currentGitOwnerState": "Root latestMain459integration was inprogress. Mid-rebase files notfinal; revalidate finalsource/locks aftercompletedintegration. Core no install/refs/merge/push.",
+  "next": [
+    "Root finish latestMain459composition preserving1884hero/1885skills and all acceptedpackage/compiler/MCP helper changes",
+    "Reconcile or supersede obsolete1882source into current integratedPR with scope/CI/browser gates oncurrenthead; do notmerge old1882 blindly",
+    "Freshbounded upstreamcheck for actualretainedskills/dependencyrefs without reinstalling allgenericpacks orlosingcustomskills"
+  ],
+  "noRuntimeOrMaintainedWrites": true
+}

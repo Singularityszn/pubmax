@@ -1,0 +1,76 @@
+{
+  "status": "SOURCE_ONLY_PROPOSAL_UNRUN_NO_TRACING_PRODUCT_EDIT",
+  "createdAt": "2026-10-01T06:40:14.747684+00:00",
+  "basePacket": "r47-base-plan-repair.patch",
+  "basePacketSha256": "46cc395c2bc9bf03131da96cc77c8f375d8f915de5e7e67d6fca4c89e20648ac",
+  "existingReaderModule": "lib/ukBaseIndex.ts",
+  "existingException": "lib/venueIndexTracing.mjs:187 RUNTIME_PATH_MODULES_PENDING_DECLARATION",
+  "existingCallers": [
+    {
+      "route": "/api/uk-base/[id]",
+      "via": "lookupUkBasePub",
+      "scope": "existing public canonical restoration"
+    },
+    {
+      "route": "/api/price-submit",
+      "via": "venueWriteTarget.server -> getUkBaseIdIndex",
+      "scope": "existing write eligibility"
+    },
+    {
+      "route": "/api/venues/[id]/occupancy",
+      "via": "venueWriteTarget.server -> getUkBaseIdIndex",
+      "scope": "existing write eligibility"
+    }
+  ],
+  "basePacketNewCallers": [
+    {
+      "route": "/api/plans/anchor",
+      "via": "planningAnchor.server -> lookupUkBasePub"
+    },
+    {
+      "route": "/api/plans/generate",
+      "via": "planGeneration.server -> planningAnchor.server -> lookupUkBasePub"
+    },
+    {
+      "route": "/api/plans",
+      "via": "planRoute -> lookupUkBasePub"
+    },
+    {
+      "route": "/api/plans/[id]",
+      "via": "canonicalPlanRoute -> lookupUkBasePub",
+      "scope": "PATCH route canonicalization, not member GET"
+    },
+    {
+      "route": "/api/plans/[id]/proposals",
+      "via": "canonicalPlanRoute -> lookupUkBasePub"
+    }
+  ],
+  "packSourceMeasurement": {
+    "method": "static filesystem byte sizes, no compression/runtime deployment measurement",
+    "manifest": "public/data/uk_base/manifest.json",
+    "manifestBytes": 45747,
+    "urlPrefix": "/data/uk_base/packs/a917f46cc28c0e9e/",
+    "shards": 617,
+    "shardBytes": 3849126,
+    "totalBytes": 3894873,
+    "largestShardBytes": 124888
+  },
+  "minimumTestFirst": {
+    "file": "__tests__/venueIndexTracing.test.ts",
+    "schedule": "Assert existing config/runtimeDataPackRouteIncludes includes current manifest plus every manifest-derived shard for actual newly reachable Plan route owners; retain dynamic segment escaping and complete existing reader coverage. Current no-pack declaration is expected RED, not executed. Add temporary-root import-chain control like existing declares-every-pack test, so transitive planningAnchor/planRoute ownership stays automatic.",
+    "noFakeProof": "This config/pack completeness regression cannot prove deployed file availability; fresh build must inspect actual function traces and native signed-out base restore plus canonical anchored generation/create/PATCH/member reload."
+  },
+  "minimumProductionProposal": {
+    "owner": "release owner must authorize separate tracing scope after meaningful RED and static pack-size review",
+    "file": "lib/venueIndexTracing.mjs",
+    "change": "Register ukBaseIndex in existing RUNTIME_DATA_PACKS with manifest and exact current manifest-derived shard paths (or approved generation-scoped glob); remove its pending declaration. Reuse existing route discovery so new Plan callers automatically inherit files. No hand-written per-route overwrite, generic framework, wholeUK new index, or generated-data mutation.",
+    "unresolved": "3.895MB uncompressed pack per relevant function is a source measurement, not deployment upload/runtime-cost proof. Root must assess bundle/function resource limits and cold617 FS read timing under unchanged budgets."
+  },
+  "proofLimits": [
+    "No runtime/test/build/browser/network executed by this lane.",
+    "Existing pending declaration is known older debt; the new base Plan packet reaches it and therefore cannot be called deployment-ready.",
+    "Missing files make existing lookup return unavailable; this is not proof of current deployed missing files, because accidental function co-bundling may supply them.",
+    "No permitted callback/entitlement/privacy state changed.",
+    "Canonical base city correctness depends on real pack coordinates; never derive London from national-ID shape."
+  ]
+}

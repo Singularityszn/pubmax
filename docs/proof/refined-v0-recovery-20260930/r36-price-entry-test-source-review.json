@@ -1,0 +1,32 @@
+{
+  "at": "2026-09-30T20:18:18.066732+00:00",
+  "status": "reviewed_source_only_UNRUN",
+  "owner": "Luna lane,rootindependentreview",
+  "files": [
+    "e2e/price-evidence-missions.spec.ts"
+  ],
+  "sourceFreeze": "r36-source-only-freeze.json",
+  "diffWhitespaceCheck": "git diff --check EXIT0",
+  "beforeEvidence": "whole-five failed original race; unchangedrepeat6=5PASS/1FAIL (price2PASS/1FAIL),oldfixturemission reasonmissingvalidgenericnotabsent",
+  "changes": [
+    "explicitnullmissionfallbackawaitsselectedvenue200thenpersistentdoortap/form/quickprices/measure",
+    "heldgenericmissingmissionawaitsselectedvenuerequest,doorbeforearrival,response-releaseopensformwithoutremoveddoorclick",
+    "exactpath+singlematchingvenueIdguardsnetworkwaits"
+  ],
+  "preserved": [
+    "44pxtargetminimum",
+    "quick-pricecontrols",
+    "measureradiogroup",
+    "twoactualmissionstates",
+    "zeroassertion/timeoutraises",
+    "maintainedapplicationcodeunchanged"
+  ],
+  "requiredVerification": [
+    "focusedwholeprice-evidence-missions.spec.tsandLore",
+    "nativeintermediateLoregeometry",
+    "freshfullsourcegate",
+    "originalwholefive2workers0retries",
+    "strictdefault5CWVseparate"
+  ],
+  "limits": "No tests/lint/types/browser/build for this patch; no productdoorfixed claim"
+}

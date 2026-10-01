@@ -1,0 +1,10 @@
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -5362,6 +5362,7 @@
+   function renderPhoneDescribeForm() {
+     return mobileViewport && isLondon && suggestedPlanArea ? (
+       <MobilePlanActivation
++        key="phone-plan-activation"
+         cityId={cityId}
+         initialNightArea={suggestedPlanArea.slug}
+         venuesById={venuesById}

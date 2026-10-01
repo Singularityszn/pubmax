@@ -1,0 +1,225 @@
+{
+  "at": "2026-10-01T00:46:30.164444+00:00",
+  "status": "RED",
+  "exitCode": 1,
+  "session": 37092,
+  "stats": {
+    "startTime": "2026-10-01T00:24:14.044Z",
+    "duration": 1305504.512,
+    "expected": 1293,
+    "skipped": 24,
+    "unexpected": 4,
+    "flaky": 0
+  },
+  "paths": 4252,
+  "freeze": "r46-final-source-freeze.json",
+  "sourceAndDataDriftAtTerminal": [],
+  "failures": [
+    {
+      "title": "a consumed price intent retires on Home and Create starts another contribution",
+      "file": "price-intent-lifecycle.spec.ts",
+      "line": 36,
+      "project": "chromium",
+      "results": [
+        {
+          "workerIndex": 0,
+          "parallelIndex": 0,
+          "status": "failed",
+          "duration": 11574,
+          "error": {
+            "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeNull\u001b[2m()\u001b[22m\n\nReceived: \u001b[31m\"price\"\u001b[39m\n\nCall Log:\n- Timeout 10000ms exceeded while waiting on the predicate",
+            "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeNull\u001b[2m()\u001b[22m\n\nReceived: \u001b[31m\"price\"\u001b[39m\n\nCall Log:\n- Timeout 10000ms exceeded while waiting on the predicate\n    at /Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts:47:50",
+            "location": {
+              "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts",
+              "column": 50,
+              "line": 47
+            },
+            "snippet": "  45 |   await venueSheet(page).locator(\".surfaceNavHome\").click();\n  46 |   await expect(price).toBeHidden();\n> 47 |   await expect.poll(() => contributeParam(page)).toBeNull();\n     |                                                  ^\n  48 |   await expect(page.getByText(/Pick a pub to log a/)).toHaveCount(0);\n  49 |\n  50 |   await openCreateLogAPrice(page);"
+          },
+          "errors": [
+            {
+              "location": {
+                "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts",
+                "column": 50,
+                "line": 47
+              },
+              "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeNull\u001b[2m()\u001b[22m\n\nReceived: \u001b[31m\"price\"\u001b[39m\n\nCall Log:\n- Timeout 10000ms exceeded while waiting on the predicate\n\n  45 |   await venueSheet(page).locator(\".surfaceNavHome\").click();\n  46 |   await expect(price).toBeHidden();\n> 47 |   await expect.poll(() => contributeParam(page)).toBeNull();\n     |                                                  ^\n  48 |   await expect(page.getByText(/Pick a pub to log a/)).toHaveCount(0);\n  49 |\n  50 |   await openCreateLogAPrice(page);\n    at /Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts:47:50"
+            }
+          ],
+          "stdout": [],
+          "stderr": [],
+          "retry": 0,
+          "startTime": "2026-10-01T00:36:00.314Z",
+          "annotations": [],
+          "attachments": [
+            {
+              "name": "error-context",
+              "contentType": "text/markdown",
+              "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/test-results/price-intent-lifecycle-a-c-6832c-starts-another-contribution-chromium/error-context.md"
+            }
+          ],
+          "errorLocation": {
+            "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts",
+            "column": 50,
+            "line": 47
+          }
+        }
+      ]
+    },
+    {
+      "title": "an anonymous price intent stays with the first pub and never gates another",
+      "file": "price-intent-lifecycle.spec.ts",
+      "line": 56,
+      "project": "chromium",
+      "results": [
+        {
+          "workerIndex": 1,
+          "parallelIndex": 1,
+          "status": "timedOut",
+          "duration": 90017,
+          "error": {
+            "message": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m",
+            "stack": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+          },
+          "errors": [
+            {
+              "message": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+            },
+            {
+              "location": {
+                "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts",
+                "column": 62,
+                "line": 71
+              },
+              "message": "Error: locator.click: Test timeout of 90000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Search the map' })\u001b[22m\n\u001b[2m    - locator resolved to <button aria-expanded=\"false\" aria-label=\"Search the map\" class=\"uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill\">\u2026</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 \u00d7 waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <body data-social-friends-launch=\"1\">\u2026</body> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 \u00d7 waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <body data-social-friends-launch=\"1\">\u2026</body> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    168 \u00d7 waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m        - element is visible, enabled and stable\u001b[22m\n\u001b[2m        - scrolling into view if needed\u001b[22m\n\u001b[2m        - done scrolling\u001b[22m\n\u001b[2m        - <body data-social-friends-launch=\"1\">\u2026</body> intercepts pointer events\u001b[22m\n\u001b[2m      - retrying click action\u001b[22m\n\u001b[2m        - waiting 500ms\u001b[22m\n\n\n  69 |   await venueSheet(page).locator(\".surfaceNavHome\").click();\n  70 |   await expect(gate).toBeHidden();\n> 71 |   await page.getByRole(\"button\", { name: \"Search the map\" }).click();\n     |                                                              ^\n  72 |   await page.locator(\"#mobileMapSearchInput\").fill(otherVenue!);\n  73 |   await page.getByRole(\"option\", { name: new RegExp(otherVenue!.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\")) }).first().click();\n  74 |\n    at /Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts:71:62"
+            }
+          ],
+          "stdout": [],
+          "stderr": [],
+          "retry": 0,
+          "startTime": "2026-10-01T00:36:10.204Z",
+          "annotations": [],
+          "attachments": [
+            {
+              "name": "error-context",
+              "contentType": "text/markdown",
+              "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/test-results/price-intent-lifecycle-an--0797e-pub-and-never-gates-another-chromium/error-context.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Back from a gated pub returns to the price picker, which still opens another pub's price door",
+      "file": "price-intent-lifecycle.spec.ts",
+      "line": 117,
+      "project": "chromium",
+      "results": [
+        {
+          "workerIndex": 2,
+          "parallelIndex": 0,
+          "status": "failed",
+          "duration": 12129,
+          "error": {
+            "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByText(/Pick a pub to log a/)\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/Pick a pub to log a/)\u001b[22m\n\u001b[2m    24 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n",
+            "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByText(/Pick a pub to log a/)\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/Pick a pub to log a/)\u001b[22m\n\u001b[2m    24 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n\n    at /Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts:159:55",
+            "location": {
+              "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts",
+              "column": 55,
+              "line": 159
+            },
+            "snippet": "  157 |   await venueSheet(page).locator(\".surfaceNavHome\").click();\n  158 |   await expect(venueSheet(page)).toHaveCount(0);\n> 159 |   await expect(page.getByText(/Pick a pub to log a/)).toHaveCount(0);\n      |                                                       ^\n  160 |   await expect.poll(() => contributeParam(page)).toBeNull();\n  161 | });\n  162 |"
+          },
+          "errors": [
+            {
+              "location": {
+                "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts",
+                "column": 55,
+                "line": 159
+              },
+              "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByText(/Pick a pub to log a/)\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/Pick a pub to log a/)\u001b[22m\n\u001b[2m    24 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n\n\n  157 |   await venueSheet(page).locator(\".surfaceNavHome\").click();\n  158 |   await expect(venueSheet(page)).toHaveCount(0);\n> 159 |   await expect(page.getByText(/Pick a pub to log a/)).toHaveCount(0);\n      |                                                       ^\n  160 |   await expect.poll(() => contributeParam(page)).toBeNull();\n  161 | });\n  162 |\n    at /Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts:159:55"
+            }
+          ],
+          "stdout": [],
+          "stderr": [],
+          "retry": 0,
+          "startTime": "2026-10-01T00:36:14.192Z",
+          "annotations": [],
+          "attachments": [
+            {
+              "name": "error-context",
+              "contentType": "text/markdown",
+              "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/test-results/price-intent-lifecycle-Bac-1dd88-ns-another-pub-s-price-door-chromium/error-context.md"
+            }
+          ],
+          "errorLocation": {
+            "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/price-intent-lifecycle.spec.ts",
+            "column": 55,
+            "line": 159
+          }
+        }
+      ]
+    },
+    {
+      "title": "normal London entry paints UK base pubs and takes a price",
+      "file": "map-uk-base-layer.spec.ts",
+      "line": 90,
+      "project": "chromium-gl",
+      "results": [
+        {
+          "workerIndex": 37,
+          "parallelIndex": 1,
+          "status": "failed",
+          "duration": 15976,
+          "error": {
+            "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveClass\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.mobileSharedSheet')\nExpected pattern: \u001b[32m/sheet-peek/\u001b[39m\nReceived string:  \u001b[31m\"mapDrawer mobileSharedSheet right open sheet-half\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveClass\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('.mobileSharedSheet')\u001b[22m\n\u001b[2m    5 \u00d7 locator resolved to <section tabindex=\"-1\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_4_\" data-sheet-motion=\"settling\" class=\"mapDrawer mobileSharedSheet right open sheet-half sheet-settling\">\u2026</section>\u001b[22m\n\u001b[2m      - unexpected value \"mapDrawer mobileSharedSheet right open sheet-half sheet-settling\"\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to <section tabindex=\"-1\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_4_\" data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet right open sheet-half\">\u2026</section>\u001b[22m\n\u001b[2m       - unexpected value \"mapDrawer mobileSharedSheet right open sheet-half\"\u001b[22m\n",
+            "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveClass\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.mobileSharedSheet')\nExpected pattern: \u001b[32m/sheet-peek/\u001b[39m\nReceived string:  \u001b[31m\"mapDrawer mobileSharedSheet right open sheet-half\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveClass\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('.mobileSharedSheet')\u001b[22m\n\u001b[2m    5 \u00d7 locator resolved to <section tabindex=\"-1\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_4_\" data-sheet-motion=\"settling\" class=\"mapDrawer mobileSharedSheet right open sheet-half sheet-settling\">\u2026</section>\u001b[22m\n\u001b[2m      - unexpected value \"mapDrawer mobileSharedSheet right open sheet-half sheet-settling\"\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to <section tabindex=\"-1\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_4_\" data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet right open sheet-half\">\u2026</section>\u001b[22m\n\u001b[2m       - unexpected value \"mapDrawer mobileSharedSheet right open sheet-half\"\u001b[22m\n\n    at /Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/map-uk-base-layer.spec.ts:286:28",
+            "location": {
+              "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/map-uk-base-layer.spec.ts",
+              "column": 28,
+              "line": 286
+            },
+            "snippet": "  284 |   await page.waitForTimeout(150);\n  285 |   await page.mouse.up();\n> 286 |   await expect(phoneSheet).toHaveClass(/sheet-peek/);\n      |                            ^\n  287 |   await expect(phoneSheet).not.toHaveAttribute(\"aria-modal\", \"true\");\n  288 |   await expect(page.locator(\"main.appShell\")).not.toHaveAttribute(\"inert\", \"\");\n  289 |   await expect(priceField).toHaveValue(TYPED_PRICE);"
+          },
+          "errors": [
+            {
+              "location": {
+                "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/map-uk-base-layer.spec.ts",
+                "column": 28,
+                "line": 286
+              },
+              "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveClass\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.mobileSharedSheet')\nExpected pattern: \u001b[32m/sheet-peek/\u001b[39m\nReceived string:  \u001b[31m\"mapDrawer mobileSharedSheet right open sheet-half\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveClass\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('.mobileSharedSheet')\u001b[22m\n\u001b[2m    5 \u00d7 locator resolved to <section tabindex=\"-1\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_4_\" data-sheet-motion=\"settling\" class=\"mapDrawer mobileSharedSheet right open sheet-half sheet-settling\">\u2026</section>\u001b[22m\n\u001b[2m      - unexpected value \"mapDrawer mobileSharedSheet right open sheet-half sheet-settling\"\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to <section tabindex=\"-1\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_4_\" data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet right open sheet-half\">\u2026</section>\u001b[22m\n\u001b[2m       - unexpected value \"mapDrawer mobileSharedSheet right open sheet-half\"\u001b[22m\n\n\n  284 |   await page.waitForTimeout(150);\n  285 |   await page.mouse.up();\n> 286 |   await expect(phoneSheet).toHaveClass(/sheet-peek/);\n      |                            ^\n  287 |   await expect(phoneSheet).not.toHaveAttribute(\"aria-modal\", \"true\");\n  288 |   await expect(page.locator(\"main.appShell\")).not.toHaveAttribute(\"inert\", \"\");\n  289 |   await expect(priceField).toHaveValue(TYPED_PRICE);\n    at /Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/map-uk-base-layer.spec.ts:286:28"
+            }
+          ],
+          "stdout": [],
+          "stderr": [],
+          "retry": 0,
+          "startTime": "2026-10-01T00:44:17.383Z",
+          "annotations": [],
+          "attachments": [
+            {
+              "name": "error-context",
+              "contentType": "text/markdown",
+              "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/test-results/map-uk-base-layer-normal-L-dba80-base-pubs-and-takes-a-price-chromium-gl/error-context.md"
+            }
+          ],
+          "errorLocation": {
+            "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/map-uk-base-layer.spec.ts",
+            "column": 28,
+            "line": 286
+          }
+        }
+      ]
+    }
+  ],
+  "workers": 2,
+  "retries": 0,
+  "projects": [
+    "chromium",
+    "chromium-keyless",
+    "chromium-gl",
+    "chromium-sw-gl",
+    "chromium-no-gl"
+  ],
+  "boundary": "Local deterministic browser proof only; PubPal provider fixtures do not prove real provider/live answers. No merge/deploy/SQL."
+}

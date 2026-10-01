@@ -1,0 +1,40 @@
+{
+  "kind": "scratch-only test expectation corrections",
+  "status": "prepared; tests UNRUN",
+  "root_checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "root_head_at_capture": "b4790e8915a809d0747362352396b2fa341782df",
+  "evidence": {
+    "full_verify_log": ".audit/overnight-20261001/pre-final-full-verify.log",
+    "night_signal_failure": "line 230: expected s-maxage=300; received no-store",
+    "pin_standing_failure": "line 285: expected estimate; received undefined"
+  },
+  "patches": [
+    {
+      "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-nightSignalRoute.patch",
+      "target": "__tests__/nightSignalRoute.test.ts",
+      "before_sha256": "f9d03e9ef2c7c4c7bd6ce810047e99166a9a5e73a5247e8b7fbb628e46bb362d",
+      "after_sha256": "8c89ffef015612ed47860e8982e81ec921b807f30d6c77ba678a67e334450cc0",
+      "patch_sha256": "2803d9f083d46f61e10fbb32c9e5073193986076f8cb2460da98209f3dbc4257",
+      "basis": "GET merges the shipped snapshot with mutable approved memory or durable rows and returns jsonNoStore; approval and expiry can change between reads.",
+      "original_scratch_patch": "/tmp/pubmaxx-r49-test-fixture-contracts/nightSignalRoute.patch"
+    },
+    {
+      "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-pinPriceStanding.patch",
+      "target": "__tests__/pinPriceStanding.test.ts",
+      "before_sha256": "6a346c8e6357d4c843e8a12824841bec4bc31f5109e1d6fec16998cac9d89ef5",
+      "after_sha256": "a53f9a6c26e737b11a22fbae2d656a507c3c94f85d6154a7371d32adb8e122b4",
+      "patch_sha256": "296307843efeeb292e57c9a3c4f8a45ca29a2caaafb2c532e27ba9fe0be70a02",
+      "basis": "Under a non-beer lens without a matching beer lens price, pinBucketAndTag intentionally returns no label or standing; a pint estimate must not follow the pin into the lens.",
+      "original_scratch_patch": "/tmp/pubmaxx-r49-test-fixture-contracts/pinPriceStanding.patch"
+    }
+  ],
+  "validation": "No tests, build, lint, or runtime commands run. Maintained checkout untouched.",
+  "parent_review": {
+    "at": "2026-10-01T10:18:13.572429+00:00",
+    "current_before_pins_root_applycheck_fresh_after": "PASS",
+    "night_signal": "Actual fullverify RED matches; route awaits mutable approved store then returns jsonNoStore in keyless/durable modes, so exact no-store is correct freshness/privacy contract. Existingbody/version/durable/claim assertions retained.",
+    "drink_pin": "Actual fullverify RED matches; current pinBucketAndTag returns null label+standing whenever active lens lacks comparable beer quote. Nonbeer attributed rows remain source-specific, no generic estimate standing. Otherprice/band/standing tests unchanged.",
+    "runtime": "UNRUN Root focused suites and fullgate required",
+    "maintained_source_changed": false
+  }
+}

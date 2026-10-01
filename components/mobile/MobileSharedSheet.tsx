@@ -300,7 +300,7 @@ export default function MobileSharedSheet({
               focuses ITSELF on open (see the open effect above) rather than the
               Home control. Handing this a ref would put the accent ring back on
               the way out the instant a sheet opened. */}
-          <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestClose} />
+          <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={onClose} />
         </header>
         <div className="mobileSharedSheetBody">
           <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>

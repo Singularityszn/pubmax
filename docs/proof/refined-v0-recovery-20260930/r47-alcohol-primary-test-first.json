@@ -1,0 +1,41 @@
+{
+  "status": "FROZEN_TEST_ONLY_UNRUN_EXPECTED_RED",
+  "rootWorktree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratch": "/tmp/pubmaxx-r47-alcohol-primary-test",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-alcohol-primary-test-first.patch",
+  "patchSha256": "f8e77a8fc9d8750469845edee7c2b6385cd1d697ab7c5bd732ec68d2804bdec4",
+  "paths": [
+    {
+      "path": "__tests__/planAnchoredGenerateRoute.test.ts",
+      "beforeSha256": "fb44794da131e6290fe84974a83dd0b17d40548b38a5924465970a7851bb1a42",
+      "afterSha256": "2a15ed09204fbcd7d12f3a1fb0ff4e8e8d08b043a3e92110432ef9331c1f257e"
+    }
+  ],
+  "baseHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "precedingActualUnionGreen": {
+    "receipt": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/category-offer-coverage-green.json",
+    "sha256": "870130fe08bd92d7a0681e7dc2890b4f5c9e89a193d64f540c1eb40ba160d500",
+    "total": 43,
+    "passed": 43,
+    "failed": 0
+  },
+  "testContract": [
+    "Existing actual generate POST, approved-reader/canonical fixture and category amount mutation controls unchanged.",
+    "Primary assertion runs only after200,3stops,union quote equality,unknown-serving null budget,unaffected scores,backup cap2,primary and every emitted swap proof validation,wrong-category/expired exclusion.",
+    "At least one primary carries requested gin evidence; no price comparison or guessed serving.",
+    "Unanchored fixture only; accepted anchor and hard constraints must remain protected by future production owner."
+  ],
+  "expectedFailure": "Current producer keeps the sole approved unknown-serving gin offer only in backups: final primary .some assertion is expected false. This has NOT been executed.",
+  "limitations": [
+    "No tests,types,lint,build or browser run in this agent.",
+    "Fixture is not independently verified genuine publisher offer; real Sun Tavern mixed recipe/unnamed category data truth limitations remain.",
+    "This tests generic primary availability, not full market, Cheapest, or constraint feasibility for every route."
+  ],
+  "sourceValidation": {
+    "scratchApplyCheck": "PASS",
+    "freshAfterBytes": "PASS",
+    "whitespace": "PASS (exit1 content differs; no diagnostics)",
+    "currentRootBeforeStable": true
+  },
+  "focusedCommand": "npx vitest run __tests__/planAnchoredGenerateRoute.test.ts"
+}

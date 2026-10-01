@@ -1,0 +1,12 @@
+{
+  "status": "SOURCE_ONLY_UNRUN",
+  "file": "__tests__/authProviderBootstrapRace.test.tsx",
+  "baseIncludes": "Root applied StrictMode positive control; current source file hash authoritative",
+  "beforeSha256": "0f3357d0ef433358d4e66522c64314194c7e5367fa9117c575938887c21dba12",
+  "afterSha256": "89d07816d030a2f7294023f91ceb7c8eb92e244932d2e28b33417aee90ce68c1",
+  "patchSha256": "7cfc503eaa6b80c2fd43dffac6b34dcc4fa43b6bddaed1820082eadfd9407dc7",
+  "bytes": 2753,
+  "scratchApplyWhitespace": true,
+  "expectedBaseline": "PASS public valid-restore control; no execution claimed",
+  "purpose": "Real bootstrap helper plus held SDK fixture emits and returns the same rotated pair. Public UI/SDK/cookie must preserve that pair, with zero SDK sign-out. No claim about AbortSignal classification or real provider."
+}

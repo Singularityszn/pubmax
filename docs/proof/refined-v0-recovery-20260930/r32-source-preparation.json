@@ -1,0 +1,33 @@
+{
+  "observedAtUtc": "2026-09-30T17:47:30.900708+00:00",
+  "coreHead": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "fetchedMain": "76de20674da64604af22872ff42ee08fca7f156a",
+  "mainIsAncestor": true,
+  "lockDomPurify": "3.4.16",
+  "installedDomPurify": "3.4.15",
+  "priceDiagnostic": {
+    "path": "/tmp/pubmaxx-r32-retained-price-diagnostic.mts",
+    "sha256": "1f04c55310b39c45748fcfa102c5e9629a66376f40fcac50ebd3ef70af26c509",
+    "status": "UNRUN",
+    "sourceReview": "Sol review found Bristol should enter /map/bristol, not London map with place=bristol. Diagnostic corrected. Other price selectors checked against source, no runtime verdict."
+  },
+  "conditionalRuntime": {
+    "startUtc": "2026-09-30T18:39:00Z",
+    "endUtc": "2026-09-30T20:09:00Z",
+    "cleanupReserveUtc": "2026-09-30T20:06:00Z",
+    "requires": "Actual integration owned cleanup and fresh Core clear preflight. Clock alone never authorizes start."
+  },
+  "scope": "Source-only native diagnostic preparation and remote reads. No installation, app/test/browser/database runtime, maintained product edit, index, commit, push, migration or deployment in R32.",
+  "sourceFreezeCheckUtc": "2026-09-30T17:50:14.584941+00:00",
+  "r28FrozenFileCount": 4247,
+  "changedSinceR28": [
+    "package-lock.json"
+  ],
+  "privacyDiagnostic": {
+    "path": "/tmp/pubmaxx-r32-plan-privacy-diagnostic.mts",
+    "sha256": "8017a274ced90af519894e407ada5f4024c55daae00fcc4cd632e68053795a1c",
+    "status": "UNRUN",
+    "scope": "Real anchored local API creation, actual member capability reads and native anonymous document/RSC inspection. Requires verified isolated keyless memory-store server."
+  },
+  "dataCustodyConstraint": "Build wrapper restores public/data from HEAD. Preserve any owned intended dataset repair before invoking it and restore exact repaired bytes after stamping; do not accidentally revert it or call generated build churn a product change."
+}

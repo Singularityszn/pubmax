@@ -1,0 +1,29 @@
+{
+  "status": "MANUAL_PRIMARY_PUBLISHER_READ_CURRENT_CATEGORY_CONTRADICTIONS_ONLY",
+  "url": "https://www.thesuntavern.co.uk/menu/",
+  "readAtUTC": "2026-10-01T11:39:45.094634+00:00",
+  "evidence": [
+    {
+      "item": "Umbrella Vesper",
+      "section": "The Sun Tavern Classics",
+      "ingredients": "Grey Goose Vodka, Boatyard Gin, Kina L\u2019Aero, Vichy Catalan",
+      "printedAmountGbp": 7,
+      "contradiction": "Retained gin row describes this named mixed cocktail; must not assert a single-gin serving."
+    },
+    {
+      "item": "BELFAST COFFEE",
+      "section": "The Sun Tavern Classics",
+      "ingredients": "B\u00e1n Poit\u00edn, Cold Brew Coffee, Cream, Demerara, Nutmeg",
+      "printedAmountGbp": 8.5,
+      "contradiction": "Retained beer row is named coffee/poit\u00edn item, not beer."
+    }
+  ],
+  "beerSection": "LOCAL HEROES says rotating beer list cannot be written down, no beer price listed in this HTML section.",
+  "limits": [
+    "Manual read only, not source-policy-authorized harvest or new ledger ingestion.",
+    "No replacement price/category/serving is produced.",
+    "No conclusion about unnamed retained 10 GBP spirits.",
+    "Current menu does not prove historical source layout or serving size."
+  ],
+  "ownership": "Root release_inventory test-first, existing Luna lane minimal exact quarantine producer after actual Root RED, Root generated bundles owner."
+}

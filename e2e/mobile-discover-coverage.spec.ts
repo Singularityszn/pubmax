@@ -19,7 +19,7 @@ test("mobile Discover shows Night Area evidence states without promising routes"
   const response = await page.goto("/discover", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
 
-  const coverage = page.locator(".nightAreaCoverage");
+  const coverage = page.getByRole("region", { name: "Where you can plan a crawl tonight" });
   await expect(coverage).toBeVisible();
   await expect(coverage.getByRole("heading", { name: "Where you can plan a crawl tonight" })).toBeVisible();
   await expect(coverage).toContainText("We only call an area crawl-ready when its prices are fresh and checked.");

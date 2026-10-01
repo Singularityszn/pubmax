@@ -1,0 +1,182 @@
+{
+  "status": "FROZEN_TEST_ONLY_READY_FOR_ROOT_ACTUAL_RED_PRODUCTION_HELD",
+  "capturedAt": "2026-10-01T07:49:45.605020+00:00",
+  "isolation": {
+    "worktree": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx",
+    "branch": "codex/r47-plan-backup-adaptation",
+    "base": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+    "fetchPerformed": false
+  },
+  "scratch": "/tmp/pubmaxx-r47-plan-backup-adaptation-v2",
+  "releaseSnapshotHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "releaseOverlay": [
+    {
+      "path": "lib/plan.ts",
+      "releaseSnapshotSha256": "3fd2f1abc2ef389a458be963a160c027b9acb14fcde6d4367ce1db194f9a0b53",
+      "bytes": 10432,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "lib/planStore.ts",
+      "releaseSnapshotSha256": "2ed2ace63318993df520abbdadd572ca9b42b7ec527f8b58708c713c2650576a",
+      "bytes": 63136,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "lib/planRoute.ts",
+      "releaseSnapshotSha256": "756327300ad01f94367d9f78472e92f471e74c886d9b2cf0c32ac8a1cd41bdb3",
+      "bytes": 3774,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.server.ts",
+      "releaseSnapshotSha256": "4e345d226e5116593d3c38fa08b485ede1f53adb7b4dd13f46698bc01a74ac0f",
+      "bytes": 5064,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.ts",
+      "releaseSnapshotSha256": "fe1908a7306b60f5d911786c154452e1450b6ff1c4a8243b9cfe65a02af2dc90",
+      "bytes": 4234,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "lib/planRouteEditor.ts",
+      "releaseSnapshotSha256": "ac9d63fc8a2ff849d081072990d1e3a1658c3a5dc2832951ef22748f3f980cfa",
+      "bytes": 5446,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "lib/planCollaborationStore.ts",
+      "releaseSnapshotSha256": "4a3de08e2958bc2f5fe4264c48c7bc85502fb08b43cd712f21e1555ad5b7bf0b",
+      "bytes": 52745,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "components/plan/PlanSummary.tsx",
+      "releaseSnapshotSha256": "bb07ac265940cec4d431ef588d234c3ae583f735461b4ed6357eae664f9e8b3a",
+      "bytes": 33725,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "app/api/plans/route.ts",
+      "releaseSnapshotSha256": "a85d2b8bf786091a4325123a7307b250ff78ce4da8bb9af7682b508f1b877e8b",
+      "bytes": 10139,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "app/api/plans/[id]/route.ts",
+      "releaseSnapshotSha256": "b6a7e34a0a249c3257eec85f02499c82e2f5db69ec5bb91e1822a8fb882bf7a3",
+      "bytes": 11329,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "app/api/plans/[id]/proposals/route.ts",
+      "releaseSnapshotSha256": "41ca4ebc721dc8fcba0d0b3f3e6f032dc454bbef7929a642b4957970656a144d",
+      "bytes": 2425,
+      "stillMatchesReleaseAtFreeze": true
+    },
+    {
+      "path": "app/api/plans/[id]/proposals/[proposalId]/decision/route.ts",
+      "releaseSnapshotSha256": "2ce1fa4f01020ab75120edf436782bf8dce0bdc2e01f4e0cd1f19b22922e1189",
+      "bytes": 2626,
+      "stillMatchesReleaseAtFreeze": true
+    }
+  ],
+  "patch": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-backup-tests-first-v2.patch",
+    "sha256": "4beda007ac05a9383756360024055a391fcff875b9777b844ef93e2cacecaa42",
+    "bytes": 14583
+  },
+  "testFiles": [
+    {
+      "path": "__tests__/planSavedBackupDelivery.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "4d765cb5e7f1186c4e2a1d7d762d7ce25576d3c6f1da3fd49d658afbd127bbc3",
+      "bytes": 14127,
+      "cases": 21
+    }
+  ],
+  "checks": {
+    "scratchWhitespaceErrorApplyCheck": "PASS_SOURCE_ONLY",
+    "scratchApplicationAfterHash": "PASS_SOURCE_ONLY",
+    "releaseOverlayPinsStable": true,
+    "runtime": "UNRUN"
+  },
+  "actualReachability": [
+    "PlanSummary Edit route seeds draft via seedRouteDraft; current fresh generation overwrites saved alternatives and Save route payload omits alternatives.",
+    "HTTP POST canonicalizes only primary submitted stop identities; cleanCreatePlan and DTO/store cannot carry alternatives.",
+    "HTTP PATCH canonicalPlanRoute strips alternatives before exact approved quote resolver; store/reload cannot retain them.",
+    "Proposal creation canonicalizes only primary stops; collaborative store and acceptance reuse same owner pipeline."
+  ],
+  "invariants": [
+    "Canonical names/IDs rebuilt from server pack for primary and backups, including bounded UK-base identity lookup and city fence; submitted names never authority.",
+    "Existing <=24 per-stop cap, duplicates and active-route exclusion. No guessed prices, measures, amenities or curated promotion.",
+    "Exact approved quote lookup/source/observation day/pence/serving; expired/forged/mismatched price omitted while canonical backup identity retained.",
+    "Both stored and requested context absent retains LISTED only; explicit category override/zeroProof removes incompatible price on primary and backups; community without context omitted.",
+    "Member GET retains approved backup projection; anonymous GET preview omits backup names/IDs/evidence/source/private canary.",
+    "Save/reload editor retains prior backup choices/evidence; stale route revision remains409."
+  ],
+  "fixtures": {
+    "backend": "Actual memoryPlanStore forced by existing isSupabaseConfigured mock false; no credential reads.",
+    "authority": "Existing canonical Concierge/UK identity readers, approved bundle reader and corroborated community reader are clearly labeled fixtures. Real cleaner, listedCategoryPrices, exact evidence resolver, routes and memory/collaboration stores remain unmocked. Quote is stable business fixture, not a market claim.",
+    "base": "Sydney identity copied from committed pack/source of existing base Plan tests; not added to curated fixture."
+  },
+  "expectedRed": "Source inference only: current release silently drops backups/payload fields and fails positive persistence/identity assertions; negative bounds fail200 vs400. Root must execute actual regression before production authorization.",
+  "focusedCommand": "npx vitest run __tests__/planSavedBackupDelivery.test.ts __tests__/planRouteEditor.test.ts __tests__/planSelectedDrinkEvidenceCreate.test.ts",
+  "coreAcceptedReferences": [
+    {
+      "path": "supabase/migrations/20260929200000_0171_plan_route_alternatives.sql",
+      "sha256": "909b83eebc29952ce42dc971d17bb2b71243c6ad0a76deac4651e8922465e6c7"
+    },
+    {
+      "path": "supabase/migrations/rollback/20260929200000_0171_plan_route_alternatives_rollback.sql",
+      "sha256": "36bc8fac1f469adbd7459d1d0002db8617e99138627d97b0ff6eb072342cd116"
+    },
+    {
+      "path": "supabase/migrations/20260929230100_0174_plan_backup_context_evidence.sql",
+      "sha256": "c44e29f28424672095716d0af142d345cd9fb284bf9d43c749ddacb4a1bcaaee"
+    },
+    {
+      "path": "supabase/migrations/rollback/20260929230100_0174_plan_backup_context_evidence_rollback.sql",
+      "sha256": "164026f2fd343edbc85da7956d06749b0821874112742373f7b46773bf2ba044"
+    },
+    {
+      "path": "__tests__/planListedEvidenceMigrationEffective.test.ts",
+      "sha256": "d3133ff27a36814b311d78dfb87fe19a32b87d707af4293a4c217e5e856b19a6"
+    }
+  ],
+  "productionOwnershipAfterRed": [
+    "Backup-only minimal changes to DTO/cleaner, canonical primary+backup route resolution, stronger Root approved-quote resolver traversal, create idempotency/route wire, memory/durable reader/writer, editor delivery and proposal projection. Preserve Root current source and async/cancellation/Plan authority.",
+    "completionFromRow export is supplied by separate8739 packet; backup adaptation preserves SINGLE exported owner body.",
+    "Adapt SQL0178 alternatives and0179 backup-current-context to exact Root0176/0177 lineage, both-contexts-NULL retention; preserve Root0168/0175. Timestamp before Social20261001092000. Reverse0179 before0178; rollback restores exact current Root predecessors, never Core historical functions."
+  ],
+  "pgProofStillRequired": "Existing harness and Core backup effective fixture supply pattern. Actual Root0176/0177 source/PG receipts needed before freezing new0178/0179 effective adaptation. Test all create/replay/read/replace/proposal/context changes, service-only grants, NULL context, reverse rollback with exact catalog predecessors; no file-missing pseudo-RED or guessed schema. Parent coordinates additive PG registry/CI exclusions preserving friend suite.",
+  "holds": [
+    "No production/SQL source edits before Root actual test RED.",
+    "Separate one-predicate manual-memory repair waits exact b97 RED; this packet does not change it.",
+    "No runtime, installs, provider/DB writes, commit/index/push, or release/Core maintained writes performed.",
+    "Future deployed SQL captain application/durable native journey not established by historical Core R46 local PostgreSQL proof."
+  ],
+  "supersedes": "Unsent source draft22dd0b99. This v2 is final test-only packet; adds genuine corroborated-community available control plus matching-context positive. Prior draft must not be used as current packet.",
+  "dependencies": [
+    {
+      "path": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-plan-manual-memory-repair.patch",
+      "sha256": "8739f0ef1d33e806bbb0e6706e8fdf2e9e8cc64779e15757da5109af1359916b",
+      "expectedPlanStoreSha256": "067335a1894c3c62db2b1c5372d9f1975e6c04c850c3e09ff1667c992574335e",
+      "status": "Root application/GREEN pending at preparation; not applied here."
+    },
+    {
+      "sql": "Root0176 listed CHECK +0177 NULL-context repair;0178/0179 reserved for backup production after actual own RED. Existing forward and rollback must preserve exact reviewed0177 bodies."
+    }
+  ],
+  "parentReview": {
+    "at": "2026-10-01T07:51:22.794299+00:00",
+    "hash": "PASS",
+    "RootNewPathAbsent": "PASS",
+    "RootApplyCheck": "PASS",
+    "freshScratchAfter": "PASS",
+    "source": "PASS testactualPOST/PATCH/proposal/memberGET/editorowners; authority readers onlyfixtures; canonicalnames/quote fields closed;positivebaselineexpected201; explicitnegatives/communitycontrols retained; rootrealruntimeRED mandatory",
+    "runtime": "UNRUN"
+  }
+}

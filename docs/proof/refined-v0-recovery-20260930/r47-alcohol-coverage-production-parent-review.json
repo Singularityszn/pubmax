@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-01T09:19:40.550592+00:00",
+  "status": "SOURCE_REVIEW_PASS_ROOT_FOCUSED_GREEN_PENDING",
+  "patchSHA256": "42ea20fa4494a8f912a0959526f7f2b89d2547933b2fc33cbaa40ad83c3d0d99",
+  "before": "d7ce0a055ffbb9d2763be9e12629219337593cc93c8fe28a38d33c43fbf34e11",
+  "after": "101d2cda23fc6109ed30325a9648d42db62c8665bba246b36bdf1d29f8239af7",
+  "parentReview": [
+    "CurrentRoot hash+applycheck+freshscratchafter PASS",
+    "Fullbuilder: selectedDrinkPriceEvidenceForPrice filters againstactualpriceContext on every alternative",
+    "Alternativepool eligiblefallbackcandidates or optimizer-approvedgroundedalternatives untouched",
+    "Comparator onlybinaryquotedavailability fornonpint, thendistance, cap2 unchanged; nevercomparesamounts",
+    "Primaryorder/scores/budget/serving/category/expiry/zeroProof guards unchanged",
+    "Currentgenerate193-209 signs exact emittedprimary+alternative IDs afterDTO"
+  ],
+  "remaining": "Fix union discoverability only. Four realbrowsercategories alsoassertquotedPRIMARY; stillopen. Sourcepublisherlabel/measure truth stillseparate requiredreview. No runtimesbyCore."
+}

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, promises as fs, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -12,7 +12,7 @@ import {
 } from "@/lib/venueDetailIndex";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resetUkPriceBundleForTests } from "@/lib/ukPriceBundle.server";
-import { isValidUkPriceBundleRow } from "@/lib/ukPriceBundle";
+import { isValidUkPriceBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { venueFromDetailPayload } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -32,6 +32,44 @@ beforeEach(() => {
 });
 
 describe("GET /api/venue/[id]", () => {
+  it("withholds a misfiled mixer while carrying printed gin serving on the existing detail response", async () => {
+    const venueId = "venue-1vse4lh";
+    const observedAt = "2026-09-21T18:56:51.214Z";
+    const sourceUrl = "https://thebrownswood.co.uk/drinks-menu/";
+    const common: UkPriceBundleRow = { venueId, name: "The Brownswood", category: "gin",
+      priceGbp: 4.2, lane: "site-harvest", standing: "listed", sourceUrl,
+      publisher: "thebrownswood.co.uk", observedAt, basis: null, sampleSize: null };
+    const fixture = [
+      { ...common, drinkLabel: "Gin ~ 25 ml Sacred –" },
+      { ...common, category: "beer", priceGbp: 2.6,
+        drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-" },
+      { ...common, category: "whisky", priceGbp: 4.3, drinkLabel: "Lucky Sod –" },
+    ];
+    const readFile = fs.readFile.bind(fs);
+    const bundlePath = path.join(ROOT, "public", "data", "uk_prices", "rows.json");
+    const read = vi.spyOn(fs, "readFile").mockImplementation((file, options) =>
+      String(file) === bundlePath ? Promise.resolve(JSON.stringify(fixture)) : readFile(file, options));
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T12:00:00Z"));
+    try {
+      const response = await GET(new Request(`http://localhost/api/venue/${venueId}`), ctx(venueId));
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.venue.id).toBe(venueId);
+      expect(body.venue.bundlePrices.listed).toBeNull();
+      expect(body.venue.listedCategoryPrices).toEqual([
+        { source: "listed", category: "whisky", priceGbp: 4.3, servingSize: null,
+          sourceUrl, observedAt, drinkLabel: "Lucky Sod –" },
+        { source: "listed", category: "gin", priceGbp: 4.2, servingSize: "25ml",
+          sourceUrl, observedAt, drinkLabel: "Gin ~ 25 ml Sacred –" },
+      ]);
+      expect(read.mock.calls.filter(([file]) => String(file) === bundlePath)).toHaveLength(1);
+    } finally {
+      read.mockRestore();
+      clock.mockRestore();
+      resetUkPriceBundleForTests();
+    }
+  });
+
   it("returns full detail for a slim venue id", async () => {
     const seed = slim.find((venue) => venue.id === "venue-16pnwmm") ?? slim[0];
     const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));

@@ -1,0 +1,450 @@
+diff --git a/components/map/pubmap/useMapPlanCoordinator.ts b/components/map/pubmap/useMapPlanCoordinator.ts
+--- a/components/map/pubmap/useMapPlanCoordinator.ts
++++ b/components/map/pubmap/useMapPlanCoordinator.ts
+@@ -1,12 +1,21 @@
+ "use client";
+ 
+-import { useCallback, useMemo, useState } from "react";
++import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+ 
+ import type { CrawlMode } from "@/components/map/ControlRail";
+ import { buildRouteLegs } from "@/lib/routeLegs";
+ import type { NightAreaSlug } from "@/lib/nightAreas";
+ import { isPubVenue } from "@/lib/venueKindFilters";
+ import type { Venue } from "@/lib/venues";
++import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
++import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++
++export type GeneratedMapRoutePricing = {
++  context: Pick<GeneratedMobilePlan["context"], "drinkCategory" | "zeroProof">;
++  budget: GeneratedMobilePlan["budget"] | null;
++  venueIds: readonly string[];
++  quotes: ReadonlyMap<string, SelectedDrinkPriceEvidence>;
++};
+ 
+ type InitialPlanState = {
+   mode: CrawlMode;
+@@ -19,16 +28,42 @@
+ /** Owns mobile planning activation state so PubMap does not coordinate it piecemeal. */
+ export function useMapPlanCoordinator(initial: InitialPlanState) {
+   const [mode, setMode] = useState<CrawlMode>(initial.mode);
+-  const [builtIds, setBuiltIds] = useState<string[]>(initial.builtIds);
++  const [builtIds, setBuiltIdsState] = useState<string[]>(initial.builtIds);
++  const [generatedPricing, setGeneratedPricing] = useState<GeneratedMapRoutePricing | null>(null);
+   const [routeMapped, setRouteMapped] = useState(initial.routeMapped);
+   const [planningOpen, setPlanningOpen] = useState(initial.planningOpen);
+   const [plannedNightArea, setPlannedNightArea] = useState<NightAreaSlug | null>(initial.nightArea);
+ 
+-  const activateGeneratedPlan = useCallback((nightArea: NightAreaSlug | null, venueIds: string[]) => {
++  // An edit keeps the requested drink, but cannot keep the old route's totals or quotes.
++  const setBuiltIds = useCallback<Dispatch<SetStateAction<string[]>>>((ids) => {
++    setBuiltIdsState(ids);
++    setGeneratedPricing((current) => current
++      ? { ...current, budget: null, quotes: new Map() }
++      : null);
++  }, []);
++  const replaceBuiltIds = useCallback((ids: string[]) => {
++    setBuiltIdsState(ids);
++    setGeneratedPricing(null);
++  }, []);
++  const reverseBuiltIds = useCallback(() => {
++    setBuiltIdsState((current) => [...current].reverse());
++  }, []);
++  const activateGeneratedPlan = useCallback((nightArea: NightAreaSlug | null, venueIds: string[], generated?: GeneratedMobilePlan) => {
+     setMode("build");
+-    setBuiltIds(venueIds);
++    setBuiltIdsState(venueIds);
+     setRouteMapped(true);
+     setPlannedNightArea(nightArea);
++    const quotes = new Map<string, SelectedDrinkPriceEvidence>();
++    for (const stop of generated?.stops ?? []) {
++      const quote = cleanSelectedDrinkPriceEvidence(stop.selectedDrinkPriceEvidence);
++      if (quote && !generated?.context.zeroProof && quote.category === generated?.context.drinkCategory) {
++        quotes.set(stop.venueId, quote);
++      }
++    }
++    setGeneratedPricing(generated ? {
++      context: { drinkCategory: generated.context.drinkCategory, zeroProof: generated.context.zeroProof },
++      budget: { ...generated.budget }, venueIds: [...venueIds], quotes,
++    } : null);
+   }, []);
+ 
+   return {
+@@ -36,6 +71,9 @@
+     setMode,
+     builtIds,
+     setBuiltIds,
++    replaceBuiltIds,
++    reverseBuiltIds,
++    generatedPricing,
+     routeMapped,
+     setRouteMapped,
+     planningOpen,
+diff --git a/components/map/RoutePanel.tsx b/components/map/RoutePanel.tsx
+--- a/components/map/RoutePanel.tsx
++++ b/components/map/RoutePanel.tsx
+@@ -34,6 +34,8 @@
+ import { useRoutePois } from "@/components/map/route/useRoutePois";
+ import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
+ import "@/components/map/routePanel.css";
++import type { GeneratedMapRoutePricing } from "@/components/map/pubmap/useMapPlanCoordinator";
++import { categoryLabel } from "@/lib/drinks";
+ 
+ type VenueSignals = Map<
+   string,
+@@ -48,6 +50,7 @@
+   altStyle: AltCrawlStyle;
+   onAltStyleChange: (style: AltCrawlStyle) => void;
+   route: Venue[];
++  generatedPricing?: GeneratedMapRoutePricing | null;
+   filteredVenues: Venue[];
+   builtIds: string[];
+   activeVenueId: string | undefined;
+@@ -85,12 +88,31 @@
+   journeyTotalMinutes?: number | null;
+ };
+ 
++/** Generated totals and quotes belong to the exact stop set, even after a reverse. */
++function generatedRoutePricePresentation(route: readonly Venue[], pricing: GeneratedMapRoutePricing | null) {
++  if (!pricing) return null;
++  const nonPint = pricing.context.zeroProof
++    || Boolean(pricing.context.drinkCategory && pricing.context.drinkCategory !== "beer");
++  const drinkLabel = pricing.context.zeroProof ? "Alcohol-free"
++    : pricing.context.drinkCategory && pricing.context.drinkCategory !== "beer"
++      ? categoryLabel(pricing.context.drinkCategory) : null;
++  const matches = new Set(pricing.venueIds).size === route.length
++    && pricing.venueIds.length === route.length
++    && new Set(route.map((venue) => venue.id)).size === route.length
++    && route.every((venue) => pricing.venueIds.includes(venue.id));
++  const pence = matches ? pricing.budget?.estimatedPerPersonPence : null;
++  const roundTotal = !nonPint && typeof pence === "number" && Number.isSafeInteger(pence) && pence >= 0
++    ? pence / 100 : null;
++  return { drinkLabel, roundTotal, quotes: matches ? pricing.quotes : undefined };
++}
++
+ export default function RoutePanel({
+   mode,
+   crawlStyle,
+   altStyle,
+   onAltStyleChange,
+   route,
++  generatedPricing = null,
+   filteredVenues,
+   builtIds,
+   activeVenueId,
+@@ -117,6 +139,12 @@
+   journeyTotalMinutes = null,
+ }: RoutePanelProps) {
+   const summary = useMemo(() => crawlSummary(route), [route]);
++  const generatedPresentation = useMemo(
++    () => generatedRoutePricePresentation(route, generatedPricing),
++    [route, generatedPricing],
++  );
++  const generatedDrinkLabel = generatedPresentation?.drinkLabel ?? null;
++  const roundTotal = generatedPresentation ? generatedPresentation.roundTotal : summary.total;
+   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
+   const routeHeritageCount = route.filter((venue) => venue.hasStory).length;
+   const routeWriterCount = route.filter((venue) => venue.curation.writerPick).length;
+@@ -136,7 +164,7 @@
+   // Alt-style copy: a "coffee stop" / "food stop" / "mocktail stop" instead of
+   // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
+   // in sync with the URL round-trip.
+-  const stopNoun = altStyleStopNoun[altStyle];
++  const stopNoun = generatedDrinkLabel ? `${generatedDrinkLabel.toLowerCase()} stop` : altStyleStopNoun[altStyle];
+   const crawlTitle =
+     mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
+ 
+@@ -193,6 +221,8 @@
+       onTheWayByLeg={onTheWayByLeg}
+       journeyByToIndex={journeyByToIndex}
+       onSelectVenue={onSelectVenue}
++      generatedDrinkLabel={generatedDrinkLabel}
++      generatedQuotes={generatedPresentation?.quotes}
+     />
+   );
+ 
+@@ -205,12 +235,13 @@
+         crawlBlurb={crawlBlurb}
+         altStyle={altStyle}
+         onAltStyleChange={onAltStyleChange}
++        generatedDrinkLabel={generatedDrinkLabel}
+       />
+ 
+       {stopsFirst ? stopsList : null}
+ 
+       <RouteMetrics
+-        summaryTotal={summary.total}
++        summaryTotal={roundTotal}
+         summaryDistance={summary.distance}
+         legSummary={legSummary}
+         pace={pace}
+@@ -261,9 +292,8 @@
+           stops={route.map((venue) => ({
+             venueId: venue.id,
+             name: venue.name,
+-            // The route's representative per-stop price (same signal the metrics
+-            // total uses) — the cheapest listed pint at that venue.
+-            priceGbp: venue.cheapestPrice,
++            // A generated drink route cannot turn a pint into that drink's price.
++            priceGbp: generatedDrinkLabel ? null : venue.cheapestPrice,
+           }))}
+           defaultTitle={
+             mode === "build"
+diff --git a/components/map/route/RouteMetrics.tsx b/components/map/route/RouteMetrics.tsx
+--- a/components/map/route/RouteMetrics.tsx
++++ b/components/map/route/RouteMetrics.tsx
+@@ -15,7 +15,7 @@
+ import type { RouteLegsSummary, RoutePace } from "@/lib/routeLegs";
+ 
+ type RouteMetricsProps = {
+-  summaryTotal: number;
++  summaryTotal: number | null;
+   summaryDistance: number;
+   legSummary: RouteLegsSummary;
+   pace: RoutePace;
+@@ -45,8 +45,8 @@
+     <div className="routeMetrics">
+       <div>
+         <BadgePoundSterling size={17} />
+-        <span>{formatPrice(summaryTotal)}</span>
+-        <small>estimated round</small>
++        <span>{summaryTotal === null ? "Not recorded" : formatPrice(summaryTotal)}</span>
++        <small>{summaryTotal === null ? "round total" : "estimated round"}</small>
+       </div>
+       <div
+         title="Haversine (straight-line) distance between stops. Walking distance will be longer."
+diff --git a/components/map/route/RouteList.tsx b/components/map/route/RouteList.tsx
+--- a/components/map/route/RouteList.tsx
++++ b/components/map/route/RouteList.tsx
+@@ -7,6 +7,8 @@
+ import { journeyAddsTransit } from "@/lib/formatJourney";
+ import { routeStopPlaceLabels } from "@/lib/routeStops";
+ import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
++import { selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++import { isHttpUrl } from "@/lib/httpUrl";
+ 
+ type VenueSignals = Map<
+   string,
+@@ -21,6 +23,8 @@
+   onTheWayByLeg: Map<number, OnTheWayPoi[]>;
+   journeyByToIndex?: Map<number, CrawlJourneyLegSummary>;
+   onSelectVenue: (id: string) => void;
++  generatedDrinkLabel?: string | null;
++  generatedQuotes?: ReadonlyMap<string, SelectedDrinkPriceEvidence>;
+ };
+ 
+ export default function RouteList({
+@@ -31,6 +35,8 @@
+   onTheWayByLeg,
+   journeyByToIndex,
+   onSelectVenue,
++  generatedDrinkLabel = null,
++  generatedQuotes,
+ }: RouteListProps) {
+   // A place line per stop, widened only where two stops share a name (see
+   // lib/routeStops.ts). London has several Queens Heads.
+@@ -48,6 +54,9 @@
+     <ol className="routeList">
+       {route.map((venue, index) => {
+         const signal = venueSignals.get(venue.id);
++        const quote = generatedQuotes?.get(venue.id);
++        const quoteDescription = selectedDrinkPriceDescription(quote);
++        const menuSource = quote?.source === "listed" && isHttpUrl(quote.sourceUrl) ? quote.sourceUrl : null;
+         const dropCount = signal?.dropCount ?? 0;
+         const leg = legSummary.legs[index];
+         const onTheWay = onTheWayByLeg.get(index) ?? [];
+@@ -84,12 +93,16 @@
+                 ) : null}
+               </strong>
+               <p>
+-                {formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}
+-                · {venue.cheapestPint}
++                {generatedDrinkLabel
++                  ? quoteDescription ?? `${generatedDrinkLabel} price not recorded`
++                  : <>{formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}· {venue.cheapestPint}</>}
+               </p>
+               <small>{placeLabels[index]}</small>
+             </div>
+           </button>
++          {generatedDrinkLabel && menuSource ? (
++            <a className="routeStopDirections" href={menuSource} target="_blank" rel="noopener noreferrer">Menu source</a>
++          ) : null}
+           <a
+             className="routeStopDirections"
+             href={`https://www.google.com/maps/dir/?api=1&destination=${venue.latitude},${venue.longitude}&travelmode=walking`}
+diff --git a/components/map/route/RouteHeader.tsx b/components/map/route/RouteHeader.tsx
+--- a/components/map/route/RouteHeader.tsx
++++ b/components/map/route/RouteHeader.tsx
+@@ -20,6 +20,7 @@
+   crawlBlurb?: string;
+   altStyle: AltCrawlStyle;
+   onAltStyleChange: (style: AltCrawlStyle) => void;
++  generatedDrinkLabel?: string | null;
+ };
+ 
+ export default function RouteHeader({
+@@ -29,6 +30,7 @@
+   crawlBlurb,
+   altStyle,
+   onAltStyleChange,
++  generatedDrinkLabel = null,
+ }: RouteHeaderProps) {
+   const [copied, setCopied] = useState(false);
+   const [copyError, setCopyError] = useState("");
+@@ -51,7 +53,7 @@
+         <div>
+           <p className="eyebrow">{mode === "build" ? "Your Plan" : "Suggested Plan"}</p>
+           <h2>
+-            {mode === "build"
++            {generatedDrinkLabel ? `${generatedDrinkLabel} plan` : mode === "build"
+               ? crawlName || "Hand-built plan"
+               : `${styleLabels[crawlStyle]} plan`}
+           </h2>
+@@ -74,7 +76,7 @@
+         <Route size={24} />
+       </div>
+ 
+-      <div
++      {generatedDrinkLabel ? null : <div
+         className="altStylePicker"
+         role="radiogroup"
+         aria-label="Crawl style"
+@@ -92,7 +94,7 @@
+             {altStyleLabels[style]}
+           </button>
+         ))}
+-      </div>
++      </div>}
+     </>
+   );
+ }
+diff --git a/components/plan/MobilePlanActivation.tsx b/components/plan/MobilePlanActivation.tsx
+--- a/components/plan/MobilePlanActivation.tsx
++++ b/components/plan/MobilePlanActivation.tsx
+@@ -31,7 +31,9 @@
+ import type { Venue } from "@/lib/venues";
+ import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
+ 
+-type GeneratedStop = { venueId: string; venueName: string };
++import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++
++type GeneratedStop = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence | null };
+ 
+ export type GeneratedMobilePlan = {
+   stops: GeneratedStop[];
+diff --git a/components/PubMap.tsx b/components/PubMap.tsx
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -1613,6 +1613,9 @@
+     setMode,
+     builtIds,
+     setBuiltIds,
++    replaceBuiltIds,
++    reverseBuiltIds,
++    generatedPricing,
+     routeMapped,
+     setRouteMapped,
+     planningOpen,
+@@ -1730,7 +1733,7 @@
+             return;
+           }
+           setMode("build");
+-          setBuiltIds(hydration.crawl.venueIds);
++          replaceBuiltIds(hydration.crawl.venueIds);
+           setRouteMapped(true);
+           setFilters(hydration.filters);
+           setAltStyle(hydration.altStyle);
+@@ -1748,7 +1751,7 @@
+     arrivalSearch,
+     cityId,
+     seed,
+-    setBuiltIds,
++    replaceBuiltIds,
+     setCrawlHydrationPending,
+     setFilters,
+     setMode,
+@@ -3537,7 +3540,7 @@
+         return;
+       }
+       setMode("build");
+-      setBuiltIds(ids);
++      replaceBuiltIds(ids);
+       setRouteMapped(true);
+       setActiveCrawl(null);
+       showLoadedRoute(ids[0]);
+@@ -3591,7 +3594,7 @@
+     pendingNearMeRequest,
+     refreshCountCoverage,
+     setActiveCrawl,
+-    setBuiltIds,
++    replaceBuiltIds,
+     setMode,
+     setRouteMapped,
+     showLoadedRoute,
+@@ -4188,18 +4191,18 @@
+   // Reverse the hand-built route: start from the opposite end. Event handler, so
+   // setState is fine; URL-sync picks up the new builtIds order automatically.
+   const reverseRoute = useCallback(() => {
+-    setBuiltIds((current) => [...current].reverse());
++    reverseBuiltIds();
+     setRouteMapped(true);
+     setActiveCrawl(null);
+-  }, [setBuiltIds, setRouteMapped]);
++  }, [reverseBuiltIds, setRouteMapped]);
+ 
+   const clearBuilt = useCallback(() => {
+-    setBuiltIds([]);
++    replaceBuiltIds([]);
+     setRouteMapped(false);
+     setActiveCrawl(null);
+     // Explicit Clear also drops the refresh-safety net.
+     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
+-  }, [setBuiltIds, setRouteMapped]);
++  }, [replaceBuiltIds, setRouteMapped]);
+ 
+   // Trust fix (§4.3): a pin tap INSPECTS ONLY, in both modes. It never mutates
+   // the crawl — otherwise browsing pubs in build mode silently adds/removes
+@@ -4221,7 +4224,7 @@
+   const loadCuratedCrawl = useCallback(
+     (crawl: CuratedCrawl) => {
+       setMode("build");
+-      setBuiltIds(crawl.venueIds);
++      replaceBuiltIds(crawl.venueIds);
+       setRouteMapped(true);
+       setFilters((current) => filtersForCuratedCrawl(current, crawl));
+       setAltStyle(crawl.altStyle ?? "pint"); // "kind of night" label for copy
+@@ -4233,7 +4236,7 @@
+       dismissOnboarding,
+       setActiveCrawl,
+       setAltStyle,
+-      setBuiltIds,
++      replaceBuiltIds,
+       setFilters,
+       setMode,
+       setRouteMapped,
+@@ -4251,7 +4254,7 @@
+     showLoadedRoute,
+     dismissOnboarding,
+     setMode,
+-    setBuiltIds,
++    setBuiltIds: replaceBuiltIds,
+     setRouteMapped,
+     setActiveCrawl,
+     setPlanningOpen: (open) => {
+@@ -4694,7 +4697,7 @@
+ 
+   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
+     const ids = generated.stops.map((stop) => stop.venueId);
+-    activateGeneratedPlan(generated.context.nightArea, ids);
++    activateGeneratedPlan(generated.context.nightArea, ids, generated);
+     markPalRouteActivation();
+     setActiveCrawl(null);
+     if (generated.context.nightArea) {
+@@ -5408,6 +5411,7 @@
+       ) : null}
+       <RoutePanel
+         mode={mode}
++        generatedPricing={generatedPricing}
+         crawlStyle={filters.crawlStyle}
+         altStyle={altStyle}
+         onAltStyleChange={setAltStyle}

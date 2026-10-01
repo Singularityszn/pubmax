@@ -1,0 +1,27 @@
+{
+  "at": "2026-09-30T21:29:01.577656+00:00",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "freeze": "r36-source-only-freeze.json",
+  "frozenPaths": 4250,
+  "hashDrift": [],
+  "runtimeGrant": "Preview build only now through21:55UTC; cleanup21:52UTC; no full cohort",
+  "independentPorts": "3351/3352/8787/55351/55352 clear; no postgres/postgrest/pg_ctl/next-server/headless-shell/chromium processes in process-name preflight",
+  "cleanupSource": "/tmp/pubmax-three-pr-20260930/runtime-cleanup-receipt.json",
+  "cleanupSourceSHA256": "ea2124adc25b3abb7ff9870810bc3ea57e97b879f2300f0d1093803e9c93d96c",
+  "existingArtifacts": [
+    {
+      "dist": ".next-r35-fullfive",
+      "buildId": "build-TfctsWXpff2fKS"
+    },
+    {
+      "dist": ".next-r35-fullfive-keyless",
+      "buildId": "build-TfctsWXpff2fKS"
+    }
+  ],
+  "newDist": ".next-v0-preview-20260930",
+  "plannedURL": "http://127.0.0.1:3351",
+  "installedDependencies": "Existing Core installation; no installs. R35 npm ci/audit receipt preserved; parent package delta not yet integrated.",
+  "mainBoundary": "af5a08f objects fetched, not merged into candidate. Core unmerged requested UI/price/auth behavior preserved. Latest-main semantic composition pending.",
+  "estimate": "Prior production builds completed in24-27seconds; allow3-5minutes including data custody and server startup. Estimate only, not promise.",
+  "status": "PREVIEW_BUILD_READY_TO_START"
+}

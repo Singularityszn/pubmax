@@ -1,0 +1,411 @@
+diff --git a/lib/venueKindFilters.ts b/lib/venueKindFilters.ts
+--- a/lib/venueKindFilters.ts
++++ b/lib/venueKindFilters.ts
+@@ -1,5 +1,6 @@
+ import type { Venue, VenueKind } from "@/lib/venues";
++import type { UkBasePub } from "@/lib/ukBasePubs";
+ 
+ export type CuratedVenueKind = "pub" | "bar" | "food" | "restaurant";
+ export type VenueKindVisibility = Record<CuratedVenueKind, boolean>;
+ 
+@@ -95,8 +96,17 @@
+     return kind !== null && visibility[kind];
+   });
+ }
+ 
++/** Apply the shared pub and bar toggles to the separately streamed UK base layer. */
++export function filterUkBasePubsByKind(
++  pubs: UkBasePub[],
++  visibility: VenueKindVisibility,
++): UkBasePub[] {
++  if (visibility.pub && visibility.bar) return pubs;
++  return pubs.filter((pub) => visibility[pub.kind]);
++}
++
+ /**
+  * The venue kinds the map's own filter offers, in the order it draws them.
+  *
+  * The desktop chips live behind one Filters control, so the badge on the closed
+diff --git a/components/PubMap.tsx b/components/PubMap.tsx
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -544,8 +544,9 @@
+ import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
+ import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
+ import {
+   defaultVenueKindVisibility,
++  filterUkBasePubsByKind,
+   filterVenuesByKind,
+   hasSavedPubVenue,
+   isPubVenue,
+   type VenueKindVisibility,
+@@ -3059,13 +3060,16 @@
+         return buildUkBasePubListModel([], mapViewport.center);
+       }
+       const visibleIds = new Set(visibleVenueState.ukBasePubIds);
+       return buildUkBasePubListModel(
+-        renderedBasePubs.filter((pub) => visibleIds.has(pub.id)),
++        filterUkBasePubsByKind(
++          renderedBasePubs.filter((pub) => visibleIds.has(pub.id)),
++          venueKindVisibility,
++        ),
+         mapViewport.center,
+       );
+     },
+-    [cityId, mapViewport.center, renderedBasePubs, visibleVenueState],
++    [cityId, mapViewport.center, renderedBasePubs, venueKindVisibility, visibleVenueState],
+   );
+   // The place the map is OVER, and whether it is off the curated city.
+   // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
+   const { mapContextName, outsideCuratedBounds, baseLedChrome } = mapPlaceContext({
+@@ -6248,8 +6252,9 @@
+       >
+       <PubMapCanvas
+         venues={canvasVenues}
+         filteredVenueCount={canvasVenues.length}
++        venueKindVisibility={venueKindVisibility}
+         venueDataReady={loaded && loadedCityId === cityId}
+         // Clean first view stays route-free. Once the user maps a crawl, the
+         // line remains visible even if the mobile planner closes.
+         route={routeForMap}
+@@ -6371,12 +6376,10 @@
+         locationBusy={nearbyLoading}
+         experienceLens={experienceLens}
+         experienceSummary={experienceSummary}
+         onExperienceLensChange={changeExperienceLens}
+-        venueKindVisibility={baseLedChrome ? undefined : venueKindVisibility}
+-        onVenueKindVisibilityChange={
+-          baseLedChrome ? undefined : setVenueKindVisibility
+-        }
++        venueKindVisibility={venueKindVisibility}
++        onVenueKindVisibilityChange={setVenueKindVisibility}
+       /> : null
+     );
+   }
+ 
+diff --git a/components/PubMapCanvas.tsx b/components/PubMapCanvas.tsx
+--- a/components/PubMapCanvas.tsx
++++ b/components/PubMapCanvas.tsx
+@@ -156,8 +156,9 @@
+   type UkBasePub,
+   type UkBaseStreamStatus,
+ } from "@/lib/ukBasePubs";
+ import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
++import type { VenueKindVisibility } from "@/lib/venueKindFilters";
+ import type { MapViewportSnapshot } from "@/lib/mobileShell";
+ import {
+   PAINT_WATCHDOG_INTERVAL_MS,
+   PAINT_WATCHDOG_MAX_RETRIES,
+@@ -227,8 +228,9 @@
+ maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
+ 
+ type PubMapCanvasProps = {
+   venues: Venue[];
++  venueKindVisibility: VenueKindVisibility;
+   /** Count before the selected-venue force-include, for honest reveal notices. */
+   filteredVenueCount?: number;
+   /** Parent's slim venue read has settled for the active city. */
+   venueDataReady: boolean;
+@@ -516,8 +518,9 @@
+ 
+ 
+ export default function PubMapCanvas({
+   venues,
++  venueKindVisibility,
+   filteredVenueCount = venues.length,
+   venueDataReady,
+   route,
+   selectedVenueId,
+@@ -2888,8 +2891,13 @@
+     };
+     const scheduleContextRecovery = (reason: string) => {
+       // Coalesce: canvas + map events fire together; don't stack timers.
+       if (contextRecoveryTimer) return;
++      // MapLibre removed this style before emitting loss. Retire its queued
++      // scene work so only the restored style can build the next scene.
++      styleGeneration += 1;
++      styleStructureReadyRef.current = false;
++      cancelDeferredWork();
+       if (contextLostTimer) clearTimeout(contextLostTimer);
+       // Optimistic paint kick in case the browser is about to restore.
+       try {
+         map.resize();
+@@ -3444,8 +3452,9 @@
+     mapReady,
+     applyToMap,
+     ukBaseDataRef,
+     drawableVenueIds,
++    venueKindVisibility,
+     provisionalVenueIds,
+     // The Spoons value lens rides THIS layer: most of the pubs it ranks are
+     // base pins rather than curated venues, so it is passed through rather
+     // than suspending the layer the way an experience view does.
+diff --git a/components/map/pubmap/useUkBaseStreaming.ts b/components/map/pubmap/useUkBaseStreaming.ts
+--- a/components/map/pubmap/useUkBaseStreaming.ts
++++ b/components/map/pubmap/useUkBaseStreaming.ts
+@@ -14,8 +14,9 @@
+   type UkBasePub,
+   type UkBaseStreamStatus,
+ } from "@/lib/ukBasePubs";
+ import { discardBody } from "@/lib/responseBody";
++import { filterUkBasePubsByKind, type VenueKindVisibility } from "@/lib/venueKindFilters";
+ 
+ // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
+ // source, one viewport at a time.
+ //
+@@ -49,8 +50,9 @@
+   applyToMap: (key: string, fn: (map: maplibregl.Map) => void) => void;
+   /** Reseeded by buildScene after a theme setStyle wipes every source. */
+   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
+   drawableVenueIds: ReadonlySet<string>;
++  venueKindVisibility: VenueKindVisibility;
+   /** Visibility-only marks keyed by stable `venue-uk-*` ids. */
+   provisionalVenueIds?: ReadonlySet<string> | null;
+   /**
+    * A non-null lane means the Spoons value lens owns the map, and THIS layer
+@@ -231,8 +233,9 @@
+   mapReady,
+   applyToMap,
+   ukBaseDataRef,
+   drawableVenueIds,
++  venueKindVisibility,
+   provisionalVenueIds = null,
+   spoonsValue = null,
+   suspended = false,
+   held = false,
+@@ -259,43 +262,51 @@
+   const [published, setPublished] = useState<PublishedUkBaseStreamState>(
+     () => ({ scopeKey, status: "loading", count: 0, pubs: [] }),
+   );
+   const publishedModeRef = useRef({ scopeKey, suspended });
++  // The loader owns shard cache; this ref keeps only the last viewport answer
++  // so a kind toggle can redraw it without another read or camera debounce.
++  const viewportPubsRef = useRef<UkBasePub[]>([]);
++  const paintInputsRef = useRef({
++    drawableVenueIds,
++    venueKindVisibility,
++    provisionalVenueIds,
++    spoonsValue,
++  });
+ 
+   const publish = useCallback(
+     (nextPubs: UkBasePub[], status: UkBaseStreamStatus) => {
++      viewportPubsRef.current = nextPubs;
++      const inputs = paintInputsRef.current;
+       const drawablePubs = ukBasePubsForDrawableVenues(
+         nextPubs,
+-        drawableVenueIds,
++        inputs.drawableVenueIds,
++      );
++      const visiblePubs = filterUkBasePubsByKind(
++        drawablePubs,
++        inputs.venueKindVisibility,
+       );
+       const data =
+-        drawablePubs.length > 0
+-          ? ukBasePubsToGeoJSON(drawablePubs, provisionalVenueIds, spoonsValue)
++        visiblePubs.length > 0
++          ? ukBasePubsToGeoJSON(visiblePubs, inputs.provisionalVenueIds, inputs.spoonsValue)
+           : EMPTY;
+       ukBaseDataRef.current = data;
+       setPublished({
+         scopeKey,
+         status,
+-        count: drawablePubs.length,
+-        // Keep the padded source rows available for immediate reprojection as
+-        // the camera moves. PubMapCanvas publishes only rows actually on the
+-        // rendered canvas, so stale AABB membership never reaches the DOM list
+-        // or provisional-mark reader while the next shard fetch is debounced.
+-        pubs: drawablePubs,
++        count: visiblePubs.length,
++        // The list, resident search and visibility projection read the same
++        // rows as the GeoJSON source. The raw viewport answer stays in the ref
++        // above for immediate re-filtering when a kind changes.
++        pubs: visiblePubs,
+       });
+       applyToMap("uk-base:data", (map) => {
+         (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
+       });
+-      return drawablePubs;
++      // A filtered bar may still be the target of a cold ?sel= restore.
++      return nextPubs;
+     },
+-    [
+-      applyToMap,
+-      drawableVenueIds,
+-      provisionalVenueIds,
+-      scopeKey,
+-      spoonsValue,
+-      ukBaseDataRef,
+-    ],
++    [applyToMap, scopeKey, ukBaseDataRef],
+   );
+ 
+   // Scope and lens ownership can change without a camera event. Clear the old
+   // source before paint so status, list rows and MapLibre pixels never disagree
+@@ -307,8 +318,45 @@
+     }
+     publishedModeRef.current = { scopeKey, suspended };
+     publish([], suspended ? "suspended" : "loading");
+   }, [publish, scopeKey, suspended]);
++
++  // Kind and curated-owner changes alter paint, not which shards the viewport
++  // needs. Republish the resident answer before paint rather than restarting
++  // the stream's 180 ms camera debounce.
++  useLayoutEffect(() => {
++    const previous = paintInputsRef.current;
++    if (
++      previous.drawableVenueIds === drawableVenueIds &&
++      previous.venueKindVisibility === venueKindVisibility &&
++      previous.provisionalVenueIds === provisionalVenueIds &&
++      previous.spoonsValue === spoonsValue
++    ) return;
++    paintInputsRef.current = {
++      drawableVenueIds,
++      venueKindVisibility,
++      provisionalVenueIds,
++      spoonsValue,
++    };
++    // A simultaneous city/lens transition already cleared the source above.
++    // The render's old status must not turn that new loading state into ready.
++    if (
++      published.scopeKey !== scopeKey ||
++      published.status === "suspended" ||
++      suspended
++    ) return;
++    publish(viewportPubsRef.current, published.status);
++  }, [
++    drawableVenueIds,
++    venueKindVisibility,
++    provisionalVenueIds,
++    spoonsValue,
++    publish,
++    published.scopeKey,
++    published.status,
++    scopeKey,
++    suspended,
++  ]);
+ 
+   // Cold restore: resolve the shared link before (and without) the viewport
+   // stream. One-shot per restoreId; stream-path restore below is the fallback
+   // only while this is still pending.
+@@ -391,12 +439,12 @@
+               publishedModeRef.current,
+               requestedMode,
+             )
+           ) return;
+-          const drawablePubs = publish(read.pubs, read.status);
++          const viewportPubs = publish(read.pubs, read.status);
+           const wanted = restoreIdRef.current;
+           if (!wanted) return;
+-          const hit = drawablePubs.find((pub) => pub.id === wanted);
++          const hit = viewportPubs.find((pub) => pub.id === wanted);
+           if (!hit) return;
+           restoreIdRef.current = null;
+           onRestorePubRef.current?.(hit);
+         });
+diff --git a/components/map/MapToolbar.tsx b/components/map/MapToolbar.tsx
+--- a/components/map/MapToolbar.tsx
++++ b/components/map/MapToolbar.tsx
+@@ -194,11 +194,11 @@
+   experienceLens: MapExperienceLens;
+   experienceSummary: string;
+   onExperienceLensChange: (lens: MapExperienceLens) => void;
+   /**
+-   * The venue-type toggles, at 641px and wider (PlanAstra item 9). Absent on a
+-   * base-pub-only arrival, where no curated kind is on the map to filter, and
+-   * absent on a phone, which reads the same toggles in its Filters sheet.
++   * The venue-type toggles, at 641px and wider (PlanAstra item 9). They also
++   * filter UK base pubs and bars, so a base-led view keeps this one control and
++   * its active count. Phones read the same toggles in their Filters sheet.
+    */
+   venueKindVisibility?: VenueKindVisibility;
+   onVenueKindVisibilityChange?: (next: VenueKindVisibility) => void;
+ };
+diff --git a/__tests__/venueKindFilters.test.ts b/__tests__/venueKindFilters.test.ts
+--- a/__tests__/venueKindFilters.test.ts
++++ b/__tests__/venueKindFilters.test.ts
+@@ -2,18 +2,29 @@
+ 
+ import {
+   defaultVenueKindVisibility,
+   filterVenuesByKind,
++  filterUkBasePubsByKind,
+   hasSavedPubVenue,
+   isPubVenue,
+   isPubVenueKind,
+   toggleVenueKind,
+   venueKindLabel,
+   venueKindNoun,
+ } from "@/lib/venueKindFilters";
+ import type { Venue } from "@/lib/venues";
++import type { UkBasePub } from "@/lib/ukBasePubs";
+ 
+ const venue = (id: string, kind?: Venue["kind"]) => ({ id, kind }) as Venue;
++const basePub = (id: string, kind: UkBasePub["kind"]): UkBasePub => ({
++  id,
++  name: id,
++  address: "",
++  lat: 51.5,
++  lng: -0.1,
++  curatedVenueId: "",
++  kind,
++});
+ 
+ describe("venueKindFilters", () => {
+   it("defaults every curated venue type on", () => {
+     expect(defaultVenueKindVisibility()).toEqual({
+@@ -124,5 +135,53 @@
+     expect(venueKindNoun("food")).toBe("late-food venue");
+     expect(venueKindNoun("club")).toBe("club");
+     expect(venueKindNoun("restaurant")).toBe("restaurant");
+   });
++
++  it("returns the original UK base list when pub and bar filters are both visible", () => {
++    const pubs = [basePub("venue-uk-n1", "pub"), basePub("venue-uk-w2", "bar")];
++    const visibility = {
++      ...defaultVenueKindVisibility(),
++      food: false,
++      restaurant: false,
++    };
++
++    expect(filterUkBasePubsByKind(pubs, visibility)).toBe(pubs);
++  });
++
++  it("filters parser-normalized pub and bar kinds with their matching toggles", () => {
++    const pubs = [
++      basePub("venue-uk-n1", "pub"),
++      basePub("venue-uk-w2", "bar"),
++      basePub("venue-uk-n3", "pub"),
++    ];
++    const original = pubs.map((pub) => ({ ...pub }));
++
++    expect(
++      filterUkBasePubsByKind(pubs, {
++        ...defaultVenueKindVisibility(),
++        bar: false,
++      }),
++    ).toEqual([pubs[0], pubs[2]]);
++    expect(
++      filterUkBasePubsByKind(pubs, {
++        ...defaultVenueKindVisibility(),
++        pub: false,
++      }),
++    ).toEqual([pubs[1]]);
++    expect(pubs).toEqual(original);
++  });
++
++  it("returns no UK base rows when both pub and bar filters are hidden", () => {
++    const pubs = [basePub("venue-uk-n1", "pub"), basePub("venue-uk-w2", "bar")];
++    const original = pubs.map((pub) => ({ ...pub }));
++
++    expect(
++      filterUkBasePubsByKind(pubs, {
++        ...defaultVenueKindVisibility(),
++        pub: false,
++        bar: false,
++      }),
++    ).toEqual([]);
++    expect(pubs).toEqual(original);
++  });
+ });

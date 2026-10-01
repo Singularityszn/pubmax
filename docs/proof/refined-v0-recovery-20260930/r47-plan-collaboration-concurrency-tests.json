@@ -1,0 +1,42 @@
+{
+  "status": "FROZEN TEST-ONLY SOURCE READY; actualRED UNRUN here, production held",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-plan-collaboration-concurrency-tests.patch",
+  "sha256": "d905d3c3c83466421a9380d982c64039b8aa344d6c5c08c1538471233351c735",
+  "bytes": 6909,
+  "root": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "files": {
+    "__tests__/planCollaborationRoutes.test.ts": {
+      "before": "055736760c3812df7e350c7e43678b251a192f90f063a23dccc7cb3766b977c0",
+      "after": "887f26b75d31c828d409cfd7321c9677f3143748fa20d591a7913ea7fb0560ce"
+    },
+    "__tests__/planCollaboration.test.ts": {
+      "before": "5e7914219345768ee1990d4aeec9b87fbe40578186b3ec6b86d9f773bd52ce08",
+      "after": "91753c1d62a05d6bdb582dd878eb15e8ed3b44f7820caa87aa926dee9e5bf252"
+    }
+  },
+  "sourceChecks": [
+    "CurrentRootbeforepins stable",
+    "git apply --check --whitespace=error PASS",
+    "Fresh scratch application + exactafterhash PASS"
+  ],
+  "cases": [
+    {
+      "file": "__tests__/planCollaborationRoutes.test.ts",
+      "case": "Concurrent HTTP proposal creation with same plan/member/key during real authority source-await; both201/sameproposalID/oneprice-read/onevisibleproposal/exactverifiedquote",
+      "fixture": "Existing keyless memory store and real handler/canonical route/evidence matcher. Existing source-reader mock held; no helper/store mock."
+    },
+    {
+      "file": "__tests__/planCollaboration.test.ts",
+      "case": "Concurrent public-store host decision samekey while actual revision-bound route update callback pending; both accepted/sameresult/oneapply/revision2/canonicalroute; guestcannotjoin; settledretryunchanged",
+      "fixture": "Existing real memory membership/collaboration/Plan stores. Public application callback deferred then performs realmemoryPlanStore.update; no internal state write or fake apply-success."
+    }
+  ],
+  "expectedCurrentRED": "Inference only: lacking pendingProposals creates two records and authority reads; lacking pendingDecisions invokes actual revision-bound apply twice, second returnsconflict. Root must execute before production.",
+  "productionDependency": "Future minimal collaboration source patch must compose backupv3 lib/planCollaborationStore afterSHA, not overwrite it. CurrentRoot strong approval/canonical/member/proof/required-constraint/revision/replay gates remain.",
+  "command": "npx vitest run __tests__/planCollaborationRoutes.test.ts __tests__/planCollaboration.test.ts",
+  "limitations": [
+    "Fixture proves real handler/store memory concurrency, not durableRPC/native/provider behavior.",
+    "No types/lint/tests/build/browser/SQL run by thisagent.",
+    "Backupv3 packet immutable and separate; two newcases work before/after backup composition because canonicalprimaryprotocol remains."
+  ]
+}

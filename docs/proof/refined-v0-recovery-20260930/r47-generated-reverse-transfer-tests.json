@@ -1,0 +1,40 @@
+{
+  "status": "SOURCE_FROZEN_TEST_ONLY_RUNTIME_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "b4790e8915a809d0747362352396b2fa341782df",
+  "scratch": "/tmp/pubmaxx-r47-generated-reverse-transfer",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-generated-reverse-transfer-tests.patch",
+  "patchSha256": "e510b161bf9d03faa2376720b235614c9e5e5680a1d647af5adde1474ccdda34",
+  "files": [
+    {
+      "path": "e2e/map-generated-route-reverse-transfer.spec.ts",
+      "beforeSha256": null,
+      "beforeState": "ABSENT",
+      "afterSha256": "4005b229131ce5536ec4ccdc8eba77dd2f76c57c42436f9d8f8ab6af8dda9ce8"
+    }
+  ],
+  "sourceValidation": {
+    "rootPathAbsent": true,
+    "rootApplyCheck": true,
+    "scratchWhitespaceCheck": true,
+    "freshScratchApply": true,
+    "freshScratchHashMatches": true
+  },
+  "runtimeStatus": "UNRUN. Expected stale-order RED is source inference, not reproduced by this lane.",
+  "prerequisites": [
+    "Root-owned production server using declared Playwright environment: auth-enabled public test configuration, keyless Plan API permission and genuine process-only Plan signing secret; no real provider credentials required.",
+    "Apply frozen generated route price authority packet 5573952d0439a5dffbb711b513d6e4236bf3d00210b88973bc472a2292df6bab first. This test intentionally requires its original quote/null-money presentation before exercising the separate Reverse transfer gap.",
+    "Existing stable MobilePlanActivation key and map quote/primary producer controls preserved; genuine current approved Vodka primary quote in Shoreditch required.",
+    "Parent grants exclusive runtime and owns build/server/browser cleanup. No maintained paths changed by this lane."
+  ],
+  "focusedCommand": "PW_SKIP_WEBSERVER=1 PW_PORT=3371 npx playwright test e2e/map-generated-route-reverse-transfer.spec.ts --project=chromium --workers=1 --retries=0",
+  "commandNote": "3371 is a suggested existing Root private port, not a claim of a current listener. Root must use its actual authorized server port and matching declared config env.",
+  "scope": "One new spec only. Original all-alcohol journey and f38f guard unchanged. Auth boundary and basemap tiles use existing doubles; /api/plans/generate response is real, not intercepted or fulfilled.",
+  "invariant": "A genuinely reversed visible route must hydrate Plan in that same order and Vodka context. Real response IDs/names determine every expected stop; existing application built-ID and hydrated session draft reads disambiguate duplicate names. No proof/storage writes, fixed route/venue order or second-generation ban.",
+  "fallbackPolicy": "Spec expresses successful transfer. A future explicit regeneration/refusal design needs separately reviewed native acceptance proving actionable visible explanation and no stale original-route link; silent restored original route never meets invariant.",
+  "limitations": [
+    "No real identity/provider entitlement or live publisher quote proof. Fixture only exercises installed client/auth boundary.",
+    "No route locking/DB write, signed proof manufacture, regenerated route acceptance, refresh or manual-edit behavior claimed.",
+    "Native failure, compiler and linter still require Root execution."
+  ]
+}

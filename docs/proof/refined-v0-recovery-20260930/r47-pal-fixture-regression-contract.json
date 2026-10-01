@@ -1,0 +1,344 @@
+{
+  "recordedAt": "2026-10-01T02:31:00.201126+00:00",
+  "sourceHead": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "sourceFreeze": "r47-source-freeze.json",
+  "sourceFreezeCreatedAt": "2026-10-01T00:59:53.484253+00:00",
+  "r47HomeDelta": "Core source differs from R46 by one-line Home callback and new mounted test, UNRUN; Pal four source hashes unchanged from that prior verified freeze.",
+  "fullReport": "r46-fullfive-final.json",
+  "fullReportSha256": "31592518d095e637ecf7545da1dc64f681fd88ed248b94d523d19adb71c2282b",
+  "fullStats": {
+    "startTime": "2026-10-01T00:24:14.044Z",
+    "duration": 1305504.512,
+    "expected": 1293,
+    "skipped": 24,
+    "unexpected": 4,
+    "flaky": 0
+  },
+  "actualReportedArgv": [
+    "/Users/karanmanoharan/.hermes/tools/node-26.10.0-darwin-arm64/bin/node",
+    "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/.bin/playwright",
+    "test",
+    "--config=/tmp/pubmaxx-r46-reuse-built.config.ts",
+    "--project=chromium",
+    "--project=chromium-keyless",
+    "--project=chromium-gl",
+    "--project=chromium-sw-gl",
+    "--project=chromium-no-gl",
+    "--workers=2",
+    "--retries=0",
+    "--reporter=list,json"
+  ],
+  "actualConfig": "/tmp/pubmaxx-r46-reuse-built.config.ts",
+  "configurationBoundary": "Original five projects/use/env/steps retained, completed matching primary/keyless builds started without rebuild; reuseExistingServer false. Exact CLI argv is captured by Playwright. Do not infer shell environment not recorded in report.",
+  "palSubsetCounts": {
+    "pubpal-concierge-phone.spec.ts": {
+      "passed": 11,
+      "skipped": 2
+    },
+    "pubpal-voice-live.spec.ts": {
+      "skipped": 4
+    }
+  },
+  "cases": [
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "a grounded provider reply keeps a source chip on every card",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 324
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "proof shot at 390px in light",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "skipped",
+          "results": [
+            {
+              "status": "skipped",
+              "durationMs": 69
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "proof shot at 390px in dark",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "skipped",
+          "results": [
+            {
+              "status": "skipped",
+              "durationMs": 66
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "a cheapest-pint ask with tonight still names the area",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 297
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "find_desk says there is no seat data rather than offering a pub",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 287
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "a crawl ask proposes one way on and waits to be taken",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 287
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "a crawl ask opens Plan and auto-generates the route",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 439
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "a follow-up sends prior asks and recalls the earlier Camden request",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 384
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "a chat-provider 503 shows a retryable error without inventing an answer",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 286
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "the meet-your-Pal moment fits and stays tappable at 360px",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 270
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "the meet-your-Pal moment fits and stays tappable at 390px",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 239
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "the meet-your-Pal moment fits and stays tappable at 430px",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 273
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-concierge-phone.spec.ts",
+      "title": "voice explains itself instead of failing on the tap",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "passed",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 135
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-voice-live.spec.ts",
+      "title": "voice token returns a signed session and species voice override",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "skipped",
+          "results": [
+            {
+              "status": "skipped",
+              "durationMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-voice-live.spec.ts",
+      "title": "text ask answers through the concierge bridge",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "skipped",
+          "results": [
+            {
+              "status": "skipped",
+              "durationMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-voice-live.spec.ts",
+      "title": "a person types to the Pal in the browser and gets a reply",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "skipped",
+          "results": [
+            {
+              "status": "skipped",
+              "durationMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "pubpal-voice-live.spec.ts",
+      "title": "a person talks to the Pal in the browser and hears it answer",
+      "tests": [
+        {
+          "project": "chromium",
+          "expectedStatus": "skipped",
+          "results": [
+            {
+              "status": "skipped",
+              "durationMs": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "e2e/pubpal-concierge-phone.spec.ts": {
+      "sha256": "96050b1a6fcfe9824730242a482471c9b605e4ab026bc62cc0ab8e5b62cb2852",
+      "matchesR47Freeze": true
+    },
+    "e2e/helpers/palProviderDouble.ts": {
+      "sha256": "ae80fb25d5c973d6f4d398454a3ff82f41a5db1eae29d4f631e177322d5262ea",
+      "matchesR47Freeze": true
+    },
+    "app/api/pub-pal/chat/route.ts": {
+      "sha256": "cf47cfc2f795ac965704d0a93e72bf14064e731c94997db505da696d5faa22b0",
+      "matchesR47Freeze": true
+    },
+    "__tests__/pubPalChatRoute.test.ts": {
+      "sha256": "3bb6f2b0962e13408fde340440b8b9464d6077b8139e8ab6a65a13036d2e0c11",
+      "matchesR47Freeze": true
+    }
+  },
+  "contract": {
+    "successfulUi": "Provider doubles explicitly intercept only browser /api/pub-pal/chat responses for expected query/context, exercise rendered card/provenance/Plan/recall flows. No production service bypass.",
+    "unavailableUi": "Browser503 is explicit double; real keyless503 separately exercised through actual POST handler in pubPalChatRoute test with provider unconfigured.",
+    "liveProvider": "All four live token/text/browser voice cases skipped; real ElevenLabs output and authenticated provider session are NOT proved.",
+    "voiceUnavailable": "Concierge final case probes actual voice-token availability false by default, no-grant token POST rejected; configured path requires separate env and verification.",
+    "design": "Two optional390light/dark shots skipped; no new design capture proof from this cohort.",
+    "mapAsk": "Separate keyless grounded /api/ask contract; successful Pal fixtures do not alter or verify Map Ask behavior."
+  },
+  "integration": "r47-pal-fixture-main-to-core.patch contains only test/helper diff against fetched f33 Main. Reconcile against release owner current UI/provider contract; rerun on actual merged head. Do not copy Core production provider route or assume new release head inherits R46 proof.",
+  "currentRuntime": "No Core runtime granted/started. Release owner controls next serial slot; awaiting explicit allocation."
+}

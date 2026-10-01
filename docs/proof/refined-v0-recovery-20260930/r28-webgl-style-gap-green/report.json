@@ -1,0 +1,5207 @@
+{
+  "completed": true,
+  "classification": "EXERCISED_RECOVERED",
+  "recoveryPassed": true,
+  "origin": "http://localhost:3351",
+  "limits": {
+    "armMs": 45000,
+    "cleanupStartsMs": 55000,
+    "hardCapMs": 60000,
+    "lossHoldMs": 1200,
+    "appRecoveryGraceMs": 800
+  },
+  "limitations": "Observer/CDP overhead is diagnostic. Triggering loss at a public mark does not guarantee native loss dispatch before scene build; report checks actual trusted event and existing scene marks. Painted probe proves pub pins/clusters, not physical-device recovery. No app state writes, restore call, scene hold or network/data mock.",
+  "journal": [
+    {
+      "receivedAt": 1790783418624,
+      "at": 57.79999999701977,
+      "timeOrigin": 1790783418563.4,
+      "kind": "clock"
+    },
+    {
+      "receivedAt": 1790783418625,
+      "at": 60.900000005960464,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 60.70000000298023,
+        "timeOrigin": 1790783418563.4,
+        "canvasMounted": false,
+        "canvasCount": 0,
+        "fallbackCount": 0,
+        "oldCanvasConnected": null,
+        "canvasReplaced": false,
+        "oldGlLost": null,
+        "lossElapsedMs": null,
+        "points": [],
+        "camera": null,
+        "probeError": null,
+        "marks": []
+      }
+    },
+    {
+      "receivedAt": 1790783418875,
+      "at": 311.09999999403954,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 311.09999999403954,
+        "timeOrigin": 1790783418563.4,
+        "recovery": null,
+        "canvasMounted": false,
+        "canvasCount": 0,
+        "fallbackCount": 0,
+        "oldCanvasConnected": null,
+        "canvasReplaced": false,
+        "oldGlLost": null,
+        "lossElapsedMs": null,
+        "points": [],
+        "camera": null,
+        "probeError": null,
+        "marks": []
+      }
+    },
+    {
+      "receivedAt": 1790783420867,
+      "at": 2302.7000000029802,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 2302.5999999940395,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": null,
+        "canvasReplaced": false,
+        "oldGlLost": null,
+        "lossElapsedMs": null,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783420878,
+      "at": 2314.2000000029802,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:map-constructed",
+      "start": 2292.7999999970198
+    },
+    {
+      "receivedAt": 1790783420878,
+      "at": 2314.2999999970198,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:map-chunk-ready",
+      "start": 2295.9000000059605
+    },
+    {
+      "receivedAt": 1790783420920,
+      "at": 2356.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:first-pins",
+      "start": 2356
+    },
+    {
+      "receivedAt": 1790783420920,
+      "at": 2356.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:slim-venues-ready",
+      "start": 2356.4000000059605
+    },
+    {
+      "receivedAt": 1790783420958,
+      "at": 2394.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:map-style-load",
+      "start": 2393.5
+    },
+    {
+      "receivedAt": 1790783420958,
+      "at": 2394.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "first-style-load",
+      "start": 2393.5,
+      "sceneBuiltAtTrigger": []
+    },
+    {
+      "receivedAt": 1790783420958,
+      "at": 2394.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "native-loss-trigger",
+      "styleStart": 2393.5,
+      "sceneBuiltAtTrigger": []
+    },
+    {
+      "receivedAt": 1790783421634,
+      "at": 3070.2000000029802,
+      "timeOrigin": 1790783418563.4,
+      "kind": "native-loss",
+      "trusted": true,
+      "sceneBuiltAtLoss": []
+    },
+    {
+      "receivedAt": 1790783421634,
+      "at": 3071,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 3071,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "recovering",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": true,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 0.7999999970197678,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783421636,
+      "at": 3072.7000000029802,
+      "timeOrigin": 1790783418563.4,
+      "kind": "native-loss-after-dispatch",
+      "trusted": true,
+      "defaultPrevented": true,
+      "snapshot": {
+        "at": 3072.7000000029802,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "recovering",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": true,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 2.5,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783422438,
+      "at": 3873.7999999970198,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 3873.7999999970198,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "reinit",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": true,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 803.5999999940395,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783422457,
+      "at": 3893.2000000029802,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 3893.2000000029802,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 823,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783422459,
+      "at": 3895.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:map-constructed",
+      "start": 3891.7999999970198
+    },
+    {
+      "receivedAt": 1790783422468,
+      "at": 3904.4000000059605,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:map-style-load",
+      "start": 3903.5999999940395
+    },
+    {
+      "receivedAt": 1790783422701,
+      "at": 4137.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:map-icons-ready",
+      "start": 4129.0999999940395
+    },
+    {
+      "receivedAt": 1790783422701,
+      "at": 4137.5999999940395,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:map-scene-built",
+      "start": 4135.5999999940395
+    },
+    {
+      "receivedAt": 1790783422712,
+      "at": 4148.70000000298,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:camera-intent:opening-location",
+      "start": 4147.29999999702
+    },
+    {
+      "receivedAt": 1790783422720,
+      "at": 4157,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:pubs-source-loaded",
+      "start": 4156.20000000298
+    },
+    {
+      "receivedAt": 1790783422723,
+      "at": 4159.9000000059605,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:pins-visible",
+      "start": 4159.5999999940395
+    },
+    {
+      "receivedAt": 1790783422824,
+      "at": 4260.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:camera-intent:arrival",
+      "start": 4260.0999999940395
+    },
+    {
+      "receivedAt": 1790783423134,
+      "at": 4570.4000000059605,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 4570.4000000059605,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 1500.2000000029802,
+        "points": [
+          {
+            "kind": "pin",
+            "id": "venue-7gowhv",
+            "x": 166.06760198063202,
+            "y": 390.184947695847,
+            "lng": -0.12506604194641113,
+            "lat": 51.52439868425091
+          },
+          {
+            "kind": "cluster",
+            "id": "308",
+            "x": 54.40281503269391,
+            "y": 403.74301570276526,
+            "lng": -0.1444101333618164,
+            "lat": 51.52250286488558
+          },
+          {
+            "kind": "cluster",
+            "id": "244",
+            "x": 45.152205851256845,
+            "y": 475.31711596447803,
+            "lng": -0.14490365982055664,
+            "lat": 51.513002553255035
+          },
+          {
+            "kind": "cluster",
+            "id": "148",
+            "x": 119.57447819463191,
+            "y": 471.280905025857,
+            "lng": -0.13256549835205078,
+            "lat": 51.51351667564512
+          },
+          {
+            "kind": "cluster",
+            "id": "2197",
+            "x": 126.50710558455208,
+            "y": 578.8154976019791,
+            "lng": -0.1307201385498047,
+            "lat": 51.50061512375089
+          },
+          {
+            "kind": "cluster",
+            "id": "596",
+            "x": 149.60833967290088,
+            "y": 529.2292507409749,
+            "lng": -0.12730836868286133,
+            "lat": 51.50636517964736
+          },
+          {
+            "kind": "cluster",
+            "id": "500",
+            "x": 57.42556688706003,
+            "y": 524.5393105106352,
+            "lng": -0.1422107219696045,
+            "lat": 51.506926121864836
+          }
+        ],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3903.5999999940395
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 4129.0999999940395
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 4135.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 4147.29999999702
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 4156.20000000298
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 4159.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "at": 4260.0999999940395
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783423233,
+      "at": 4669.29999999702,
+      "timeOrigin": 1790783418563.4,
+      "kind": "pin-reveal",
+      "detail": {
+        "reason": "pins",
+        "generation": 1
+      }
+    },
+    {
+      "receivedAt": 1790783423233,
+      "at": 4669.4000000059605,
+      "timeOrigin": 1790783418563.4,
+      "kind": "mark",
+      "name": "pubmax:pin-entrance-settled",
+      "start": 4669.4000000059605
+    },
+    {
+      "receivedAt": 1790783423326,
+      "at": 4760,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 4760,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 1689.7999999970198,
+        "points": [
+          {
+            "kind": "pin",
+            "id": "venue-7gowhv",
+            "x": 166.06760198063202,
+            "y": 390.184947695847,
+            "lng": -0.12506604194641113,
+            "lat": 51.52439868425091
+          },
+          {
+            "kind": "cluster",
+            "id": "7647",
+            "x": 207.00965747705,
+            "y": 122.01065585792206,
+            "lng": -0.11747002601623535,
+            "lat": 51.569874673594796
+          },
+          {
+            "kind": "cluster",
+            "id": "8319",
+            "x": 290.617680528953,
+            "y": 63.951623212947894,
+            "lng": -0.09893059730529785,
+            "lat": 51.58225660070252
+          },
+          {
+            "kind": "cluster",
+            "id": "7615",
+            "x": 247.24688871795018,
+            "y": 135.0892828126233,
+            "lng": -0.10910153388977051,
+            "lat": 51.56723382628397
+          },
+          {
+            "kind": "cluster",
+            "id": "8639",
+            "x": 228.40809572065137,
+            "y": 3.2338762006644557,
+            "lng": -0.11226654052734375,
+            "lat": 51.59648131678401
+          },
+          {
+            "kind": "cluster",
+            "id": "7519",
+            "x": 227.04317963320753,
+            "y": 198.2861012183958,
+            "lng": -0.11361837387084961,
+            "lat": 51.55516800456482
+          },
+          {
+            "kind": "cluster",
+            "id": "4895",
+            "x": 219.59738102464425,
+            "y": 450.26596388466317,
+            "lng": -0.11584997177124023,
+            "lat": 51.51623408331608
+          },
+          {
+            "kind": "cluster",
+            "id": "23296",
+            "x": 194.3535743780712,
+            "y": 176.52982669665658,
+            "lng": -0.12013077735900879,
+            "lat": 51.55919697102897
+          },
+          {
+            "kind": "cluster",
+            "id": "1279",
+            "x": 172.97624040083497,
+            "y": 505.1055983600247,
+            "lng": -0.12359619140625,
+            "lat": 51.50928333926737
+          },
+          {
+            "kind": "cluster",
+            "id": "1119",
+            "x": 188.23928564407893,
+            "y": 378.01889731820484,
+            "lng": -0.12119293212890625,
+            "lat": 51.52612754929723
+          },
+          {
+            "kind": "cluster",
+            "id": "6367",
+            "x": 142.76139193330158,
+            "y": 343.81730786038224,
+            "lng": -0.12942194938659668,
+            "lat": 51.531133545004366
+          },
+          {
+            "kind": "cluster",
+            "id": "831",
+            "x": 120.36365014497588,
+            "y": 470.9149418420015,
+            "lng": -0.13243675231933594,
+            "lat": 51.513563413756486
+          },
+          {
+            "kind": "cluster",
+            "id": "6783",
+            "x": 95.16545594402812,
+            "y": 247.4521773591082,
+            "lng": -0.1392066478729248,
+            "lat": 51.54650852129535
+          },
+          {
+            "kind": "cluster",
+            "id": "6687",
+            "x": 68.29182959221878,
+            "y": 298.77512543466656,
+            "lng": -0.1435410976409912,
+            "lat": 51.53807428158831
+          },
+          {
+            "kind": "cluster",
+            "id": "991",
+            "x": 73.08951504201703,
+            "y": 387.3498753845575,
+            "lng": -0.14138460159301758,
+            "lat": 51.52479919937005
+          },
+          {
+            "kind": "cluster",
+            "id": "927",
+            "x": 40.629777719861956,
+            "y": 478.159366382022,
+            "lng": -0.14561176300048828,
+            "lat": 51.51264199642904
+          },
+          {
+            "kind": "cluster",
+            "id": "7423",
+            "x": 313.8203312975622,
+            "y": 159.9943507816995,
+            "lng": -0.09566903114318848,
+            "lat": 51.56234518646431
+          },
+          {
+            "kind": "cluster",
+            "id": "4319",
+            "x": 327.9136022427137,
+            "y": 433.36148411170603,
+            "lng": -0.09734272956848145,
+            "lat": 51.51847064859021
+          },
+          {
+            "kind": "cluster",
+            "id": "4383",
+            "x": 384.41180734717216,
+            "y": 481.75225759998943,
+            "lng": -0.08864164352416992,
+            "lat": 51.512187957847914
+          },
+          {
+            "kind": "cluster",
+            "id": "4735",
+            "x": 361.51758387023034,
+            "y": 381.9441749366122,
+            "lng": -0.09069085121154785,
+            "lat": 51.52556684350165
+          },
+          {
+            "kind": "cluster",
+            "id": "5887",
+            "x": 295.1669933950939,
+            "y": 321.3522698661373,
+            "lng": -0.10166645050048828,
+            "lat": 51.53454398148159
+          },
+          {
+            "kind": "cluster",
+            "id": "5855",
+            "x": 292.0194038082421,
+            "y": 256.56718733902017,
+            "lng": -0.10145187377929688,
+            "lat": 51.54496725403493
+          },
+          {
+            "kind": "cluster",
+            "id": "4991",
+            "x": 283.48347393463285,
+            "y": 470.23572137068686,
+            "lng": -0.10524988174438477,
+            "lat": 51.51365021297897
+          },
+          {
+            "kind": "cluster",
+            "id": "6399",
+            "x": 252.85891295959175,
+            "y": 320.18346195801377,
+            "lng": -0.10940194129943848,
+            "lat": 51.53472417356241
+          },
+          {
+            "kind": "cluster",
+            "id": "6527",
+            "x": 251.43532046198084,
+            "y": 234.93530947389314,
+            "lng": -0.10904788970947266,
+            "lat": 51.54865686733723
+          },
+          {
+            "kind": "cluster",
+            "id": "5119",
+            "x": 268.59479432979845,
+            "y": 391.89086220784253,
+            "lng": -0.10712742805480957,
+            "lat": 51.52415837348843
+          },
+          {
+            "kind": "cluster",
+            "id": "6175",
+            "x": 360.11870677630634,
+            "y": 224.8715683939942,
+            "lng": -0.08772969245910645,
+            "lat": 51.55041149707009
+          },
+          {
+            "kind": "cluster",
+            "id": "6143",
+            "x": 372.7105299172456,
+            "y": 294.2062184687146,
+            "lng": -0.08688211441040039,
+            "lat": 51.53880166289994
+          },
+          {
+            "kind": "cluster",
+            "id": "8992",
+            "x": 144.35479208933862,
+            "y": 634.9818057292475,
+            "lng": -0.1276838779449463,
+            "lat": 51.49447692325208
+          },
+          {
+            "kind": "cluster",
+            "id": "3007",
+            "x": 175.20696742095654,
+            "y": 686.9139661940853,
+            "lng": -0.12292027473449707,
+            "lat": 51.48912619611133
+          },
+          {
+            "kind": "cluster",
+            "id": "8288",
+            "x": 74.24668250244123,
+            "y": 667.1227385649117,
+            "lng": -0.13800501823425293,
+            "lat": 51.491130287325916
+          },
+          {
+            "kind": "cluster",
+            "id": "3167",
+            "x": 25.031001083657973,
+            "y": 621.6501771807186,
+            "lng": -0.14597654342651367,
+            "lat": 51.49589967008447
+          },
+          {
+            "kind": "cluster",
+            "id": "1375",
+            "x": 99.03328641667488,
+            "y": 597.7965637647305,
+            "lng": -0.13486146926879883,
+            "lat": 51.49849790532778
+          },
+          {
+            "kind": "cluster",
+            "id": "1183",
+            "x": 57.42556688706003,
+            "y": 524.5393105106352,
+            "lng": -0.1422107219696045,
+            "lat": 51.506926121864836
+          },
+          {
+            "kind": "cluster",
+            "id": "7488",
+            "x": 372.74535987831194,
+            "y": 634.7926804429376,
+            "lng": -0.09302973747253418,
+            "lat": 51.49449696224818
+          },
+          {
+            "kind": "cluster",
+            "id": "4511",
+            "x": 379.5260528341283,
+            "y": 533.8322191927529,
+            "lng": -0.09036898612976074,
+            "lat": 51.50581758653581
+          },
+          {
+            "kind": "cluster",
+            "id": "2975",
+            "x": 255.82017297244508,
+            "y": 681.4627811681622,
+            "lng": -0.11100053787231445,
+            "lat": 51.48967398979218
+          },
+          {
+            "kind": "cluster",
+            "id": "2911",
+            "x": 240.29752596859694,
+            "y": 565.468012393796,
+            "lng": -0.11285662651062012,
+            "lat": 51.50213117871928
+          }
+        ],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3903.5999999940395
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 4129.0999999940395
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 4135.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 4147.29999999702
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 4156.20000000298
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 4159.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "at": 4260.0999999940395
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 4669.4000000059605
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783423337,
+      "at": 4771,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 4771,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 1700.7999999970198,
+        "points": [
+          {
+            "kind": "pin",
+            "id": "venue-7m6z5y",
+            "x": 122.75165151999101,
+            "y": 141.28845157127844,
+            "lng": -0.13500094413757324,
+            "lat": 51.566000044538754
+          },
+          {
+            "kind": "pin",
+            "id": "venue-medp78",
+            "x": 134.1820561918772,
+            "y": 184.51884677592167,
+            "lng": -0.1322329044342041,
+            "lat": 51.55770282642732
+          },
+          {
+            "kind": "pin",
+            "id": "venue-95n21p",
+            "x": 95.22751046320192,
+            "y": 210.35451201113793,
+            "lng": -0.13970017433166504,
+            "lat": 51.552986610557525
+          },
+          {
+            "kind": "pin",
+            "id": "venue-19rlplo",
+            "x": 20.190764400064854,
+            "y": 429.42544617304173,
+            "lng": -0.1498711109161377,
+            "lat": 51.518998061412674
+          },
+          {
+            "kind": "pin",
+            "id": "bar-lyaness",
+            "x": 281.4006975747908,
+            "y": 523.6488740507045,
+            "lng": -0.10604381561279297,
+            "lat": 51.50703296721855
+          },
+          {
+            "kind": "cluster",
+            "id": "7647",
+            "x": 207.00965747705,
+            "y": 122.01065585792206,
+            "lng": -0.11747002601623535,
+            "lat": 51.569874673594796
+          },
+          {
+            "kind": "cluster",
+            "id": "8319",
+            "x": 290.617680528953,
+            "y": 63.951623212947894,
+            "lng": -0.09893059730529785,
+            "lat": 51.58225660070252
+          },
+          {
+            "kind": "cluster",
+            "id": "7615",
+            "x": 247.24688871795018,
+            "y": 135.0892828126233,
+            "lng": -0.10910153388977051,
+            "lat": 51.56723382628397
+          },
+          {
+            "kind": "cluster",
+            "id": "8639",
+            "x": 228.40809572065137,
+            "y": 3.2338762006644557,
+            "lng": -0.11226654052734375,
+            "lat": 51.59648131678401
+          },
+          {
+            "kind": "cluster",
+            "id": "7519",
+            "x": 227.04317963320753,
+            "y": 198.2861012183958,
+            "lng": -0.11361837387084961,
+            "lat": 51.55516800456482
+          },
+          {
+            "kind": "cluster",
+            "id": "4895",
+            "x": 219.59738102464425,
+            "y": 450.26596388466317,
+            "lng": -0.11584997177124023,
+            "lat": 51.51623408331608
+          },
+          {
+            "kind": "cluster",
+            "id": "23296",
+            "x": 194.3535743780712,
+            "y": 176.52982669665658,
+            "lng": -0.12013077735900879,
+            "lat": 51.55919697102897
+          },
+          {
+            "kind": "cluster",
+            "id": "1279",
+            "x": 172.97624040083497,
+            "y": 505.1055983600247,
+            "lng": -0.12359619140625,
+            "lat": 51.50928333926737
+          },
+          {
+            "kind": "cluster",
+            "id": "1119",
+            "x": 188.23928564407893,
+            "y": 378.01889731820484,
+            "lng": -0.12119293212890625,
+            "lat": 51.52612754929723
+          },
+          {
+            "kind": "cluster",
+            "id": "6367",
+            "x": 142.76139193330158,
+            "y": 343.81730786038224,
+            "lng": -0.12942194938659668,
+            "lat": 51.531133545004366
+          },
+          {
+            "kind": "cluster",
+            "id": "831",
+            "x": 120.36365014497588,
+            "y": 470.9149418420015,
+            "lng": -0.13243675231933594,
+            "lat": 51.513563413756486
+          },
+          {
+            "kind": "cluster",
+            "id": "6783",
+            "x": 95.16545594402812,
+            "y": 247.4521773591082,
+            "lng": -0.1392066478729248,
+            "lat": 51.54650852129535
+          },
+          {
+            "kind": "cluster",
+            "id": "6687",
+            "x": 68.29182959221878,
+            "y": 298.77512543466656,
+            "lng": -0.1435410976409912,
+            "lat": 51.53807428158831
+          },
+          {
+            "kind": "cluster",
+            "id": "991",
+            "x": 73.08951504201703,
+            "y": 387.3498753845575,
+            "lng": -0.14138460159301758,
+            "lat": 51.52479919937005
+          },
+          {
+            "kind": "cluster",
+            "id": "927",
+            "x": 40.629777719861956,
+            "y": 478.159366382022,
+            "lng": -0.14561176300048828,
+            "lat": 51.51264199642904
+          },
+          {
+            "kind": "cluster",
+            "id": "7423",
+            "x": 313.8203312975622,
+            "y": 159.9943507816995,
+            "lng": -0.09566903114318848,
+            "lat": 51.56234518646431
+          },
+          {
+            "kind": "cluster",
+            "id": "4319",
+            "x": 327.9136022427137,
+            "y": 433.36148411170603,
+            "lng": -0.09734272956848145,
+            "lat": 51.51847064859021
+          },
+          {
+            "kind": "cluster",
+            "id": "4383",
+            "x": 384.41180734717216,
+            "y": 481.75225759998943,
+            "lng": -0.08864164352416992,
+            "lat": 51.512187957847914
+          },
+          {
+            "kind": "cluster",
+            "id": "4735",
+            "x": 361.51758387023034,
+            "y": 381.9441749366122,
+            "lng": -0.09069085121154785,
+            "lat": 51.52556684350165
+          },
+          {
+            "kind": "cluster",
+            "id": "5887",
+            "x": 295.1669933950939,
+            "y": 321.3522698661373,
+            "lng": -0.10166645050048828,
+            "lat": 51.53454398148159
+          },
+          {
+            "kind": "cluster",
+            "id": "5855",
+            "x": 292.0194038082421,
+            "y": 256.56718733902017,
+            "lng": -0.10145187377929688,
+            "lat": 51.54496725403493
+          },
+          {
+            "kind": "cluster",
+            "id": "4991",
+            "x": 283.48347393463285,
+            "y": 470.23572137068686,
+            "lng": -0.10524988174438477,
+            "lat": 51.51365021297897
+          },
+          {
+            "kind": "cluster",
+            "id": "6399",
+            "x": 252.85891295959175,
+            "y": 320.18346195801377,
+            "lng": -0.10940194129943848,
+            "lat": 51.53472417356241
+          },
+          {
+            "kind": "cluster",
+            "id": "6527",
+            "x": 251.43532046198084,
+            "y": 234.93530947389314,
+            "lng": -0.10904788970947266,
+            "lat": 51.54865686733723
+          },
+          {
+            "kind": "cluster",
+            "id": "5119",
+            "x": 268.59479432979845,
+            "y": 391.89086220784253,
+            "lng": -0.10712742805480957,
+            "lat": 51.52415837348843
+          },
+          {
+            "kind": "cluster",
+            "id": "6175",
+            "x": 360.11870677630634,
+            "y": 224.8715683939942,
+            "lng": -0.08772969245910645,
+            "lat": 51.55041149707009
+          },
+          {
+            "kind": "cluster",
+            "id": "6143",
+            "x": 372.7105299172456,
+            "y": 294.2062184687146,
+            "lng": -0.08688211441040039,
+            "lat": 51.53880166289994
+          },
+          {
+            "kind": "cluster",
+            "id": "8992",
+            "x": 144.35479208933862,
+            "y": 634.9818057292475,
+            "lng": -0.1276838779449463,
+            "lat": 51.49447692325208
+          },
+          {
+            "kind": "cluster",
+            "id": "3007",
+            "x": 175.20696742095654,
+            "y": 686.9139661940853,
+            "lng": -0.12292027473449707,
+            "lat": 51.48912619611133
+          },
+          {
+            "kind": "cluster",
+            "id": "8288",
+            "x": 74.24668250244123,
+            "y": 667.1227385649117,
+            "lng": -0.13800501823425293,
+            "lat": 51.491130287325916
+          },
+          {
+            "kind": "cluster",
+            "id": "3167",
+            "x": 25.031001083657973,
+            "y": 621.6501771807186,
+            "lng": -0.14597654342651367,
+            "lat": 51.49589967008447
+          },
+          {
+            "kind": "cluster",
+            "id": "1375",
+            "x": 99.03328641667488,
+            "y": 597.7965637647305,
+            "lng": -0.13486146926879883,
+            "lat": 51.49849790532778
+          },
+          {
+            "kind": "cluster",
+            "id": "1183",
+            "x": 57.42556688706003,
+            "y": 524.5393105106352,
+            "lng": -0.1422107219696045,
+            "lat": 51.506926121864836
+          },
+          {
+            "kind": "cluster",
+            "id": "7488",
+            "x": 372.74535987831194,
+            "y": 634.7926804429376,
+            "lng": -0.09302973747253418,
+            "lat": 51.49449696224818
+          },
+          {
+            "kind": "cluster",
+            "id": "4511",
+            "x": 379.5260528341283,
+            "y": 533.8322191927529,
+            "lng": -0.09036898612976074,
+            "lat": 51.50581758653581
+          },
+          {
+            "kind": "cluster",
+            "id": "2975",
+            "x": 255.82017297244508,
+            "y": 681.4627811681622,
+            "lng": -0.11100053787231445,
+            "lat": 51.48967398979218
+          },
+          {
+            "kind": "cluster",
+            "id": "2911",
+            "x": 240.29752596859694,
+            "y": 565.468012393796,
+            "lng": -0.11285662651062012,
+            "lat": 51.50213117871928
+          }
+        ],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3903.5999999940395
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 4129.0999999940395
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 4135.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 4147.29999999702
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 4156.20000000298
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 4159.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "at": 4260.0999999940395
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 4669.4000000059605
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783423375,
+      "at": 4810.79999999702,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 4810.79999999702,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 1740.5999999940395,
+        "points": [
+          {
+            "kind": "pin",
+            "id": "venue-7m6z5y",
+            "x": 122.75165151999101,
+            "y": 141.28845157127844,
+            "lng": -0.13500094413757324,
+            "lat": 51.566000044538754
+          },
+          {
+            "kind": "pin",
+            "id": "venue-medp78",
+            "x": 134.1820561918772,
+            "y": 184.51884677592167,
+            "lng": -0.1322329044342041,
+            "lat": 51.55770282642732
+          },
+          {
+            "kind": "pin",
+            "id": "venue-95n21p",
+            "x": 95.22751046320192,
+            "y": 210.35451201113793,
+            "lng": -0.13970017433166504,
+            "lat": 51.552986610557525
+          },
+          {
+            "kind": "pin",
+            "id": "venue-19rlplo",
+            "x": 20.190764400064854,
+            "y": 429.42544617304173,
+            "lng": -0.1498711109161377,
+            "lat": 51.518998061412674
+          },
+          {
+            "kind": "pin",
+            "id": "bar-lyaness",
+            "x": 281.4006975747908,
+            "y": 523.6488740507045,
+            "lng": -0.10604381561279297,
+            "lat": 51.50703296721855
+          },
+          {
+            "kind": "cluster",
+            "id": "7859",
+            "x": 207.00965747705,
+            "y": 122.01065585792206,
+            "lng": -0.11747002601623535,
+            "lat": 51.569874673594796
+          },
+          {
+            "kind": "cluster",
+            "id": "7827",
+            "x": 247.24688871795018,
+            "y": 135.0892828126233,
+            "lng": -0.10910153388977051,
+            "lat": 51.56723382628397
+          },
+          {
+            "kind": "cluster",
+            "id": "8531",
+            "x": 290.617680528953,
+            "y": 63.951623212947894,
+            "lng": -0.09893059730529785,
+            "lat": 51.58225660070252
+          },
+          {
+            "kind": "cluster",
+            "id": "5107",
+            "x": 219.59738102464425,
+            "y": 450.26596388466317,
+            "lng": -0.11584997177124023,
+            "lat": 51.51623408331608
+          },
+          {
+            "kind": "cluster",
+            "id": "1203",
+            "x": 73.08951504201703,
+            "y": 387.3498753845575,
+            "lng": -0.14138460159301758,
+            "lat": 51.52479919937005
+          },
+          {
+            "kind": "cluster",
+            "id": "6579",
+            "x": 142.76139193330158,
+            "y": 343.81730786038224,
+            "lng": -0.12942194938659668,
+            "lat": 51.531133545004366
+          },
+          {
+            "kind": "cluster",
+            "id": "1331",
+            "x": 188.23928564407893,
+            "y": 378.01889731820484,
+            "lng": -0.12119293212890625,
+            "lat": 51.52612754929723
+          },
+          {
+            "kind": "cluster",
+            "id": "6899",
+            "x": 68.29182959221878,
+            "y": 298.77512543466656,
+            "lng": -0.1435410976409912,
+            "lat": 51.53807428158831
+          },
+          {
+            "kind": "cluster",
+            "id": "6995",
+            "x": 95.16545594402812,
+            "y": 247.4521773591082,
+            "lng": -0.1392066478729248,
+            "lat": 51.54650852129535
+          },
+          {
+            "kind": "cluster",
+            "id": "7731",
+            "x": 227.04317963320753,
+            "y": 198.2861012183958,
+            "lng": -0.11361837387084961,
+            "lat": 51.55516800456482
+          },
+          {
+            "kind": "cluster",
+            "id": "23508",
+            "x": 194.3535743780712,
+            "y": 176.52982669665658,
+            "lng": -0.12013077735900879,
+            "lat": 51.55919697102897
+          },
+          {
+            "kind": "cluster",
+            "id": "1139",
+            "x": 40.629777719861956,
+            "y": 478.159366382022,
+            "lng": -0.14561176300048828,
+            "lat": 51.51264199642904
+          },
+          {
+            "kind": "cluster",
+            "id": "1491",
+            "x": 172.97624040083497,
+            "y": 505.1055983600247,
+            "lng": -0.12359619140625,
+            "lat": 51.50928333926737
+          },
+          {
+            "kind": "cluster",
+            "id": "1043",
+            "x": 120.36365014497588,
+            "y": 470.9149418420015,
+            "lng": -0.13243675231933594,
+            "lat": 51.513563413756486
+          },
+          {
+            "kind": "cluster",
+            "id": "6099",
+            "x": 295.1669933950939,
+            "y": 321.3522698661373,
+            "lng": -0.10166645050048828,
+            "lat": 51.53454398148159
+          },
+          {
+            "kind": "cluster",
+            "id": "6067",
+            "x": 292.0194038082421,
+            "y": 256.56718733902017,
+            "lng": -0.10145187377929688,
+            "lat": 51.54496725403493
+          },
+          {
+            "kind": "cluster",
+            "id": "6611",
+            "x": 252.85891295959175,
+            "y": 320.18346195801377,
+            "lng": -0.10940194129943848,
+            "lat": 51.53472417356241
+          },
+          {
+            "kind": "cluster",
+            "id": "6739",
+            "x": 251.43532046198084,
+            "y": 234.93530947389314,
+            "lng": -0.10904788970947266,
+            "lat": 51.54865686733723
+          },
+          {
+            "kind": "cluster",
+            "id": "7635",
+            "x": 313.8203312975622,
+            "y": 159.9943507816995,
+            "lng": -0.09566903114318848,
+            "lat": 51.56234518646431
+          },
+          {
+            "kind": "cluster",
+            "id": "5203",
+            "x": 283.48347393463285,
+            "y": 470.23572137068686,
+            "lng": -0.10524988174438477,
+            "lat": 51.51365021297897
+          },
+          {
+            "kind": "cluster",
+            "id": "4595",
+            "x": 384.41180734717216,
+            "y": 481.75225759998943,
+            "lng": -0.08864164352416992,
+            "lat": 51.512187957847914
+          },
+          {
+            "kind": "cluster",
+            "id": "4531",
+            "x": 327.9136022427137,
+            "y": 433.36148411170603,
+            "lng": -0.09734272956848145,
+            "lat": 51.51847064859021
+          },
+          {
+            "kind": "cluster",
+            "id": "5331",
+            "x": 268.59479432979845,
+            "y": 391.89086220784253,
+            "lng": -0.10712742805480957,
+            "lat": 51.52415837348843
+          },
+          {
+            "kind": "cluster",
+            "id": "4947",
+            "x": 361.51758387023034,
+            "y": 381.9441749366122,
+            "lng": -0.09069085121154785,
+            "lat": 51.52556684350165
+          },
+          {
+            "kind": "cluster",
+            "id": "6387",
+            "x": 360.11870677630634,
+            "y": 224.8715683939942,
+            "lng": -0.08772969245910645,
+            "lat": 51.55041149707009
+          },
+          {
+            "kind": "cluster",
+            "id": "6355",
+            "x": 372.7105299172456,
+            "y": 294.2062184687146,
+            "lng": -0.08688211441040039,
+            "lat": 51.53880166289994
+          },
+          {
+            "kind": "cluster",
+            "id": "1587",
+            "x": 99.03328641667488,
+            "y": 597.7965637647305,
+            "lng": -0.13486146926879883,
+            "lat": 51.49849790532778
+          },
+          {
+            "kind": "cluster",
+            "id": "3219",
+            "x": 175.20696742095654,
+            "y": 686.9139661940853,
+            "lng": -0.12292027473449707,
+            "lat": 51.48912619611133
+          },
+          {
+            "kind": "cluster",
+            "id": "3379",
+            "x": 25.031001083657973,
+            "y": 621.6501771807186,
+            "lng": -0.14597654342651367,
+            "lat": 51.49589967008447
+          },
+          {
+            "kind": "cluster",
+            "id": "8500",
+            "x": 74.24668250244123,
+            "y": 667.1227385649117,
+            "lng": -0.13800501823425293,
+            "lat": 51.491130287325916
+          },
+          {
+            "kind": "cluster",
+            "id": "9204",
+            "x": 144.35479208933862,
+            "y": 634.9818057292475,
+            "lng": -0.1276838779449463,
+            "lat": 51.49447692325208
+          },
+          {
+            "kind": "cluster",
+            "id": "1395",
+            "x": 57.42556688706003,
+            "y": 524.5393105106352,
+            "lng": -0.1422107219696045,
+            "lat": 51.506926121864836
+          },
+          {
+            "kind": "cluster",
+            "id": "3187",
+            "x": 255.82017297244508,
+            "y": 681.4627811681622,
+            "lng": -0.11100053787231445,
+            "lat": 51.48967398979218
+          },
+          {
+            "kind": "cluster",
+            "id": "7700",
+            "x": 372.74535987831194,
+            "y": 634.7926804429376,
+            "lng": -0.09302973747253418,
+            "lat": 51.49449696224818
+          },
+          {
+            "kind": "cluster",
+            "id": "3123",
+            "x": 240.29752596859694,
+            "y": 565.468012393796,
+            "lng": -0.11285662651062012,
+            "lat": 51.50213117871928
+          },
+          {
+            "kind": "cluster",
+            "id": "4723",
+            "x": 379.5260528341283,
+            "y": 533.8322191927529,
+            "lng": -0.09036898612976074,
+            "lat": 51.50581758653581
+          }
+        ],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3903.5999999940395
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 4129.0999999940395
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 4135.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 4147.29999999702
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 4156.20000000298
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 4159.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "at": 4260.0999999940395
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 4669.4000000059605
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783423634,
+      "at": 5068.5,
+      "timeOrigin": 1790783418563.4,
+      "kind": "surface",
+      "snapshot": {
+        "at": 5068.5,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 1998.2999999970198,
+        "points": [
+          {
+            "kind": "pin",
+            "id": "venue-7m6z5y",
+            "x": 122.75165151999101,
+            "y": 141.28845157127844,
+            "lng": -0.13500094413757324,
+            "lat": 51.566000044538754
+          },
+          {
+            "kind": "pin",
+            "id": "venue-19rlplo",
+            "x": 20.190764400064854,
+            "y": 429.42544617304173,
+            "lng": -0.1498711109161377,
+            "lat": 51.518998061412674
+          },
+          {
+            "kind": "pin",
+            "id": "venue-95n21p",
+            "x": 95.22751046320192,
+            "y": 210.35451201113793,
+            "lng": -0.13970017433166504,
+            "lat": 51.552986610557525
+          },
+          {
+            "kind": "pin",
+            "id": "venue-medp78",
+            "x": 134.1820561918772,
+            "y": 184.51884677592167,
+            "lng": -0.1322329044342041,
+            "lat": 51.55770282642732
+          },
+          {
+            "kind": "pin",
+            "id": "bar-lyaness",
+            "x": 281.4006975747908,
+            "y": 523.6488740507045,
+            "lng": -0.10604381561279297,
+            "lat": 51.50703296721855
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n6052873806",
+            "x": 84.90379069001771,
+            "y": 154.2730454858171,
+            "lng": -0.1426398754119873,
+            "lat": 51.56345234602165
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w190104590",
+            "x": 177.8216733691839,
+            "y": 122.4359306909338,
+            "lng": -0.12361764907836914,
+            "lat": 51.56978798154765
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n27411557",
+            "x": 186.5241016687779,
+            "y": 148.19145682792447,
+            "lng": -0.1217508316040039,
+            "lat": 51.56463951125929
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n26065903",
+            "x": 270.2340103997664,
+            "y": 148.838006862195,
+            "lng": -0.10446667671203613,
+            "lat": 51.564512792852014
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n98170592",
+            "x": 45.774180133490326,
+            "y": 164.7527324020592,
+            "lng": -0.1504504680633545,
+            "lat": 51.56143142604333
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w117861610",
+            "x": 63.83597604968643,
+            "y": 193.47282791044802,
+            "lng": -0.14621257781982422,
+            "lat": 51.55604853764589
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w451645113",
+            "x": 38.50027730044922,
+            "y": 200.15470257415583,
+            "lng": -0.15112638473510742,
+            "lat": 51.5548277940363
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w99475943",
+            "x": 17.1349037850471,
+            "y": 222.59542377449358,
+            "lng": -0.1548171043395996,
+            "lat": 51.55081178334629
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w1240322213",
+            "x": 144.8679247684248,
+            "y": 243.8536776827009,
+            "lng": -0.1296687126159668,
+            "lat": 51.54712234480152
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w929791965",
+            "x": 33.210073750969144,
+            "y": 249.92674356292332,
+            "lng": -0.15107274055480957,
+            "lat": 51.54608818085657
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w850126738",
+            "x": 58.30127380602945,
+            "y": 254.58450903288116,
+            "lng": -0.14616966247558594,
+            "lat": 51.54530086609432
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w368797311",
+            "x": 110.01586588413913,
+            "y": 292.16137924936174,
+            "lng": -0.13585925102233887,
+            "lat": 51.53912864704142
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11074881722",
+            "x": 162.32240299886973,
+            "y": 303.24518956707163,
+            "lng": -0.1260530948638916,
+            "lat": 51.53736690879626
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w225302691",
+            "x": 74.74495049776883,
+            "y": 326.0455489122598,
+            "lng": -0.14194250106811523,
+            "lat": 51.53382320602512
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n293754855",
+            "x": 99.2430999444029,
+            "y": 332.96410325839264,
+            "lng": -0.13739347457885742,
+            "lat": 51.53276871766559
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n300500863",
+            "x": 60.84315602903285,
+            "y": 356.3201991268098,
+            "lng": -0.14400243759155273,
+            "lat": 51.52927805346181
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w953962864",
+            "x": 109.02851197777692,
+            "y": 385.5595575532172,
+            "lng": -0.13509750366210938,
+            "lat": 51.52505285712343
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n2624195137",
+            "x": 153.22824796189056,
+            "y": 393.7906249652618,
+            "lng": -0.12729763984680176,
+            "lat": 51.52389136004274
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w40917016",
+            "x": 99.76081869028953,
+            "y": 408.95983595184896,
+            "lng": -0.13648152351379395,
+            "lat": 51.521781898778556
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w345140316",
+            "x": 64.3498975900823,
+            "y": 422.9402818389956,
+            "lng": -0.14241456985473633,
+            "lat": 51.51987261858159
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12045676386",
+            "x": 116.28518228366237,
+            "y": 439.22590189878053,
+            "lng": -0.13337016105651855,
+            "lat": 51.517689532303194
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12437062771",
+            "x": 65.83683001607413,
+            "y": 448.6360922386721,
+            "lng": -0.1418137550354004,
+            "lat": 51.51644773011651
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w475957291",
+            "x": 91.47790081107951,
+            "y": 460.2165352655867,
+            "lng": -0.1373612880706787,
+            "lat": 51.514938828134916
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n266481948",
+            "x": 74.34172484871796,
+            "y": 488.71744524839016,
+            "lng": -0.1398932933807373,
+            "lat": 51.511313253119084
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w237795434",
+            "x": 14.51885063450459,
+            "y": 506.7401265904944,
+            "lng": -0.14944195747375488,
+            "lat": 51.509083013918286
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w142306062",
+            "x": 219.4706028328276,
+            "y": 172.42882420781396,
+            "lng": -0.11503458023071289,
+            "lat": 51.55997070519143
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w230259989",
+            "x": 340.2170751450617,
+            "y": 183.83760502578482,
+            "lng": -0.09077668190002441,
+            "lat": 51.55782956381216
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n344875284",
+            "x": 305.7966594443775,
+            "y": 205.71666181849247,
+            "lng": -0.09805083274841309,
+            "lat": 51.553820489119715
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n344875712",
+            "x": 272.5498151207564,
+            "y": 207.7906372899354,
+            "lng": -0.1046597957611084,
+            "lat": 51.55344691341401
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w270765497",
+            "x": 186.53505378579885,
+            "y": 234.2420016443802,
+            "lng": -0.1216435432434082,
+            "lat": 51.54877695822151
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w197695792",
+            "x": 353.20235842612107,
+            "y": 263.9503838274969,
+            "lng": -0.08990764617919922,
+            "lat": 51.54373286814703
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w230373565",
+            "x": 325.10954851107715,
+            "y": 267.085803682656,
+            "lng": -0.09530425071716309,
+            "lat": 51.54321241433169
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n9394928620",
+            "x": 178.98087062885273,
+            "y": 268.1742762305022,
+            "lng": -0.12303829193115234,
+            "lat": 51.543032255854854
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w558371976",
+            "x": 220.0504731778111,
+            "y": 268.29531744112603,
+            "lng": -0.1152491569519043,
+            "lat": 51.543012238202294
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n302410081",
+            "x": 265.2228024812827,
+            "y": 291.70310353084517,
+            "lng": -0.10689139366149902,
+            "lat": 51.53920205132172
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n503882231",
+            "x": 311.53968925282135,
+            "y": 293.07877684926115,
+            "lng": -0.09826540946960449,
+            "lat": 51.538981838125636
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w32826147",
+            "x": 214.5007281263037,
+            "y": 293.83021525331975,
+            "lng": -0.11636495590209961,
+            "lat": 51.538861721387775
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w71336800",
+            "x": 337.7599737123893,
+            "y": 302.01959731204505,
+            "lng": -0.09353399276733398,
+            "lat": 51.53756043640732
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n425720634",
+            "x": 187.624064818171,
+            "y": 317.0323343480966,
+            "lng": -0.1213538646697998,
+            "lat": 51.53521135598723
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n6594761643",
+            "x": 193.02477946339687,
+            "y": 344.57609777555194,
+            "lng": -0.12035608291625977,
+            "lat": 51.53102008186505
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n1116251530",
+            "x": 168.42205371014109,
+            "y": 349.41413956139223,
+            "lng": -0.12477636337280273,
+            "lat": 51.53029925061031
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w99057959",
+            "x": 268.7517247294529,
+            "y": 355.14227722357083,
+            "lng": -0.10679483413696289,
+            "lat": 51.5294515918477
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w155724663",
+            "x": 217.97296571200383,
+            "y": 361.55173330981745,
+            "lng": -0.11590361595153809,
+            "lat": 51.52851047189853
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n703528109",
+            "x": 301.38518973537055,
+            "y": 364.47847342664227,
+            "lng": -0.10106563568115234,
+            "lat": 51.52808329046695
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w155366810",
+            "x": 324.68096009154397,
+            "y": 370.6420443142461,
+            "lng": -0.09701013565063477,
+            "lat": 51.527188866363275
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w161255236",
+            "x": 244.1393880513199,
+            "y": 376.76133873596854,
+            "lng": -0.11132240295410156,
+            "lat": 51.52630777469375
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w167261940",
+            "x": 330.50026191693104,
+            "y": 393.50537124897807,
+            "lng": -0.09632349014282227,
+            "lat": 51.523931412159385
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w149070185",
+            "x": 306.5418605852952,
+            "y": 398.60778656053174,
+            "lng": -0.10057210922241211,
+            "lat": 51.523217144124345
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n4637449094",
+            "x": 238.99687019832191,
+            "y": 408.62067930183593,
+            "lng": -0.11238455772399902,
+            "lat": 51.521828628409224
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n4642335170",
+            "x": 284.4975774012695,
+            "y": 440.4844525525911,
+            "lng": -0.10480999946594238,
+            "lat": 51.517522625376614
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n25496840",
+            "x": 252.030364149931,
+            "y": 446.65403800692025,
+            "lng": -0.11035680770874023,
+            "lat": 51.516708110799584
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n5681428211",
+            "x": 384.6501507786929,
+            "y": 451.1331459267701,
+            "lng": -0.08801937103271484,
+            "lat": 51.51612058304576
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n663260803",
+            "x": 190.33114630041072,
+            "y": 455.48277604546314,
+            "lng": -0.12078523635864258,
+            "lat": 51.515553077451784
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n13461061541",
+            "x": 165.5520330725463,
+            "y": 471.5424055556768,
+            "lng": -0.12490510940551758,
+            "lat": 51.51348329125051
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11674123843",
+            "x": 319.66007560612513,
+            "y": 478.10664439166084,
+            "lng": -0.09931683540344238,
+            "lat": 51.51264867343323
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w469650901",
+            "x": 353.9539257149352,
+            "y": 482.44088796952724,
+            "lng": -0.09369492530822754,
+            "lat": 51.51210115583919
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w238385297",
+            "x": 372.9325840525867,
+            "y": 166.9171350458775,
+            "lng": -0.08374929428100586,
+            "lat": 51.56101789339451
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n491564007",
+            "x": 381.07498834272786,
+            "y": 339.0584732828634,
+            "lng": -0.0863349437713623,
+            "lat": 51.531847688860296
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w157258551",
+            "x": 387.82145867363886,
+            "y": 377.2268671647318,
+            "lng": -0.08595943450927734,
+            "lat": 51.52624102463005
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11309104133",
+            "x": 6.819716192296922,
+            "y": 537.7244944457558,
+            "lng": -0.15015006065368652,
+            "lat": 51.50535680186775
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n5273528326",
+            "x": 132.49978449494276,
+            "y": 579.9418553362704,
+            "lng": -0.1297760009765625,
+            "lat": 51.50048822699483
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12836989701",
+            "x": 350.77700071412363,
+            "y": 547.8466713573844,
+            "lng": -0.09518623352050781,
+            "lat": 51.50416808946969
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w77765224",
+            "x": 321.8245860161711,
+            "y": 550.7686356392976,
+            "lng": -0.09983181953430176,
+            "lat": 51.50382749761789
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n306666717",
+            "x": 269.99517294822544,
+            "y": 558.3190839935326,
+            "lng": -0.10812520980834961,
+            "lat": 51.50295263237035
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n569524162",
+            "x": 214.80576325669517,
+            "y": 561.2762295283409,
+            "lng": -0.11686921119689941,
+            "lat": 51.502612031433955
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12997774502",
+            "x": 282.05385717468033,
+            "y": 595.9828965159667,
+            "lng": -0.10650515556335449,
+            "lat": 51.49869827721548
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12997756180",
+            "x": 251.9007971112674,
+            "y": 614.3477023096717,
+            "lng": -0.11126875877380371,
+            "lat": 51.496687839355616
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n264790279",
+            "x": 300.73972126248464,
+            "y": 623.391612798538,
+            "lng": -0.10385513305664062,
+            "lat": 51.495712644866956
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w449283140",
+            "x": 58.39399239563483,
+            "y": 635.5494157986657,
+            "lng": -0.14071941375732422,
+            "lat": 51.49441680621089
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w100822478",
+            "x": 112.20708707564724,
+            "y": 637.5072102070429,
+            "lng": -0.13254404067993164,
+            "lat": 51.49420973579561
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n1280271962",
+            "x": 85.15681229514017,
+            "y": 637.5072102070429,
+            "lng": -0.1366424560546875,
+            "lat": 51.49420973579561
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n2153030788",
+            "x": 240.5891768135222,
+            "y": 646.0820542830143,
+            "lng": -0.11312484741210938,
+            "lat": 51.49330796656787
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n9196054531",
+            "x": 326.7504710276483,
+            "y": 650.175215266419,
+            "lng": -0.10017514228820801,
+            "lat": 51.492880454923096
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w1182778179",
+            "x": 117.62724216942122,
+            "y": 679.5424608762667,
+            "lng": -0.13146042823791504,
+            "lat": 51.489867720128245
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n148782410",
+            "x": 13.644997955698237,
+            "y": 688.248322663892,
+            "lng": -0.14673829078674316,
+            "lat": 51.488992586898064
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n605393296",
+            "x": 376.6962984018158,
+            "y": 693.6046902847178,
+            "lng": -0.09328722953796387,
+            "lat": 51.4884581461296
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n3796261415",
+            "x": 303.81580584673856,
+            "y": 704.2054701701348,
+            "lng": -0.10409116744995117,
+            "lat": 51.48740928791045
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n8907146649",
+            "x": 375.1563903150801,
+            "y": 747.1135067911196,
+            "lng": -0.09424209594726562,
+            "lat": 51.48328042687541
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w498824930",
+            "x": 155.24607128029024,
+            "y": 764.0864199878415,
+            "lng": -0.12563467025756836,
+            "lat": 51.48169692953326
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w296861478",
+            "x": 207.60011532081108,
+            "y": 771.7739036237605,
+            "lng": -0.11822104454040527,
+            "lat": 51.480988680859014
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w171081629",
+            "x": 280.8786932367093,
+            "y": 782.8295313443268,
+            "lng": -0.10794281959533691,
+            "lat": 51.479979741583435
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n13367060313",
+            "x": 382.51679805767543,
+            "y": 817.3631665258393,
+            "lng": -0.09412407875061035,
+            "lat": 51.47689933192751
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12595899238",
+            "x": 46.553024810937174,
+            "y": 843.1448896154316,
+            "lng": -0.14022588729858398,
+            "lat": 51.47466740841165
+          },
+          {
+            "kind": "cluster",
+            "id": "7859",
+            "x": 207.00965747705,
+            "y": 122.01065585792206,
+            "lng": -0.11747002601623535,
+            "lat": 51.569874673594796
+          },
+          {
+            "kind": "cluster",
+            "id": "7827",
+            "x": 247.24688871795018,
+            "y": 135.0892828126233,
+            "lng": -0.10910153388977051,
+            "lat": 51.56723382628397
+          },
+          {
+            "kind": "cluster",
+            "id": "8531",
+            "x": 290.617680528953,
+            "y": 63.951623212947894,
+            "lng": -0.09893059730529785,
+            "lat": 51.58225660070252
+          },
+          {
+            "kind": "cluster",
+            "id": "5107",
+            "x": 219.59738102464425,
+            "y": 450.26596388466317,
+            "lng": -0.11584997177124023,
+            "lat": 51.51623408331608
+          },
+          {
+            "kind": "cluster",
+            "id": "1203",
+            "x": 73.08951504201703,
+            "y": 387.3498753845575,
+            "lng": -0.14138460159301758,
+            "lat": 51.52479919937005
+          },
+          {
+            "kind": "cluster",
+            "id": "6579",
+            "x": 142.76139193330158,
+            "y": 343.81730786038224,
+            "lng": -0.12942194938659668,
+            "lat": 51.531133545004366
+          },
+          {
+            "kind": "cluster",
+            "id": "1331",
+            "x": 188.23928564407893,
+            "y": 378.01889731820484,
+            "lng": -0.12119293212890625,
+            "lat": 51.52612754929723
+          },
+          {
+            "kind": "cluster",
+            "id": "6899",
+            "x": 68.29182959221878,
+            "y": 298.77512543466656,
+            "lng": -0.1435410976409912,
+            "lat": 51.53807428158831
+          },
+          {
+            "kind": "cluster",
+            "id": "6995",
+            "x": 95.16545594402812,
+            "y": 247.4521773591082,
+            "lng": -0.1392066478729248,
+            "lat": 51.54650852129535
+          },
+          {
+            "kind": "cluster",
+            "id": "7731",
+            "x": 227.04317963320753,
+            "y": 198.2861012183958,
+            "lng": -0.11361837387084961,
+            "lat": 51.55516800456482
+          },
+          {
+            "kind": "cluster",
+            "id": "23508",
+            "x": 194.3535743780712,
+            "y": 176.52982669665658,
+            "lng": -0.12013077735900879,
+            "lat": 51.55919697102897
+          },
+          {
+            "kind": "cluster",
+            "id": "1139",
+            "x": 40.629777719861956,
+            "y": 478.159366382022,
+            "lng": -0.14561176300048828,
+            "lat": 51.51264199642904
+          },
+          {
+            "kind": "cluster",
+            "id": "1491",
+            "x": 172.97624040083497,
+            "y": 505.1055983600247,
+            "lng": -0.12359619140625,
+            "lat": 51.50928333926737
+          },
+          {
+            "kind": "cluster",
+            "id": "1043",
+            "x": 120.36365014497588,
+            "y": 470.9149418420015,
+            "lng": -0.13243675231933594,
+            "lat": 51.513563413756486
+          },
+          {
+            "kind": "cluster",
+            "id": "6099",
+            "x": 295.1669933950939,
+            "y": 321.3522698661373,
+            "lng": -0.10166645050048828,
+            "lat": 51.53454398148159
+          },
+          {
+            "kind": "cluster",
+            "id": "6067",
+            "x": 292.0194038082421,
+            "y": 256.56718733902017,
+            "lng": -0.10145187377929688,
+            "lat": 51.54496725403493
+          },
+          {
+            "kind": "cluster",
+            "id": "6611",
+            "x": 252.85891295959175,
+            "y": 320.18346195801377,
+            "lng": -0.10940194129943848,
+            "lat": 51.53472417356241
+          },
+          {
+            "kind": "cluster",
+            "id": "6739",
+            "x": 251.43532046198084,
+            "y": 234.93530947389314,
+            "lng": -0.10904788970947266,
+            "lat": 51.54865686733723
+          },
+          {
+            "kind": "cluster",
+            "id": "7635",
+            "x": 313.8203312975622,
+            "y": 159.9943507816995,
+            "lng": -0.09566903114318848,
+            "lat": 51.56234518646431
+          },
+          {
+            "kind": "cluster",
+            "id": "5203",
+            "x": 283.48347393463285,
+            "y": 470.23572137068686,
+            "lng": -0.10524988174438477,
+            "lat": 51.51365021297897
+          },
+          {
+            "kind": "cluster",
+            "id": "4595",
+            "x": 384.41180734717216,
+            "y": 481.75225759998943,
+            "lng": -0.08864164352416992,
+            "lat": 51.512187957847914
+          },
+          {
+            "kind": "cluster",
+            "id": "4531",
+            "x": 327.9136022427137,
+            "y": 433.36148411170603,
+            "lng": -0.09734272956848145,
+            "lat": 51.51847064859021
+          },
+          {
+            "kind": "cluster",
+            "id": "5331",
+            "x": 268.59479432979845,
+            "y": 391.89086220784253,
+            "lng": -0.10712742805480957,
+            "lat": 51.52415837348843
+          },
+          {
+            "kind": "cluster",
+            "id": "4947",
+            "x": 361.51758387023034,
+            "y": 381.9441749366122,
+            "lng": -0.09069085121154785,
+            "lat": 51.52556684350165
+          },
+          {
+            "kind": "cluster",
+            "id": "6387",
+            "x": 360.11870677630634,
+            "y": 224.8715683939942,
+            "lng": -0.08772969245910645,
+            "lat": 51.55041149707009
+          },
+          {
+            "kind": "cluster",
+            "id": "6355",
+            "x": 372.7105299172456,
+            "y": 294.2062184687146,
+            "lng": -0.08688211441040039,
+            "lat": 51.53880166289994
+          },
+          {
+            "kind": "cluster",
+            "id": "1587",
+            "x": 99.03328641667488,
+            "y": 597.7965637647305,
+            "lng": -0.13486146926879883,
+            "lat": 51.49849790532778
+          },
+          {
+            "kind": "cluster",
+            "id": "3219",
+            "x": 175.20696742095654,
+            "y": 686.9139661940853,
+            "lng": -0.12292027473449707,
+            "lat": 51.48912619611133
+          },
+          {
+            "kind": "cluster",
+            "id": "3379",
+            "x": 25.031001083657973,
+            "y": 621.6501771807186,
+            "lng": -0.14597654342651367,
+            "lat": 51.49589967008447
+          },
+          {
+            "kind": "cluster",
+            "id": "8500",
+            "x": 74.24668250244123,
+            "y": 667.1227385649117,
+            "lng": -0.13800501823425293,
+            "lat": 51.491130287325916
+          },
+          {
+            "kind": "cluster",
+            "id": "9204",
+            "x": 144.35479208933862,
+            "y": 634.9818057292475,
+            "lng": -0.1276838779449463,
+            "lat": 51.49447692325208
+          },
+          {
+            "kind": "cluster",
+            "id": "1395",
+            "x": 57.42556688706003,
+            "y": 524.5393105106352,
+            "lng": -0.1422107219696045,
+            "lat": 51.506926121864836
+          },
+          {
+            "kind": "cluster",
+            "id": "3187",
+            "x": 255.82017297244508,
+            "y": 681.4627811681622,
+            "lng": -0.11100053787231445,
+            "lat": 51.48967398979218
+          },
+          {
+            "kind": "cluster",
+            "id": "7700",
+            "x": 372.74535987831194,
+            "y": 634.7926804429376,
+            "lng": -0.09302973747253418,
+            "lat": 51.49449696224818
+          },
+          {
+            "kind": "cluster",
+            "id": "3123",
+            "x": 240.29752596859694,
+            "y": 565.468012393796,
+            "lng": -0.11285662651062012,
+            "lat": 51.50213117871928
+          },
+          {
+            "kind": "cluster",
+            "id": "4723",
+            "x": 379.5260528341283,
+            "y": 533.8322191927529,
+            "lng": -0.09036898612976074,
+            "lat": 51.50581758653581
+          }
+        ],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3903.5999999940395
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 4129.0999999940395
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 4135.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 4147.29999999702
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 4156.20000000298
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 4159.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "at": 4260.0999999940395
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 4669.4000000059605
+          }
+        ]
+      }
+    }
+  ],
+  "nativeConsole": [
+    {
+      "timestampEpochMs": 1790783421636.572,
+      "type": "warning",
+      "args": [
+        {
+          "type": "string",
+          "value": "There is no style added to the map."
+        }
+      ],
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "to",
+            "scriptId": "62",
+            "url": "http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 44113
+          },
+          {
+            "functionName": "isStyleLoaded",
+            "scriptId": "62",
+            "url": "http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local",
+            "lineNumber": 816,
+            "columnNumber": 105569
+          },
+          {
+            "functionName": "tq",
+            "scriptId": "60",
+            "url": "http://localhost:3351/_next/static/chunks/22x-d5ul9uwdw.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 52754
+          }
+        ]
+      },
+      "documentPerformanceMs": 3073.172119140625
+    },
+    {
+      "timestampEpochMs": 1790783421637.776,
+      "type": "warning",
+      "args": [
+        {
+          "type": "string",
+          "value": "Service Worker registration blocked by Playwright"
+        }
+      ],
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "navigator.serviceWorker.register",
+            "scriptId": "4",
+            "url": "",
+            "lineNumber": 2,
+            "columnNumber": 86
+          },
+          {
+            "functionName": "",
+            "scriptId": "46",
+            "url": "http://localhost:3351/_next/static/chunks/27mks1avt7cz-.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 10174
+          },
+          {
+            "functionName": "e",
+            "scriptId": "46",
+            "url": "http://localhost:3351/_next/static/chunks/27mks1avt7cz-.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 10378
+          }
+        ]
+      },
+      "documentPerformanceMs": 3074.3759765625
+    },
+    {
+      "timestampEpochMs": 1790783422436.415,
+      "type": "warning",
+      "args": [
+        {
+          "type": "string",
+          "value": "[pubmap] webgl context dead - re-init preserving camera"
+        },
+        {
+          "type": "object",
+          "description": "Object"
+        }
+      ],
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "",
+            "scriptId": "60",
+            "url": "http://localhost:3351/_next/static/chunks/22x-d5ul9uwdw.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 42355
+          }
+        ]
+      },
+      "documentPerformanceMs": 3873.01513671875
+    }
+  ],
+  "nativeExceptions": [],
+  "pageErrors": [],
+  "network": [
+    {
+      "receivedAt": 1790783420877,
+      "url": "https://pubmaxx-e2e.supabase.co/auth/v1/settings",
+      "failure": {
+        "errorText": "net::ERR_NAME_NOT_RESOLVED"
+      }
+    }
+  ],
+  "snapshots": [
+    {
+      "phase": "persistent-loss-after-grace",
+      "snapshot": {
+        "at": 5182.4000000059605,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 2112.2000000029802,
+        "points": [
+          {
+            "kind": "pin",
+            "id": "venue-7m6z5y",
+            "x": 122.75165151999101,
+            "y": 141.28845157127844,
+            "lng": -0.13500094413757324,
+            "lat": 51.566000044538754
+          },
+          {
+            "kind": "pin",
+            "id": "venue-19rlplo",
+            "x": 20.190764400064854,
+            "y": 429.42544617304173,
+            "lng": -0.1498711109161377,
+            "lat": 51.518998061412674
+          },
+          {
+            "kind": "pin",
+            "id": "venue-95n21p",
+            "x": 95.22751046320192,
+            "y": 210.35451201113793,
+            "lng": -0.13970017433166504,
+            "lat": 51.552986610557525
+          },
+          {
+            "kind": "pin",
+            "id": "venue-medp78",
+            "x": 134.1820561918772,
+            "y": 184.51884677592167,
+            "lng": -0.1322329044342041,
+            "lat": 51.55770282642732
+          },
+          {
+            "kind": "pin",
+            "id": "bar-lyaness",
+            "x": 281.4006975747908,
+            "y": 523.6488740507045,
+            "lng": -0.10604381561279297,
+            "lat": 51.50703296721855
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n6052873806",
+            "x": 84.90379069001771,
+            "y": 154.2730454858171,
+            "lng": -0.1426398754119873,
+            "lat": 51.56345234602165
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w190104590",
+            "x": 177.8216733691839,
+            "y": 122.4359306909338,
+            "lng": -0.12361764907836914,
+            "lat": 51.56978798154765
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n27411557",
+            "x": 186.5241016687779,
+            "y": 148.19145682792447,
+            "lng": -0.1217508316040039,
+            "lat": 51.56463951125929
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n26065903",
+            "x": 270.2340103997664,
+            "y": 148.838006862195,
+            "lng": -0.10446667671203613,
+            "lat": 51.564512792852014
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n98170592",
+            "x": 45.774180133490326,
+            "y": 164.7527324020592,
+            "lng": -0.1504504680633545,
+            "lat": 51.56143142604333
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w117861610",
+            "x": 63.83597604968643,
+            "y": 193.47282791044802,
+            "lng": -0.14621257781982422,
+            "lat": 51.55604853764589
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w451645113",
+            "x": 38.50027730044922,
+            "y": 200.15470257415583,
+            "lng": -0.15112638473510742,
+            "lat": 51.5548277940363
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w99475943",
+            "x": 17.1349037850471,
+            "y": 222.59542377449358,
+            "lng": -0.1548171043395996,
+            "lat": 51.55081178334629
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w1240322213",
+            "x": 144.8679247684248,
+            "y": 243.8536776827009,
+            "lng": -0.1296687126159668,
+            "lat": 51.54712234480152
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w929791965",
+            "x": 33.210073750969144,
+            "y": 249.92674356292332,
+            "lng": -0.15107274055480957,
+            "lat": 51.54608818085657
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w850126738",
+            "x": 58.30127380602945,
+            "y": 254.58450903288116,
+            "lng": -0.14616966247558594,
+            "lat": 51.54530086609432
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w368797311",
+            "x": 110.01586588413913,
+            "y": 292.16137924936174,
+            "lng": -0.13585925102233887,
+            "lat": 51.53912864704142
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11074881722",
+            "x": 162.32240299886973,
+            "y": 303.24518956707163,
+            "lng": -0.1260530948638916,
+            "lat": 51.53736690879626
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w225302691",
+            "x": 74.74495049776883,
+            "y": 326.0455489122598,
+            "lng": -0.14194250106811523,
+            "lat": 51.53382320602512
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n293754855",
+            "x": 99.2430999444029,
+            "y": 332.96410325839264,
+            "lng": -0.13739347457885742,
+            "lat": 51.53276871766559
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n300500863",
+            "x": 60.84315602903285,
+            "y": 356.3201991268098,
+            "lng": -0.14400243759155273,
+            "lat": 51.52927805346181
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w953962864",
+            "x": 109.02851197777692,
+            "y": 385.5595575532172,
+            "lng": -0.13509750366210938,
+            "lat": 51.52505285712343
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n2624195137",
+            "x": 153.22824796189056,
+            "y": 393.7906249652618,
+            "lng": -0.12729763984680176,
+            "lat": 51.52389136004274
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w40917016",
+            "x": 99.76081869028953,
+            "y": 408.95983595184896,
+            "lng": -0.13648152351379395,
+            "lat": 51.521781898778556
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w345140316",
+            "x": 64.3498975900823,
+            "y": 422.9402818389956,
+            "lng": -0.14241456985473633,
+            "lat": 51.51987261858159
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12045676386",
+            "x": 116.28518228366237,
+            "y": 439.22590189878053,
+            "lng": -0.13337016105651855,
+            "lat": 51.517689532303194
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12437062771",
+            "x": 65.83683001607413,
+            "y": 448.6360922386721,
+            "lng": -0.1418137550354004,
+            "lat": 51.51644773011651
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w475957291",
+            "x": 91.47790081107951,
+            "y": 460.2165352655867,
+            "lng": -0.1373612880706787,
+            "lat": 51.514938828134916
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n266481948",
+            "x": 74.34172484871796,
+            "y": 488.71744524839016,
+            "lng": -0.1398932933807373,
+            "lat": 51.511313253119084
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w237795434",
+            "x": 14.51885063450459,
+            "y": 506.7401265904944,
+            "lng": -0.14944195747375488,
+            "lat": 51.509083013918286
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w142306062",
+            "x": 219.4706028328276,
+            "y": 172.42882420781396,
+            "lng": -0.11503458023071289,
+            "lat": 51.55997070519143
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w230259989",
+            "x": 340.2170751450617,
+            "y": 183.83760502578482,
+            "lng": -0.09077668190002441,
+            "lat": 51.55782956381216
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n344875284",
+            "x": 305.7966594443775,
+            "y": 205.71666181849247,
+            "lng": -0.09805083274841309,
+            "lat": 51.553820489119715
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n344875712",
+            "x": 272.5498151207564,
+            "y": 207.7906372899354,
+            "lng": -0.1046597957611084,
+            "lat": 51.55344691341401
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w270765497",
+            "x": 186.53505378579885,
+            "y": 234.2420016443802,
+            "lng": -0.1216435432434082,
+            "lat": 51.54877695822151
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w197695792",
+            "x": 353.20235842612107,
+            "y": 263.9503838274969,
+            "lng": -0.08990764617919922,
+            "lat": 51.54373286814703
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w230373565",
+            "x": 325.10954851107715,
+            "y": 267.085803682656,
+            "lng": -0.09530425071716309,
+            "lat": 51.54321241433169
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n9394928620",
+            "x": 178.98087062885273,
+            "y": 268.1742762305022,
+            "lng": -0.12303829193115234,
+            "lat": 51.543032255854854
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w558371976",
+            "x": 220.0504731778111,
+            "y": 268.29531744112603,
+            "lng": -0.1152491569519043,
+            "lat": 51.543012238202294
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n302410081",
+            "x": 265.2228024812827,
+            "y": 291.70310353084517,
+            "lng": -0.10689139366149902,
+            "lat": 51.53920205132172
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n503882231",
+            "x": 311.53968925282135,
+            "y": 293.07877684926115,
+            "lng": -0.09826540946960449,
+            "lat": 51.538981838125636
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w32826147",
+            "x": 214.5007281263037,
+            "y": 293.83021525331975,
+            "lng": -0.11636495590209961,
+            "lat": 51.538861721387775
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w71336800",
+            "x": 337.7599737123893,
+            "y": 302.01959731204505,
+            "lng": -0.09353399276733398,
+            "lat": 51.53756043640732
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n425720634",
+            "x": 187.624064818171,
+            "y": 317.0323343480966,
+            "lng": -0.1213538646697998,
+            "lat": 51.53521135598723
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n6594761643",
+            "x": 193.02477946339687,
+            "y": 344.57609777555194,
+            "lng": -0.12035608291625977,
+            "lat": 51.53102008186505
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n1116251530",
+            "x": 168.42205371014109,
+            "y": 349.41413956139223,
+            "lng": -0.12477636337280273,
+            "lat": 51.53029925061031
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w99057959",
+            "x": 268.7517247294529,
+            "y": 355.14227722357083,
+            "lng": -0.10679483413696289,
+            "lat": 51.5294515918477
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w155724663",
+            "x": 217.97296571200383,
+            "y": 361.55173330981745,
+            "lng": -0.11590361595153809,
+            "lat": 51.52851047189853
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n703528109",
+            "x": 301.38518973537055,
+            "y": 364.47847342664227,
+            "lng": -0.10106563568115234,
+            "lat": 51.52808329046695
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w155366810",
+            "x": 324.68096009154397,
+            "y": 370.6420443142461,
+            "lng": -0.09701013565063477,
+            "lat": 51.527188866363275
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w161255236",
+            "x": 244.1393880513199,
+            "y": 376.76133873596854,
+            "lng": -0.11132240295410156,
+            "lat": 51.52630777469375
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w167261940",
+            "x": 330.50026191693104,
+            "y": 393.50537124897807,
+            "lng": -0.09632349014282227,
+            "lat": 51.523931412159385
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w149070185",
+            "x": 306.5418605852952,
+            "y": 398.60778656053174,
+            "lng": -0.10057210922241211,
+            "lat": 51.523217144124345
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n4637449094",
+            "x": 238.99687019832191,
+            "y": 408.62067930183593,
+            "lng": -0.11238455772399902,
+            "lat": 51.521828628409224
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n4642335170",
+            "x": 284.4975774012695,
+            "y": 440.4844525525911,
+            "lng": -0.10480999946594238,
+            "lat": 51.517522625376614
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n25496840",
+            "x": 252.030364149931,
+            "y": 446.65403800692025,
+            "lng": -0.11035680770874023,
+            "lat": 51.516708110799584
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n5681428211",
+            "x": 384.6501507786929,
+            "y": 451.1331459267701,
+            "lng": -0.08801937103271484,
+            "lat": 51.51612058304576
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n663260803",
+            "x": 190.33114630041072,
+            "y": 455.48277604546314,
+            "lng": -0.12078523635864258,
+            "lat": 51.515553077451784
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n13461061541",
+            "x": 165.5520330725463,
+            "y": 471.5424055556768,
+            "lng": -0.12490510940551758,
+            "lat": 51.51348329125051
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11674123843",
+            "x": 319.66007560612513,
+            "y": 478.10664439166084,
+            "lng": -0.09931683540344238,
+            "lat": 51.51264867343323
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w469650901",
+            "x": 353.9539257149352,
+            "y": 482.44088796952724,
+            "lng": -0.09369492530822754,
+            "lat": 51.51210115583919
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w238385297",
+            "x": 372.9325840525867,
+            "y": 166.9171350458775,
+            "lng": -0.08374929428100586,
+            "lat": 51.56101789339451
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n491564007",
+            "x": 381.07498834272786,
+            "y": 339.0584732828634,
+            "lng": -0.0863349437713623,
+            "lat": 51.531847688860296
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w157258551",
+            "x": 387.82145867363886,
+            "y": 377.2268671647318,
+            "lng": -0.08595943450927734,
+            "lat": 51.52624102463005
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11309104133",
+            "x": 6.819716192296922,
+            "y": 537.7244944457558,
+            "lng": -0.15015006065368652,
+            "lat": 51.50535680186775
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n5273528326",
+            "x": 132.49978449494276,
+            "y": 579.9418553362704,
+            "lng": -0.1297760009765625,
+            "lat": 51.50048822699483
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12836989701",
+            "x": 350.77700071412363,
+            "y": 547.8466713573844,
+            "lng": -0.09518623352050781,
+            "lat": 51.50416808946969
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w77765224",
+            "x": 321.8245860161711,
+            "y": 550.7686356392976,
+            "lng": -0.09983181953430176,
+            "lat": 51.50382749761789
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n306666717",
+            "x": 269.99517294822544,
+            "y": 558.3190839935326,
+            "lng": -0.10812520980834961,
+            "lat": 51.50295263237035
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n569524162",
+            "x": 214.80576325669517,
+            "y": 561.2762295283409,
+            "lng": -0.11686921119689941,
+            "lat": 51.502612031433955
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12997774502",
+            "x": 282.05385717468033,
+            "y": 595.9828965159667,
+            "lng": -0.10650515556335449,
+            "lat": 51.49869827721548
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12997756180",
+            "x": 251.9007971112674,
+            "y": 614.3477023096717,
+            "lng": -0.11126875877380371,
+            "lat": 51.496687839355616
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n264790279",
+            "x": 300.73972126248464,
+            "y": 623.391612798538,
+            "lng": -0.10385513305664062,
+            "lat": 51.495712644866956
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w449283140",
+            "x": 58.39399239563483,
+            "y": 635.5494157986657,
+            "lng": -0.14071941375732422,
+            "lat": 51.49441680621089
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w100822478",
+            "x": 112.20708707564724,
+            "y": 637.5072102070429,
+            "lng": -0.13254404067993164,
+            "lat": 51.49420973579561
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n1280271962",
+            "x": 85.15681229514017,
+            "y": 637.5072102070429,
+            "lng": -0.1366424560546875,
+            "lat": 51.49420973579561
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n2153030788",
+            "x": 240.5891768135222,
+            "y": 646.0820542830143,
+            "lng": -0.11312484741210938,
+            "lat": 51.49330796656787
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n9196054531",
+            "x": 326.7504710276483,
+            "y": 650.175215266419,
+            "lng": -0.10017514228820801,
+            "lat": 51.492880454923096
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w1182778179",
+            "x": 117.62724216942122,
+            "y": 679.5424608762667,
+            "lng": -0.13146042823791504,
+            "lat": 51.489867720128245
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n148782410",
+            "x": 13.644997955698237,
+            "y": 688.248322663892,
+            "lng": -0.14673829078674316,
+            "lat": 51.488992586898064
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n605393296",
+            "x": 376.6962984018158,
+            "y": 693.6046902847178,
+            "lng": -0.09328722953796387,
+            "lat": 51.4884581461296
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n3796261415",
+            "x": 303.81580584673856,
+            "y": 704.2054701701348,
+            "lng": -0.10409116744995117,
+            "lat": 51.48740928791045
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n8907146649",
+            "x": 375.1563903150801,
+            "y": 747.1135067911196,
+            "lng": -0.09424209594726562,
+            "lat": 51.48328042687541
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w498824930",
+            "x": 155.24607128029024,
+            "y": 764.0864199878415,
+            "lng": -0.12563467025756836,
+            "lat": 51.48169692953326
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w296861478",
+            "x": 207.60011532081108,
+            "y": 771.7739036237605,
+            "lng": -0.11822104454040527,
+            "lat": 51.480988680859014
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w171081629",
+            "x": 280.8786932367093,
+            "y": 782.8295313443268,
+            "lng": -0.10794281959533691,
+            "lat": 51.479979741583435
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n13367060313",
+            "x": 382.51679805767543,
+            "y": 817.3631665258393,
+            "lng": -0.09412407875061035,
+            "lat": 51.47689933192751
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12595899238",
+            "x": 46.553024810937174,
+            "y": 843.1448896154316,
+            "lng": -0.14022588729858398,
+            "lat": 51.47466740841165
+          },
+          {
+            "kind": "cluster",
+            "id": "7859",
+            "x": 207.00965747705,
+            "y": 122.01065585792206,
+            "lng": -0.11747002601623535,
+            "lat": 51.569874673594796
+          },
+          {
+            "kind": "cluster",
+            "id": "7827",
+            "x": 247.24688871795018,
+            "y": 135.0892828126233,
+            "lng": -0.10910153388977051,
+            "lat": 51.56723382628397
+          },
+          {
+            "kind": "cluster",
+            "id": "8531",
+            "x": 290.617680528953,
+            "y": 63.951623212947894,
+            "lng": -0.09893059730529785,
+            "lat": 51.58225660070252
+          },
+          {
+            "kind": "cluster",
+            "id": "5107",
+            "x": 219.59738102464425,
+            "y": 450.26596388466317,
+            "lng": -0.11584997177124023,
+            "lat": 51.51623408331608
+          },
+          {
+            "kind": "cluster",
+            "id": "1203",
+            "x": 73.08951504201703,
+            "y": 387.3498753845575,
+            "lng": -0.14138460159301758,
+            "lat": 51.52479919937005
+          },
+          {
+            "kind": "cluster",
+            "id": "6579",
+            "x": 142.76139193330158,
+            "y": 343.81730786038224,
+            "lng": -0.12942194938659668,
+            "lat": 51.531133545004366
+          },
+          {
+            "kind": "cluster",
+            "id": "1331",
+            "x": 188.23928564407893,
+            "y": 378.01889731820484,
+            "lng": -0.12119293212890625,
+            "lat": 51.52612754929723
+          },
+          {
+            "kind": "cluster",
+            "id": "6899",
+            "x": 68.29182959221878,
+            "y": 298.77512543466656,
+            "lng": -0.1435410976409912,
+            "lat": 51.53807428158831
+          },
+          {
+            "kind": "cluster",
+            "id": "6995",
+            "x": 95.16545594402812,
+            "y": 247.4521773591082,
+            "lng": -0.1392066478729248,
+            "lat": 51.54650852129535
+          },
+          {
+            "kind": "cluster",
+            "id": "7731",
+            "x": 227.04317963320753,
+            "y": 198.2861012183958,
+            "lng": -0.11361837387084961,
+            "lat": 51.55516800456482
+          },
+          {
+            "kind": "cluster",
+            "id": "23508",
+            "x": 194.3535743780712,
+            "y": 176.52982669665658,
+            "lng": -0.12013077735900879,
+            "lat": 51.55919697102897
+          },
+          {
+            "kind": "cluster",
+            "id": "1139",
+            "x": 40.629777719861956,
+            "y": 478.159366382022,
+            "lng": -0.14561176300048828,
+            "lat": 51.51264199642904
+          },
+          {
+            "kind": "cluster",
+            "id": "1491",
+            "x": 172.97624040083497,
+            "y": 505.1055983600247,
+            "lng": -0.12359619140625,
+            "lat": 51.50928333926737
+          },
+          {
+            "kind": "cluster",
+            "id": "1043",
+            "x": 120.36365014497588,
+            "y": 470.9149418420015,
+            "lng": -0.13243675231933594,
+            "lat": 51.513563413756486
+          },
+          {
+            "kind": "cluster",
+            "id": "6099",
+            "x": 295.1669933950939,
+            "y": 321.3522698661373,
+            "lng": -0.10166645050048828,
+            "lat": 51.53454398148159
+          },
+          {
+            "kind": "cluster",
+            "id": "6067",
+            "x": 292.0194038082421,
+            "y": 256.56718733902017,
+            "lng": -0.10145187377929688,
+            "lat": 51.54496725403493
+          },
+          {
+            "kind": "cluster",
+            "id": "6611",
+            "x": 252.85891295959175,
+            "y": 320.18346195801377,
+            "lng": -0.10940194129943848,
+            "lat": 51.53472417356241
+          },
+          {
+            "kind": "cluster",
+            "id": "6739",
+            "x": 251.43532046198084,
+            "y": 234.93530947389314,
+            "lng": -0.10904788970947266,
+            "lat": 51.54865686733723
+          },
+          {
+            "kind": "cluster",
+            "id": "7635",
+            "x": 313.8203312975622,
+            "y": 159.9943507816995,
+            "lng": -0.09566903114318848,
+            "lat": 51.56234518646431
+          },
+          {
+            "kind": "cluster",
+            "id": "5203",
+            "x": 283.48347393463285,
+            "y": 470.23572137068686,
+            "lng": -0.10524988174438477,
+            "lat": 51.51365021297897
+          },
+          {
+            "kind": "cluster",
+            "id": "4595",
+            "x": 384.41180734717216,
+            "y": 481.75225759998943,
+            "lng": -0.08864164352416992,
+            "lat": 51.512187957847914
+          },
+          {
+            "kind": "cluster",
+            "id": "4531",
+            "x": 327.9136022427137,
+            "y": 433.36148411170603,
+            "lng": -0.09734272956848145,
+            "lat": 51.51847064859021
+          },
+          {
+            "kind": "cluster",
+            "id": "5331",
+            "x": 268.59479432979845,
+            "y": 391.89086220784253,
+            "lng": -0.10712742805480957,
+            "lat": 51.52415837348843
+          },
+          {
+            "kind": "cluster",
+            "id": "4947",
+            "x": 361.51758387023034,
+            "y": 381.9441749366122,
+            "lng": -0.09069085121154785,
+            "lat": 51.52556684350165
+          },
+          {
+            "kind": "cluster",
+            "id": "6387",
+            "x": 360.11870677630634,
+            "y": 224.8715683939942,
+            "lng": -0.08772969245910645,
+            "lat": 51.55041149707009
+          },
+          {
+            "kind": "cluster",
+            "id": "6355",
+            "x": 372.7105299172456,
+            "y": 294.2062184687146,
+            "lng": -0.08688211441040039,
+            "lat": 51.53880166289994
+          },
+          {
+            "kind": "cluster",
+            "id": "1587",
+            "x": 99.03328641667488,
+            "y": 597.7965637647305,
+            "lng": -0.13486146926879883,
+            "lat": 51.49849790532778
+          },
+          {
+            "kind": "cluster",
+            "id": "3219",
+            "x": 175.20696742095654,
+            "y": 686.9139661940853,
+            "lng": -0.12292027473449707,
+            "lat": 51.48912619611133
+          },
+          {
+            "kind": "cluster",
+            "id": "3379",
+            "x": 25.031001083657973,
+            "y": 621.6501771807186,
+            "lng": -0.14597654342651367,
+            "lat": 51.49589967008447
+          },
+          {
+            "kind": "cluster",
+            "id": "8500",
+            "x": 74.24668250244123,
+            "y": 667.1227385649117,
+            "lng": -0.13800501823425293,
+            "lat": 51.491130287325916
+          },
+          {
+            "kind": "cluster",
+            "id": "9204",
+            "x": 144.35479208933862,
+            "y": 634.9818057292475,
+            "lng": -0.1276838779449463,
+            "lat": 51.49447692325208
+          },
+          {
+            "kind": "cluster",
+            "id": "1395",
+            "x": 57.42556688706003,
+            "y": 524.5393105106352,
+            "lng": -0.1422107219696045,
+            "lat": 51.506926121864836
+          },
+          {
+            "kind": "cluster",
+            "id": "3187",
+            "x": 255.82017297244508,
+            "y": 681.4627811681622,
+            "lng": -0.11100053787231445,
+            "lat": 51.48967398979218
+          },
+          {
+            "kind": "cluster",
+            "id": "7700",
+            "x": 372.74535987831194,
+            "y": 634.7926804429376,
+            "lng": -0.09302973747253418,
+            "lat": 51.49449696224818
+          },
+          {
+            "kind": "cluster",
+            "id": "3123",
+            "x": 240.29752596859694,
+            "y": 565.468012393796,
+            "lng": -0.11285662651062012,
+            "lat": 51.50213117871928
+          },
+          {
+            "kind": "cluster",
+            "id": "4723",
+            "x": 379.5260528341283,
+            "y": 533.8322191927529,
+            "lng": -0.09036898612976074,
+            "lat": 51.50581758653581
+          }
+        ],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3903.5999999940395
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 4129.0999999940395
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 4135.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 4147.29999999702
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 4156.20000000298
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 4159.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "at": 4260.0999999940395
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 4669.4000000059605
+          }
+        ]
+      }
+    },
+    {
+      "phase": "final",
+      "snapshot": {
+        "at": 5216.0999999940395,
+        "timeOrigin": 1790783418563.4,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": false,
+        "canvasReplaced": true,
+        "oldGlLost": true,
+        "lossElapsedMs": 2145.8999999910593,
+        "points": [
+          {
+            "kind": "pin",
+            "id": "venue-7m6z5y",
+            "x": 122.75165151999101,
+            "y": 141.28845157127844,
+            "lng": -0.13500094413757324,
+            "lat": 51.566000044538754
+          },
+          {
+            "kind": "pin",
+            "id": "venue-19rlplo",
+            "x": 20.190764400064854,
+            "y": 429.42544617304173,
+            "lng": -0.1498711109161377,
+            "lat": 51.518998061412674
+          },
+          {
+            "kind": "pin",
+            "id": "venue-95n21p",
+            "x": 95.22751046320192,
+            "y": 210.35451201113793,
+            "lng": -0.13970017433166504,
+            "lat": 51.552986610557525
+          },
+          {
+            "kind": "pin",
+            "id": "venue-medp78",
+            "x": 134.1820561918772,
+            "y": 184.51884677592167,
+            "lng": -0.1322329044342041,
+            "lat": 51.55770282642732
+          },
+          {
+            "kind": "pin",
+            "id": "bar-lyaness",
+            "x": 281.4006975747908,
+            "y": 523.6488740507045,
+            "lng": -0.10604381561279297,
+            "lat": 51.50703296721855
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n6052873806",
+            "x": 84.90379069001771,
+            "y": 154.2730454858171,
+            "lng": -0.1426398754119873,
+            "lat": 51.56345234602165
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w190104590",
+            "x": 177.8216733691839,
+            "y": 122.4359306909338,
+            "lng": -0.12361764907836914,
+            "lat": 51.56978798154765
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n27411557",
+            "x": 186.5241016687779,
+            "y": 148.19145682792447,
+            "lng": -0.1217508316040039,
+            "lat": 51.56463951125929
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n26065903",
+            "x": 270.2340103997664,
+            "y": 148.838006862195,
+            "lng": -0.10446667671203613,
+            "lat": 51.564512792852014
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n98170592",
+            "x": 45.774180133490326,
+            "y": 164.7527324020592,
+            "lng": -0.1504504680633545,
+            "lat": 51.56143142604333
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w117861610",
+            "x": 63.83597604968643,
+            "y": 193.47282791044802,
+            "lng": -0.14621257781982422,
+            "lat": 51.55604853764589
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w451645113",
+            "x": 38.50027730044922,
+            "y": 200.15470257415583,
+            "lng": -0.15112638473510742,
+            "lat": 51.5548277940363
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w99475943",
+            "x": 17.1349037850471,
+            "y": 222.59542377449358,
+            "lng": -0.1548171043395996,
+            "lat": 51.55081178334629
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w1240322213",
+            "x": 144.8679247684248,
+            "y": 243.8536776827009,
+            "lng": -0.1296687126159668,
+            "lat": 51.54712234480152
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w929791965",
+            "x": 33.210073750969144,
+            "y": 249.92674356292332,
+            "lng": -0.15107274055480957,
+            "lat": 51.54608818085657
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w850126738",
+            "x": 58.30127380602945,
+            "y": 254.58450903288116,
+            "lng": -0.14616966247558594,
+            "lat": 51.54530086609432
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w368797311",
+            "x": 110.01586588413913,
+            "y": 292.16137924936174,
+            "lng": -0.13585925102233887,
+            "lat": 51.53912864704142
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11074881722",
+            "x": 162.32240299886973,
+            "y": 303.24518956707163,
+            "lng": -0.1260530948638916,
+            "lat": 51.53736690879626
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w225302691",
+            "x": 74.74495049776883,
+            "y": 326.0455489122598,
+            "lng": -0.14194250106811523,
+            "lat": 51.53382320602512
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n293754855",
+            "x": 99.2430999444029,
+            "y": 332.96410325839264,
+            "lng": -0.13739347457885742,
+            "lat": 51.53276871766559
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n300500863",
+            "x": 60.84315602903285,
+            "y": 356.3201991268098,
+            "lng": -0.14400243759155273,
+            "lat": 51.52927805346181
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w953962864",
+            "x": 109.02851197777692,
+            "y": 385.5595575532172,
+            "lng": -0.13509750366210938,
+            "lat": 51.52505285712343
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n2624195137",
+            "x": 153.22824796189056,
+            "y": 393.7906249652618,
+            "lng": -0.12729763984680176,
+            "lat": 51.52389136004274
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w40917016",
+            "x": 99.76081869028953,
+            "y": 408.95983595184896,
+            "lng": -0.13648152351379395,
+            "lat": 51.521781898778556
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w345140316",
+            "x": 64.3498975900823,
+            "y": 422.9402818389956,
+            "lng": -0.14241456985473633,
+            "lat": 51.51987261858159
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12045676386",
+            "x": 116.28518228366237,
+            "y": 439.22590189878053,
+            "lng": -0.13337016105651855,
+            "lat": 51.517689532303194
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12437062771",
+            "x": 65.83683001607413,
+            "y": 448.6360922386721,
+            "lng": -0.1418137550354004,
+            "lat": 51.51644773011651
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w475957291",
+            "x": 91.47790081107951,
+            "y": 460.2165352655867,
+            "lng": -0.1373612880706787,
+            "lat": 51.514938828134916
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n266481948",
+            "x": 74.34172484871796,
+            "y": 488.71744524839016,
+            "lng": -0.1398932933807373,
+            "lat": 51.511313253119084
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w237795434",
+            "x": 14.51885063450459,
+            "y": 506.7401265904944,
+            "lng": -0.14944195747375488,
+            "lat": 51.509083013918286
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w142306062",
+            "x": 219.4706028328276,
+            "y": 172.42882420781396,
+            "lng": -0.11503458023071289,
+            "lat": 51.55997070519143
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w230259989",
+            "x": 340.2170751450617,
+            "y": 183.83760502578482,
+            "lng": -0.09077668190002441,
+            "lat": 51.55782956381216
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n344875284",
+            "x": 305.7966594443775,
+            "y": 205.71666181849247,
+            "lng": -0.09805083274841309,
+            "lat": 51.553820489119715
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n344875712",
+            "x": 272.5498151207564,
+            "y": 207.7906372899354,
+            "lng": -0.1046597957611084,
+            "lat": 51.55344691341401
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w270765497",
+            "x": 186.53505378579885,
+            "y": 234.2420016443802,
+            "lng": -0.1216435432434082,
+            "lat": 51.54877695822151
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w197695792",
+            "x": 353.20235842612107,
+            "y": 263.9503838274969,
+            "lng": -0.08990764617919922,
+            "lat": 51.54373286814703
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w230373565",
+            "x": 325.10954851107715,
+            "y": 267.085803682656,
+            "lng": -0.09530425071716309,
+            "lat": 51.54321241433169
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n9394928620",
+            "x": 178.98087062885273,
+            "y": 268.1742762305022,
+            "lng": -0.12303829193115234,
+            "lat": 51.543032255854854
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w558371976",
+            "x": 220.0504731778111,
+            "y": 268.29531744112603,
+            "lng": -0.1152491569519043,
+            "lat": 51.543012238202294
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n302410081",
+            "x": 265.2228024812827,
+            "y": 291.70310353084517,
+            "lng": -0.10689139366149902,
+            "lat": 51.53920205132172
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n503882231",
+            "x": 311.53968925282135,
+            "y": 293.07877684926115,
+            "lng": -0.09826540946960449,
+            "lat": 51.538981838125636
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w32826147",
+            "x": 214.5007281263037,
+            "y": 293.83021525331975,
+            "lng": -0.11636495590209961,
+            "lat": 51.538861721387775
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w71336800",
+            "x": 337.7599737123893,
+            "y": 302.01959731204505,
+            "lng": -0.09353399276733398,
+            "lat": 51.53756043640732
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n425720634",
+            "x": 187.624064818171,
+            "y": 317.0323343480966,
+            "lng": -0.1213538646697998,
+            "lat": 51.53521135598723
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n6594761643",
+            "x": 193.02477946339687,
+            "y": 344.57609777555194,
+            "lng": -0.12035608291625977,
+            "lat": 51.53102008186505
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n1116251530",
+            "x": 168.42205371014109,
+            "y": 349.41413956139223,
+            "lng": -0.12477636337280273,
+            "lat": 51.53029925061031
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w99057959",
+            "x": 268.7517247294529,
+            "y": 355.14227722357083,
+            "lng": -0.10679483413696289,
+            "lat": 51.5294515918477
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w155724663",
+            "x": 217.97296571200383,
+            "y": 361.55173330981745,
+            "lng": -0.11590361595153809,
+            "lat": 51.52851047189853
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n703528109",
+            "x": 301.38518973537055,
+            "y": 364.47847342664227,
+            "lng": -0.10106563568115234,
+            "lat": 51.52808329046695
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w155366810",
+            "x": 324.68096009154397,
+            "y": 370.6420443142461,
+            "lng": -0.09701013565063477,
+            "lat": 51.527188866363275
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w161255236",
+            "x": 244.1393880513199,
+            "y": 376.76133873596854,
+            "lng": -0.11132240295410156,
+            "lat": 51.52630777469375
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w167261940",
+            "x": 330.50026191693104,
+            "y": 393.50537124897807,
+            "lng": -0.09632349014282227,
+            "lat": 51.523931412159385
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w149070185",
+            "x": 306.5418605852952,
+            "y": 398.60778656053174,
+            "lng": -0.10057210922241211,
+            "lat": 51.523217144124345
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n4637449094",
+            "x": 238.99687019832191,
+            "y": 408.62067930183593,
+            "lng": -0.11238455772399902,
+            "lat": 51.521828628409224
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n4642335170",
+            "x": 284.4975774012695,
+            "y": 440.4844525525911,
+            "lng": -0.10480999946594238,
+            "lat": 51.517522625376614
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n25496840",
+            "x": 252.030364149931,
+            "y": 446.65403800692025,
+            "lng": -0.11035680770874023,
+            "lat": 51.516708110799584
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n5681428211",
+            "x": 384.6501507786929,
+            "y": 451.1331459267701,
+            "lng": -0.08801937103271484,
+            "lat": 51.51612058304576
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n663260803",
+            "x": 190.33114630041072,
+            "y": 455.48277604546314,
+            "lng": -0.12078523635864258,
+            "lat": 51.515553077451784
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n13461061541",
+            "x": 165.5520330725463,
+            "y": 471.5424055556768,
+            "lng": -0.12490510940551758,
+            "lat": 51.51348329125051
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11674123843",
+            "x": 319.66007560612513,
+            "y": 478.10664439166084,
+            "lng": -0.09931683540344238,
+            "lat": 51.51264867343323
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w469650901",
+            "x": 353.9539257149352,
+            "y": 482.44088796952724,
+            "lng": -0.09369492530822754,
+            "lat": 51.51210115583919
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w238385297",
+            "x": 372.9325840525867,
+            "y": 166.9171350458775,
+            "lng": -0.08374929428100586,
+            "lat": 51.56101789339451
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n491564007",
+            "x": 381.07498834272786,
+            "y": 339.0584732828634,
+            "lng": -0.0863349437713623,
+            "lat": 51.531847688860296
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w157258551",
+            "x": 387.82145867363886,
+            "y": 377.2268671647318,
+            "lng": -0.08595943450927734,
+            "lat": 51.52624102463005
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n11309104133",
+            "x": 6.819716192296922,
+            "y": 537.7244944457558,
+            "lng": -0.15015006065368652,
+            "lat": 51.50535680186775
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n5273528326",
+            "x": 132.49978449494276,
+            "y": 579.9418553362704,
+            "lng": -0.1297760009765625,
+            "lat": 51.50048822699483
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12836989701",
+            "x": 350.77700071412363,
+            "y": 547.8466713573844,
+            "lng": -0.09518623352050781,
+            "lat": 51.50416808946969
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w77765224",
+            "x": 321.8245860161711,
+            "y": 550.7686356392976,
+            "lng": -0.09983181953430176,
+            "lat": 51.50382749761789
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n306666717",
+            "x": 269.99517294822544,
+            "y": 558.3190839935326,
+            "lng": -0.10812520980834961,
+            "lat": 51.50295263237035
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n569524162",
+            "x": 214.80576325669517,
+            "y": 561.2762295283409,
+            "lng": -0.11686921119689941,
+            "lat": 51.502612031433955
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12997774502",
+            "x": 282.05385717468033,
+            "y": 595.9828965159667,
+            "lng": -0.10650515556335449,
+            "lat": 51.49869827721548
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12997756180",
+            "x": 251.9007971112674,
+            "y": 614.3477023096717,
+            "lng": -0.11126875877380371,
+            "lat": 51.496687839355616
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n264790279",
+            "x": 300.73972126248464,
+            "y": 623.391612798538,
+            "lng": -0.10385513305664062,
+            "lat": 51.495712644866956
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w449283140",
+            "x": 58.39399239563483,
+            "y": 635.5494157986657,
+            "lng": -0.14071941375732422,
+            "lat": 51.49441680621089
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w100822478",
+            "x": 112.20708707564724,
+            "y": 637.5072102070429,
+            "lng": -0.13254404067993164,
+            "lat": 51.49420973579561
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n1280271962",
+            "x": 85.15681229514017,
+            "y": 637.5072102070429,
+            "lng": -0.1366424560546875,
+            "lat": 51.49420973579561
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n2153030788",
+            "x": 240.5891768135222,
+            "y": 646.0820542830143,
+            "lng": -0.11312484741210938,
+            "lat": 51.49330796656787
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n9196054531",
+            "x": 326.7504710276483,
+            "y": 650.175215266419,
+            "lng": -0.10017514228820801,
+            "lat": 51.492880454923096
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w1182778179",
+            "x": 117.62724216942122,
+            "y": 679.5424608762667,
+            "lng": -0.13146042823791504,
+            "lat": 51.489867720128245
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n148782410",
+            "x": 13.644997955698237,
+            "y": 688.248322663892,
+            "lng": -0.14673829078674316,
+            "lat": 51.488992586898064
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n605393296",
+            "x": 376.6962984018158,
+            "y": 693.6046902847178,
+            "lng": -0.09328722953796387,
+            "lat": 51.4884581461296
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n3796261415",
+            "x": 303.81580584673856,
+            "y": 704.2054701701348,
+            "lng": -0.10409116744995117,
+            "lat": 51.48740928791045
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n8907146649",
+            "x": 375.1563903150801,
+            "y": 747.1135067911196,
+            "lng": -0.09424209594726562,
+            "lat": 51.48328042687541
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w498824930",
+            "x": 155.24607128029024,
+            "y": 764.0864199878415,
+            "lng": -0.12563467025756836,
+            "lat": 51.48169692953326
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w296861478",
+            "x": 207.60011532081108,
+            "y": 771.7739036237605,
+            "lng": -0.11822104454040527,
+            "lat": 51.480988680859014
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-w171081629",
+            "x": 280.8786932367093,
+            "y": 782.8295313443268,
+            "lng": -0.10794281959533691,
+            "lat": 51.479979741583435
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n13367060313",
+            "x": 382.51679805767543,
+            "y": 817.3631665258393,
+            "lng": -0.09412407875061035,
+            "lat": 51.47689933192751
+          },
+          {
+            "kind": "pin",
+            "id": "venue-uk-n12595899238",
+            "x": 46.553024810937174,
+            "y": 843.1448896154316,
+            "lng": -0.14022588729858398,
+            "lat": 51.47466740841165
+          },
+          {
+            "kind": "cluster",
+            "id": "7859",
+            "x": 207.00965747705,
+            "y": 122.01065585792206,
+            "lng": -0.11747002601623535,
+            "lat": 51.569874673594796
+          },
+          {
+            "kind": "cluster",
+            "id": "7827",
+            "x": 247.24688871795018,
+            "y": 135.0892828126233,
+            "lng": -0.10910153388977051,
+            "lat": 51.56723382628397
+          },
+          {
+            "kind": "cluster",
+            "id": "8531",
+            "x": 290.617680528953,
+            "y": 63.951623212947894,
+            "lng": -0.09893059730529785,
+            "lat": 51.58225660070252
+          },
+          {
+            "kind": "cluster",
+            "id": "5107",
+            "x": 219.59738102464425,
+            "y": 450.26596388466317,
+            "lng": -0.11584997177124023,
+            "lat": 51.51623408331608
+          },
+          {
+            "kind": "cluster",
+            "id": "1203",
+            "x": 73.08951504201703,
+            "y": 387.3498753845575,
+            "lng": -0.14138460159301758,
+            "lat": 51.52479919937005
+          },
+          {
+            "kind": "cluster",
+            "id": "6579",
+            "x": 142.76139193330158,
+            "y": 343.81730786038224,
+            "lng": -0.12942194938659668,
+            "lat": 51.531133545004366
+          },
+          {
+            "kind": "cluster",
+            "id": "1331",
+            "x": 188.23928564407893,
+            "y": 378.01889731820484,
+            "lng": -0.12119293212890625,
+            "lat": 51.52612754929723
+          },
+          {
+            "kind": "cluster",
+            "id": "6899",
+            "x": 68.29182959221878,
+            "y": 298.77512543466656,
+            "lng": -0.1435410976409912,
+            "lat": 51.53807428158831
+          },
+          {
+            "kind": "cluster",
+            "id": "6995",
+            "x": 95.16545594402812,
+            "y": 247.4521773591082,
+            "lng": -0.1392066478729248,
+            "lat": 51.54650852129535
+          },
+          {
+            "kind": "cluster",
+            "id": "7731",
+            "x": 227.04317963320753,
+            "y": 198.2861012183958,
+            "lng": -0.11361837387084961,
+            "lat": 51.55516800456482
+          },
+          {
+            "kind": "cluster",
+            "id": "23508",
+            "x": 194.3535743780712,
+            "y": 176.52982669665658,
+            "lng": -0.12013077735900879,
+            "lat": 51.55919697102897
+          },
+          {
+            "kind": "cluster",
+            "id": "1139",
+            "x": 40.629777719861956,
+            "y": 478.159366382022,
+            "lng": -0.14561176300048828,
+            "lat": 51.51264199642904
+          },
+          {
+            "kind": "cluster",
+            "id": "1491",
+            "x": 172.97624040083497,
+            "y": 505.1055983600247,
+            "lng": -0.12359619140625,
+            "lat": 51.50928333926737
+          },
+          {
+            "kind": "cluster",
+            "id": "1043",
+            "x": 120.36365014497588,
+            "y": 470.9149418420015,
+            "lng": -0.13243675231933594,
+            "lat": 51.513563413756486
+          },
+          {
+            "kind": "cluster",
+            "id": "6099",
+            "x": 295.1669933950939,
+            "y": 321.3522698661373,
+            "lng": -0.10166645050048828,
+            "lat": 51.53454398148159
+          },
+          {
+            "kind": "cluster",
+            "id": "6067",
+            "x": 292.0194038082421,
+            "y": 256.56718733902017,
+            "lng": -0.10145187377929688,
+            "lat": 51.54496725403493
+          },
+          {
+            "kind": "cluster",
+            "id": "6611",
+            "x": 252.85891295959175,
+            "y": 320.18346195801377,
+            "lng": -0.10940194129943848,
+            "lat": 51.53472417356241
+          },
+          {
+            "kind": "cluster",
+            "id": "6739",
+            "x": 251.43532046198084,
+            "y": 234.93530947389314,
+            "lng": -0.10904788970947266,
+            "lat": 51.54865686733723
+          },
+          {
+            "kind": "cluster",
+            "id": "7635",
+            "x": 313.8203312975622,
+            "y": 159.9943507816995,
+            "lng": -0.09566903114318848,
+            "lat": 51.56234518646431
+          },
+          {
+            "kind": "cluster",
+            "id": "5203",
+            "x": 283.48347393463285,
+            "y": 470.23572137068686,
+            "lng": -0.10524988174438477,
+            "lat": 51.51365021297897
+          },
+          {
+            "kind": "cluster",
+            "id": "4595",
+            "x": 384.41180734717216,
+            "y": 481.75225759998943,
+            "lng": -0.08864164352416992,
+            "lat": 51.512187957847914
+          },
+          {
+            "kind": "cluster",
+            "id": "4531",
+            "x": 327.9136022427137,
+            "y": 433.36148411170603,
+            "lng": -0.09734272956848145,
+            "lat": 51.51847064859021
+          },
+          {
+            "kind": "cluster",
+            "id": "5331",
+            "x": 268.59479432979845,
+            "y": 391.89086220784253,
+            "lng": -0.10712742805480957,
+            "lat": 51.52415837348843
+          },
+          {
+            "kind": "cluster",
+            "id": "4947",
+            "x": 361.51758387023034,
+            "y": 381.9441749366122,
+            "lng": -0.09069085121154785,
+            "lat": 51.52556684350165
+          },
+          {
+            "kind": "cluster",
+            "id": "6387",
+            "x": 360.11870677630634,
+            "y": 224.8715683939942,
+            "lng": -0.08772969245910645,
+            "lat": 51.55041149707009
+          },
+          {
+            "kind": "cluster",
+            "id": "6355",
+            "x": 372.7105299172456,
+            "y": 294.2062184687146,
+            "lng": -0.08688211441040039,
+            "lat": 51.53880166289994
+          },
+          {
+            "kind": "cluster",
+            "id": "1587",
+            "x": 99.03328641667488,
+            "y": 597.7965637647305,
+            "lng": -0.13486146926879883,
+            "lat": 51.49849790532778
+          },
+          {
+            "kind": "cluster",
+            "id": "3219",
+            "x": 175.20696742095654,
+            "y": 686.9139661940853,
+            "lng": -0.12292027473449707,
+            "lat": 51.48912619611133
+          },
+          {
+            "kind": "cluster",
+            "id": "3379",
+            "x": 25.031001083657973,
+            "y": 621.6501771807186,
+            "lng": -0.14597654342651367,
+            "lat": 51.49589967008447
+          },
+          {
+            "kind": "cluster",
+            "id": "8500",
+            "x": 74.24668250244123,
+            "y": 667.1227385649117,
+            "lng": -0.13800501823425293,
+            "lat": 51.491130287325916
+          },
+          {
+            "kind": "cluster",
+            "id": "9204",
+            "x": 144.35479208933862,
+            "y": 634.9818057292475,
+            "lng": -0.1276838779449463,
+            "lat": 51.49447692325208
+          },
+          {
+            "kind": "cluster",
+            "id": "1395",
+            "x": 57.42556688706003,
+            "y": 524.5393105106352,
+            "lng": -0.1422107219696045,
+            "lat": 51.506926121864836
+          },
+          {
+            "kind": "cluster",
+            "id": "3187",
+            "x": 255.82017297244508,
+            "y": 681.4627811681622,
+            "lng": -0.11100053787231445,
+            "lat": 51.48967398979218
+          },
+          {
+            "kind": "cluster",
+            "id": "7700",
+            "x": 372.74535987831194,
+            "y": 634.7926804429376,
+            "lng": -0.09302973747253418,
+            "lat": 51.49449696224818
+          },
+          {
+            "kind": "cluster",
+            "id": "3123",
+            "x": 240.29752596859694,
+            "y": 565.468012393796,
+            "lng": -0.11285662651062012,
+            "lat": 51.50213117871928
+          },
+          {
+            "kind": "cluster",
+            "id": "4723",
+            "x": 379.5260528341283,
+            "y": 533.8322191927529,
+            "lng": -0.09036898612976074,
+            "lat": 51.50581758653581
+          }
+        ],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2292.7999999970198
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2295.9000000059605
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2356
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2356.4000000059605
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2393.5
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "at": 3891.7999999970198
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3903.5999999940395
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 4129.0999999940395
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 4135.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 4147.29999999702
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 4156.20000000298
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 4159.5999999940395
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "at": 4260.0999999940395
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 4669.4000000059605
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "sceneErrors": [],
+  "interval": {
+    "firstStyleMark": 2393.5,
+    "triggerAt": 2394.5,
+    "actualTrustedLossAt": 3070.2000000029802,
+    "sceneBuiltAtActualLoss": [],
+    "allSceneBuilt": [
+      4135.5999999940395
+    ],
+    "firstSceneBuiltAfterStyle": 4135.5999999940395,
+    "sceneAlreadyFailed": false,
+    "exercised": true,
+    "reason": "Trusted native loss occurred after first style-load mark while no scene-built mark or completed scene failure existed."
+  },
+  "nativeFailureObserved": false
+}

@@ -1,0 +1,12 @@
+{
+  "recordedAt": "2026-09-30T14:36:10.945529+00:00",
+  "phase": "source-only preparation; SDK runtime custody held by coordinator",
+  "sourceFiles": 2464,
+  "sourceDeltaSinceR25FinalGate": [],
+  "webglDriver": "r26-webgl-native-diagnostic.mts.txt",
+  "webglDriverStatus": "UNRUN. Source review only, no syntax/typecheck/runtime execution. Original synthetic, paired synthetic restore, native extension paired restore. Separate contexts; original failure retained; painted-mark proof required.",
+  "workerPlan": "r26-sw-observation-plan.md",
+  "workerPlanStatus": "UNRUN. Existing original full case retained; externally journal native CDP states before hanging evaluation.",
+  "rootRuntimeStarted": false,
+  "goal": "active; current full-five/perf/provider/durable/release acceptance unfinished"
+}

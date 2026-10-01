@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-09-30T13:20:55.720253+00:00",
+  "priceTestsBefore": {
+    "exitCode": 1,
+    "passed": 106,
+    "failed": 29
+  },
+  "afterInitial": {
+    "exitCode": 0,
+    "passed": 135
+  },
+  "afterEquivalentCleanup": {
+    "exitCode": 0,
+    "passed": 138
+  },
+  "neighbours": {
+    "exitCode": 0,
+    "passed": 39,
+    "files": 5
+  },
+  "scopedLint": {
+    "exitCode": 0,
+    "warnings": 0
+  },
+  "fullGate": "Final frozen full gate EXIT0; source-gate.json records actual counts. Initial type and copy-syntax fence failures preserved.",
+  "dependencies": {
+    "direct": {
+      "ai": "7.0.123",
+      "@ai-sdk/otel": "1.0.123"
+    },
+    "relatedResolved": {
+      "@ai-sdk/gateway": "4.0.101",
+      "@ai-sdk/provider": "4.0.20",
+      "@ai-sdk/provider-utils": "5.0.52"
+    },
+    "installExitCode": 0,
+    "unrelatedFormattingChurnRestored": true
+  },
+  "publication": "No index/commit/push/PR/merge/deploy/sharedSQL or live account write."
+}

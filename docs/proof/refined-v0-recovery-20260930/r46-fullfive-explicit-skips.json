@@ -1,0 +1,386 @@
+[
+  {
+    "file": "claim-no-birth-date.spec.ts",
+    "title": "the claim card is one readable card at every width",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Proof shots only: run with PW_PROOF_SHOTS=1.",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/claim-no-birth-date.spec.ts",
+          "line": 300,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "gate-z-performance.spec.ts",
+    "title": "Gate Z mobile lab budgets stay inside the release targets",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Run explicitly in the isolated Gate Z performance lab.",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/gate-z-performance.spec.ts",
+          "line": 25,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "performance-budget-ab.spec.ts",
+    "title": "a breached route is measured against its merge base on this box",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Owned by the Performance budget CI job.",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/performance-budget-ab.spec.ts",
+          "line": 196,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "performance-budget.spec.ts",
+    "title": "every budgeted route stays inside its performance budget",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Owned by the performance-budget CI job.",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/performance-budget.spec.ts",
+          "line": 80,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "plan-capability-recovery.spec.ts",
+    "title": "a signed-in host who lost the capability cookie recovers it on the Plan page",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "No service-role key in the keyless e2e server: verifyCallerAuth answers \"unavailable\", so the claim PUT and the recovery PATCH both answer 503 by design.",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/plan-capability-recovery.spec.ts",
+          "line": 124,
+          "column": 10
+        }
+      }
+    ]
+  },
+  {
+    "file": "pubpal-concierge-phone.spec.ts",
+    "title": "proof shot at 390px in light",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "design proof runs on demand",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/pubpal-concierge-phone.spec.ts",
+          "line": 70,
+          "column": 12
+        }
+      }
+    ]
+  },
+  {
+    "file": "pubpal-concierge-phone.spec.ts",
+    "title": "proof shot at 390px in dark",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "design proof runs on demand",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/pubpal-concierge-phone.spec.ts",
+          "line": 70,
+          "column": 12
+        }
+      }
+    ]
+  },
+  {
+    "file": "pubpal-voice-live.spec.ts",
+    "title": "voice token returns a signed session and species voice override",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "live proof runs on demand: set PUB_PAL_PROOF_BASE_URL",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/pubpal-voice-live.spec.ts",
+          "line": 292,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "pubpal-voice-live.spec.ts",
+    "title": "text ask answers through the concierge bridge",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "live proof runs on demand: set PUB_PAL_PROOF_BASE_URL",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/pubpal-voice-live.spec.ts",
+          "line": 292,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "pubpal-voice-live.spec.ts",
+    "title": "a person types to the Pal in the browser and gets a reply",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "live proof runs on demand: set PUB_PAL_PROOF_BASE_URL",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/pubpal-voice-live.spec.ts",
+          "line": 292,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "pubpal-voice-live.spec.ts",
+    "title": "a person talks to the Pal in the browser and hears it answer",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "live proof runs on demand: set PUB_PAL_PROOF_BASE_URL",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/pubpal-voice-live.spec.ts",
+          "line": 292,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "social-open.spec.ts",
+    "title": "fresh sign-in claims a handle, passes adult DOB, and lands verified",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Set PW_SOCIAL_OPEN=1 and export PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 for the webServer",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/social-open.spec.ts",
+          "line": 173,
+          "column": 10
+        }
+      }
+    ]
+  },
+  {
+    "file": "social-open.spec.ts",
+    "title": "an account with a handle and no date of birth taps its way in (phone)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Set PW_SOCIAL_OPEN=1 and export PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 for the webServer",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/social-open.spec.ts",
+          "line": 173,
+          "column": 10
+        }
+      }
+    ]
+  },
+  {
+    "file": "social-open.spec.ts",
+    "title": "an account with a handle and no date of birth taps its way in (desktop)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Set PW_SOCIAL_OPEN=1 and export PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 for the webServer",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/social-open.spec.ts",
+          "line": 173,
+          "column": 10
+        }
+      }
+    ]
+  },
+  {
+    "file": "social-open.spec.ts",
+    "title": "friends-only post is visible to a mutual and hidden from a third account",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Set PW_SOCIAL_OPEN=1 and export PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 for the webServer",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/social-open.spec.ts",
+          "line": 173,
+          "column": 10
+        }
+      }
+    ]
+  },
+  {
+    "file": "ux-lane-perf-verification.spec.ts",
+    "title": "UX lane routes report LCP, CLS and JS decoded against route budgets",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "Owned by the ux-lane-performance CI job.",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/ux-lane-perf-verification.spec.ts",
+          "line": 83,
+          "column": 8
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "map home with tonight lane + badges (light, 390)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "venue sheet with whats-on chips (light, 390)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "map home with tonight lane + badges (dark, 390)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "venue sheet with whats-on chips (dark, 390)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "map home with tonight lane + badges (light, 1440)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "venue sheet with whats-on chips (light, 1440)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "map home with tonight lane + badges (dark, 1440)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  },
+  {
+    "file": "w1-tonight.spec.ts",
+    "title": "venue sheet with whats-on chips (dark, 1440)",
+    "project": "chromium",
+    "annotations": [
+      {
+        "type": "skip",
+        "description": "explicit W1 screenshot run only",
+        "location": {
+          "file": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/w1-tonight.spec.ts",
+          "line": 14,
+          "column": 6
+        }
+      }
+    ]
+  }
+]

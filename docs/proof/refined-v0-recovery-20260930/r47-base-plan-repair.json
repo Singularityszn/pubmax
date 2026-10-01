@@ -1,0 +1,98 @@
+{
+  "status": "SOURCE_FROZEN_RUNTIME_UNRUN_DEPLOYMENT_TRACING_BLOCKED",
+  "createdAt": "2026-10-01T06:38:25.157387+00:00",
+  "releaseWorktree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "releaseHead": "67d9deb70508d9bbf1879873da77c5189cce5162",
+  "scratch": "/tmp/pubmaxx-r47-base-plan-repair",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-base-plan-repair.patch",
+  "patchSha256": "46cc395c2bc9bf03131da96cc77c8f375d8f915de5e7e67d6fca4c89e20648ac",
+  "patchBytes": 15565,
+  "dependency": {
+    "patch": "r47-plan-serving-repair.patch",
+    "sha256": "7089ca2c96f778bf679a1c4a8dbbb4694791048a5fbc68150f17e0f646c17aa3",
+    "reason": "Generator BEFORE is that packet AFTER. Apply dependency first; other five paths use current release before blobs."
+  },
+  "paths": [
+    {
+      "path": "lib/planningAnchor.server.ts",
+      "beforeSha256": "1627c796d0c66b260ed0e8398e51d607457aa79837c8852ab5368829a4aa895b",
+      "afterSha256": "7d6816a603b13e06299e7daf849864d016f5b9e1a92498476a4346e76c058672",
+      "activeReleaseSha256AtFreeze": "1627c796d0c66b260ed0e8398e51d607457aa79837c8852ab5368829a4aa895b",
+      "currentReleaseMatchesBefore": true,
+      "dependency": null
+    },
+    {
+      "path": "lib/planRoute.ts",
+      "beforeSha256": "fbd1ec7c082d27bd6ddba30cbc1d59ef55a7ea48dd0a43dea9ea7e00611aca20",
+      "afterSha256": "756327300ad01f94367d9f78472e92f471e74c886d9b2cf0c32ac8a1cd41bdb3",
+      "activeReleaseSha256AtFreeze": "fbd1ec7c082d27bd6ddba30cbc1d59ef55a7ea48dd0a43dea9ea7e00611aca20",
+      "currentReleaseMatchesBefore": true,
+      "dependency": null
+    },
+    {
+      "path": "app/api/plans/route.ts",
+      "beforeSha256": "af3098de29276caa8abd9599b6387d2c1b21fa04c0f259812bf253aa5f911747",
+      "afterSha256": "a85d2b8bf786091a4325123a7307b250ff78ce4da8bb9af7682b508f1b877e8b",
+      "activeReleaseSha256AtFreeze": "af3098de29276caa8abd9599b6387d2c1b21fa04c0f259812bf253aa5f911747",
+      "currentReleaseMatchesBefore": true,
+      "dependency": null
+    },
+    {
+      "path": "lib/planGeneration.server.ts",
+      "beforeSha256": "3040093518babfbcf3047c7813c5e4d75b76cf567f2562979ab0d5b71d3f06a3",
+      "afterSha256": "86bed9118d5ac0c47b68d32c1ba5df13a7b5558f6fd04a85fbf0600ad7ebadb4",
+      "activeReleaseSha256AtFreeze": "d3125265a571bee2d7dcf1ac12be477bf2c9afb67917e1bf203a5d2d15c6d1ec",
+      "currentReleaseMatchesBefore": false,
+      "dependency": "r47-plan-serving-repair.patch (7089ca2c96f778bf679a1c4a8dbbb4694791048a5fbc68150f17e0f646c17aa3) AFTER blob"
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "6bb165fb915f27e3a339768683242ed945e1bf6ead8cdab9fbc3e6f9b6c03ebc",
+      "afterSha256": "e44958fe38a10459f06e6d92acdf8d36f3404c8971c53605c81a0b474efe9994",
+      "activeReleaseSha256AtFreeze": "6bb165fb915f27e3a339768683242ed945e1bf6ead8cdab9fbc3e6f9b6c03ebc",
+      "currentReleaseMatchesBefore": true,
+      "dependency": null
+    },
+    {
+      "path": "components/map/UnverifiedPubSheet.tsx",
+      "beforeSha256": "3ac560e5b8a01e37c22c514295f45703e82c5fddbb69889cd1d4a97b650a3297",
+      "afterSha256": "344ff50c035521d986b282675cfc60ec78c71c13db0654dd50d24240f99b9dd7",
+      "activeReleaseSha256AtFreeze": "3ac560e5b8a01e37c22c514295f45703e82c5fddbb69889cd1d4a97b650a3297",
+      "currentReleaseMatchesBefore": true,
+      "dependency": null
+    }
+  ],
+  "checks": {
+    "scratchApplyCheckWhitespaceError": "PASS",
+    "scratchApplication": "PASS",
+    "exactAfterHashes": "PASS",
+    "types": "UNRUN",
+    "lint": "UNRUN",
+    "tests": "UNRUN",
+    "browser": "UNRUN",
+    "build": "UNRUN"
+  },
+  "actualBeforeEvidence": {
+    "receipt": ".audit/overnight-20261001/canonical-base-plan-contract-red-results.json",
+    "total": 55,
+    "passed": 47,
+    "failed": 8,
+    "baseFailures": 4,
+    "otherFailures": "4 optional-hint generator400 failures addressed in separate7089 dependency"
+  },
+  "invariants": [
+    "Only submitted IDs up to existing MAX_PLAN_STOP_COUNT can resolve base stops; names derive from server pack, never submitted labels.",
+    "Actual pub kind and city coordinates, no national-ID London fallback or curated Venue synthesis.",
+    "Unknown base access/budget cannot satisfy asserted requirements. Accepted borough cannot be asserted from pack; night-patch membership uses existing nearestNightPatch.",
+    "Canonical anchored one-stop DTO and V2 proof bind same base ID; routeReady false, no invented price, amenities or companion candidates.",
+    "Create and PATCH use same canonical resolver; existing member capabilities, anonymity projection and idempotency unchanged.",
+    "Base pub sheet gets existing Stop1 acceptance path and compatible exact selected-price hint; bars get no Plan CTA."
+  ],
+  "limitations": [
+    "DEPLOYMENT BLOCKER: lib/ukBaseIndex.ts remains RUNTIME_PATH_MODULES_PENDING_DECLARATION in lib/venueIndexTracing.mjs. Plan FS callers lack guaranteed output tracing of UK manifest/shards. This six-file packet deliberately contains no unmeasured multi-MB tracing addition.",
+    "Existing authoritative lookup cold-reads every committed manifest shard sequentially (617 FS shards), not network. Bounded submitted IDs do not make cold lookup bounded per ID. Root resource/performance gate remains required.",
+    "Base route remains honest one-stop anchor-only; no claim of complete priced companions or reviewed opening/access evidence.",
+    "Manual null-context selected-price propagation and fifth-serving authority require separate genuine RED/corrections; this packet does not silently close those gaps.",
+    "Current release source application, runtime GREEN, native Sydney Map-to-Plan, private reload/PATCH and deployment proof remain pending."
+  ]
+}

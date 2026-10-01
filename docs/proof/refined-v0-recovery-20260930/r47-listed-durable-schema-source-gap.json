@@ -1,0 +1,88 @@
+{
+  "status": "SOURCE_INCOMPATIBILITY_ACTUAL_DATABASE_SCHEMA_UNKNOWN",
+  "capturedAt": "2026-10-01T07:11:09.395048+00:00",
+  "releaseWorktree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "coreWorktree": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+  "files": [
+    {
+      "tree": "release",
+      "path": "supabase/migrations/20260929120000_0161_plan_selected_drink_evidence.sql",
+      "sha256": "2995965522dc148aa8142d593f67661796b00ee9ccc5af2bfcf3f9188d393e38"
+    },
+    {
+      "tree": "release",
+      "path": "supabase/migrations/20260816030000_0106_plan_create_context_atomic.sql",
+      "sha256": "c45c4a7b55a82c55da6eb7f13ca01b1905ee3dc5554720a295dec24843f6cba7"
+    },
+    {
+      "tree": "release",
+      "path": "supabase/migrations/20260929130000_0162_plan_create_selected_drink_evidence.sql",
+      "sha256": "e48a0455f7a81a100f03ad8a06bef6bee31bb09e6d4027936f6ae33fe89c28a7"
+    },
+    {
+      "tree": "release",
+      "path": "supabase/migrations/20260929180000_0167_plan_replace_context_evidence.sql",
+      "sha256": "5d9af5d57592e82b92b976ee9f68dcc0064cf2b1479e8605fb37e9d5853d3326"
+    },
+    {
+      "tree": "release",
+      "path": "supabase/migrations/20260930121000_0175_friend_locations.sql",
+      "sha256": "85d1ff0c6cfa9e908af9294a2ebdb3006899c9c8805ee91bb05b469385164087"
+    },
+    {
+      "tree": "Core",
+      "path": "supabase/migrations/20260929190000_0168_plan_listed_drink_evidence.sql",
+      "sha256": "b41f9ff16cb5ccd65b376871916918ca4209241d38c14f7d64b6b044d2b7802d"
+    },
+    {
+      "tree": "Core",
+      "path": "supabase/migrations/20260929230100_0174_plan_backup_context_evidence.sql",
+      "sha256": "c44e29f28424672095716d0af142d345cd9fb284bf9d43c749ddacb4a1bcaaee"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "release durable listed storage blocker",
+      "source": "release supabase/migrations/20260929120000_0161_plan_selected_drink_evidence.sql:10-40",
+      "details": "Current release CHECK requires exact five keys including reportedAt, null serving and source community (lines15-16,28-30). Six-field listed sourceUrl/observedAt and nonnull250ml violates this constraint. This is broader than manual-null context and affects full-context listed create too.",
+      "counterpart": "Core supabase/migrations/20260929190000_0168_plan_listed_drink_evidence.sql widens CHECK to separate exact bounded community/listed shapes. This file is absent release workingtree; do not blindly reuse numbering because release0168 already means proposal-context evidence.",
+      "actualDatabase": "UNKNOWN. No live DB query, migration application or captain receipt inspected; current production may differ from checked-in release lineage."
+    },
+    {
+      "severity": "naming ambiguity",
+      "source": "release supabase/migrations/20260930121000_0175_friend_locations.sql",
+      "details": "Only current release0175 is friend_locations. No listed-price0175 source exists in inspected workingtree. Captain application of friend location migration cannot establish listed storage validator readiness."
+    },
+    {
+      "severity": "create/null-context compatibility conditional on schema",
+      "source": "release lib/planStore.ts:297-318 and supabase/migrations/20260816030000_0106_plan_create_context_atomic.sql:22-43",
+      "details": "Durable adapter sends clean.stops and p_context clean.context, which is null when HTTP body context is omitted.0106 calls create_plan_idempotent_atomic before testing p_context; if null it returns successful create_result, without category-match filtering.0162 lines37-40 directly stores selectedDrinkPriceEvidence. Thus no current CREATE RPC context-match guard silently strips a null-context listed quote. After a correctly applied listed-shape CHECK migration, source suggests create/reload can retain it without a separate create context-null SQL change. This remains UNRUN."
+    },
+    {
+      "severity": "read path compatible",
+      "source": "release lib/planStore.ts:208-215 and244",
+      "details": "Reader selects selected_drink_price_evidence and shared cleanSelectedDrinkPriceEvidence recognizes listed variant; absent context does not gate reload projection."
+    },
+    {
+      "severity": "distinct replacement null-context gap",
+      "source": "release supabase/migrations/20260929180000_0167_plan_replace_context_evidence.sql:52-60",
+      "details": "Route replacement compares evidence category IS DISTINCT FROM coalesce(p_context,current_plan.night_context)->>drinkCategory. With both contexts SQLNULL and a nonnull category, comparison is true and writes evidenceNULL. This differs from memory helper810 context-absent listed allowance. Core0174 plan_stop_evidence_for_context lines4-10 has equivalent null-context stripping. Do not claim durable manual PATCH propagation from memory tests; requires meaningful PostgreSQL test-first before any SQL correction."
+    }
+  ],
+  "existingProofLimits": [
+    {
+      "test": "release __tests__/planSelectedDrinkEvidenceCreateMigrationEffective.test.ts:93-103",
+      "scope": "0162 effective test saves COMMUNITY wine/cocktail through plain/context RPC and replay. Does not cover listed schema or null-context listed create."
+    },
+    {
+      "test": "Core __tests__/planListedEvidenceMigrationEffective.test.ts:168-181",
+      "scope": "Listed CHECK roundtrip, including explicit/unknown serving, via storage test. Its createWithContext helper lines74-80 supplies nonnull category/zeroProof context; no manual context-null RPC control."
+    }
+  ],
+  "nextTestFirst": {
+    "minimal": "Existing effective Postgres fixture: apply exact release lineage plus proposed collision-safe listed CHECK migration, invoke actual create_plan_with_context_idempotent_atomic with one bounded listed quote and SQLNULL p_context; assert created/replayed, night_context ISNULL and exact row/reload evidence, source-shape/capability controls unchanged. Add separate actual replace_plan_route_atomic test with stored NULL context +same exact listed quote; current category-match guard expected strips evidence.",
+    "noEarlySQL": "No SQL edited/applied here. Root owns durable/RLS gates; captain owns migration application. New selected-serving source tests and memory GREEN do not establish real schema compatibility."
+  },
+  "runtimeExecuted": false,
+  "sourceOrDataEdited": false
+}

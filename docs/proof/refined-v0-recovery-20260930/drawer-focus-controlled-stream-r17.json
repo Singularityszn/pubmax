@@ -1,0 +1,392 @@
+{
+  "origin": "http://localhost:3351",
+  "project": "chromium",
+  "mode": "both",
+  "rawTraceArchive": "artifacts/refined-v0-recovery-20260930-generated/drawer-focus-attribution/controlled-stream/report.json",
+  "arms": [
+    {
+      "name": "original",
+      "errors": [],
+      "assertions": {},
+      "stage": "chosen row focus",
+      "controlledSchedule": "Unchanged real secondary bodies held until row focus, then released; SW blocked solely for route attribution",
+      "failure": "Error: expect(locator).toBeFocused() failed\n\nLocator:  locator('.mapVenueListItem').first()\nExpected: focused\nReceived: inactive\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.focused\" with timeout 5000ms\n  - waiting for locator('.mapVenueListItem').first()\n    12 \u00d7 locator resolved to <button type=\"button\" class=\"mapVenueListItem\" data-venue-id=\"venue-12ino21\" id=\"map-venue-list-item-venue-12ino21\">\u2026</button>\n       - unexpected value \"inactive\"\n",
+      "failedStage": "chosen row focus",
+      "receipts": [
+        {
+          "label": "initial focus before secondary release",
+          "at": 1417.2999999970198,
+          "active": {
+            "identity": 8,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 8,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12000000000000455,
+              51.52000000000001
+            ],
+            "moving": false
+          },
+          "selectedId": null,
+          "drawer": null,
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "135",
+            "ukBaseCount": "0",
+            "ukBaseStatus": "loading"
+          },
+          "rowCount": 135
+        },
+        {
+          "label": "first identity changed after actual secondary release",
+          "at": 2586.9000000059605,
+          "active": {
+            "identity": 8,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 144,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-12ino21",
+            "venueId": "venue-12ino21",
+            "name": "The Dolphin TavernPub165 m\u00a36.50",
+            "connected": true,
+            "blocked": []
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12000000000000455,
+              51.52000000000001
+            ],
+            "moving": false
+          },
+          "selectedId": null,
+          "drawer": null,
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "1409",
+            "ukBaseCount": "3873",
+            "ukBaseStatus": "ready"
+          },
+          "rowCount": 1081
+        },
+        {
+          "label": "failure",
+          "at": 7595.79999999702,
+          "active": {
+            "identity": 8,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 144,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-12ino21",
+            "venueId": "venue-12ino21",
+            "name": "The Dolphin TavernPub165 m\u00a36.50",
+            "connected": true,
+            "blocked": []
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12000000000000455,
+              51.52000000000001
+            ],
+            "moving": false
+          },
+          "selectedId": null,
+          "drawer": null,
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "1603",
+            "ukBaseCount": "3726",
+            "ukBaseStatus": "ready"
+          },
+          "rowCount": 2917
+        }
+      ],
+      "traceCounts": {
+        "focus": 7,
+        "mutations": 950,
+        "states": 8
+      }
+    },
+    {
+      "name": "stable-id",
+      "errors": [],
+      "assertions": {
+        "chosenFocus": true,
+        "drawerCloseFocus": true,
+        "exactChosenFocusReturned": true
+      },
+      "stage": "passed",
+      "controlledSchedule": "Unchanged real secondary bodies held until row focus, then released; SW blocked solely for route attribution",
+      "chosenVenueId": "venue-fr71bp",
+      "receipts": [
+        {
+          "label": "initial focus before secondary release",
+          "at": 469.79999999701977,
+          "active": {
+            "identity": 6,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 6,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12000000000000455,
+              51.52000000000001
+            ],
+            "moving": false
+          },
+          "selectedId": null,
+          "drawer": null,
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "135",
+            "ukBaseCount": "0",
+            "ukBaseStatus": "loading"
+          },
+          "rowCount": 135
+        },
+        {
+          "label": "first identity changed after actual secondary release",
+          "at": 2803.3999999910593,
+          "active": {
+            "identity": 6,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 8,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-12ino21",
+            "venueId": "venue-12ino21",
+            "name": "The Dolphin TavernPub165 m\u00a36.50",
+            "connected": true,
+            "blocked": []
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12000000000000455,
+              51.52000000000001
+            ],
+            "moving": false
+          },
+          "selectedId": null,
+          "drawer": null,
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "1409",
+            "ukBaseCount": "3873",
+            "ukBaseStatus": "ready"
+          },
+          "rowCount": 1081
+        },
+        {
+          "label": "chosen focus passed",
+          "at": 3052.7000000029802,
+          "active": {
+            "identity": 6,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub456 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 8,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-12ino21",
+            "venueId": "venue-12ino21",
+            "name": "The Dolphin TavernPub165 m\u00a36.50",
+            "connected": true,
+            "blocked": []
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12000000000000455,
+              51.52000000000001
+            ],
+            "moving": false
+          },
+          "selectedId": null,
+          "drawer": null,
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "1409",
+            "ukBaseCount": "3873",
+            "ukBaseStatus": "ready"
+          },
+          "rowCount": 2917
+        },
+        {
+          "label": "drawer Close focused",
+          "at": 4146,
+          "active": {
+            "identity": 2791,
+            "tag": "BUTTON",
+            "id": "",
+            "venueId": null,
+            "name": "Close and return to the London map",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 6,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub0 m\u00a36.15",
+            "connected": true,
+            "blocked": [
+              {
+                "id": "",
+                "class": "mapVenueList mapVenueList--open",
+                "inert": false,
+                "display": "none"
+              },
+              {
+                "id": "",
+                "class": "mapStage",
+                "inert": true,
+                "display": "block"
+              }
+            ]
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 40,
+            "zoom": 14,
+            "center": [
+              -0.12591699999995853,
+              51.51820000000001
+            ],
+            "moving": false
+          },
+          "selectedId": "venue-fr71bp",
+          "drawer": {
+            "identity": 3,
+            "tag": "DIV",
+            "id": "",
+            "venueId": null,
+            "name": "Pub detail",
+            "connected": true,
+            "blocked": []
+          },
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "1409",
+            "ukBaseCount": "2485",
+            "ukBaseStatus": "ready"
+          },
+          "rowCount": 861
+        },
+        {
+          "label": "Escape exact chosen ID focus passed",
+          "at": 5821,
+          "active": {
+            "identity": 6,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub0 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "first": {
+            "identity": 6,
+            "tag": "BUTTON",
+            "id": "map-venue-list-item-venue-fr71bp",
+            "venueId": "venue-fr71bp",
+            "name": "Museum TavernPub0 m\u00a36.15",
+            "connected": true,
+            "blocked": []
+          },
+          "camera": {
+            "bearing": 0,
+            "pitch": 40,
+            "zoom": 14,
+            "center": [
+              -0.12591699999995853,
+              51.51820000000001
+            ],
+            "moving": false
+          },
+          "selectedId": null,
+          "drawer": null,
+          "inventory": {
+            "routeStops": "0",
+            "venueCount": "1603",
+            "ukBaseCount": "2462",
+            "ukBaseStatus": "ready"
+          },
+          "rowCount": 861
+        }
+      ],
+      "traceCounts": {
+        "focus": 9,
+        "mutations": 4347,
+        "states": 9
+      }
+    }
+  ]
+}

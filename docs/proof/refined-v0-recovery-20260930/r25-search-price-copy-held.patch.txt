@@ -1,0 +1,10 @@
+--- a/components/map/MapSearchSuggest.tsx
++++ b/components/map/MapSearchSuggest.tsx
+@@ -694,7 +694,6 @@
+                     >
+                       <span className="mapSearchSuggestRowMain">
+                         <span className="mapSearchSuggestRowName">{pub.name}</span>
+-                        <span className="mapSearchSuggestBorough">No listed price</span>
+                         {pub.address ? (
+                           <span className="mapSearchSuggestBorough">{pub.address}</span>
+                         ) : null}

@@ -1,0 +1,51 @@
+{
+  "status": "READY_UNRUN",
+  "scope": "Test-only effective PostgreSQL regression for the current Plan create RPC dropping a submitted backup alternative.",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baselineHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "scratchTest": "/tmp/pubmaxx-r47-plan-backup-pg-red/planSavedBackupDeliveryMigrationEffective.test.ts",
+  "scratchTestSha256": "c0736ba32147d1f985c6383668d7fa4d976a7c93012fe6c950074cd10a59b872",
+  "expectedRed": "The existing RPC should return created and keep SQL NULL context, then the saved stop's JSON projection has no alternatives and yields null rather than the submitted exact canonical backup array.",
+  "missingColumnSafeRead": "Uses to_jsonb(stop)->'alternatives' with JSON null fallback, so predecessor schema without the column is observable as a value and does not fail setup with undefined-column.",
+  "postgresFixture": {
+    "bootstrap": "scripts/rls/session-fixture.sql",
+    "orderedPrerequisites": "Top-level forward *.sql files whose filename sorts before 20261001073000_0176_plan_listed_drink_evidence.sql.",
+    "explicitTail": [
+      "supabase/migrations/20261001073000_0176_plan_listed_drink_evidence.sql",
+      "supabase/migrations/20261001073100_0177_plan_manual_selected_evidence.sql"
+    ],
+    "later0180GroupFixturesExcluded": true,
+    "future0178Or0179FilesReferencedForSetup": false
+  },
+  "evidenceContract": {
+    "submittedStopField": "alternatives",
+    "submittedBackup": "Canonical venue identity plus the exact listed wine citation (625 pence, 125ml, URL, observation timestamp).",
+    "assertion": "Saved position-0 plan_stops row must retain alternatives array exactly.",
+    "boundary": "SQL persistence only. It does not prove the HTTP resolver's venue/quote authority or public/member DTO projection."
+  },
+  "commandWhenParentAuthorizesRuntime": "./node_modules/.bin/vitest run __tests__/planSavedBackupDeliveryMigrationEffective.test.ts",
+  "runtime": "Not run by this agent. Parent owns PostgreSQL runtime and should apply scratch test into the Root checkout only after review.",
+  "sourceHashes": {
+    "__tests__/helpers/postgres.ts": "ca9e6019e7a3c3ce87ce69369ae40da95fbaf29c4f203c5a560b817d31c7c324",
+    "scripts/rls/session-fixture.sql": "c6a041966d1a4b63eb8be1c7ce1c1aeb1d680c75ad745710f1b5dcf8d9521e46",
+    "supabase/migrations/20260929130000_0162_plan_create_selected_drink_evidence.sql": "e48a0455f7a81a100f03ad8a06bef6bee31bb09e6d4027936f6ae33fe89c28a7",
+    "supabase/migrations/20260929180000_0167_plan_replace_context_evidence.sql": "5d9af5d57592e82b92b976ee9f68dcc0064cf2b1479e8605fb37e9d5853d3326",
+    "supabase/migrations/20261001073000_0176_plan_listed_drink_evidence.sql": "b7d98479a4aff578bbde3f69515ba45ae8cf67880dc300f209d6d0861f3eb192",
+    "supabase/migrations/20261001073100_0177_plan_manual_selected_evidence.sql": "2235bd74230e73e3a926d8eccb2c423b7ea755b54d359ad21b029ceea63e9d7d"
+  },
+  "laterAdditiveWorkRequired": [
+    "After 0178/0179 are present, expand this suite to prove create/replay, route replacement, proposal snapshot and acceptance, NULL/stated context behavior, member projection, closed backup fields/caps, client-column grants, RPC privilege boundaries, and rollback restoration.",
+    "Root-owned additive registration is required in the PostgreSQL suite inventory/runner and unit-only CI exclusions; preserve existing friend/group suites."
+  ],
+  "frozenPatch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-backup-pg-red-test.patch",
+  "frozenPatchSHA256": "9598adb679fa81b05e89f0b0d2fe2e3bc6480db683a9bcc9daab84fc0707d65f",
+  "parentReview": {
+    "at": "2026-10-01T08:31:49.272206+00:00",
+    "hashes": "PASS exact6Roothelper/bootstrap/lineagepins",
+    "RootNewPathAbsent": "PASS",
+    "RootApplyCheck": "PASS",
+    "freshScratchAfter": "PASS",
+    "source": "MeaningfulcreateRPCcreatedbaseline, nightcontextSQLNULL, savedaltJSONnullvsarray withoutmissingcol; excludesfuture0178/9 andgroup0180; actualbootstrapping stillRootruntime required",
+    "runtime": "UNRUN; runBEFOREimportbackup0178, then supplementaftercandidate. NoPGregistryeditsbyCore."
+  }
+}

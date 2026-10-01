@@ -1,0 +1,190 @@
+{
+  "at": "2026-10-01T01:15:12.902110+00:00",
+  "status": "SOURCE_ONLY_UNVERIFIED_MATRIX",
+  "datasetSha256": "f97dd00e56b1b2f50af976af5dde0dd759f2a5461b5b00d7df557166af514dcc",
+  "datasetRows": 7589,
+  "matrix": [
+    {
+      "requestedLane": "beer",
+      "listedLabeledCandidateCount": 57,
+      "sample": {
+        "venueId": "venue-fla5g9",
+        "name": null,
+        "category": "beer",
+        "priceGbp": 6.5,
+        "lane": "drink-price-update",
+        "standing": "listed",
+        "sourceUrl": "https://bundobust.com/wp-content/uploads/2026/04/Bundobust-Drinks-Menu-MARCH-2026-DIGITAL-1.pdf",
+        "publisher": "Bundobust - official site",
+        "observedAt": "2026-07-26T07:12:24.229Z",
+        "basis": null,
+        "sampleSize": null,
+        "servingSize": "pint",
+        "drinkLabel": "PYTHON Premium Lager",
+        "drinkSubtype": "beer-lager"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "wine",
+      "listedLabeledCandidateCount": 1948,
+      "sample": {
+        "venueId": "venue-uk-n8308248176",
+        "name": "The Sydney Arms",
+        "category": "wine",
+        "priceGbp": 5.5,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+        "publisher": "sydneyarmschelsea.com",
+        "observedAt": "2026-09-29T10:40:17.846Z",
+        "basis": null,
+        "sampleSize": null,
+        "servingSize": "125ml",
+        "drinkLabel": "Chardonnay, Pays D\u2019oc, France",
+        "drinkSubtype": "wine-white"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "whisky",
+      "listedLabeledCandidateCount": 8,
+      "sample": {
+        "venueId": "venue-1vse4lh",
+        "name": "The Brownswood",
+        "category": "whisky",
+        "priceGbp": 4.3,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+        "publisher": "thebrownswood.co.uk",
+        "observedAt": "2026-09-21T18:56:51.214Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "Lucky Sod \u2013"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "gin",
+      "listedLabeledCandidateCount": 25,
+      "sample": {
+        "venueId": "venue-1vse4lh",
+        "name": "The Brownswood",
+        "category": "gin",
+        "priceGbp": 4.2,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+        "publisher": "thebrownswood.co.uk",
+        "observedAt": "2026-09-21T18:56:51.214Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "Gin ~ 25 ml Sacred \u2013",
+        "servingSize": "25ml"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "vodka",
+      "listedLabeledCandidateCount": 36,
+      "sample": {
+        "venueId": "venue-uk-w42452556",
+        "name": "The Old Manor",
+        "category": "vodka",
+        "priceGbp": 11,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+        "publisher": "the-old-manor.co.uk",
+        "observedAt": "2026-09-21T19:01:51.697Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "Sapling Raspberry & Hibiscus Vodka, Beesou Honey, Fever-Tree Blood Orange Soda",
+        "drinkSubtype": "vodka-flavoured"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "rum",
+      "listedLabeledCandidateCount": 74,
+      "sample": {
+        "venueId": "venue-uk-w950113800",
+        "name": "The Taps",
+        "category": "rum",
+        "priceGbp": 8,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://www.greeneking.co.uk/pubs/lancashire/taps/menu",
+        "publisher": "greeneking.co.uk",
+        "observedAt": "2026-09-21T23:04:33.237Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice",
+        "drinkSubtype": "rum-spiced"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "cocktail",
+      "listedLabeledCandidateCount": 1363,
+      "sample": {
+        "venueId": "venue-uk-w950113800",
+        "name": "The Taps",
+        "category": "cocktail",
+        "priceGbp": 9.5,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://www.greeneking.co.uk/pubs/lancashire/taps/menu",
+        "publisher": "greeneking.co.uk",
+        "observedAt": "2026-09-21T23:04:33.237Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "-heat twist on a Margarita with Altos Plata Tequila, Mexican lime and hot honey",
+        "drinkSubtype": "cocktail-sour"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "shot",
+      "listedLabeledCandidateCount": 30,
+      "sample": {
+        "venueId": "venue-uk-w42452556",
+        "name": "The Old Manor",
+        "category": "shot",
+        "priceGbp": 10,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+        "publisher": "the-old-manor.co.uk",
+        "observedAt": "2026-09-21T19:01:51.697Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "Rhubarb Ros\u00e9 Lillet Ros\u00e9, Fever-Tree Rhubarb & Raspberry Tonic"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    },
+    {
+      "requestedLane": "cider",
+      "listedLabeledCandidateCount": 3,
+      "sample": {
+        "venueId": "venue-fla5g9",
+        "name": null,
+        "category": "beer",
+        "priceGbp": 6.3,
+        "lane": "drink-price-update",
+        "standing": "listed",
+        "sourceUrl": "https://bundobust.com/wp-content/uploads/2026/04/Bundobust-Drinks-Menu-MARCH-2026-DIGITAL-1.pdf",
+        "publisher": "Bundobust - official site",
+        "observedAt": "2026-07-26T07:12:24.229Z",
+        "basis": null,
+        "sampleSize": null,
+        "servingSize": "pint",
+        "drinkLabel": "ROS\u00c9 CIDER Hibiscus & Ginger",
+        "drinkSubtype": "beer-cider"
+      },
+      "acceptance": "UNVERIFIED SAMPLE ONLY: verify exact permittedpublisher claim, APIserialization and nativeUIsource/date/serving orunknown; no broad cheapest/availability claim."
+    }
+  ],
+  "boundary": "Datasetrecords are not independentlyverified offers. Candidatecategory/price/serving fields maythemselvesbeincorrect; do not treat this selection as accuracy evidence. No runtime/network/tests/crawl performed; no product/data edit."
+}

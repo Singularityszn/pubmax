@@ -1,0 +1,36 @@
+{
+  "capturedAtUtc": "2026-10-01T06:00:24Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-listed-serving-alias-prod/base/lib/listedCategoryPrices.ts",
+  "scratchCandidate": "/tmp/pubmaxx-r47-listed-serving-alias-prod/candidate/lib/listedCategoryPrices.ts",
+  "patch": "/tmp/pubmaxx-r47-listed-serving-alias-after-red.patch",
+  "patchSha256": "c4b9fa13c83d01224519b5f686aa35e1c063c7aeafdb0121fc67df67678d4f62",
+  "status": "FROZEN_AFTER_ACTUAL_RED_UNRUN",
+  "dependency": "/tmp/pubmaxx-r47-listed-serving-alias-red.patch",
+  "dependencyPatchSha256": "3e5357e96844df4b25dc1eff6509b39f690addbd94fd1e65d5f7b1d9a772c06f",
+  "runtimeExecuted": false,
+  "testsExecuted": false,
+  "scope": "Use existing listedServingComparisonKey for eligible canonical serving identity; retain raw lowercased serving only for unknown serving identity. Keep named drinks distinct by trimmed lowercase label until the existing within-serving price comparison.",
+  "files": [
+    {
+      "path": "lib/listedCategoryPrices.ts",
+      "baseSha256": "cd3bd1bf865bcf7f26e23e55cd618542c19e705353b39be8d61a9d6e8dada4e4",
+      "candidateSha256": "ea9d1ba31b24af90bd5cef573eb9aadc7d95c327f5b470b3394e209479039747"
+    }
+  ],
+  "excluded": [
+    "Does not alter global bundle dedupe or producer collection keys.",
+    "Does not infer missing servings.",
+    "Does not change price comparison or ranking policy."
+  ],
+  "actualRedEvidence": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/listed-serving-alias-red-results.json",
+  "actualRedSummary": {
+    "total": 12,
+    "pass": 10,
+    "fail": 2,
+    "skip": 0,
+    "failure": "Both input orders kept stale \u00a34 quote instead of newer \u00a36.25; equivalent serving spellings split identity."
+  },
+  "rootCurrentBaseSha256": "cd3bd1bf865bcf7f26e23e55cd618542c19e705353b39be8d61a9d6e8dada4e4",
+  "testsExecutedByThisAgent": false
+}

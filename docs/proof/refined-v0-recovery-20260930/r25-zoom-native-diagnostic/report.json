@@ -1,0 +1,914 @@
+{
+  "diagnosticOnly": true,
+  "completed": true,
+  "origin": "http://localhost:3351",
+  "originalSource": "e2e/map-uk-base-layer.spec.ts:394",
+  "observerLimitations": "Camera transitions sampled on requestAnimationFrame only when changed; native click capture plus queued microtask records synchronous before/after. Existing camera probe exposes no MapLibre event subscription. Read-only observers add diagnostic overhead.",
+  "arms": [
+    {
+      "mode": "original-triple",
+      "completed": true,
+      "originalThresholdPassed": true,
+      "snapshots": [
+        {
+          "phase": "original-readiness-and-beforeZoom",
+          "at": 1693.5999999940395,
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12,
+              51.52
+            ],
+            "moving": false
+          },
+          "reducedMotion": true,
+          "canvasCount": 1,
+          "ukBaseStatus": "loading",
+          "ukBaseCount": "0",
+          "venueCount": "135",
+          "zoomDisabled": false,
+          "zoomAriaDisabled": "false",
+          "marks": [
+            {
+              "name": "pubmax:map-chunk-ready",
+              "at": 122
+            },
+            {
+              "name": "pubmax:first-pins",
+              "at": 166.20000000298023
+            },
+            {
+              "name": "pubmax:slim-venues-ready",
+              "at": 166.40000000596046
+            },
+            {
+              "name": "pubmax:map-constructed",
+              "at": 1626.7999999970198
+            }
+          ],
+          "permission": "denied"
+        },
+        {
+          "phase": "terminal",
+          "at": 4220.70000000298,
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 15,
+            "center": [
+              -0.12000000000170985,
+              51.51999999999967
+            ],
+            "moving": false
+          },
+          "reducedMotion": true,
+          "canvasCount": 1,
+          "ukBaseStatus": "loading",
+          "ukBaseCount": "0",
+          "venueCount": "135",
+          "zoomDisabled": false,
+          "zoomAriaDisabled": "false",
+          "marks": [
+            {
+              "name": "pubmax:map-chunk-ready",
+              "at": 122
+            },
+            {
+              "name": "pubmax:first-pins",
+              "at": 166.20000000298023
+            },
+            {
+              "name": "pubmax:slim-venues-ready",
+              "at": 166.40000000596046
+            },
+            {
+              "name": "pubmax:map-constructed",
+              "at": 1626.7999999970198
+            },
+            {
+              "name": "pubmax:map-style-load",
+              "at": 1721.2999999970198
+            },
+            {
+              "name": "pubmax:map-icons-ready",
+              "at": 3911.7000000029802
+            },
+            {
+              "name": "pubmax:map-scene-built",
+              "at": 3919.2999999970198
+            },
+            {
+              "name": "pubmax:camera-intent:opening-location",
+              "at": 3932.2000000029802
+            },
+            {
+              "name": "pubmax:pubs-source-loaded",
+              "at": 4121.5
+            }
+          ],
+          "permission": "denied"
+        }
+      ],
+      "errors": [],
+      "pageErrors": [],
+      "navigationStatus": 200,
+      "beforeZoom": 12,
+      "journal": {
+        "started": 28.900000005960464,
+        "phase": "three-native-clicks",
+        "transitions": [
+          {
+            "at": 35.5,
+            "phase": "navigation",
+            "camera": null,
+            "reducedMotion": true
+          },
+          {
+            "at": 1631.7999999970198,
+            "phase": "navigation",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12,
+                51.52
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "0"
+          },
+          {
+            "at": 3937.7999999970198,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          },
+          {
+            "at": 3972.9000000059605,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          },
+          {
+            "at": 4180.79999999702,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          },
+          {
+            "at": 4208,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 15,
+              "center": [
+                -0.12000000000170985,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          }
+        ],
+        "nativeEvents": [
+          {
+            "type": "pointerdown-capture",
+            "at": 3941.5999999940395,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-capture",
+            "at": 3943,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-after-microtask",
+            "at": 3943,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            }
+          },
+          {
+            "type": "pointerdown-capture",
+            "at": 4012.2000000029802,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-capture",
+            "at": 4012.5,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-after-microtask",
+            "at": 4012.5,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            }
+          },
+          {
+            "type": "pointerdown-capture",
+            "at": 4204.5999999940395,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-capture",
+            "at": 4204.79999999702,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-after-microtask",
+            "at": 4204.79999999702,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            }
+          }
+        ],
+        "intents": [
+          {
+            "at": 3932.2000000029802,
+            "detail": {
+              "kind": "opening-location",
+              "sequence": 1
+            },
+            "cameraBeforeIntent": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12,
+                51.52
+              ],
+              "moving": false
+            }
+          }
+        ],
+        "permission": "denied",
+        "dropped": 0,
+        "stopped": true
+      }
+    },
+    {
+      "mode": "settled-click-control",
+      "completed": true,
+      "originalThresholdPassed": true,
+      "snapshots": [
+        {
+          "phase": "original-readiness-and-beforeZoom",
+          "at": 471.59999999403954,
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 12,
+            "center": [
+              -0.12,
+              51.52
+            ],
+            "moving": false
+          },
+          "reducedMotion": true,
+          "canvasCount": 1,
+          "ukBaseStatus": "loading",
+          "ukBaseCount": "0",
+          "venueCount": "135",
+          "zoomDisabled": false,
+          "zoomAriaDisabled": "false",
+          "marks": [
+            {
+              "name": "pubmax:map-chunk-ready",
+              "at": 121.59999999403954
+            },
+            {
+              "name": "pubmax:first-pins",
+              "at": 166.29999999701977
+            },
+            {
+              "name": "pubmax:slim-venues-ready",
+              "at": 166.59999999403954
+            },
+            {
+              "name": "pubmax:map-constructed",
+              "at": 424.8999999910593
+            }
+          ],
+          "permission": "denied"
+        },
+        {
+          "phase": "control-settled-click-1",
+          "at": 730.5,
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 13,
+            "center": [
+              -0.11999999999977717,
+              51.51999999999987
+            ],
+            "moving": false
+          },
+          "reducedMotion": true,
+          "canvasCount": 1,
+          "ukBaseStatus": "loading",
+          "ukBaseCount": "0",
+          "venueCount": "135",
+          "zoomDisabled": false,
+          "zoomAriaDisabled": "false",
+          "marks": [
+            {
+              "name": "pubmax:map-chunk-ready",
+              "at": 121.59999999403954
+            },
+            {
+              "name": "pubmax:first-pins",
+              "at": 166.29999999701977
+            },
+            {
+              "name": "pubmax:slim-venues-ready",
+              "at": 166.59999999403954
+            },
+            {
+              "name": "pubmax:map-constructed",
+              "at": 424.8999999910593
+            },
+            {
+              "name": "pubmax:map-style-load",
+              "at": 499
+            },
+            {
+              "name": "pubmax:map-icons-ready",
+              "at": 666
+            },
+            {
+              "name": "pubmax:map-scene-built",
+              "at": 673.7999999970198
+            },
+            {
+              "name": "pubmax:camera-intent:opening-location",
+              "at": 682.7000000029802
+            }
+          ],
+          "permission": "denied"
+        },
+        {
+          "phase": "control-settled-click-2",
+          "at": 759.0999999940395,
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 14,
+            "center": [
+              -0.12000000000205091,
+              51.51999999999967
+            ],
+            "moving": false
+          },
+          "reducedMotion": true,
+          "canvasCount": 1,
+          "ukBaseStatus": "loading",
+          "ukBaseCount": "0",
+          "venueCount": "135",
+          "zoomDisabled": false,
+          "zoomAriaDisabled": "false",
+          "marks": [
+            {
+              "name": "pubmax:map-chunk-ready",
+              "at": 121.59999999403954
+            },
+            {
+              "name": "pubmax:first-pins",
+              "at": 166.29999999701977
+            },
+            {
+              "name": "pubmax:slim-venues-ready",
+              "at": 166.59999999403954
+            },
+            {
+              "name": "pubmax:map-constructed",
+              "at": 424.8999999910593
+            },
+            {
+              "name": "pubmax:map-style-load",
+              "at": 499
+            },
+            {
+              "name": "pubmax:map-icons-ready",
+              "at": 666
+            },
+            {
+              "name": "pubmax:map-scene-built",
+              "at": 673.7999999970198
+            },
+            {
+              "name": "pubmax:camera-intent:opening-location",
+              "at": 682.7000000029802
+            }
+          ],
+          "permission": "denied"
+        },
+        {
+          "phase": "control-settled-click-3",
+          "at": 794.7000000029802,
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 15,
+            "center": [
+              -0.12000000000170985,
+              51.51999999999967
+            ],
+            "moving": false
+          },
+          "reducedMotion": true,
+          "canvasCount": 1,
+          "ukBaseStatus": "loading",
+          "ukBaseCount": "0",
+          "venueCount": "135",
+          "zoomDisabled": false,
+          "zoomAriaDisabled": "false",
+          "marks": [
+            {
+              "name": "pubmax:map-chunk-ready",
+              "at": 121.59999999403954
+            },
+            {
+              "name": "pubmax:first-pins",
+              "at": 166.29999999701977
+            },
+            {
+              "name": "pubmax:slim-venues-ready",
+              "at": 166.59999999403954
+            },
+            {
+              "name": "pubmax:map-constructed",
+              "at": 424.8999999910593
+            },
+            {
+              "name": "pubmax:map-style-load",
+              "at": 499
+            },
+            {
+              "name": "pubmax:map-icons-ready",
+              "at": 666
+            },
+            {
+              "name": "pubmax:map-scene-built",
+              "at": 673.7999999970198
+            },
+            {
+              "name": "pubmax:camera-intent:opening-location",
+              "at": 682.7000000029802
+            }
+          ],
+          "permission": "denied"
+        },
+        {
+          "phase": "terminal",
+          "at": 795.5999999940395,
+          "camera": {
+            "bearing": 0,
+            "pitch": 38.00000000000001,
+            "zoom": 15,
+            "center": [
+              -0.12000000000170985,
+              51.51999999999967
+            ],
+            "moving": false
+          },
+          "reducedMotion": true,
+          "canvasCount": 1,
+          "ukBaseStatus": "loading",
+          "ukBaseCount": "0",
+          "venueCount": "135",
+          "zoomDisabled": false,
+          "zoomAriaDisabled": "false",
+          "marks": [
+            {
+              "name": "pubmax:map-chunk-ready",
+              "at": 121.59999999403954
+            },
+            {
+              "name": "pubmax:first-pins",
+              "at": 166.29999999701977
+            },
+            {
+              "name": "pubmax:slim-venues-ready",
+              "at": 166.59999999403954
+            },
+            {
+              "name": "pubmax:map-constructed",
+              "at": 424.8999999910593
+            },
+            {
+              "name": "pubmax:map-style-load",
+              "at": 499
+            },
+            {
+              "name": "pubmax:map-icons-ready",
+              "at": 666
+            },
+            {
+              "name": "pubmax:map-scene-built",
+              "at": 673.7999999970198
+            },
+            {
+              "name": "pubmax:camera-intent:opening-location",
+              "at": 682.7000000029802
+            }
+          ],
+          "permission": "denied"
+        }
+      ],
+      "errors": [],
+      "pageErrors": [],
+      "navigationStatus": 200,
+      "beforeZoom": 12,
+      "journal": {
+        "started": 26.899999991059303,
+        "phase": "three-native-clicks",
+        "transitions": [
+          {
+            "at": 34.5,
+            "phase": "navigation",
+            "camera": null,
+            "reducedMotion": true
+          },
+          {
+            "at": 429.59999999403954,
+            "phase": "navigation",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12,
+                51.52
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "0"
+          },
+          {
+            "at": 687.0999999940395,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          },
+          {
+            "at": 717.5,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          },
+          {
+            "at": 760.2999999970198,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          },
+          {
+            "at": 800,
+            "phase": "three-native-clicks",
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 15,
+              "center": [
+                -0.12000000000170985,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "reducedMotion": true,
+            "ukBaseStatus": "loading",
+            "venueCount": "135"
+          }
+        ],
+        "nativeEvents": [
+          {
+            "type": "pointerdown-capture",
+            "at": 692.5999999940395,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-capture",
+            "at": 693.3999999910593,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-after-microtask",
+            "at": 693.3999999910593,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000000455,
+                51.52000000000001
+              ],
+              "moving": false
+            }
+          },
+          {
+            "type": "pointerdown-capture",
+            "at": 754.0999999940395,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-capture",
+            "at": 754.5,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-after-microtask",
+            "at": 754.5,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 13,
+              "center": [
+                -0.11999999999977717,
+                51.51999999999987
+              ],
+              "moving": false
+            }
+          },
+          {
+            "type": "pointerdown-capture",
+            "at": 790.2999999970198,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-capture",
+            "at": 790.3999999910593,
+            "trusted": true,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            },
+            "target": "Zoom in"
+          },
+          {
+            "type": "click-after-microtask",
+            "at": 790.3999999910593,
+            "camera": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 14,
+              "center": [
+                -0.12000000000205091,
+                51.51999999999967
+              ],
+              "moving": false
+            }
+          }
+        ],
+        "intents": [
+          {
+            "at": 682.7000000029802,
+            "detail": {
+              "kind": "opening-location",
+              "sequence": 1
+            },
+            "cameraBeforeIntent": {
+              "bearing": 0,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12,
+                51.52
+              ],
+              "moving": false
+            }
+          }
+        ],
+        "permission": "denied",
+        "dropped": 0,
+        "stopped": true
+      }
+    }
+  ],
+  "errors": []
+}

@@ -543,6 +543,7 @@ import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nightA
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   defaultVenueKindVisibility,
+  filterUkBasePubsByKind,
   filterVenuesByKind,
   hasSavedPubVenue,
   isPubVenue,
@@ -570,7 +571,8 @@ import SurfaceNav from "@/components/ui/surface-nav";
 import LandmarkStoryBody, { LandmarkStoryHead } from "@/components/map/LandmarkStoryBody";
 import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
-import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
+import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
+import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import {
   filtersForCuratedCrawl,
@@ -725,6 +727,17 @@ function dropLogParamFromUrl(): void {
   );
 }
 
+/** Whether a history entry holds the "Choose a pub" picker of a price request. */
+function holdsPricePicker(state: unknown): boolean {
+  const held = readMapSurfaceHistory<MapSurfaceState>(state);
+  const top = held ? currentSurface(held) : null;
+  return top?.id === "moment" && top.state?.pricePicker === true;
+}
+
+function dropLogParamUnlessPricePicker(event: PopStateEvent): void {
+  if (!holdsPricePicker(event.state)) dropLogParamFromUrl();
+}
+
 function useMapLogRequest(searchParams: ReturnType<typeof useSearchParams>) {
   const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
   // Dismiss the current request while Next's native-history adapter publishes
@@ -762,15 +775,20 @@ function useMapLogRequest(searchParams: ReturnType<typeof useSearchParams>) {
   });
   useEffect(() => {
     if (!logIntentCleared || typeof window === "undefined") return;
-    window.addEventListener("popstate", dropLogParamFromUrl);
-    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
+    window.addEventListener("popstate", dropLogParamUnlessPricePicker);
+    return () => window.removeEventListener("popstate", dropLogParamUnlessPricePicker);
   }, [logIntentCleared]);
+  // Back to the picker a price request was made from puts that request back.
+  const restoreLogIntent = useCallback(() => {
+    setLogIntentDismissal((current) => (current.cleared ? { ...current, cleared: false } : current));
+  }, []);
   const hasCategoryPriceIntent =
     searchParams.get("contribute") === "price" && !logIntentCleared;
   return {
     logIntentFallbackVisible,
     setLogIntentFallbackVisible,
     clearLogIntent,
+    restoreLogIntent,
     logIntentPrice,
     hasReactiveLogIntent,
     hasCategoryPriceIntent,
@@ -1639,6 +1657,10 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const onCitySuggestLocationFound = useCallback((location: UserLocation) => {
+    setUserLocation(location);
+    latchMapReaderLocationWatch();
+  }, []);
   const readerPosition = useMapReaderPosition();
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
@@ -1745,6 +1767,7 @@ export default function PubMap({
     logIntentFallbackVisible,
     setLogIntentFallbackVisible,
     clearLogIntent,
+    restoreLogIntent,
     logIntentPrice,
     hasReactiveLogIntent,
     hasCategoryPriceIntent,
@@ -3059,11 +3082,14 @@ export default function PubMap({
       }
       const visibleIds = new Set(visibleVenueState.ukBasePubIds);
       return buildUkBasePubListModel(
-        renderedBasePubs.filter((pub) => visibleIds.has(pub.id)),
+        filterUkBasePubsByKind(
+          renderedBasePubs.filter((pub) => visibleIds.has(pub.id)),
+          venueKindVisibility,
+        ),
         mapViewport.center,
       );
     },
-    [cityId, mapViewport.center, renderedBasePubs, visibleVenueState],
+    [cityId, mapViewport.center, renderedBasePubs, venueKindVisibility, visibleVenueState],
   );
   // The place the map is OVER, and whether it is off the curated city.
   // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
@@ -4083,6 +4109,21 @@ export default function PubMap({
     setFallbackVisible: setLogIntentFallbackVisible,
   });
 
+  // A picked price request belongs to the first pub it opened at, including
+  // across that pub's sign-in gate and return. Reaching any other pub without
+  // choosing it from the picker again retires it before that pub's inspector
+  // can read it from the URL.
+  const priceIntentVenueRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasCategoryPriceIntent) {
+      priceIntentVenueRef.current = null;
+      return;
+    }
+    if (!selectedVenueId) return;
+    priceIntentVenueRef.current ??= selectedVenueId;
+    if (priceIntentVenueRef.current !== selectedVenueId) clearLogIntent();
+  }, [clearLogIntent, hasCategoryPriceIntent, selectedVenueId]);
+
   const toggleBuiltStop = useCallback((id: string) => {
     const venue = venueById.get(id);
     const pickable = !venue || isPubVenue(venue);
@@ -4517,7 +4558,7 @@ export default function PubMap({
       if (targetCityId && targetCityId !== cityId) {
         // Full navigation resets city-specific map state before the target city loads.
         const params = new URLSearchParams({ sel: id });
-        if (hasCategoryPriceIntent) {
+        if (hasCategoryPriceIntent && priceIntentVenueRef.current === null) {
           if (mapDrinkLensCategory) params.set("drink", mapDrinkLensCategory);
           params.set("contribute", "price");
         }
@@ -4842,6 +4883,7 @@ export default function PubMap({
       selectedVenueLabels.detailLabel,
     ],
   );
+  const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
   const mapSurfaceState = useMemo<MapSurfaceState>(
     () => ({
       venueTab: venueInitialTab,
@@ -4854,20 +4896,24 @@ export default function PubMap({
       areaTarget: searchAreaTarget,
       layersTab: mobileLayersTab,
       landmarkId: activeLandmarkId,
+      ...(pricePickerOpen ? { pricePicker: true } : {}),
     }),
-    [activeLandmarkId, mobileLayersTab, searchAreaTarget, selectedVenueId, venueInitialTab],
+    [activeLandmarkId, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
   );
-  const closeEverySurface = useCallback(() => {
+  const closeMapSurfaces = useCallback(() => {
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
-    clearLogIntent();
     closeComposer();
     setMapOverlay("none");
     setSelectedVenueId("");
     setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  }, [clearAreaSheetTimer, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  const closeEverySurface = useCallback(() => {
+    clearLogIntent();
+    closeMapSurfaces();
+  }, [clearLogIntent, closeMapSurfaces]);
 
   useEffect(() => {
     const onDismiss = () => closeEverySurface();
@@ -4876,9 +4922,16 @@ export default function PubMap({
   }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
     (entry: SurfaceEntry<MapSurfaceState> | null) => {
+      const held = entry?.state ?? EMPTY_MAP_SURFACE_STATE;
+      if (entry?.id === "moment" && held.pricePicker) {
+        closeMapSurfaces();
+        restoreLogIntent();
+        priceIntentVenueRef.current = null;
+        setMapOverlay("moment");
+        return;
+      }
       closeEverySurface();
       if (!entry) return;
-      const held = entry.state ?? EMPTY_MAP_SURFACE_STATE;
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
         setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);
@@ -4912,7 +4965,7 @@ export default function PubMap({
       );
       setMapOverlay(entry.id as MapOverlay);
     },
-    [closeEverySurface, setPlanningOpen, setSelectedVenueId],
+    [closeEverySurface, closeMapSurfaces, restoreLogIntent, setPlanningOpen, setSelectedVenueId],
   );
   const mapSurfaceTrail = useMapSurfaceNavigation({
     arrivalSearch,
@@ -5005,6 +5058,9 @@ export default function PubMap({
         );
       }
     });
+    // Dispatch public data first, then load the existing panel concurrently.
+    // The dynamic renderer still owns the skeleton and any import failure.
+    void import("@/components/map/VenueInspector").catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -5539,6 +5595,7 @@ export default function PubMap({
               : null
           }
           onInterruptReveal={interruptVenueReveal}
+          onPriceIntentConsumed={clearLogIntent}
           onTabSelect={handleInspectorTabSelect}
           cityLandmarks={cityLandmarks}
           cityStoryBands={cityStoryBands}
@@ -6234,6 +6291,7 @@ export default function PubMap({
       <PubMapCanvas
         venues={canvasVenues}
         filteredVenueCount={canvasVenues.length}
+        venueKindVisibility={venueKindVisibility}
         venueDataReady={loaded && loadedCityId === cityId}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
@@ -6356,10 +6414,8 @@ export default function PubMap({
         experienceLens={experienceLens}
         experienceSummary={experienceSummary}
         onExperienceLensChange={changeExperienceLens}
-        venueKindVisibility={baseLedChrome ? undefined : venueKindVisibility}
-        onVenueKindVisibilityChange={
-          baseLedChrome ? undefined : setVenueKindVisibility
-        }
+        venueKindVisibility={venueKindVisibility}
+        onVenueKindVisibilityChange={setVenueKindVisibility}
       /> : null
     );
   }
@@ -6385,10 +6441,7 @@ export default function PubMap({
       {ambientBannerLaneOpen && !baseLedChrome ? (
         <CitySuggestBanner
           cityId={cityId}
-          onLocationFound={(location) => {
-            setUserLocation(location);
-            latchMapReaderLocationWatch();
-          }}
+          onLocationFound={onCitySuggestLocationFound}
         />
       ) : null}
       {ambientBannerLaneOpen && isLondon ? (

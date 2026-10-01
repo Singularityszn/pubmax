@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultVenueKindVisibility,
   filterVenuesByKind,
+  filterUkBasePubsByKind,
   hasSavedPubVenue,
   isPubVenue,
   isPubVenueKind,
@@ -11,8 +12,18 @@ import {
   venueKindNoun,
 } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import type { UkBasePub } from "@/lib/ukBasePubs";
 
 const venue = (id: string, kind?: Venue["kind"]) => ({ id, kind }) as Venue;
+const basePub = (id: string, kind: UkBasePub["kind"]): UkBasePub => ({
+  id,
+  name: id,
+  address: "",
+  lat: 51.5,
+  lng: -0.1,
+  curatedVenueId: "",
+  kind,
+});
 
 describe("venueKindFilters", () => {
   it("defaults every curated venue type on", () => {
@@ -124,5 +135,53 @@ describe("venueKindFilters", () => {
     expect(venueKindNoun("food")).toBe("late-food venue");
     expect(venueKindNoun("club")).toBe("club");
     expect(venueKindNoun("restaurant")).toBe("restaurant");
+  });
+
+  it("returns the original UK base list when pub and bar filters are both visible", () => {
+    const pubs = [basePub("venue-uk-n1", "pub"), basePub("venue-uk-w2", "bar")];
+    const visibility = {
+      ...defaultVenueKindVisibility(),
+      food: false,
+      restaurant: false,
+    };
+
+    expect(filterUkBasePubsByKind(pubs, visibility)).toBe(pubs);
+  });
+
+  it("filters parser-normalized pub and bar kinds with their matching toggles", () => {
+    const pubs = [
+      basePub("venue-uk-n1", "pub"),
+      basePub("venue-uk-w2", "bar"),
+      basePub("venue-uk-n3", "pub"),
+    ];
+    const original = pubs.map((pub) => ({ ...pub }));
+
+    expect(
+      filterUkBasePubsByKind(pubs, {
+        ...defaultVenueKindVisibility(),
+        bar: false,
+      }),
+    ).toEqual([pubs[0], pubs[2]]);
+    expect(
+      filterUkBasePubsByKind(pubs, {
+        ...defaultVenueKindVisibility(),
+        pub: false,
+      }),
+    ).toEqual([pubs[1]]);
+    expect(pubs).toEqual(original);
+  });
+
+  it("returns no UK base rows when both pub and bar filters are hidden", () => {
+    const pubs = [basePub("venue-uk-n1", "pub"), basePub("venue-uk-w2", "bar")];
+    const original = pubs.map((pub) => ({ ...pub }));
+
+    expect(
+      filterUkBasePubsByKind(pubs, {
+        ...defaultVenueKindVisibility(),
+        pub: false,
+        bar: false,
+      }),
+    ).toEqual([]);
+    expect(pubs).toEqual(original);
   });
 });

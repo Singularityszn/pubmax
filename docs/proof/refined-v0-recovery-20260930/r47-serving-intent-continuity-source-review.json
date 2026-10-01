@@ -1,0 +1,56 @@
+{
+  "artifact": "r47-serving-intent-continuity-source-review",
+  "checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "head": "6f7be486df3a35a00fbec410fdc6cb4bfde37ae2",
+  "scope": "Source-only inventory of serving-measure continuity. No code changed and no runtime, test, build, or browser command run.",
+  "findings": [
+    {
+      "topic": "Map serving selection and shared route URL are separate intents",
+      "evidence": [
+        "components/PubMap.tsx:1889-1911 reads Map lens drinkServingGroup from ?drink and ?serving, updates those params, and loads the group index.",
+        "components/PubMap.tsx:1932-1953 passes the selected group into discoveryDrinkLensPrices for the active Map lens.",
+        "lib/crawlUrl.ts:49-59 defines RouteDrinkIntent with drinkCategory and zeroProof only; routeDrinkIntentFromSearch reads routeDrink/routeLow.",
+        "components/map/useCrawlUrl.ts:42-52 retains ?serving only when the encoded ?drink category remains the same; CRAWL_CONTEXT_PARAMS owns routeDrink/routeLow separately at lines 91-98.",
+        "__tests__/mapCrawlUrlSync.test.tsx:558-596 covers same-category Map serving retention, category-change clearing, and independent route/lens intent."
+      ],
+      "assessment": "The public route URL does not encode a route-wide serving preference. It can preserve a Map lens serving filter independently when its drink category matches. Current source types do not define a plan-wide serving preference, so absence of such a preference is a contract boundary, not by itself a confirmed defect."
+    },
+    {
+      "topic": "Restored route rereads current prices by category, not by selected Map serving",
+      "evidence": [
+        "components/PubMap.tsx:1940-1949 uses the selected serving group for the Map lens price calculation.",
+        "components/PubMap.tsx:1954-1965 rereads a restored route using its category index and calls discoveryDrinkLensPrices without a serving group.",
+        "components/map/pubmap/useMapPlanCoordinator.ts:14-23 and 53-55 restore only category/zeroProof, route venue IDs, and a current-quote reread flag; restored budgets and quote evidence start empty.",
+        "__tests__/generatedMapRoutePricing.test.tsx:354-405 covers category-only route restoration, current exact-venue quote reread, unknown serving display, edits, and zero-proof. Its listed fixture has servingSize null."
+      ],
+      "assessment": "After URL restoration the route can display a fresh category quote whose own serving is reported, including 'Serving size not recorded'; it does not reapply the Map lens serving filter. This is consistent with the category-only route intent. A requirement to carry a selected serving across a shared route would need an explicit route/Plan contract and browser acceptance; it cannot be inferred from a quote's serving."
+    },
+    {
+      "topic": "A verified anchor quote can carry a source-backed serving into generation",
+      "evidence": [
+        "components/PubMap.tsx:3420-3432 attaches selectedDrinkPriceEvidence to accepted Stop 1 only when the selected lens quote matches the chosen serving group; a serving-filtered selection requires a listed quote.",
+        "lib/planGeneration.server.ts:312-330 re-resolves an accepted anchor hint against current authority and derives selectedServing only from the verified listed quote's category and serving.",
+        "lib/planGeneration.server.ts:335-375 filters same-group listed rows and supplies comparableDrinkPrices only when selectedServing is verified; absent a chosen verified measure, non-beer amounts are not ranking signals and community evidence cannot join that comparison.",
+        "lib/planSelectedDrinkPriceEvidence.ts:7-24, 70-94 models listed serving/source/date separately from community evidence, whose serving is always null."
+      ],
+      "assessment": "This preserves the observed measure of a currently verified listed anchor and uses that group for comparable route scoring. It does not turn an unverified or missing measure into personal preference. Without such an accepted listed anchor, no route-wide selected serving is represented."
+    },
+    {
+      "topic": "Map-to-Plan and saved Plan retain quote evidence per venue, not global serving preference",
+      "evidence": [
+        "lib/mapRouteTransfer.ts:20-44, 57-93 cleans and carries primary and alternative SelectedDrinkPriceEvidence per stop; response nightContext is carried separately.",
+        "lib/planRouteDraft.ts:34-69 defines route stops with per-stop evidence and a separate NightContext; ENVELOPE_KEYS, STOP_KEYS, and ALTERNATIVE_KEYS at lines 97-110 have no route-wide serving field.",
+        "lib/planRouteDraft.ts:168-220 retains evidence only when its category matches the plan context; write/read envelope functions at lines 415-525 persist and revalidate it.",
+        "components/plan/PlanComposer.tsx:1320-1322 derives category from accepted anchor evidence when needed; Plan UI at 2274-2275 renders each quote description, not a serving preference control.",
+        "__tests__/mapRouteTransfer.test.ts:156-168 and 187-207 covers listed serving preservation, community null serving, and malformed/private-field rejection. __tests__/planSelectedDrinkEvidenceCreate.test.ts:419-463 covers exact 250ml listed evidence on member PATCH and reload; lines 517-547 covers a verified fifth serving at create."
+      ],
+      "assessment": "A quote's listed serving, source URL, and observation time can survive transfer and saved-plan reload as quote provenance. Community evidence remains serving=null. These fields describe individual offers; neither is a person-level or route-wide measure choice."
+    }
+  ],
+  "contract_gap": "Source and unit-test coverage establish category-only shared route intent and per-stop quote evidence. They do not establish an end-to-end promise that a Map serving-filter choice survives generation and sharing as a Plan-wide preference. If that is intended acceptance, specify its scope and serialization separately from authoritative quote serving; do not copy a quote's measure onto unrelated stops.",
+  "verification_boundary": "Source and test definitions reviewed only. No test result or live Map/Plan/share/reload behavior claimed. Root owns the current completion-share browser RED and any resulting acceptance decision.",
+  "evidence_limits": [
+    "__tests__/planSelectedDrinkEvidenceCreate.test.ts mocks Supabase as unconfigured and asserts the memory plan store; it is not durable PostgreSQL evidence.",
+    "Referenced test files were inspected, not executed. No native Map/Plan share or reload result is claimed."
+  ]
+}

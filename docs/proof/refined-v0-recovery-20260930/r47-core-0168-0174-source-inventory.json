@@ -1,0 +1,540 @@
+{
+  "status": "FROZEN_SOURCE_INVENTORY_HISTORICAL_LOCAL_POSTGRES_PROOF_NOT_DEPLOYMENT_PROOF",
+  "capturedAt": "2026-10-01T07:17:16.388087+00:00",
+  "coreWorktree": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+  "releaseWorktreeReadOnly": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "ownership": "Only this new proof receipt written. No SQL, application, test, generated data, index/ref or runtime changes.",
+  "newActualSchemaEvidence": {
+    "authority": "Root release owner report relayed by parent; no independent DB access performed here",
+    "reported": "Production migration history ends0159/0160; plan_stops.selected_drink_price_evidence column absent; friend0175 table/RPC absent.",
+    "classification": "OWNER_REPORTED_ACTUAL_SCHEMA_INCOMPATIBLE_WITH_SELECTED_EVIDENCE_REQUIRED_RELEASE",
+    "limits": "Exact original live-query receipt path was not supplied/located in the bounded .audit source-file inventory. Retain owner report provenance rather than invent an independently verified query.",
+    "supersedes": "Prior r47-listed-durable-schema-source-gap.json actualDatabase UNKNOWN at its capture time. That frozen historical receipt is not rewritten."
+  },
+  "historicalAcceptance": {
+    "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+    "freeze": {
+      "path": "docs/proof/refined-v0-recovery-20260930/r46-final-source-freeze.json",
+      "sha256": "538c7d3e5e7f72542eeccaeedd7c15ea9002e75a3f71ecd5bc88e5994a25da12"
+    },
+    "receipt": {
+      "path": "docs/proof/refined-v0-recovery-20260930/r46-final-full-source-verify-receipt.json",
+      "sha256": "fedd02ff54084f4e584e5cbba0224f377a980d060be7b99fbb6beb4974d1ddd6"
+    },
+    "log": {
+      "path": "/tmp/pubmaxx-r46-final-full-source-verify.log",
+      "sha256": "e2086ebabb2eae644c1fbcbf27c89e261af1ef3c341a39bf1371e9725a2f2dbc",
+      "testRlsStartLine": 1696,
+      "summaryLines": [
+        2249,
+        2250
+      ],
+      "summary": "49 files /475 tests PASS in disposable local PostgreSQL; full verify exit0 historical receipt"
+    },
+    "notProofOf": "Current release composition, deployed schema, captain migration application or NULL-context listed PATCH."
+  },
+  "coreMigrations": [
+    {
+      "label": "0168",
+      "scope": "Listed evidence CHECK: separate exact community/listed source shapes; does not supply the prerequisite column.",
+      "files": [
+        {
+          "path": "supabase/migrations/20260929190000_0168_plan_listed_drink_evidence.sql",
+          "sha256": "b41f9ff16cb5ccd65b376871916918ca4209241d38c14f7d64b6b044d2b7802d",
+          "bytes": 3899,
+          "atHistoricalR46HeadSha256": "b41f9ff16cb5ccd65b376871916918ca4209241d38c14f7d64b6b044d2b7802d",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        },
+        {
+          "path": "supabase/migrations/rollback/20260929190000_0168_plan_listed_drink_evidence_rollback.sql",
+          "sha256": "7c5e94515495ef234cf5e26d9b79ce460fd0e3ecf1f7c36bdf7a1d154bcba154",
+          "bytes": 2553,
+          "atHistoricalR46HeadSha256": "7c5e94515495ef234cf5e26d9b79ce460fd0e3ecf1f7c36bdf7a1d154bcba154",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        }
+      ],
+      "rollbackCost": "Rollback discards listed evidence only and restores community-only CHECK.",
+      "effectiveTests": [
+        {
+          "path": "__tests__/planListedEvidenceMigrationEffective.test.ts",
+          "sha256": "d3133ff27a36814b311d78dfb87fe19a32b87d707af4293a4c217e5e856b19a6",
+          "R46FrozenSha256": "d3133ff27a36814b311d78dfb87fe19a32b87d707af4293a4c217e5e856b19a6",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 2041,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > reproduces listed evidence refusal before migration 70ms"
+            },
+            {
+              "line": 2042,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > round trips listed citation and explicit or unknown serving without widening community 163ms"
+            },
+            {
+              "line": 2044,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > rejects fabricated fields, unsafe citation, bad date, and source-shape crossing 152ms"
+            },
+            {
+              "line": 2045,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > persists current approved bundle wine and cocktail citations through atomic Plan creation 139ms"
+            },
+            {
+              "line": 2047,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > rollback clears only listed evidence and restores community-only constraint 324ms"
+            },
+            {
+              "line": 2048,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0174 backup persistence and locked context > reproduces stale proposal evidence and lost backups, then fixes every write and rolls back 820ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        }
+      ]
+    },
+    {
+      "label": "0169",
+      "scope": "Private completion-time account membership snapshot, deletion erasure, aggregate weekly/28-day-repeat function; older completions remain unmeasured.",
+      "files": [
+        {
+          "path": "supabase/migrations/20260929235900_0169_completion_group_snapshot.sql",
+          "sha256": "f262c11335bb9bf6eead50d371511a2480a99461085558e7b98d81db697677e4",
+          "bytes": 6189,
+          "atHistoricalR46HeadSha256": "f262c11335bb9bf6eead50d371511a2480a99461085558e7b98d81db697677e4",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        },
+        {
+          "path": "supabase/migrations/rollback/20260929235900_0169_completion_group_snapshot_rollback.sql",
+          "sha256": "9347ed2d834f57e64fb3d40b8f6159e98d70a2df92512a38132979c49efa7ddc",
+          "bytes": 643,
+          "atHistoricalR46HeadSha256": "9347ed2d834f57e64fb3d40b8f6159e98d70a2df92512a38132979c49efa7ddc",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        }
+      ],
+      "rollbackCost": "Rollback erases private snapshots irreversibly; changed rosters cannot reconstruct them.",
+      "effectiveTests": [
+        {
+          "path": "__tests__/completionGroupSnapshotEffective.test.ts",
+          "sha256": "5547e100ab283ac5fc11df8453b70189f541d4d286ccb3d3b005723ce47919e7",
+          "R46FrozenSha256": "5547e100ab283ac5fc11df8453b70189f541d4d286ccb3d3b005723ce47919e7",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 1709,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > leaves older completions unmeasured even when their roster changes 29ms"
+            },
+            {
+              "line": 1712,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > keeps membership fixed after roster changes but erases links on account or Plan deletion 269ms"
+            },
+            {
+              "line": 1713,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > records solo and anonymous completions as measured non-groups 200ms"
+            },
+            {
+              "line": 1730,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > counts active Social Crew accounts and excludes removed members 230ms"
+            },
+            {
+              "line": 1731,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > reports only aggregate ISO-week group completions and 28-day repeats 344ms"
+            },
+            {
+              "line": 1737,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > matches a repeat after two account members acquire Social identities 169ms"
+            },
+            {
+              "line": 1823,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > captures one group when the host completes the same Plan concurrently 1580ms"
+            },
+            {
+              "line": 1828,
+              "text": "\u2713 __tests__/completionGroupSnapshotEffective.test.ts > 0169 private completion membership snapshot > denies client roles and removes snapshot machinery on rollback 105ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        }
+      ]
+    },
+    {
+      "label": "0170",
+      "scope": "Verified Social owner completion atomic RPC; explicit arrival and terminal outcome same transaction.",
+      "files": [
+        {
+          "path": "supabase/migrations/20260930090000_0170_social_crew_completion.sql",
+          "sha256": "05c2de0a915fd5938b4f18d262f1409f6feaa40088539fef8a51b5d72d894758",
+          "bytes": 5180,
+          "atHistoricalR46HeadSha256": "05c2de0a915fd5938b4f18d262f1409f6feaa40088539fef8a51b5d72d894758",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        },
+        {
+          "path": "supabase/migrations/rollback/20260930090000_0170_social_crew_completion_rollback.sql",
+          "sha256": "3f2f62dcd0c51bbb5d56478bbcd6209d8b182200efb435218a4cf72cc5772876",
+          "bytes": 293,
+          "atHistoricalR46HeadSha256": "3f2f62dcd0c51bbb5d56478bbcd6209d8b182200efb435218a4cf72cc5772876",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        }
+      ],
+      "rollbackCost": "Rollback removes Social completion RPC; completed records/snapshots remain.",
+      "effectiveTests": [
+        {
+          "path": "__tests__/socialCrewCompletionEffective.test.ts",
+          "sha256": "583559d283e5fc5e7e37a3b200c7248332c3d5e5ce983c1445b3871156898de9",
+          "R46FrozenSha256": "583559d283e5fc5e7e37a3b200c7248332c3d5e5ce983c1445b3871156898de9",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 1879,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > refuses nonowners and stale revisions without a side effect 136ms"
+            },
+            {
+              "line": 1885,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > serializes two service-role owner completions into one private group snapshot 1315ms"
+            },
+            {
+              "line": 1886,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > excludes an identity when auth deletion cleanup precedes concurrent completion 153ms"
+            },
+            {
+              "line": 1887,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > erases a snapshot when completion commits before concurrent auth deletion 142ms"
+            },
+            {
+              "line": 1888,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > omits a deleted Social member from a later authorized completion 114ms"
+            },
+            {
+              "line": 1889,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > requires an existing auth identity for a classic member at completion 123ms"
+            },
+            {
+              "line": 1890,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > does not grant clients direct completion access 16ms"
+            },
+            {
+              "line": 1892,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > removes the write path on rollback without erasing completed records 105ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        },
+        {
+          "path": "__tests__/ownerDeletionRace.test.ts",
+          "sha256": "63fb3dd3c570b96cc8862562de44c294cc42d555dd7c1d4999f54850e089bcae",
+          "R46FrozenSha256": "63fb3dd3c570b96cc8862562de44c294cc42d555dd7c1d4999f54850e089bcae",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 2094,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > finishes social completion before deleting claimed owner without deadlock 179ms"
+            },
+            {
+              "line": 2096,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > finishes classic completion before deleting claimed owner without deadlock 184ms"
+            },
+            {
+              "line": 2097,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > settles social owner deletion before completion capture 152ms"
+            },
+            {
+              "line": 2098,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > settles classic owner deletion before completion capture 184ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        }
+      ]
+    },
+    {
+      "label": "0171",
+      "scope": "Bounded stop alternatives JSON column (<=24) and create RPC persistence.",
+      "files": [
+        {
+          "path": "supabase/migrations/20260929200000_0171_plan_route_alternatives.sql",
+          "sha256": "909b83eebc29952ce42dc971d17bb2b71243c6ad0a76deac4651e8922465e6c7",
+          "bytes": 2210,
+          "atHistoricalR46HeadSha256": "909b83eebc29952ce42dc971d17bb2b71243c6ad0a76deac4651e8922465e6c7",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        },
+        {
+          "path": "supabase/migrations/rollback/20260929200000_0171_plan_route_alternatives_rollback.sql",
+          "sha256": "36bc8fac1f469adbd7459d1d0002db8617e99138627d97b0ff6eb072342cd116",
+          "bytes": 1955,
+          "atHistoricalR46HeadSha256": "36bc8fac1f469adbd7459d1d0002db8617e99138627d97b0ff6eb072342cd116",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        }
+      ],
+      "rollbackCost": "Rollback drops saved alternatives/evidence and restores previous create RPC.",
+      "effectiveTests": [
+        {
+          "path": "__tests__/planListedEvidenceMigrationEffective.test.ts",
+          "sha256": "d3133ff27a36814b311d78dfb87fe19a32b87d707af4293a4c217e5e856b19a6",
+          "R46FrozenSha256": "d3133ff27a36814b311d78dfb87fe19a32b87d707af4293a4c217e5e856b19a6",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 2041,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > reproduces listed evidence refusal before migration 70ms"
+            },
+            {
+              "line": 2042,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > round trips listed citation and explicit or unknown serving without widening community 163ms"
+            },
+            {
+              "line": 2044,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > rejects fabricated fields, unsafe citation, bad date, and source-shape crossing 152ms"
+            },
+            {
+              "line": 2045,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > persists current approved bundle wine and cocktail citations through atomic Plan creation 139ms"
+            },
+            {
+              "line": 2047,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > rollback clears only listed evidence and restores community-only constraint 324ms"
+            },
+            {
+              "line": 2048,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0174 backup persistence and locked context > reproduces stale proposal evidence and lost backups, then fixes every write and rolls back 820ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        }
+      ]
+    },
+    {
+      "label": "0172",
+      "scope": "Proposal acceptance uses locked current Plan context and filters incompatible evidence.",
+      "files": [
+        {
+          "path": "supabase/migrations/20260929230000_0172_plan_proposal_current_context_evidence.sql",
+          "sha256": "18ca2a57b80f88d209a0aad1ce769a14477d917171812fdb105177fbbf3ed62f",
+          "bytes": 4323,
+          "atHistoricalR46HeadSha256": "18ca2a57b80f88d209a0aad1ce769a14477d917171812fdb105177fbbf3ed62f",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        },
+        {
+          "path": "supabase/migrations/rollback/20260929230000_0172_plan_proposal_current_context_evidence_rollback.sql",
+          "sha256": "de4a62dcefa369b02102951277fed72527da2fb67703d2a29848684bc810af50",
+          "bytes": 4064,
+          "atHistoricalR46HeadSha256": "de4a62dcefa369b02102951277fed72527da2fb67703d2a29848684bc810af50",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        }
+      ],
+      "rollbackCost": "Rollback restores old future acceptance behavior without rewriting accepted stops.",
+      "effectiveTests": [
+        {
+          "path": "__tests__/planProposalCurrentContextMigrationEffective.test.ts",
+          "sha256": "f9959518b600817eb3d00f9032ca9fbd59d240760b2b8ec2d4b0513c20b2f52d",
+          "R46FrozenSha256": "f9959518b600817eb3d00f9032ca9fbd59d240760b2b8ec2d4b0513c20b2f52d",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 1891,
+              "text": "\u2713 __tests__/planProposalCurrentContextMigrationEffective.test.ts > 0172 proposal evidence follows locked Plan context > reproduces stale proposal evidence after wine intent becomes beer 96ms"
+            },
+            {
+              "line": 1897,
+              "text": "\u2713 __tests__/planProposalCurrentContextMigrationEffective.test.ts > 0172 proposal evidence follows locked Plan context > uses current context when accepting an old proposal 378ms"
+            },
+            {
+              "line": 1899,
+              "text": "\u2713 __tests__/planProposalCurrentContextMigrationEffective.test.ts > 0172 proposal evidence follows locked Plan context > waits for a concurrent context edit before choosing proposal evidence 1575ms"
+            },
+            {
+              "line": 1904,
+              "text": "\u2713 __tests__/planProposalCurrentContextMigrationEffective.test.ts > 0172 proposal evidence follows locked Plan context > rollback restores old future writes without changing accepted stops 133ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        }
+      ]
+    },
+    {
+      "label": "0173",
+      "scope": "Active existing auth identities only, ordered identity-before-Plan locking across completion entry points and snapshot capture.",
+      "files": [
+        {
+          "path": "supabase/migrations/20260930110000_0173_completion_group_active_accounts.sql",
+          "sha256": "2bbb99ec0ec66e258e84633859460c368781830341a38674ba47c5d2bc3f9709",
+          "bytes": 10461,
+          "atHistoricalR46HeadSha256": "2bbb99ec0ec66e258e84633859460c368781830341a38674ba47c5d2bc3f9709",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        },
+        {
+          "path": "supabase/migrations/rollback/20260930110000_0173_completion_group_active_accounts_rollback.sql",
+          "sha256": "1005da025b1e5a1e0385c4802badda748f803bfa0371f7ff3eb1beba697f97d4",
+          "bytes": 7601,
+          "atHistoricalR46HeadSha256": "1005da025b1e5a1e0385c4802badda748f803bfa0371f7ff3eb1beba697f97d4",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        }
+      ],
+      "rollbackCost": "Rollback restores older capture rule which can include suspended Social seats.",
+      "effectiveTests": [
+        {
+          "path": "__tests__/socialCrewCompletionEffective.test.ts",
+          "sha256": "583559d283e5fc5e7e37a3b200c7248332c3d5e5ce983c1445b3871156898de9",
+          "R46FrozenSha256": "583559d283e5fc5e7e37a3b200c7248332c3d5e5ce983c1445b3871156898de9",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 1879,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > refuses nonowners and stale revisions without a side effect 136ms"
+            },
+            {
+              "line": 1885,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > serializes two service-role owner completions into one private group snapshot 1315ms"
+            },
+            {
+              "line": 1886,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > excludes an identity when auth deletion cleanup precedes concurrent completion 153ms"
+            },
+            {
+              "line": 1887,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > erases a snapshot when completion commits before concurrent auth deletion 142ms"
+            },
+            {
+              "line": 1888,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > omits a deleted Social member from a later authorized completion 114ms"
+            },
+            {
+              "line": 1889,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > requires an existing auth identity for a classic member at completion 123ms"
+            },
+            {
+              "line": 1890,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > does not grant clients direct completion access 16ms"
+            },
+            {
+              "line": 1892,
+              "text": "\u2713 __tests__/socialCrewCompletionEffective.test.ts > Social Crew completion through authorized RPC > removes the write path on rollback without erasing completed records 105ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        },
+        {
+          "path": "__tests__/ownerDeletionRace.test.ts",
+          "sha256": "63fb3dd3c570b96cc8862562de44c294cc42d555dd7c1d4999f54850e089bcae",
+          "R46FrozenSha256": "63fb3dd3c570b96cc8862562de44c294cc42d555dd7c1d4999f54850e089bcae",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 2094,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > finishes social completion before deleting claimed owner without deadlock 179ms"
+            },
+            {
+              "line": 2096,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > finishes classic completion before deleting claimed owner without deadlock 184ms"
+            },
+            {
+              "line": 2097,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > settles social owner deletion before completion capture 152ms"
+            },
+            {
+              "line": 2098,
+              "text": "\u2713 __tests__/ownerDeletionRace.test.ts > settles classic owner deletion before completion capture 184ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        }
+      ]
+    },
+    {
+      "label": "0174",
+      "scope": "Context-aware selected/backup evidence on proposal, context update and route replacement; persists backups.",
+      "files": [
+        {
+          "path": "supabase/migrations/20260929230100_0174_plan_backup_context_evidence.sql",
+          "sha256": "c44e29f28424672095716d0af142d345cd9fb284bf9d43c749ddacb4a1bcaaee",
+          "bytes": 9853,
+          "atHistoricalR46HeadSha256": "c44e29f28424672095716d0af142d345cd9fb284bf9d43c749ddacb4a1bcaaee",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        },
+        {
+          "path": "supabase/migrations/rollback/20260929230100_0174_plan_backup_context_evidence_rollback.sql",
+          "sha256": "164026f2fd343edbc85da7956d06749b0821874112742373f7b46773bf2ba044",
+          "bytes": 8550,
+          "atHistoricalR46HeadSha256": "164026f2fd343edbc85da7956d06749b0821874112742373f7b46773bf2ba044",
+          "sameAsHistoricalR46Head": true,
+          "exactPathPresentInRelease": false
+        }
+      ],
+      "rollbackCost": "Rollback restores previous three write RPCs and drops evidence-context helper; NULL-context gap remains in forward source.",
+      "effectiveTests": [
+        {
+          "path": "__tests__/planListedEvidenceMigrationEffective.test.ts",
+          "sha256": "d3133ff27a36814b311d78dfb87fe19a32b87d707af4293a4c217e5e856b19a6",
+          "R46FrozenSha256": "d3133ff27a36814b311d78dfb87fe19a32b87d707af4293a4c217e5e856b19a6",
+          "sameAsR46FrozenTest": true,
+          "historicalLocalPostgresPassLines": [
+            {
+              "line": 2041,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > reproduces listed evidence refusal before migration 70ms"
+            },
+            {
+              "line": 2042,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > round trips listed citation and explicit or unknown serving without widening community 163ms"
+            },
+            {
+              "line": 2044,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > rejects fabricated fields, unsafe citation, bad date, and source-shape crossing 152ms"
+            },
+            {
+              "line": 2045,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > persists current approved bundle wine and cocktail citations through atomic Plan creation 139ms"
+            },
+            {
+              "line": 2047,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0168 listed Plan evidence storage > rollback clears only listed evidence and restores community-only constraint 324ms"
+            },
+            {
+              "line": 2048,
+              "text": "\u2713 __tests__/planListedEvidenceMigrationEffective.test.ts > 0174 backup persistence and locked context > reproduces stale proposal evidence and lost backups, then fixes every write and rolls back 820ms"
+            }
+          ],
+          "runtimeNow": "UNRUN"
+        }
+      ]
+    }
+  ],
+  "applyOrder": "Timestamp order, not label order:0168,0171,0172,0174,0169,0170,0173. Full required prerequisite lineage must be reconciled by SQL owner; these seven files cannot create the missing selected evidence column alone.",
+  "releaseCollision": {
+    "path": "supabase/migrations/20260930120000_0168_plan_proposal_context_evidence.sql",
+    "sha256": "66bedcbfd6ece06073153755dfae2da8e605799e1e5f18fe4f4058928ce59071",
+    "meaning": "Release0168 already owns proposal-current-context evidence. Do not copy Core0168 under duplicate label or overwrite release history; reconcile semantics and assign collision-safe new migration only with effective proof/captain approval."
+  },
+  "continuityStillOpen": [
+    {
+      "boundary": "Current memory update",
+      "source": "active release lib/planStore.ts:784-790; independently read in this source-only review",
+      "status": "Stored NULL context causes evidence sanitizer to omit LISTED; 810 fixes create helper/Composer only. Luna owns meaningful mounted/route PATCH test-first. No memory production change authorized/executed here.",
+      "sourceSha256": "2ed2ace63318993df520abbdadd572ca9b42b7ec527f8b58708c713c2650576a"
+    },
+    {
+      "boundary": "Durable route replacement",
+      "source": "release0167:52-60; Core0174:4-10,204-210",
+      "status": "nonnull category IS DISTINCT FROM NULL context category strips selected/backup evidence. Historical0174 fixtures use nonnull stored wine context, so replace(NULL argument) is not stored-NULL coverage."
+    },
+    {
+      "boundary": "Durable CREATE",
+      "source": "release0106:22-43 +0162:37-40; lib/planStore.ts:297-318",
+      "status": "Wrapper calls base create and returns when p_context NULL; source does not strip quote. Missing column/CHECK migration must first exist, then actual effective PostgreSQL NULL-context create/replay/reload test required."
+    }
+  ],
+  "nextOwnerActions": [
+    "Release SQL audit owner maps exact main/Core/deployed lineage and prerequisites. Captain alone applies approved migrations.",
+    "Add effective PostgreSQL listed create with SQL NULL context and separate stored-NULL PATCH RED before any SQL correction.",
+    "Luna/Root actual memory PATCH RED precedes separate memory update repair; preserve category override, zeroProof, community, server exact revalidation, privacy/idempotency."
+  ],
+  "runtimeExecutedHere": false
+}

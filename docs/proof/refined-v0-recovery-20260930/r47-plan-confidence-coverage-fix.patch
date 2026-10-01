@@ -1,0 +1,15 @@
+--- a/lib/planGeneration.server.ts
++++ b/lib/planGeneration.server.ts
+@@ -336,7 +336,11 @@
+ 	const drinkPriceCoverageNote = requestedCategory
+ 		? drinkLensCoverageNote(
+ 			CATEGORY_META[requestedCategory].label.toLowerCase(),
+-			categoryPriceRows.degraded ? "degraded" : categoryPriceRows.truncated ? "partial" : "ready",
++			categoryPriceRows.degraded || listedPriceIndex?.degraded
++				? "degraded"
++				: categoryPriceRows.truncated || listedPriceIndex?.truncated
++					? "partial"
++					: "ready",
+ 		)
+ 		: null;
+ 	const venues = await loadConciergeVenues(cityId);

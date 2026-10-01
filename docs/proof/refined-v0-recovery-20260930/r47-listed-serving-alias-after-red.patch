@@ -1,0 +1,18 @@
+--- a/lib/listedCategoryPrices.ts
++++ b/lib/listedCategoryPrices.ts
+@@ -1,4 +1,3 @@
+-import { bundleRowDedupeDrinkKey } from "@/lib/bundleDrinkFields";
+ import {
+   DRINK_CATEGORIES,
+   isDrinkCategory,
+@@ -92,9 +91,7 @@
+   const currentByDrink = new Map<string, (typeof eligible)[number]>();
+   const unnamed: (typeof eligible)[number][] = [];
+   for (const entry of eligible) {
+-    const drinkKey = entry.row.drinkLabel?.trim()
+-      ? bundleRowDedupeDrinkKey(entry.row)
+-      : "";
++    const drinkKey = entry.row.drinkLabel?.trim().toLowerCase() ?? "";
+     if (!drinkKey) {
+       unnamed.push(entry);
+       continue;

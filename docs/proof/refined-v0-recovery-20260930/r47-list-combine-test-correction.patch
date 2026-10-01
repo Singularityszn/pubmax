@@ -1,0 +1,13 @@
+diff --git a/__tests__/mapVenueList.test.ts b/__tests__/mapVenueList.test.ts
+index b2c40d8af..57af80f89 100644
+--- a/__tests__/mapVenueList.test.ts
++++ b/__tests__/mapVenueList.test.ts
+@@ -647,7 +647,7 @@ describe("listed category amounts rank only within the reader's selected serving
+       pub: base, lensPrice: { source: "listed", priceGbp: 4.1, servingSize: "25ml",
+         sourceUrl: "https://pub.example/drinks", observedAt: now },
+     });
+-    expect(combineMapVenueListRows(curated, bases, "cheapest").map((row) => row.id))
++    expect(combineMapVenueListRows(curated.rows, bases.rows, "cheapest").map((row) => row.id))
+       .toEqual([base.id, "curated", unknown.id]);
+     expect(bases.rows.find((row) => row.id === unknown.id)?.priceLabel).not.toMatch(/£/);
+   });

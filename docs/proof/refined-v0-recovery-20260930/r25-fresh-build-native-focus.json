@@ -1,0 +1,11 @@
+{
+  "recordedAt": "2026-09-30T13:32:18.541367+00:00",
+  "buildId": "build-TfctsWXpff2fKS",
+  "sourceChanges": [],
+  "sourceFiles": 2464,
+  "focusedExitCode": 0,
+  "originalManchesterClusterJourney": "PASS12.6s",
+  "originalSWTakoverQuotaPurgeOfflineRevealJourney": "PASS8.9s",
+  "durationSeconds": 45.6,
+  "configuration": "Declared Playwright E2E primary fresh production build on3351; fake provider-shaped keylessstores, not live production/provider/physical GPS."
+}

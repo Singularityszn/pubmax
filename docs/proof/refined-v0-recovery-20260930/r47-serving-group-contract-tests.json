@@ -1,0 +1,50 @@
+{
+  "status": "SOURCE_ONLY_TESTS_UNRUN",
+  "patchSha256": "0fd3ff64ce0f67a6bd2a93230c01b63de824f2d30463c2a10470ddba59b761f4",
+  "bytes": 6508,
+  "files": [
+    {
+      "path": "__tests__/listedDiscoveryIndex.test.ts",
+      "beforeSha256": "cedaeecf6032882350adf91196092bf113cd68abb3c68ec642b05121ac5a4170",
+      "afterSha256": "fe9a74eacb923599895070279d7f15795b0cb0c3bfd0c945f5e705267aa481f8"
+    },
+    {
+      "path": "__tests__/mapVenueList.test.ts",
+      "beforeSha256": "49f4cc3dcde3cd27b22ba491fea5b73f0c103b4948f44590def71fbcc505c9c6",
+      "afterSha256": "b3de51c0e8be8eec060e002665d3e400124463dbe0908767cf75dd1ad5de0a88"
+    },
+    {
+      "path": "__tests__/mapVenueListComponent.test.ts",
+      "beforeSha256": "36b72112fe01b51c8bb83ccdcb09cdc607426cc47f603859ad1adc85cd88ec17",
+      "afterSha256": "950b9561f640c4de91446b5d8aedcee61fca4751f6fd8a6290c371737ee7c17d"
+    }
+  ],
+  "nativeRed": {
+    "owner": "Root IAB actual3371 production build",
+    "time": "2026-10-01T05:01:20Z",
+    "viewport": "1440x900; subsequently390",
+    "symptom": "Gin Cheapest ranks unknown2/3.50/4 against printed25ml4.20; no serving choices/row provenance/base offers",
+    "proof": ".audit/overnight-20261001/category-gin-cheapest-before-1440.json"
+  },
+  "tests": [
+    "Exact selected printed serving filtered before1000cap; available approved groups independent of cap and no stale35ml group",
+    "Selected group keeps1000cap and truthful truncation",
+    "Unknown/different servings remain visible but cannot amount-rank ahead of exact25ml offers",
+    "Base exact-ID approved offer keeps source/measure/date; base+curated comparable offers sorted together; unpriced base stays without invented amount",
+    "Existing DrinkLanePicker rendering exposes only source-stated25/50ml choices plus unranked state, existing44px class family intended"
+  ],
+  "fixtureLimits": [
+    "Synthetic named gin publisher fixtures encode domain contract, not live claims or invented real wine pairs",
+    "SSR control rendering is not native click/history/focus proof; Root future native acceptance required",
+    "Test new optional function/prop args intentionally require production changes; new combineMapVenueListRows is existing list-owner helper, not runtime or trust framework",
+    "No API/group browser or Plan category ranking proof; minimum Map selected evidence handoff only, Plan generator remains separate category-only gap"
+  ],
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFiles": true,
+    "runtime": false
+  },
+  "focusedCommand": "npx vitest run __tests__/listedDiscoveryIndex.test.ts __tests__/mapVenueList.test.ts __tests__/mapVenueListComponent.test.ts",
+  "expectedRed": "Inference until owner executes; current reader ignores3rd selectedserving arg, list ranks raw lensamount, base model omits offer, picker omits group choices",
+  "productionOwner": "This agent scratch only AFTER actual focused RED; Root maintained application/runtime, Luna3Planlibs separate"
+}

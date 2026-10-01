@@ -1,0 +1,486 @@
+diff --git a/__tests__/mapRouteTransfer.test.ts b/__tests__/mapRouteTransfer.test.ts
+--- a/__tests__/mapRouteTransfer.test.ts
++++ b/__tests__/mapRouteTransfer.test.ts
+@@ -3,6 +3,7 @@
+ 
+ import {
+   mapGeneratedRouteDraftValue,
++  mapCurrentRouteDraftValue,
+   transferMapRouteToDraft,
+   type MapGeneratedRouteResponse,
+ } from "@/lib/mapRouteTransfer";
+@@ -10,6 +11,7 @@
+   PLAN_ROUTE_DRAFT_V2_KEY,
+   readPlanRouteDraftEnvelope,
+ } from "@/lib/planRouteDraft";
++import { mintPlanGroundingProof, verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+ import { createWebMcpBoard, publishWebMcpRoute, writeWebMcpRouteToPlanDraft } from "@/lib/webmcp/board";
+ 
+ const NOW = Date.parse("2026-07-24T12:00:00.000Z");
+@@ -218,3 +220,104 @@
+   });
+ 
+ });
++
++
++describe("current displayed Map route transfer", () => {
++  const reversed = [
++    { id: "venue-c", name: "Venue C" }, { id: "venue-b", name: "Venue B" }, { id: "venue-a", name: "Venue A" },
++  ];
++
++  it("leaves an unchanged response draft and proof intact", () => {
++    const response = evidenceResponse();
++    const original = mapGeneratedRouteDraftValue(response)!;
++    expect(mapCurrentRouteDraftValue(response, original.stops.map((stop) => ({ id: stop.venueId, name: stop.venueName }))))
++      .toEqual(original);
++  });
++
++  it("transfers actual reversed order with original per-stop and backup quotes and a valid V1 candidate proof", () => {
++    const response = evidenceResponse();
++    const proof = mintPlanGroundingProof(["venue-a", "venue-b", "venue-c", "venue-x", "venue-y"], "operation-1", NOW);
++    response.groundingProof = proof;
++    const original = mapGeneratedRouteDraftValue(response)!;
++    const storage = memoryStorage();
++    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(true);
++    const value = readPlanRouteDraftEnvelope(storage, NOW)!.value;
++    expect(value.stops.map((stop) => stop.venueId)).toEqual(["venue-c", "venue-b", "venue-a"]);
++    expect(value.stops.map((stop) => stop.selectedDrinkPriceEvidence)).toEqual([...original.stops].reverse().map((stop) => stop.selectedDrinkPriceEvidence));
++    expect(value.stops.map((stop) => stop.alternatives)).toEqual([...original.stops].reverse().map((stop) => stop.alternatives));
++    expect(value.groundingProof).toBe(proof);
++    expect(value.operationKey).toBe("operation-1");
++    expect(verifyPlanGroundingProof(value.groundingProof, value.stops.map((stop) => stop.venueId), value.operationKey!, NOW)).toBe(true);
++    expect(verifyPlanGroundingProof(value.groundingProof, ["venue-c", "venue-b", "venue-unknown"], value.operationKey!, NOW)).toBe(false);
++    expect(value).toMatchObject({ routeTotals: null, transportBasis: null, planningConfidence: null, routeRevision: null, routeStale: false });
++    expect(value.nightContext?.drinkCategory).toBe("wine");
++  });
++
++  it("keeps edited current identities and requested drink as a refreshable preview, without resurrecting captured proof or quotes", () => {
++    const storage = memoryStorage();
++    expect(transferMapRouteToDraft(evidenceResponse(), storage, NOW, [
++      { id: "venue-new", name: "New Venue" }, { id: "venue-b", name: "Venue B" },
++    ])).toBe(true);
++    const value = readPlanRouteDraftEnvelope(storage, NOW)!.value;
++    expect(value.stops).toEqual([
++      { key: 1, venueId: "venue-new", venueName: "New Venue", alternatives: [] },
++      { key: 2, venueId: "venue-b", venueName: "Venue B", alternatives: [] },
++    ]);
++    expect(value.nightContext).toMatchObject({ drinkCategory: "wine", stopCount: 2 });
++    expect(value).toMatchObject({ groundingProof: null, operationKey: null, routeRevision: null, routeStale: true, routeTotals: null, planningConfidence: null });
++    expect(value.warnings).toEqual(["You changed this route. Review a refreshed route before locking it in."]);
++  });
++
++  it("never silently releases an accepted Stop 1, but explicit release carries the actual route as a stale preview", () => {
++    const response = evidenceResponse();
++    Object.assign(response, { outcome: "route", anchored: true, anchorVenueId: "venue-a", anchorSource: "near" });
++    const storage = memoryStorage();
++    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(false);
++    expect(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
++    expect(transferMapRouteToDraft(response, storage, NOW, reversed, true)).toBe(true);
++    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value).toMatchObject({
++      anchorVenueId: null, anchorSource: null, outcome: "unanchored", groundingProof: null, operationKey: null, routeStale: true,
++    });
++    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value.stops.map((stop) => stop.venueId)).toEqual(["venue-c", "venue-b", "venue-a"]);
++  });
++
++  it("retires an anchored changed-order proof even when its held Stop 1 remains first", () => {
++    const response = generateResponse({ outcome: "route", anchored: true, anchorVenueId: "venue-a", anchorSource: "near" });
++    const storage = memoryStorage();
++    expect(transferMapRouteToDraft(response, storage, NOW, [
++      { id: "venue-a", name: "Venue A" }, { id: "venue-c", name: "Venue C" }, { id: "venue-b", name: "Venue B" },
++    ])).toBe(true);
++    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value).toMatchObject({
++      anchorVenueId: "venue-a", anchorSource: "near", outcome: "route", groundingProof: null, routeStale: true,
++    });
++  });
++
++  it.each(["expired", "malformed"] as const)("keeps an %s proof from authorizing the reversed preview", (kind) => {
++    const response = generateResponse({ groundingProof: kind === "expired" ? fakeProof(NOW - 1) : "malformed.signature" });
++    const storage = memoryStorage();
++    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(true);
++    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value).toMatchObject({ groundingProof: null, routeStale: true });
++    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value.stops.map((stop) => stop.venueId)).toEqual(["venue-c", "venue-b", "venue-a"]);
++  });
++
++  it("preserves zero-proof intent and never transfers an alcoholic price", () => {
++    const response = evidenceResponse();
++    response.inferredContext = { ...(response.inferredContext as Record<string, unknown>), zeroProof: true };
++    const storage = memoryStorage();
++    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(true);
++    const value = readPlanRouteDraftEnvelope(storage, NOW)!.value;
++    expect(value.nightContext?.zeroProof).toBe(true);
++    expect(value.stops.every((stop) => !stop.selectedDrinkPriceEvidence && stop.alternatives.every((alt) => !alt.selectedDrinkPriceEvidence))).toBe(true);
++  });
++
++  it("refuses duplicate or empty displayed routes without overwriting a saved draft", () => {
++    const storage = memoryStorage();
++    expect(transferMapRouteToDraft(generateResponse(), storage, NOW)).toBe(true);
++    const previous = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
++    for (const route of [[], [{ id: "venue-a", name: "A" }, { id: "venue-a", name: "A" }]]) {
++      expect(transferMapRouteToDraft(generateResponse(), storage, NOW, route)).toBe(false);
++      expect(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(previous);
++    }
++    expect(transferMapRouteToDraft(generateResponse(), memoryStorage({ alwaysThrow: true }), NOW, reversed)).toBe(false);
++  });
++});
+diff --git a/__tests__/mapRouteTransferButton.test.ts b/__tests__/mapRouteTransferButton.test.ts
+--- a/__tests__/mapRouteTransferButton.test.ts
++++ b/__tests__/mapRouteTransferButton.test.ts
+@@ -1,8 +1,15 @@
+-import { createElement } from "react";
++// @vitest-environment jsdom
++
++import { act, createElement } from "react";
++import { createRoot } from "react-dom/client";
+ import { renderToStaticMarkup } from "react-dom/server";
+-import { describe, expect, it } from "vitest";
++import { describe, expect, it, vi } from "vitest";
+ 
+ import { MapRouteTransferButton, type MapRouteResponse } from "@/components/plan/MapRouteTransferButton";
++
++import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
++import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
++import { createPlanningIntent, PLANNING_INTENT_STORAGE_KEY, readPlanningIntent } from "@/lib/planningIntent";
+ 
+ const response: MapRouteResponse = {
+   groundingProof: "payload.signature",
+@@ -26,3 +33,77 @@
+     expect(withRoute).toBe(noRoute);
+   });
+ });
++
++
++it("blocks navigation on a failed current-route write and leaves an actionable retry with no captured-route fallback", async () => {
++  const container = document.createElement("div");
++  document.body.append(container);
++  const root = createRoot(container);
++  const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => { throw new Error("storage denied"); });
++  try {
++    await act(async () => root.render(createElement(MapRouteTransferButton, {
++      response,
++      displayedRoute: [{ id: "venue-a", name: "Venue A" }],
++    })));
++    const link = container.querySelector("a")!;
++    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
++    await act(async () => { link.dispatchEvent(click); });
++    expect(click.defaultPrevented).toBe(true);
++    expect(container.querySelector('[role="alert"]')?.textContent).toBe("Could not carry this route to Plan. Your route is still here. Try again.");
++    expect(container.querySelector("a")?.textContent).toBe("Open Plan to lock it in");
++    expect(container.querySelector("a")?.getAttribute("href")).toBe("/plan?src=mobile-route-preview");
++  } finally {
++    setItem.mockRestore();
++    await act(async () => root.unmount());
++    container.remove();
++  }
++});
++
++
++it("preserves all acceptance owners on a blocked move, then releases them explicitly while carrying the displayed route", async () => {
++  const now = Date.now();
++  const expiresAt = new Date(now + 60 * 60 * 1000).toISOString();
++  const intent = createPlanningIntent({
++    source: "near", cityId: "london", acceptedVenueId: "venue-a",
++    acceptedArea: { kind: "night-patch", id: "soho" }, startsAt: null,
++    displayEvidence: { kind: "directory", observedAt: null },
++  }, now);
++  window.localStorage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(intent));
++  expect(writePlanDraftEnvelope({
++    title: "Held route", creatorName: "K", startTime: "", conciergeQuery: "Quiet pints",
++    stops: [{ key: 1, venueId: "venue-a", venueName: "Venue A" }],
++    acceptedAnchor: { venueId: "venue-a", source: "near", cityId: "london",
++      acceptedArea: { kind: "night-patch", id: "soho" }, startsAt: null, expiresAt },
++  }, "planning-intent", window.sessionStorage, now).v2).toBe(true);
++  const container = document.createElement("div");
++  document.body.append(container);
++  const root = createRoot(container);
++  // Keep this mounted control in place after the native link event; its own
++  // callback still writes/releases real storage before this outer cancellation.
++  container.addEventListener("click", (event) => event.preventDefault());
++  try {
++    await act(async () => root.render(createElement(MapRouteTransferButton, {
++      response: { ...response, outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
++        stops: [{ venueId: "venue-a", venueName: "Venue A", alternatives: [] },
++          { venueId: "venue-b", venueName: "Venue B", alternatives: [] }] },
++      displayedRoute: [{ id: "venue-b", name: "Venue B" }, { id: "venue-a", name: "Venue A" }],
++    })));
++    await act(async () => { container.querySelector("a")!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); });
++    expect(container.querySelector('[role="alert"]')?.textContent).toContain("moves your accepted Stop 1");
++    expect(readPlanDraftEnvelope(window.sessionStorage, now)?.draft.acceptedAnchor?.venueId).toBe("venue-a");
++    expect(readPlanningIntent({ storage: window.localStorage, now })?.acceptedVenueId).toBe("venue-a");
++    const release = [...container.querySelectorAll("a")].find((link) => link.textContent === "Release Stop 1 and review current route")!;
++    await act(async () => { release.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); });
++    expect(container.querySelector('[role="alert"]')).toBeNull();
++    expect(readPlanDraftEnvelope(window.sessionStorage, Date.now())?.draft.acceptedAnchor).toBeUndefined();
++    expect(readPlanningIntent({ storage: window.localStorage, now: Date.now() })).toBeNull();
++    const route = readPlanRouteDraftEnvelope(window.localStorage, Date.now());
++    expect(route?.value.anchorVenueId).toBeNull();
++    expect(route?.value.stops.map((stop) => stop.venueId)).toEqual(["venue-b", "venue-a"]);
++  } finally {
++    await act(async () => root.unmount());
++    container.remove();
++    window.localStorage.clear();
++    window.sessionStorage.clear();
++  }
++});
+diff --git a/components/PubMap.tsx b/components/PubMap.tsx
+--- a/components/PubMap.tsx
++++ b/components/PubMap.tsx
+@@ -5369,6 +5369,7 @@
+         cityId={cityId}
+         initialNightArea={suggestedPlanArea.slug}
+         venuesById={venuesById}
++        displayedRoute={route}
+         onGenerated={applyGeneratedMobilePlan}
+       />
+     ) : null;
+diff --git a/components/plan/MapRouteTransferButton.tsx b/components/plan/MapRouteTransferButton.tsx
+--- a/components/plan/MapRouteTransferButton.tsx
++++ b/components/plan/MapRouteTransferButton.tsx
+@@ -1,9 +1,12 @@
+ "use client";
+ 
+ import Link from "next/link";
++import { useState, type MouseEvent } from "react";
+ 
+ import { Button } from "@/components/ui/button";
+-import { transferMapRouteToDraft, type MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
++import { transferMapRouteToDraft, type MapGeneratedRouteResponse, type DisplayedMapRoute } from "@/lib/mapRouteTransfer";
++
++import { releaseAcceptedPlanContext } from "@/lib/planComposerHandoff";
+ 
+ export type { MapGeneratedRouteResponse as MapRouteResponse } from "@/lib/mapRouteTransfer";
+ 
+@@ -11,16 +14,18 @@
+ const PLAN_LABEL = "Open Plan to lock it in";
+ 
+ /**
+- * L12 transfer CTA. With a captured Map Route it writes the identical Route into
+- * the Plan draft the instant the link is followed, so Plan hydrates the same
+- * Stops/order/anchor/proof without a second generation request. With no Route to
+- * carry it is the plain navigate-and-regenerate link.
++ * Transfer the displayed route at the click. An unchanged generation keeps its
++ * proof; edits become an explicit preview, never the captured original route.
++ * With no generation to carry, retain the ordinary Plan navigation.
+  */
+ export function MapRouteTransferButton({
+   response,
++  displayedRoute,
+ }: {
+   response: MapGeneratedRouteResponse | null;
++  displayedRoute?: DisplayedMapRoute;
+ }) {
++  const [error, setError] = useState<string | null>(null);
+   if (!response) {
+     return (
+       <Button asChild size="large" variant="secondary" className="w-full">
+@@ -29,19 +34,42 @@
+     );
+   }
+ 
+-  const handleTransfer = () => {
++  const movedAnchor = typeof response.anchorVenueId === "string" && displayedRoute
++    && displayedRoute[0]?.id !== response.anchorVenueId;
++  const handleTransfer = (event: MouseEvent<HTMLAnchorElement>, releaseAnchor = false) => {
+     try {
+       const storage = typeof window !== "undefined" ? window.localStorage : null;
+-      transferMapRouteToDraft(response, storage);
++      if (!transferMapRouteToDraft(response, storage, Date.now(), displayedRoute, releaseAnchor)) {
++        event.preventDefault();
++        setError(movedAnchor
++          ? "This route moves your accepted Stop 1. Release it to review the current route in Plan."
++          : "Could not carry this route to Plan. Your route is still here. Try again.");
++        return;
++      }
++      if (movedAnchor && releaseAnchor) releaseAcceptedPlanContext({
++        planDraft: window.sessionStorage,
++        routeDraft: window.localStorage,
++      });
++      setError(null);
+     } catch {
+-      // Fail-soft: a blocked or full store never blocks the journey — the link
+-      // still navigates and Plan falls back to its existing generation path.
++      event.preventDefault();
++      setError("Could not carry this route to Plan. Your route is still here. Try again.");
+     }
+   };
+ 
+   return (
+-    <Button asChild size="large" variant="secondary" className="w-full">
+-      <Link href={PLAN_HREF} onClick={handleTransfer}>{PLAN_LABEL}</Link>
+-    </Button>
++    <>
++      <Button asChild size="large" variant="secondary" className="w-full">
++        <Link href={PLAN_HREF} onClick={(event) => handleTransfer(event)}>{PLAN_LABEL}</Link>
++      </Button>
++      {error ? <p role="alert">{error}</p> : null}
++      {error && movedAnchor ? (
++        <Button asChild size="large" variant="secondary" className="w-full">
++          <Link href={PLAN_HREF} onClick={(event) => handleTransfer(event, true)}>
++            Release Stop 1 and review current route
++          </Link>
++        </Button>
++      ) : null}
++    </>
+   );
+ }
+diff --git a/components/plan/MobilePlanActivation.tsx b/components/plan/MobilePlanActivation.tsx
+--- a/components/plan/MobilePlanActivation.tsx
++++ b/components/plan/MobilePlanActivation.tsx
+@@ -3,6 +3,7 @@
+ import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
+ import { startTransition, useEffect, useRef, useState } from "react";
+ 
++import type { DisplayedMapRoute } from "@/lib/mapRouteTransfer";
+ import { MapRouteTransferButton, type MapRouteResponse } from "@/components/plan/MapRouteTransferButton";
+ 
+ import PubmaxxLoadingEmber from "@/components/brand/PubmaxxLoadingEmber";
+@@ -55,11 +56,13 @@
+   cityId,
+   initialNightArea,
+   venuesById,
++  displayedRoute,
+   onGenerated,
+ }: {
+   cityId: CityId;
+   initialNightArea: NightAreaSlug;
+   venuesById?: ReadonlyMap<string, Venue>;
++  displayedRoute?: DisplayedMapRoute;
+   onGenerated: (plan: GeneratedMobilePlan) => void;
+ }) {
+   const { user } = useAuth();
+@@ -214,6 +217,11 @@
+     }
+   }
+ 
++  const resultMatchesDisplayedRoute = !displayedRoute || (
++    result?.mapRoute?.stops?.length === displayedRoute.length
++    && displayedRoute.every((venue, index) => venue.id === result?.mapRoute?.stops?.[index]?.venueId)
++  );
++
+   return (
+     <section className="mobilePlannerIntent" aria-labelledby="mobile-plan-intent-title">
+       <div className="mobilePlannerIntentHeading">
+@@ -259,13 +267,20 @@
+       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
+       {result ? (
+         <div className="mobilePlannerResult" role="status">
++          {resultMatchesDisplayedRoute ? (
++            <>
+           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
+             <ShieldCheck size={17} aria-hidden="true" />
+             <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
+           </div>
+           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
++            </>
++          ) : (
++            <p>The route changed. Plan will review the current stops and order.</p>
++          )}
+           <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
+-          <MapRouteTransferButton response={result.mapRoute} />
++          <MapRouteTransferButton response={result.mapRoute} displayedRoute={displayedRoute} />
++          {resultMatchesDisplayedRoute ? (
+           <div className="mobilePlannerEndings" aria-label="Ending recommendations">
+             {result.endings.map((ending) => (
+               <div key={ending.kind} data-recommended={ending.preselected ? "true" : undefined}>
+@@ -274,6 +289,7 @@
+               </div>
+             ))}
+           </div>
++          ) : null}
+         </div>
+       ) : null}
+     </section>
+diff --git a/lib/mapRouteTransfer.ts b/lib/mapRouteTransfer.ts
+--- a/lib/mapRouteTransfer.ts
++++ b/lib/mapRouteTransfer.ts
+@@ -1,4 +1,5 @@
+ import { PLANNING_INTENT_SOURCES, type PlanningIntentSource } from "@/lib/planningIntent";
++import { isPlanStopCount } from "@/lib/planStopCount";
+ import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import {
+   writePlanRouteDraftEnvelope,
+@@ -12,8 +13,8 @@
+  * PlanRouteDraft V2 (origin "map-generated") so the Plan composer hydrates the
+  * exact same Route — same Stops, order, anchor, and proof — without issuing a
+  * second generation request. It only ever writes storage; it never fetches.
+- * A malformed or incomplete Route maps to null and nothing is written, so the
+- * caller falls back to the existing navigate-and-regenerate path.
++ * A malformed or incomplete Route maps to null and nothing is written. The
++ * Map CTA keeps the current route visible when its transfer cannot be saved.
+  */
+ 
+ type RawStop = {
+@@ -41,6 +42,8 @@
+   routeTotals?: unknown;
+   planningConfidence?: unknown;
+ };
++
++export type DisplayedMapRoute = readonly { id: string; name: string }[];
+ 
+ type RouteDraftValue = ParsedPlanRouteDraft["value"];
+ type RouteDraftAlternative = RouteDraftValue["stops"][number]["alternatives"][number];
+@@ -130,6 +133,52 @@
+   };
+ }
+ 
++/** Carry the route actually shown; client inspection never authenticates a proof. */
++export function mapCurrentRouteDraftValue(
++  body: MapGeneratedRouteResponse | null | undefined,
++  displayedRoute: DisplayedMapRoute,
++  releaseAnchor = false,
++): RouteDraftValue | null {
++  const original = mapGeneratedRouteDraftValue(body);
++  const count = displayedRoute.length;
++  if (!original || !isPlanStopCount(count)) return null;
++  const ids = displayedRoute.map((venue) => text(venue.id));
++  if (ids.some((id) => !id) || new Set(ids).size !== ids.length
++    || displayedRoute.some((venue) => !text(venue.name))) return null;
++  const originalIds = original.stops.map((stop) => stop.venueId);
++  if (new Set(originalIds).size !== originalIds.length) return null;
++  const unchanged = originalIds.length === ids.length && ids.every((id, index) => id === originalIds[index]);
++  if (unchanged) return original;
++  const movedAnchor = original.anchorVenueId !== null && ids[0] !== original.anchorVenueId;
++  if (movedAnchor && !releaseAnchor) return null;
++  const sameSet = originalIds.length === ids.length && ids.every((id) => originalIds.includes(id!));
++  const keepCandidateProof = original.outcome === "unanchored" && sameSet;
++  const routeIds = new Set(ids);
++  const stops = displayedRoute.map((venue, index) => {
++    const id = ids[index]!;
++    const previous = keepCandidateProof ? original.stops.find((stop) => stop.venueId === id) : undefined;
++    return previous ? {
++      ...previous, key: index + 1,
++      alternatives: previous.alternatives.filter((alternative) => !routeIds.has(alternative.venueId)),
++    } : { key: index + 1, venueId: id, venueName: venue.name.trim(), alternatives: [] };
++  });
++  return {
++    ...original,
++    ...(movedAnchor ? { anchorVenueId: null, anchorSource: null, outcome: "unanchored" as const } : {}),
++    stops,
++    alternatives: [],
++    nightContext: original.nightContext ? { ...original.nightContext, stopCount: count } : null,
++    groundingProof: keepCandidateProof ? original.groundingProof : null,
++    operationKey: keepCandidateProof ? original.operationKey : null,
++    routeRevision: null,
++    routeStale: !keepCandidateProof || !original.groundingProof || original.routeStale,
++    routeTotals: null,
++    transportBasis: null,
++    planningConfidence: null,
++    warnings: keepCandidateProof ? [] : ["You changed this route. Review a refreshed route before locking it in."],
++  };
++}
++
+ /**
+  * Transfer a generate response into the Plan route draft. Returns true only
+  * when the canonical V2 envelope was written. Storage exceptions and malformed
+@@ -155,6 +204,10 @@
+   body: MapGeneratedRouteResponse | null | undefined,
+   storage: PlanRouteDraftStorage | null,
+   now = Date.now(),
++  displayedRoute?: DisplayedMapRoute,
++  releaseAnchor = false,
+ ): boolean {
+-  return transferGeneratedRouteToDraft(body, storage, "map-generated", now);
+-}
++  if (!displayedRoute) return transferGeneratedRouteToDraft(body, storage, "map-generated", now);
++  const value = mapCurrentRouteDraftValue(body, displayedRoute, releaseAnchor);
++  return Boolean(value && storage && writePlanRouteDraftEnvelope(value, "map-generated", storage, now).v2);
++}

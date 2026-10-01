@@ -1,0 +1,31 @@
+--- a/components/landing/LandingFaq.tsx
++++ b/components/landing/LandingFaq.tsx
+@@ -4,8 +4,8 @@
+ // Captain 7 Sep 2026: "There should be an FAQ section where people understand
+ // how the app works and everything." Every answer here states a fact the code
+ // or the dataset already backs: the two price lanes, the composer's own photo
+-// rule, what /today and /tonight read, that every listed price we hold is a
+-// London one, and that the web app installs to a home screen today.
++// rule, what /today and /tonight read, London focus and conditional prices
++// elsewhere, and that the web app installs to a home screen today.
+ // __tests__/landingFaq.test.ts holds the count at six and the copy to the
+ // voice rules.
+ //
+@@ -32,7 +32,7 @@
+     id: "log-a-price",
+     question: "How do I log a price?",
+     answer:
+-      "Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. A photo of the bill or the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.",
++      "Open a pub on the map and press the price door. A photo of the bill is required. Add it, type what you paid and which drink it was, then press Log it. A pint photo and note are optional. Photos and notes are public and can show people, so only add what you are happy to share.",
+   },
+   {
+     id: "today-tonight",
+@@ -44,7 +44,7 @@
+     id: "outside-london",
+     question: "Does it work outside London?",
+     answer:
+-      "Not for prices yet. Every listed price we hold today is a London one. The map opens in eleven other UK cities, and a pub there stays without a price until somebody logs the first one.",
++      "We focus on London. Outside London, a pub can have a published menu price or a drinker's logged price. Where we have neither, we say so. The map also opens in other UK cities.",
+   },
+   {
+     id: "app",

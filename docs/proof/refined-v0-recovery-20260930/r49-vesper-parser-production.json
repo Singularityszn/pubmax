@@ -1,0 +1,44 @@
+{
+  "packet": "R47 synthetic Vesper cocktail category fix",
+  "createdAtUTC": "2026-10-01T11:30:22.301018+00:00",
+  "status": "FIX_PACKET_STATIC_ONLY_RED_CAPTURED",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "6f7be486df3a35a00fbec410fdc6cb4bfde37ae2",
+  "files": {
+    "lib/harvest/ukPriceCrawl.ts": {
+      "patch": "one vocabulary token in CATEGORY_WORDS cocktail expression",
+      "beforeSha256": "7df6ef8aae16e147ccc8dc10afde3b3204520f5258ae3ae63480358f52829723",
+      "afterSha256": "de4d8371d78d1397309d2e9f7e06ed9550d13c0cdf2623e6751910f5c51dff26",
+      "beforeGitBlob": "1bd3e36221536492368fa64e9041544d75dad34a",
+      "afterGitBlob": "2774657209981622978a4f6259fd578e8470cb63"
+    },
+    "__tests__/ukPriceCrawl.test.ts": {
+      "changedByPacket": false,
+      "beforeSha256": "4bb6e683c6420f7480fc0de2ba174aeb8ab1006f184468ecc84037fc4adcc3c4",
+      "note": "Contains parent-authored Vesper regression; retained unchanged."
+    }
+  },
+  "redEvidence": {
+    "report": ".audit/overnight-20261001/vesper-synthetic-parser-required-red.json",
+    "logPointer": ".audit/overnight-20261001/vesper-synthetic-parser-required-red.log",
+    "observed": "Parent reports one Vesper synthetic case retained at \u00a312.00 but classified as gin; expected cocktail. This packet does not rerun it.",
+    "status": "ACTUAL_PRE_FIX_RED_CAPTURED_BY_ROOT; this packet contains no runtime result"
+  },
+  "sourceRationale": "itemNameStatesCocktail consults categoryDecisionFor over the first 24 characters of the printed item name. The existing ordered cocktail vocabulary lacks Vesper, so the title is not recognized before later vodka/gin ingredient words. Adding the named cocktail at the existing cocktail precedence restores the title decision without altering zero-alcohol precedence, spirit categories, adjacency, meal-deal logic, serving or price rules.",
+  "testDecision": "No additional neighbor case added. Existing tests cover zero-alcohol cocktails followed by House Negroni and Gordon's gin; named Picante Spritz with tequila plus separate tequila-shot/wine/beer items; cocktail-description isolation before the next beer; and sour-beer/food controls. The parent-authored Vesper RED is the direct behavior test.",
+  "staticChecks": {
+    "patchAppliesToCapturedWorkingTree": true,
+    "maintainedFilesChanged": false,
+    "testsLintTypesBuild": null
+  },
+  "limitations": [
+    "Synthetic parser regression only; not replay of a publisher page.",
+    "No real source, serving size, current availability or price claim.",
+    "Fresh focused test and full gates remain for Root runtime owner."
+  ],
+  "sourceLineage": {
+    "reviewReceipt": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-sun-tavern-price-truth-source-review.md",
+    "receiptFinding": "Retained Sun Tavern gin row text contains named Vesper plus vodka and gin; original snippet, section, current menu and source completeness are unverified. Regression fixture stays explicitly synthetic and does not replay or validate the retained claim.",
+    "sourceSeam": "CATEGORY_WORDS cocktail vocabulary, then titleCategory/itemNameStatesCocktail first-24-character rule; categoryDecisionFromLabel honors item title before ingredient words."
+  }
+}

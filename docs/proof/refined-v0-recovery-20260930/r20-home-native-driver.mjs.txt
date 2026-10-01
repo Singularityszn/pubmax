@@ -1,0 +1,63 @@
+// UNRUN native diagnostic source. Requires a coordinator runtime lease.
+// Original cold Home helper/interaction boundary, plus CDP native tracing.
+// Trace overhead means this is attribution, never a substitute CWV gate.
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { chromium, devices, expect } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs';
+import { installVitalsProbe, serveMapInitScript, SHIPPED_MAP_INIT_SCRIPT, applyVitalsDevice, coolBrowser, clearSampleResidue, exercisePrimaryAction, readVitals } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/helpers/webVitals.ts';
+import { uiUxChromiumLaunchOptions } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/scripts/lib/uiUxBattleTestBrowser.mjs';
+
+const origin = new URL(process.argv[2] ?? 'http://localhost:3351').origin;
+if (!['localhost', '127.0.0.1'].includes(new URL(origin).hostname)) throw new Error('Loopback only');
+const output = process.argv[3] ?? '/tmp/pubmaxx-r20-home-frame-trace';
+mkdirSync(output, { recursive: true });
+const report = { diagnosticOnly: true, processPid: process.pid, overhead: 'Native browser timeline capture; original installed probe only', samples: [], errors: [] };
+const flush = () => writeFileSync(`${output}/report.json`, JSON.stringify(report, null, 2) + '\n');
+flush();
+const browser = await chromium.launch(uiUxChromiumLaunchOptions(process.env.UI_UX_BROWSER_CHANNEL));
+const deadline = setTimeout(() => { report.errors.push('180s owned diagnostic deadline'); flush(); void browser.close(); }, 180_000);
+try {
+  const context = await browser.newContext({ ...devices['Desktop Chrome'], baseURL: origin, serviceWorkers: 'block', storageState: { cookies: [], origins: [{ origin, localStorage: [{ name: 'pubmaxx:analytics-consent:v1', value: 'denied' }, { name: 'pubmax:map-first-visit-arrival:v1', value: 'dismissed' }] }] } });
+  const page = await context.newPage();
+  page.on('pageerror', error => report.errors.push(String(error)));
+  await installVitalsProbe(page);
+  await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+  await page.goto('/plan', { waitUntil: 'load' });
+  await applyVitalsDevice(page, 'mobile');
+  const cdp = await context.newCDPSession(page);
+  for (let run = 0; run < 5; run++) {
+    await coolBrowser(page);
+    await clearSampleResidue(page, '/');
+    await cdp.send('Tracing.start', { categories: 'devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,disabled-by-default-devtools.timeline.inputs,blink.user_timing,toplevel,cc,gpu', transferMode: 'ReturnAsStream', traceBufferSizeInKb: 32768 });
+    await page.goto('/', { waitUntil: 'load' });
+    await expect(page.locator('main')).toBeVisible({ timeout: 180_000 });
+    await page.waitForTimeout(1_000);
+    const interacted = await exercisePrimaryAction(page, '/');
+    const vitals = await readVitals(page);
+    if (!interacted || Object.values(vitals).some(value => !Number.isFinite(value) || value < 0)) throw new Error(`Invalid sample ${run}`);
+    const completion = new Promise(resolve => cdp.once('Tracing.tracingComplete', resolve));
+    await cdp.send('Tracing.end');
+    const { stream, dataLossOccurred } = await completion;
+    if (!stream || dataLossOccurred) throw new Error('Native trace missing or truncated');
+    const chunks = [];
+    while (true) {
+      const { data, base64Encoded, eof } = await cdp.send('IO.read', { handle: stream });
+      chunks.push(base64Encoded ? Buffer.from(data, 'base64') : Buffer.from(data));
+      if (eof) break;
+    }
+    await cdp.send('IO.close', { handle: stream });
+    writeFileSync(`${output}/sample-${run}-trace.json`, Buffer.concat(chunks));
+    report.samples.push({ run, interacted, ...vitals, trace: `sample-${run}-trace.json` });
+    flush();
+  }
+  await page.screenshot({ path: `${output}/after.png`, fullPage: false });
+  if (report.errors.length) throw new Error('Page errors occurred');
+  report.completed = true;
+  await context.close();
+} catch (error) {
+  report.errors.push(String(error));
+  process.exitCode = 1;
+} finally {
+  clearTimeout(deadline);
+  await browser.close();
+  flush();
+}

@@ -1,0 +1,40 @@
+{
+  "at": "2026-09-30T18:52:19.343970+00:00",
+  "initialBuildExit": 0,
+  "installedDOMPurify": "3.4.16",
+  "buildID": "build-TfctsWXpff2fKS",
+  "sourceManifest": "../r35-pre-repair-source-freeze.json",
+  "sourceUnchangedThroughBuild": true,
+  "priceDiagnosticExit": 1,
+  "extendedPriceDiagnosticExit": 1,
+  "privacyDiagnosticExit": 1,
+  "setupFailures": false,
+  "nativePriceWidths": [
+    390,
+    1440
+  ],
+  "privatePlanWriteAuthority": "explicitly isolated keyless memory-store loopback only",
+  "serviceWorkers": "blocked; offline acceptance remains pending",
+  "rawPlanCapabilitiesPersisted": false,
+  "categoryPolicy": "withhold seven exact old contradictory claims; no replacement/category guesses",
+  "freshFullAcceptance": false,
+  "publisherEvidence": [
+    {
+      "url": "https://thebrownswood.co.uk/drinks-menu/",
+      "retrievedAt": "2026-09-30",
+      "toolCrawlAge": "4 days",
+      "supports": [
+        "mixer under Soft Drinks",
+        "Paloma and Virgin Bloody Mary AF under Cocktails",
+        "Amaretto under Liquors",
+        "Sacred under Gin25ml"
+      ]
+    },
+    {
+      "url": "https://wiperandtrue.com/collections/sour",
+      "supports": [
+        "Too Much Fun5.2% is beer; no pub price inferred"
+      ]
+    }
+  ]
+}

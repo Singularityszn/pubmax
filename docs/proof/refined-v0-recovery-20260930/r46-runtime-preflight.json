@@ -1,0 +1,35 @@
+{
+  "at": "2026-09-30T23:56:11.116523+00:00",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "freeze": "r39-source-only-freeze.json",
+  "pathsChecked": 4251,
+  "mismatches": [],
+  "portsChecked": [
+    3351,
+    3352,
+    8787,
+    55351,
+    55352,
+    55401,
+    55402
+  ],
+  "listeners": {},
+  "installed": {
+    "next": "16.3.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "context.dev": "3.3.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2"
+  },
+  "declared": {
+    "next": "^16.3.7",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "context.dev": "3.3.0",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.2"
+  },
+  "chosenBaseline": "Preserved Core package/lock + current node_modules, subject to coherence check;476 package candidate unmerged. No new install yet.",
+  "grant": "Exclusive Core through2026-10-01T00:45Z, cleanup00:42Z; no migrations/deploy/index/commit/publication."
+}

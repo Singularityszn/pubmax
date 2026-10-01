@@ -1,0 +1,17 @@
+{
+  "observedAtUtc": "2026-09-30T18:08:35.165940+00:00",
+  "file": "components/map/VenueDrinkPrices.tsx",
+  "beforeSha256": "f521b245cf03a7be7d7bb11e2e594b99f02bf1bb4f331fcb83c3c37d3597368d",
+  "afterSha256": "3233fb6c021a2dee6a2438c75cc20a28291483694d15d734e1bf1a5f95b4f747",
+  "beforeLines": 262,
+  "afterLines": 243,
+  "beforeBytes": 9973,
+  "afterBytes": 8790,
+  "commentStrippedNonblankSourceEqual": true,
+  "review": "Sol independently reviewed comment-only diff and retained ownership/trust/display invariants. Luna corrected active-lane summary to include absence copy and contribution invite. Root reviewed complete diff and compared comment-stripped nonblank source. This is bounded source evidence, not transpilation or runtime validation.",
+  "changedSinceR28": [
+    "components/map/VenueDrinkPrices.tsx",
+    "package-lock.json"
+  ],
+  "scope": "Comment cleanup only in owned price component. Earlier DOMPurify lock delta preserved. No imports, types, JSX rendering, product text, API or executable changes from this cleanup; no root runtime, tests, build, install, index, commit, push, migration or deploy. Next source freeze/fullgate remains required. No bundle-size, speed, full-repo deslop or overall v0 completion claim."
+}

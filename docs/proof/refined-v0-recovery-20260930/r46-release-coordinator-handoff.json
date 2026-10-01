@@ -1,0 +1,63 @@
+{
+  "at": "2026-10-01T00:28:24.893072+00:00",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "branch": "codex/v0-integration",
+  "worktree": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+  "ownedScope": "Preserved dirty Core candidate Map/Plan/auth/cache/profile/prices and tests; no new PubPal/message changes during this runtime. Source frozen for full-five.",
+  "pubPalTrackedAndUntrackedOverlap": [],
+  "sourceGate": "r46-final-full-source-verify-receipt.json",
+  "fullFive": {
+    "at": "2026-10-01T00:25:01.466345+00:00",
+    "status": "RUNNING",
+    "session": 37092,
+    "log": "/tmp/pubmaxx-r46-fullfive-final.log",
+    "json": "/tmp/pubmaxx-r46-fullfive-final.json",
+    "freeze": "r46-final-source-freeze.json",
+    "paths": 4252,
+    "sourceAndDataDriftAtStart": [],
+    "workers": 2,
+    "retries": 0,
+    "projects": [
+      "chromium",
+      "chromium-keyless",
+      "chromium-gl",
+      "chromium-sw-gl",
+      "chromium-no-gl"
+    ],
+    "browserPath": "artifacts/r46-browsers",
+    "config": "/tmp/pubmaxx-r46-reuse-built.config.ts",
+    "configDifference": "Retains original full config/projects/use/env; absolute testDir/outputDir, uses completed builds via npm start and reuseExistingServer=false. No assertions, retries, testMatch, device coverage, rate budgets or timeout changes.",
+    "excludedAttempt": "r46-fullfive-custody-interrupted.json",
+    "cleanupReserve": "2026-10-01T00:42:00Z",
+    "grantEnd": "2026-10-01T00:55:00Z",
+    "extendedGrantReceipt": "r46-runtime-extension-grant.json",
+    "cleanupBy": "2026-10-01T00:52:00Z",
+    "progress": {
+      "at": "2026-10-01T00:34:48.871315+00:00",
+      "completed": 667,
+      "failed": 0,
+      "elapsedMinutesApprox": 11.13,
+      "resultsPerMinuteApprox": 59.9,
+      "remainingApprox": 654,
+      "linearCompletionEstimate": "2026-10-01T00:45:43.725648+00:00",
+      "estimateBoundary": "Approximate result-rate projection; laterGL/SW projects and longerjourneys can change rate. No completion or cleanup inferred."
+    }
+  },
+  "resourceGrant": "ExplicitRoot extension receivedviaSDK through00:55 cleanupby00:52, receipt r46-runtime-extension-grant.json. Messaging may start only after actualCorecleanup+handoff.",
+  "remaining": "Finish exact full-five; actualcleanup; publish/rebase/reconcile via release owner after review and gates. No Core merge/deploy/SQL. StrictCWV/realprovider/durablebill/production evidence pending.",
+  "r46Terminal": {
+    "at": "2026-10-01T00:49:08.654821+00:00",
+    "status": "RED",
+    "receipt": "r46-fullfive-terminal-receipt.json",
+    "passed": 1293,
+    "skipped": 24,
+    "failed": 4,
+    "sourceDataDrift": []
+  },
+  "r46ActualCleanup": {
+    "status": "RELEASED",
+    "at": "2026-10-01T00:48:44.291717+00:00",
+    "receipt": "r46-actual-runtime-cleanup.json"
+  },
+  "r46Next": "Source-onlyHome wiring fix and siblingBack/Escape/gesture preservation; separatephone drag diagnosis. Runtime requeue viaresourceowner. Production/realprovider/CWV/durablebill/latestMaincomposition pending."
+}

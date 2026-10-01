@@ -1,0 +1,2840 @@
+{
+  "origin": "http://localhost:3351",
+  "project": "chromium",
+  "responses": [
+    {
+      "path": "/data/price_updates/latest.json",
+      "status": 200,
+      "at": 1790743368651,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743368675
+    },
+    {
+      "path": "/data/venues_slim.core.json",
+      "status": 200,
+      "at": 1790743368651,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743368677
+    },
+    {
+      "path": "/data/london_localities.json",
+      "status": 200,
+      "at": 1790743368651,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743368678
+    },
+    {
+      "path": "/data/venues_slim.manifest.json",
+      "status": 200,
+      "at": 1790743368698,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743368710
+    },
+    {
+      "path": "/data/venues_slim.core.json",
+      "status": 200,
+      "at": 1790743368791,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743368855
+    },
+    {
+      "path": "/data/london_pois.json",
+      "status": 200,
+      "at": 1790743369687,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743370067
+    },
+    {
+      "path": "/data/tfl_lines.json",
+      "status": 200,
+      "at": 1790743370581,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743370598
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.125.json",
+      "status": 200,
+      "at": 1790743371282,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371287
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.025.json",
+      "status": 200,
+      "at": 1790743371282,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371287
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.150.json",
+      "status": 200,
+      "at": 1790743371282,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371287
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.050.json",
+      "status": 200,
+      "at": 1790743371282,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371287
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.075.json",
+      "status": 200,
+      "at": 1790743371282,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371287
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.125.json",
+      "status": 200,
+      "at": 1790743371283,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371288
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.100.json",
+      "status": 200,
+      "at": 1790743371284,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371289
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.125.json",
+      "status": 200,
+      "at": 1790743371284,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371289
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.150.json",
+      "status": 200,
+      "at": 1790743371285,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371289
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.175.json",
+      "status": 200,
+      "at": 1790743371286,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371291
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.200.json",
+      "status": 200,
+      "at": 1790743371286,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371291
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.225.json",
+      "status": 200,
+      "at": 1790743371287,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371291
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.250.json",
+      "status": 200,
+      "at": 1790743371288,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371292
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.275.json",
+      "status": 200,
+      "at": 1790743371289,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371292
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_0.000.json",
+      "status": 200,
+      "at": 1790743371289,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371293
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.300.json",
+      "status": 200,
+      "at": 1790743371289,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371293
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_0.025.json",
+      "status": 200,
+      "at": 1790743371290,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371293
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.025.json",
+      "status": 200,
+      "at": 1790743371290,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371293
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.050.json",
+      "status": 200,
+      "at": 1790743371291,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371294
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.100.json",
+      "status": 200,
+      "at": 1790743371291,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371294
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.075.json",
+      "status": 200,
+      "at": 1790743371292,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371295
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.125.json",
+      "status": 200,
+      "at": 1790743371292,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371295
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.150.json",
+      "status": 200,
+      "at": 1790743371292,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371295
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.175.json",
+      "status": 200,
+      "at": 1790743371293,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371296
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.200.json",
+      "status": 200,
+      "at": 1790743371293,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371296
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.225.json",
+      "status": 200,
+      "at": 1790743371294,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371297
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.250.json",
+      "status": 200,
+      "at": 1790743371294,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371297
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.275.json",
+      "status": 200,
+      "at": 1790743371294,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371297
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.300.json",
+      "status": 200,
+      "at": 1790743371295,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371298
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_0.000.json",
+      "status": 200,
+      "at": 1790743371295,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371298
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_0.025.json",
+      "status": 200,
+      "at": 1790743371297,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371300
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.025.json",
+      "status": 200,
+      "at": 1790743371297,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371300
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.050.json",
+      "status": 200,
+      "at": 1790743371298,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371300
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.075.json",
+      "status": 200,
+      "at": 1790743371298,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371301
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.200.json",
+      "status": 200,
+      "at": 1790743371299,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371301
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.175.json",
+      "status": 200,
+      "at": 1790743371299,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371301
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.100.json",
+      "status": 200,
+      "at": 1790743371299,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371303
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.225.json",
+      "status": 200,
+      "at": 1790743371300,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371303
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.250.json",
+      "status": 200,
+      "at": 1790743371300,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371304
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.300.json",
+      "status": 200,
+      "at": 1790743371301,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371304
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_0.000.json",
+      "status": 200,
+      "at": 1790743371301,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371304
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_0.025.json",
+      "status": 200,
+      "at": 1790743371303,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371304
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.025.json",
+      "status": 200,
+      "at": 1790743371303,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371304
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.050.json",
+      "status": 200,
+      "at": 1790743371303,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371305
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.075.json",
+      "status": 200,
+      "at": 1790743371304,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371306
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.100.json",
+      "status": 200,
+      "at": 1790743371305,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371306
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.175.json",
+      "status": 200,
+      "at": 1790743371305,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371307
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.200.json",
+      "status": 200,
+      "at": 1790743371305,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371307
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.250.json",
+      "status": 200,
+      "at": 1790743371306,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371307
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.225.json",
+      "status": 200,
+      "at": 1790743371306,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371307
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.275.json",
+      "status": 200,
+      "at": 1790743371306,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371308
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.300.json",
+      "status": 200,
+      "at": 1790743371307,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371308
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_0.000.json",
+      "status": 200,
+      "at": 1790743371307,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371308
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_0.025.json",
+      "status": 200,
+      "at": 1790743371308,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371309
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.025.json",
+      "status": 200,
+      "at": 1790743371308,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371309
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.050.json",
+      "status": 200,
+      "at": 1790743371309,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371310
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.075.json",
+      "status": 200,
+      "at": 1790743371309,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371311
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.100.json",
+      "status": 200,
+      "at": 1790743371310,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371312
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.125.json",
+      "status": 200,
+      "at": 1790743371311,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371313
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.150.json",
+      "status": 200,
+      "at": 1790743371311,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371313
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.175.json",
+      "status": 200,
+      "at": 1790743371312,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371315
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.200.json",
+      "status": 200,
+      "at": 1790743371312,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371316
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.250.json",
+      "status": 200,
+      "at": 1790743371313,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371316
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.225.json",
+      "status": 200,
+      "at": 1790743371314,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371317
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.275.json",
+      "status": 200,
+      "at": 1790743371314,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371317
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.300.json",
+      "status": 200,
+      "at": 1790743371315,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371317
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_0.000.json",
+      "status": 200,
+      "at": 1790743371315,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371319
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_0.025.json",
+      "status": 200,
+      "at": 1790743371315,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371319
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.025.json",
+      "status": 200,
+      "at": 1790743371316,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371320
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.050.json",
+      "status": 200,
+      "at": 1790743371317,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371320
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.075.json",
+      "status": 200,
+      "at": 1790743371317,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371321
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.100.json",
+      "status": 200,
+      "at": 1790743371318,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371321
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.150.json",
+      "status": 200,
+      "at": 1790743371318,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371326
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.125.json",
+      "status": 200,
+      "at": 1790743371319,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371326
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.200.json",
+      "status": 200,
+      "at": 1790743371320,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371328
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.175.json",
+      "status": 200,
+      "at": 1790743371321,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371347
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.275.json",
+      "status": 200,
+      "at": 1790743371322,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371347
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.300.json",
+      "status": 200,
+      "at": 1790743371326,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.050.json",
+      "status": 200,
+      "at": 1790743371326,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.025.json",
+      "status": 200,
+      "at": 1790743371326,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_0.025.json",
+      "status": 200,
+      "at": 1790743371326,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.100.json",
+      "status": 200,
+      "at": 1790743371326,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.075.json",
+      "status": 200,
+      "at": 1790743371328,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.150.json",
+      "status": 200,
+      "at": 1790743371328,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.175.json",
+      "status": 200,
+      "at": 1790743371328,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371348
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.125.json",
+      "status": 200,
+      "at": 1790743371328,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371349
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.200.json",
+      "status": 200,
+      "at": 1790743371329,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371349
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_-0.300.json",
+      "status": 200,
+      "at": 1790743371329,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371349
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_0.025.json",
+      "status": 200,
+      "at": 1790743371330,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371349
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.050.json",
+      "status": 200,
+      "at": 1790743371330,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371349
+    },
+    {
+      "path": "/data/venues_slim.cell.51.600_0.000.json",
+      "status": 200,
+      "at": 1790743371330,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371349
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.025.json",
+      "status": 200,
+      "at": 1790743371330,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371353
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.075.json",
+      "status": 200,
+      "at": 1790743371330,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371354
+    },
+    {
+      "path": "/data/uk_base/manifest.json",
+      "status": 200,
+      "at": 1790743371347,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.100.json",
+      "status": 200,
+      "at": 1790743371348,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.150.json",
+      "status": 200,
+      "at": 1790743371348,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.175.json",
+      "status": 200,
+      "at": 1790743371348,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.200.json",
+      "status": 200,
+      "at": 1790743371348,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.225.json",
+      "status": 200,
+      "at": 1790743371348,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.250.json",
+      "status": 200,
+      "at": 1790743371348,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.275.json",
+      "status": 200,
+      "at": 1790743371348,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.300.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_0.000.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_-0.325.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_0.025.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.425_0.050.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_-0.325.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.450_0.050.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_-0.325.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.475_0.050.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_-0.325.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.500_0.050.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_-0.325.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.525_0.050.json",
+      "status": 200,
+      "at": 1790743371349,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_-0.325.json",
+      "status": 200,
+      "at": 1790743371350,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371497
+    },
+    {
+      "path": "/data/venues_slim.cell.51.550_0.050.json",
+      "status": 200,
+      "at": 1790743371350,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_-0.325.json",
+      "status": 200,
+      "at": 1790743371350,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.025.json",
+      "status": 200,
+      "at": 1790743371351,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.575_0.050.json",
+      "status": 200,
+      "at": 1790743371351,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.050.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.075.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.100.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.125.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.175.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.225.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.250.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.150.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_-0.200.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/venues_slim.cell.51.625_0.000.json",
+      "status": 200,
+      "at": 1790743371352,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371498
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.50_0.00.json",
+      "status": 200,
+      "at": 1790743371621,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371929
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.50_-0.50.json",
+      "status": 200,
+      "at": 1790743371622,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371929
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.50.json",
+      "status": 200,
+      "at": 1790743371630,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371930
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.25_0.00.json",
+      "status": 200,
+      "at": 1790743371663,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371931
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json",
+      "status": 200,
+      "at": 1790743371672,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371933
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.500_-0.125.json",
+      "status": 200,
+      "at": 1790743371680,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371935
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.625_-0.125.json",
+      "status": 200,
+      "at": 1790743371696,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371935
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.625_-0.250.json",
+      "status": 200,
+      "at": 1790743371697,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743371935
+    },
+    {
+      "path": "/data/uk_base/packs/a917f46cc28c0e9e/51.500_-0.250.json",
+      "status": 200,
+      "at": 1790743371796,
+      "fromServiceWorker": false,
+      "finishedAt": 1790743372056
+    }
+  ],
+  "errors": [],
+  "assertions": {
+    "totalShrink": false,
+    "totalShrinkError": "Error: expect(received).toBeLessThan(expected)\n\nExpected: < 135\nReceived:   221\n\nCall Log:\n- Timeout 20000ms exceeded while waiting on the predicate",
+    "filterTotalShrink": true
+  },
+  "controlledSchedule": "Real secondary cell and UK shard responses held until initial list captured; released unchanged before zoom. Service workers blocked only for network schedule attribution.",
+  "originalBaseline": {
+    "total": 135,
+    "ids": [
+      "venue-fr71bp",
+      "venue-2z5s36",
+      "venue-7gowhv",
+      "venue-1r4e6my",
+      "venue-1ch45zm",
+      "restaurant-hawksmoor-seven-dials",
+      "venue-1x76bur",
+      "venue-1l9xtrt",
+      "venue-1wyei44",
+      "venue-uy7q4d",
+      "venue-hx81tb",
+      "venue-b2t25m",
+      "bar-vault-milroys",
+      "venue-1lqxwbp",
+      "venue-lukeav",
+      "bar-oriole",
+      "restaurant-dishoom-covent-garden",
+      "venue-u0ox5x",
+      "bar-three-sheets-soho",
+      "venue-1tftr0s",
+      "venue-7aqqhu",
+      "bar-bar-termini",
+      "venue-14mrz2z",
+      "venue-phqazo",
+      "venue-1ivvgts",
+      "venue-cupwdw",
+      "venue-3m89vz",
+      "venue-1rlon1q",
+      "venue-gvz1hf",
+      "venue-xiesdn",
+      "venue-1wgngrf",
+      "food-berenjak-soho",
+      "venue-177piqc",
+      "food-bar-italia",
+      "restaurant-hoppers-soho",
+      "venue-1ufn31x",
+      "restaurant-j-sheekey",
+      "restaurant-quo-vadis",
+      "venue-1t8siin",
+      "bar-swift-soho",
+      "venue-ca6by4",
+      "venue-tggu88",
+      "venue-12bzb84",
+      "venue-nnvqqv",
+      "venue-1kpe609",
+      "venue-r5pfh",
+      "venue-1jmwk6r",
+      "venue-15i2wst",
+      "venue-1u9c7tf",
+      "venue-11iolkd",
+      "venue-806vol",
+      "venue-1i7558c",
+      "venue-1yazj63",
+      "bar-punch-room",
+      "venue-1n7mtb0",
+      "venue-ymqu1w",
+      "venue-165ayyi",
+      "venue-1bz7oic",
+      "venue-jowqfg",
+      "venue-1pxz2e",
+      "venue-11u4gpi",
+      "food-wong-kei",
+      "venue-1jybl1w",
+      "venue-nyowgc",
+      "venue-1g5ax5n",
+      "restaurant-blacklock-soho",
+      "venue-nyd26v",
+      "venue-7tarkc",
+      "venue-1h8bsgr",
+      "venue-1jle4q6",
+      "bar-soma-soho",
+      "venue-1jkclco",
+      "venue-gk2fp9",
+      "restaurant-bob-bob-ricard",
+      "venue-1t2cfa2",
+      "venue-122cuu1",
+      "venue-1mfpfl2",
+      "venue-9ixkiw",
+      "venue-s2ppfm",
+      "venue-1ozggok",
+      "restaurant-brasserie-zedel",
+      "venue-e1srzr",
+      "bar-disrepute",
+      "bar-cahoots",
+      "food-le-bab-soho",
+      "restaurant-flat-iron-soho",
+      "venue-cvmtke",
+      "venue-1n6ephn",
+      "venue-1qhbsoe",
+      "venue-ru7vbr",
+      "venue-13jbxiw",
+      "venue-4pqtn7",
+      "venue-g295gw",
+      "venue-698bu3",
+      "venue-1k9qmvp",
+      "venue-ly6oxk",
+      "venue-oyjara",
+      "venue-hesnro",
+      "venue-15898y3",
+      "bar-artesian",
+      "venue-s68ndf",
+      "venue-1r0yf7r",
+      "restaurant-veeraswamy",
+      "venue-1ekoksv",
+      "venue-7dkj4q",
+      "venue-dzidk0",
+      "venue-1e0mpj3",
+      "venue-xm0ya3",
+      "venue-1htbxv4",
+      "venue-149rmv7",
+      "venue-1rsemdf",
+      "venue-1pviegg",
+      "venue-1bp93al",
+      "venue-1c2pk99",
+      "bar-donovan",
+      "venue-1rmjqfw",
+      "venue-8yibly",
+      "venue-1ac6f6u",
+      "venue-1dd13bq",
+      "venue-19rlplo",
+      "bar-mr-foggs-residence",
+      "bar-dukes",
+      "venue-1b9434y",
+      "venue-6hsjmi",
+      "venue-mpkn36",
+      "venue-u5unwx",
+      "bar-connaught",
+      "bar-coburg",
+      "venue-vpuut8",
+      "venue-1rdfonb",
+      "venue-64ymvx",
+      "venue-19zsaeb",
+      "venue-xn9vmg",
+      "venue-iec6ez",
+      "venue-1xb7r7i"
+    ],
+    "idCount": 135,
+    "curated": 135,
+    "base": 0
+  },
+  "movement": {
+    "removedInitialIds": [
+      "restaurant-hawksmoor-seven-dials",
+      "venue-1l9xtrt",
+      "venue-1wyei44",
+      "bar-oriole",
+      "restaurant-dishoom-covent-garden",
+      "venue-u0ox5x",
+      "venue-7aqqhu",
+      "bar-bar-termini",
+      "venue-14mrz2z",
+      "venue-phqazo",
+      "venue-3m89vz",
+      "venue-1rlon1q",
+      "venue-gvz1hf",
+      "venue-1wgngrf",
+      "food-berenjak-soho",
+      "venue-177piqc",
+      "food-bar-italia",
+      "restaurant-hoppers-soho",
+      "venue-1ufn31x",
+      "restaurant-j-sheekey",
+      "restaurant-quo-vadis",
+      "venue-1t8siin",
+      "bar-swift-soho",
+      "venue-ca6by4",
+      "venue-tggu88",
+      "venue-12bzb84",
+      "venue-nnvqqv",
+      "venue-1kpe609",
+      "venue-r5pfh",
+      "venue-1jmwk6r",
+      "venue-15i2wst",
+      "venue-1u9c7tf",
+      "venue-11iolkd",
+      "venue-806vol",
+      "venue-1i7558c",
+      "venue-1yazj63",
+      "bar-punch-room",
+      "venue-1n7mtb0",
+      "venue-ymqu1w",
+      "venue-165ayyi",
+      "venue-1bz7oic",
+      "venue-jowqfg",
+      "venue-1pxz2e",
+      "venue-11u4gpi",
+      "food-wong-kei",
+      "venue-1jybl1w",
+      "venue-nyowgc",
+      "venue-1g5ax5n",
+      "restaurant-blacklock-soho",
+      "venue-nyd26v",
+      "venue-7tarkc",
+      "venue-1h8bsgr",
+      "venue-1jle4q6",
+      "bar-soma-soho",
+      "venue-1jkclco",
+      "venue-gk2fp9",
+      "restaurant-bob-bob-ricard",
+      "venue-1t2cfa2",
+      "venue-122cuu1",
+      "venue-1mfpfl2",
+      "venue-9ixkiw",
+      "venue-s2ppfm",
+      "venue-1ozggok",
+      "restaurant-brasserie-zedel",
+      "venue-e1srzr",
+      "bar-disrepute",
+      "bar-cahoots",
+      "food-le-bab-soho",
+      "restaurant-flat-iron-soho",
+      "venue-cvmtke",
+      "venue-1n6ephn",
+      "venue-1qhbsoe",
+      "venue-ru7vbr",
+      "venue-13jbxiw",
+      "venue-4pqtn7",
+      "venue-g295gw",
+      "venue-698bu3",
+      "venue-1k9qmvp",
+      "venue-ly6oxk",
+      "venue-oyjara",
+      "venue-hesnro",
+      "venue-15898y3",
+      "bar-artesian",
+      "venue-s68ndf",
+      "venue-1r0yf7r",
+      "restaurant-veeraswamy",
+      "venue-1ekoksv",
+      "venue-7dkj4q",
+      "venue-dzidk0",
+      "venue-1e0mpj3",
+      "venue-xm0ya3",
+      "venue-1htbxv4",
+      "venue-149rmv7",
+      "venue-1rsemdf",
+      "venue-1pviegg",
+      "venue-1bp93al",
+      "venue-1c2pk99",
+      "bar-donovan",
+      "venue-1rmjqfw",
+      "venue-8yibly",
+      "venue-1ac6f6u",
+      "venue-1dd13bq",
+      "venue-19rlplo",
+      "bar-mr-foggs-residence",
+      "bar-dukes",
+      "venue-1b9434y",
+      "venue-6hsjmi",
+      "venue-mpkn36",
+      "venue-u5unwx",
+      "bar-connaught",
+      "bar-coburg",
+      "venue-vpuut8",
+      "venue-1rdfonb",
+      "venue-64ymvx",
+      "venue-19zsaeb",
+      "venue-xn9vmg",
+      "venue-iec6ez",
+      "venue-1xb7r7i"
+    ],
+    "addedIds": [
+      "venue-12ino21",
+      "venue-1xu6lap",
+      "venue-19a3qur",
+      "venue-b85at0",
+      "venue-1tmo1hz",
+      "venue-erabed",
+      "venue-fp1ush",
+      "venue-1kbl05l",
+      "venue-1qdu640",
+      "bar-scarfes",
+      "venue-4xlgb0",
+      "venue-182tgmc",
+      "venue-1yd70c7",
+      "venue-1te1w3z",
+      "venue-yl1a48",
+      "venue-nm6egd",
+      "venue-a3iffy",
+      "venue-11n9s46",
+      "venue-gmira8",
+      "venue-p67dba",
+      "venue-1c5acu3",
+      "venue-bdyva2",
+      "venue-p7p18j",
+      "venue-u68xn3",
+      "venue-mbt448",
+      "venue-ll7eql",
+      "venue-yp8vht",
+      "venue-15pta38",
+      "venue-11n82fd",
+      "venue-z6pfs0",
+      "venue-1vle947",
+      "venue-1706y8z",
+      "venue-lkjwk4",
+      "venue-68ns7y",
+      "venue-1ar7s8w",
+      "venue-1u82rds",
+      "venue-r2rhk7",
+      "venue-59ibpp",
+      "venue-17m0t8h",
+      "restaurant-moro",
+      "venue-12400i0",
+      "venue-1bsihwr",
+      "venue-127tr3j",
+      "venue-13sug69",
+      "venue-1gyatca",
+      "venue-1eknoim",
+      "venue-hly7k3",
+      "venue-j6qgni",
+      "venue-z1v700",
+      "restaurant-roti-king-euston",
+      "venue-k9pxln",
+      "venue-ubf89h",
+      "venue-uk-w421882356",
+      "venue-uk-n29039088",
+      "venue-uk-n311877348",
+      "venue-uk-n21593237",
+      "venue-uk-n21593236",
+      "venue-uk-w191317959",
+      "venue-uk-w277929219",
+      "venue-uk-n11619853863",
+      "venue-uk-n12507179079",
+      "venue-uk-n338505255",
+      "venue-uk-w1194233515",
+      "venue-uk-n12815047301",
+      "venue-uk-n21593238",
+      "venue-uk-n7590593053",
+      "venue-uk-w277929217",
+      "venue-uk-n11198021569",
+      "venue-uk-n338504993",
+      "venue-uk-w157757561",
+      "venue-uk-w314257067",
+      "venue-uk-n264513354",
+      "venue-uk-n11059547105",
+      "venue-uk-n663260803",
+      "venue-uk-w278118730",
+      "venue-uk-w277929200",
+      "venue-uk-w81459093",
+      "venue-uk-n534993842",
+      "venue-uk-n11555019775",
+      "venue-uk-w157759518",
+      "venue-uk-n851223228",
+      "venue-uk-n4637449094",
+      "venue-uk-w183366008",
+      "venue-uk-w277929211",
+      "venue-uk-w560417509",
+      "venue-uk-n7929807779",
+      "venue-uk-n5993913372",
+      "venue-uk-n1962911438",
+      "venue-uk-n13006281748",
+      "venue-uk-w309646651",
+      "venue-uk-n5373783084",
+      "venue-uk-n344084670",
+      "venue-uk-n2624195137",
+      "venue-uk-n371050910",
+      "venue-uk-n603120730",
+      "venue-uk-w70298958",
+      "venue-uk-w80208385",
+      "venue-uk-n12920922066",
+      "venue-uk-n11249207039",
+      "venue-uk-n388116718",
+      "venue-uk-n452433527",
+      "venue-uk-w257148829",
+      "venue-uk-n1251663447",
+      "venue-uk-n1377064259",
+      "venue-uk-w153690421",
+      "venue-uk-w422540680",
+      "venue-uk-n266680230",
+      "venue-uk-n25496840",
+      "venue-uk-n21593232",
+      "venue-uk-n13808620782",
+      "venue-uk-n338463555",
+      "venue-uk-n10937912505",
+      "venue-uk-w279007871",
+      "venue-uk-n11581831870",
+      "venue-uk-w98526005",
+      "venue-uk-w100267362",
+      "venue-uk-n3799624401",
+      "venue-uk-n12242124301",
+      "venue-uk-n350437645",
+      "venue-uk-w572670795",
+      "venue-uk-w155341971",
+      "venue-uk-n2749842102",
+      "venue-uk-w294646443",
+      "venue-uk-w155724665",
+      "venue-uk-w147734606",
+      "venue-uk-n3767594694",
+      "venue-uk-n6087048896",
+      "venue-uk-w569138307",
+      "venue-uk-n5192841322",
+      "venue-uk-w42527973",
+      "venue-uk-w279088487",
+      "venue-uk-n12723565027",
+      "venue-uk-w161255236",
+      "venue-uk-n4684785733",
+      "venue-uk-w98515735",
+      "venue-uk-n12457180001",
+      "venue-uk-n12248019901",
+      "venue-uk-n385564475",
+      "venue-uk-w203180588",
+      "venue-uk-n12045676386",
+      "venue-uk-w99379732",
+      "venue-uk-n4665750869",
+      "venue-uk-w665469557",
+      "venue-uk-w279171114",
+      "venue-uk-w569138325",
+      "venue-uk-w244772119",
+      "venue-uk-n12083746969",
+      "venue-uk-w279088481",
+      "venue-uk-n49319602",
+      "venue-uk-w279322541",
+      "venue-uk-n298347049",
+      "venue-uk-n5579047822",
+      "venue-uk-w155724663",
+      "venue-uk-w155343103",
+      "venue-uk-w279322559",
+      "venue-uk-n5426645563",
+      "venue-uk-w99379796",
+      "venue-uk-n13571511983",
+      "venue-uk-w155363856",
+      "venue-uk-w99379745",
+      "venue-uk-n32921722",
+      "venue-uk-w279570939",
+      "venue-uk-n833772427",
+      "venue-uk-n2007363135",
+      "venue-uk-n12926562968",
+      "venue-uk-n4855571418",
+      "venue-uk-w251068938",
+      "venue-uk-w279570944",
+      "venue-uk-n332118048",
+      "venue-uk-w99379749",
+      "venue-uk-n280145696",
+      "venue-uk-w280980557",
+      "venue-uk-w749898372",
+      "venue-uk-n6875392459",
+      "venue-uk-n9669097717",
+      "venue-uk-w186152883",
+      "venue-uk-n7908687362",
+      "venue-uk-w750447445",
+      "venue-uk-n12463675901",
+      "venue-uk-w97553868",
+      "venue-uk-w79504992",
+      "venue-uk-w93710880",
+      "venue-uk-w155354349",
+      "venue-uk-w145481097",
+      "venue-uk-w953962864",
+      "venue-uk-w847530472",
+      "venue-uk-n1116251530",
+      "venue-uk-n294659404",
+      "venue-uk-w294886275",
+      "venue-uk-n6381240591",
+      "venue-uk-w44157617",
+      "venue-uk-n3357569149",
+      "venue-uk-w99067531",
+      "venue-uk-w1010697200",
+      "venue-uk-n11445942141",
+      "venue-uk-w99057959",
+      "venue-uk-n294599679",
+      "venue-uk-w146543172",
+      "venue-uk-w1308852871",
+      "venue-uk-w224892755",
+      "venue-uk-w163272356",
+      "venue-uk-n3485070520",
+      "venue-uk-n703528109",
+      "venue-uk-n296889741"
+    ],
+    "initialRowsStillPresentOutsideViewport": [],
+    "projectedInitialOutsideIds": [
+      "venue-12bzb84",
+      "venue-nyowgc",
+      "venue-149rmv7",
+      "venue-15898y3",
+      "venue-15i2wst",
+      "venue-s68ndf",
+      "venue-xm0ya3",
+      "venue-1jmwk6r",
+      "venue-e1srzr",
+      "venue-7dkj4q",
+      "venue-19rlplo",
+      "venue-phqazo",
+      "venue-1n6ephn",
+      "venue-1t8siin",
+      "venue-1g5ax5n",
+      "venue-1jle4q6",
+      "venue-1jybl1w",
+      "venue-1ekoksv",
+      "venue-7tarkc",
+      "venue-1ufn31x",
+      "venue-ly6oxk",
+      "venue-1rlon1q",
+      "venue-1wyei44",
+      "venue-gvz1hf",
+      "venue-1mfpfl2",
+      "venue-8yibly",
+      "venue-1bp93al",
+      "venue-165ayyi",
+      "venue-1k9qmvp",
+      "venue-ymqu1w",
+      "venue-11u4gpi",
+      "venue-64ymvx",
+      "venue-oyjara",
+      "venue-iec6ez",
+      "venue-r5pfh",
+      "venue-gk2fp9",
+      "venue-cvmtke",
+      "venue-1t2cfa2",
+      "venue-1htbxv4",
+      "venue-xn9vmg",
+      "venue-1c2pk99",
+      "venue-s2ppfm",
+      "venue-1b9434y",
+      "venue-1rsemdf",
+      "venue-1pviegg",
+      "venue-11iolkd",
+      "venue-19zsaeb",
+      "venue-698bu3",
+      "venue-1rdfonb",
+      "venue-122cuu1",
+      "venue-1xb7r7i",
+      "venue-hesnro",
+      "venue-vpuut8",
+      "venue-ru7vbr",
+      "venue-u0ox5x",
+      "venue-4pqtn7",
+      "venue-1wgngrf",
+      "venue-14mrz2z",
+      "venue-1e0mpj3",
+      "venue-806vol",
+      "venue-3m89vz",
+      "venue-1ozggok",
+      "venue-1i7558c",
+      "venue-9ixkiw",
+      "venue-1u9c7tf",
+      "venue-ca6by4",
+      "venue-mpkn36",
+      "venue-1n7mtb0",
+      "venue-1yazj63",
+      "venue-1qhbsoe",
+      "venue-1r0yf7r",
+      "venue-nyd26v",
+      "venue-7aqqhu",
+      "venue-1l9xtrt",
+      "venue-177piqc",
+      "venue-1dd13bq",
+      "venue-dzidk0",
+      "venue-1rmjqfw",
+      "venue-1h8bsgr",
+      "venue-1ac6f6u",
+      "venue-1pxz2e",
+      "venue-nnvqqv",
+      "venue-tggu88",
+      "venue-1bz7oic",
+      "venue-jowqfg",
+      "venue-g295gw",
+      "venue-6hsjmi",
+      "venue-1jkclco",
+      "venue-13jbxiw",
+      "venue-u5unwx",
+      "bar-connaught",
+      "bar-coburg",
+      "bar-dukes",
+      "bar-donovan",
+      "bar-artesian",
+      "bar-oriole",
+      "bar-swift-soho",
+      "bar-bar-termini",
+      "bar-disrepute",
+      "bar-cahoots",
+      "bar-mr-foggs-residence",
+      "bar-soma-soho",
+      "bar-punch-room",
+      "venue-1kpe609",
+      "food-le-bab-soho",
+      "food-berenjak-soho",
+      "food-wong-kei",
+      "food-bar-italia",
+      "restaurant-j-sheekey",
+      "restaurant-quo-vadis",
+      "restaurant-brasserie-zedel",
+      "restaurant-veeraswamy",
+      "restaurant-dishoom-covent-garden",
+      "restaurant-blacklock-soho",
+      "restaurant-hawksmoor-seven-dials",
+      "restaurant-bob-bob-ricard",
+      "restaurant-flat-iron-soho",
+      "restaurant-hoppers-soho"
+    ],
+    "projectedInitialInsideIds": [
+      "venue-lukeav",
+      "venue-1r4e6my",
+      "venue-1ivvgts",
+      "venue-fr71bp",
+      "venue-2z5s36",
+      "venue-hx81tb",
+      "venue-1ch45zm",
+      "venue-xiesdn",
+      "venue-7gowhv",
+      "venue-1lqxwbp",
+      "venue-b2t25m",
+      "venue-uy7q4d",
+      "venue-1x76bur",
+      "venue-cupwdw",
+      "venue-1tftr0s",
+      "bar-three-sheets-soho",
+      "bar-vault-milroys"
+    ],
+    "initialCoordinateCoverage": 135,
+    "completeProjectionCoverage": true,
+    "unknownInitialCoordinateIds": [],
+    "unprojectedInitialIds": []
+  },
+  "filter": {
+    "beforeBarIds": [
+      "bar-scarfes",
+      "bar-vault-milroys",
+      "bar-three-sheets-soho",
+      "venue-uk-n21593237",
+      "venue-uk-n11619853863",
+      "venue-uk-n12507179079",
+      "venue-uk-n338505255",
+      "venue-uk-n12815047301",
+      "venue-uk-n21593238",
+      "venue-uk-n11198021569",
+      "venue-uk-w314257067",
+      "venue-uk-n264513354",
+      "venue-uk-n11059547105",
+      "venue-uk-w277929200",
+      "venue-uk-n534993842",
+      "venue-uk-n11555019775",
+      "venue-uk-w157759518",
+      "venue-uk-n4637449094",
+      "venue-uk-n5993913372",
+      "venue-uk-n13006281748",
+      "venue-uk-n5373783084",
+      "venue-uk-n371050910",
+      "venue-uk-n603120730",
+      "venue-uk-n11249207039",
+      "venue-uk-n388116718",
+      "venue-uk-n1251663447",
+      "venue-uk-n1377064259",
+      "venue-uk-w422540680",
+      "venue-uk-n13808620782",
+      "venue-uk-w279007871",
+      "venue-uk-n11581831870",
+      "venue-uk-n3799624401",
+      "venue-uk-n12242124301",
+      "venue-uk-n2749842102",
+      "venue-uk-n3767594694",
+      "venue-uk-n6087048896",
+      "venue-uk-w279088487",
+      "venue-uk-n12723565027",
+      "venue-uk-n4684785733",
+      "venue-uk-n12457180001",
+      "venue-uk-n12248019901",
+      "venue-uk-n4665750869",
+      "venue-uk-w279171114",
+      "venue-uk-n12083746969",
+      "venue-uk-w279088481",
+      "venue-uk-w279322541",
+      "venue-uk-n5579047822",
+      "venue-uk-w279322559",
+      "venue-uk-n5426645563",
+      "venue-uk-n13571511983",
+      "venue-uk-w99379745",
+      "venue-uk-n32921722",
+      "venue-uk-w279570939",
+      "venue-uk-n2007363135",
+      "venue-uk-n12926562968",
+      "venue-uk-n4855571418",
+      "venue-uk-w280980557",
+      "venue-uk-w749898372",
+      "venue-uk-n6875392459",
+      "venue-uk-n9669097717",
+      "venue-uk-n7908687362",
+      "venue-uk-n12463675901",
+      "venue-uk-w953962864",
+      "venue-uk-w44157617",
+      "venue-uk-n3357569149",
+      "venue-uk-n703528109"
+    ],
+    "removedBarIds": [
+      "bar-scarfes",
+      "bar-vault-milroys",
+      "bar-three-sheets-soho"
+    ],
+    "remainingBarRows": [
+      {
+        "id": "venue-uk-n12279739003",
+        "text": "Scarfes Bar300 mOther bar \u00b7 no listed price",
+        "meta": "300 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n21593237",
+        "text": "The Polish Bar (Na Zdrowie)303 mOther bar \u00b7 no listed price",
+        "meta": "303 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11619853863",
+        "text": "Bar Barella's369 mOther bar \u00b7 no listed price",
+        "meta": "369 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12507179079",
+        "text": "Simmons377 mOther bar \u00b7 no listed price",
+        "meta": "377 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n338505255",
+        "text": "Davy's Wine House378 mOther bar \u00b7 no listed price",
+        "meta": "378 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12815047301",
+        "text": "WC Wine Bar385 mOther bar \u00b7 no listed price",
+        "meta": "385 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n21593238",
+        "text": "All Bar One410 mOther bar \u00b7 no listed price",
+        "meta": "410 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11198021569",
+        "text": "Fitz's437 mOther bar \u00b7 no listed price",
+        "meta": "437 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w314257067",
+        "text": "The Bridge Bar496 mOther bar \u00b7 no listed price",
+        "meta": "496 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n264513354",
+        "text": "The Bowery Bar496 mOther bar \u00b7 no listed price",
+        "meta": "496 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11059547105",
+        "text": "Sandbox VR497 mOther bar \u00b7 no listed price",
+        "meta": "497 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w277929200",
+        "text": "Lockes530 mOther bar \u00b7 no listed price",
+        "meta": "530 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n534993842",
+        "text": "Guanabara546 mOther bar \u00b7 no listed price",
+        "meta": "546 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11555019775",
+        "text": "Piano Works West-End547 mOther bar \u00b7 no listed price",
+        "meta": "547 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w157759518",
+        "text": "London Cocktail563 mOther bar \u00b7 no listed price",
+        "meta": "563 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4637449094",
+        "text": "The Rabbit Hole565 mOther bar \u00b7 no listed price",
+        "meta": "565 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5993913372",
+        "text": "PimpShuei594 mOther bar \u00b7 no listed price",
+        "meta": "594 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n13006281748",
+        "text": "Flight Club621 mOther bar \u00b7 no listed price",
+        "meta": "621 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5373783084",
+        "text": "The Institute Bar630 mOther bar \u00b7 no listed price",
+        "meta": "630 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n371050910",
+        "text": "Freud682 mOther bar \u00b7 no listed price",
+        "meta": "682 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n603120730",
+        "text": "Freud686 mOther bar \u00b7 no listed price",
+        "meta": "686 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11249207039",
+        "text": "The Bloomsbury Club707 mOther bar \u00b7 no listed price",
+        "meta": "707 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n388116718",
+        "text": "All Bar One718 mOther bar \u00b7 no listed price",
+        "meta": "718 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n1251663447",
+        "text": "Bloomsbury Lanes726 mOther bar \u00b7 no listed price",
+        "meta": "726 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n1377064259",
+        "text": "Grand Union \u2013 Chancery Lane736 mOther bar \u00b7 no listed price",
+        "meta": "736 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w422540680",
+        "text": "Amelie's Wine House752 mOther bar \u00b7 no listed price",
+        "meta": "752 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n13808620782",
+        "text": "St. John776 mOther bar \u00b7 no listed price",
+        "meta": "776 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279007871",
+        "text": "The Lower Third806 mOther bar \u00b7 no listed price",
+        "meta": "806 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11581831870",
+        "text": "Thirt3en807 mOther bar \u00b7 no listed price",
+        "meta": "807 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n3799624401",
+        "text": "Bounce Farringdon839 mOther bar \u00b7 no listed price",
+        "meta": "839 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12242124301",
+        "text": "Dram842 mOther bar \u00b7 no listed price",
+        "meta": "842 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n2749842102",
+        "text": "Baranis847 mOther bar \u00b7 no listed price",
+        "meta": "847 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n3767594694",
+        "text": "The Piano Works884 mOther bar \u00b7 no listed price",
+        "meta": "884 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n6087048896",
+        "text": "Sevilla Mia901 mOther bar \u00b7 no listed price",
+        "meta": "901 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279088487",
+        "text": "Simmons Bar908 mOther bar \u00b7 no listed price",
+        "meta": "908 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12723565027",
+        "text": "21Soho908 mOther bar \u00b7 no listed price",
+        "meta": "908 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4684785733",
+        "text": "The Editor's Tap934 mOther bar \u00b7 no listed price",
+        "meta": "934 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12457180001",
+        "text": "Murder Inc. Cocktails947 mOther bar \u00b7 no listed price",
+        "meta": "947 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12248019901",
+        "text": "The Royal Cocktail Exchange948 mOther bar \u00b7 no listed price",
+        "meta": "948 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4665750869",
+        "text": "The Raven966 mOther bar \u00b7 no listed price",
+        "meta": "966 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279171114",
+        "text": "68 and Boston967 mOther bar \u00b7 no listed price",
+        "meta": "967 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12083746969",
+        "text": "Louche972 mOther bar \u00b7 no listed price",
+        "meta": "972 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279088481",
+        "text": "Simmons972 mOther bar \u00b7 no listed price",
+        "meta": "972 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279322541",
+        "text": "Jazz After Dark975 mOther bar \u00b7 no listed price",
+        "meta": "975 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5579047822",
+        "text": "Crazy Bear Fitzrovia985 mOther bar \u00b7 no listed price",
+        "meta": "985 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279322559",
+        "text": "Zebrano992 mOther bar \u00b7 no listed price",
+        "meta": "992 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5426645563",
+        "text": "Be At One994 mOther bar \u00b7 no listed price",
+        "meta": "994 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n13571511983",
+        "text": "Thirst Bar1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w99379745",
+        "text": "Cafe Kick1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n32921722",
+        "text": "Lazy Ballerinas1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279570939",
+        "text": "Simmons Bars1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n2007363135",
+        "text": "Circa1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12926562968",
+        "text": "Rev. JW Simpson1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4855571418",
+        "text": "Henson\u2019s Bar1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w280980557",
+        "text": "Pix Pintxos1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w749898372",
+        "text": "TCR Bar1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n6875392459",
+        "text": "Double Standard1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n9669097717",
+        "text": "GA1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n7908687362",
+        "text": "Phineas1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12463675901",
+        "text": "Gothic Bar1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w953962864",
+        "text": "Mully's1.2 kmOther bar \u00b7 no listed price",
+        "meta": "1.2 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w44157617",
+        "text": "Simmons1.3 kmOther bar \u00b7 no listed price",
+        "meta": "1.3 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n3357569149",
+        "text": "Virgin First Class Lounge1.3 kmOther bar \u00b7 no listed price",
+        "meta": "1.3 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n703528109",
+        "text": "City Bar1.6 kmOther bar \u00b7 no listed price",
+        "meta": "1.6 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      }
+    ],
+    "remainingCuratedBarRows": [],
+    "remainingBaseBarRows": [
+      {
+        "id": "venue-uk-n12279739003",
+        "text": "Scarfes Bar300 mOther bar \u00b7 no listed price",
+        "meta": "300 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n21593237",
+        "text": "The Polish Bar (Na Zdrowie)303 mOther bar \u00b7 no listed price",
+        "meta": "303 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11619853863",
+        "text": "Bar Barella's369 mOther bar \u00b7 no listed price",
+        "meta": "369 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12507179079",
+        "text": "Simmons377 mOther bar \u00b7 no listed price",
+        "meta": "377 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n338505255",
+        "text": "Davy's Wine House378 mOther bar \u00b7 no listed price",
+        "meta": "378 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12815047301",
+        "text": "WC Wine Bar385 mOther bar \u00b7 no listed price",
+        "meta": "385 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n21593238",
+        "text": "All Bar One410 mOther bar \u00b7 no listed price",
+        "meta": "410 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11198021569",
+        "text": "Fitz's437 mOther bar \u00b7 no listed price",
+        "meta": "437 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w314257067",
+        "text": "The Bridge Bar496 mOther bar \u00b7 no listed price",
+        "meta": "496 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n264513354",
+        "text": "The Bowery Bar496 mOther bar \u00b7 no listed price",
+        "meta": "496 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11059547105",
+        "text": "Sandbox VR497 mOther bar \u00b7 no listed price",
+        "meta": "497 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w277929200",
+        "text": "Lockes530 mOther bar \u00b7 no listed price",
+        "meta": "530 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n534993842",
+        "text": "Guanabara546 mOther bar \u00b7 no listed price",
+        "meta": "546 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11555019775",
+        "text": "Piano Works West-End547 mOther bar \u00b7 no listed price",
+        "meta": "547 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w157759518",
+        "text": "London Cocktail563 mOther bar \u00b7 no listed price",
+        "meta": "563 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4637449094",
+        "text": "The Rabbit Hole565 mOther bar \u00b7 no listed price",
+        "meta": "565 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5993913372",
+        "text": "PimpShuei594 mOther bar \u00b7 no listed price",
+        "meta": "594 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n13006281748",
+        "text": "Flight Club621 mOther bar \u00b7 no listed price",
+        "meta": "621 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5373783084",
+        "text": "The Institute Bar630 mOther bar \u00b7 no listed price",
+        "meta": "630 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n371050910",
+        "text": "Freud682 mOther bar \u00b7 no listed price",
+        "meta": "682 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n603120730",
+        "text": "Freud686 mOther bar \u00b7 no listed price",
+        "meta": "686 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11249207039",
+        "text": "The Bloomsbury Club707 mOther bar \u00b7 no listed price",
+        "meta": "707 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n388116718",
+        "text": "All Bar One718 mOther bar \u00b7 no listed price",
+        "meta": "718 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n1251663447",
+        "text": "Bloomsbury Lanes726 mOther bar \u00b7 no listed price",
+        "meta": "726 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n1377064259",
+        "text": "Grand Union \u2013 Chancery Lane736 mOther bar \u00b7 no listed price",
+        "meta": "736 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w422540680",
+        "text": "Amelie's Wine House752 mOther bar \u00b7 no listed price",
+        "meta": "752 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n13808620782",
+        "text": "St. John776 mOther bar \u00b7 no listed price",
+        "meta": "776 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279007871",
+        "text": "The Lower Third806 mOther bar \u00b7 no listed price",
+        "meta": "806 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n11581831870",
+        "text": "Thirt3en807 mOther bar \u00b7 no listed price",
+        "meta": "807 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n3799624401",
+        "text": "Bounce Farringdon839 mOther bar \u00b7 no listed price",
+        "meta": "839 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12242124301",
+        "text": "Dram842 mOther bar \u00b7 no listed price",
+        "meta": "842 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n2749842102",
+        "text": "Baranis847 mOther bar \u00b7 no listed price",
+        "meta": "847 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n3767594694",
+        "text": "The Piano Works884 mOther bar \u00b7 no listed price",
+        "meta": "884 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n6087048896",
+        "text": "Sevilla Mia901 mOther bar \u00b7 no listed price",
+        "meta": "901 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279088487",
+        "text": "Simmons Bar908 mOther bar \u00b7 no listed price",
+        "meta": "908 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12723565027",
+        "text": "21Soho908 mOther bar \u00b7 no listed price",
+        "meta": "908 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4684785733",
+        "text": "The Editor's Tap934 mOther bar \u00b7 no listed price",
+        "meta": "934 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12457180001",
+        "text": "Murder Inc. Cocktails947 mOther bar \u00b7 no listed price",
+        "meta": "947 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12248019901",
+        "text": "The Royal Cocktail Exchange948 mOther bar \u00b7 no listed price",
+        "meta": "948 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4665750869",
+        "text": "The Raven966 mOther bar \u00b7 no listed price",
+        "meta": "966 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279171114",
+        "text": "68 and Boston967 mOther bar \u00b7 no listed price",
+        "meta": "967 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12083746969",
+        "text": "Louche972 mOther bar \u00b7 no listed price",
+        "meta": "972 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279088481",
+        "text": "Simmons972 mOther bar \u00b7 no listed price",
+        "meta": "972 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279322541",
+        "text": "Jazz After Dark975 mOther bar \u00b7 no listed price",
+        "meta": "975 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5579047822",
+        "text": "Crazy Bear Fitzrovia985 mOther bar \u00b7 no listed price",
+        "meta": "985 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279322559",
+        "text": "Zebrano992 mOther bar \u00b7 no listed price",
+        "meta": "992 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n5426645563",
+        "text": "Be At One994 mOther bar \u00b7 no listed price",
+        "meta": "994 mOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n13571511983",
+        "text": "Thirst Bar1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w99379745",
+        "text": "Cafe Kick1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n32921722",
+        "text": "Lazy Ballerinas1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w279570939",
+        "text": "Simmons Bars1.0 kmOther bar \u00b7 no listed price",
+        "meta": "1.0 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n2007363135",
+        "text": "Circa1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12926562968",
+        "text": "Rev. JW Simpson1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n4855571418",
+        "text": "Henson\u2019s Bar1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w280980557",
+        "text": "Pix Pintxos1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w749898372",
+        "text": "TCR Bar1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n6875392459",
+        "text": "Double Standard1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n9669097717",
+        "text": "GA1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n7908687362",
+        "text": "Phineas1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n12463675901",
+        "text": "Gothic Bar1.1 kmOther bar \u00b7 no listed price",
+        "meta": "1.1 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w953962864",
+        "text": "Mully's1.2 kmOther bar \u00b7 no listed price",
+        "meta": "1.2 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-w44157617",
+        "text": "Simmons1.3 kmOther bar \u00b7 no listed price",
+        "meta": "1.3 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n3357569149",
+        "text": "Virgin First Class Lounge1.3 kmOther bar \u00b7 no listed price",
+        "meta": "1.3 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      },
+      {
+        "id": "venue-uk-n703528109",
+        "text": "City Bar1.6 kmOther bar \u00b7 no listed price",
+        "meta": "1.6 kmOther bar \u00b7 no listed price",
+        "bar": true,
+        "base": true
+      }
+    ],
+    "classification": "Rendered type metadata, never pub-name substring; curated Bar / base Other bar"
+  },
+  "coordinateCount": 6487,
+  "snapshots": [
+    {
+      "at": 2985,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 12,
+        "center": [
+          -0.12000000000000455,
+          51.52000000000001
+        ],
+        "moving": false
+      },
+      "curated": 135,
+      "base": 0,
+      "inventory": {
+        "curated": "135",
+        "base": "0",
+        "baseStatus": "loading"
+      },
+      "label": "before native Zoom in x3",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 135,
+        "outside": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "at": 5142.0999999940395,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 12,
+        "center": [
+          -0.12000000000000455,
+          51.52000000000001
+        ],
+        "moving": false
+      },
+      "curated": 1081,
+      "base": 1836,
+      "inventory": {
+        "curated": "1603",
+        "base": "3726",
+        "baseStatus": "ready"
+      },
+      "label": "secondary streams joined before zoom",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 135,
+        "outside": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "at": 5983.20000000298,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 13,
+        "center": [
+          -0.11999999999977717,
+          51.51999999999987
+        ],
+        "moving": false
+      },
+      "curated": 584,
+      "base": 1304,
+      "inventory": {
+        "curated": "1603",
+        "base": "3726",
+        "baseStatus": "ready"
+      },
+      "label": "immediately after zoom click 1",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 135,
+        "outside": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "at": 8474,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 14,
+        "center": [
+          -0.12000000000205091,
+          51.51999999999967
+        ],
+        "moving": false
+      },
+      "curated": 271,
+      "base": 561,
+      "inventory": {
+        "curated": "1603",
+        "base": "3627",
+        "baseStatus": "ready"
+      },
+      "label": "immediately after zoom click 2",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 110,
+        "outside": 25,
+        "unknown": 0
+      }
+    },
+    {
+      "at": 11237.79999999702,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 15,
+        "center": [
+          -0.12000000000170985,
+          51.51999999999967
+        ],
+        "moving": false
+      },
+      "curated": 69,
+      "base": 152,
+      "inventory": {
+        "curated": "1603",
+        "base": "2462",
+        "baseStatus": "ready"
+      },
+      "label": "immediately after zoom click 3",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 17,
+        "outside": 118,
+        "unknown": 0
+      }
+    },
+    {
+      "at": 30984.70000000298,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 15,
+        "center": [
+          -0.12000000000170985,
+          51.51999999999967
+        ],
+        "moving": false
+      },
+      "curated": 69,
+      "base": 152,
+      "inventory": {
+        "curated": "1603",
+        "base": "1500",
+        "baseStatus": "ready"
+      },
+      "label": "after original 20 second total-shrink assertion",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 17,
+        "outside": 118,
+        "unknown": 0
+      }
+    },
+    {
+      "at": 31759.59999999404,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 15,
+        "center": [
+          -0.12000000000170985,
+          51.51999999999967
+        ],
+        "moving": false
+      },
+      "curated": 69,
+      "base": 152,
+      "inventory": {
+        "curated": "1603",
+        "base": "1500",
+        "baseStatus": "ready"
+      },
+      "label": "before Bars off",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 17,
+        "outside": 118,
+        "unknown": 0
+      }
+    },
+    {
+      "at": 32173.40000000596,
+      "camera": {
+        "bearing": 0,
+        "pitch": 38.00000000000001,
+        "zoom": 15,
+        "center": [
+          -0.12000000000170985,
+          51.51999999999967
+        ],
+        "moving": false
+      },
+      "curated": 66,
+      "base": 153,
+      "inventory": {
+        "curated": "1570",
+        "base": "1513",
+        "baseStatus": "ready"
+      },
+      "label": "after Bars off original count assertion",
+      "projectedInitialCounts": {
+        "total": 135,
+        "inside": 17,
+        "outside": 118,
+        "unknown": 0
+      }
+    }
+  ],
+  "rawTraceArchive": "artifacts/refined-v0-recovery-20260930-generated/map-list-attribution/map-list-controlled-stream-r17-raw.json"
+}

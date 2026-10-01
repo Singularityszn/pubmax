@@ -1,0 +1,44 @@
+{
+  "at": "2026-09-30T19:39:19.798289+00:00",
+  "status": "running_unfinished",
+  "testsDiscovered": 1316,
+  "workers": 2,
+  "retries": 0,
+  "projects": [
+    "chromium",
+    "chromium-keyless",
+    "chromium-gl",
+    "chromium-sw-gl",
+    "chromium-no-gl"
+  ],
+  "sourceFreeze": "r35-final-source-freeze.json",
+  "sourceHashChanges": [],
+  "servers": [
+    {
+      "label": "fullfive",
+      "groupPid": 50133,
+      "wrapperPid": 50125,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T19:38:29.248593+00:00"
+    },
+    {
+      "label": "fullfive-keyless-server",
+      "groupPid": 49941,
+      "wrapperPid": 49933,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T19:37:39.580253+00:00"
+    },
+    {
+      "label": "fullfive-primary-server",
+      "groupPid": 49870,
+      "wrapperPid": 49858,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T19:37:38.840255+00:00"
+    }
+  ],
+  "serverOwnership": "intentional reuse of freshly built owned servers carrying exact existing config env; avoids generated candidate being silently restored to HEAD mid-start",
+  "dataCustody": "official seven-row exclusion + one printed serving field snapshot restored after each wrapper; no hand-authored generated values",
+  "hardCleanupAt": "2026-09-30T20:06:00Z",
+  "report": "/tmp/pubmaxx-r35-fullfive-report.json",
+  "limits": "same-five suite only; not strict CWV/provider auth/production proof"
+}

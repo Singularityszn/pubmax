@@ -1,0 +1,83 @@
+{
+  "status": "SOURCE_FROZEN_RUNTIME_UNRUN",
+  "purpose": "Corrected full continuity packet. Supersedes V1 and applies to its original seven before-pins, not on top of V1.",
+  "base": {
+    "rootHeadAtCapture": "6f7be486df3a35a00fbec410fdc6cb4bfde37ae2",
+    "dependencyPatch": "r47-generated-current-route-transfer-v2.patch",
+    "dependencyPatchSha256": "ec083ccc0549e0760b66e043ce4db90804a8052e54e5e449f920fbbb8edf3022",
+    "dependencyPubMapAfterSha256": "9f3116a82fc17aacf9a55541778339138f7e7c8393bc79bda3258bb2761d3956"
+  },
+  "supersedes": {
+    "patch": "r47-generated-route-continuity.patch",
+    "patchSha256": "a74517de98e3d11291853523f6aaedcde6b0b783875606118ef2300d156bdb5f"
+  },
+  "patch": "/tmp/pubmaxx-r47-generated-route-continuity-v2/r47-generated-route-continuity-v2.patch",
+  "patchSha256": "35eb2f3ba947c0a14e8b0aa66191333447e93720b11c9f1089e2c10f27a6cd5c",
+  "scratch": "/tmp/pubmaxx-r47-generated-route-continuity-v2",
+  "files": [
+    {
+      "path": "__tests__/crawlUrl.test.ts",
+      "beforeSha256": "5bb61fafd827264e47c31648a9b4cbcbf972c7ea1c6c2ae691875c21cbce968b",
+      "afterSha256": "7ed8503bd9edb5807e038c574563b9e2efb22c6e5460bf7e859629c153507c8b",
+      "freshScratchApplyAfterSha256": "7ed8503bd9edb5807e038c574563b9e2efb22c6e5460bf7e859629c153507c8b",
+      "matches": true
+    },
+    {
+      "path": "__tests__/generatedMapRoutePricing.test.tsx",
+      "beforeSha256": "de766629381f6410b5552b70c5753e896b17f551ed26f9c3e96ad8bc35916718",
+      "afterSha256": "f57f733db7fe3e91913b773f258c1d3138d8edfe9bf931cf8df504d3a31a094e",
+      "freshScratchApplyAfterSha256": "f57f733db7fe3e91913b773f258c1d3138d8edfe9bf931cf8df504d3a31a094e",
+      "matches": true
+    },
+    {
+      "path": "__tests__/mapCrawlUrlSync.test.tsx",
+      "beforeSha256": "ccda08378fa0eaf065f41d445fe167dc48272e5b0ffdec09ee6c880989411be9",
+      "afterSha256": "264339d3d05c76053e5b88cd2b38e45ab1b5402e72af4763e32da74d329a26b8",
+      "freshScratchApplyAfterSha256": "264339d3d05c76053e5b88cd2b38e45ab1b5402e72af4763e32da74d329a26b8",
+      "matches": true
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "9f3116a82fc17aacf9a55541778339138f7e7c8393bc79bda3258bb2761d3956",
+      "afterSha256": "a0d9bb67621d3049e9cb990061f88b11b8c899ceef9d58b43bb1d183f0c21dd7",
+      "freshScratchApplyAfterSha256": "a0d9bb67621d3049e9cb990061f88b11b8c899ceef9d58b43bb1d183f0c21dd7",
+      "matches": true
+    },
+    {
+      "path": "components/map/pubmap/useMapPlanCoordinator.ts",
+      "beforeSha256": "8aded913d257cccd5cfc0889376508c9e6b157db6c1807b12d4487d08344ede2",
+      "afterSha256": "9bd3b2860f9a1622605ab1407bcb30bc069e53bfc32d682bdccd8fa001a0a6b6",
+      "freshScratchApplyAfterSha256": "9bd3b2860f9a1622605ab1407bcb30bc069e53bfc32d682bdccd8fa001a0a6b6",
+      "matches": true
+    },
+    {
+      "path": "components/map/useCrawlUrl.ts",
+      "beforeSha256": "4ce682dd80b5e525b02c4d98e7d437dfa48bbd114d8f38de102530d258363f09",
+      "afterSha256": "67495214f85eeea3ddf0f13a64086cf4234e975d15618183b6aeb7205e89602f",
+      "freshScratchApplyAfterSha256": "67495214f85eeea3ddf0f13a64086cf4234e975d15618183b6aeb7205e89602f",
+      "matches": true
+    },
+    {
+      "path": "lib/crawlUrl.ts",
+      "beforeSha256": "278ab019bd43b601f82ac113b3f6c6c80a5a1a1a9b4f46893dc4776324c5b881",
+      "afterSha256": "eb43872e1478c6d239d5a98efd2dd43990966ca286467371b2a208e6f71bd4e6",
+      "freshScratchApplyAfterSha256": "eb43872e1478c6d239d5a98efd2dd43990966ca286467371b2a208e6f71bd4e6",
+      "matches": true
+    }
+  ],
+  "deltaFromV1": {
+    "path": "components/PubMap.tsx",
+    "onlyChange": "Replace direct nullable NightContext forwarding with an explicit public projection: zero-proof, a non-null non-beer category, or null."
+  },
+  "validation": {
+    "allSevenBeforePinsMatch": true,
+    "freshScratchDryRunApply": true,
+    "freshScratchAfterHashesMatch": true,
+    "testsTypecheckLintBuildBrowser": "UNRUN"
+  },
+  "currentRootAtCapture": "Already contains V1 after-state. Do not apply this full packet atop current Root files; parent must apply from declared base or use an independently reviewed incremental hunk.",
+  "runtimeLimits": [
+    "No runtime evidence; Root owns typecheck and browser verification.",
+    "V1 actual RED remains prerequisite evidence, not V2 GREEN."
+  ]
+}

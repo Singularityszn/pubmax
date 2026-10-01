@@ -1,0 +1,43 @@
+{
+  "at": "2026-09-30T23:37:52.810417+00:00",
+  "pr": 1882,
+  "url": "https://github.com/Singularityszn/pubmax/pull/1882",
+  "head": "476f0615709faa3c4cb2caf61eed89a02dafb7cd",
+  "priorTestedCandidate": "602c6ac35fac1219a2aa41986f39b7dff92fd4f8",
+  "publishedObjectsFetched": true,
+  "coreHeadUnchanged": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "deltaFromPriorCandidate": [
+    "README.md",
+    "docs/DEPLOYMENT.md",
+    "docs/SOFT_LAUNCH_RUNBOOK.md",
+    "docs/plans/fablenextsteps.md",
+    "docs/rules/scripts-ci-gates-and-audits.md",
+    "scripts/local-refresh/scheduler.mjs",
+    "scripts/whatson/eventsRefresh.mjs"
+  ],
+  "requestedHelperPackagePaths": [
+    ".agents/skills/enhance-readme/package-lock.json",
+    ".agents/skills/enhance-readme/package.json",
+    ".agents/skills/orchestrate/scripts/bun.lock",
+    ".agents/skills/orchestrate/scripts/package.json",
+    ".agents/skills/poteto-mode/scripts/bun.lock",
+    ".agents/skills/poteto-mode/scripts/package.json",
+    "skills/enhance-readme/package-lock.json",
+    "skills/enhance-readme/package.json"
+  ],
+  "helperPathCount": 8,
+  "appManifestIdenticalToEarlierCandidate": true,
+  "rootLockIdenticalToEarlierCandidate": true,
+  "scriptDelta": "Direct source diff of scheduler.mjs/eventsRefresh.mjs only removes/replaces repeated Node loader comments, preserving executable lines. No new execution.",
+  "ciObserved": {
+    "run": 36791149951,
+    "status": "in_progress",
+    "reviewScopeJob": 110144088552,
+    "reviewScope": "failed; Root independently reports8 requestedhelperpackage/lock paths classifiedskill-pack, guard preserved.",
+    "coverageJob": 110145477112,
+    "coverage": "in_progress at direct gh-axi run view; not terminal or restarted",
+    "otherObserved": "Production build,Lint/typecheck,both Unit shards,Freshness,RLS,Security passed; Core full-five and live provider auth unproved."
+  },
+  "logLimitation": "Wrapper log query unavailable until run completes; direct native CLI read refused terminal escapes. No log contents exposed, no gate waiver or policy edit.",
+  "custody": "Shared native/runner through2026-10-01T00:15:00Z, cleanup00:12; no Core execution before actual cleanup and freshRootgrant."
+}

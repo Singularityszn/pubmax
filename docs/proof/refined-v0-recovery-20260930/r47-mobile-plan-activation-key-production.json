@@ -1,0 +1,19 @@
+{
+  "status": "FROZEN_ONEHUNK_PARENT_SOURCE_PASS_ROOT_MOBILE_BROWSER_PENDING",
+  "scope": "One JSX prop in components/PubMap.tsx: assign stable identity to the same MobilePlanActivation rendered by renderPhoneDescribeForm.",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baselineHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "targetPath": "components/PubMap.tsx",
+  "beforeSha256": "9f6764d4df05e6a949662d0c2d2323958c5cdbc61b551c2520c719dd4bb61e12",
+  "afterSha256": "a8ba1191dd83dca16fe45cf4378aec2ec90e8d5d9160011df3e1e0dc687b717c",
+  "scratchBefore": "/tmp/pubmaxx-r47-mobile-plan-activation-key/PubMap.before.tsx",
+  "scratchAfter": "/tmp/pubmaxx-r47-mobile-plan-activation-key/PubMap.after.tsx",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-mobile-plan-activation-key-production.patch",
+  "patchSha256": "08eed6ce7592e2ea05b7a30d281690e6a8992677142bc01d6369ad5719e94050",
+  "sourceContext": "MobilePlanActivation is returned by renderPhoneDescribeForm, then assigned to plannerHead or plannerFoot under the same planner fragment as build-stop ordering changes. A stable key lets React reconcile that activation instance across those sibling slots. No ordering, callback, prop, or form behavior changes.",
+  "redEvidence": "Root reports actual mobile vodka browser RED and the unkeyed same-component relocation as source cause. This patch has no browser verification.",
+  "checks": "git apply --check passed against the Root checkout at the recorded before-hash. No tests, lint, typecheck, build, or browser run.",
+  "runtime": "UNRUN. Root owns actual mobile browser postfix verification.",
+  "parentChecks": "CurrentRootbefore/hash/applycheck/freshscratchafter PASS. Removingsolekeylineproducesbyte-identicalcurrentRootfile. Earlier fullsource review samecomponent/directsibling slots. Actualmobilebrowserpostfix Rootrequired.",
+  "actualBaseline": "Earlieraccepted-account-browser23/16/7 vodka missinglink valid. Latestvodka-handoff-baseline report0executedcases doesNOTprovefreshregression; do notcount."
+}

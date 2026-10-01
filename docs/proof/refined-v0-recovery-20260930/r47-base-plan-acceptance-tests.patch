@@ -1,0 +1,222 @@
+diff --git a/__tests__/planningAnchorResolver.test.ts b/__tests__/planningAnchorResolver.test.ts
+index 3870b9b9b..cf97e2153 100644
+--- a/__tests__/planningAnchorResolver.test.ts
++++ b/__tests__/planningAnchorResolver.test.ts
+@@ -1,7 +1,24 @@
+-import { describe, expect, it, vi } from "vitest";
++import { afterEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
+ 
++// Server pack fixture copied exactly from committed
++// public/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json.
++// Only the existing UK identity reader is doubled; this pub is NEVER added to
++// the curated venue/candidate catalogue and has no invented price or amenity.
++const basePlanPack = vi.hoisted(() => ({
++  result: { status: "missing" } as import("@/lib/ukBaseIndex").UkBasePubLookupResult,
++  pub: { id: "venue-uk-n8308248176", name: "The Sydney Arms",
++    address: "70, Sydney Street, London, SW3 6NJ", lat: 51.48876, lng: -0.16951,
++    curatedVenueId: "", kind: "pub" as const },
++}));
++vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukBaseIndex")>();
++  return { ...actual, lookupUkBasePub: async (id: string) =>
++    id === basePlanPack.pub.id ? basePlanPack.result : { status: "missing" as const } };
++});
++
++
+ import {
+   resolvePlanningAnchor,
+   type ResolvePlanningAnchorDeps,
+@@ -224,3 +241,38 @@ describe("anchor conflict copy", () => {
+     }
+   });
+ });
++
++
++describe("server-owned UK base pub acceptance", () => {
++  afterEach(() => { basePlanPack.result = { status: "missing" }; });
++  const input = () => baseInput({ venueId: basePlanPack.pub.id, acceptedArea: null });
++
++  it("resolves real London base identity without a synthetic curated Venue or pint price", async () => {
++    basePlanPack.result = { status: "ready", pub: basePlanPack.pub };
++    const result = await resolvePlanningAnchor(input());
++    expect(result).toMatchObject({ status: "resolved",
++      display: { venueId: basePlanPack.pub.id, venueName: basePlanPack.pub.name, priceEvidence: null },
++      canonical: { cityId: "london", venueId: basePlanPack.pub.id,
++        coordinates: { lat: basePlanPack.pub.lat, lng: basePlanPack.pub.lng },
++        acceptedArea: null, priceFreshnessKind: "unknown", priceObservedAt: null } });
++  });
++
++  it("keeps canonical city, accepted-area, kind and access refusals for base pubs", async () => {
++    basePlanPack.result = { status: "ready", pub: basePlanPack.pub };
++    expect(await resolvePlanningAnchor({ ...input(), cityId: "manchester" }))
++      .toMatchObject({ status: "conflict", code: "ANCHOR_CITY_MISMATCH" });
++    expect(await resolvePlanningAnchor({ ...input(), acceptedArea: { kind: "night-patch", id: "brixton" } }))
++      .toMatchObject({ status: "conflict", code: "ANCHOR_AREA_CONFLICT" });
++    expect(await resolvePlanningAnchor({ ...input(), requiresStepFreeAccess: true }))
++      .toMatchObject({ status: "conflict", code: "ANCHOR_ACCESS_CONFLICT" });
++    // Deliberate policy variant, not a claim about Sydney's real kind.
++    basePlanPack.result = { status: "ready", pub: { ...basePlanPack.pub, kind: "bar" } };
++    expect(await resolvePlanningAnchor(input()))
++      .toMatchObject({ status: "conflict", code: "ANCHOR_VENUE_INVALID" });
++  });
++
++  it.each(["missing", "unavailable"] as const)("does not invent an anchor from a %s base lookup", async (status) => {
++    basePlanPack.result = { status };
++    expect((await resolvePlanningAnchor(input())).status).toBe("conflict");
++  });
++});
+diff --git a/__tests__/planAnchoredGenerateRoute.test.ts b/__tests__/planAnchoredGenerateRoute.test.ts
+index 8ef1589ff..9680bafa1 100644
+--- a/__tests__/planAnchoredGenerateRoute.test.ts
++++ b/__tests__/planAnchoredGenerateRoute.test.ts
+@@ -2,6 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
+ 
++// Server pack fixture copied exactly from committed
++// public/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json.
++// Only the existing UK identity reader is doubled; this pub is NEVER added to
++// the curated venue/candidate catalogue and has no invented price or amenity.
++const basePlanPack = vi.hoisted(() => ({
++  result: { status: "missing" } as import("@/lib/ukBaseIndex").UkBasePubLookupResult,
++  pub: { id: "venue-uk-n8308248176", name: "The Sydney Arms",
++    address: "70, Sydney Street, London, SW3 6NJ", lat: 51.48876, lng: -0.16951,
++    curatedVenueId: "", kind: "pub" as const },
++}));
++vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukBaseIndex")>();
++  return { ...actual, lookupUkBasePub: async (id: string) =>
++    id === basePlanPack.pub.id ? basePlanPack.result : { status: "missing" as const } };
++});
++
++
+ const listedBundleFixture = vi.hoisted(() => ({
+   rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
+   status: "ready" as "ready" | "empty" | "unavailable",
+@@ -258,3 +275,35 @@ describe("POST /api/plans/generate — anchored", () => {
+     });
+   });
+ });
++
++
++describe("anchored generation for an accepted canonical UK base pub", () => {
++  beforeEach(() => {
++    isLimitedMock.mockReset(); isLimitedMock.mockResolvedValue(false);
++    loadConciergeVenuesMock.mockClear(); resolvePlanningAnchorMock.mockReset();
++    categoryIndexMock.mockReset();
++    categoryIndexMock.mockResolvedValue({ prices: [], degraded: false, truncated: false });
++    process.env.PLAN_IDEMPOTENCY_SECRET = "a".repeat(48);
++  });
++  afterEach(() => { basePlanPack.result = { status: "missing" }; delete process.env.PLAN_IDEMPOTENCY_SECRET; });
++
++  it("keeps the real base pub as an honest anchor-only draft when no curated companions exist", async () => {
++    basePlanPack.result = { status: "ready", pub: basePlanPack.pub };
++    resolvePlanningAnchorMock.mockImplementation(async (input) => {
++      const actual = await vi.importActual<typeof import("@/lib/planningAnchor.server")>("@/lib/planningAnchor.server");
++      return actual.resolvePlanningAnchor(input);
++    });
++    loadConciergeVenuesMock.mockResolvedValueOnce([]);
++    const response = await generate({ query: "Quiet wine in Soho for two", cityId: "london",
++      anchor: { venueId: basePlanPack.pub.id, source: "near", acceptedArea: null, startsAt: null } });
++    const body = await response.json();
++    expect(response.status, JSON.stringify(body)).toBe(200);
++    expect(body).toMatchObject({ grounded: true, outcome: "anchor-only", anchored: true,
++      routeReady: false, anchorVenueId: basePlanPack.pub.id });
++    expect(body.stops).toHaveLength(1);
++    expect(body.stops[0]).toMatchObject({ venueId: basePlanPack.pub.id, venueName: basePlanPack.pub.name,
++      estimatedPintPricePence: null, priceEvidence: null });
++    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, [basePlanPack.pub.id], body.operationKey))
++      .toMatchObject({ ok: true, anchored: true, outcome: "anchor-only", anchorVenueId: basePlanPack.pub.id });
++  });
++});
+diff --git a/__tests__/planAnchoredCreateRoute.test.ts b/__tests__/planAnchoredCreateRoute.test.ts
+index 0468e87c0..f5346d9b5 100644
+--- a/__tests__/planAnchoredCreateRoute.test.ts
++++ b/__tests__/planAnchoredCreateRoute.test.ts
+@@ -1,6 +1,23 @@
+ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
++
++// Server pack fixture copied exactly from committed
++// public/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json.
++// Only the existing UK identity reader is doubled; this pub is NEVER added to
++// the curated venue/candidate catalogue and has no invented price or amenity.
++const basePlanPack = vi.hoisted(() => ({
++  result: { status: "missing" } as import("@/lib/ukBaseIndex").UkBasePubLookupResult,
++  pub: { id: "venue-uk-n8308248176", name: "The Sydney Arms",
++    address: "70, Sydney Street, London, SW3 6NJ", lat: 51.48876, lng: -0.16951,
++    curatedVenueId: "", kind: "pub" as const },
++}));
++vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukBaseIndex")>();
++  return { ...actual, lookupUkBasePub: async (id: string) =>
++    id === basePlanPack.pub.id ? basePlanPack.result : { status: "missing" as const } };
++});
++
+ vi.mock("@/lib/supabase", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("@/lib/supabase")>();
+   return { ...actual, isSupabaseConfigured: () => false };
+@@ -20,7 +37,7 @@ vi.mock("@/lib/concierge/venues.server", () => ({
+ 
+ import { composerCreatePayload } from "@/components/plan/PlanComposer";
+ import { POST as CREATE } from "@/app/api/plans/route";
+-import { PATCH } from "@/app/api/plans/[id]/route";
++import { GET, PATCH } from "@/app/api/plans/[id]/route";
+ import {
+   PLAN_GROUNDING_PROOF_TTL_MS,
+   mintPlanGroundingProof,
+@@ -374,3 +391,51 @@ describe("POST /api/plans — anchored lock", () => {
+     expect(genericBody.eventTokens).not.toHaveProperty("planDraftSaved");
+   });
+ });
++
++
++describe("canonical base pub anchored create, replacement and reload", () => {
++  beforeEach(() => { __resetMemoryPlans(); basePlanPack.result = { status: "ready", pub: basePlanPack.pub }; });
++  afterEach(() => { __resetMemoryPlans(); basePlanPack.result = { status: "missing" }; });
++
++  it("ignores submitted names while preserving base Stop 1 through a grounded upgrade and member reload", async () => {
++    const id = basePlanPack.pub.id;
++    const operation = "base-canonical-create-01";
++    const proof = mintPlanGroundingProofV2({ routeVenueIds: [id], allowedVenueIds: [id],
++      anchorVenueId: id, anchorSource: "near", outcome: "anchor-only", operationKey: operation });
++    const response = await create({ cityId: "london", stops: [{ venueId: id, venueName: "Forged curated Sydney" }],
++      groundingProof: proof, anchor: { venueId: id, source: "near", outcome: "anchor-only" } }, operation);
++    expect(response.status).toBe(201);
++    const created = await response.json();
++    expect(created.plan.stops[0]).toMatchObject({ venueId: id, venueName: basePlanPack.pub.name });
++    expect(created.plan.plan).toMatchObject({ anchorVenueId: id, outcome: "anchor-only", routeReadyAt: null });
++    const planId = created.plan.plan.id;
++    const upgradeOperation = "base-canonical-upgrade-01";
++    const ids = [id, "venue-a", "venue-b"];
++    const upgraded = await PATCH(new Request(`${URL}/${planId}`, { method: "PATCH",
++      headers: { "content-type": "application/json" }, body: JSON.stringify({ memberToken: created.memberToken,
++        stops: ids.map((venueId) => ({ venueId, venueName: "Client replacement name" })), expectedRouteRevision: 1,
++        operationKey: upgradeOperation, groundingProof: mintPlanGroundingProofV2({ routeVenueIds: ids,
++          allowedVenueIds: ids, anchorVenueId: id, anchorSource: "near", outcome: "route", operationKey: upgradeOperation }) }) }),
++      { params: Promise.resolve({ id: planId }) });
++    expect(upgraded.status).toBe(200);
++    const update = await upgraded.json();
++    expect(update.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
++    expect(update.stops[0]).toMatchObject({ venueId: id, venueName: basePlanPack.pub.name });
++    expect(update.stops.map((stop: { venueName: string }) => stop.venueName)).not.toContain("Client replacement name");
++    const loaded = await GET(new Request(`${URL}/${planId}`, { headers: { authorization: `Bearer ${created.memberToken}` } }),
++      { params: Promise.resolve({ id: planId }) });
++    expect(loaded.status).toBe(200);
++    expect((await loaded.json()).stops[0]).toMatchObject({ venueId: id, venueName: basePlanPack.pub.name });
++    const anonymous = await GET(new Request(`${URL}/${planId}`), { params: Promise.resolve({ id: planId }) });
++    const preview = await anonymous.json();
++    expect(preview.visibility).toBe("preview");
++    expect(preview).not.toHaveProperty("stops");
++    expect(JSON.stringify(preview)).not.toContain(id);
++  });
++
++  it("does not use a London default to admit Sydney into a different city's create", async () => {
++    const response = await create({ cityId: "manchester", stops: [{ venueId: basePlanPack.pub.id, venueName: "Forged Manchester" }] }, "base-wrong-city-01");
++    expect(response.status).toBe(400);
++    expect((await response.json()).code).toBe("PLAN_VENUES_INVALID");
++  });
++});

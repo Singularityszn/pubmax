@@ -124,7 +124,7 @@ test("normal London entry paints UK base pubs and takes a price", async ({
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ prices: [], signals: [] }),
+        body: JSON.stringify({ prices: [], signals: [], listedPrices: [] }),
       });
       return;
     }
@@ -232,6 +232,8 @@ test("normal London entry paints UK base pubs and takes a price", async ({
         if (!sel?.startsWith("venue-uk-")) return null;
         firstPinId = pin.id;
         firstName = name;
+        await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
+        await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
         await priceField.fill(TYPED_PRICE);
         await expect(priceField).toHaveValue(TYPED_PRICE);
         return name;
@@ -265,6 +267,26 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   }
 
   await priceField.blur();
+  // The price was entered in the expanded modal sheet. Keep it mounted,
+  // collapse to half, then drag to peek before choosing another map pin.
+  const phoneSheet = page.locator(".mobileSharedSheet");
+  const openedSheet = await phoneSheet.elementHandle();
+  expect(openedSheet).not.toBeNull();
+  await phoneSheet.getByRole("button", { name: "Collapse sheet", exact: true }).click();
+  await expect(phoneSheet).toHaveClass(/sheet-half/);
+  const headerBox = await phoneSheet.locator(".mobileSharedSheetHeader").boundingBox();
+  expect(headerBox).not.toBeNull();
+  const dragX = headerBox!.x + 18;
+  const dragY = headerBox!.y + headerBox!.height - 10;
+  await page.mouse.move(dragX, dragY);
+  await page.mouse.down();
+  await page.mouse.move(dragX, dragY + 260, { steps: 12 });
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await expect(phoneSheet).toHaveClass(/sheet-peek/);
+  await expect(phoneSheet).not.toHaveAttribute("aria-modal", "true");
+  await expect(page.locator("main.appShell")).not.toHaveAttribute("inert", "");
+  await expect(priceField).toHaveValue(TYPED_PRICE);
 
   await expect
     .poll(
@@ -295,6 +317,9 @@ test("normal London entry paints UK base pubs and takes a price", async ({
     .not.toBeNull();
 
   switched = true;
+  expect(await openedSheet!.evaluate((node) =>
+    node.isConnected && node === document.querySelector(".mobileSharedSheet"),
+  )).toBe(true);
 
   const opened = firstName !== null;
   expect(opened, "a UK base pin should be tappable somewhere on a zoomed-in map").toBe(true);
@@ -363,4 +388,148 @@ test("a fresh national overview stays below the UK base gate and fetches no data
       (url) => !url.endsWith("places.json"),
     ),
   ).toEqual([]);
+});
+
+
+test("venue-type chips hide UK base bar and pub marks as well as curated kinds", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/map");
+  const wrap = page.locator(".mapCanvasWrap");
+  await expect(page.locator(".maplibregl-canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() => "__pubmaxMapCamera" in window), {
+    timeout: 30_000,
+  }).toBe(true);
+  const beforeZoom = await page.evaluate(() => (
+    window as Window & { __pubmaxMapCamera: { read: () => { zoom: number } } }
+  ).__pubmaxMapCamera.read().zoom);
+  const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
+  await zoomIn.click();
+  await zoomIn.click();
+  await zoomIn.click();
+  await expect.poll(() => page.evaluate((initialZoom) => {
+    const camera = (window as Window & {
+      __pubmaxMapCamera: { read: () => { zoom: number; moving: boolean } };
+    }).__pubmaxMapCamera.read();
+    return !camera.moving && camera.zoom >= initialZoom + 2.5;
+  }, beforeZoom), { timeout: 20_000 }).toBe(true);
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", { timeout: 30_000 });
+
+  const layers = page.getByRole("button", { name: /Map layers:/ });
+  const listToggle = page.getByRole("button", { name: "List view" });
+  await expect(async () => {
+    await layers.click();
+    await expect(listToggle).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  await listToggle.click();
+  await expect(page.locator(".mapVenueList--open")).toBeVisible();
+  const baseRows = page.locator('.mapVenueListItem[data-venue-id^="venue-uk-"]');
+  const baseBars = baseRows.filter({ hasText: "Other bar · no listed price" });
+  const basePubs = baseRows.filter({ hasText: "Other pub · no listed price" });
+  await expect.poll(() => baseBars.count(), { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(() => basePubs.count(), { timeout: 30_000 }).toBeGreaterThan(0);
+  const ids = (locator: typeof baseBars) => locator.evaluateAll((items) =>
+    items.map((item) => item.getAttribute("data-venue-id")!).filter(Boolean),
+  );
+  const baseBarIds = await ids(baseBars);
+  const basePubIds = await ids(basePubs);
+  const paintedIds = async (wanted: string[]) =>
+    (await paintedMarks(page))
+      .filter((mark) => mark.kind === "pin" && wanted.includes(mark.id))
+      .map((mark) => mark.id);
+  // Painted-pin probe returns only MapLibre marks that survived collision,
+  // re-query as the same tap target, and are not covered by app chrome.
+  await expect.poll(async () => (await paintedIds(baseBarIds)).length, {
+    timeout: 20_000,
+  }).toBeGreaterThan(0);
+  await expect.poll(async () => (await paintedIds(basePubIds)).length, {
+    timeout: 20_000,
+  }).toBeGreaterThan(0);
+
+  const filters = page.getByRole("button", { name: /^Filters:/ });
+  await filters.click();
+  const panel = page.getByRole("dialog", { name: "Filters" });
+  const bars = panel.getByRole("button", { name: "Bars", exact: true });
+  await bars.click();
+  await expect(bars).toHaveAttribute("aria-pressed", "false");
+  await filters.click();
+  await expect(baseBars).toHaveCount(0);
+  await expect.poll(() => paintedIds(baseBarIds)).toEqual([]);
+  await expect.poll(async () => (await paintedIds(basePubIds)).length).toBeGreaterThan(0);
+
+  await filters.click();
+  await bars.click();
+  await expect(bars).toHaveAttribute("aria-pressed", "true");
+  await filters.click();
+  await expect.poll(async () => (await ids(baseBars)).sort(), { timeout: 20_000 })
+    .toEqual([...baseBarIds].sort());
+  await expect.poll(async () => (await paintedIds(baseBarIds)).length).toBeGreaterThan(0);
+
+  await filters.click();
+  const pints = panel.getByRole("button", { name: "Pints", exact: true });
+  await pints.click();
+  await expect(pints).toHaveAttribute("aria-pressed", "false");
+  await filters.click();
+  await expect(basePubs).toHaveCount(0);
+  await expect.poll(() => paintedIds(basePubIds)).toEqual([]);
+  await expect.poll(async () => (await paintedIds(baseBarIds)).length).toBeGreaterThan(0);
+});
+
+
+test("base-led desktop keeps its active Bars filter reachable after a pan", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/map");
+  await expect(page.locator(".maplibregl-canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() => "__pubmaxMapCamera" in window), {
+    timeout: 30_000,
+  }).toBe(true);
+
+  const filters = page.getByRole("button", { name: /^Filters:/ });
+  await expect(filters).toBeVisible();
+  await filters.click();
+  const panel = page.getByRole("dialog", { name: "Filters" });
+  const bars = panel.getByRole("button", { name: "Bars", exact: true });
+  await bars.click();
+  await expect(bars).toHaveAttribute("aria-pressed", "false");
+  await filters.click();
+  await expect(filters).toHaveAttribute("aria-label", "Filters: venue types, view and zone, 1 filter on");
+  await expect(filters.locator(".mapVenueKindFilterCount")).toHaveText("1");
+
+  const outside = page.getByRole("complementary", {
+    name: "Outside priced city map",
+  });
+  const mapBox = await page.locator(".maplibreMap").boundingBox();
+  expect(mapBox).not.toBeNull();
+  // Each left drag moves the camera east. Stop on the actual outside-city
+  // banner rather than assuming a fixed number of pixels is a city boundary.
+  for (let drag = 0; drag < 6 && !(await outside.isVisible()); drag += 1) {
+    const y = mapBox!.y + mapBox!.height * 0.65;
+    await page.mouse.move(mapBox!.x + mapBox!.width * 0.76, y);
+    await page.mouse.down();
+    await page.mouse.move(mapBox!.x + mapBox!.width * 0.24, y, { steps: 12 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => (
+      window as Window & {
+        __pubmaxMapCamera: { read: () => { moving: boolean } };
+      }
+    ).__pubmaxMapCamera.read().moving), { timeout: 10_000 }).toBe(false);
+  }
+  await expect(outside).toBeVisible({ timeout: 20_000 });
+  await expect(filters).toBeVisible();
+  await expect(filters).toHaveAttribute("aria-label", "Filters: venue types, view and zone, 1 filter on");
+  await expect(filters.locator(".mapVenueKindFilterCount")).toHaveText("1");
+  await filters.click();
+  await expect(bars).toHaveAttribute("aria-pressed", "false");
+  await panel.getByRole("button", { name: "Show all types" }).click();
+  await expect(bars).toHaveAttribute("aria-pressed", "true");
+  await filters.click();
+  await expect(filters).toHaveAttribute("aria-label", "Filters: venue types, view and zone");
+  await expect(filters.locator(".mapVenueKindFilterCount")).toHaveCount(0);
 });

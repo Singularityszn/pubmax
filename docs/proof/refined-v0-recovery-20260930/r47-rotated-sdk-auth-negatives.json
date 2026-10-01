@@ -1,0 +1,17 @@
+{
+  "status": "SOURCE_ONLY_UNRUN",
+  "file": "__tests__/authProviderBootstrapRace.test.tsx",
+  "baseIncludes": "StrictMode plus rotated positive test packets, apply in order",
+  "beforeSha256": "89d07816d030a2f7294023f91ceb7c8eb92e244932d2e28b33417aee90ce68c1",
+  "afterSha256": "ad60385e12a4750b4d2d2987758ff285bbff18aea2cef71b095e8fea35fd3a98",
+  "patchSha256": "b44a78e428100ef172f1e49c3b21f6c1e33ab6a59d52c22eacda389a9164fdae",
+  "bytes": 2098,
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFile": true,
+    "runtime": false
+  },
+  "tests": "Existing two late-install negatives now parameterized original/rotated SDK result. Public viewer, SDK, cookie authority checks unchanged; neither original nor rotated A access token can be persisted. No swallowed events or synthetic cancellation.",
+  "evidence": "Original unrotated two cases genuine RED109/107/2. Added rotated negatives expected RED inference only until Root execution.",
+  "focusedCommand": "npx vitest run __tests__/authProviderBootstrapRace.test.tsx"
+}

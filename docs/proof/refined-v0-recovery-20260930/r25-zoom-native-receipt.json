@@ -1,0 +1,21 @@
+{
+  "recordedAt": "2026-09-30T14:19:29.761646+00:00",
+  "exitCode": 0,
+  "originalThresholdPassed": true,
+  "controlThresholdPassed": true,
+  "cameraSequence": [
+    12,
+    13,
+    14,
+    15
+  ],
+  "applicationChanges": [],
+  "causalClosure": false,
+  "limitations": [
+    "Both first clicks happened after opening-camera intent; late-opening override not exercised.",
+    "Standalone one context per arm; not full-suite two-worker conditions.",
+    "Callback microtask snapshots may precede target handler; RAF and next-click camera values establish changes."
+  ],
+  "fullFiveRemains": "RED: 1287 pass, 4 fail, 24 skip, 1 unrun.",
+  "fullFiveTraceNote": "No trace.zip present in full-five result directory at follow-up inspection. Four error contexts, log and available screenshots retained. Focused replay trace.zip files remain available under /tmp/pubmaxx-r25-failure-focus-results."
+}

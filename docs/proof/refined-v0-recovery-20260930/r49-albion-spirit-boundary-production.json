@@ -1,0 +1,77 @@
+{
+  "status": "FROZEN production source candidate; runtime GREEN UNRUN",
+  "createdAtUTC": "2026-10-01T13:54:02.921385+00:00",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtPackaging": "15b4d85cdc966f25174bfd8340f86d431a20843b",
+  "scratch": "/tmp/pubmaxx-r49-albion-spirit-boundary",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-albion-spirit-boundary-production.patch",
+  "patchSHA256": "52f3e094ef28d65ce40d5a6265a16ac26be5dabc5207535930107a164d3cc6f1",
+  "paths": [
+    {
+      "path": "lib/harvest/ukPriceCrawl.ts",
+      "beforeSHA256": "e06986c7509fcdf02898d603ee60c34c20a536223fd0166d2422eb51ed861073",
+      "afterSHA256": "1d9082f5f2b3f3c8fecec6ca120a3fa76f66c090367854c81f67818de2970536",
+      "currentRootMatchesBefore": true
+    }
+  ],
+  "actualRED": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/albion-spirit-boundaries-required-red.json",
+    "SHA256": "6f14bf2ef852f74c3a89495dee8a26af978d60a20c6db488502adc4f625d6820",
+    "total": 125,
+    "passed": 121,
+    "failed": 4,
+    "skipped": 0,
+    "defects": [
+      "Cognac Hennessy11 borrowed following Vodka",
+      "Cognac9.50 borrowed Vodka alongside actual GreyGoose9.50",
+      "TequilaRose6 lost existing shot category to Rose wine word",
+      "Pimms7 with lemonade inherited previous Tequila25ml shot scope"
+    ]
+  },
+  "testsUnchanged": {
+    "path": "__tests__/ginPublisherSourceRefresh.test.ts",
+    "SHA256": "f8b544f2e94786ded5ca6b3dd8680fc432016d8b0de6ee9dbfb7c35c39c37a3a"
+  },
+  "capturedFixturesUnchanged": [
+    {
+      "path": "__tests__/fixtures/harvest/albion-spirit-boundaries-pdfjs-20261001.json",
+      "SHA256": "39af5bb5b5c9b778150b51b7f360a2202fefce0e1a7761a3984fb977a2d37755"
+    },
+    {
+      "path": "__tests__/fixtures/harvest/albion-gin-pdfjs-20261001.json",
+      "SHA256": "585ce932e3d2122f836ef2e2d354573507db70d425ac59964ac5d17b030dd5a9"
+    },
+    {
+      "path": "__tests__/fixtures/harvest/scolt-head-spirits-20261001.json",
+      "SHA256": "83aa2dedd4e0ff658d91db00845099fc821564e55fb3fc81b9de8a78a50fb26a"
+    }
+  ],
+  "changes": [
+    "recognized unsupported spirit section returns a distinct category-null marker, preventing no-label fallback to neighboring supported words",
+    "recognize literal LIQUOR section boundary, retiring prior Tequila category/measure; unclassified Pimms mixed serve no longer inherits shot",
+    "Tequila spirit section wins an ordinary wine brand word only when same spirit also appears in own item label; preserves stronger own cocktail/AF and mixer decisions",
+    "nonspirit barriers retain existing reader behavior, including Water controls"
+  ],
+  "sourceChecks": {
+    "RootReadonlyGitApplyCheckWhitespaceErrorAll": "PASS exit0",
+    "freshScratchPatchApply": "PASS exit0",
+    "freshScratchAfterHash": "PASS exact byte equality",
+    "currentRootBeforeHash": "PASS",
+    "currentTestAndActualREDPins": "PASS",
+    "trailingWhitespace": "NONE"
+  },
+  "preserved": [
+    "existing f1 decimal fix and Vesper de4 body",
+    "no category enum or price band change",
+    "OFFER/FOOD/ambiguous title/mixer/half/bottle and wine identity safeguards unchanged",
+    "supported printed measure behavior and healthy Smirnoff/Sipsmith/GreyGoose Vodka controls retained by source",
+    "Root-owned quarantine/builder/rawledger/generated data and tests unchanged"
+  ],
+  "knownLimits": [
+    "Own-item versus section measure counterexample remains independently test-first/UNRUN; no speculative own-measure fix combined",
+    "Unsupported spirit sections may still admit an item explicitly classified by its own label; no neighbor borrowing allowed",
+    "Source/apply/hash evidence is not runtime/type/lint/browser or complete publisher extraction proof"
+  ],
+  "command": "npx vitest run __tests__/ginPublisherSourceRefresh.test.ts __tests__/ukPriceCrawl.test.ts __tests__/ukPriceHarvestRead.test.ts __tests__/ukPriceSourceFormat.test.ts",
+  "ownership": "One scratch reader path only. Root maintained source untouched; no tests/compiler/lint/build/browser/provider/data/Git index or ref mutation."
+}

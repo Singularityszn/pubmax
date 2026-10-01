@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-30T23:21:29.161279+00:00",
+  "previousGoalTurn": "PROGRESS_AND_VERIFIED_WAIT_INTERVAL: local SDK transport evidence advanced; original live actor later terminal.",
+  "thisTurn": "VERIFIED_WAIT_INTERVAL_THEN_GATE_REPORTED_PASS",
+  "nativeGate": {
+    "pid": 30127,
+    "pgid": 30127,
+    "cwd": "/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M3T7M0S607HN2YQEW0AVC04Q",
+    "firstObserved": "live via ps/cwd; same process group children",
+    "after45s": "ps/lsof EXIT1 empty: handle absent, no restart",
+    "ownerReport": "Full gate passed again unchanged602c6ac3; final Test verdict pending.",
+    "independentlyExecutedByCore": false
+  },
+  "github": {
+    "mainSha": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+    "source": "git ls-remote origin refs/heads/main EXIT0",
+    "openPrs": 0,
+    "sourcePrs": "gh-axi pr list --state open --limit5 EXIT0"
+  },
+  "core": "No new test/build/browser/DB/install execution. R39 regressions UNRUN. Await actual local + runner cleanup and fresh Root runtime grant; no schedule restart."
+}

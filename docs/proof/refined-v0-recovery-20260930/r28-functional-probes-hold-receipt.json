@@ -1,0 +1,113 @@
+{
+  "recordedAt": "2026-09-30T15:35:25.756631+00:00",
+  "status": "Further heavy runtime HOLD pending integration owner cleanup receipt",
+  "nativeGL": {
+    "exitCode": 0,
+    "arms": [
+      {
+        "mode": "original-synthetic-loss",
+        "passed": true,
+        "paintedOracle": true,
+        "persistentLoss": null,
+        "nativeReinit": null
+      },
+      {
+        "mode": "synthetic-loss-and-restore",
+        "passed": true,
+        "paintedOracle": true,
+        "persistentLoss": null,
+        "nativeReinit": null
+      },
+      {
+        "mode": "native-persistent-loss-auto-reinit",
+        "passed": true,
+        "paintedOracle": true,
+        "persistentLoss": {
+          "at": 1648,
+          "nativeLoss": true,
+          "elapsedLostMs": 1275.7000000029802,
+          "originalGlLost": true,
+          "originalCanvasConnected": false,
+          "currentCanvasExists": true,
+          "canvasReplaced": true
+        },
+        "nativeReinit": true
+      }
+    ],
+    "causeClosure": false
+  },
+  "observedSW": {
+    "exitCode": 0,
+    "testsPassed": 1,
+    "durationSeconds": 9.7,
+    "originalAssertionsRetained": true,
+    "causeClosure": false
+  },
+  "ownedServerStopped": true,
+  "jobs": [
+    {
+      "label": "webgl-native",
+      "wrapperPid": 35862,
+      "groupPid": 35870,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:29:17.837733+00:00",
+      "command": [
+        "node",
+        "node_modules/tsx/dist/cli.mjs",
+        "/tmp/pubmaxx-r26-webgl-native-diagnostic.mts",
+        "http://localhost:3351",
+        "/tmp/pubmaxx-r28-webgl-native"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:29:35.427506+00:00"
+    },
+    {
+      "label": "server",
+      "wrapperPid": 35486,
+      "groupPid": 35494,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:28:54.515181+00:00",
+      "command": [
+        "node",
+        "/tmp/pubmaxx-resume-recovery.cjs"
+      ],
+      "active": false,
+      "exitCode": 143,
+      "endedAt": "2026-09-30T15:32:55.169463+00:00"
+    },
+    {
+      "label": "sw-observed",
+      "wrapperPid": 36911,
+      "groupPid": 36920,
+      "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+      "startedAt": "2026-09-30T15:31:21.291633+00:00",
+      "command": [
+        "env",
+        "PW_PORT=3351",
+        "PW_SKIP_WEBSERVER=1",
+        "PW_MAP_EVIDENCE=0",
+        "PUBMAX_SW_DIAGNOSTIC_OUTPUT=/tmp/pubmaxx-r28-sw-observed",
+        "node",
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        "--config=/tmp/pubmaxx-r27-sw-observed.config.ts"
+      ],
+      "active": false,
+      "exitCode": 0,
+      "endedAt": "2026-09-30T15:31:31.213288+00:00"
+    }
+  ],
+  "ownedGroupSurvivors": [],
+  "watchdog": {
+    "session": 71696,
+    "pid": 35185,
+    "active": true,
+    "cleanupUTC": "16:06",
+    "leaseEndUTC": "16:09"
+  },
+  "sourceManifestHashChanges": [],
+  "custodyLimitation": "Owner handoff not confirmed before startup. Foreign recorded RLS PID/group absent, but coordinator later found live integration native agent32821; no isolated-runtime or performance claim from these functional probes. Root stopped own server at15:32:55, both diagnostics already terminalEXIT0. Further heavy jobs held.",
+  "publication": "No root index/commit/push/PR/merge/deploy/SQL/liveaccount mutation",
+  "remaining": "Whole-five original RED; native failure scheduling not exercised; FAQ tests expected RED unrun; fresh source gate/build/performance/provider/durable proofs pending"
+}

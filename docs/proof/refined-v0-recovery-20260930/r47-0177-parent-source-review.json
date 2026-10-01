@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-10-01T07:54:43.015296+00:00",
+  "owner": "Root SQL0177 lane, Core parent read-only",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/overnight-plan-manual-evidence-0177/pubmaxx/.audit/0177-manual-evidence-production.patch",
+  "sha256": "0204ed7ef8fb17b7510c6b2d8269feb75849f569eae2e225116dcf77186749dd",
+  "files": {
+    "supabase/migrations/20261001073100_0177_plan_manual_selected_evidence.sql": {
+      "before": null,
+      "after": "2235bd74230e73e3a926d8eccb2c423b7ea755b54d359ad21b029ceea63e9d7d"
+    },
+    "supabase/migrations/rollback/20261001073100_0177_plan_manual_selected_evidence_rollback.sql": {
+      "before": null,
+      "after": "b13dd6c961e110885fdf592c0cf4286c9ea8a350be900e51019898ebed42231f"
+    }
+  },
+  "predecessors": {
+    "supabase/migrations/20260929180000_0167_plan_replace_context_evidence.sql": "5d9af5d57592e82b92b976ee9f68dcc0064cf2b1479e8605fb37e9d5853d3326",
+    "supabase/migrations/20260930120000_0168_plan_proposal_context_evidence.sql": "66bedcbfd6ece06073153755dfae2da8e605799e1e5f18fe4f4058928ce59071"
+  },
+  "parentChecks": [
+    "Patchhash PASS",
+    "Freshscratch applyingpatch and bothafterhashes PASS",
+    "BothRootcurrent0167/0168predecessorhashes PASS",
+    "Extracted2forwardfunctionsdiff only2nonNULLeffectivecontextguards, allotherbodybytes unchanged",
+    "Rollback bothfullfunction bodies EXACT matchRootreviewedpredecessors"
+  ],
+  "runtime": "CurrentlocalPGGREEN and actualcatalogroundtrip Rootpending; no CoreSQLexecution/liveapply.",
+  "backupContract": "0179forward and rollback MUST preserve0177 nonNULLcontextguards as predecessor; no Corehistorical0174 rollbackcopy.",
+  "receiptCorrection": "Raw62RED includes1memory+4SQL+1Crew failure; siblinglane prose2otherCorememoryfailures imprecise, noeffecton4ownedSQLactualclassification."
+}

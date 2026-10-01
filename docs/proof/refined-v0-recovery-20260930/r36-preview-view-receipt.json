@@ -1,0 +1,67 @@
+{
+  "at": "2026-09-30T21:35:16.342549+00:00",
+  "url": "http://127.0.0.1:3351/map",
+  "buildReceipt": "r36-preview-build-receipt.json",
+  "responses": [
+    {
+      "path": "/map",
+      "status": 200,
+      "bytes": 52680,
+      "elapsedMs": 13
+    },
+    {
+      "path": "/places",
+      "status": 200,
+      "bytes": 64415,
+      "elapsedMs": 56
+    },
+    {
+      "path": "/plan",
+      "status": 200,
+      "bytes": 60742,
+      "elapsedMs": 33
+    },
+    {
+      "path": "/moment?returnTo=%2Fplan",
+      "status": 200,
+      "bytes": 58312,
+      "elapsedMs": 12
+    },
+    {
+      "path": "/api/version",
+      "status": 200,
+      "bytes": 11,
+      "elapsedMs": 3,
+      "publicVersion": {
+        "ok": true
+      }
+    }
+  ],
+  "browser": "Actual Codex in-app browser3; visible new preview tab, original production tab preserved",
+  "views": {
+    "map": [
+      "r36-preview/map-390.jpg",
+      "r36-preview/map-1440.jpg"
+    ],
+    "places": [
+      "r36-preview/places-390.jpg",
+      "r36-preview/places-1440.jpg"
+    ],
+    "plan": [
+      "r36-preview/plan-390.jpg",
+      "r36-preview/plan-1440.jpg"
+    ],
+    "create": [
+      "r36-preview/create-390.jpg"
+    ],
+    "moment": [
+      "r36-preview/moment-390.jpg",
+      "r36-preview/moment-1440.jpg"
+    ]
+  },
+  "actions": "Native navigation links and Create menu; first-visit overlay closed, analytics declined. No geolocation permission, form submission, account login, provider fixture or content write.",
+  "viewports": "390x844 and1440x900; actual phone innerWidth390/innerHeight844, document scrollWidth375 due scrollbar.",
+  "evidenceLevel": "Rendered preview/screens and bounded anonymous local HTTP GETs. No claim entire UI/auth/price/performance accepted.",
+  "main": "af5a08f objects fetched, not integrated; preserved Core behavior plus six source/test/comment delta paths.",
+  "remaining": "Full-five prior2failures; new price/auth/cache tests UNRUN; real provider/durable writes/CWV/production SQL/release pending."
+}

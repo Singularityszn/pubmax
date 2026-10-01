@@ -1,0 +1,75 @@
+{
+  "at": "2026-09-30T20:06:41.125840+00:00",
+  "cwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+  "ownedStoppedGroups": [],
+  "remainingOwnedGroupProcesses": [],
+  "portsChecked": [
+    3351,
+    3352,
+    8787,
+    55351,
+    55352
+  ],
+  "portListeners": "",
+  "postgresPostgrestProcesses": [],
+  "headlessChromiumProcesses": [],
+  "frozenHashChanges": [],
+  "sourceGateExitCode": 0,
+  "sourceFreeze": "r35-final-source-freeze.json",
+  "browserFullFive": {
+    "exitCode": 1,
+    "passed": 1290,
+    "failed": 2,
+    "skipped": 24
+  },
+  "noForeignProcessesKilled": true,
+  "status": "CLEAN_RELEASE",
+  "deadlineGuard": {
+    "at": "2026-09-30T20:06:00.005440+00:00",
+    "deadline": "2026-09-30T20:06:00+00:00",
+    "groups": [
+      {
+        "groupPid": 49941,
+        "outcome": "TERM_sent"
+      },
+      {
+        "groupPid": 49870,
+        "outcome": "TERM_sent"
+      }
+    ]
+  },
+  "completedOwnedServers": [
+    {
+      "label": "fullfive-keyless-server",
+      "groupPid": 49941,
+      "startedAt": "2026-09-30T19:37:39.580253+00:00",
+      "endedAt": "2026-09-30T20:06:00.031213+00:00",
+      "exitCode": 143,
+      "active": false
+    },
+    {
+      "label": "repaired-server",
+      "groupPid": 40093,
+      "startedAt": "2026-09-30T19:06:12.461091+00:00",
+      "endedAt": "2026-09-30T19:09:40.650216+00:00",
+      "exitCode": 143,
+      "active": false
+    },
+    {
+      "label": "fullfive-primary-server",
+      "groupPid": 49870,
+      "startedAt": "2026-09-30T19:37:38.840255+00:00",
+      "endedAt": "2026-09-30T20:06:00.039572+00:00",
+      "exitCode": 143,
+      "active": false
+    },
+    {
+      "label": "initial-server",
+      "groupPid": 30261,
+      "startedAt": "2026-09-30T18:43:07.739688+00:00",
+      "endedAt": "2026-09-30T18:59:54.445783+00:00",
+      "exitCode": 143,
+      "active": false
+    }
+  ]
+}

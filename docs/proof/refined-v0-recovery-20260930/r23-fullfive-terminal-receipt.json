@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-09-30T11:13:47Z",
+  "terminalSession": 46270,
+  "exit": 1,
+  "passed": 1284,
+  "failed": 5,
+  "skipped": 24,
+  "didNotRun": 3,
+  "durationMinutes": 23.5,
+  "cleanupVerifiedAt": "2026-09-30T11:13:52Z",
+  "portsFree": [
+    3351,
+    3352
+  ],
+  "knownOwnedPidsAbsent": 29,
+  "failedCases": [
+    "desktop planner exchange intermediate geometry",
+    "inline responsive drawer exit content",
+    "mobile Discover strict locator",
+    "Manchester location banner stuck Checking",
+    "service-worker takeover post-reload pins not revealed"
+  ],
+  "sourceFreezeSha256": "3297ad4bc9e49f7fdb8c6dfd212f931bed0cf942b91e75f0ef850e3334642c9a",
+  "correctionStatus": "Three test-only patches applied AFTER original terminal; focused seven cases currently RUNNING. Two late product/harness failures diagnosis pending. No corrected full-suite PASS."
+}

@@ -1,0 +1,206 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 2648,
+      "inpMs": 376,
+      "cls": 0.0041862046771071445
+    },
+    {
+      "path": "/",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 1748,
+      "inpMs": 160,
+      "cls": 0.004123474988610964
+    },
+    {
+      "path": "/map",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 2640,
+      "inpMs": 88,
+      "cls": 0.006988692745975826
+    },
+    {
+      "path": "/map",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 1232,
+      "inpMs": 88,
+      "cls": 0.006988692745975826
+    },
+    {
+      "path": "/map?sel=venue-4xlgb0",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 8392,
+      "inpMs": 64,
+      "cls": 0.00040110244538877943
+    },
+    {
+      "path": "/map?sel=venue-4xlgb0",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 8344,
+      "inpMs": 64,
+      "cls": 0.00040110244538877943
+    },
+    {
+      "path": "/tonight",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 1588,
+      "inpMs": 64,
+      "cls": 0.003860520400845121
+    },
+    {
+      "path": "/tonight",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 1604,
+      "inpMs": 64,
+      "cls": 0.003860520400845121
+    },
+    {
+      "path": "/today",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 1364,
+      "inpMs": 40,
+      "cls": 0.003860520400845121
+    },
+    {
+      "path": "/today",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 1372,
+      "inpMs": 40,
+      "cls": 0.003860520400845121
+    },
+    {
+      "path": "/plan",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 1320,
+      "inpMs": 56,
+      "cls": 0.003860520400845121
+    },
+    {
+      "path": "/plan",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 1324,
+      "inpMs": 56,
+      "cls": 0.003860520400845121
+    },
+    {
+      "path": "/",
+      "device": "desktop",
+      "temperature": "cold",
+      "lcpMs": 700,
+      "inpMs": 96,
+      "cls": 0.001613135067033179
+    },
+    {
+      "path": "/",
+      "device": "desktop",
+      "temperature": "warm",
+      "lcpMs": 684,
+      "inpMs": 96,
+      "cls": 0.001613135067033179
+    },
+    {
+      "path": "/map",
+      "device": "desktop",
+      "temperature": "cold",
+      "lcpMs": 780,
+      "inpMs": 80,
+      "cls": 0.004612761488340192
+    },
+    {
+      "path": "/map",
+      "device": "desktop",
+      "temperature": "warm",
+      "lcpMs": 600,
+      "inpMs": 64,
+      "cls": 0.01658723851165981
+    },
+    {
+      "path": "/pal",
+      "device": "desktop",
+      "temperature": "cold",
+      "lcpMs": 492,
+      "inpMs": 112,
+      "cls": 0
+    },
+    {
+      "path": "/pal",
+      "device": "desktop",
+      "temperature": "warm",
+      "lcpMs": 484,
+      "inpMs": 112,
+      "cls": 0
+    }
+  ],
+  "productTimings": [
+    {
+      "key": "map-usable-venues",
+      "label": "usable venue results on /map (first painted pin)",
+      "device": "mobile",
+      "startedAt": "navigation start",
+      "ms": 11109.699999988079
+    },
+    {
+      "key": "map-venue-sheet",
+      "label": "a selected venue sheet (/map?sel=)",
+      "device": "mobile",
+      "startedAt": "navigation start",
+      "ms": 8354.20000000298
+    },
+    {
+      "key": "plan-editable",
+      "label": "an editable plan on /plan",
+      "device": "mobile",
+      "startedAt": "navigation start",
+      "ms": 1676.300000011921
+    },
+    {
+      "key": "plan-acknowledged-save",
+      "label": "an acknowledged save (Lock it in to the saved plan)",
+      "device": "mobile",
+      "startedAt": "the Lock it in tap",
+      "ms": 1231
+    },
+    {
+      "key": "map-usable-venues",
+      "label": "usable venue results on /map (first painted pin)",
+      "device": "desktop",
+      "startedAt": "navigation start",
+      "ms": 4681.70000000298
+    },
+    {
+      "key": "map-venue-sheet",
+      "label": "a selected venue sheet (/map?sel=)",
+      "device": "desktop",
+      "startedAt": "navigation start",
+      "ms": 3880.699999988079
+    },
+    {
+      "key": "plan-editable",
+      "label": "an editable plan on /plan",
+      "device": "desktop",
+      "startedAt": "navigation start",
+      "ms": 901.2000000029802
+    },
+    {
+      "key": "plan-acknowledged-save",
+      "label": "an acknowledged save (Lock it in to the saved plan)",
+      "device": "desktop",
+      "startedAt": "the Lock it in tap",
+      "ms": 503
+    }
+  ]
+}

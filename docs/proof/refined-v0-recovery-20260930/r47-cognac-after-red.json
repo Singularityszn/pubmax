@@ -1,0 +1,49 @@
+{
+  "capturedAtUtc": "2026-10-01T05:53:46Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-cognac-after-red/base",
+  "scratchCandidate": "/tmp/pubmaxx-r47-cognac-after-red/candidate",
+  "patch": "/tmp/pubmaxx-r47-cognac-after-red.patch",
+  "patchSha256": "4222054c3c18b4f5469484d5d20aaafc60d0d7a126cad1601811401035d9a0b0",
+  "status": "SCRATCH_CANDIDATE_UNRUN_AFTER_ACTUAL_RED",
+  "actualRedEvidence": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/cognac-quarantine-contract-red-results.json",
+  "runtimeExecutedByThisAgent": false,
+  "generatedFilesChanged": [],
+  "changes": [
+    "Add exact raw and normalized source/category/price/serving quarantine entries for the observed Courvoisier row.",
+    "Assert both raw and normalized bundle representations are absent.",
+    "Update reconciliation quarantine count from 37 to 38 and assert 19 additional removals after historical 19."
+  ],
+  "arithmetic": {
+    "historicalPublishedTotalRows": 7607,
+    "historicalPublishedSiteHarvestRows": 3087,
+    "currentLedgerRows": 3106,
+    "historicalQuarantines": 19,
+    "totalCurrentQuarantines": 38,
+    "additionalQuarantines": 19,
+    "expectedPublishedTotalRows": 7588,
+    "expectedPublishedSiteHarvestRows": 3068
+  },
+  "files": [
+    {
+      "path": "lib/ukPriceBundle.ts",
+      "baseSha256": "bfcce0b1a2cfa57188d0f25ea340547ec808d403707a21307471168a689dafbd",
+      "candidateSha256": "0a9b09604d73e0aa758380836a9b75b9bf31adab041b7833898968d54099a59c"
+    },
+    {
+      "path": "__tests__/ukPriceBundle.test.ts",
+      "baseSha256": "0d9abff09f18d0ef4697e8ce5129b65b1205131b5251dbfaf0845f6e40101859",
+      "candidateSha256": "2045d51f29ccca2dd397d215d26f0dbffc7e3920a933450db933d8a257fdac9e"
+    },
+    {
+      "path": "__tests__/siteHarvestReconciliation.test.ts",
+      "baseSha256": "d4ae22eec88ce58e448f8a6ec9299d72ac6b35cdc7d030f9c72d806ebc14461c",
+      "candidateSha256": "0211a5a766b0f66e8d5ff3e54565e0324e2875d846ab0e822ffe4b4e928a743a"
+    }
+  ],
+  "limitations": [
+    "No patch applied to maintained tree by this agent.",
+    "No test or runtime run by this agent.",
+    "Producer must regenerate the bundle before publication-count assertions can pass."
+  ]
+}

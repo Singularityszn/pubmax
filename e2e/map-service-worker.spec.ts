@@ -237,9 +237,15 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   ).toBe("errored");
 
   await context.unroute(workerRoute);
+  const manifestResponse = await request.get("/data/venues_slim.manifest.json");
+  expect(manifestResponse.status()).toBe(200);
+  const manifest = await manifestResponse.json();
+  expect(typeof manifest.revision).toBe("string");
+  expect(manifest.revision.trim()).not.toBe("");
+  const targetMarker = `rollout-target-${Date.now()}`;
   const targetWorkerUrl =
-    `/sw.js?v=rollout-target-${Date.now()}` +
-    "&cache-policy=write-safe-v1";
+    `/sw.js?v=${encodeURIComponent(manifest.revision)}` +
+    `&rollout=${targetMarker}&cache-policy=write-safe-v1`;
   const takeover = await page.evaluate(async (scriptUrl) => {
     const states: string[] = [];
     const controllerChanged = new Promise<void>((resolve) => {
@@ -279,7 +285,13 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     };
   }, targetWorkerUrl);
 
-  expect(takeover.controller).toContain("rollout-target-");
+  expect(takeover.controller).not.toBeNull();
+  const takeoverControllerUrl = new URL(takeover.controller!);
+  expect(takeoverControllerUrl.origin).toBe(origin);
+  expect(takeoverControllerUrl.pathname).toBe("/sw.js");
+  expect(takeoverControllerUrl.searchParams.get("v")).toBe(manifest.revision);
+  expect(takeoverControllerUrl.searchParams.get("rollout")).toBe(targetMarker);
+  expect(takeoverControllerUrl.searchParams.get("cache-policy")).toBe("write-safe-v1");
   expect(takeover.states).toContain("installed");
   expect(takeover.states).toContain("activated");
   expect(takeover.waiting).toBeNull();
@@ -349,7 +361,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
         ),
       { timeout: 15_000 },
     )
-    .toContain("rollout-target-");
+    .toBe(new URL(targetWorkerUrl, origin).href);
   const recoveredTile = await page.evaluate(async (url) => {
     const response = await fetch(url);
     return { status: response.status, size: (await response.arrayBuffer()).byteLength };

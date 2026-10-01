@@ -153,6 +153,34 @@ describe("explicit implicit-flow callback completion", () => {
     expect(setSession).not.toHaveBeenCalled();
   });
 
+  it("reports a banned account behind an unowned callback instead of a generic failure", async () => {
+    const setSession = vi.fn();
+    const tokens = { accessToken: "access-a", refreshToken: "refresh-a" };
+    const verified = vi.fn().mockResolvedValue({
+      data: { user: { id: "account-a", email: "a@example.com" } },
+      error: null,
+    });
+    const bannedUser = vi.fn().mockResolvedValue({
+      data: { user: null },
+      error: { status: 403, code: "user_banned", message: "User is banned" },
+    });
+    const bannedMint = vi.fn().mockResolvedValue({ status: "refused", banned: true });
+    const refusedMint = vi.fn().mockResolvedValue({ status: "refused" });
+
+    expect(await prepareAuthCallbackSession({ setSession }, tokens, false, mintMatchingSession, bannedUser))
+      .toEqual({ status: "banned" });
+    expect(await prepareAuthCallbackSession({ setSession }, tokens, false, bannedMint, verified))
+      .toEqual({ status: "banned" });
+    const refreshedBanned = vi.fn(async (accessToken: string) => accessToken === "access-a"
+      ? { data: { user: { id: "account-a", email: "a@example.com" } }, error: null }
+      : { data: { user: null }, error: { status: 403, code: "user_banned", message: "User is banned" } });
+    expect(await prepareAuthCallbackSession({ setSession }, tokens, false, mintMatchingSession, refreshedBanned))
+      .toEqual({ status: "banned" });
+    expect(await prepareAuthCallbackSession({ setSession }, tokens, false, refusedMint, verified))
+      .toEqual({ status: "verification-failed" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
   it("never installs an unverified callback or one the reader cancels", async () => {
     const setSession = vi.fn();
     const tokens = { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" };

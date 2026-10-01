@@ -1,0 +1,23 @@
+{
+  "status": "SOURCE_ONLY_UNRUN",
+  "file": "__tests__/authProviderBootstrapRace.test.tsx",
+  "beforeSha256": "89d07816d030a2f7294023f91ceb7c8eb92e244932d2e28b33417aee90ce68c1",
+  "afterSha256": "5b483fab7bebe3d659b5400b4099b35610f4da38d88e32e21dbcd923fefe1c51",
+  "patchSha256": "4627bf523d79b9c08c1bff29e6da669116f40cdcb630049e19460451a6ea714c",
+  "bytes": 6063,
+  "baseIncludes": "Root89d07816 test with StrictMode and rotated positive, not optional rotated negatives",
+  "actualSourceFinding": "Proposed5d1ce4 auth repair uses latestSignedInSession fallback despite explicit logout, before held cookie clear reaches SDK SIGNED_OUT; pre-logout B can be revived. 5d1ce4 production packet must remain HELD until this schedule actual RED and repair verified.",
+  "newCases": [
+    "A SDK install held; B emits; explicit logout public signed-out; cookie clear held; release A; complete clear/logout; no A/B UI/SDK/cookie/write resurrection",
+    "Same schedule but genuinely post-logout C emits before A settles; final public/SDK/cookie C preserved"
+  ],
+  "fixture": "Actual bootstrap helper, rendered provider; auth SDK/cookie local doubles explicit. Cookie clear is held at real public signOut await boundary; no callback swallow/internal-ref mutation. Finally releases both held operations.",
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFile": true,
+    "runtime": false
+  },
+  "expectedBaseline": "Both schedules expected failure inference until Root runs; negative also detects proposed5d1ce4 fallback defect",
+  "focusedCommand": "npx vitest run __tests__/authProviderBootstrapRace.test.tsx",
+  "productionFixOutline": "After actual RED, prohibit pre-logout latest-session fallback when pending.signedOut. Retain only post-logout buffered non-own candidate (exact input/returned pair exclusion), preserving C. Do not edit production before meaningful RED."
+}

@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-01T00:58:42.591563+00:00",
+  "status": "SOURCE_PATCH_UNVERIFIED",
+  "baselineFreeze": "r46-final-source-freeze.json",
+  "baselinePaths": 4252,
+  "modifiedFromVerifiedBaseline": [
+    {
+      "path": "components/mobile/MobileSharedSheet.tsx",
+      "before": "d27acba5530e3e465a0e0244878f5813919308e661ea289e249e12c3d71963ec",
+      "after": "d0caa8f05b4f46c6df235e96187d9d393bf8c5a42cb0d7216f4c950d256d4364"
+    }
+  ],
+  "newRegressionFile": {
+    "path": "__tests__/mobileSheetHomeNavigation.test.tsx",
+    "sha256": "2be0a4d753b933aa9be0dd39389d316926e3e3b0d4bad60e9a2bde1a12977801"
+  },
+  "change": "One-line SurfaceNav Home onHome=onClose instead of gesture requestClose. No navowner/query/Back/Escape/scrim/drag changes.",
+  "failingBefore": "Original3lifecycle failures andone nativeconsumedHome journal confirmed Home invokesBack.",
+  "sourceReview": "Sol confirmscallbackownership matchesdocumentedcontract; Root independentlyrevieweddiff.",
+  "validation": "New mountedtest and fresh correctedbuild/native lifecycle/sourcegate/fullfive UNRUN. HistoricalR46sourcegatePASS andfullfiveRED areonlyproof fortheir4252pathfreeze.",
+  "runtime": "Released00:48:44; sourceonlyuntilnewexplicitresourcegrant.",
+  "pending": "Fourthphone dragfailure retains exactassertions; nativeinstrumentationprepared butUNRUN. No merge/deploy/SQL."
+}

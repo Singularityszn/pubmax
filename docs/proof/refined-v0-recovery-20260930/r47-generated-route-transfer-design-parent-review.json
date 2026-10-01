@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-01T11:07:26.966214+00:00",
+  "designSha256": "f715427dbdebf3829e0b53642300c138bda9d4db2aff360de546436883f7cf28",
+  "state": "SOURCE_DESIGN_READY_PRODUCTION_HELD_ACTUAL_NATIVE_RED_PENDING",
+  "invariants": [
+    "Transfer current visible route, preserve exactstop/backupquote ownership, no silentlyoriginalfallback",
+    "Unanchored V1 approvedcandidate-set reorder compatible; signature/key unchanged, serverstillverifies",
+    "Anchored V2 binds Stop1/order, needs explicit release or retainedanchor; no unsignedclientauthentication",
+    "V2 doesnot sign NightContext or priceamounts; independent city/context/quote resolver fences remain",
+    "Identity edits/currentSuggest mustnot resurrect quote snapshot invalidated by coordinator; retainexplicitdrinkintent, retire staleproof and order metadata",
+    "Reload/sharedintent money/proof/ownerpolicy separate, no newGPS/authcapability/publicquote fields"
+  ],
+  "sourcePinCaveat": "Sevencostafterpins in design were checked before Root latestMain rebase. Root now deliberately halfway through63-commitrebase after6486c5dce; no currentfinalsourceclaim. Revalidate afterRootintegration then actuale510RED before any producer.",
+  "runtime": "Core none; Rootfreshbuild/native/gates owner."
+}

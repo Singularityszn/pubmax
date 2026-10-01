@@ -1,0 +1,8 @@
+{
+  "at": "2026-09-30T22:46:19.255496+00:00",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "freeze": "r37-source-only-freeze.json",
+  "pathsChecked": 4251,
+  "mismatches": [],
+  "claim": "Source bytes only; no test/build/browser execution. Prepared regressions remain UNRUN."
+}

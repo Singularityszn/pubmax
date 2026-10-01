@@ -1,0 +1,67 @@
+{
+  "at": "2026-09-30T20:33:01.216127+00:00",
+  "url": "https://pubmaxxing.com/api/venue/venue-16pnwmm",
+  "status": 200,
+  "transport": "anonymous production public GET, no cookies or authorization supplied",
+  "headers": {
+    "cache-control": "public",
+    "age": "43",
+    "x-vercel-cache": "HIT"
+  },
+  "venueId": "venue-16pnwmm",
+  "venueName": "Prospect of Whitby",
+  "publicTopLevelKeys": [
+    "venue",
+    "busyness",
+    "getIn",
+    "booking"
+  ],
+  "publicVenueKeys": [
+    "id",
+    "name",
+    "address",
+    "latitude",
+    "longitude",
+    "primaryBorough",
+    "visibleBoroughs",
+    "prices",
+    "cheapestPrice",
+    "cheapestPint",
+    "averagePrice",
+    "hasStory",
+    "latestContributorPrice",
+    "latestContributorAt",
+    "bookingLink",
+    "imageUrl",
+    "description",
+    "dataQualityNotes",
+    "sourceDatasets",
+    "curation",
+    "allergyInfoUrl",
+    "website",
+    "menuUrl",
+    "contacts",
+    "amenityStatus",
+    "bundlePrices",
+    "priceUpdates"
+  ],
+  "listedCategoryPricesFieldPresent": false,
+  "listedCategoryPrices": null,
+  "bundlePricesFieldPresent": true,
+  "sourceBundleQuotes": null,
+  "limits": [
+    "Absent listedCategoryPrices field is not proof of an empty price collection.",
+    "Public production read only, not local regression, release or provider-auth proof.",
+    "No account or data write, local server, browser, build or test started.",
+    "Production API uses an older aggregated bundle shape; cannot equate it with local ten-quote projection."
+  ],
+  "bundlePrices": {
+    "listed": null,
+    "estimate": {
+      "priceGbp": 6.56,
+      "basis": "regional_baseline:tower-hamlets",
+      "sampleSize": 100,
+      "computedAt": "2026-09-03T21:36:27.404Z"
+    }
+  }
+}

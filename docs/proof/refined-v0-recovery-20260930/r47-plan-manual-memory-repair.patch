@@ -1,0 +1,23 @@
+diff --git a/lib/planStore.ts b/lib/planStore.ts
+index 8510362a7..0f8c3c8b2 100644
+--- a/lib/planStore.ts
++++ b/lib/planStore.ts
+@@ -162,7 +162,7 @@ function planFromRow(row: Record<string, unknown>): PlanDTO {
+   };
+ }
+ 
+-function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
++export function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
+   const snapshot = Array.isArray(row.route_snapshot) ? row.route_snapshot : [];
+   return {
+     id: String(row.id),
+@@ -784,7 +784,8 @@ export const memoryPlanStore: PlanStore = {
+       const context = update.context ?? plan.context;
+       plan.stops = stops.map((stop) => {
+         if (!stop.selectedDrinkPriceEvidence ||
+-          (!context?.zeroProof && stop.selectedDrinkPriceEvidence.category === context?.drinkCategory)) return stop;
++          (!context ? stop.selectedDrinkPriceEvidence.source === "listed"
++            : !context.zeroProof && stop.selectedDrinkPriceEvidence.category === context.drinkCategory)) return stop;
+         const nextStop = { ...stop };
+         delete nextStop.selectedDrinkPriceEvidence;
+         return nextStop;

@@ -1,0 +1,22 @@
+--- a/__tests__/planListedPriceResolver.test.ts
++++ b/__tests__/planListedPriceResolver.test.ts
+@@ -34,7 +34,7 @@
+ function resolve(hint: unknown = LISTED, contextChanges = {}, venueId = "venue-a") {
+   return resolvePlanSelectedDrinkPriceEvidence(
+     [{ venueId, venueName: "Canonical pub" }], [{ selectedDrinkPriceEvidence: hint }],
+-    { ...inferNightContext("wine").context, drinkCategory: "wine", ...contextChanges },
++    { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine", ...contextChanges },
+   );
+ }
+ 
+--- a/__tests__/planGenerateRoute.test.ts
++++ b/__tests__/planGenerateRoute.test.ts
+@@ -366,7 +366,7 @@
+   });
+ 
+   it.each([
+-    ["degraded", false, true, "We could not read the wine prices just now, so none are shown yet."],
++    ["degraded", false, true, "We could not read the wine prices from every source just now. Any prices shown come from sources we could read."],
+     ["partial", true, false, "Read from part of the wine prices, so some are still missing."],
+   ])("discloses %s wine price index coverage in plan confidence", async (_status, truncated, degraded, warning) => {
+     categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated, degraded });

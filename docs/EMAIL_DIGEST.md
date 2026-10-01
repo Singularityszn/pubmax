@@ -1,43 +1,54 @@
-# Weekly email digest — "your London week in pints"
+# Weekly email digest: "your London week in pints"
 
-Cycle 8 PRD, item 2. A weekly reach channel that mirrors the push story: **one
-provider seam, no-op until keys, honest content from real data only.** Nothing
-is sent today — this is the scaffold that activates the moment an email provider
-and per-user opt-in exist.
+Cycle 8 PRD, item 2. The content generator and provider interface exist, but
+delivery remains parked. The send script returns an empty recipient list and
+never sends mail. The configured Resend provider throws because its HTTP
+transport is not implemented. Credentials alone cannot activate delivery.
 
 ## Architecture (three seams)
 
 | Concern | File | Notes |
 | --- | --- | --- |
-| Delivery provider | `lib/emailProvider.ts` | `EmailProvider.send(messages)`; `noopEmailProvider` (active until keys) / `resendEmailProvider` (stub). `selectEmailProvider()` picks by env — same shape as `lib/pushProvider.ts` and `lib/storeBackend.ts`. |
+| Delivery provider | `lib/emailProvider.ts` | `EmailProvider.send(messages)`; without credentials, the no-op reports skipped messages. With credentials, the Resend stub rejects sends. `selectEmailProvider()` selects by configuration. |
 | Content generator + render | `lib/weeklyDigest.ts` | Pure + unit-tested. `generateWeeklyDigest(input)` → structured digest; `renderWeeklyDigestHtml` / `renderWeeklyDigestText`; `resolveDigestRecipients` (opt-in gate). Imports no store/env/fs. |
-| Trigger | `scripts/send_weekly_digest.mjs` + `.github/workflows/weekly-digest.yml` | Batch orchestration + safety gates. Cron is commented out until keys land; manual dispatch exercises the safe no-op. |
+| Trigger | `scripts/send_weekly_digest.mjs` + `.github/workflows/weekly-digest.yml` | Recipient lookup and delivery are not wired. The cron is disabled; manual dispatch exercises the parked script, including when credentials exist. |
 
-The generator is deliberately decoupled from the app's large `Venue` type: the
-script normalises real datasets into small `Digest*` input records (prices in
-**GBP**, ISO `observedAt`), so composition stays pure and testable.
+The generator accepts small `Digest*` input records rather than the app's
+large `Venue` type. The proposed batch entry must normalise source prices to
+**GBP** and observations to ISO `observedAt` values. The current script
+documents that mapping; it does not implement the dataset loading or composition.
 
-## Provider decision — Resend (default), Postmark (alternative)
+## Planned provider: Resend (default), Postmark (alternative)
 
-**Recommended: Resend.** First-class transactional API, generous free tier, a
-single `POST https://api.resend.com/emails` send, and DKIM/SPF via a verified
-domain. Set:
+The existing provider stub targets Resend. The eventual transport requires:
 
-- `RESEND_API_KEY` — server-only API key.
-- `EMAIL_FROM` — a **verified** sender, e.g. `hello@pubmaxxing.com` (already on
+- `RESEND_API_KEY`: server-only API key.
+- `EMAIL_FROM`: a **verified** sender, e.g. `hello@pubmaxxing.com` (already on
   the owner queue).
 
-The real transport is a later drop-in inside `resendEmailProvider.send` (shape
-fully specified in `lib/emailProvider.ts`): per-message POST with
+The proposed transport belongs inside `resendEmailProvider.send`; it is not
+implemented in the current source. The intended shape in `lib/emailProvider.ts` is a per-message POST with
 `Authorization: Bearer <key>` and `{ from, to, subject, html, text }`, mapping
 `200 → sent`, invalid-recipient `4xx → invalid`, `429/5xx → error`.
 
-**Alternative: Postmark.** Same seam — only `isResendConfigured` /
-`resendEmailProvider` swap for Postmark equivalents: `POST
+**Alternative proposal: Postmark.** The existing seam would need `isResendConfigured` /
+`resendEmailProvider` replaced by Postmark equivalents: `POST
 https://api.postmarkapp.com/email`, header `X-Postmark-Server-Token`, body
 `{ From, To, Subject, HtmlBody, TextBody }`. No caller changes.
 
-## Opt-in stance — privacy-first (explicit opt-IN)
+## Activation remains pending
+
+Before enabling scheduled delivery, implement the provider transport, connect a
+real opted-in audience, and provide working per-recipient unsubscribe handling.
+Verify that opt-out wins and that rendered messages retain their source and
+freshness rules. Adding secrets does none of this work.
+
+The current CLI message and workflow comments still suggest keys activate
+sending. That wording is stale: `listOptInAudience()` always returns `[]`, and
+the script has no provider-send call. This documentation correction does not
+change the script, workflow schedule, provider or account preferences.
+
+## Opt-in stance: explicit opt-in
 
 There is **no user-preferences store in the repo today**: `profiles` has no email
 column, and emails live only in Supabase Auth (`auth.users`). Given that, the
@@ -52,7 +63,7 @@ digest gates on **explicit opt-in**, not opt-out:
 - Every rendered email carries an `{{unsubscribe_url}}` placeholder;
   `toEmailMessage(digest, { unsubscribeUrl })` **requires** a per-recipient URL,
   substitutes it into both parts, and **throws** if any residual `{{…}}`
-  placeholder survives (P2-c) — a message can never ship half-templated.
+  placeholder survives (P2-c). A message cannot retain an unresolved template field.
 
 **Where the durable field goes (owner decision needed).** When opt-in volume
 warrants it, add a `public.user_email_prefs` table keyed by `user_id →
@@ -66,7 +77,7 @@ migration idiom (`supabase/migrations/…_0010_notifications.sql`).
 
 Enforced by the generator and covered by tests:
 
-- A section renders **only** when real data backs it — no "0 drops 🎉" filler, no
+- A section renders **only** when real data backs it: no "0 drops 🎉" filler, no
   invented prices or events.
 - Prices honour an observed-at window (default 7 days); stale never reads live.
 - Provenance `{label, url}` rides every price / what's-on line.
@@ -74,7 +85,7 @@ Enforced by the generator and covered by tests:
   unsubscribe), never padding. See the three rendered examples in
   `docs/digest-samples/`.
 
-## Data sources the send path normalises in
+## Planned batch data sources
 
 - **Prices:** `public/data/pint_index_snapshot.json` observations (PENCE → GBP)
   + the public slim-venue baseline (`lib/venuesSlim`).
@@ -86,8 +97,8 @@ Enforced by the generator and covered by tests:
 ## Fixtures
 
 `docs/digest-samples/{full-week-camden,partial-week-london,empty-week-barnet}.{html,txt}`
-are committed rendered examples for review — the **final provider-ready
-messages** built via `toEmailMessage` with a fixed example unsubscribe URL, so no
+are committed rendered examples for review. These **fully rendered
+messages** are built via `toEmailMessage` with a fixed example unsubscribe URL, so no
 `{{…}}` placeholder survives. Regenerate after an intentional copy/markup change:
 
 ```

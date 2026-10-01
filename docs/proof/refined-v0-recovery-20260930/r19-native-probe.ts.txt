@@ -1,0 +1,31 @@
+(() => {
+   // Keep the serialized observer self-contained under tsx keepNames.
+   function __name(fn: any, _label?: string) { return fn; }
+   const w = window as any;
+   const data: any = w.__cwvAttribution = { timeOrigin: performance.timeOrigin, lcp: [], events: [], longTasks: [], longAnimationFrames: [], clicks: [], selectedStates: [], loafSupported: PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame') ?? false };
+   // Event/click observer identity avoids geometry reads during native input.
+   // Geometry belongs to LCP and explicit attribution snapshots only.
+   const element = (e: Element | null, geometry = true) => { if (!e) return null; const r=geometry ? e.getBoundingClientRect() : null; return { tag: e.tagName, id:e.id, className:e.getAttribute('class'), text:e.textContent?.trim().slice(0,180), href:e.closest('a[href]')?.getAttribute('href') ?? null, ...(r ? {rect:{x:r.x,y:r.y,width:r.width,height:r.height}} : {}) }; };
+   for (const type of ['largest-contentful-paint','event','longtask']) {
+    try { new PerformanceObserver(list => { for (const value of list.getEntries()) { const e=value as any;
+     if (type === 'largest-contentful-paint') data.lcp.push({ startTime:e.startTime,renderTime:e.renderTime,loadTime:e.loadTime,size:e.size,url:e.url,element:element(e.element) });
+     else if (type === 'event' && e.interactionId) data.events.push({ name:e.name,startTime:e.startTime,duration:e.duration,processingStart:e.processingStart,processingEnd:e.processingEnd,inputDelay:e.processingStart-e.startTime,processingDuration:e.processingEnd-e.processingStart,presentationDelayRounded:Math.max(0,e.startTime+e.duration-e.processingEnd),interactionId:e.interactionId,target:element(e.target,false) });
+     else if (type === 'longtask') data.longTasks.push({ startTime:e.startTime,duration:e.duration,name:e.name,attribution:e.attribution?.map((a:any)=>a.toJSON?.() ?? {name:a.name}) });
+    } }).observe(type === 'event' ? {type,buffered:true,durationThreshold:16} : {type,buffered:true}); } catch {}
+   }
+   if (data.loafSupported) {
+    try { new PerformanceObserver(list => { for (const value of list.getEntries()) { const e=value as any; data.longAnimationFrames.push({startTime:e.startTime,duration:e.duration,blockingDuration:e.blockingDuration,renderStart:e.renderStart,styleAndLayoutStart:e.styleAndLayoutStart,firstUIEventTimestamp:e.firstUIEventTimestamp,scripts:e.scripts?.map((s:any)=>({startTime:s.startTime,duration:s.duration,executionStart:s.executionStart,forcedStyleAndLayoutDuration:s.forcedStyleAndLayoutDuration,pauseDuration:s.pauseDuration,invoker:s.invoker,invokerType:s.invokerType,sourceURL:s.sourceURL,sourceFunctionName:s.sourceFunctionName,sourceCharPosition:s.sourceCharPosition,windowAttribution:s.windowAttribution}))}); } }).observe({type:'long-animation-frame',buffered:true}); } catch {}
+   }
+   document.addEventListener('click', event => { data.clicks.push({at:performance.now(),eventTimeStamp:event.timeStamp,isTrusted:event.isTrusted,scrollY:window.scrollY,target:element(event.target instanceof Element ? event.target : null,false),defaultPreventedAtCapture:event.defaultPrevented}); },true);
+   w.__cwvActionSnapshot = () => {
+    const primary = document.querySelector(window.location.pathname === '/map' ? '.venueInspector [role="tab"]' : '[data-primary-action] a, [data-primary-action] button');
+    return {at:performance.now(),timeOrigin:performance.timeOrigin,scrollX:window.scrollX,scrollY:window.scrollY,readyState:document.readyState,primary:element(primary),activeElement:element(document.activeElement,false),feed:element(document.querySelector('.lpDrops')),images:Array.from(document.images).map(img=>({id:img.id,className:img.className,currentSrc:img.currentSrc,complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,decoding:img.decoding,loading:img.loading,fetchPriority:img.fetchPriority,element:element(img)}))};
+   };
+   let previous='';
+   const read = () => { const host=document.querySelector('.venueInspector'); const heading=host?.querySelector('h1,h2'); const state=JSON.stringify({host:!!host,heading:heading?.textContent?.trim()??null,loading:!!document.querySelector('.venueSheetSkeleton[aria-busy="true"]')}); if(state!==previous){previous=state; data.selectedStates.push({at:performance.now(),...JSON.parse(state)});} };
+   // No selected-detail mutation observer on Home; it has no selected sheet.
+   if (window.location.pathname === '/map') {
+    new MutationObserver(read).observe(document,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-busy']});
+    document.addEventListener('DOMContentLoaded',read,{once:true});
+   }
+  })();

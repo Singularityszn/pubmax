@@ -1,0 +1,66 @@
+--- a/lib/mapRouteTransfer.ts
++++ b/lib/mapRouteTransfer.ts
+@@ -1,4 +1,5 @@
+ import { PLANNING_INTENT_SOURCES, type PlanningIntentSource } from "@/lib/planningIntent";
++import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import {
+   writePlanRouteDraftEnvelope,
+   type ParsedPlanRouteDraft,
+@@ -19,7 +20,12 @@
+   venueId?: unknown;
+   venueName?: unknown;
+   reason?: unknown;
+-  alternatives?: Array<{ venueId?: unknown; venueName?: unknown }>;
++  selectedDrinkPriceEvidence?: unknown;
++  alternatives?: Array<{
++    venueId?: unknown;
++    venueName?: unknown;
++    selectedDrinkPriceEvidence?: unknown;
++  }>;
+ };
+ 
+ export type MapGeneratedRouteResponse = {
+@@ -37,20 +43,26 @@
+ };
+ 
+ type RouteDraftValue = ParsedPlanRouteDraft["value"];
++type RouteDraftAlternative = RouteDraftValue["stops"][number]["alternatives"][number];
+ 
+ function text(value: unknown): string | null {
+   return typeof value === "string" && value.trim() ? value.trim() : null;
+ }
+ 
+-function cleanAlternatives(raw: RawStop["alternatives"]): { venueId: string; venueName: string }[] {
++function cleanAlternatives(raw: RawStop["alternatives"]): RouteDraftAlternative[] {
+   if (!Array.isArray(raw)) return [];
+   return raw
+     .map((alt) => {
+       const venueId = text(alt?.venueId);
+       const venueName = text(alt?.venueName);
+-      return venueId && venueName ? { venueId, venueName } : null;
++      const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(alt?.selectedDrinkPriceEvidence);
++      return venueId && venueName ? {
++        venueId,
++        venueName,
++        ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
++      } : null;
+     })
+-    .filter((alt): alt is { venueId: string; venueName: string } => alt !== null);
++    .filter((alt): alt is RouteDraftAlternative => alt !== null);
+ }
+ 
+ /**
+@@ -68,11 +80,13 @@
+     const venueName = text(raw?.venueName);
+     if (!venueId || !venueName) return null;
+     const reason = text(raw?.reason);
++    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(raw?.selectedDrinkPriceEvidence);
+     return {
+       key: index + 1,
+       venueId,
+       venueName,
+       ...(reason ? { reason } : {}),
++      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+       alternatives: cleanAlternatives(raw?.alternatives),
+     };
+   });

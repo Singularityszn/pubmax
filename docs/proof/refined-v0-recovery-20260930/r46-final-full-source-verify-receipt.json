@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-01T00:19:55.126635+00:00",
+  "command": "DEPLOYMENT_VERSION=local npm run verify",
+  "exitCode": 0,
+  "freeze": "r46-final-source-freeze.json",
+  "frozenFiles": 4252,
+  "counts": [
+    "\n Test Files  1740 passed | 1 skipped (1741)",
+    "      Tests  18704 passed | 6 skipped (18710)",
+    "\n\n Test Files  1 passed (1)",
+    "      Tests  10 passed (10)",
+    "\n Test Files  49 passed (49)",
+    "      Tests  475 passed (475)",
+    "\n Test Files  1 passed (1)",
+    "      Tests  10 passed (10)"
+  ],
+  "lint": {
+    "errors": 0,
+    "warnings": 17
+  },
+  "audit": "no high/critical vulnerabilities",
+  "freshness": {
+    "stale": [
+      "area_news"
+    ],
+    "unmeasured": [
+      "night_signal_candidates",
+      "weather",
+      "whats_on"
+    ]
+  },
+  "log": "/tmp/pubmaxx-r46-final-full-source-verify.log",
+  "boundaries": [
+    "Local PostgreSQL not productionRLS",
+    "6 explicit unit skips",
+    "No real provider/durablebill/production release proof",
+    "Mainf33 semanticcomposition, unmergedpackage476 not installed, remainingpublisher/SQLreconciliation"
+  ],
+  "hashDriftObservedDuringFirstBrowserBuild": [
+    "public/data/uk_prices/rows.json",
+    "public/data/uk_prices/manifest.json"
+  ],
+  "dataCustodyCorrection": "First Playwright build wrapper restored the two generated bundle files from HEAD after successful build. That attempt was interrupted before acceptance; data restored from official R46 builder snapshot, source/data freeze independently rechecked zero drift, completed builds started with original Playwright config environment and reuseExistingServer=false through temporary build-reuse config."
+}

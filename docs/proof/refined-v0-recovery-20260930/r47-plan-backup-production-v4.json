@@ -1,0 +1,142 @@
+{
+  "status": "FROZEN v4 SOURCE-ONLY READY; runtime verification UNRUN in this agent",
+  "v3Correction": {
+    "v3Patch": "c2169e2946259894c249636e98a6e89a549f26105173852cf1865fc676a9ed17",
+    "reason": "Parent source review found NULL\u2192JSONnull conversion in new0179 context update projection. nullif(..., JSONnull) preserves preceding0166SQLNULL behavior, avoiding an introduced0176CHECK failure for alreadyunpriced rows under empty/malformed directRPCcontexts. Actual PG regression ownedRoot/Luna pending."
+  },
+  "v2Correction": {
+    "v2Patch": "926ee272bef8bfea4cebae2a9cbbdccfd581475bf8985e2f46fbdaf83180d6ac",
+    "reason": "Restore primary read semantics: reads close-copy DTOs but do not context-filter already valid saved community evidence. Context filtering remains on writes. Exact v2 matcher already constructed hint-free targets before every return; no raw-hint leak present in frozen v2, no duplicate authority added."
+  },
+  "supersedes": {
+    "v1Patch": "fa8fd6f48e3c5f369220555f07c74fe9dfbc2d0dd064751b71a2e199566dc9af",
+    "reason": "Parent caught position in historical plain-create idempotency hash. v2 uses explicit fields/property order matching old no-backup hash. Actual crossing-deploy regression to be executed by Root. v1 immutable and HELD."
+  },
+  "rootReadOnlyWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHEAD": "b4790e8915a809d0747362352396b2fa341782df",
+  "isolatedWorktree": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx",
+  "scratch": "/tmp/pubmaxx-r47-plan-backup-production-v4",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-plan-backup-production-v4.patch",
+  "patchSha256": "f3648d9c4ea9c76a436c30fe7aa6f006b3197aef8cb4b912a4a96ead21d938f6",
+  "patchBytes": 55714,
+  "files": {
+    "app/api/plans/route.ts": {
+      "before": "a85d2b8bf786091a4325123a7307b250ff78ce4da8bb9af7682b508f1b877e8b",
+      "after": "05f603729802e3fb9dc7593aab3bb3bc7a9cbe86e376d4a262c047e90db3c56f"
+    },
+    "components/plan/PlanComposer.tsx": {
+      "before": "fe2f16a00fc2e408287c5223f30e749794ebfac3ad518ed6969531dcfa04b498",
+      "after": "11658247d7e3ee003185c4187f21ce71f39b2828ba2e3f7ecc65517f7fc78767"
+    },
+    "components/plan/PlanSummary.tsx": {
+      "before": "bb07ac265940cec4d431ef588d234c3ae583f735461b4ed6357eae664f9e8b3a",
+      "after": "9567006af55962526a73aea4e68f7ee943633acfd2cbbfe87fd0ffb613070039"
+    },
+    "lib/plan.ts": {
+      "before": "3fd2f1abc2ef389a458be963a160c027b9acb14fcde6d4367ce1db194f9a0b53",
+      "after": "4ccd2a3989a2c4aed1b82e986e4042027350746d6557b141621a241a66e6d113"
+    },
+    "lib/planCollaborationStore.ts": {
+      "before": "4a3de08e2958bc2f5fe4264c48c7bc85502fb08b43cd712f21e1555ad5b7bf0b",
+      "after": "5862c504c16ee1b37a3773896869128d3e3dfc273779655e8265d6c387a64ed2"
+    },
+    "lib/planRoute.ts": {
+      "before": "756327300ad01f94367d9f78472e92f471e74c886d9b2cf0c32ac8a1cd41bdb3",
+      "after": "618e26482c1612d6038e426d16c2adad1ad4662f2bc64d4e3baa70ee59ce76ac"
+    },
+    "lib/planRouteEditor.ts": {
+      "before": "ac9d63fc8a2ff849d081072990d1e3a1658c3a5dc2832951ef22748f3f980cfa",
+      "after": "d72ecf01af266ec4a4b2169b91771a52e43cdffca86900a684b97b10e1a94c80"
+    },
+    "lib/planSelectedDrinkPriceEvidence.server.ts": {
+      "before": "4e345d226e5116593d3c38fa08b485ede1f53adb7b4dd13f46698bc01a74ac0f",
+      "after": "9ee4d448df7229c6a04815b6418ce802b5f4ae7876b73955c54a5a9112ed4b15"
+    },
+    "lib/planSelectedDrinkPriceEvidence.ts": {
+      "before": "fe1908a7306b60f5d911786c154452e1450b6ff1c4a8243b9cfe65a02af2dc90",
+      "after": "0cb2ecd55dc6479ecf9f77efc1d662bdc0a0e365e35ca9aae040ee5611f03706"
+    },
+    "lib/planStore.ts": {
+      "before": "067335a1894c3c62db2b1c5372d9f1975e6c04c850c3e09ff1667c992574335e",
+      "after": "2de3967ac9be795b2a9d93a6853332030b1562130bfa3a8da73ec3dcb28a4769"
+    },
+    "supabase/migrations/20261001090000_0178_plan_route_alternatives.sql": {
+      "before": null,
+      "after": "49229ded62e00bd6e0363bca3fa1576db394f2ea8e2c05fe0980ae545dba21c8"
+    },
+    "supabase/migrations/20261001091000_0179_plan_backup_context_evidence.sql": {
+      "before": null,
+      "after": "b46c39363c00bc71841112e7ab2d8a5f61f5edf2e983581ce8cf393e5953daa1"
+    },
+    "supabase/migrations/rollback/20261001090000_0178_plan_route_alternatives_rollback.sql": {
+      "before": null,
+      "after": "dad9e1cb033e47ee333f06f56819e58611f553a9af4788372bdf718f1f92e1bb"
+    },
+    "supabase/migrations/rollback/20261001091000_0179_plan_backup_context_evidence_rollback.sql": {
+      "before": null,
+      "after": "11d0520e2d47e27cd085018be063c255c3a5ea7409981ea451d9372887413878"
+    }
+  },
+  "actualRED": {
+    "owner": "Root",
+    "receipt": ".audit/overnight-20261001/backup-auth-accepted-omissions-red-results.json",
+    "cases": 44,
+    "pass": 17,
+    "fail": 27,
+    "skip": 0,
+    "ownedBackupCases": 21,
+    "result": "All21 owned assertions genuinely fail; six additional Auth failures separate owner. Parent read receipt."
+  },
+  "testPacket": {
+    "sha256": "4beda007ac05a9383756360024055a391fcff875b9777b844ef93e2cacecaa42",
+    "path": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-plan-backup-tests-first-v2.patch",
+    "file": "__tests__/planSavedBackupDelivery.test.ts",
+    "after": "4d765cb5e7f1186c4e2a1d7d762d7ce25576d3c6f1da3fd49d658afbd127bbc3"
+  },
+  "dependencies": {
+    "manualMemory8739": "planStore before067335 includes accepted8739 NULL-listed predicate and single completionFromRow export",
+    "root0176": "20261001073000_0176_plan_listed_drink_evidence.sql",
+    "root0177": {
+      "supabase/migrations/20260929130000_0162_plan_create_selected_drink_evidence.sql": "e48a0455f7a81a100f03ad8a06bef6bee31bb09e6d4027936f6ae33fe89c28a7",
+      "supabase/migrations/20260929170000_0166_plan_context_selected_drink_evidence.sql": "06d01e963c9780e6be984d4d71efc905fa91143e43d93369255a2a40e34657d8",
+      "supabase/migrations/20261001073100_0177_plan_manual_selected_evidence.sql": "2235bd74230e73e3a926d8eccb2c423b7ea755b54d359ad21b029ceea63e9d7d"
+    }
+  },
+  "sourceChecks": {
+    "v3ToV4SourceDelta": "One0179primary context update assignment wraps projected evidence in nullif(..., null::jsonb). All TS and SQL twins unchanged.",
+    "v2ToV3SourceDelta": "Only planStore read projections, removing primary READ context filtering while retaining closed nested DTO copies. Matcher unchanged and already reconstructs hint-free targets.",
+    "v1ToV2SourceDelta": "Only create idempotencyStops serialization: remove position, retain canonical ID/name/evidence and optional backups last.",
+    "currentRootBeforePins": "PASS14",
+    "whitespaceApplicationCheck": "PASS",
+    "freshScratchActualApplication": "PASS",
+    "freshAfterByteHashes": "PASS14",
+    "0179RollbackFunctionDefinitions": "exact0177 replace/proposal plus0166 context updater",
+    "0178RollbackFunctionDefinition": "exact0162 create",
+    "note": "These checks prove application/source correspondence, not behavior, types or SQL execution."
+  },
+  "semantics": [
+    "Canonical route owner resolves backup names/IDs and checks duplicate/active exclusion after resolution, including known UKbase curated aliases. Max6 primary and24 backups each unchanged.",
+    "Creation hashes canonical backup identities and cleaned hints; server exact approved quotation resolver traverses primary/backups in one cohort, retaining serving-selected projection/cache and independent community controls.",
+    "Member DTO reconstructs known backup/quote fields, strips unknown/private data; anonymous preview owner untouched. Completion single export remains and snapshot read carries backups when present.",
+    "Editor/save/create wires retain eligible backups, swaps preserve owning evidence; no fresh generator replaces stored choices.",
+    "Write-context projection retains revalidated listed evidence when absent context; explicit category/zeroProof strips incompatible primary/backup quotations while identities remain. Reads preserve already valid saved evidence independent of context, with closed DTO reconstruction. HTTP no-context new community hints remain omitted.",
+    "SQL0178 only adds bounded array<=24 and create serialization;0179 composes exact0177 bodies with backup context filtering, preserving NULL allowance for trusted SQL writes. Existing grants/RLS/locks/revision/proof/replay gates are not rewritten."
+  ],
+  "limits": [
+    "No tests, lint, typecheck, build, browser, provider/DB execution or migration application run by this agent.",
+    "Nested backup array CHECK bounds shape/count only. Primary0176 quote CHECK does not validate nested quotations. Exact source/day/amount/category/serve authority remains existing service HTTP resolver, not a duplicated SQL trust validator.",
+    "New column inherits existing table SELECT/RLS behavior. Root permissionMatrixEffective/new PG suite must prove participant read, outsider/anonymous refusal and client WRITE/RPC denial; no assumption from absent GRANT statements.",
+    "UKbase lookup still initializes existing617 committed FS shards; no bounded cold-read/performance claim.",
+    "Durable rollout requires Captain-approved0176/0177/0178/0179 and real apply/rollback gates. Legacy42703 reads preserve primary evidence via staged fallback, but do not establish backup durability before migration.",
+    "Current exact source approval revalidation occurs on route creation/replacement/proposal submission. This packet does not introduce a new revalidation architecture for previously stored proposal quotes.",
+    "No all-alcohol Cheapest, comparable-serving ranking, native backup journey or full release completion claim."
+  ],
+  "commands": {
+    "focused": "npx vitest run __tests__/planSavedBackupDelivery.test.ts __tests__/planRouteEditor.test.ts __tests__/planSelectedDrinkEvidenceCreate.test.ts __tests__/planRoutes.test.ts __tests__/planCollaborationStore.test.ts",
+    "later": "Root adds/runs Luna effective PostgreSQL backup suite + permissionMatrixEffective, rollback/catalog and current full source/browser gates."
+  },
+  "rollbackOrder": [
+    "0179 twin restores exact0177 replace/proposal and0166 status/context functions, drops only new helper;0178 schema/create support remains.",
+    "0178 twin restores exact0162 create and drops alternatives column; saved backups/citations lost, existing primary evidence and grants remain."
+  ]
+}

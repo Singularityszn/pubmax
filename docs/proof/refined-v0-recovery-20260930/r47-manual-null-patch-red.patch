@@ -1,0 +1,89 @@
+--- a/__tests__/planSelectedDrinkEvidenceCreate.test.ts
++++ b/__tests__/planSelectedDrinkEvidenceCreate.test.ts
+@@ -272,6 +272,86 @@
+     expect((await create("wine", listed)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+     const community = { category: "wine", pence: 750, serving: null, source: "community", reportedAt };
+     expect((await create("wine", community)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(community);
++  });
++
++  it("retains current listed evidence through member route replacement without Night Context", async () => {
++    const observedAt = new Date(Date.now() - 60_000).toISOString();
++    const a = {
++      category: "wine",
++      pence: 525,
++      serving: "125ml",
++      source: "listed",
++      sourceUrl: "https://pub.example/manual/menu",
++      observedAt,
++    };
++    const submittedHint = { ...a, contributor: "private-canary" };
++    listedBundleFixture.rows = [{
++      venueId: "venue-a",
++      name: "Venue A",
++      category: "wine",
++      priceGbp: 5.25,
++      drinkLabel: "Rioja",
++      servingSize: "125ml",
++      sourceUrl: a.sourceUrl,
++      observedAt,
++      lane: "site-harvest",
++      standing: "listed",
++      publisher: "Fixture publisher",
++      basis: null,
++      sampleSize: null,
++    }];
++
++    const createResponse = await POST(new Request("http://localhost/api/plans", {
++      method: "POST",
++      headers: { "idempotency-key": `manual-null-patch-${++sequence}`, "content-type": "application/json" },
++      body: JSON.stringify({
++        title: "Manual wine stop",
++        creatorName: "Host",
++        startTime: "2026-09-30T19:00:00.000Z",
++        stops: [{ venueId: "venue-a", venueName: "Venue A", selectedDrinkPriceEvidence: submittedHint }],
++      }),
++    }));
++    const created = await createResponse.json();
++    expect(createResponse.status, JSON.stringify(created)).toBe(201);
++    expect(created.plan.context).toBeNull();
++    expect(created.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++
++    const planId = created.plan.plan.id as string;
++    const patchResponse = await PATCH(new Request(`http://localhost/api/plans/${planId}`, {
++      method: "PATCH",
++      headers: { authorization: `Bearer ${created.memberToken}`, "content-type": "application/json" },
++      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
++        { venueId: "venue-a", venueName: "Venue A", selectedDrinkPriceEvidence: submittedHint },
++        { venueId: "venue-b", venueName: "Venue B" },
++        { venueId: "venue-c", venueName: "Venue C" },
++      ] }),
++    }), { params: Promise.resolve({ id: planId }) });
++    const updated = await patchResponse.json();
++    expect(patchResponse.status, JSON.stringify(updated)).toBe(200);
++    expect(updated.context).toBeNull();
++    expect(updated.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++
++    const stored = await memoryPlanStore.get(planId);
++    expect(stored?.context).toBeNull();
++    expect(stored?.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++
++    const memberReload = await GET(new Request(`http://localhost/api/plans/${planId}`, {
++      headers: { authorization: `Bearer ${created.memberToken}` },
++    }), { params: Promise.resolve({ id: planId }) });
++    expect(memberReload.status).toBe(200);
++    const memberPlan = await memberReload.json();
++    expect(memberPlan.context).toBeNull();
++    expect(memberPlan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
++
++    const anonymousRead = await GET(new Request(`http://localhost/api/plans/${planId}`), {
++      params: Promise.resolve({ id: planId }),
++    });
++    expect(anonymousRead.status).toBe(200);
++    const preview = await anonymousRead.json();
++    expect(preview).toMatchObject({ visibility: "preview", stopCount: 3 });
++    for (const privateValue of ["venue-a", "venue-b", "venue-c", a.sourceUrl, "selectedDrinkPriceEvidence", "private-canary"]) {
++      expect(JSON.stringify(preview)).not.toContain(privateValue);
++    }
+   });
+ 
+ });

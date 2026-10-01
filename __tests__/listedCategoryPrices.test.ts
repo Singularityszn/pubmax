@@ -24,6 +24,25 @@ function row(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
 }
 
 describe("listed category price projection", () => {
+  it("recovers only the retained Brownswood gin's printed serving and preserves provenance", () => {
+    const gin = row({ category: "gin", priceGbp: 4.2,
+      sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", drinkLabel: "Gin ~ 25 ml Sacred –" });
+    expect(listedCategoryPrices([gin], NOW)).toEqual([
+      { source: "listed", category: "gin", priceGbp: 4.2, servingSize: "25ml",
+        sourceUrl: gin.sourceUrl, observedAt: gin.observedAt, drinkLabel: gin.drinkLabel },
+    ]);
+    expect(gin).not.toHaveProperty("servingSize");
+    expect(listedCategoryPrices([{ ...gin, servingSize: "50ml" }], NOW)[0].servingSize).toBe("50ml");
+    for (const unknown of [
+      { ...gin, drinkLabel: "Sacred" },
+      { ...gin, sourceUrl: "https://another-pub.example/menu" },
+      { ...gin, category: "vodka" },
+      { ...gin, lane: "drink-price-update" as const },
+    ]) {
+      expect(listedCategoryPrices([unknown], NOW)[0].servingSize).toBeNull();
+    }
+  });
+
   it("keeps source, day and only stated serving for eligible non-beer quotes", () => {
     const rows = [
       { ...row(), servingSize: "125ml" },
@@ -155,5 +174,31 @@ describe("listed category price projection", () => {
     ];
 
     expect(listedCategoryPrices(rows, NOW).map((quote) => quote.priceGbp)).toEqual([7, 5]);
+  });
+});
+
+
+describe("base-only published beer projection", () => {
+  it("opts in to listed beer without a pint assumption, rank or estimated quote", () => {
+    const beer = row({
+      venueId: "venue-uk-n10167487694", name: "Donard Bar", category: "beer",
+      priceGbp: 4.9, drinkLabel: undefined, sourceUrl: "https://donardbar.co.uk/menus/",
+      observedAt: "2026-09-04T10:00:00Z",
+    });
+    const rows = [beer, { ...beer, standing: "estimate" as const, sourceUrl: null, priceGbp: 1 }];
+    expect(listedCategoryPrices(rows, NOW)).toEqual([]);
+    expect(listedCategoryPrices(rows, NOW, { includeBeer: true })).toEqual([{
+      source: "listed", category: "beer", drinkLabel: null, priceGbp: 4.9,
+      servingSize: null, sourceUrl: "https://donardbar.co.uk/menus/",
+      observedAt: "2026-09-04T10:00:00Z",
+    }]);
+  });
+
+  it("keeps stated beer quotes in source order rather than cheapest-serving groups", () => {
+    const beers = [7, 4, 6, 5, 3].map((priceGbp, index) => ({
+      ...row({ category: "beer", drinkLabel: `Beer ${index}`, priceGbp }), servingSize: "pint",
+    }));
+    expect(listedCategoryPrices(beers, NOW, { includeBeer: true }).map(quote => quote.priceGbp))
+      .toEqual([7, 4, 6, 5]);
   });
 });

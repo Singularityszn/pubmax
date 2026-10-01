@@ -1,0 +1,69 @@
+{
+  "status": "SOURCE_FROZEN_V2_AFTER_PARENT_TYPE_BLOCKER_RUNTIME_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "872021c1a12419129aee9849d7877597b7f7b4b4",
+  "scratch": "/tmp/pubmaxx-r47-confirmed-acceptance-release-v2",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-confirmed-accepted-stop1-release-v2.patch",
+  "patchSha256": "9f3cb6d41cfd695e137403c8b6518acffe8ec54f7bc855ee7f7863b0a09ce479",
+  "files": [
+    {
+      "path": "lib/planComposerHandoff.ts",
+      "beforeSha256": "6213608ff834be9735746428aacc37b77ac88aec0f67e6f9607fda738810ae7c",
+      "afterSha256": "7d0bdeec11738316f2df501bd6855e3723a7beb8a86f1e101b8b32b2448d1450",
+      "rootBeforeStillMatches": true
+    },
+    {
+      "path": "components/plan/MapRouteTransferButton.tsx",
+      "beforeSha256": "21c5d1413930dedd6b6c6e1e7704dae8971e022329fd6c279912ca3f57971886",
+      "afterSha256": "c8ac007008f7a643a62815265084e4fc125e14ada00fd4e5fefe63390639aaac",
+      "rootBeforeStillMatches": true
+    },
+    {
+      "path": "__tests__/planComposerHandoff.test.ts",
+      "beforeSha256": "9cc48875b07113761c72166f2d9add50b2e931292d4de22eba3aa02ae70dc7cd",
+      "afterSha256": "a31bcce42c665793faf510fcb3d89a9222613b15a44c72f487e2862cd86e91b9",
+      "rootBeforeStillMatches": true
+    }
+  ],
+  "sourceValidation": {
+    "rootApplyCheck": true,
+    "freshScratchApply": true,
+    "freshScratchAfterHashesMatch": true,
+    "currentRootBeforePinsMatch": true,
+    "whitespaceCheck": true,
+    "nonHelperAfterPinsMatchV1": true
+  },
+  "actualBeforeEvidence": {
+    "report": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/generated-stop1-release-storage-required-red.json",
+    "sha256": "d834e08879eb5f47db2227a78e857e388c489a94561b189e3d648ed8a931b9fc",
+    "result": "Root actual 48 tests:47PASS,1FAIL,0skip. Sole readable-session mutations-denied mounted business case defaultPrevented false at193. Earlier local-intent/exotic Storage spy failures were harness defects, not product evidence."
+  },
+  "preservedMountedRegression": {
+    "path": "__tests__/mapRouteTransferButton.test.ts",
+    "sha256": "ad1b71ccc8aa7bd73ac56864424cfc67f4254cfc1be18de3f21db3ac48fef6d4",
+    "unchanged": true
+  },
+  "behavior": [
+    "Existing release owner attempts intent, supplied Plan draft and supplied route draft independently before confirming. Default intent remains safeSessionStorage; no local intent assumption.",
+    "Confirmation reads through existing closed parsers rather than read wrappers that swallow denied reads. Both canonical and rollback keys must contain no valid held acceptance. Read denial is unconfirmed and returns false without throwing.",
+    "Partial successful V2/denied V1 writes remain retryable: detect legacy hold too and rewrite from the current canonical draft, preserving current route/stops rather than resurrecting old legacy work.",
+    "CTA retains successful local current-route write, blocks navigation with visible retry when release is unconfirmed. Existing explicit sessionPlan/localroute owner arguments retained.",
+    "Other release callers may ignore new boolean and keep existing best-effort local behavior. No unrelated draft purge or new storage owner.",
+    "New direct owner controls prove partial legacy denial then retry and denied-read false. Root corrected mounted business regression unchanged."
+  ],
+  "focusedCommand": "npx vitest run __tests__/mapRouteTransferButton.test.ts __tests__/mapRouteTransfer.test.ts __tests__/planComposerHandoff.test.ts __tests__/planGrounding.test.ts",
+  "runtimeStatus": "No tests, typecheck, lint, builds, browser, servers or provider operations executed here. New direct owner controls UNRUN. Root owns focused GREEN and fresh native/broad verification.",
+  "ownership": "Two production paths and one existing owner-test file only in scratch/artifact. No maintained Root/Core edits, generated/raw data, SQL, Git index/ref or frozen prior packet changes.",
+  "limits": [
+    "Confirmation concerns readable current browser owners and valid closed draft contents, not transactional browser storage. Synchronous click sequence prevents navigation when confirmation fails.",
+    "No continuity/reload/shared-route code changes or proof revalidation changes. No live provider, DB, publisher or deployment claim."
+  ],
+  "sourceCheckErrors": [],
+  "supersedes": {
+    "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-confirmed-accepted-stop1-release.patch",
+    "sha256": "7d3935fa19231bd7d34ca013cd6bfc7e5e3bb86f78a61959d133033a31e145c9",
+    "status": "WITHHELD_SOURCE_TYPE_BLOCKER",
+    "reason": "V1 passed string|null to parsePlanningIntent(raw:string). Parent source review caught deterministic TS incompatibility. V1 immutable; prior source review was insufficient and did not establish typecheck."
+  },
+  "deltaFromV1": "Only helper confirmation narrows rawIntent===null before invoking existing string-only parser. CTA and direct owner-test after hashes identical to V1; original3beforepins unchanged. No cast, parser type widening, read-error swallowing or broadened legacy semantics."
+}

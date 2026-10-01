@@ -1,0 +1,98 @@
+{
+  "status": "SOURCE_FROZEN_RUNTIME_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "6f7be486df3a35a00fbec410fdc6cb4bfde37ae2",
+  "scratch": "/tmp/pubmaxx-r47-generated-route-continuity",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-generated-route-continuity.patch",
+  "patchSha256": "a74517de98e3d11291853523f6aaedcde6b0b783875606118ef2300d156bdb5f",
+  "files": [
+    {
+      "path": "__tests__/crawlUrl.test.ts",
+      "beforeSha256": "5bb61fafd827264e47c31648a9b4cbcbf972c7ea1c6c2ae691875c21cbce968b",
+      "afterSha256": "7ed8503bd9edb5807e038c574563b9e2efb22c6e5460bf7e859629c153507c8b",
+      "currentRootSha256": "5bb61fafd827264e47c31648a9b4cbcbf972c7ea1c6c2ae691875c21cbce968b",
+      "currentRootBeforeMatches": true
+    },
+    {
+      "path": "__tests__/generatedMapRoutePricing.test.tsx",
+      "beforeSha256": "de766629381f6410b5552b70c5753e896b17f551ed26f9c3e96ad8bc35916718",
+      "afterSha256": "f57f733db7fe3e91913b773f258c1d3138d8edfe9bf931cf8df504d3a31a094e",
+      "currentRootSha256": "de766629381f6410b5552b70c5753e896b17f551ed26f9c3e96ad8bc35916718",
+      "currentRootBeforeMatches": true
+    },
+    {
+      "path": "__tests__/mapCrawlUrlSync.test.tsx",
+      "beforeSha256": "ccda08378fa0eaf065f41d445fe167dc48272e5b0ffdec09ee6c880989411be9",
+      "afterSha256": "264339d3d05c76053e5b88cd2b38e45ab1b5402e72af4763e32da74d329a26b8",
+      "currentRootSha256": "ccda08378fa0eaf065f41d445fe167dc48272e5b0ffdec09ee6c880989411be9",
+      "currentRootBeforeMatches": true
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "9f3116a82fc17aacf9a55541778339138f7e7c8393bc79bda3258bb2761d3956",
+      "afterSha256": "bdb7171ad47bda90fde04d83dfd1bfaaabbfb55057b6a21dfbaf3c838fdc1642",
+      "currentRootSha256": "cb8e8280036a8d6febfe51215582feed56bebdd92ea8f54f705e9f3c26f10085",
+      "currentRootBeforeMatches": false
+    },
+    {
+      "path": "components/map/pubmap/useMapPlanCoordinator.ts",
+      "beforeSha256": "8aded913d257cccd5cfc0889376508c9e6b157db6c1807b12d4487d08344ede2",
+      "afterSha256": "9bd3b2860f9a1622605ab1407bcb30bc069e53bfc32d682bdccd8fa001a0a6b6",
+      "currentRootSha256": "8aded913d257cccd5cfc0889376508c9e6b157db6c1807b12d4487d08344ede2",
+      "currentRootBeforeMatches": true
+    },
+    {
+      "path": "components/map/useCrawlUrl.ts",
+      "beforeSha256": "4ce682dd80b5e525b02c4d98e7d437dfa48bbd114d8f38de102530d258363f09",
+      "afterSha256": "67495214f85eeea3ddf0f13a64086cf4234e975d15618183b6aeb7205e89602f",
+      "currentRootSha256": "4ce682dd80b5e525b02c4d98e7d437dfa48bbd114d8f38de102530d258363f09",
+      "currentRootBeforeMatches": true
+    },
+    {
+      "path": "lib/crawlUrl.ts",
+      "beforeSha256": "278ab019bd43b601f82ac113b3f6c6c80a5a1a1a9b4f46893dc4776324c5b881",
+      "afterSha256": "eb43872e1478c6d239d5a98efd2dd43990966ca286467371b2a208e6f71bd4e6",
+      "currentRootSha256": "278ab019bd43b601f82ac113b3f6c6c80a5a1a1a9b4f46893dc4776324c5b881",
+      "currentRootBeforeMatches": true
+    }
+  ],
+  "dependency": {
+    "patch": "r47-generated-current-route-transfer-v2.patch",
+    "sha256": "ec083ccc0549e0760b66e043ce4db90804a8052e54e5e449f920fbbb8edf3022",
+    "overlap": "components/PubMap.tsx uses v2 after9f3116 as this before; all other paths captured current Root. Preserve stable activation key and current displayed transfer."
+  },
+  "sourceValidation": {
+    "dependencyAwareScratchApplyCheck": true,
+    "freshScratchApply": true,
+    "freshScratchAfterHashesMatch": true,
+    "rootApplyCheck": true,
+    "currentRootBeforePinsMatch": false
+  },
+  "sourceCheckErrors": {
+    "scratch": [],
+    "root": null
+  },
+  "actualBeforeEvidence": {
+    "report": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/generated-map-continuity-required-red.json",
+    "sha256": "b25a3272365989f0aa76aacb0342b0f5756b59d64799023f9d166fb3ede52647",
+    "result": "Root actual Chromium two failures. Original generated IDs/quote/source/date/nullmoney passed; Reload and native CopyURL/fresh context keep IDs but reset category to manual Pint/beer money."
+  },
+  "behavior": [
+    "Existing crawlUrl owner encodes only closed public routeDrink/routeLow alongside pubs. Explicit route intent and Map lens remain independent. Decoder rejects unknown/beer/noncanonical values, requires stops; zero-proof only exact1 wins. No money/quote/proof/private context/GPS included.",
+    "Coordinator restores explicit route intent with null budget and current ID snapshot. No full generation, authority signature or confidence restored. Current data reread mode is retired after live edit/replacement; reverse keeps exact-ID current quotes.",
+    "PubMap uses existing approved category reader and freshness/trust projections, then closed evidence conversion attaches only matching current route IDs. Old captured generation quotes never restored. New unavailable/partial/loading note distinguishes unread from genuinely empty; no invented money/serving.",
+    "URL landed owner clears both fields through existing history/Home mechanism. Ordinary manual Pint/legacy lens-only links unchanged.",
+    "No generated proof restored from public URLs; Plan entry remains existing manual/regeneration owner after reload. Native copy control still copies actual URL, now carrying requested drink intent."
+  ],
+  "focusedCommand": "npx vitest run __tests__/crawlUrl.test.ts __tests__/mapCrawlUrlSync.test.tsx __tests__/generatedMapRoutePricing.test.tsx __tests__/mapExperienceLens.test.ts",
+  "nativeCommand": "PW_SKIP_WEBSERVER=1 PW_PORT=<owned-port> npx playwright test e2e/map-generated-route-continuity.spec.ts --project=chromium --workers=1 --retries=0",
+  "runtimeStatus": "No tests/typecheck/lint/build/browser/server run here. Root owns all actual verification. New focused controls UNRUN. Native RED is real prerequisite, not current GREEN.",
+  "limits": [
+    "Quotes reflect currently readable approved data; changed/expired/unavailable rows cannot be promised historical exact amounts. Category index retains existing1000/truncation boundary, so incomplete read stays disclosed.",
+    "Legacy shared links lacking routeDrink/routeLow have no identifiable generated route context. No historical intent is guessed from drink/low lens alone.",
+    "Only category/zero-proof public intent restored. Full private NightContext, original proof, anchor, account, original timings/confidence/budget and authenticated Plan transfer are not reconstructed.",
+    "No selected serving is inferred from category or first price. Existing serving-aware Map discovery remains independent; this packet does not claim full persistent selected-serving Plan context.",
+    "Secondary crawl-completion shareMapHref still uses original public helper; native header CopyURL and reload are covered by current actual two REDs."
+  ],
+  "ownership": "Four production paths, three focused existing suites. No maintained source/data/runtime/Git mutation; existing native testcase unchanged."
+}

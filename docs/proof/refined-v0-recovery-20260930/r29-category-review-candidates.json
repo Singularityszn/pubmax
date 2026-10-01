@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "path": "public/data/uk_prices/rows.json",
+    "sha256": "f1349f599568de016c799328ced938aac4de067b8a03244a13a3c0d1f5705f45",
+    "rawRowCount": 7603
+  },
+  "selection": {
+    "candidateCount": 3,
+    "method": "Shortlist contains three text-cued rows from the raw listed site-harvest lane. Cues flag records for manual source review; they do not classify drinks or correct category values.",
+    "quarantine": {
+      "owner": "lib/ukPriceBundle.ts: CATEGORY_QUARANTINE",
+      "ruleFields": [
+        "lane=site-harvest",
+        "standing=listed",
+        "sourceUrl",
+        "category",
+        "priceGbp",
+        "drinkLabel"
+      ],
+      "ruleCount": 23,
+      "exactMatchingRawRowsExcluded": 0
+    }
+  },
+  "datasetChecks": {
+    "rawShotCategoryRowCount": 72
+  },
+  "limitations": [
+    "Rows are source-ledger records, not independent confirmation that a venue still sells an item or that the captured price is currently purchasable.",
+    "No corrected category, price, serving size, or availability is inferred.",
+    "The soda, tonic, ginger ale, and named-item cues are candidates for manual source reproduction only."
+  ],
+  "candidates": [
+    {
+      "cues": [
+        "named item is recorded under category wine"
+      ],
+      "reviewNote": "Check the source menu and category assignment. The item name is only a review cue here.",
+      "row": {
+        "venueId": "venue-1ctgk0m",
+        "name": "The Bell on the Green",
+        "category": "wine",
+        "priceGbp": 4,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://thebellonthegreen.com/drinks/",
+        "publisher": "thebellonthegreen.com",
+        "observedAt": "2026-09-21T18:25:47.604Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "London Pride 500ml"
+      }
+    },
+    {
+      "cues": [
+        "label contains the soft-drink term soda; row category is wine"
+      ],
+      "reviewNote": "Check the source menu and category assignment. The word soda is a candidate cue, not a classifier.",
+      "row": {
+        "venueId": "venue-bri-1o203s4",
+        "name": "The Gallimaufry",
+        "category": "wine",
+        "priceGbp": 3,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+        "publisher": "thegallimaufry.co.uk",
+        "observedAt": "2026-09-04T13:40:39.833Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "Ting Grapefruit Soda 330ml"
+      }
+    },
+    {
+      "cues": [
+        "label groups tonic and ginger ale in a beer-category row"
+      ],
+      "reviewNote": "The slash and trailing Beer- make this printed line ambiguous. Verify its source layout before treating it as a mismatch.",
+      "row": {
+        "venueId": "venue-1vse4lh",
+        "name": "The Brownswood",
+        "category": "beer",
+        "priceGbp": 2.6,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+        "publisher": "thebrownswood.co.uk",
+        "observedAt": "2026-09-21T18:56:51.214Z",
+        "basis": null,
+        "sampleSize": null,
+        "drinkLabel": "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-",
+        "drinkSubtype": "beer-ale"
+      }
+    }
+  ]
+}

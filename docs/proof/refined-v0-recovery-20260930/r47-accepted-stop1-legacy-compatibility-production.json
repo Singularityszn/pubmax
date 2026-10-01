@@ -1,0 +1,39 @@
+{
+  "task": "Retain valid released V1 Plan compatibility after stale acceptance cleanup retry",
+  "status": "source-only proposed incremental patch; not applied by this lane",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "b4a30f2b0366e7ddd6a96316ce92281be0636b64",
+  "scratchCheckout": "/tmp/pubmaxx-r47-accepted-stop1-legacy-compat-scratch",
+  "basePatch": "r47-accepted-stop1-canonical-retry-production.patch, already applied in Root source",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-accepted-stop1-legacy-compatibility-production.patch",
+  "patchSha256": "c60b2106e0ba6a5c7990c74cc20111cd53a96510d408a02c13dd77110a6c9f91",
+  "files": [
+    {
+      "path": "lib/planComposerHandoff.ts",
+      "rootBeforeSha256": "ff3b7cf9e8bf0cf2c3daadfa6f7650679b25d2a2923b2937ddec135e4d807977",
+      "proposedAfterSha256": "6fbc6223a34be4429bfd06781c9efec89cba808baa4471a29004be813f76ef58"
+    }
+  ],
+  "behavior": [
+    "Keep canonical V2 raw bytes unchanged when it already contains current unheld Plan work.",
+    "When legacy cleanup is allowed, write a V1 rollback copy from the already parsed and validated canonical draft, matching writePlanDraftEnvelope V1 shape.",
+    "If that V1 write fails, remove only the V1 key; the existing final verifier still returns false if both cleanup routes fail.",
+    "Route V1 has no standalone serializer/writer; the prior patch continues to remove only stale Route V1 when canonical Route V2 is already unheld."
+  ],
+  "sourceReproduction": {
+    "combinedReceipt": ".audit/overnight-20261001/route-transfer-sharing-storage-green-v3.json",
+    "combinedReceiptSha256": "183b7d8b6f8236a4766368ab1540a479dcb2514cdaa9cc917f10b76cb1c5a387",
+    "suite": "__tests__/planComposerHandoff.test.ts",
+    "suiteSha256": "20edab6c91ab1df2d6da26a0996be17efb80641e2b1463e996c473f415be1deb",
+    "result": "152 tests: 151 passed, 1 failed, 0 skipped. The original healthy partial-denial compatibility assertion expected an unanchored V1 draft; prior retry removed the key."
+  },
+  "validation": {
+    "tests": "UNRUN; Root owns focused and combined runtime.",
+    "typesLintBuildBrowser": "UNRUN.",
+    "patchApplication": "PASS: git apply --check against captured Root source; read-only check, no files modified."
+  },
+  "limits": [
+    "No maintained files changed by this lane.",
+    "V1 plan serialization is the existing canonical draft object shape; no storage abstraction or new serializer was added."
+  ]
+}

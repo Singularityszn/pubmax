@@ -1,0 +1,26 @@
+{
+  "status": "SOURCE_ONLY_UNRUN",
+  "file": "__tests__/authProviderBootstrapRace.test.tsx",
+  "beforeSha256": "ad60385e12a4750b4d2d2987758ff285bbff18aea2cef71b095e8fea35fd3a98",
+  "afterSha256": "d9b99e9b1ac7d0bf20d2a1a560a56c330a1ef66acd9280ffb34f41baf729eeca",
+  "patchSha256": "6c384b60cd06e8194a75b234c4ce99199313c4b8cc701e018bac96c93d934a14",
+  "bytes": 6063,
+  "baseIncludes": "Root actual former ad60385e test with StrictMode, rotated positive and parameterized original/rotated negatives",
+  "actualSourceFinding": "Proposed5d1ce4 auth repair uses latestSignedInSession fallback despite explicit logout, before held cookie clear reaches SDK SIGNED_OUT; pre-logout B can be revived. 5d1ce4 production packet must remain HELD until this schedule actual RED and repair verified.",
+  "newCases": [
+    "A SDK install held; B emits; explicit logout public signed-out; cookie clear held; release A; complete clear/logout; no A/B UI/SDK/cookie/write resurrection",
+    "Same schedule but genuinely post-logout C emits before A settles; final public/SDK/cookie C preserved"
+  ],
+  "fixture": "Actual bootstrap helper, rendered provider; auth SDK/cookie local doubles explicit. Cookie clear is held at real public signOut await boundary; no callback swallow/internal-ref mutation. Finally releases both held operations.",
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFile": true,
+    "runtime": false
+  },
+  "expectedBaseline": "Both schedules expected failure inference until Root runs; negative also detects proposed5d1ce4 fallback defect",
+  "focusedCommand": "npx vitest run __tests__/authProviderBootstrapRace.test.tsx",
+  "productionFixOutline": "After actual RED, prohibit pre-logout latest-session fallback when pending.signedOut. Retain only post-logout buffered non-own candidate (exact input/returned pair exclusion), preserving C. Do not edit production before meaningful RED.",
+  "supersedes": "r47-bootstrap-logout-cutoff-controls.patch base89; original artifact frozen",
+  "newActualEvidence": "Root59cohort55PASS4FAIL: original and rotated lateA logout/newerB actual RED; StrictMode and valid-rotation controls PASS. New cutoff cases remain UNRUN.",
+  "currentRootSourceMatch": true
+}

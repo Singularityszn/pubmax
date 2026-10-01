@@ -1,0 +1,21 @@
+{
+  "base": "ad08000b500b3193f143c4225a067c78f5a7694e",
+  "source": "Frozen Core fixture contract, adjusted to actual release heading.",
+  "status": "SOURCE_PATCH_APPLICATION_CHECK_ONLY",
+  "patchSha256": "d3b680933bfc0ebf72e735faf749af79f0c1e166f66070a3a6916edaf9a6c741",
+  "files": [
+    {
+      "path": "e2e/helpers/palProviderDouble.ts",
+      "beforeSha256": null,
+      "afterSha256": "ae80fb25d5c973d6f4d398454a3ff82f41a5db1eae29d4f631e177322d5262ea"
+    },
+    {
+      "path": "e2e/pubpal-concierge-phone.spec.ts",
+      "beforeSha256": "3224a51bb29c8d25285309c5121e0b37c045629fa65406ab8ba38db2ad1d70cf",
+      "afterSha256": "a5aa30d7dd6c610293071bfe5dd86e0a4e000483d45973628585ffc628ba9b44"
+    }
+  ],
+  "preservedReleaseHeading": "Choose a Pal and name.",
+  "boundary": "No Core or release product/test edits. Provider remains fail-closed. No runtime or browser execution. Historical R46 does not validate release port.",
+  "requiredNext": "Release owner semantic review, current-head route units and fresh matching-build concierge E2E plus separate real-provider evidence."
+}

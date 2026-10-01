@@ -1,0 +1,288 @@
+{
+  "sourceOnly": true,
+  "upstreamFreshnessUnverified": true,
+  "installsOrSkillWritesPerformed": false,
+  "skills": [
+    {
+      "name": "gnhf",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/gnhf/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/gnhf/SKILL.md",
+          "sha256": "70fbdf06917a0207e22fea68e090a9883fa8e9a6b74d911de01855906bca8cb9",
+          "bytes": 8084
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/gnhf/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/gnhf/SKILL.md",
+          "sha256": "70fbdf06917a0207e22fea68e090a9883fa8e9a6b74d911de01855906bca8cb9",
+          "bytes": 8084
+        },
+        {
+          "path": "/Users/karanmanoharan/.agents/skills/gnhf/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/gnhf/SKILL.md",
+          "sha256": "b385f541fcdd06f8c764c9b9b7bf3e3cd94e0f61fbd42c85067a572936e5a2b3",
+          "bytes": 8140
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/skills/gnhf/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/gnhf/SKILL.md",
+          "sha256": "b385f541fcdd06f8c764c9b9b7bf3e3cd94e0f61fbd42c85067a572936e5a2b3",
+          "bytes": 8140
+        }
+      ],
+      "uniqueContentHashes": 2
+    },
+    {
+      "name": "diagnosing-bugs",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/diagnosing-bugs/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/diagnosing-bugs/SKILL.md",
+          "sha256": "b9339b09ee3980808d8c5a35c7251b891b8b1e0036ec4ca37812b976ebddf6b6",
+          "bytes": 8969
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/diagnosing-bugs/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/diagnosing-bugs/SKILL.md",
+          "sha256": "b9339b09ee3980808d8c5a35c7251b891b8b1e0036ec4ca37812b976ebddf6b6",
+          "bytes": 8969
+        },
+        {
+          "path": "/Users/karanmanoharan/.agents/skills/diagnosing-bugs/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/diagnosing-bugs/SKILL.md",
+          "sha256": "9168404abda0967a5d32977e3498cd95fda6807018852f3de736a78357c82b40",
+          "bytes": 8530
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/skills/diagnosing-bugs/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/diagnosing-bugs/SKILL.md",
+          "sha256": "9168404abda0967a5d32977e3498cd95fda6807018852f3de736a78357c82b40",
+          "bytes": 8530
+        }
+      ],
+      "uniqueContentHashes": 2
+    },
+    {
+      "name": "tdd",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/tdd/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/tdd/SKILL.md",
+          "sha256": "adad031f9e79d7f7389fa128f7af8e03344831270e282cf4e40bdacb8418c386",
+          "bytes": 3536
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/tdd/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/tdd/SKILL.md",
+          "sha256": "adad031f9e79d7f7389fa128f7af8e03344831270e282cf4e40bdacb8418c386",
+          "bytes": 3536
+        },
+        {
+          "path": "/Users/karanmanoharan/.agents/skills/tdd/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/tdd/SKILL.md",
+          "sha256": "93ea419b76e9caaf26153b828e984f7c3fb136f4caa67b14af95f32ea965a1cc",
+          "bytes": 3550
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/skills/tdd/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/tdd/SKILL.md",
+          "sha256": "93ea419b76e9caaf26153b828e984f7c3fb136f4caa67b14af95f32ea965a1cc",
+          "bytes": 3550
+        }
+      ],
+      "uniqueContentHashes": 2
+    },
+    {
+      "name": "test-driven-development",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-driven-development/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-driven-development/SKILL.md",
+          "sha256": "7dee67b4af6bdccc7a914ca34533184d64592d0f5b23aeae631538168db14994",
+          "bytes": 9867
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-driven-development/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-driven-development/SKILL.md",
+          "sha256": "7dee67b4af6bdccc7a914ca34533184d64592d0f5b23aeae631538168db14994",
+          "bytes": 9867
+        }
+      ],
+      "uniqueContentHashes": 1
+    },
+    {
+      "name": "unslop",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/unslop/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/unslop/SKILL.md",
+          "sha256": "181883e539caec8258ec9129e3ba5f133409144a2cbf2aa361158ab94cfc3441",
+          "bytes": 6595
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/unslop/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/unslop/SKILL.md",
+          "sha256": "181883e539caec8258ec9129e3ba5f133409144a2cbf2aa361158ab94cfc3441",
+          "bytes": 6595
+        },
+        {
+          "path": "/Users/karanmanoharan/.agents/skills/unslop/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/unslop/SKILL.md",
+          "sha256": "c6d2572294d933a428211921069e9a248490e9b466ca59437cb4d9de248600ca",
+          "bytes": 6093
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/skills/unslop/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/unslop/SKILL.md",
+          "sha256": "c6d2572294d933a428211921069e9a248490e9b466ca59437cb4d9de248600ca",
+          "bytes": 6093
+        }
+      ],
+      "uniqueContentHashes": 2
+    },
+    {
+      "name": "code-review",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/code-review/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/code-review/SKILL.md",
+          "sha256": "9cf46653dd9c710ea1e6c22423caf31a794c88773bc94bdaa23140277f470442",
+          "bytes": 6634
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/code-review/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/code-review/SKILL.md",
+          "sha256": "9cf46653dd9c710ea1e6c22423caf31a794c88773bc94bdaa23140277f470442",
+          "bytes": 6634
+        },
+        {
+          "path": "/Users/karanmanoharan/.agents/skills/code-review/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/code-review/SKILL.md",
+          "sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
+          "bytes": 6589
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/skills/code-review/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/code-review/SKILL.md",
+          "sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
+          "bytes": 6589
+        }
+      ],
+      "uniqueContentHashes": 2
+    },
+    {
+      "name": "verification-before-completion",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.agents/skills/verification-before-completion/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/verification-before-completion/SKILL.md",
+          "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
+          "bytes": 3646
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/skills/verification-before-completion/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.agents/skills/verification-before-completion/SKILL.md",
+          "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
+          "bytes": 3646
+        }
+      ],
+      "uniqueContentHashes": 1
+    },
+    {
+      "name": "audit-security",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-security/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-security/SKILL.md",
+          "sha256": "498162b01b217b303bfaf815a425192fa4adcce3b6d2c16e35d5bc05bdcfb390",
+          "bytes": 8641
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-security/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-security/SKILL.md",
+          "sha256": "498162b01b217b303bfaf815a425192fa4adcce3b6d2c16e35d5bc05bdcfb390",
+          "bytes": 8641
+        }
+      ],
+      "uniqueContentHashes": 1
+    },
+    {
+      "name": "audit-performance",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-performance/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-performance/SKILL.md",
+          "sha256": "c0203486346207221063e073e1685879d1d0766af57686f31e23334d560d5e4a",
+          "bytes": 7579
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-performance/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-performance/SKILL.md",
+          "sha256": "c0203486346207221063e073e1685879d1d0766af57686f31e23334d560d5e4a",
+          "bytes": 7579
+        }
+      ],
+      "uniqueContentHashes": 1
+    },
+    {
+      "name": "audit-ux-journeys",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-ux-journeys/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/audit-ux-journeys/SKILL.md",
+          "sha256": "2f5d1463ee4d5cbf105f7f76dd817d9cfae8aa2172e8a259af5400ffecf9cb5f",
+          "bytes": 11301
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-ux-journeys/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/audit-ux-journeys/SKILL.md",
+          "sha256": "2f5d1463ee4d5cbf105f7f76dd817d9cfae8aa2172e8a259af5400ffecf9cb5f",
+          "bytes": 11301
+        }
+      ],
+      "uniqueContentHashes": 1
+    },
+    {
+      "name": "test-playwright",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-playwright/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/test-playwright/SKILL.md",
+          "sha256": "c217741b830254ec50c8c1d583ed43066de730cc3c2f0b914b12fda1ba51eac4",
+          "bytes": 17640
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-playwright/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/test-playwright/SKILL.md",
+          "sha256": "c217741b830254ec50c8c1d583ed43066de730cc3c2f0b914b12fda1ba51eac4",
+          "bytes": 17640
+        }
+      ],
+      "uniqueContentHashes": 1
+    },
+    {
+      "name": "deslop",
+      "availableCopies": [
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/deslop/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/deslop/SKILL.md",
+          "sha256": "2f7b7def74af7ed11f5b44b4d32f0f91fca8c5d1f92bf2171e8d12fd33a0f810",
+          "bytes": 719
+        },
+        {
+          "path": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/skills/deslop/SKILL.md",
+          "resolved": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/.agents/skills/deslop/SKILL.md",
+          "sha256": "2f7b7def74af7ed11f5b44b4d32f0f91fca8c5d1f92bf2171e8d12fd33a0f810",
+          "bytes": 719
+        }
+      ],
+      "uniqueContentHashes": 1
+    },
+    {
+      "name": "greploop",
+      "availableCopies": [],
+      "uniqueContentHashes": 0
+    }
+  ]
+}

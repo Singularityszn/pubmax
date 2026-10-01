@@ -1,0 +1,365 @@
+{
+  "recordedAt": "2026-10-01T03:33:09.530476+00:00",
+  "base": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+  "status": "SOURCE_APPLICATION_PASS_RUNTIME_UNRUN",
+  "patchSha256": "71ca01beac451c11dceba96d2bb1d499b6b253e24c8397b59ed85635d9def233",
+  "components": [
+    {
+      "patch": "r47-price-trust-port.patch",
+      "sha256": "2f2ee5d246e8ba99b51c0a31f7f5ae72b07ebb2ddc47497e054261fbd4916c4d",
+      "paths": [
+        "app/api/price-submit/route.ts",
+        "app/api/venue/[id]/route.ts",
+        "lib/listedCategoryPrices.ts",
+        "lib/listedPriceComparison.ts",
+        "lib/ukPriceBundle.server.ts",
+        "components/map/useCommunityPrices.ts",
+        "components/map/UnverifiedPubSheet.tsx",
+        "components/map/inspector/VenueOverviewTab.tsx",
+        "components/map/venueDrinkPrices.css",
+        "lib/mapExperienceLens.ts",
+        "components/map/canvas/geojson.ts",
+        "lib/mapPriceLegend.ts",
+        "components/map/PublishedMenuPrices.tsx",
+        "components/map/VenueDrinkPrices.tsx",
+        "lib/venues.ts",
+        "lib/ukPriceBundle.ts",
+        "lib/planSelectedDrinkPriceEvidence.ts",
+        "components/PubMap.tsx",
+        "scripts/build_uk_price_bundle.mjs",
+        "__tests__/ukPriceBundle.test.ts",
+        "__tests__/listedCategoryPrices.test.ts",
+        "__tests__/listedPriceComparison.test.ts",
+        "__tests__/listedDiscoveryIndex.test.ts",
+        "__tests__/priceSubmitRoute.test.ts",
+        "__tests__/communityPriceClientState.test.ts",
+        "__tests__/unverifiedPubSheet.test.ts",
+        "__tests__/drinkLaneSurfaces.test.ts",
+        "__tests__/venueRoute.test.ts",
+        "__tests__/canvas-geojson.test.ts",
+        "__tests__/mapPriceLegend.test.ts",
+        "__tests__/mapExperienceLens.test.ts",
+        "__tests__/planSelectedDrinkEvidenceVariant.test.ts",
+        "__tests__/lonePintDropLane.test.ts",
+        "__tests__/overviewPriceDoor.test.ts",
+        "__tests__/pintPriceSplit.test.ts",
+        "__tests__/pintTrust.test.ts",
+        "__tests__/priceSourcePresentation.test.ts",
+        "__tests__/venueAreaPriceCompare.test.ts",
+        "__tests__/venueCommunitySignals.test.ts",
+        "__tests__/siteHarvestReconciliation.test.ts",
+        "lib/planSelectedDrinkPriceEvidence.server.ts",
+        "__tests__/planSelectedDrinkEvidenceCreate.test.ts"
+      ]
+    },
+    {
+      "patch": "r47-map-base-kind-port.patch",
+      "sha256": "19dd45960644901deb8dca192ad9390cb457f0280a7753bce10d61d50d05a6b0",
+      "paths": [
+        "lib/venueKindFilters.ts",
+        "components/PubMap.tsx",
+        "components/PubMapCanvas.tsx",
+        "components/map/pubmap/useUkBaseStreaming.ts",
+        "components/map/MapToolbar.tsx",
+        "__tests__/venueKindFilters.test.ts"
+      ]
+    },
+    {
+      "patch": "r47-pal-fixture-release-ad08000.patch",
+      "sha256": "d3b680933bfc0ebf72e735faf749af79f0c1e166f66070a3a6916edaf9a6c741",
+      "paths": [
+        "e2e/helpers/palProviderDouble.ts",
+        "e2e/pubpal-concierge-phone.spec.ts"
+      ]
+    },
+    {
+      "patch": "r47-gl-drag-acceptance-release.patch",
+      "sha256": "03e072382dbf707773c4b86b44d655128e363d2b6027b6dba02b26eac7255ac8",
+      "paths": [
+        "e2e/map-uk-base-layer.spec.ts"
+      ]
+    }
+  ],
+  "paths": [
+    {
+      "path": "__tests__/canvas-geojson.test.ts",
+      "beforeSha256": "833e0ecb9c372c1bd5e5b8f1fcde25f595763f4e9b105ed9602e30d66d819309",
+      "afterSha256": "ecc2c4193cef9f37e8fcafea0cf7659f680a1a287e89b313573730bfbe00aadf"
+    },
+    {
+      "path": "__tests__/communityPriceClientState.test.ts",
+      "beforeSha256": "52db4ec3cf07f357ad741b3e57c3717e0ebc5369508daa9987b3c8dd6cd154e4",
+      "afterSha256": "ba5ea08899cead1ac1a829645f5853e62daffac0bb4c3e9bb7d3456a48d65673"
+    },
+    {
+      "path": "__tests__/drinkLaneSurfaces.test.ts",
+      "beforeSha256": "e9eb8224c3bae0c9ff2157c31c3d6d4cc8976d2792063b5264a33beb8fd668f9",
+      "afterSha256": "2c5cfa48f0e4355bfd205ae41e1fd0eff408019313c6969e253b31ff7737c3dd"
+    },
+    {
+      "path": "__tests__/listedCategoryPrices.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "7e2c97a7fc69afbdc988560c5b98a1799245b01b21be577c9c727eb8adb752a5"
+    },
+    {
+      "path": "__tests__/listedDiscoveryIndex.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "9c70ebb9e6f6a67716f0b45f8a0195f398028b54d31c40eb5d16942612e72c53"
+    },
+    {
+      "path": "__tests__/listedPriceComparison.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "11cfa9748c8376b333e5f81ede34def48d115265dfa61f43c05fb6f5f0c5d059"
+    },
+    {
+      "path": "__tests__/lonePintDropLane.test.ts",
+      "beforeSha256": "6f07cf989980a6a6363ae58acbb335ed9be0772a6e798451a73950e3f52dbb6e",
+      "afterSha256": "536f43753671e6c94547f8c3e85840b45bfd793872ee1fcb16f0bda4b3401e45"
+    },
+    {
+      "path": "__tests__/mapExperienceLens.test.ts",
+      "beforeSha256": "41b787af5ccdd02de7e761fb888dfd961a94f22747169acdc0f9b02f76c5c83b",
+      "afterSha256": "311c57bfaf1ab969c4b053d9b15e49ae9020c997844be3d9cd0166d019db3eb8"
+    },
+    {
+      "path": "__tests__/mapPriceLegend.test.ts",
+      "beforeSha256": "849faee2f21dd3eee2f095418cc512e7cc9884698726dc79c296720c4ed7f4af",
+      "afterSha256": "fc66371b7b652e4ee7ea67965f0bea0ac0297dc86c5687367f42a1920c90d959"
+    },
+    {
+      "path": "__tests__/overviewPriceDoor.test.ts",
+      "beforeSha256": "05c6d014525127f85a7c43afece0fcc2b26824857b9ea9f0df654d213325e0f5",
+      "afterSha256": "ce015c8d47cade50adaae0d16f1eac902bbf77420b769cdbf406dbbec54dbe4a"
+    },
+    {
+      "path": "__tests__/pintPriceSplit.test.ts",
+      "beforeSha256": "11920db09b453ef9b2c33da561799159663939f918bd42e90352ba09a1f47537",
+      "afterSha256": "e8a7f548dda3a4d361955c8fc9c9d8877620c0f2356c9c14a67251d1b65ca8ec"
+    },
+    {
+      "path": "__tests__/pintTrust.test.ts",
+      "beforeSha256": "1d69679fa821d4c74116965f4a3c8588ea6d48c549d42356ee1bfb4aee4dfe4c",
+      "afterSha256": "5b4216d70a16e7997f3c908ac3fd2d019d2971316685ccf1033965e3e801c163"
+    },
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+      "beforeSha256": "7205490d37917c2f47eb55d4b49a9e9251c18a31a8aea48dc08ab9e4e52f2eca",
+      "afterSha256": "9959a61116c952bdb0f6f94e1ce35f7eb7157f5c19312ed5904a4bfed21e9b52"
+    },
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceVariant.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "16733ef600d579968341a148bad2c184543c207778096b6916d9da284652112d"
+    },
+    {
+      "path": "__tests__/priceSourcePresentation.test.ts",
+      "beforeSha256": "db2fb04df303acf5a11b2fc3dbaf7f38e92567231a72d8af7ff010324a282486",
+      "afterSha256": "07a8d0ed9d43a5770f6cf716dd70450f2ed237a73e99d5e71eeff2ec6d809bf0"
+    },
+    {
+      "path": "__tests__/priceSubmitRoute.test.ts",
+      "beforeSha256": "7debbe271c0d874050296783ff1bc5247c3d9887a2c46ba086b6b7dc3d1fd804",
+      "afterSha256": "182595aeb460cdeea8ec7ca4bcbc80ab5dff915449dff42ee47bc5bc7dcf9219"
+    },
+    {
+      "path": "__tests__/siteHarvestReconciliation.test.ts",
+      "beforeSha256": "789d3d24d2a9941a3c0be025288a718eebdb2d2287f8fb30ad5c0f9cd823d418",
+      "afterSha256": "28ca70e49eb12858032b9e436bcf6c37c9eed13fe911379a8951a641a8822e6d"
+    },
+    {
+      "path": "__tests__/ukPriceBundle.test.ts",
+      "beforeSha256": "be3b8555c4b3cef511fbaaa79a13ab80e38388d3fe202eaf676ed3350b751a23",
+      "afterSha256": "e83b336b527711a079d93e3d8208908b17d9db345a2c83c322b464b0d1d333d6"
+    },
+    {
+      "path": "__tests__/unverifiedPubSheet.test.ts",
+      "beforeSha256": "c5fb537cd821d016939da387879b8aa22cd0732ddbf989c7353d24ec93c87fec",
+      "afterSha256": "28050231c5447caf32e2f61dcb04e728b71704973864c9189527affbd392e9b1"
+    },
+    {
+      "path": "__tests__/venueAreaPriceCompare.test.ts",
+      "beforeSha256": "122597419aaf5adcf39211a92797fcfe3749af2599df40c35a8e6e947abba9c3",
+      "afterSha256": "f7f1af7749ba9b4537924da10db5610a7dde5dd4202de1c0103c54a0de774204"
+    },
+    {
+      "path": "__tests__/venueCommunitySignals.test.ts",
+      "beforeSha256": "ccb1a781c72690f43304da01772023e0c80290b2c2ffbe78d6e0bb2a0529b7c0",
+      "afterSha256": "0d2dfe41afc92770df57e2d3f3298189213549e243a831bd7edb4163d60390c3"
+    },
+    {
+      "path": "__tests__/venueKindFilters.test.ts",
+      "beforeSha256": "70d4272275ee9e6c8bf0815a881f73fe41fc302cf180d43c024fea74145481b8",
+      "afterSha256": "ea8941b6f4243cab8bee588485ebc54120d85ebba1867bce30dc339a8a2963d7"
+    },
+    {
+      "path": "__tests__/venueRoute.test.ts",
+      "beforeSha256": "7b136761297feeda888cf841b4ddd2928ddfea7c2d0c818c50e2dba9168b1c6d",
+      "afterSha256": "64a335efd72a42d582a6d83b2fd82c16ce16ab03ae441fe193d20e08b87f0ddd"
+    },
+    {
+      "path": "app/api/price-submit/route.ts",
+      "beforeSha256": "6c3b326487800c759a62f52e34ec1fd04f15b3a2d83149a3b8ae8d633a1eb60c",
+      "afterSha256": "cb9d9553230448fbe52936218be5c468b1cdf6c98f4a805a0bb6490e168d5b35"
+    },
+    {
+      "path": "app/api/venue/[id]/route.ts",
+      "beforeSha256": "63460715bd42aff645326c7693741b144276b8a9005f44b568d30670d5770430",
+      "afterSha256": "8989d8a345ce4b324bab7d0ac22f6ef49abcc3373f6b024b1b809ab862543edd"
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "d8a335a9813ae50d1bc19d79c54ab3dbdbef7162b8b13c23c95e67accdc89612",
+      "afterSha256": "a7b0aa3dd44cc16c32f122db97ade3e333c9f5bc3d70ed5a3c823d824c9770b8"
+    },
+    {
+      "path": "components/PubMapCanvas.tsx",
+      "beforeSha256": "a3ab7b8d27fcea59a4095be930a92429de326947ddee51b7e3660850acde58b6",
+      "afterSha256": "cc1d4a7413d437a51bd0e4761a7eb22f70e6f89d1f19660d5c222869de2844bf"
+    },
+    {
+      "path": "components/map/MapToolbar.tsx",
+      "beforeSha256": "c5fad81f3b2695ea4ae4ff2f9670fef45f320969e7050140ad07fc30977e7356",
+      "afterSha256": "3079d6f782a5368d51814d3d73b0bcc3bd61e3c831b0bc995548e2b975717ee0"
+    },
+    {
+      "path": "components/map/PublishedMenuPrices.tsx",
+      "beforeSha256": null,
+      "afterSha256": "e542b015fd89553e8aa957ef3273f5b27c4a95598caecf06bac4873b7164711b"
+    },
+    {
+      "path": "components/map/UnverifiedPubSheet.tsx",
+      "beforeSha256": "cf58419932fecbcae59f93fc0895618b74eb6a18df4dd515cc83d31328e06a48",
+      "afterSha256": "3ac560e5b8a01e37c22c514295f45703e82c5fddbb69889cd1d4a97b650a3297"
+    },
+    {
+      "path": "components/map/VenueDrinkPrices.tsx",
+      "beforeSha256": "5b74db1a50e7e46e523ef255fd31b51c3a3a366bedc2d5b3c4f1fa85811743c1",
+      "afterSha256": "c371ad1d5922d382abd5034584d27756b4a3c6fd3a80777fa08ede724671c08b"
+    },
+    {
+      "path": "components/map/canvas/geojson.ts",
+      "beforeSha256": "1e996fe1a82bdf59b6d4bd4f6d446548cedfdd0586660af5e63da0e32c90cfb0",
+      "afterSha256": "a215197875fc1fc2033dfd76bd4b61153fbb08d05c22067a8805fd362dd6fe86"
+    },
+    {
+      "path": "components/map/inspector/VenueOverviewTab.tsx",
+      "beforeSha256": "435eba09a405af4ce5520f7e13de030dcd7ac2931be7646b9376aa5987600a9e",
+      "afterSha256": "9845b47239572006bc2341fdb1383dc7b6e58d5ed0fce4e4496c4cd57d04b53c"
+    },
+    {
+      "path": "components/map/pubmap/useUkBaseStreaming.ts",
+      "beforeSha256": "6a1008d7f5552987d0eff6d2a65abe5cb237b9050f900adf58f9720e0a8750bf",
+      "afterSha256": "faf400563df8a2c29cf240ae4f9ad93017d14fe4136776bc42666d23830b7a77"
+    },
+    {
+      "path": "components/map/useCommunityPrices.ts",
+      "beforeSha256": "5f958ff073393bd04cdc6ba1c0a6735d9fc63465826b5754b56fb181fa188d5d",
+      "afterSha256": "4ce566964fa6bf599b12d601545c7f052a43a560208a1ec102d44b75d5f94ea3"
+    },
+    {
+      "path": "components/map/venueDrinkPrices.css",
+      "beforeSha256": "d6567ae2f1a27269e345568a796af850d3b23fdf95c8a1ab1f636543cd5b580d",
+      "afterSha256": "5220bffa5d3892d3295e11f82b99a2eadd62ce2ba9610741b57dbf8cca4549c0"
+    },
+    {
+      "path": "e2e/helpers/palProviderDouble.ts",
+      "beforeSha256": null,
+      "afterSha256": "ae80fb25d5c973d6f4d398454a3ff82f41a5db1eae29d4f631e177322d5262ea"
+    },
+    {
+      "path": "e2e/map-uk-base-layer.spec.ts",
+      "beforeSha256": "7f7c0e78fb1919133a620930417fd96d1aea851dd71c78e2e3d4f9a027429a76",
+      "afterSha256": "6a554091e0dcb433ea0444fbaf04b37b950620e3f2416c1a9ed744903563ee76"
+    },
+    {
+      "path": "e2e/pubpal-concierge-phone.spec.ts",
+      "beforeSha256": "3224a51bb29c8d25285309c5121e0b37c045629fa65406ab8ba38db2ad1d70cf",
+      "afterSha256": "a5aa30d7dd6c610293071bfe5dd86e0a4e000483d45973628585ffc628ba9b44"
+    },
+    {
+      "path": "lib/listedCategoryPrices.ts",
+      "beforeSha256": null,
+      "afterSha256": "cd3bd1bf865bcf7f26e23e55cd618542c19e705353b39be8d61a9d6e8dada4e4"
+    },
+    {
+      "path": "lib/listedPriceComparison.ts",
+      "beforeSha256": null,
+      "afterSha256": "89a231936d0ee9342a239c848f66cacff1c4dab5ef383d5e99dd6bf3c97beb3a"
+    },
+    {
+      "path": "lib/mapExperienceLens.ts",
+      "beforeSha256": "a89b77dfe8cbafc04105d283a8627bbd4431a86810d5b17655be03e0dd649108",
+      "afterSha256": "1dfc10c4dd19c3cd0d32cf56814c393b2b83aa7f8f72d154157a3ed3125fc6b5"
+    },
+    {
+      "path": "lib/mapPriceLegend.ts",
+      "beforeSha256": "3b99c8b31668d60cde2374acda00cc6b417325c0e507a5d231f22b5605ed021d",
+      "afterSha256": "2d5c9b6f30042fc5fecbc2ed851e74eb1fa508949c8426ed9828b97d021589c0"
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.server.ts",
+      "beforeSha256": "ba5226e170f90692a2a44e3144907e41f6b5d124522a75c7e57dba8882f665db",
+      "afterSha256": "032cb473b640c7e07f2d64dfffa5a4fb23ad2c68d69999ddc318abe17440d1bb"
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.ts",
+      "beforeSha256": "150280677a9ac2e7eb492b16289ad7af8a65aa68c354ce232bacd0e81123dfea",
+      "afterSha256": "123bce83225f97628f4b47335f789c8a97889bb25589e5544a0f6876f86b94b8"
+    },
+    {
+      "path": "lib/ukPriceBundle.server.ts",
+      "beforeSha256": "fb6d8c2dfa94be308e31eedc5dc62cbd974349682dc9fa2ab8cd40e07894387b",
+      "afterSha256": "5f265615d0dea4ac1bc566b247bee27a10b00c6437d7954327ac2b025514681c"
+    },
+    {
+      "path": "lib/ukPriceBundle.ts",
+      "beforeSha256": "269eb18b1c9b72697497dd5bf2cde7a0180906c89b6f586c754ed3f791a1d6d1",
+      "afterSha256": "bfcce0b1a2cfa57188d0f25ea340547ec808d403707a21307471168a689dafbd"
+    },
+    {
+      "path": "lib/venueKindFilters.ts",
+      "beforeSha256": "320bc4e8e3ec51a0696bf205dca1512c2da85f0d43716390b67c1f05d3e09639",
+      "afterSha256": "03572d483bcf0291736b3fd1b4fcf1c4d23f4f0b11322a056f02869c188b4927"
+    },
+    {
+      "path": "lib/venues.ts",
+      "beforeSha256": "4d5ee63c76425af8cde8d4f01bfbb3b2ba05ea0728fc9eece58231a9dc16e53f",
+      "afterSha256": "c2eb16694e1edc785267c88a87d1cb710a4cf6d69e2478a1d38165b7413ee541"
+    },
+    {
+      "path": "scripts/build_uk_price_bundle.mjs",
+      "beforeSha256": "772f36e33369ed5bc939c0dd7ddb4d95c05c9a56fc5d9e69988ba4f224642d38",
+      "afterSha256": "554cd23b91c7ab3d67587289682646ecce196172530c410b80ba27617d53c3b7"
+    }
+  ],
+  "sourceValidation": "All four component patches apply sequentially to exact720 source blobs in scratch. Net unified patch independently checks on fresh exactbase scratch with whitespace error-all. Shared PubMap hunks compose. No real worktree/index/ref changes.",
+  "preserved": [
+    "Root package3.4/Next16.3.8/AI124 and locks untouched",
+    "Release requestHome animated distinction and existing price-intent foundation untouched",
+    "Friend map controls/onMapInstance retained",
+    "Release legacy wine normalization and full Plan query/server resolver retained; widened price union gets explicit community-only source guards",
+    "Existing GNHF skill corrections preserved separately, excluded this app patch",
+    "Generated data/raw ledger excluded; fresh official producer required"
+  ],
+  "authHold": "Original r47-auth-cache-port.patch remains separate. Root independent review found already-entered bootstrapSDKsetSession can resurrect logout/newerB: old checks only guard pre-install and suppress completed bootstrap publication, not late matchingSDKevent. New meaningful tests being prepared; Root must prove RED and fix before applying/claiming original sixproductionauth/cache hunks. Do not treat source application as auth acceptance.",
+  "incomplete": [
+    "Cross-venue category serving alternatives/drink identity still lost before Cheapest sort; actual category GET/nativeList reproduction and canonical explicitgroup selection required",
+    "Release Plan generator retains community-only selected-price authority; full listed Plan propagation not implemented",
+    "Current release full source/types/build/native/provider/CWV/durable/production proofs pending",
+    "GL expanded/collapse/260px drag/150ms pause/peek assertions remain unchanged; currentRoot cause unproved",
+    "WebGL cancellation hunk lacks direct isolated changed regression; native lifecycle evidence required",
+    "Camera/location divergences intentionally excluded pending currentMain behavior ownership review"
+  ],
+  "historicalCoreFullFive": {
+    "report": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r46-fullfive-final.json",
+    "contract": "r47-pal-fixture-regression-contract.json",
+    "cases": 1321,
+    "pass": 1293,
+    "fail": 4,
+    "skip": 24,
+    "flaky": 0,
+    "durationMs": 1305504.512,
+    "boundary": "Old Core matching R46 build only; four CoreRED not established RootRED. Four lifecycle tests already byte-identical on currentRoot. Old config/build must not be reused to prove composedcurrenthead."
+  },
+  "next": "Root review/apply minimal source, regenerate approved bundle retainingMainnormalization, run currenthead focused before fullverify/build/originalfive/native review. Auth newlatebootstrap regressions need actualRED->fix->GREEN; no deployment approval inferred."
+}

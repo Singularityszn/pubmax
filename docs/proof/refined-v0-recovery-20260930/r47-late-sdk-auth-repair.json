@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "status": "SOURCE_ONLY_UNRUN",
+  "base": {
+    "workingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+    "head": "040134c5b4b697f775ba4ac8846f43873fbc317c",
+    "includes": "Owner provisional minimal50 composition; source before hashes authoritative"
+  },
+  "patch": {
+    "file": "r47-late-sdk-auth-repair.patch",
+    "sha256": "5d1ce4df5c181d29f58b78174c640d47d955a81627ad5df702e91f9d6500a0fe",
+    "bytes": 8218
+  },
+  "files": [
+    {
+      "path": "components/auth/AuthProvider.tsx",
+      "beforeSha256": "e5390bfc8ef7d75e381ebd0386db7dfaa067828005248e89f66122ad376ff13f",
+      "afterSha256": "534aeb805c5a87a4d0e819d11198bec9be48e6a20fde94efca647858c5a5e313"
+    },
+    {
+      "path": "lib/authSessionBootstrap.ts",
+      "beforeSha256": "58823d18a3e43fc83e22a806f32a00fc8389b28f95c6ef4897f72f553347cb5d",
+      "afterSha256": "c6e058818e4f88a49446f9361567652d1e5892f3115558579ac8cce39f76408b"
+    }
+  ],
+  "actualRed": {
+    "file": ".audit/overnight-20261001/auth-intermediate-entered-sdk-red-results.json",
+    "tests": 109,
+    "passed": 107,
+    "failed": 2,
+    "failures": [
+      "logout during entered cookie SDK installation",
+      "newer login displaced by late entered cookie SDK installation"
+    ]
+  },
+  "sourceValidation": {
+    "scratchApply": true,
+    "reverseCheck": true,
+    "exactAfterFiles": true,
+    "whitespaceErrorAll": true,
+    "runtime": false,
+    "types": false,
+    "lint": false
+  },
+  "behavior": [
+    "Shared pending cookie SDK-install token-pair marker survives event callback scope",
+    "A retired install buffers sessions before counters, UI, remembered accounts and cookie writes",
+    "Completion correlates both original input and real SDK returned session token pairs, including rotations",
+    "Unrelated newer login restored using existing callback restoration path; explicit logout clears late SDK session locally",
+    "Effect inactivity prevents stale reconciliation; helper promise awaits cleanup even SDK error; unchanged legitimate event path"
+  ],
+  "testOnlyPrecondition": {
+    "file": "r47-late-sdk-strict-control.patch",
+    "sha256": "8f32b77942d263c4821ad47c1fb0f31af36ba2ffd7aeda3d41bc747930dc8358",
+    "runtime": "UNRUN baseline positive control"
+  },
+  "focusedCommand": "npx vitest run __tests__/authProviderBootstrapRace.test.tsx __tests__/authCallbackConfirmation.test.tsx __tests__/authSessionBootstrap.test.ts",
+  "limits": [
+    "Actual RED uses rendered auth fixture and SDK double, not real provider/browser proof",
+    "No new source/regression tests included here; owner already installed entered-SDK negatives and positive controls",
+    "No callback, auth SDK architecture, package, generated data or provider startup delay changes",
+    "StrictMode initial cleanup precedes async client handler: inactive handler cannot start bootstrap; no speculative replay restart added"
+  ]
+}

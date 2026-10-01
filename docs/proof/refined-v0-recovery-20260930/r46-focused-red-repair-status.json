@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-01T00:01:25.637299+00:00",
+  "phase": "RED_REPRODUCED_REPAIRS_IN_PROGRESS",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "baseline": "Preserved Core package/lock and coherent installed dependencies; main f33f77e objects fetched, composition pending; package 476f061 PR1882 unmerged/policy failure, not installed",
+  "grantEnd": "2026-10-01T00:45:00Z",
+  "cleanupReserve": "2026-10-01T00:42:00Z",
+  "preflight": "r46-runtime-preflight.json",
+  "unitRed": {
+    "exitCode": 1,
+    "passed": 89,
+    "failed": 15,
+    "filesFailed": 6,
+    "log": "/tmp/pubmaxx-r46-focused-red.log",
+    "durationSeconds": 3.26
+  },
+  "browserRed": {
+    "status": "RUNNING",
+    "session": 55219,
+    "log": "/tmp/pubmaxx-r46-price-intent-red.log"
+  },
+  "limits": [
+    "No production/provider/durable DB proof",
+    "No merge/deploy/shared SQL",
+    "Original two full-five failures unresolved"
+  ],
+  "focusedGreen": {
+    "passed": 312,
+    "files": 15,
+    "exitCode": 0,
+    "log": "/tmp/pubmaxx-r46-focused-green.log"
+  },
+  "nativePriceIntentRed": {
+    "passed": 1,
+    "failed": 3,
+    "exitCode": 1,
+    "log": "/tmp/pubmaxx-r46-price-intent-red-matched.log",
+    "launchFailureExcluded": "/tmp/pubmaxx-r46-price-intent-red.log"
+  },
+  "loreProbe": {
+    "status": "ORIGINAL_SAMPLE_PASSED",
+    "frames": 14,
+    "originalExact44": true,
+    "inFlightExact44": true,
+    "restExact44": true,
+    "report": "/tmp/pubmaxx-r46-lore-geometry/report.json",
+    "claim": "One local animation+rest sampling pass, prior full-five remains RED, no CSS repair made"
+  },
+  "sourceGate": {
+    "status": "RUNNING",
+    "session": 4804,
+    "log": "/tmp/pubmaxx-r46-full-source-verify.log",
+    "freeze": "r46-repaired-source-freeze.json"
+  }
+}

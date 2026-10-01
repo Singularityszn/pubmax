@@ -1,0 +1,30 @@
+{
+  "recordedAt": "2026-09-30T10:52:27.016532+00:00",
+  "sourceFreeze": "/tmp/pubmaxx-r23-fullfive-freeze.json",
+  "sourceHashCount": 2461,
+  "sourceUnchanged": true,
+  "builds": {
+    ".next-e2e-recovery": {
+      "buildId": "build-TfctsWXpff2fKS",
+      "modifiedAt": "2026-09-30T10:50:27.197459+00:00"
+    },
+    ".next-e2e-recovery-keyless": {
+      "buildId": "build-TfctsWXpff2fKS",
+      "modifiedAt": "2026-09-30T10:50:48.642132+00:00"
+    }
+  },
+  "runSession": 46270,
+  "jobWrapper": 53511,
+  "jobGroup": 53519,
+  "cases": 1316,
+  "workers": 2,
+  "projects": [
+    "chromium",
+    "chromium-keyless",
+    "chromium-gl",
+    "chromium-sw-gl",
+    "chromium-no-gl"
+  ],
+  "cutoff": "2026-09-30T11:22:00Z cleanup,11:23 release",
+  "status": "RUNNING; no overall verdict"
+}

@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-30T21:45:56.109183+00:00",
+  "kind": "INTERIM_IDLE_PREVIEW_HANDOFF_NOT_FULL_CLEANUP",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "sourceFreeze": "r36-source-only-freeze.json",
+  "filesChecked": 4250,
+  "drift": [],
+  "buildReceipt": "r36-preview-build-receipt.json",
+  "viewReceipt": "r36-preview-view-receipt.json",
+  "screenshotsComplete": true,
+  "ownedActiveJobs": [
+    {
+      "label": "r36-preview-server",
+      "wrapperPid": 1748,
+      "groupPid": 1757,
+      "startedAt": "2026-09-30T21:30:27.734750+00:00",
+      "active": true
+    }
+  ],
+  "runtimeScope": "Idle local preview server only. No build, test or browser check cohort. Deadline guard remains21:52 UTC. Full owned-process and port cleanup pending.",
+  "nextTestGrant": "Still required. New price, auth, cache regression cases UNRUN. Full E2E remains two failures."
+}

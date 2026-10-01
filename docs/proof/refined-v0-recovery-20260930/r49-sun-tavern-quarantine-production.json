@@ -1,0 +1,49 @@
+{
+  "packet": "R49 exact Sun Tavern category-claim quarantine",
+  "createdAtUTC": "2026-10-01T11:50:08.637936+00:00",
+  "status": "SCRATCH_SOURCE_PACKET_ONLY_UNRUN",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "6f7be486df3a35a00fbec410fdc6cb4bfde37ae2",
+  "files": {
+    "lib/ukPriceBundle.ts": {
+      "patch": "two exact CATEGORY_QUARANTINE entries only",
+      "beforeSha256": "0a9b09604d73e0aa758380836a9b75b9bf31adab041b7833898968d54099a59c",
+      "afterSha256": "a4dff0b633a8d20d7a6ac5cdbdf4bd31132c6bd02891576b38529b90bb721fbf"
+    }
+  },
+  "red": {
+    "report": ".audit/overnight-20261001/sun-tavern-retained-claims-required-red.json",
+    "reportSha256": "49aff160c09958af3e3d2bf2aa2ff3352e28c93878bf1fc6fa32c7e10651d954",
+    "result": "38 tests: 36 passed, 2 failed. Both failures are eligible readings for exact named gin and beer claims; no other assertions failed."
+  },
+  "sourceEvidence": {
+    "review": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-sun-tavern-price-truth-source-review.md",
+    "claims": [
+      {
+        "sourceUrl": "https://www.thesuntavern.co.uk/menu/",
+        "category": "gin",
+        "priceGbp": 7,
+        "drinkLabel": "sics Umbrella Vesper Grey Goose Vodka, Boatyard Gin, Kina L\u2019Aero, Vichy Catalan",
+        "servingSize": "not stated"
+      },
+      {
+        "sourceUrl": "https://www.thesuntavern.co.uk/menu/",
+        "category": "beer",
+        "priceGbp": 8.5,
+        "drinkLabel": "BELFAST COFFEE B\u00e1n Poit\u00edn, Cold Brew Coffee, Cream, Demerara, Nutmeg",
+        "servingSize": "not stated"
+      }
+    ],
+    "boundary": "Source review confirms exact retained labels and manual primary-menu category contradictions; no current live availability or serving is claimed. Raw ledger remains unchanged."
+  },
+  "scope": "Adds exact source/category/price/label matches at the existing quarantine owner. No other Sun Tavern entries, source rows, servings, generated bundles, builders or publishers change.",
+  "staticChecks": {
+    "patchAppliesToCapturedWorkingTree": true,
+    "testsOrBuildRun": false,
+    "maintainedFilesChangedByThisTask": false
+  },
+  "limitations": [
+    "No Root test suite rerun or production regeneration in this packet.",
+    "The separate test-first worktree captured RED; Root owns applying this patch, GREEN checks and official data production."
+  ]
+}

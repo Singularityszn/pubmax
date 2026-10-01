@@ -1,0 +1,52 @@
+{
+  "kind": "READY existing frozen production packet pickup pointer; no new producer",
+  "status": "ALREADY_APPLIED_PRICE_AUTHORITY_ALL5_NATIVE_PASS_ON_6f7; CURRENT_REVERSE_V2_PICKUP_NEXT",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-price-authority.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-price-authority.json",
+  "parentReview": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-price-authority-parent-review.json",
+  "adversarialReview": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-authority-adversarial-review.md",
+  "patchSha256": "5573952d0439a5dffbb711b513d6e4236bf3d00210b88973bc472a2292df6bab",
+  "files": [
+    {
+      "path": "components/map/pubmap/useMapPlanCoordinator.ts",
+      "beforeSha256": "be9d689d2ad26e25168077758e6ad2c558125f8ebadabf93838b8714e926d9b9",
+      "afterSha256": "8aded913d257cccd5cfc0889376508c9e6b157db6c1807b12d4487d08344ede2"
+    },
+    {
+      "path": "components/map/RoutePanel.tsx",
+      "beforeSha256": "8c9bb569480a105d0d6b6587a357156631038a90efe45bd7fec2d994688bc385",
+      "afterSha256": "fb2c4801277276124c34add073588e2b63ebd20aa4b2173969c829706c131ab7"
+    },
+    {
+      "path": "components/map/route/RouteMetrics.tsx",
+      "beforeSha256": "4492792d7263f719c39d48c370db6ce5f5dddd92c5262fa4c0162d41679be4ac",
+      "afterSha256": "ab7ccf85a2e6c5aa7a146c26791d2610713f5e92c3c8de7196f57da6b96e9b5d"
+    },
+    {
+      "path": "components/map/route/RouteList.tsx",
+      "beforeSha256": "94320ed1f48a5be012703af01b6e147e5a938fea6ff7a006b43e55aaa7831914",
+      "afterSha256": "2436ee4b8aaea2eb65e6235ef15a1e41292cb5cc6ed0819d3852775a1ae3b9bb"
+    },
+    {
+      "path": "components/map/route/RouteHeader.tsx",
+      "beforeSha256": "a1aca49bf27333e579a4c6cddd406ee63b76216e2174b21c90d55b0506554f45",
+      "afterSha256": "c864442f308e52e4eae0ee7dbded44e65272bd82f1179d3a40a8c49348445528"
+    },
+    {
+      "path": "components/plan/MobilePlanActivation.tsx",
+      "beforeSha256": "72807f915384ce3f714f8f34b1ec5569f0a90d1740dd75507e1820431c4d272b",
+      "afterSha256": "e77c1ba913d3e82ad333ffdd9c53ed04913244680964bc630ed91a51408b78f6"
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "a8ba1191dd83dca16fe45cf4378aec2ec90e8d5d9160011df3e1e0dc687b717c",
+      "afterSha256": "cb8e8280036a8d6febfe51215582feed56bebdd92ea8f54f705e9f3c26f10085"
+    }
+  ],
+  "nativeGuardManifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-drink-metrics-test-first.json",
+  "nativeGuardPatch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-drink-metrics-test-first.patch",
+  "knownOpen": "Stale transfer CTA after route edit/reverse; metadata not retained across reload/share; separate Root real-user repro and repair. This packet repairs actual captured nonbeer Pint cost/nouns. No SQL/publisher authenticity/prod claim.",
+  "recordedAt": "2026-10-01T10:43:41.679278+00:00",
+  "currentReversePickup": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-reverse-production-pickup.json",
+  "currentNamedQuarantinePickup": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-sun-tavern-quarantine-production.json"
+}

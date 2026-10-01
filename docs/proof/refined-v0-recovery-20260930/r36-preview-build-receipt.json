@@ -1,0 +1,35 @@
+{
+  "at": "2026-09-30T21:30:27.604285+00:00",
+  "head": "5de246205d8ff0fd1d601c94f3a73639476a3db1",
+  "freeze": "r36-source-only-freeze.json",
+  "frozenFiles": 4250,
+  "sourceDeltaFromR35": [
+    "e2e/price-evidence-missions.spec.ts",
+    "lib/ukPriceBundle.ts",
+    "__tests__/authCallbackClient.test.ts",
+    "__tests__/deviceAccountSwitch.test.ts",
+    "__tests__/surfaceReadDedupe.test.ts",
+    "__tests__/ukPriceBundle.test.ts"
+  ],
+  "buildExitCode": 0,
+  "buildStartedAt": "2026-09-30T21:29:19.305821+00:00",
+  "buildEndedAt": "2026-09-30T21:29:59.766345+00:00",
+  "dist": ".next-v0-preview-20260930",
+  "buildId": "build-TfctsWXpff2fKS",
+  "BUILD_IDModifiedAt": "2026-09-30T21:29:57.531098+00:00",
+  "buildLog": "/tmp/pubmaxx-r35-r36-preview-build.log",
+  "dataRestoredFromOfficialSnapshot": [
+    {
+      "file": "public/data/uk_prices/rows.json",
+      "sha256": "d234ca852d0ec45f989393c9a27c82a26eb8d1094e4cea820a066c8c49c1fff6"
+    },
+    {
+      "file": "public/data/uk_prices/manifest.json",
+      "sha256": "3cdb241338228a371384cadd06f2629ce5f23a3da2c598016e62d248b9e811fd"
+    }
+  ],
+  "postBuildHashDrift": [],
+  "mode": "Keyless local preview, isolated process-only signing key; no account/provider/durable-write proof",
+  "mainBoundary": "CoreHEAD preserved; upstreamaf5a08f fetched, not integrated. Source/test/main reconciliation remains pending.",
+  "acceptance": "Build passed, full regression remains pending with prior full-five2failures. No deployment or shared SQL."
+}

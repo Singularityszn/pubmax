@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-30T19:15:44.130611+00:00",
+  "exitCode": 1,
+  "coverage": {
+    "passed": 18621,
+    "failed": 1,
+    "skipped": 6,
+    "total": 18628,
+    "filesPassed": 1739,
+    "filesFailed": 1,
+    "filesSkipped": 1
+  },
+  "failedTest": "siteHarvestReconciliation: historicalSept29bundlecounts pinned to current bundle after seven exactnewquarantines",
+  "lintErrors": 0,
+  "lintBaselineWarnings": 17,
+  "typecheck": "passed",
+  "deadcode": "passed",
+  "laterStages": "RLS/skips/freshness/audit not reached",
+  "frozenSourceDelta": [
+    "public/data/uk_prices/rows.json",
+    "public/data/uk_prices/manifest.json"
+  ],
+  "nativeFixedReplay": "price/privacy/search passed on earlier same executablebytes",
+  "fullAcceptance": false
+}

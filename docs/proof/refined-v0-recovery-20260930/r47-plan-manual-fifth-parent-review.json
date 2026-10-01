@@ -1,0 +1,12 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_ROOT_FOCUSED_GREEN_PENDING",
+  "sha256": "810186ca22666c720b32ce368fb092c1ecd903bee9eaaa6150aa5b1b748b2093",
+  "checks": [
+    "CurrentRootexact2before",
+    "hash",
+    "Rootapplycheckwhitespace",
+    "freshparent2scratchafter"
+  ],
+  "behavior": "Contextabsentlisteddisplayhint only, explicit/malformedcontextdoesnotfallthrough; exactapprovedquote+standing/expiry/quarantine; selectedfilterbefore4 via647; cachevenue+literalserving; nofullcontextfabrication; absentcommunityomitted",
+  "runtime": "UNRUN_BY_CORE"
+}

@@ -1,0 +1,46 @@
+{
+  "artifact": "r47-serving-intent-continuity-source-pins",
+  "source_review": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/r47-serving-intent-continuity-source-review.json",
+    "sha256": "899efe9a741196f64297acb9525518dd040be72088d107c1abe62f594ac88f6a",
+    "head_observed_during_review": "6f7be486df3a35a00fbec410fdc6cb4bfde37ae2"
+  },
+  "pin_capture": {
+    "captured_at_utc": "2026-10-01 12:42:37 UTC",
+    "checkout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+    "head": "872021c1a12419129aee9849d7877597b7f7b4b4",
+    "hash_method": "SHA-256 of current working-tree bytes via shasum -a 256",
+    "modified_against_captured_head": [
+      "__tests__/crawlUrl.test.ts",
+      "__tests__/generatedMapRoutePricing.test.tsx",
+      "__tests__/mapCrawlUrlSync.test.tsx",
+      "__tests__/mapRouteTransfer.test.ts",
+      "components/PubMap.tsx",
+      "components/map/pubmap/useMapPlanCoordinator.ts",
+      "components/map/useCrawlUrl.ts",
+      "components/plan/MobilePlanActivation.tsx",
+      "lib/crawlUrl.ts",
+      "lib/mapRouteTransfer.ts"
+    ],
+    "caveat": "Pins identify current bytes after HEAD advanced from the review snapshot. Modified paths may differ from bytes inspected for the source review; hashes are not a retrospective snapshot of those earlier bytes."
+  },
+  "files": [
+    { "path": "components/PubMap.tsx", "sha256": "bdb7171ad47bda90fde04d83dfd1bfaaabbfb55057b6a21dfbaf3c838fdc1642" },
+    { "path": "components/map/pubmap/useMapPlanCoordinator.ts", "sha256": "9bd3b2860f9a1622605ab1407bcb30bc069e53bfc32d682bdccd8fa001a0a6b6" },
+    { "path": "components/map/useCrawlUrl.ts", "sha256": "67495214f85eeea3ddf0f13a64086cf4234e975d15618183b6aeb7205e89602f" },
+    { "path": "components/plan/MobilePlanActivation.tsx", "sha256": "93cd163bc44010605df5346817d1033ccd14e6734c11d291d336ef22eb9f044a" },
+    { "path": "components/plan/PlanComposer.tsx", "sha256": "3dda1bb6ada6f775f9323eca76bf3673437fd534776f68a1d6e8aab8ba6d60ac" },
+    { "path": "lib/crawlUrl.ts", "sha256": "eb43872e1478c6d239d5a98efd2dd43990966ca286467371b2a208e6f71bd4e6" },
+    { "path": "lib/mapRouteTransfer.ts", "sha256": "1648ff4c0b3c9aa6a89a2dd86ef9b27ebb9dc3c6d65046b80f99d73b41d16db1" },
+    { "path": "lib/nightPlanning.ts", "sha256": "c428259ba5d2f16bad5e7e276916016750947d9773a126c187aee504d9abb2b4" },
+    { "path": "lib/planGeneration.server.ts", "sha256": "86bed9118d5ac0c47b68d32c1ba5df13a7b5558f6fd04a85fbf0600ad7ebadb4" },
+    { "path": "lib/planRouteDraft.ts", "sha256": "5efcc5d451c5d4f317b8e80f39c4331342605c8fb2609f86433622f060e39e79" },
+    { "path": "lib/planSelectedDrinkPriceEvidence.ts", "sha256": "0cb2ecd55dc6479ecf9f77efc1d662bdc0a0e365e35ca9aae040ee5611f03706" },
+    { "path": "__tests__/crawlUrl.test.ts", "sha256": "7ed8503bd9edb5807e038c574563b9e2efb22c6e5460bf7e859629c153507c8b" },
+    { "path": "__tests__/generatedMapRoutePricing.test.tsx", "sha256": "f57f733db7fe3e91913b773f258c1d3138d8edfe9bf931cf8df504d3a31a094e" },
+    { "path": "__tests__/mapCrawlUrlSync.test.tsx", "sha256": "264339d3d05c76053e5b88cd2b38e45ab1b5402e72af4763e32da74d329a26b8" },
+    { "path": "__tests__/mapRouteTransfer.test.ts", "sha256": "2bf6059afee2b1b874596c9834b44aee1bf88b9b723c4bc55648294c9c20e44e" },
+    { "path": "__tests__/planSelectedDrinkEvidenceCreate.test.ts", "sha256": "c5d2750af91618cb5595a86360653ac8e634e2ae5703bdd012e452373683d77d" }
+  ],
+  "validation": "JSON written only. No source, test, build, browser, provider, or Git mutation performed."
+}

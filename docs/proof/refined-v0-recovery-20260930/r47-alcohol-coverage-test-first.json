@@ -1,0 +1,37 @@
+{
+  "status": "FROZEN TEST-ONLY SOURCE READY; actual focused RED UNRUN; no production changes",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-alcohol-coverage-test-first.patch",
+  "sha256": "b67083da14103d59436b7dda7ade48b4cad14c6bd4b17ccc8826fcfb93201651",
+  "bytes": 6028,
+  "scratch": "/tmp/pubmaxx-r47-alcohol-coverage-test",
+  "root": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "files": {
+    "__tests__/planAnchoredGenerateRoute.test.ts": {
+      "before": "69cad1979317e49cf26aa632aaa92e9a8ae9db4482cb1ae4537f9d61d81052c1",
+      "after": "fb44794da131e6290fe84974a83dd0b17d40548b38a5924465970a7851bb1a42"
+    }
+  },
+  "case": "Actual generation POST retains one eligible farther category offer in primary/backup choices when five nearer pubs lack that category; no unknown-serving amount rank or budget claim",
+  "fixtures": "Existing server-pack and bundle-reader doubles only; real request parser/context reconciliation/listed eligibility/selection/DTO/signing. Clearly synthetic approved fixtures, not publisher proof.",
+  "controls": [
+    "All candidates inside existing Clapham radius; unanchored request unchanged",
+    "Wrong category and expired quote excluded by real projection",
+    "Changing unknown-serving amount cannot alter candidate order/scores",
+    "Three primary stops, at most two backups each; exact three-stop grounding proof validated on route and each alternative swap",
+    "Budget null for selected nonbeer; no implicit measure",
+    "Existing canonical anchor/group/forged/expiry/category override/zero proof tests retained byte-for-byte"
+  ],
+  "expectedRED": "Inference until Root executes: category-offer absent from three geographically scored primaries and nearest-two fallback alternatives despite prepared candidate containing approved gin quote",
+  "scopeLimit": "Tests discoverability in union only, NOT guaranteed priced primary, Cheapest group ordering, real market validation or full native/Plan persistence completion",
+  "sourceChecks": [
+    "Current Root before pin exact/stable",
+    "git apply --check --whitespace=error PASS",
+    "Fresh scratch application exact after hash PASS"
+  ],
+  "command": "npx vitest run __tests__/planAnchoredGenerateRoute.test.ts __tests__/planGenerationDto.test.ts",
+  "limitations": [
+    "No child tests/types/lint/build/browser/runtime run",
+    "Root must execute intended RED before any production repair",
+    "No maintained Core/Root edits; no Luna map transfer or PostgreSQL test overlap"
+  ]
+}

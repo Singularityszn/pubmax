@@ -1,0 +1,38 @@
+{
+  "capturedAtUtc": "2026-10-01T05:39:11Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-cognac-scratch/base",
+  "scratchCandidate": "/tmp/pubmaxx-r47-cognac-scratch/candidate",
+  "patch": "/tmp/pubmaxx-r47-cognac-red-tests.patch",
+  "patchSha256": "83fee5fed192ca1a4bbf285c7c807b43edc6ee39e32823aef21d4b508ea8e2be",
+  "status": "UNRUN",
+  "purpose": "Test-first coverage for retained Courvoisier VSOP Cognac printed as wine and correction of the historical published-bundle tuple from 7603/3083 to 7607/3087.",
+  "files": [
+    {
+      "path": "__tests__/ukPriceBundle.test.ts",
+      "baseSha256": "e83b336b527711a079d93e3d8208908b17d9db345a2c83c322b464b0d1d333d6",
+      "candidateSha256": "0d9abff09f18d0ef4697e8ce5129b65b1205131b5251dbfaf0845f6e40101859"
+    },
+    {
+      "path": "__tests__/siteHarvestReconciliation.test.ts",
+      "baseSha256": "28ca70e49eb12858032b9e436bcf6c37c9eed13fe911379a8951a641a8822e6d",
+      "candidateSha256": "d4ae22eec88ce58e448f8a6ec9299d72ac6b35cdc7d030f9c72d806ebc14461c"
+    }
+  ],
+  "productionFilesChanged": [],
+  "generatedFilesChanged": [],
+  "runtimeExecuted": false,
+  "historicalArithmetic": {
+    "currentLedgerRows": 3106,
+    "currentBundleSiteHarvestRows": 3087,
+    "historicalQuarantineRows": 19,
+    "currentQuarantineRowsBeforeNewCase": 37,
+    "currentQuarantineRowsAfterNewCase": 38,
+    "expectedPublishedRowsAfterNewQuarantine": 7588
+  },
+  "limitations": [
+    "No tests or runtime were run.",
+    "Cognac quarantine production tuple is intentionally absent from this test packet and must follow an actual RED.",
+    "No generated public data or reconciliation artifacts were edited."
+  ]
+}

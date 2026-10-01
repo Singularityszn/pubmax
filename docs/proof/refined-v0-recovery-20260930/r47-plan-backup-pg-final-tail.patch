@@ -1,0 +1,18 @@
+--- a/__tests__/planSavedBackupDeliveryMigrationEffective.test.ts
++++ b/__tests__/planSavedBackupDeliveryMigrationEffective.test.ts
+@@ -66,6 +66,15 @@
+     for (const path of prerequisites) db().applyFile(path);
+     db().applyFile(join(migrations, listedEvidenceMigration));
+     db().applyFile(join(migrations, manualEvidenceMigration));
++    for (const migrationName of [
++      "20261001090000_0178_plan_route_alternatives.sql",
++      "20261001091000_0179_plan_backup_context_evidence.sql",
++      "20261001092000_0180_completion_group_snapshot.sql",
++      "20261001092100_0181_social_crew_completion.sql",
++      "20261001092200_0182_completion_group_active_accounts.sql",
++    ]) {
++      db().applyFile(join(migrations, migrationName));
++    }
+   } catch (error) {
+     await session.stop();
+     session = null;

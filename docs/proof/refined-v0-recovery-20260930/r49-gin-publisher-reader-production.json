@@ -1,0 +1,74 @@
+{
+  "status": "FROZEN source-only production candidate; runtime GREEN UNRUN",
+  "createdAtUTC": "2026-10-01T13:13:38.670435+00:00",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtPackaging": "872021c1a12419129aee9849d7877597b7f7b4b4",
+  "scratch": "/tmp/pubmaxx-r49-gin-publisher-reader",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r49-gin-publisher-reader-production.patch",
+  "patchSHA256": "f1d9907c1a58a99a21abb7f35f1e2388a4588229f08fd6a1cb9dd71574a78b4c",
+  "paths": [
+    {
+      "path": "lib/harvest/ukPriceCrawl.ts",
+      "beforeSHA256": "de4d8371d78d1397309d2e9f7e06ed9550d13c0cdf2623e6751910f5c51dff26",
+      "afterSHA256": "e06986c7509fcdf02898d603ee60c34c20a536223fd0166d2422eb51ed861073",
+      "currentRootMatchesBefore": true
+    }
+  ],
+  "actualRED": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/gin-publisher-extraction-required-red.json",
+    "SHA256": "8ea7ea408faee03058eaef4bdbe46c14ae21f22f4165df6144e9266791b2a2b3",
+    "total": 118,
+    "passed": 110,
+    "failed": 8,
+    "skipped": 0,
+    "files": 4,
+    "meaningfulFailures": [
+      "four source-stated one-decimal Gin figures truncated to integers",
+      "FreeGlider wrongly classified Gin despite standalone printed alcohol-free section (two controls)",
+      "Albion Gordons lost named item label and printed Gin 25ml section (two controls)"
+    ]
+  },
+  "unchangedTestsAndCapturedFixtures": [
+    {
+      "path": "__tests__/ginPublisherSourceRefresh.test.ts",
+      "SHA256": "64c09332a9bc390730e292bc38652b1991a4aa42fa3efd461450b1984b1125b0"
+    },
+    {
+      "path": "__tests__/fixtures/harvest/scolt-head-spirits-20261001.json",
+      "SHA256": "83aa2dedd4e0ff658d91db00845099fc821564e55fb3fc81b9de8a78a50fb26a"
+    },
+    {
+      "path": "__tests__/fixtures/harvest/albion-gin-pdfjs-20261001.json",
+      "SHA256": "585ce932e3d2122f836ef2e2d354573507db70d425ac59964ac5d17b030dd5a9"
+    }
+  ],
+  "sourceChecks": {
+    "RootGitApplyCheckWhitespaceErrorAll": "PASS exit0, no source application",
+    "freshScratchPatchApply": "PASS exit0",
+    "freshScratchAfterHash": "PASS byte equality",
+    "currentRootBeforeHash": "PASS byte equality",
+    "afterTrailingWhitespace": "NONE"
+  },
+  "changes": [
+    "one canonical price matcher accepts complete one- or two-decimal figures and prevents partial malformed decimal matches; reused for prior-figure label boundary",
+    "closed standalone printed menu headings delimit forward-only spirit/alcohol-free section scope; other recognized headings terminate it",
+    "scoped item own-line label avoids previous soft-drink description and heading leaking into Gordons label",
+    "printed alcohol-free section owns category even when item includes Gin; existing title ambiguity and mixer rejection retained",
+    "explicit section ml attached only when actual chosen category equals source section; absent measure remains absent"
+  ],
+  "preserved": [
+    "Root Vesper de4 source before pin retained",
+    "verbatim/snippet and source permission boundary",
+    "wine HTML section and explicit wine identity reader",
+    "food, offers, mixer, half/bottle guards",
+    "original tests and exact captured fixture bytes"
+  ],
+  "limitations": [
+    "No runtime, tests, lint, typecheck, builds, browser, provider or data generation executed by this lane",
+    "Existing/historical raw ledger and generated data unchanged; this repairs reader only",
+    "Heading scope is restricted to recognized standalone printed menu headings, not a general arbitrary PDF-layout parser",
+    "Source application and hash checks do not establish GREEN or publisher future freshness"
+  ],
+  "suggestedFocusedCommand": "npx vitest run __tests__/ginPublisherSourceRefresh.test.ts __tests__/ukPriceCrawl.test.ts __tests__/ukPriceHarvestRead.test.ts __tests__/ukPriceSourceFormat.test.ts",
+  "otherOwnership": "Storage partial-denial retry is separately held for actual new Root RED and Luna ownership; this packet edits only harvest reader."
+}

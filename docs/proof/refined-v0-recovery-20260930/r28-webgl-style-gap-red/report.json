@@ -1,0 +1,705 @@
+{
+  "completed": false,
+  "classification": "EXERCISED_FAILED",
+  "recoveryPassed": false,
+  "origin": "http://localhost:3351",
+  "limits": {
+    "armMs": 45000,
+    "cleanupStartsMs": 55000,
+    "hardCapMs": 60000,
+    "lossHoldMs": 1200,
+    "appRecoveryGraceMs": 800
+  },
+  "limitations": "Observer/CDP overhead is diagnostic. Triggering loss at a public mark does not guarantee native loss dispatch before scene build; report checks actual trusted event and existing scene marks. Painted probe proves pub pins/clusters, not physical-device recovery. No app state writes, restore call, scene hold or network/data mock.",
+  "journal": [
+    {
+      "receivedAt": 1790783056913,
+      "at": 55.1000000089407,
+      "timeOrigin": 1790783056856.7,
+      "kind": "clock"
+    },
+    {
+      "receivedAt": 1790783056915,
+      "at": 58.20000000298023,
+      "timeOrigin": 1790783056856.7,
+      "kind": "surface",
+      "snapshot": {
+        "at": 58.20000000298023,
+        "timeOrigin": 1790783056856.7,
+        "canvasMounted": false,
+        "canvasCount": 0,
+        "fallbackCount": 0,
+        "oldCanvasConnected": null,
+        "canvasReplaced": false,
+        "oldGlLost": null,
+        "lossElapsedMs": null,
+        "points": [],
+        "camera": null,
+        "probeError": null,
+        "marks": []
+      }
+    },
+    {
+      "receivedAt": 1790783057164,
+      "at": 307.70000000298023,
+      "timeOrigin": 1790783056856.7,
+      "kind": "surface",
+      "snapshot": {
+        "at": 307.70000000298023,
+        "timeOrigin": 1790783056856.7,
+        "recovery": null,
+        "canvasMounted": false,
+        "canvasCount": 0,
+        "fallbackCount": 0,
+        "oldCanvasConnected": null,
+        "canvasReplaced": false,
+        "oldGlLost": null,
+        "lossElapsedMs": null,
+        "points": [],
+        "camera": null,
+        "probeError": null,
+        "marks": []
+      }
+    },
+    {
+      "receivedAt": 1790783059145,
+      "at": 2287.7000000029802,
+      "timeOrigin": 1790783056856.7,
+      "kind": "surface",
+      "snapshot": {
+        "at": 2287.7000000029802,
+        "timeOrigin": 1790783056856.7,
+        "recovery": "listening",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": null,
+        "canvasReplaced": false,
+        "oldGlLost": null,
+        "lossElapsedMs": null,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2280.9000000059605
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2283
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783059152,
+      "at": 2295.2999999970198,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:map-constructed",
+      "start": 2280.9000000059605
+    },
+    {
+      "receivedAt": 1790783059152,
+      "at": 2295.4000000059605,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:map-chunk-ready",
+      "start": 2283
+    },
+    {
+      "receivedAt": 1790783059203,
+      "at": 2346.6000000089407,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:first-pins",
+      "start": 2346.1000000089407
+    },
+    {
+      "receivedAt": 1790783059204,
+      "at": 2346.7000000029802,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:slim-venues-ready",
+      "start": 2346.5
+    },
+    {
+      "receivedAt": 1790783059238,
+      "at": 2381.2000000029802,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:map-style-load",
+      "start": 2380.2000000029802
+    },
+    {
+      "receivedAt": 1790783059238,
+      "at": 2381.2000000029802,
+      "timeOrigin": 1790783056856.7,
+      "kind": "first-style-load",
+      "start": 2380.2000000029802,
+      "sceneBuiltAtTrigger": []
+    },
+    {
+      "receivedAt": 1790783059238,
+      "at": 2381.2999999970198,
+      "timeOrigin": 1790783056856.7,
+      "kind": "native-loss-trigger",
+      "styleStart": 2380.2000000029802,
+      "sceneBuiltAtTrigger": []
+    },
+    {
+      "receivedAt": 1790783059911,
+      "at": 3054.4000000059605,
+      "timeOrigin": 1790783056856.7,
+      "kind": "native-loss",
+      "trusted": true,
+      "sceneBuiltAtLoss": []
+    },
+    {
+      "receivedAt": 1790783059912,
+      "at": 3055,
+      "timeOrigin": 1790783056856.7,
+      "kind": "surface",
+      "snapshot": {
+        "at": 3055,
+        "timeOrigin": 1790783056856.7,
+        "recovery": "recovering",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": true,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 0.5999999940395355,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2280.9000000059605
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2283
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2346.1000000089407
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2346.5
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2380.2000000029802
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783059914,
+      "at": 3057.7999999970198,
+      "timeOrigin": 1790783056856.7,
+      "kind": "native-loss-after-dispatch",
+      "trusted": true,
+      "defaultPrevented": true,
+      "snapshot": {
+        "at": 3057.7999999970198,
+        "timeOrigin": 1790783056856.7,
+        "recovery": "recovering",
+        "canvasMounted": true,
+        "canvasCount": 1,
+        "fallbackCount": 0,
+        "oldCanvasConnected": true,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 3.3999999910593033,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2280.9000000059605
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2283
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2346.1000000089407
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2346.5
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2380.2000000029802
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783059918,
+      "at": 3060.9000000059605,
+      "timeOrigin": 1790783056856.7,
+      "kind": "surface",
+      "snapshot": {
+        "at": 3060.9000000059605,
+        "timeOrigin": 1790783056856.7,
+        "canvasMounted": false,
+        "canvasCount": 0,
+        "fallbackCount": 1,
+        "oldCanvasConnected": false,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 6.5,
+        "points": [],
+        "camera": {
+          "bearing": 0,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "moving": false
+        },
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2280.9000000059605
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2283
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2346.1000000089407
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2346.5
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2380.2000000029802
+          }
+        ]
+      }
+    },
+    {
+      "receivedAt": 1790783059920,
+      "at": 3063.9000000059605,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:map-style-load",
+      "start": 3062.1000000089407
+    },
+    {
+      "receivedAt": 1790783059928,
+      "at": 3071.2999999970198,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:camera-intent:opening-location",
+      "start": 3067.2999999970198
+    },
+    {
+      "receivedAt": 1790783060109,
+      "at": 3251.7000000029802,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:map-icons-ready",
+      "start": 3244.5
+    },
+    {
+      "receivedAt": 1790783060109,
+      "at": 3251.7000000029802,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:map-scene-built",
+      "start": 3248.5
+    },
+    {
+      "receivedAt": 1790783060122,
+      "at": 3265.6000000089407,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:pubs-source-loaded",
+      "start": 3262.7000000029802
+    },
+    {
+      "receivedAt": 1790783060149,
+      "at": 3292.5,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:pins-visible",
+      "start": 3292.2000000029802
+    },
+    {
+      "receivedAt": 1790783060668,
+      "at": 3810.9000000059605,
+      "timeOrigin": 1790783056856.7,
+      "kind": "pin-reveal",
+      "detail": {
+        "reason": "pins",
+        "generation": 2
+      }
+    },
+    {
+      "receivedAt": 1790783060669,
+      "at": 3811.1000000089407,
+      "timeOrigin": 1790783056856.7,
+      "kind": "mark",
+      "name": "pubmax:pin-entrance-settled",
+      "start": 3811.1000000089407
+    }
+  ],
+  "nativeConsole": [
+    {
+      "timestampEpochMs": 1790783059912.857,
+      "type": "warning",
+      "args": [
+        {
+          "type": "string",
+          "value": "There is no style added to the map."
+        }
+      ],
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "to",
+            "scriptId": "61",
+            "url": "http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 44113
+          },
+          {
+            "functionName": "isStyleLoaded",
+            "scriptId": "61",
+            "url": "http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local",
+            "lineNumber": 816,
+            "columnNumber": 105569
+          },
+          {
+            "functionName": "tq",
+            "scriptId": "60",
+            "url": "http://localhost:3351/_next/static/chunks/30ey3ucokxihb.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 52731
+          }
+        ]
+      },
+      "documentPerformanceMs": 3056.156982421875
+    },
+    {
+      "timestampEpochMs": 1790783059913.776,
+      "type": "error",
+      "args": [
+        {
+          "type": "string",
+          "value": "[pubmap] buildScene failed"
+        },
+        {
+          "type": "object",
+          "description": "TypeError: Cannot read properties of null (reading 'getImage')\n    at y9.hasImage (http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local:817:110594)\n    at e.s.t.pinRim (http://localhost:3351/_next/static/chunks/1apm23j3j8wkt.js?dpl=local:1:4787)\n    at http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local:1:6105\n    at t.s.map (http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local:1:6160)\n    at http://localhost:3351/_next/static/chunks/30ey3ucokxihb.js?dpl=local:1:35106\n    at t (http://localhost:3351/_next/static/chunks/30ey3ucokxihb.js?dpl=local:1:36361)"
+        }
+      ],
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "t",
+            "scriptId": "60",
+            "url": "http://localhost:3351/_next/static/chunks/30ey3ucokxihb.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 36491
+          }
+        ]
+      },
+      "documentPerformanceMs": 3057.075927734375
+    },
+    {
+      "timestampEpochMs": 1790783060122.872,
+      "type": "warning",
+      "args": [
+        {
+          "type": "string",
+          "value": "Service Worker registration blocked by Playwright"
+        }
+      ],
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "navigator.serviceWorker.register",
+            "scriptId": "4",
+            "url": "",
+            "lineNumber": 2,
+            "columnNumber": 86
+          },
+          {
+            "functionName": "",
+            "scriptId": "47",
+            "url": "http://localhost:3351/_next/static/chunks/27mks1avt7cz-.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 10174
+          },
+          {
+            "functionName": "e",
+            "scriptId": "47",
+            "url": "http://localhost:3351/_next/static/chunks/27mks1avt7cz-.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 10378
+          }
+        ]
+      },
+      "documentPerformanceMs": 3266.172119140625
+    },
+    {
+      "timestampEpochMs": 1790783060714.237,
+      "type": "warning",
+      "args": [
+        {
+          "type": "string",
+          "value": "[pubmap] webgl context dead - re-init preserving camera"
+        },
+        {
+          "type": "object",
+          "description": "Object"
+        }
+      ],
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "",
+            "scriptId": "60",
+            "url": "http://localhost:3351/_next/static/chunks/30ey3ucokxihb.js?dpl=local",
+            "lineNumber": 0,
+            "columnNumber": 42332
+          }
+        ]
+      },
+      "documentPerformanceMs": 3857.537109375
+    }
+  ],
+  "nativeExceptions": [],
+  "pageErrors": [],
+  "network": [
+    {
+      "receivedAt": 1790783056979,
+      "url": "https://pubmaxx-e2e.supabase.co/auth/v1/settings",
+      "failure": {
+        "errorText": "net::ERR_NAME_NOT_RESOLVED"
+      }
+    },
+    {
+      "receivedAt": 1790783060176,
+      "url": "http://localhost:3351/pubs?_rsc=d4Wif2ZBQ3Psxrbk",
+      "failure": {
+        "errorText": "net::ERR_ABORTED"
+      }
+    }
+  ],
+  "snapshots": [
+    {
+      "phase": "persistent-loss-after-grace",
+      "snapshot": {
+        "at": 5163,
+        "timeOrigin": 1790783056856.7,
+        "canvasMounted": false,
+        "canvasCount": 0,
+        "fallbackCount": 1,
+        "oldCanvasConnected": false,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 2108.7000000029802,
+        "points": [],
+        "camera": null,
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2280.9000000059605
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2283
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2346.1000000089407
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2346.5
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2380.2000000029802
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3062.1000000089407
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 3067.2999999970198
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 3244.5
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 3248.5
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 3262.7000000029802
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 3292.2000000029802
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 3811.1000000089407
+          }
+        ]
+      }
+    },
+    {
+      "phase": "final",
+      "snapshot": {
+        "at": 10052.79999999702,
+        "timeOrigin": 1790783056856.7,
+        "canvasMounted": false,
+        "canvasCount": 0,
+        "fallbackCount": 1,
+        "oldCanvasConnected": false,
+        "canvasReplaced": false,
+        "oldGlLost": true,
+        "lossElapsedMs": 6998.399999991059,
+        "points": [],
+        "camera": null,
+        "probeError": null,
+        "marks": [
+          {
+            "name": "pubmax:map-constructed",
+            "at": 2280.9000000059605
+          },
+          {
+            "name": "pubmax:map-chunk-ready",
+            "at": 2283
+          },
+          {
+            "name": "pubmax:first-pins",
+            "at": 2346.1000000089407
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "at": 2346.5
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 2380.2000000029802
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "at": 3062.1000000089407
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "at": 3067.2999999970198
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "at": 3244.5
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "at": 3248.5
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "at": 3262.7000000029802
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "at": 3292.2000000029802
+          },
+          {
+            "name": "pubmax:pin-entrance-settled",
+            "at": 3811.1000000089407
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+  ],
+  "sceneErrors": [
+    {
+      "timestampEpochMs": 1790783059913.776,
+      "documentPerformanceMs": 3057.075927734375,
+      "args": [
+        {
+          "type": "string",
+          "value": "[pubmap] buildScene failed"
+        },
+        {
+          "type": "object",
+          "description": "TypeError: Cannot read properties of null (reading 'getImage')\n    at y9.hasImage (http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local:817:110594)\n    at e.s.t.pinRim (http://localhost:3351/_next/static/chunks/1apm23j3j8wkt.js?dpl=local:1:4787)\n    at http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local:1:6105\n    at t.s.map (http://localhost:3351/_next/static/chunks/21ctu9vnullj5.js?dpl=local:1:6160)\n    at http://localhost:3351/_next/static/chunks/30ey3ucokxihb.js?dpl=local:1:35106\n    at t (http://localhost:3351/_next/static/chunks/30ey3ucokxihb.js?dpl=local:1:36361)"
+        }
+      ]
+    }
+  ],
+  "interval": {
+    "firstStyleMark": 2380.2000000029802,
+    "triggerAt": 2381.2999999970198,
+    "actualTrustedLossAt": 3054.4000000059605,
+    "sceneBuiltAtActualLoss": [],
+    "allSceneBuilt": [
+      3248.5
+    ],
+    "firstSceneBuiltAfterStyle": 3248.5,
+    "sceneAlreadyFailed": false,
+    "exercised": true,
+    "reason": "Trusted native loss occurred after first style-load mark while no scene-built mark or completed scene failure existed."
+  },
+  "nativeFailureObserved": true
+}

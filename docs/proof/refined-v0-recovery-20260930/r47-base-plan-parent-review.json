@@ -1,0 +1,18 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_FOCUSED_RUNTIME_UNRUN_DEPLOYMENT_TRACING_HOLD",
+  "patchSha256": "46cc395c2bc9bf03131da96cc77c8f375d8f915de5e7e67d6fca4c89e20648ac",
+  "checks": [
+    "ExactRoot5currentbefore",
+    "generator7089dependencyexactafter",
+    "hash",
+    "freshscratchapplycheck/whitespace",
+    "exact6afterpins"
+  ],
+  "sourceReview": "ServercanonicalID/name/pubkind+citycoords; <=6submittedID authority; existingmember/privacyproof; anchor-only routeReadyfalse nullprices; existingexplicitMapCTA; no curatedfabrication",
+  "limits": [
+    "Tracingdebt3894873B manifest+617currentgeneration files; test-firstpacketrequestedLuna",
+    "Cold617FS notboundedby<=6IDs; Rootperformancemeasurementpending",
+    "Manualnull/fifthauthority remainpendingactualRED",
+    "NativeSydneyMaptoPlan/create/PATCH/memberreload andfinalgatesRootowner"
+  ]
+}

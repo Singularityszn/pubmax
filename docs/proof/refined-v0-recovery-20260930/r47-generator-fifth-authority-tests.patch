@@ -1,0 +1,71 @@
+diff --git a/__tests__/planAnchoredGenerateRoute.test.ts b/__tests__/planAnchoredGenerateRoute.test.ts
+index 1576ca082..439ca4eb5 100644
+--- a/__tests__/planAnchoredGenerateRoute.test.ts
++++ b/__tests__/planAnchoredGenerateRoute.test.ts
+@@ -31,10 +31,10 @@ vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
+     ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
+       ? actual.ukPriceBundleRowsFor(venueId)
+       : { status: listedBundleFixture.status, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
+-    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number) => {
+-      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now);
++    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number, serving?: string | null) => {
++      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now, serving);
+       const prices = [...new Set(listedBundleFixture.rows.map((row) => row.venueId))].flatMap((venueId) => {
+-        return listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now)
++        return listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now, { serving })
+           .filter((value) => value.category === category)
+           .map((quote) => ({ venueId, ...quote }));
+       });
+@@ -246,6 +246,52 @@ describe("POST /api/plans/generate — anchored", () => {
+     });
+   });
+ 
++  it("grounds and delivers a selected fifth 250ml wine quote through the actual generate POST", async () => {
++    const selected = { ...SELECTED_LISTED, serving: "250ml" };
++    const venues = ["anchor-venue", "same-measure-cheap", "same-measure-next"]
++      .map((id) => claphamVenue(id, 0));
++    // Five current source-stated groups. The selected quote is beyond the
++    // default four/category projection; authority must select its measure first.
++    const rows = [
++      listedQuote("anchor-venue", 5.25, "125ml"),
++      listedQuote("anchor-venue", 5.5, "150ml"),
++      listedQuote("anchor-venue", 6, "175ml"),
++      listedQuote("anchor-venue", 7.5, "200ml"),
++      listedQuote("anchor-venue", 8, "250ml"),
++      listedQuote("same-measure-cheap", 6, "250ml", { drinkLabel: "Pinot Noir" }),
++      listedQuote("same-measure-next", 7, "250ml", { drinkLabel: "Chardonnay" }),
++    ];
++    await withServingFixtures(venues, rows, async () => {
++      const response = await generate({
++        query: "cheap wine in Clapham for 2 after work",
++        anchor: { ...ANCHOR, selectedDrinkPriceEvidence: selected },
++      });
++      const body = await response.json();
++      expect(response.status, JSON.stringify(body)).toBe(200);
++      expect(body).toMatchObject({ grounded: true, outcome: "route", anchored: true });
++      expect(body.stops).toHaveLength(3);
++      expect(body.stops[0]).toMatchObject({
++        venueId: "anchor-venue", selectedDrinkPriceEvidence: selected,
++      });
++      expect(body.stops.map((stop: { venueId: string }) => stop.venueId))
++        .toEqual(expect.arrayContaining(["anchor-venue", "same-measure-cheap", "same-measure-next"]));
++      for (const stop of body.stops) {
++        expect(stop.estimatedPintPricePence).toBeNull();
++        expect(stop.priceEvidence).toBeNull();
++        expect(stop.selectedDrinkPriceEvidence).toMatchObject({
++          category: "wine", source: "listed", serving: "250ml", observedAt: SERVING_OBSERVED,
++        });
++      }
++      expect(body.stops.find((stop: { venueId: string }) => stop.venueId === "same-measure-cheap"))
++        .toMatchObject({ selectedDrinkPriceEvidence: {
++          pence: 600, sourceUrl: "https://pub.example/same-measure-cheap/menu",
++        } });
++      expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof,
++        body.stops.map((stop: { venueId: string }) => stop.venueId), body.operationKey))
++        .toMatchObject({ ok: true, anchored: true, outcome: "route" });
++    });
++  });
++
+   it.each([
+     ["amount", { ...SELECTED_LISTED, pence: 1 }],
+     ["publisher link", { ...SELECTED_LISTED, sourceUrl: "https://attacker.example/menu" }],

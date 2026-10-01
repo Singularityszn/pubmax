@@ -1,0 +1,370 @@
+{
+  "at": "2026-09-30T20:01:18.785038+00:00",
+  "status": 200,
+  "venueId": "venue-16pnwmm",
+  "transport": "native un-intercepted local GET",
+  "limits": [
+    "un-intercepted local API proof only",
+    "publisher page not fetched or verified",
+    "shared future parser not edited",
+    "existing seven-row repair does not prove whole dataset trust"
+  ],
+  "venueName": "Prospect of Whitby",
+  "listedCategoryPrices": [
+    {
+      "source": "listed",
+      "category": "wine",
+      "drinkLabel": "/",
+      "priceGbp": 7.8,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "wine",
+      "drinkLabel": "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda",
+      "priceGbp": 11,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "wine",
+      "drinkLabel": "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda",
+      "priceGbp": 11,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "wine",
+      "drinkLabel": "12.5% glass",
+      "priceGbp": 7.3,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "rum",
+      "drinkLabel": "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice",
+      "priceGbp": 9,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "rum",
+      "drinkLabel": null,
+      "priceGbp": 9,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T18:17:17.939Z"
+    },
+    {
+      "source": "listed",
+      "category": "cocktail",
+      "drinkLabel": "-heat twist on a Margarita with Altos Plata Tequila, Mexican lime and hot honey",
+      "priceGbp": 10.5,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "cocktail",
+      "drinkLabel": "## 0% Espresso Martini The classic coffee cocktail shaken with Clean Co Clean V",
+      "priceGbp": 9,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "cocktail",
+      "drinkLabel": "## Margarita A bold blend of Altos Plata Tequila, Mexican lime and blood orange",
+      "priceGbp": 10.5,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "source": "listed",
+      "category": "cocktail",
+      "drinkLabel": "#### Negroni A classic combination of Beefeater Gin, Campari and Martini Rosso",
+      "priceGbp": 10.5,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    }
+  ],
+  "rawLedgerSHA256": "aaf43a4dccda3eb3cf9b6ef9bd37b080932ad31751f8dd9211ef2511d9c8b660",
+  "rawSourceRows": [
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 9,
+      "drinkLabel": null,
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T18:17:17.939Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 10.5,
+      "drinkLabel": "-heat twist on a Margarita with Altos Plata Tequila, Mexican lime and hot honey",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 9,
+      "drinkLabel": "## 0% Espresso Martini The classic coffee cocktail shaken with Clean Co Clean V",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 10.5,
+      "drinkLabel": "## Margarita A bold blend of Altos Plata Tequila, Mexican lime and blood orange",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 10.5,
+      "drinkLabel": "#### Negroni A classic combination of Beefeater Gin, Campari and Martini Rosso",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 11,
+      "drinkLabel": "osa, prosecco, soda, and lime, with passionfruit, mango, and blood orange notes",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 11,
+      "drinkLabel": "refreshing with red berry and subtle floral notes, finishes crisp and aromatic",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 10.5,
+      "drinkLabel": "ssic of Monkey Shoulder, Angostura Bitters and a touch of sugar, stirred smooth",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 10.5,
+      "drinkLabel": "y A savoury and refreshing mix of Absolut Vodka and Big Tom Spiced Tomato Juice",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 10.5,
+      "drinkLabel": "y and refreshing Bacardi Carta Blanca with Mexican lime, Moroccan mint and soda",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "cocktail",
+      "priceGbp": 9,
+      "drinkLabel": "Zesty and refreshing Clean Co Clean R with Mexican lime, Moroccan mint and soda",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "rum",
+      "priceGbp": 9,
+      "drinkLabel": null,
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T18:17:17.939Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "rum",
+      "priceGbp": 9,
+      "drinkLabel": "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 6.75,
+      "drinkLabel": null,
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T18:17:17.939Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 7.8,
+      "drinkLabel": "/",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 11,
+      "drinkLabel": "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 11,
+      "drinkLabel": "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 7.3,
+      "drinkLabel": "12.5% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 7.6,
+      "drinkLabel": "a classic Rioja, 13.5% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 11.9,
+      "drinkLabel": "e one bottle to bring \u2013 this is the ultimate wine for any occasion, 12.5% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 7.5,
+      "drinkLabel": "ganic Malbec Fresh and fruity with plums, raspberries and cherries, 13.5% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 11,
+      "drinkLabel": "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 7.7,
+      "drinkLabel": "matic white wine with aromas of grapefruit, melon and greren apple, 12.5% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 7.2,
+      "drinkLabel": "pale pink with fruity and floral notes and a crisp refreshing finish, 12% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 6.75,
+      "drinkLabel": "Smooth, creamy and aromatic with tropical flavours and crisp finish, 13% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    },
+    {
+      "venueId": "venue-uk-w204148499",
+      "category": "wine",
+      "priceGbp": 6.75,
+      "drinkLabel": "sworth 'Puritan', Australia Bright, fresh, juicy, vibrant red wine, 14.5% glass",
+      "drinkName": null,
+      "servingSize": null,
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "observedAt": "2026-09-21T23:00:16.542Z"
+    }
+  ],
+  "sourceRawRowCount": 26,
+  "finding": "Native API and rendered UI retain suspicious malformed wine/rum labels. Independent publisher validation and shared parser repair remain pending; no recategorization or guessed serving added."
+}

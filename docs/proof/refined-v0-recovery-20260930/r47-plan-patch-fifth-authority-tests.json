@@ -1,0 +1,29 @@
+{
+  "capturedAtUtc": "2026-10-01T07:08:52Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-plan-manual-patch-fifth-red/base/__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+  "scratchCandidate": "/tmp/pubmaxx-r47-plan-manual-patch-fifth-red/candidate/__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-plan-patch-fifth-authority-tests.patch",
+  "patchSha256": "f65d6e3a1ee75626bee16de7cf42ad022b01cf7d9c78f233813fb56b879cf7d8",
+  "status": "UNRUN_TEST_FIRST",
+  "files": [
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+      "baseSha256": "138508f4ba26410c878a5e6a64957594ab42cfc3e88b547eecbddc0d3884f9b9",
+      "candidateSha256": "ede1293d06a7203b3814ff968a9482291b25d7f0b9b281e00c006e8b89a4c148"
+    }
+  ],
+  "runtimeExecuted": false,
+  "productionFilesChanged": [],
+  "coverage": [
+    "On a canonical existing plan, PATCH with matching wine context revalidates a selected fifth-of-five source-stated venue-b 250ml quote.",
+    "Asserts exact quote in PATCH response and authenticated member GET reload.",
+    "Leaves existing create, forged, expired, override, zeroProof and privacy controls untouched."
+  ],
+  "limits": [
+    "Scratch-only test packet; no tests/runtime were run by this agent.",
+    "Root should run after applying the patch; missing serving-forwarding helper is expected to produce actual RED.",
+    "Uses existing listed fixture and real route/store handlers, not a projector/cache mock for the new behavior."
+  ],
+  "parentReview": "PASS exactRoottestbefore/hash/Rootapplycheck/freshscratchafter. ActualmemberPATCH+authenticatedGET exactquote; oldcontrolsretained; no runtime"
+}

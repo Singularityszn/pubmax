@@ -1,0 +1,1112 @@
+diff --git a/app/api/plans/route.ts b/app/api/plans/route.ts
+index 7d4a4a05f..d298884c5 100644
+--- a/app/api/plans/route.ts
++++ b/app/api/plans/route.ts
+@@ -4,9 +4,8 @@ import { callerUserId } from "@/lib/authServer";
+ import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
+ import { isLimited } from "@/lib/pintDrops";
+ import { cleanPlanAnchor } from "@/lib/plan";
+-import { planStopResolver } from "@/lib/planRoute";
++import { canonicalPlanRoute } from "@/lib/planRoute";
+ import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
+-import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import { claimPlanMembership } from "@/lib/planCrewIdentity";
+ import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
+ import {
+@@ -117,20 +116,17 @@ export async function POST(request: Request): Promise<Response> {
+   const submittedStops = Array.isArray(body.stops) ? body.stops : [];
+   // One rule for what a Stop id may be, shared with route replacement: a listed
+   // venue, or a `place:<poi id>` meeting point. Free text resolves to nothing.
+-  const resolveStop = await planStopResolver(cityId, submittedStops);
+-  const resolvedStops = submittedStops.map((raw) => resolveStop(raw));
+-  if (resolvedStops.some((stop) => stop === null)) {
++  const resolvedStops = await canonicalPlanRoute(submittedStops, cityId);
++  if (!resolvedStops) {
+     return publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400);
+   }
+-  const idempotencyStops = (resolvedStops as NonNullable<(typeof resolvedStops)[number]>[]).map((stop, position) => {
+-    const raw = submittedStops[position];
+-    const hint = cleanSelectedDrinkPriceEvidence(
+-      raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null,
+-    );
+-    return { ...stop, ...(hint ? { selectedDrinkPriceEvidence: hint } : {}) };
+-  });
++  const idempotencyStops = resolvedStops.map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
++    venueId, venueName,
++    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
++    ...(alternatives?.length ? { alternatives } : {}),
++  }));
+   const stops = await resolvePlanSelectedDrinkPriceEvidence(
+-    resolvedStops as NonNullable<(typeof resolvedStops)[number]>[], submittedStops, body.context,
++    resolvedStops, submittedStops, body.context,
+   );
+   const acceptedVenueIds = stops.flatMap((stop) => stop ? [stop.venueId] : []);
+   const groundingProofDigest = typeof body.groundingProof === "string" && body.groundingProof
+diff --git a/components/plan/PlanComposer.tsx b/components/plan/PlanComposer.tsx
+index 387f9db10..e2d1ed1d5 100644
+--- a/components/plan/PlanComposer.tsx
++++ b/components/plan/PlanComposer.tsx
+@@ -1,5 +1,7 @@
+ "use client";
+ 
++import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
++
+ import {
+   FormEvent,
+   useEffect,
+@@ -45,7 +47,7 @@ import {
+ import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+ import { planUsesPintPrices } from "@/lib/planGenerationDto";
+ import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+-import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
+ import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+ import {
+@@ -733,7 +735,7 @@ export function composerCreatePayload(input: {
+   creatorName: string;
+   startTime: string;
+   cityId?: CityId | null;
+-  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }>;
++  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown; alternatives?: RouteAlternative[] }>;
+   groundingProof?: string | null;
+   planAnchor?: GeneratedPlanAnchor | null;
+   context?: NightContext | null;
+@@ -743,16 +745,16 @@ export function composerCreatePayload(input: {
+     creatorName: input.creatorName,
+     startTime: input.startTime,
+     ...(input.cityId ? { cityId: input.cityId } : {}),
+-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => {
+-      const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
+-      return {
+-        venueId,
+-        venueName,
+-        ...(evidence && (input.context
+-          ? !input.context.zeroProof && evidence.category === input.context.drinkCategory
+-          : evidence.source === "listed")
+-          ? { selectedDrinkPriceEvidence: evidence } : {}),
+-      };
++    stops: routeStopsWithAvailableBackups(input.stops).map((stop, position) => {
++      const evidence = cleanSelectedDrinkPriceEvidence(stop.selectedDrinkPriceEvidence);
++      const priced = planStopEvidenceForContext({
++        venueId: stop.venueId, venueName: stop.venueName, position,
++        ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}),
++        ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
++      }, input.context);
++      return { venueId: priced.venueId, venueName: priced.venueName,
++        ...(priced.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: priced.selectedDrinkPriceEvidence } : {}),
++        ...(priced.alternatives?.length ? { alternatives: priced.alternatives } : {}) };
+     }),
+     ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
+     ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
+diff --git a/components/plan/PlanSummary.tsx b/components/plan/PlanSummary.tsx
+index 1036558f1..f445c1b54 100644
+--- a/components/plan/PlanSummary.tsx
++++ b/components/plan/PlanSummary.tsx
+@@ -2,6 +2,7 @@
+ 
+ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+ 
++import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
+ import type { PlanState } from "@/lib/plan";
+ import PlanRoute from "@/components/plan/PlanRoute";
+ import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
+@@ -255,9 +256,10 @@ export function planSummaryRouteUpdateBody(input: {
+   authority: RouteGenerationAuthority | null;
+ }): Record<string, unknown> {
+   return {
+-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
++    stops: routeStopsWithAvailableBackups(input.stops).map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
+       venueId, venueName,
+       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
++      ...(alternatives?.length ? { alternatives } : {}),
+     })),
+     expectedRouteRevision: input.expectedRouteRevision,
+     ...(input.authority ?? {}),
+@@ -489,6 +491,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
+     venueName: stop.venueName,
+     position: typeof stop.position === "number" ? stop.position : index,
+     ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
++    ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
+   }));
+ 
+   function adoptCanonical(canonical: PlanState): void {
+@@ -770,9 +773,10 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
+           planId={planId}
+           memberToken={memberToken}
+           isHost={isHost}
+-          draftStops={draftStops.map((stop, index) => ({
++          draftStops={routeStopsWithAvailableBackups(draftStops).map((stop, index) => ({
+             venueId: stop.venueId, venueName: stop.venueName, position: index,
+             ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
++            ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
+           }))}
+           routeRevision={routeRevision}
+           canPropose={!anchoredPlan && !isHost && canSaveDraft}
+diff --git a/lib/plan.ts b/lib/plan.ts
+index a87a2e61c..083f5c934 100644
+--- a/lib/plan.ts
++++ b/lib/plan.ts
+@@ -118,11 +118,18 @@ export function canTransitionPlannedNight(from: PlannedNightStatus, to: PlannedN
+   return from === to || PLAN_TRANSITIONS[from].includes(to);
+ }
+ 
++type PlanRouteAlternativeDTO = {
++  venueId: string;
++  venueName: string;
++  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
++};
++
+ export type PlanStopDTO = {
+   venueId: string;
+   venueName: string;
+   position: number;
+   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
++  alternatives?: PlanRouteAlternativeDTO[];
+ };
+ 
+ export type PlanState = {
+@@ -206,7 +213,8 @@ export type CleanPlanInput = {
+   title: string;
+   startTime: string;
+   creatorName: string;
+-  stops: Array<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence }>;
++  stops: Array<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
++    alternatives?: PlanRouteAlternativeDTO[] }>;
+   context: NightContext | null;
+ };
+ 
+@@ -225,21 +233,40 @@ export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
+   const stops = input.stops.map((raw) => {
+     const row = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+     const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
++    const rawAlternatives = row.alternatives;
++    if (rawAlternatives !== undefined && (!Array.isArray(rawAlternatives) || rawAlternatives.length > 24)) return null;
++    const alternatives = (rawAlternatives ?? []).map((rawAlternative: unknown) => {
++      if (!rawAlternative || typeof rawAlternative !== "object" || Array.isArray(rawAlternative)) return null;
++      const alternative = rawAlternative as Record<string, unknown>;
++      const venueId = cleanText(alternative.venueId, PLAN_VENUE_ID_MAX);
++      const venueName = cleanText(alternative.venueName, PLAN_VENUE_NAME_MAX);
++      if (!venueId || !venueName) return null;
++      const price = cleanSelectedDrinkPriceEvidence(alternative.selectedDrinkPriceEvidence);
++      return { venueId, venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
++    });
++    if (alternatives.some((alternative: PlanRouteAlternativeDTO | null) => alternative === null)) return null;
+     return {
+       venueId: cleanText(row.venueId, PLAN_VENUE_ID_MAX),
+       venueName: cleanText(row.venueName, PLAN_VENUE_NAME_MAX),
+       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
++      ...(alternatives.length ? { alternatives: alternatives as PlanRouteAlternativeDTO[] } : {}),
+     };
+   });
+-  if (stops.some((stop) => !stop.venueId || !stop.venueName)) return null;
+-  if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
++  const validStops = stops.filter((stop): stop is NonNullable<typeof stop> => stop !== null);
++  if (validStops.length !== stops.length || validStops.some((stop) => !stop.venueId || !stop.venueName)) return null;
++  if (new Set(validStops.map((stop) => stop.venueId)).size !== validStops.length) return null;
++  const routeIds = new Set(validStops.map((stop) => stop.venueId));
++  if (validStops.some((stop) => {
++    const ids = stop.alternatives?.map((alternative) => alternative.venueId) ?? [];
++    return ids.some((id) => routeIds.has(id)) || new Set(ids).size !== ids.length;
++  })) return null;
+   const context = input.context === undefined ? null : cleanNightContext(input.context);
+   if (input.context !== undefined && !context) return null;
+   return {
+     title: cleanText(input.title, PLAN_TITLE_MAX) || "Tonight's Plan",
+     startTime: new Date(startMs).toISOString(),
+     creatorName,
+-    stops,
++    stops: validStops,
+     context,
+   };
+ }
+diff --git a/lib/planCollaborationStore.ts b/lib/planCollaborationStore.ts
+index 925d1441a..605ad161e 100644
+--- a/lib/planCollaborationStore.ts
++++ b/lib/planCollaborationStore.ts
+@@ -133,7 +133,7 @@ function publicInvite(invite: StoredInvite): PlanInvite {
+ function cloneProposal(proposal: PlanRouteProposal): PlanRouteProposal {
+   return {
+     ...proposal,
+-    stops: proposal.stops.map((stop) => ({ ...stop })),
++    stops: structuredClone(proposal.stops),
+     resolvedConstraintIds: [...proposal.resolvedConstraintIds],
+     unresolvedConstraintIds: [...proposal.unresolvedConstraintIds],
+   };
+@@ -205,7 +205,12 @@ function proposalFromRow(row: Record<string, unknown>): PlanRouteProposal {
+     stops: rawStops.map((stop) => {
+       const value = stop as Record<string, unknown>;
+       const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
+-      return { venueId: String(value.venueId), venueName: String(value.venueName), position: Number(value.position), ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}) };
++      const alternatives = Array.isArray(value.alternatives) ? value.alternatives.flatMap((raw) => {
++        if (!raw || typeof raw !== "object" || typeof raw.venueId !== "string" || typeof raw.venueName !== "string") return [];
++        const price = cleanSelectedDrinkPriceEvidence(raw.selectedDrinkPriceEvidence);
++        return [{ venueId: raw.venueId, venueName: raw.venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) }];
++      }) : [];
++      return { venueId: String(value.venueId), venueName: String(value.venueName), position: Number(value.position), ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}), ...(alternatives.length ? { alternatives } : {}) };
+     }),
+     reason: String(row.reason), resolvedConstraintIds: strings(row.resolved_constraint_ids), unresolvedConstraintIds: strings(row.unresolved_constraint_ids),
+     status: row.status as PlanRouteProposal["status"], createdAt: String(row.created_at), decidedAt: typeof row.decided_at === "string" ? row.decided_at : null,
+diff --git a/lib/planRoute.ts b/lib/planRoute.ts
+index bca1517c7..9a598b17d 100644
+--- a/lib/planRoute.ts
++++ b/lib/planRoute.ts
+@@ -4,10 +4,11 @@ import { lookupUkBasePub } from "@/lib/ukBaseIndex";
+ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+ import { cultureWaypointPois } from "@/lib/cultureCrawl.server";
+ import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
++import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import type { PlanStopDTO } from "@/lib/plan";
+ import { isPlanStopCount, MAX_PLAN_STOP_COUNT } from "@/lib/planStopCount";
+ 
+-export type PlanStopTarget = { venueId: string; venueName: string };
++export type PlanStopTarget = { venueId: string; venueName: string; alternatives?: PlanStopDTO["alternatives"] };
+ 
+ /**
+  * The ONE answer to "may a Plan hold this Stop id, and what is it called".
+@@ -27,15 +28,22 @@ export async function planStopResolver(
+   const venueLists = await Promise.all(cities.map((city) => loadConciergeVenues(city)));
+   const venuesById = new Map<string, PlanStopTarget>(venueLists.flat().map((venue) =>
+     [venue.id, { venueId: venue.id, venueName: venue.name }]));
+-  const baseIds = submitted.length <= MAX_PLAN_STOP_COUNT ? [...new Set(submitted.flatMap((raw) => {
++  const submittedTargets = submitted.length <= MAX_PLAN_STOP_COUNT ? submitted.flatMap((raw) => {
++    if (!raw || typeof raw !== "object") return [raw];
++    const alternatives = (raw as Record<string, unknown>).alternatives;
++    return alternatives === undefined ? [raw]
++      : Array.isArray(alternatives) && alternatives.length <= 24 ? [raw, ...alternatives] : [];
++  }) : [];
++  const baseIds = [...new Set(submittedTargets.flatMap((raw) => {
+     const id = raw && typeof raw === "object" ? (raw as Record<string, unknown>).venueId : raw;
+     return typeof id === "string" && isNationalBaseVenueId(id) ? [id] : [];
+-  }))] : [];
++  }))];
+   for (const id of baseIds) {
+     const lookup = await lookupUkBasePub(id);
+     if (lookup.status === "ready" && lookup.pub.kind === "pub"
+       && cities.some((city) => pointInCityBounds(lookup.pub.lat, lookup.pub.lng, CITIES[city]))) {
+-      venuesById.set(id, { venueId: lookup.pub.id, venueName: lookup.pub.name });
++      venuesById.set(id, venuesById.get(lookup.pub.curatedVenueId)
++        ?? { venueId: lookup.pub.id, venueName: lookup.pub.name });
+     }
+   }
+   const placesById = new Map(
+@@ -67,15 +75,33 @@ export async function planStopResolver(
+  * datasets, their POI layers, or UK base pubs within those city bounds. It returns canonical
+  * display names.
+  */
+-export async function canonicalPlanRoute(raw: unknown): Promise<PlanStopDTO[] | null> {
++export async function canonicalPlanRoute(raw: unknown, cityId?: CityId): Promise<PlanStopDTO[] | null> {
+   if (!Array.isArray(raw) || !isPlanStopCount(raw.length)) return null;
+-  const resolve = await planStopResolver(undefined, raw);
++  const resolve = await planStopResolver(cityId, raw);
+   const stops = raw.map((value, position) => {
+     const target = resolve(value);
+-    return target ? { ...target, position } : null;
++    if (!target) return null;
++    const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
++    const rawAlternatives = row.alternatives;
++    if (rawAlternatives !== undefined && (!Array.isArray(rawAlternatives) || rawAlternatives.length > 24)) return null;
++    const alternatives = (rawAlternatives ?? []).map((alternative: unknown) => {
++      const canonical = resolve(alternative);
++      if (!canonical) return null;
++      const price = cleanSelectedDrinkPriceEvidence(alternative && typeof alternative === "object"
++        ? (alternative as Record<string, unknown>).selectedDrinkPriceEvidence : null);
++      return { ...canonical, ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
++    });
++    if (alternatives.some((alternative: PlanStopTarget | null) => alternative === null)) return null;
++    const hint = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
++    return { ...target, position, ...(hint ? { selectedDrinkPriceEvidence: hint } : {}),
++      ...(alternatives.length ? { alternatives: alternatives as NonNullable<PlanStopDTO["alternatives"]> } : {}) };
+   });
+   if (stops.some((stop) => stop === null)) return null;
+   const resolved = stops as PlanStopDTO[];
+-  const ids = resolved.map((stop) => stop.venueId);
+-  return new Set(ids).size === ids.length ? resolved : null;
++  const routeIds = new Set(resolved.map((stop) => stop.venueId));
++  if (routeIds.size !== resolved.length) return null;
++  return resolved.some((stop) => {
++    const ids = stop.alternatives?.map((alternative) => alternative.venueId) ?? [];
++    return ids.some((id) => routeIds.has(id)) || new Set(ids).size !== ids.length;
++  }) ? null : resolved;
+ }
+diff --git a/lib/planRouteEditor.ts b/lib/planRouteEditor.ts
+index cf5875698..eeb677ffa 100644
+--- a/lib/planRouteEditor.ts
++++ b/lib/planRouteEditor.ts
+@@ -93,11 +93,12 @@ export function seedRouteDraft(
+   return stored.map((stop, index) => {
+     const seen = new Set<string>();
+     const alternatives: RouteAlternative[] = [];
+-    for (const candidate of [...candidatesAt(index), ...pool]) {
++    for (const candidate of [...(stop.alternatives ?? []), ...candidatesAt(index), ...pool]) {
+       if (!candidate.venueId || !candidate.venueName) continue;
+       if (inRoute.has(candidate.venueId) || seen.has(candidate.venueId)) continue;
+       seen.add(candidate.venueId);
+       alternatives.push({ ...candidate });
++      if (alternatives.length === 24) break;
+     }
+     return { ...stop, alternatives };
+   });
+@@ -122,3 +123,10 @@ export function routeSaveOutcome(status: number, ok: boolean): RouteSaveOutcome
+   if (ok) return "saved";
+   return status === 409 || status === 412 ? "conflict" : "refused";
+ }
++
++export function routeStopsWithAvailableBackups<T extends { venueId: string; alternatives?: readonly { venueId: string }[] }>(stops: readonly T[]): T[] {
++  const selectedIds = new Set(stops.map((stop) => stop.venueId));
++  return stops.map((stop) => ({ ...stop, ...(stop.alternatives ? {
++    alternatives: stop.alternatives.filter((backup) => !selectedIds.has(backup.venueId)),
++  } : {}) }));
++}
+diff --git a/lib/planSelectedDrinkPriceEvidence.server.ts b/lib/planSelectedDrinkPriceEvidence.server.ts
+index aeeb4febb..32818b65d 100644
+--- a/lib/planSelectedDrinkPriceEvidence.server.ts
++++ b/lib/planSelectedDrinkPriceEvidence.server.ts
+@@ -11,7 +11,7 @@ import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, ty
+ type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
+ 
+ /** Resolve a submitted display hint against current, trusted server price rows. */
+-export async function resolvePlanSelectedDrinkPriceEvidence(
++async function resolvePriceEvidence(
+   stops: readonly PlanStopTarget[],
+   submitted: readonly unknown[],
+   rawContext: unknown,
+@@ -98,3 +98,25 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
+       : { ...stop };
+   }));
+ }
++
++/** Backups use the same current server authority as the selected route. */
++export async function resolvePlanSelectedDrinkPriceEvidence(
++  stops: readonly PlanStopTarget[],
++  submitted: readonly unknown[],
++  rawContext: unknown,
++): Promise<PricedPlanStopTarget[]> {
++  const flattened = stops.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
++  const hints = stops.flatMap((stop, position) => {
++    const raw = submitted[position];
++    const row = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
++    const alternatives = Array.isArray(row.alternatives) ? row.alternatives : [];
++    return [row, ...(stop.alternatives ?? []).map((_, index) => alternatives[index])];
++  });
++  const priced = await resolvePriceEvidence(flattened, hints, rawContext);
++  let offset = 0;
++  return stops.map((stop) => {
++    const primary = priced[offset++];
++    const alternatives = (stop.alternatives ?? []).map(() => priced[offset++]);
++    return { ...primary, ...(alternatives.length ? { alternatives } : {}) };
++  });
++}
+diff --git a/lib/planSelectedDrinkPriceEvidence.ts b/lib/planSelectedDrinkPriceEvidence.ts
+index a6d4c7e29..6ce61c67d 100644
+--- a/lib/planSelectedDrinkPriceEvidence.ts
++++ b/lib/planSelectedDrinkPriceEvidence.ts
+@@ -1,3 +1,4 @@
++import type { PlanStopDTO } from "@/lib/plan";
+ import type { NightContext } from "@/lib/nightPlanning";
+ import type { MapLensPrice } from "@/lib/mapExperienceLens";
+ 
+@@ -101,3 +102,16 @@ export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEviden
+   const serving = evidence.serving ? `Serving ${evidence.serving}.` : "Serving size not recorded.";
+   return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, ${evidence.source === "community" ? "community report" : "published menu"} ${reported}. ${serving}`;
+ }
++
++/** Context changes apply to the selected venue and its saved backups alike. */
++export function planStopEvidenceForContext(stop: PlanStopDTO, context: NightContext | null | undefined): PlanStopDTO {
++  const filter = (value: { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence }) => {
++    const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
++    return { venueId: value.venueId, venueName: value.venueName,
++      ...(evidence && (!context ? evidence.source === "listed"
++        : !context.zeroProof && evidence.category === context.drinkCategory)
++        ? { selectedDrinkPriceEvidence: evidence } : {}) };
++  };
++  return { ...filter(stop), position: stop.position,
++    ...(stop.alternatives?.length ? { alternatives: stop.alternatives.map(filter) } : {}) };
++}
+diff --git a/lib/planStore.ts b/lib/planStore.ts
+index 0f8c3c8b2..9a2bea86b 100644
+--- a/lib/planStore.ts
++++ b/lib/planStore.ts
+@@ -9,7 +9,7 @@ import type { NightContext } from "@/lib/nightPlanning";
+ import { selectStore } from "@/lib/storeBackend";
+ import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+ import { isPlanStopCount } from "@/lib/planStopCount";
+-import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
++import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext } from "@/lib/planSelectedDrinkPriceEvidence";
+ 
+ const PLANS = "plans";
+ const STOPS = "plan_stops";
+@@ -177,6 +177,7 @@ export function completionFromRow(row: Record<string, unknown>): PlanCompletionD
+       venue_name: (stop as Record<string, unknown>).venueName,
+       position: (stop as Record<string, unknown>).position,
+       selected_drink_price_evidence: (stop as Record<string, unknown>).selectedDrinkPriceEvidence,
++      alternatives: (stop as Record<string, unknown>).alternatives,
+     })).sort((a, b) => a.position - b.position),
+     qualifyingArrival:
+       typeof row.qualifying_arrival_action_id === "string"
+@@ -207,11 +208,20 @@ function routeRevisionOf(plan: PlanDTO): number {
+ 
+ function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
+   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selected_drink_price_evidence);
++  const alternatives = Array.isArray(row.alternatives) ? row.alternatives.flatMap((raw) => {
++    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
++    const alternative = raw as Record<string, unknown>;
++    if (typeof alternative.venueId !== "string" || typeof alternative.venueName !== "string") return [];
++    const price = cleanSelectedDrinkPriceEvidence(alternative.selectedDrinkPriceEvidence);
++    return [{ venueId: alternative.venueId, venueName: alternative.venueName,
++      ...(price ? { selectedDrinkPriceEvidence: price } : {}) }];
++  }) : [];
+   return {
+     venueId: String(row.venue_id),
+     venueName: String(row.venue_name),
+     position: Number(row.position),
+     ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
++    ...(alternatives.length ? { alternatives } : {}),
+   };
+ }
+ 
+@@ -241,11 +251,14 @@ async function readSupabasePlanState(
+   if (!planRow) return null;
+   const readStops = async () => {
+     const result = await admin.from(STOPS)
+-      .select("venue_id,venue_name,position,selected_drink_price_evidence")
++      .select("venue_id,venue_name,position,selected_drink_price_evidence,alternatives")
+       .eq("plan_id", id).order("position");
+     if (result.error?.code !== "42703") return result;
+-    return admin.from(STOPS).select("venue_id,venue_name,position")
++    const withoutAlternatives = await admin.from(STOPS)
++      .select("venue_id,venue_name,position,selected_drink_price_evidence")
+       .eq("plan_id", id).order("position");
++    if (withoutAlternatives.error?.code !== "42703") return withoutAlternatives;
++    return admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position");
+   };
+   const [
+     { data: stopRows, error: stopsError },
+@@ -434,9 +447,10 @@ export const supabasePlanStore: PlanStore = {
+           p_plan_id: id,
+           p_token_hash: hashPlanMemberToken(rawToken),
+           p_expected_route_revision: update.expectedRouteRevision,
+-          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
++          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
+             venueId, venueName,
+             ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
++            ...(alternatives?.length ? { alternatives } : {}),
+           })),
+           p_context: update.context ?? null,
+           // Anchored Plans upgrade to a grounded route only after proof verification.
+@@ -622,7 +636,11 @@ function mintInviteToken(): string {
+ function publicState(value: MemoryPlan): PlanState {
+   return {
+     plan: { ...value.plan },
+-    stops: value.stops.map((stop) => ({ ...stop })).sort((a, b) => a.position - b.position),
++    stops: value.stops.map((stop) => stopFromRow({
++      venue_id: stop.venueId, venue_name: stop.venueName, position: stop.position,
++      selected_drink_price_evidence: stop.selectedDrinkPriceEvidence,
++      alternatives: stop.alternatives,
++    })).sort((a, b) => a.position - b.position),
+     crew: value.crew.map((member) => ({
+       id: member.id,
+       name: member.name,
+@@ -782,14 +800,7 @@ export const memoryPlanStore: PlanStore = {
+       // One synchronous mutation keeps the demo store's route + revision
+       // semantics equivalent to the production RPC transaction.
+       const context = update.context ?? plan.context;
+-      plan.stops = stops.map((stop) => {
+-        if (!stop.selectedDrinkPriceEvidence ||
+-          (!context ? stop.selectedDrinkPriceEvidence.source === "listed"
+-            : !context.zeroProof && stop.selectedDrinkPriceEvidence.category === context.drinkCategory)) return stop;
+-        const nextStop = { ...stop };
+-        delete nextStop.selectedDrinkPriceEvidence;
+-        return nextStop;
+-      });
++      plan.stops = stops.map((stop) => planStopEvidenceForContext(stop, context));
+       plan.plan.routeRevision = routeRevisionOf(plan.plan) + 1;
+       if (plan.plan.anchorVenueId) {
+         plan.plan.outcome = "route";
+@@ -803,12 +814,7 @@ export const memoryPlanStore: PlanStore = {
+     if (update.status) plan.plan.status = update.status;
+     if (update.context) {
+       plan.context = structuredClone(update.context);
+-      for (const stop of plan.stops) {
+-        if (stop.selectedDrinkPriceEvidence && (update.context.zeroProof
+-          || stop.selectedDrinkPriceEvidence.category !== update.context.drinkCategory)) {
+-          delete stop.selectedDrinkPriceEvidence;
+-        }
+-      }
++      plan.stops = plan.stops.map((stop) => planStopEvidenceForContext(stop, update.context!));
+     }
+     return { ok: true, plan: publicState(plan) };
+   },
+diff --git a/tmp/pubmaxx-r47-plan-backup-production-v4/after/supabase/migrations/20261001090000_0178_plan_route_alternatives.sql b/supabase/migrations/20261001090000_0178_plan_route_alternatives.sql
+new file mode 100644
+index 000000000..20796d3d6
+--- /dev/null
++++ b/supabase/migrations/20261001090000_0178_plan_route_alternatives.sql
+@@ -0,0 +1,53 @@
++-- Save server-canonical backup identities and revalidated quotations, without widening readers.
++-- Run 0179 rollback before this twin; column removal discards saved backups.
++begin;
++alter table public.plan_stops
++  add column alternatives jsonb not null default '[]'::jsonb
++  constraint plan_stops_alternatives_bounded check (
++    jsonb_typeof(alternatives) = 'array' and jsonb_array_length(alternatives) <= 24
++  );
++
++create or replace function public.create_plan_idempotent_atomic(
++  p_id uuid,
++  p_title text,
++  p_start_time timestamptz,
++  p_stops jsonb,
++  p_member_id uuid,
++  p_member_name text,
++  p_token_hash text,
++  p_joined_at timestamptz,
++  p_idempotency_key_hash text,
++  p_request_hash text,
++  p_anchor_venue_id text default null,
++  p_anchor_source text default null,
++  p_outcome text default null
++) returns text
++language plpgsql security invoker set search_path = public
++as $$
++declare existing_plan public.plans%rowtype;
++begin
++  perform pg_advisory_xact_lock(hashtextextended('plan:create:' || p_idempotency_key_hash, 0));
++  select * into existing_plan from public.plans where creation_key_hash = p_idempotency_key_hash for update;
++  if found then
++    if existing_plan.creation_request_hash = p_request_hash and existing_plan.id = p_id then return 'replayed'; end if;
++    return 'conflict';
++  end if;
++
++  insert into public.plans
++    (id, title, start_time, creation_key_hash, creation_request_hash, anchor_venue_id, anchor_source, plan_outcome, route_ready_at)
++  values (
++    p_id, p_title, p_start_time, p_idempotency_key_hash, p_request_hash,
++    p_anchor_venue_id, p_anchor_source, p_outcome,
++    case when p_outcome = 'route' then now() else null end
++  );
++  insert into public.plan_stops (plan_id, venue_id, venue_name, position, selected_drink_price_evidence, alternatives)
++  select p_id, item.value->>'venueId', item.value->>'venueName', item.ordinality - 1,
++    item.value->'selectedDrinkPriceEvidence', coalesce(item.value->'alternatives', '[]'::jsonb)
++  from jsonb_array_elements(p_stops) with ordinality as item(value, ordinality);
++  insert into public.plan_crew_members (id, plan_id, name, token_hash, status, joined_at, updated_at, can_collaborate)
++  values (p_member_id, p_id, p_member_name, p_token_hash, 'in', p_joined_at, p_joined_at, true);
++  return 'created';
++end;
++$$;
++
++commit;
+diff --git a/tmp/pubmaxx-r47-plan-backup-production-v4/after/supabase/migrations/20261001091000_0179_plan_backup_context_evidence.sql b/supabase/migrations/20261001091000_0179_plan_backup_context_evidence.sql
+new file mode 100644
+index 000000000..994ea6081
+--- /dev/null
++++ b/supabase/migrations/20261001091000_0179_plan_backup_context_evidence.sql
+@@ -0,0 +1,223 @@
++-- Context edits apply equally to route and backups. Retain exact0177 NULL allowance.
++-- No permission, revision, replay, anchor or required-constraint gates change.
++begin;
++create or replace function public.plan_stop_evidence_for_context(p_stop jsonb, p_context jsonb)
++returns jsonb language sql immutable set search_path = '' as $$
++  select
++    (case when p_context is not null and (
++      p_context->>'zeroProof' = 'true'
++      or p_stop->'selectedDrinkPriceEvidence'->>'category' is distinct from p_context->>'drinkCategory'
++    ) then p_stop - 'selectedDrinkPriceEvidence' else p_stop end)
++    || jsonb_build_object('alternatives', coalesce((
++      select jsonb_agg(case when p_context is not null and (
++        p_context->>'zeroProof' = 'true'
++        or item->'selectedDrinkPriceEvidence'->>'category' is distinct from p_context->>'drinkCategory'
++      ) then item - 'selectedDrinkPriceEvidence' else item end order by ordinal)
++      from jsonb_array_elements(coalesce(p_stop->'alternatives', '[]'::jsonb)) with ordinality as backup(item, ordinal)
++    ), '[]'::jsonb));
++$$;
++revoke all on function public.plan_stop_evidence_for_context(jsonb,jsonb) from public, anon, authenticated;
++grant execute on function public.plan_stop_evidence_for_context(jsonb,jsonb) to service_role;
++
++create or replace function public.replace_plan_route_atomic(
++  p_plan_id uuid,
++  p_token_hash text,
++  p_expected_route_revision integer,
++  p_stops jsonb,
++  p_context jsonb,
++  p_grounded_upgrade boolean default false
++) returns text
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  current_plan public.plans%rowtype;
++  creator_id uuid;
++  first_stop text;
++begin
++  if public._social_plan_is_bound(p_plan_id) then return 'not_found'; end if;
++  select * into current_plan from public.plans where id = p_plan_id for update;
++  if not found then return 'not_found'; end if;
++
++  select member.id into creator_id
++  from public.plan_crew_members member
++  where member.plan_id = p_plan_id
++  order by member.joined_at, member.id
++  limit 1;
++  if creator_id is null or not exists (
++    select 1 from public.plan_crew_members
++    where id = creator_id and token_hash = p_token_hash
++  ) then return 'forbidden'; end if;
++
++  if current_plan.status in ('completed', 'abandoned') then return 'invalid'; end if;
++  if current_plan.route_revision <> p_expected_route_revision then return 'conflict'; end if;
++  if jsonb_typeof(p_stops) <> 'array' or jsonb_array_length(p_stops) not between 3 and 6 then return 'invalid'; end if;
++  if exists (
++    select 1
++    from jsonb_array_elements(p_stops) item
++    where coalesce(item->>'venueId', '') = '' or coalesce(item->>'venueName', '') = ''
++  ) or (select count(distinct item->>'venueId') from jsonb_array_elements(p_stops) item) <> jsonb_array_length(p_stops) then
++    return 'invalid';
++  end if;
++
++  first_stop := p_stops->0->>'venueId';
++  if current_plan.anchor_venue_id is not null
++     and (not p_grounded_upgrade or first_stop <> current_plan.anchor_venue_id) then
++    return 'forbidden';
++  end if;
++
++  delete from public.plan_stops where plan_id = p_plan_id;
++  insert into public.plan_stops (plan_id, venue_id, venue_name, position, selected_drink_price_evidence, alternatives)
++  select p_plan_id, item.value->>'venueId', item.value->>'venueName', item.ordinality - 1,
++    filtered.stop->'selectedDrinkPriceEvidence', filtered.stop->'alternatives'
++  from jsonb_array_elements(p_stops) with ordinality as item(value, ordinality)
++  cross join lateral (select public.plan_stop_evidence_for_context(item.value, coalesce(p_context, current_plan.night_context)) as stop) filtered;
++  update public.plans
++  set route_revision = route_revision + 1,
++      night_context = coalesce(p_context, night_context),
++      plan_outcome = case when anchor_venue_id is not null then 'route' else plan_outcome end,
++      route_ready_at = case when anchor_venue_id is not null then coalesce(route_ready_at, now()) else route_ready_at end
++  where id = p_plan_id;
++  return 'ok';
++end;
++$$;
++
++create or replace function public.decide_plan_route_proposal_atomic(
++  p_plan_id uuid,
++  p_proposal_id uuid,
++  p_token_hash text,
++  p_decision text,
++  p_idempotency_key text,
++  p_decided_at timestamptz
++) returns text
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_host_hash text;
++  v_proposal public.plan_route_proposals%rowtype;
++  v_revision integer;
++  v_status text;
++  v_context jsonb;
++  v_current_unresolved jsonb;
++  v_stop_count integer;
++begin
++  if public._social_plan_is_bound(p_plan_id) then return 'not_found'; end if;
++  if p_decision not in ('accepted', 'rejected') then return 'invalid'; end if;
++
++  select token_hash into v_host_hash
++  from public.plan_crew_members
++  where plan_id = p_plan_id
++  order by joined_at, id
++  limit 1;
++  if v_host_hash is null or v_host_hash <> p_token_hash then return 'forbidden'; end if;
++
++  select * into v_proposal
++  from public.plan_route_proposals
++  where id = p_proposal_id and plan_id = p_plan_id
++  for update;
++  if not found then return 'not_found'; end if;
++  if v_proposal.status = p_decision and v_proposal.decision_idempotency_key = p_idempotency_key then return 'already_decided'; end if;
++  if v_proposal.status <> 'pending' then return 'conflict'; end if;
++
++  v_stop_count := jsonb_array_length(v_proposal.stops);
++  if p_decision = 'accepted' then
++    if v_stop_count not between 3 and 6 then return 'invalid'; end if;
++    if (
++      select count(distinct item->>'venueId') <> v_stop_count
++        or count(distinct item->>'position') <> v_stop_count
++        or count(*) filter (
++          where nullif(btrim(item->>'venueId'), '') is null
++             or nullif(btrim(item->>'venueName'), '') is null
++             or not exists (
++               select 1 from generate_series(0, v_stop_count - 1) position
++               where position::text = item->>'position'
++             )
++        ) > 0
++      from jsonb_array_elements(v_proposal.stops) item
++    ) then return 'invalid'; end if;
++
++    select coalesce(jsonb_agg(constraint_row.id::text), '[]'::jsonb) into v_current_unresolved
++    from public.plan_constraints constraint_row
++    where constraint_row.plan_id = p_plan_id
++      and constraint_row.priority = 'required'
++      and not (
++        constraint_row.resolution_evidence->>'proposalId' = p_proposal_id::text
++        and constraint_row.resolution_evidence->'routeRevision' = to_jsonb(v_proposal.expected_route_revision)
++        and (
++          select count(distinct source->>'venueId')
++          from jsonb_array_elements(coalesce(constraint_row.resolution_evidence->'sources', '[]'::jsonb)) source
++          where exists (
++            select 1 from jsonb_array_elements(v_proposal.stops) stop
++            where stop->>'venueId' = source->>'venueId'
++          )
++        ) = v_stop_count
++      );
++    update public.plan_route_proposals set unresolved_constraint_ids = v_current_unresolved where id = p_proposal_id;
++    if jsonb_array_length(v_current_unresolved) > 0 then return 'constraints_unresolved'; end if;
++
++    select route_revision, status, night_context into v_revision, v_status, v_context from public.plans where id = p_plan_id for update;
++    if v_revision is null then return 'not_found'; end if;
++    if v_status in ('completed', 'abandoned') then return 'invalid'; end if;
++    if v_revision <> v_proposal.expected_route_revision then return 'conflict'; end if;
++
++    delete from public.plan_stops where plan_id = p_plan_id;
++    insert into public.plan_stops (plan_id, venue_id, venue_name, position, selected_drink_price_evidence, alternatives)
++    select p_plan_id, item->>'venueId', item->>'venueName', (item->>'position')::integer,
++      filtered.stop->'selectedDrinkPriceEvidence', filtered.stop->'alternatives'
++    from jsonb_array_elements(v_proposal.stops) item
++    cross join lateral (select public.plan_stop_evidence_for_context(item, v_context) as stop) filtered;
++    update public.plans set route_revision = route_revision + 1 where id = p_plan_id;
++  end if;
++
++  update public.plan_route_proposals
++  set status = p_decision, decision_idempotency_key = p_idempotency_key, decided_at = p_decided_at
++  where id = p_proposal_id;
++  return 'decided';
++end;
++$$;
++
++create or replace function public.update_legacy_plan_status_context_atomic(
++  p_plan_id uuid,p_token_hash text,p_status text,p_context jsonb
++) returns text
++language plpgsql security definer set search_path=''
++as $$
++declare v_plan public.plans%rowtype; v_host_token text;
++begin
++  select * into v_plan from public.plans where id=p_plan_id for update;
++  if not found or v_plan.social_owner_account_id is not null then return 'not_found'; end if;
++
++  select token_hash into v_host_token from public.plan_crew_members
++    where plan_id=p_plan_id order by joined_at,id limit 1;
++  if v_host_token is null or p_token_hash is null or v_host_token <> p_token_hash then return 'forbidden'; end if;
++
++  if p_status is not null and (
++    p_status not in ('draft','ready','active','ending','completed','abandoned')
++    or not (
++      p_status=v_plan.status
++      or (v_plan.status='draft' and p_status in ('ready','abandoned'))
++      or (v_plan.status='ready' and p_status in ('draft','active','abandoned'))
++      or (v_plan.status='active' and p_status in ('ending','completed','abandoned'))
++      or (v_plan.status='ending' and p_status in ('active','completed','abandoned'))
++    )
++  ) then return 'invalid'; end if;
++
++  update public.plans set
++    status=coalesce(p_status,status),
++    night_context=coalesce(p_context,night_context)
++  where id=p_plan_id;
++
++  if p_context is not null then
++    update public.plan_stops
++    set selected_drink_price_evidence = nullif(public.plan_stop_evidence_for_context(
++          jsonb_build_object('selectedDrinkPriceEvidence', selected_drink_price_evidence), p_context)->'selectedDrinkPriceEvidence', 'null'::jsonb),
++        alternatives = public.plan_stop_evidence_for_context(jsonb_build_object('alternatives', alternatives), p_context)->'alternatives'
++    where plan_id = p_plan_id;
++  end if;
++  return 'ok';
++end;
++$$;
++
++commit;
+diff --git a/tmp/pubmaxx-r47-plan-backup-production-v4/after/supabase/migrations/rollback/20261001090000_0178_plan_route_alternatives_rollback.sql b/supabase/migrations/rollback/20261001090000_0178_plan_route_alternatives_rollback.sql
+new file mode 100644
+index 000000000..ab20563ec
+--- /dev/null
++++ b/supabase/migrations/rollback/20261001090000_0178_plan_route_alternatives_rollback.sql
+@@ -0,0 +1,48 @@
++-- Drops saved backups and their citations after 0179 rollback. Export them first.
++-- Restore exact0162 create body; grants and existing primary evidence stay intact.
++begin;
++create or replace function public.create_plan_idempotent_atomic(
++  p_id uuid,
++  p_title text,
++  p_start_time timestamptz,
++  p_stops jsonb,
++  p_member_id uuid,
++  p_member_name text,
++  p_token_hash text,
++  p_joined_at timestamptz,
++  p_idempotency_key_hash text,
++  p_request_hash text,
++  p_anchor_venue_id text default null,
++  p_anchor_source text default null,
++  p_outcome text default null
++) returns text
++language plpgsql security invoker set search_path = public
++as $$
++declare existing_plan public.plans%rowtype;
++begin
++  perform pg_advisory_xact_lock(hashtextextended('plan:create:' || p_idempotency_key_hash, 0));
++  select * into existing_plan from public.plans where creation_key_hash = p_idempotency_key_hash for update;
++  if found then
++    if existing_plan.creation_request_hash = p_request_hash and existing_plan.id = p_id then return 'replayed'; end if;
++    return 'conflict';
++  end if;
++
++  insert into public.plans
++    (id, title, start_time, creation_key_hash, creation_request_hash, anchor_venue_id, anchor_source, plan_outcome, route_ready_at)
++  values (
++    p_id, p_title, p_start_time, p_idempotency_key_hash, p_request_hash,
++    p_anchor_venue_id, p_anchor_source, p_outcome,
++    case when p_outcome = 'route' then now() else null end
++  );
++  insert into public.plan_stops (plan_id, venue_id, venue_name, position, selected_drink_price_evidence)
++  select p_id, item.value->>'venueId', item.value->>'venueName', item.ordinality - 1,
++    item.value->'selectedDrinkPriceEvidence'
++  from jsonb_array_elements(p_stops) with ordinality as item(value, ordinality);
++  insert into public.plan_crew_members (id, plan_id, name, token_hash, status, joined_at, updated_at, can_collaborate)
++  values (p_member_id, p_id, p_member_name, p_token_hash, 'in', p_joined_at, p_joined_at, true);
++  return 'created';
++end;
++$$;
++
++alter table public.plan_stops drop column alternatives;
++commit;
+diff --git a/tmp/pubmaxx-r47-plan-backup-production-v4/after/supabase/migrations/rollback/20261001091000_0179_plan_backup_context_evidence_rollback.sql b/supabase/migrations/rollback/20261001091000_0179_plan_backup_context_evidence_rollback.sql
+new file mode 100644
+index 000000000..587c08f08
+--- /dev/null
++++ b/supabase/migrations/rollback/20261001091000_0179_plan_backup_context_evidence_rollback.sql
+@@ -0,0 +1,225 @@
++-- Future replacement/proposal acceptance stops saving backups; existing backups survive.
++-- Restore exact0177 replace/proposal bodies and0166 context updater, retaining0178 support.
++begin;
++create or replace function public.replace_plan_route_atomic(
++  p_plan_id uuid,
++  p_token_hash text,
++  p_expected_route_revision integer,
++  p_stops jsonb,
++  p_context jsonb,
++  p_grounded_upgrade boolean default false
++) returns text
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  current_plan public.plans%rowtype;
++  creator_id uuid;
++  first_stop text;
++begin
++  if public._social_plan_is_bound(p_plan_id) then return 'not_found'; end if;
++  select * into current_plan from public.plans where id = p_plan_id for update;
++  if not found then return 'not_found'; end if;
++
++  select member.id into creator_id
++  from public.plan_crew_members member
++  where member.plan_id = p_plan_id
++  order by member.joined_at, member.id
++  limit 1;
++  if creator_id is null or not exists (
++    select 1 from public.plan_crew_members
++    where id = creator_id and token_hash = p_token_hash
++  ) then return 'forbidden'; end if;
++
++  if current_plan.status in ('completed', 'abandoned') then return 'invalid'; end if;
++  if current_plan.route_revision <> p_expected_route_revision then return 'conflict'; end if;
++  if jsonb_typeof(p_stops) <> 'array' or jsonb_array_length(p_stops) not between 3 and 6 then return 'invalid'; end if;
++  if exists (
++    select 1
++    from jsonb_array_elements(p_stops) item
++    where coalesce(item->>'venueId', '') = '' or coalesce(item->>'venueName', '') = ''
++  ) or (select count(distinct item->>'venueId') from jsonb_array_elements(p_stops) item) <> jsonb_array_length(p_stops) then
++    return 'invalid';
++  end if;
++
++  first_stop := p_stops->0->>'venueId';
++  if current_plan.anchor_venue_id is not null
++     and (not p_grounded_upgrade or first_stop <> current_plan.anchor_venue_id) then
++    return 'forbidden';
++  end if;
++
++  delete from public.plan_stops where plan_id = p_plan_id;
++  insert into public.plan_stops (plan_id, venue_id, venue_name, position, selected_drink_price_evidence)
++  select p_plan_id, item.value->>'venueId', item.value->>'venueName', item.ordinality - 1,
++    case
++      when coalesce(p_context, current_plan.night_context) is not null
++        and (
++          coalesce(p_context, current_plan.night_context)->>'zeroProof' = 'true'
++          or item.value->'selectedDrinkPriceEvidence'->>'category'
++            is distinct from coalesce(p_context, current_plan.night_context)->>'drinkCategory'
++        )
++      then null
++      else item.value->'selectedDrinkPriceEvidence'
++    end
++  from jsonb_array_elements(p_stops) with ordinality as item(value, ordinality);
++  update public.plans
++  set route_revision = route_revision + 1,
++      night_context = coalesce(p_context, night_context),
++      plan_outcome = case when anchor_venue_id is not null then 'route' else plan_outcome end,
++      route_ready_at = case when anchor_venue_id is not null then coalesce(route_ready_at, now()) else route_ready_at end
++  where id = p_plan_id;
++  return 'ok';
++end;
++$$;
++
++create or replace function public.decide_plan_route_proposal_atomic(
++  p_plan_id uuid,
++  p_proposal_id uuid,
++  p_token_hash text,
++  p_decision text,
++  p_idempotency_key text,
++  p_decided_at timestamptz
++) returns text
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_host_hash text;
++  v_proposal public.plan_route_proposals%rowtype;
++  v_revision integer;
++  v_status text;
++  v_context jsonb;
++  v_current_unresolved jsonb;
++  v_stop_count integer;
++begin
++  if public._social_plan_is_bound(p_plan_id) then return 'not_found'; end if;
++  if p_decision not in ('accepted', 'rejected') then return 'invalid'; end if;
++
++  select token_hash into v_host_hash
++  from public.plan_crew_members
++  where plan_id = p_plan_id
++  order by joined_at, id
++  limit 1;
++  if v_host_hash is null or v_host_hash <> p_token_hash then return 'forbidden'; end if;
++
++  select * into v_proposal
++  from public.plan_route_proposals
++  where id = p_proposal_id and plan_id = p_plan_id
++  for update;
++  if not found then return 'not_found'; end if;
++  if v_proposal.status = p_decision and v_proposal.decision_idempotency_key = p_idempotency_key then return 'already_decided'; end if;
++  if v_proposal.status <> 'pending' then return 'conflict'; end if;
++
++  v_stop_count := jsonb_array_length(v_proposal.stops);
++  if p_decision = 'accepted' then
++    if v_stop_count not between 3 and 6 then return 'invalid'; end if;
++    if (
++      select count(distinct item->>'venueId') <> v_stop_count
++        or count(distinct item->>'position') <> v_stop_count
++        or count(*) filter (
++          where nullif(btrim(item->>'venueId'), '') is null
++             or nullif(btrim(item->>'venueName'), '') is null
++             or not exists (
++               select 1 from generate_series(0, v_stop_count - 1) position
++               where position::text = item->>'position'
++             )
++        ) > 0
++      from jsonb_array_elements(v_proposal.stops) item
++    ) then return 'invalid'; end if;
++
++    select coalesce(jsonb_agg(constraint_row.id::text), '[]'::jsonb) into v_current_unresolved
++    from public.plan_constraints constraint_row
++    where constraint_row.plan_id = p_plan_id
++      and constraint_row.priority = 'required'
++      and not (
++        constraint_row.resolution_evidence->>'proposalId' = p_proposal_id::text
++        and constraint_row.resolution_evidence->'routeRevision' = to_jsonb(v_proposal.expected_route_revision)
++        and (
++          select count(distinct source->>'venueId')
++          from jsonb_array_elements(coalesce(constraint_row.resolution_evidence->'sources', '[]'::jsonb)) source
++          where exists (
++            select 1 from jsonb_array_elements(v_proposal.stops) stop
++            where stop->>'venueId' = source->>'venueId'
++          )
++        ) = v_stop_count
++      );
++    update public.plan_route_proposals set unresolved_constraint_ids = v_current_unresolved where id = p_proposal_id;
++    if jsonb_array_length(v_current_unresolved) > 0 then return 'constraints_unresolved'; end if;
++
++    select route_revision, status, night_context into v_revision, v_status, v_context from public.plans where id = p_plan_id for update;
++    if v_revision is null then return 'not_found'; end if;
++    if v_status in ('completed', 'abandoned') then return 'invalid'; end if;
++    if v_revision <> v_proposal.expected_route_revision then return 'conflict'; end if;
++
++    delete from public.plan_stops where plan_id = p_plan_id;
++    insert into public.plan_stops (plan_id, venue_id, venue_name, position, selected_drink_price_evidence)
++    select p_plan_id, item->>'venueId', item->>'venueName', (item->>'position')::integer,
++      case
++        when v_context is not null
++          and (
++            v_context->>'zeroProof' = 'true'
++            or item->'selectedDrinkPriceEvidence'->>'category'
++              is distinct from v_context->>'drinkCategory'
++          )
++        then null
++        else item->'selectedDrinkPriceEvidence'
++      end
++    from jsonb_array_elements(v_proposal.stops) item;
++    update public.plans set route_revision = route_revision + 1 where id = p_plan_id;
++  end if;
++
++  update public.plan_route_proposals
++  set status = p_decision, decision_idempotency_key = p_idempotency_key, decided_at = p_decided_at
++  where id = p_proposal_id;
++  return 'decided';
++end;
++$$;
++
++create or replace function public.update_legacy_plan_status_context_atomic(
++  p_plan_id uuid,p_token_hash text,p_status text,p_context jsonb
++) returns text
++language plpgsql security definer set search_path=''
++as $$
++declare v_plan public.plans%rowtype; v_host_token text;
++begin
++  select * into v_plan from public.plans where id=p_plan_id for update;
++  if not found or v_plan.social_owner_account_id is not null then return 'not_found'; end if;
++
++  select token_hash into v_host_token from public.plan_crew_members
++    where plan_id=p_plan_id order by joined_at,id limit 1;
++  if v_host_token is null or p_token_hash is null or v_host_token <> p_token_hash then return 'forbidden'; end if;
++
++  if p_status is not null and (
++    p_status not in ('draft','ready','active','ending','completed','abandoned')
++    or not (
++      p_status=v_plan.status
++      or (v_plan.status='draft' and p_status in ('ready','abandoned'))
++      or (v_plan.status='ready' and p_status in ('draft','active','abandoned'))
++      or (v_plan.status='active' and p_status in ('ending','completed','abandoned'))
++      or (v_plan.status='ending' and p_status in ('active','completed','abandoned'))
++    )
++  ) then return 'invalid'; end if;
++
++  update public.plans set
++    status=coalesce(p_status,status),
++    night_context=coalesce(p_context,night_context)
++  where id=p_plan_id;
++
++  if p_context is not null then
++    update public.plan_stops
++    set selected_drink_price_evidence = null
++    where plan_id = p_plan_id
++      and selected_drink_price_evidence is not null
++      and (
++        p_context->>'zeroProof' = 'true'
++        or selected_drink_price_evidence->>'category' is distinct from p_context->>'drinkCategory'
++      );
++  end if;
++  return 'ok';
++end;
++$$;
++
++drop function public.plan_stop_evidence_for_context(jsonb,jsonb);
++commit;

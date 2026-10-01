@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-01T10:08:48.792283+00:00",
+  "packet": "r47-primary-category-production.json",
+  "patchSha256": "37455cd64075ecae565b26a9db802895cdf979e937ae3365039f12d06bbec643",
+  "parentSourceReview": "No concrete source blocker in twofile bounded repair",
+  "checks": {
+    "currentBeforePins": "PASS",
+    "rootReadOnlyApplyCheck": "PASS",
+    "freshScratchAfterPins": "PASS",
+    "upstreamTrustedCategoryAndListedServingProjection": "Source read: existing approved category index; same canonical evidence cleaner",
+    "unknownServingAmountScore": "Existing score input still comparableDrinkPrices only with selectedServing; no amount modifications",
+    "hardConstraints": "Original dedup/safety/promotion/accessibility/opening/ceiling eligibility and evaluateRoute reused for every replacement",
+    "anchor": "Replaceable position1 preserves accepted exact Stop1; no anchor-only behavior change",
+    "proof": "Existing handler rebuilds stops then signs final actual chosen+emittedbackup IDs",
+    "pintAndZeroProof": "Canonical selected evidence helper returnsnull for unspecified/beer/zeroProof; original path",
+    "fallback": "Legacyonly: unchanged route if no eligible feasible offer; mandatory intake/hard constraints never bypassed"
+  },
+  "limitations": [
+    "Single feasible replacement within existing eligible route cohort, not global multimove optimality",
+    "Publisher authenticity of retained Sun claims remains unverified; separate source-only receipt",
+    "Runtime/typecheck/lint/freshbrowser UNRUN for this candidate"
+  ],
+  "RootNext": "Apply exact twofile37455 source after independent review; actual22RED and adjacent generator/optimizer/intake/anchor/amount-invariance/proof controls then typecheck/freshbrowser. Preserve Root overlays; no live SQL/deploy."
+}

@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-01T08:50:40.682941+00:00",
+  "status": "ACTUAL_ROOT_VODKA_LINK_RED_SOURCE_CAUSAL_LEAD_NOT_YET_FIXED",
+  "runtimeReceipt": ".audit/overnight-20261001/accepted-account-browser-results.json",
+  "actual": "Vodka generated canonical quote matches committed source, later Open Plan to lock it in link absent. Fourothercategories fail earlier quote assertions separately.",
+  "parentSourceRead": [
+    "MobilePlanActivation156\u2013200 stores result +exact MapRoute then startTransition(onGenerated)",
+    "PubMap5350\u20135450 same unkeyed MobilePlanActivation moves plannerHead\u2192plannerFoot after builtCrawlLeads changes"
+  ],
+  "mechanism": "Source inference: React unkeyed sibling-position change remounts stateful form, clears generated result and transferCTA. Actual browser reproduced missing link, not explicit mount-state trace.",
+  "minimalNext": "Rootexclusive PubMap/UI owner preserves stable child identity (key or equivalent stableplacement) without losing builder-firstUX; rerun actual vodka journey and mounted causal regression. Core no product edit.",
+  "pins": {
+    "components/PubMap.tsx": "adb7d66ee88162524dfa9eb6a8602c69cb8f1826e4453c83ec4a1cac718ce8d3",
+    "components/plan/MobilePlanActivation.tsx": "72807f915384ce3f714f8f34b1ec5569f0a90d1740dd75507e1820431c4d272b"
+  },
+  "owner": "Root exclusivePubMap source/runtime; Solsourcefindings only",
+  "limit": "No Core tests/browser or production writes. Missingquotes separate generator/data diagnosis."
+}

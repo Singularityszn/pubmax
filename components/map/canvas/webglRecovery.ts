@@ -1,11 +1,9 @@
 /**
- * iOS Safari WebGL recovery helpers for PubMapCanvas.
+ * WebGL recovery decisions for PubMapCanvas.
  *
- * Owner report: after app-switch on a real iPhone the basemap canvas goes blank
- * while DOM markers/POIs stay live. Lab cannot reproduce backgrounding, but
- * iOS kills the WebGL context on suspend / restores bfcache pages with a dead
- * canvas, and MapLibre does not auto-rebuild. These pure helpers keep the
- * recovery policy unit-testable inside the canvas code-split boundary (#601).
+ * MapLibre rebuilds its style on webglcontextrestored. When the browser leaves
+ * the context lost after resuming, the canvas permits one automatic re-init
+ * with the reader's camera preserved. These helpers choose the recovery action.
  */
 
 export type MapCameraSnapshot = {

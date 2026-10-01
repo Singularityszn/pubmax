@@ -1,0 +1,51 @@
+{
+  "status": "FROZEN_SOURCE_ONLY_UNRUN",
+  "rootWorktree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratch": "/tmp/pubmaxx-r47-alcohol-coverage-production",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-alcohol-coverage-production.patch",
+  "patchSha256": "42ea20fa4494a8f912a0959526f7f2b89d2547933b2fc33cbaa40ad83c3d0d99",
+  "paths": [
+    {
+      "path": "lib/planGenerationDto.ts",
+      "beforeSha256": "d7ce0a055ffbb9d2763be9e12629219337593cc93c8fe28a38d33c43fbf34e11",
+      "afterSha256": "101d2cda23fc6109ed30325a9648d42db62c8665bba246b36bdf1d29f8239af7"
+    }
+  ],
+  "baseHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "actualRed": {
+    "receipt": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/plan-transfer-coverage-concurrency.json",
+    "sha256": "fd5718c034f93a95a7f9f8f7dcda545f7113aa2089af1c0ab677df6d539ae6db",
+    "total": 82,
+    "passed": 80,
+    "failed": 2,
+    "ownedFailure": [
+      {
+        "file": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/__tests__/planAnchoredGenerateRoute.test.ts",
+        "test": "POST /api/plans/generate \u2014 anchored keeps an eligible category offer discoverable beyond closer unpriced backups without ranking its unknown measure",
+        "failures": [
+          "AssertionError: An eligible current category offer must remain discoverable when nearer pubs have no offer: expected undefined to match object { Object (selectedDrinkPriceEvidence) }\n    at Proxy.<anonymous> (file:///Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2050:10)\n    at Proxy.<anonymous> (file:///Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/node_modules/chai/index.js:1737:25)\n    at /Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/__tests__/planAnchoredGenerateRoute.test.ts:266:10\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at withServingFixtures (/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/__tests__/planAnchoredGenerateRoute.test.ts:168:5)\n    at /Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/__tests__/planAnchoredGenerateRoute.test.ts:211:5\n    at file:///Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+        ]
+      }
+    ]
+  },
+  "sourceValidation": {
+    "scratchApplyCheck": "PASS",
+    "scratchAppliedAfterBytes": "PASS",
+    "whitespace": "PASS (git diff --no-index --check exit1 with no diagnostics: content differs)",
+    "rootBeforeStillMatches": true
+  },
+  "semantics": [
+    "Non-pint alternatives with cleaned matching selected-category evidence remain discoverable before unpriced alternatives; distance breaks availability ties.",
+    "No amount comparison, score change, primary route reorder, budget change, measure inference, or backup cap increase.",
+    "Grounded alternative candidate eligibility remains entirely owned by existing route optimizer; fallback candidate eligibility unchanged.",
+    "Existing generate route signs exact emitted IDs after DTO assembly.",
+    "Beer and zero-proof behavior unchanged."
+  ],
+  "limitations": [
+    "Runtime, lint, types, build and browser after-fix are UNRUN in this agent.",
+    "Union availability does not prove browser-priced PRIMARY acceptance or cheapest-group completion.",
+    "Fixture approved-reader/canonical-pack evidence is not independently verified publisher truth.",
+    "Current category-index cap and data availability limitations unchanged."
+  ],
+  "focusedCommand": "npx vitest run __tests__/planAnchoredGenerateRoute.test.ts __tests__/planGenerationDto.test.ts __tests__/planRouteOptimizer.test.ts"
+}

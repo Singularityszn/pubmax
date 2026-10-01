@@ -1,0 +1,48 @@
+{
+  "task": "Generated crawl completion share preserves validated public drink intent",
+  "status": "source-only proposed patch; not applied to maintained Root or Core checkout",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "872021c1a12419129aee9849d7877597b7f7b4b4",
+  "scratchCheckout": "/tmp/pubmaxx-r47-generated-route-completion-share-scratch",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-completion-share.patch",
+  "patchSha256": "77e87521eab71c5692bcdf860ee01ffbaf32f589174e48162ea6f04f8bca1871",
+  "files": [
+    {
+      "path": "lib/curatedCrawls.ts",
+      "rootBeforeSha256": "d0d9d2821d12bf5f00f80237b5249c2b5aebce53b4bb3488134b48f05c68905d",
+      "proposedAfterSha256": "349631f44e9d7057a7b31eb312a4cb4487b5b2916859d1cad951c5cf0871f25b"
+    },
+    {
+      "path": "components/map/RoutePanel.tsx",
+      "rootBeforeSha256": "fb2c4801277276124c34add073588e2b63ebd20aa4b2173969c829706c131ab7",
+      "proposedAfterSha256": "4c23397b5febdc1f434c52432d1bb9f44e40a8e6b9e1efcf5605678b6e874e0b"
+    },
+    {
+      "path": "__tests__/curatedCrawls.test.ts",
+      "rootBeforeSha256": "98ddf8a3144c7656fb39d49425315d5f0ad99f623cda1ee104e5a2b3657e0131",
+      "proposedAfterSha256": "a6c4cd2fc9d4d9094d4a0641c94e9a65e3ebf8f25763ea1002be0100e76d14de"
+    }
+  ],
+  "behavior": [
+    "RoutePanel shares generated intent only when its existing exact stop-set validation matches the displayed route.",
+    "Only zeroProof or a recognized non-beer map-lens category enters the share helper.",
+    "crawlShareMapHref delegates route-intent encoding to encodeCrawl and copies only routeLow or routeDrink into its existing URL.",
+    "Manual shares keep their prior URL shape; route drink intent does not change independent drink/serving lens parameters."
+  ],
+  "sourceReproduction": {
+    "e2e": "e2e/map-generated-route-completion-share.spec.ts",
+    "e2eSha256": "7147a9fd7f265b2328ac17753b4d68b0730d37d934edfe72beb10ef516300799",
+    "actualRedReceipt": ".audit/overnight-20261001/generated-completion-share-required-red.json",
+    "actualRedSha256": "4b7d6f8cbc175daa8ffe06a630624eccd17c59fafc0712a854f82d3c072f7c36",
+    "result": "2 failures, 0 skipped, 0 flaky retries; recipient showed Hand-built/Pint after generated Vodka and zeroProof route shares."
+  },
+  "validation": {
+    "testCasesAdded": "UNRUN: manual URL compatibility, non-beer intent round trip, zeroProof precedence, beer/other exclusion.",
+    "patchApplication": "PASS: git apply --check against the exact current Root source; read-only check, no files modified.",
+    "buildTypesLintBrowserAndFullGates": "UNRUN; Root owns next authorized runtime/gates."
+  },
+  "limits": [
+    "Patch does not prove browser behavior or release/build status.",
+    "Shared route contains requested category only; it carries no price, quote, source, proof, serving preference, GPS or private planning context."
+  ]
+}

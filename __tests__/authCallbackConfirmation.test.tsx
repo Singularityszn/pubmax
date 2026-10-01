@@ -721,6 +721,17 @@ describe("unowned auth callback confirmation", () => {
     expect(harness.setSession).not.toHaveBeenCalled();
   });
 
+  it("shows the ban notice for a refused unowned callback without installing it", async () => {
+    harness.getUser.mockResolvedValue({ data: { user: null }, error: {
+      code: "user_banned", message: "User is banned", status: 403,
+    } });
+    await mount();
+    await vi.waitFor(() => expect(container?.textContent).toContain("This account has been banned"));
+    expect(container?.textContent).not.toContain("Sign-in could not be completed.");
+    expect(container?.textContent).not.toContain("Sign in as");
+    expect(harness.setSession).not.toHaveBeenCalled();
+  });
+
   it("does not offer confirmation for mismatched access and refresh identities", async () => {
     harness.getUser.mockImplementation(async (accessToken: string) => ({
       data: { user: accessToken === "synthetic-access"

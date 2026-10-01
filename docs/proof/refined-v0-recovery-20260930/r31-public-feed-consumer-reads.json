@@ -1,0 +1,51 @@
+{
+  "scope": "Anonymous public reads. No credentials, supplied cookies or exact location. These handlers read feed/venue snapshots, no write or push route invoked. HTTP response is not native rendered UI proof.",
+  "observations": [
+    {
+      "path": "/api/area-news?area=hackney",
+      "observedAtUtc": "2026-09-30T17:14:41.928080+00:00",
+      "status": 200,
+      "cacheControl": "no-store",
+      "edge": "MISS",
+      "bodySha256": "602e78161c4d593a1fe0d3e398d0b961187770d238515362c2fb45e03fd892cb",
+      "bodyTruncated": false,
+      "body": {
+        "status": "ready",
+        "entries": []
+      }
+    },
+    {
+      "path": "/api/area-news?area=camden",
+      "observedAtUtc": "2026-09-30T17:14:42.129833+00:00",
+      "status": 200,
+      "cacheControl": "no-store",
+      "edge": "MISS",
+      "bodySha256": "602e78161c4d593a1fe0d3e398d0b961187770d238515362c2fb45e03fd892cb",
+      "bodyTruncated": false,
+      "body": {
+        "status": "ready",
+        "entries": []
+      }
+    },
+    {
+      "path": "/api/tonight-conditions",
+      "observedAtUtc": "2026-09-30T17:14:42.472515+00:00",
+      "status": 200,
+      "cacheControl": "no-store",
+      "edge": "MISS",
+      "bodySha256": "6c44bccbfa354ed89055281969fbea6666877059791ab4c2f53e1ac8e7102b24",
+      "bodyTruncated": false,
+      "body": {
+        "summary": {
+          "dateLabel": "Wednesday 30 Sept",
+          "factsLine": "21\u00b0C feels like, cloudy, 0% chance of rain, 14 km/h wind, sunset 18:43, daylight.",
+          "stale": false,
+          "checkedLabel": "Checked 1 hour ago",
+          "drinkLine": "Warm and dry. Beer garden weather.",
+          "drinkSuggestion": "a cold lager or cider",
+          "venueClaim": null
+        }
+      }
+    }
+  ]
+}

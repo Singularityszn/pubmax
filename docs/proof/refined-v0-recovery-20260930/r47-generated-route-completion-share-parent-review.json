@@ -1,0 +1,24 @@
+{
+  "status": "PARENT_SOURCE_REVIEW_PASS_READY_ROOT_INDEPENDENT_REVIEW_AND_RUNTIME",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-completion-share.patch",
+  "manifest": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generated-route-completion-share.json",
+  "patchSha256": "77e87521eab71c5692bcdf860ee01ffbaf32f589174e48162ea6f04f8bca1871",
+  "reviewedAtUTC": "2026-10-01T13:17:35.476724+00:00",
+  "checks": {
+    "currentRoot3BeforePins": true,
+    "freshScratch3AfterPins": true,
+    "rootReadOnlyApplyAndWhitespace": true,
+    "rootOriginalNative2CaseUnchanged": true
+  },
+  "sourceReview": [
+    "Existing exact unique stop-set match gates publicintent; current displayed IDs used, never captured original itinerary.",
+    "Nullable context explicitly narrows recognized nonbeer or zeroProoftrue; no cast or type widening.",
+    "Existing encodeCrawl owns routeDrink/routeLow normalization; helper copies only two publicrequestedintent fields. ManualURL/city/band/crawl/12stopcap remain originalshape; independentMaplens not copied.",
+    "Current quote/amount/source/measure/privateNightContext/proof/GPS never serialized. Nodehelper importdep/browserbudget stillRootbuild obligation."
+  ],
+  "runtime": null,
+  "limits": [
+    "Root independent reviewer ready; run unchangednative2Vodka/zeroProofcases plus helper/routepricing controls andcompiler/build/browsergates.",
+    "Curatedarrivaledge and lockedSavedPlanMapCTA omissions separate sourceconcerns; this packetdoesnot claim allsharingfixed."
+  ]
+}

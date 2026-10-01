@@ -1,0 +1,44 @@
+{
+  "diagnosticOnly": true,
+  "completed": true,
+  "origin": "http://localhost:3351",
+  "href": "/map?sel=venue-uk-n8308248176&at=51.48876,-0.16951",
+  "coordinateSource": "committed UK base cell",
+  "responses": [
+    {
+      "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+      "status": 200,
+      "fromServiceWorker": false,
+      "at": 1790769283222,
+      "body": "{\"prices\":[],\"signals\":[]}",
+      "bodyError": null
+    }
+  ],
+  "requests": [
+    {
+      "url": "http://localhost:3351/api/price-submit?venueId=venue-uk-n8308248176",
+      "at": 1790769283221
+    }
+  ],
+  "requestFailures": [],
+  "errors": [],
+  "sheet": {
+    "text": "The Sydney Arms\nNO PRICE YET\n\n70, Sydney Street, London, SW3 6NJ\n\nWe know this pub is here, and that is all we know. Nobody has logged what a drink costs - be the first.\n\nSign in to add a price\n\nYou need an account to add a price. Sign in here and we’ll bring you back to The Sydney Arms.\n\nContinue with email\nEmail me a link\nWhat drinkers noticed\nAccess unknown\n\nPub location from OpenStreetMap contributors, ODbL. Prices never come from OpenStreetMap.",
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "url": "http://localhost:3351/map?sel=venue-uk-n8308248176&at=51.4888%2C-0.1695"
+  },
+  "expectedPublishedQuote": {
+    "drinkLabel": "Rioja, Spain",
+    "price": "£10.50",
+    "serving": "250ml",
+    "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+    "observedAt": "2026-09-29T10:40:17.846Z"
+  },
+  "navigationStatus": 200,
+  "publishedQuoteVisible": false
+}

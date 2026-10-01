@@ -1,0 +1,19 @@
+{
+  "recordedAt": "2026-09-30T14:39:27.622418+00:00",
+  "status": "Applied comment-only cleanup; no runtime executed",
+  "changes": [
+    {
+      "path": "components/PubMapCanvas.tsx",
+      "before": "686b2240afabaa103fac02c5709deb63409f121a354a54abaa9372e14a1fc87d",
+      "after": "e6cce1d8909496cd4a496562e31564d3e5f092692790fafa675698e351243811"
+    },
+    {
+      "path": "components/map/canvas/webglRecovery.ts",
+      "before": "6d091ac1ee042899fae8b75f8fb307e415e54bfa47e551db4f519a1078dc9a1d",
+      "after": "96ff7455eadbbe8a69bf2962b316ab8cece70c9f1aee93005b23e839cff79ce4"
+    }
+  ],
+  "evidence": "Installed MapLibre _contextRestored rebuilds style; removed stale no-auto-recovery statements. Restoring only old comment bytes reproduces frozen canvas hash; helper body equals HEAD beyond opening comment.",
+  "functionalChanges": false,
+  "gateScope": "R25 source gate precedes these two comments. Next final source gate pending; no fresh current-source gate claim."
+}

@@ -1,0 +1,15 @@
+{
+  "receivedAt": "2026-10-01T00:29:59.054547+00:00",
+  "sourceThread": "01a0ef53-4a88-7553-bfa0-b9983e2edf0a",
+  "grant": "Root resource-owner scheduling extension for exact existing r46 full-five session37092",
+  "supersedes": "End00:45/cleanup00:42",
+  "end": "2026-10-01T00:55:00Z",
+  "cleanupBy": "2026-10-01T00:52:00Z",
+  "scope": "Frozen candidate, originalfiveprojects, workers2, retries0. No duplicatebuild/test/DB or unrelatedruntime.",
+  "releaseCheck": "SDK checked00:29 package released,messaging source-only,no othercommittedruntimebooking visible.",
+  "boundaries": [
+    "No merge/deploy/SQL/publication authorization inferred",
+    "No pass inferred",
+    "Finalhashcustody and actualcleanup required"
+  ]
+}

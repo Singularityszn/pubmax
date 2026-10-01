@@ -1,0 +1,9 @@
+{
+  "status": "TEST_SIGNATURE_ONLY_RUNTIME_UNRUN",
+  "patchSha256": "fd84c680afa92755a07c5de2c95742502ee7373109cad0ecab75840d4d791426",
+  "path": "__tests__/mapVenueList.test.ts",
+  "beforeSha256": "b3de51c0e8be8eec060e002665d3e400124463dbe0908767cf75dd1ad5de0a88",
+  "afterSha256": "035776396bae1576eca59d8565360608e3dc1796283465f08f6e0aceb15c5673",
+  "reason": "Actual helper consumes row arrays; test incorrectly supplied enclosing models. All exact identity/amount/provenance/order assertions unchanged. Actual prior207PASS1FAIL after base offer assertion passed; correction awaits Root runtime.",
+  "sourceApplyWhitespaceAndHashes": true
+}

@@ -1,0 +1,43 @@
+{
+  "createdAtUTC": "2026-10-01T14:04:04Z",
+  "status": "isolated scratch prepared; cohort UNRUN",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHead": "15b4d85cdc966f25174bfd8340f86d431a20843b",
+  "scratch": "/tmp/pubmaxx-r47-storage152-20261001T140402Z",
+  "secretFilesExcluded": [
+    ".env*",
+    ".npmrc",
+    ".pypirc",
+    "*.pem",
+    "*.p12",
+    "*.key"
+  ],
+  "rootDependencies": "per-package symlink farm to installed root node_modules; scratch-local .vite and .vitest-cache",
+  "candidatePatch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-accepted-stop1-legacy-compatibility-production.patch",
+  "candidatePatchSHA256": "c60b2106e0ba6a5c7990c74cc20111cd53a96510d408a02c13dd77110a6c9f91",
+  "candidateFile": "lib/planComposerHandoff.ts",
+  "rootBeforeSHA256": "ff3b7cf9e8bf0cf2c3daadfa6f7650679b25d2a2923b2937ddec135e4d807977",
+  "scratchAfterSHA256": "6fbc6223a34be4429bfd06781c9efec89cba808baa4471a29004be813f76ef58",
+  "sourceReceipt": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/route-transfer-sharing-storage-green-v3.json",
+  "sourceReceiptSHA256": "183b7d8b6f8236a4766368ab1540a479dcb2514cdaa9cc917f10b76cb1c5a387",
+  "suitePaths": [
+    "__tests__/crawlUrl.test.ts",
+    "__tests__/curatedCrawls.test.ts",
+    "__tests__/generatedMapRoutePricing.test.tsx",
+    "__tests__/mapCrawlUrlSync.test.tsx",
+    "__tests__/mapRouteTransfer.test.ts",
+    "__tests__/mapRouteTransferButton.test.ts",
+    "__tests__/planComposerHandoff.test.ts"
+  ],
+  "suiteSourceSHA256": {
+    "__tests__/crawlUrl.test.ts": "7ed8503bd9edb5807e038c574563b9e2efb22c6e5460bf7e859629c153507c8b",
+    "__tests__/curatedCrawls.test.ts": "a6c4cd2fc9d4d9094d4a0641c94e9a65e3ebf8f25763ea1002be0100e76d14de",
+    "__tests__/generatedMapRoutePricing.test.tsx": "16838e7760ab6d29181f7ac0ea6488243535deb2138fd7190a1725a4814375b2",
+    "__tests__/mapCrawlUrlSync.test.tsx": "264339d3d05c76053e5b88cd2b38e45ab1b5402e72af4763e32da74d329a26b8",
+    "__tests__/mapRouteTransfer.test.ts": "2bf6059afee2b1b874596c9834b44aee1bf88b9b723c4bc55648294c9c20e44e",
+    "__tests__/mapRouteTransferButton.test.ts": "ad1b71ccc8aa7bd73ac56864424cfc67f4254cfc1be18de3f21db3ac48fef6d4",
+    "__tests__/planComposerHandoff.test.ts": "20edab6c91ab1df2d6da26a0996be17efb80641e2b1463e996c473f415be1deb"
+  },
+  "expectedTests": 152,
+  "copiedRootModifiedPathCount": 29
+}

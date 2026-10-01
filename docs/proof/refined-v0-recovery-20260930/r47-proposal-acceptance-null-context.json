@@ -1,0 +1,31 @@
+{
+  "task": "test-only source packet for context-free proposal creation and host acceptance",
+  "source": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/__tests__/planCollaborationRoutes.test.ts",
+  "base_sha256": "055736760c3812df7e350c7e43678b251a192f90f063a23dccc7cb3766b977c0",
+  "candidate_sha256": "b0c0ddba1e84ff07e8b91da8e2c3664576a90dc14718fd6b27e2aed7eb913052",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-proposal-acceptance-null-context.patch",
+  "patch_sha256": "2e5a817c7f8b83b3934996a659ac2875839d061338a515ad22174ea3ccc3ac8f",
+  "scratch_candidate": "/tmp/pubmaxx-r47-null-proposal-regression/__tests__/planCollaborationRoutes.test.ts",
+  "runtime_status": "UNRUN by assignment",
+  "scope": [
+    "__tests__/planCollaborationRoutes.test.ts"
+  ],
+  "notes": [
+    "No maintained checkout files changed; b97 remains untouched.",
+    "Exercises actual create/proposal/decision/member-GET handlers, real resolver, memory collaboration/plan stores, and host/guest capability checks; fixtures replace only listed-bundle and community-read boundaries.",
+    "Create request stores context:null; proposal request also sends context:null. Proposal endpoint resolves against stored plan context.",
+    "Pending proposal must retain exact server-approved listed quote and omit community hint despite a positive community fixture; host acceptance must retain it through memory store and authenticated member reload.",
+    "Guest acceptance remains forbidden. Existing stale-revision route/proposal and explicit category/zero-proof/forged/degraded controls are unchanged in their current owners."
+  ],
+  "parentReview": {
+    "at": "2026-10-01T07:59:29.604713+00:00",
+    "hash": "PASS",
+    "RootBefore": "PASS",
+    "RootApplyCheck": "PASS",
+    "freshScratchAfter": "PASS",
+    "source": "PASS pending approvedlistedquote exactbaseline, communityomittedwithoutreader, guest403nochange, host200store/memberreload; existingrealresolver/stores/handlers, onlyfixture reader seams",
+    "originalManifestNormalization": "Original scratchmanifest ends literal backslash-n; new frozenmanifest normalized to valid JSON without source/test modification.",
+    "runtime": "UNRUN Rootactualrequired",
+    "dependency": "8739sharedmemorypredicate production maymakeGREEN; if runbefore8739 expect finalacceptancestoreevidence assertionRED afterpendingbaselinePASS."
+  }
+}

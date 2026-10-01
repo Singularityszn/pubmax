@@ -291,6 +291,10 @@ function callbackAttemptFailed(attempt: AuthCallbackAttempt | null, verification
   return verificationFailed || Boolean(attempt && (attempt.providerError || !attempt.tokens));
 }
 
+function callbackAccountBanned(attempt: AuthCallbackAttempt | null, unownedAccountBanned: boolean): boolean {
+  return Boolean(attempt?.accountBanned || unownedAccountBanned);
+}
+
 type PendingCallbackRestore = {
   input: Session;
   cancelled: boolean;
@@ -933,6 +937,7 @@ export function AuthProvider({
         const callbackAttempt = captured?.attempt ?? null;
         let exchange: AuthCallbackSessionResult<Session> | null = null;
         let verificationFailed = false;
+        let unownedAccountBanned = false;
         let cancelledLocalInstall = false;
         let confirmation: Extract<PreparedAuthCallbackSession<Session>, { status: "confirmation-required" }> | null = null;
         try {
@@ -970,6 +975,8 @@ export function AuthProvider({
               exchange = prepared.result;
             } else if (prepared.status === "confirmation-required") {
               confirmation = prepared;
+            } else if (prepared.status === "banned") {
+              unownedAccountBanned = true;
             } else {
               verificationFailed = true;
             }
@@ -985,7 +992,7 @@ export function AuthProvider({
         if (cancelledLocalInstall || callbackConfirmationCancelled.current) return;
         if (!active) return;
         if (exchange && captured) finishCallbackExchange(exchange, captured);
-        if (callbackAttempt?.accountBanned) {
+        if (callbackAccountBanned(callbackAttempt, unownedAccountBanned)) {
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
         } else if (callbackAttemptFailed(callbackAttempt, verificationFailed)) {

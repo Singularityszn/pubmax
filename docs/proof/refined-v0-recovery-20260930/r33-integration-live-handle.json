@@ -1,0 +1,16 @@
+{
+  "observedAtUtc": "2026-09-30T17:55:28.554248+00:00",
+  "runId": "01M3SCY3JBSZ98GKR44SN4FF0J",
+  "pipelineStatusExit": 0,
+  "pipelineStatus": "current_branch: codex/v0-integration\nother_branch_run:\n  id: \"01M3SCY3JBSZ98GKR44SN4FF0J\"\n  branch: codex/pr-merge-20260930\n  status: running\n  head: \"0516f22e\"\n  head_sha: \"0516f22eeff6a6a9c7c25b04981347016c8e6840\"\n  verification_plan: none\n  pr: \"https://github.com/Singularityszn/pubmax/pull/1880\"\n  findings: none\n  steps[9]{step,status,findings,duration_ms}:\n    intent,completed,0,6\n    rebase,completed,0,1808\n    review,completed,0,1542274\n    test,completed,0,5521605\n    document,running,0,0\n    lint,pending,0,0\n    push,pending,0,0\n    pr,pending,0,0\n    ci,pending,0,0\n  shared_work[1]{attributed_to,scope,duration_ms}:\n    document,document+lint housekeeping,0\n  active_steps[1]{step,status,active_for,round_active_for,last_activity,agent_pid,round}:\n    document,running,2m12s,2m12s,\"5s ago: codex producing output\",\"93403\",starting\n",
+  "specificPid": 93403,
+  "specificPidPresent": true,
+  "specificPidMetadata": "93403  2040 93403 S    02:10 codex",
+  "specificPidCwd": "p93403\nfcwd\nn/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M3SCY3JBSZ98GKR44SN4FF0J",
+  "scope": "Verified wait on original integration pipeline normally advancing to live Document actor93403 in its owned cwd. Owner reports cleanup, but concrete Core handoff/release receipt and fresh preflight remain required. No restarted pipeline, foreign mutation, Core heavy runtime, publication, migration or deployment.",
+  "previousAgentPid2308Terminal": true,
+  "latestTransitionUtc": "2026-09-30T18:20:06.956814+00:00",
+  "verifyPid15721Terminal": true,
+  "pipelineLogSummary": "Test completed with findings none on0516f22e; live actor83039 exited success. Owner confirms11 fresh committed-build native scenarios passed with zero retries, harvest and judged-offset controls passed. Document actor93403 is now active. No overall pipeline acceptance/publication or Core permission inferred.",
+  "liveEvidencePid83039Terminal": true
+}

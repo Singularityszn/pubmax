@@ -1,0 +1,165 @@
+{
+  "reads": [
+    {
+      "venueId": "venue-1ctgk0m",
+      "url": "https://pubmaxxing.com/api/venue/venue-1ctgk0m",
+      "status": 200,
+      "at": "2026-09-30T16:22:38.353520+00:00",
+      "headers": {
+        "cache-control": "public",
+        "age": "0",
+        "x-vercel-cache": "MISS",
+        "date": "Wed, 30 Sep 2026 16:22:38 GMT"
+      },
+      "bodySha256": "bb41b4f065a39a6b537366d68fe01a0d33c05364c7b081303852b6f74ef298e1",
+      "venueKeys": [
+        "id",
+        "name",
+        "address",
+        "latitude",
+        "longitude",
+        "primaryBorough",
+        "visibleBoroughs",
+        "prices",
+        "cheapestPrice",
+        "cheapestPint",
+        "averagePrice",
+        "hasStory",
+        "latestContributorPrice",
+        "latestContributorAt",
+        "bookingLink",
+        "imageUrl",
+        "description",
+        "dataQualityNotes",
+        "sourceDatasets",
+        "curation",
+        "website",
+        "contacts",
+        "amenityStatus",
+        "bundlePrices",
+        "priceUpdates"
+      ],
+      "name": "The Bell on the Green",
+      "listedCategoryPrices": null,
+      "bundlePrices": {
+        "listed": {
+          "priceGbp": 4.25,
+          "sourceUrl": "https://thebellonthegreen.com/drinks/",
+          "observedAt": "2026-09-21T18:25:47.604Z"
+        },
+        "estimate": {
+          "priceGbp": 6.06,
+          "basis": "regional_baseline:hounslow",
+          "sampleSize": 26,
+          "computedAt": "2026-09-03T21:36:27.404Z"
+        }
+      }
+    },
+    {
+      "venueId": "venue-bri-1o203s4",
+      "url": "https://pubmaxxing.com/api/venue/venue-bri-1o203s4",
+      "status": 200,
+      "at": "2026-09-30T16:22:37.580418+00:00",
+      "headers": {
+        "cache-control": "public",
+        "age": "0",
+        "x-vercel-cache": "MISS",
+        "date": "Wed, 30 Sep 2026 16:22:37 GMT"
+      },
+      "bodySha256": "557d6918dccf9875468bc62929edb5cadf14a6d87a747cbe19df6793dacf9aa7",
+      "venueKeys": [
+        "id",
+        "name",
+        "address",
+        "latitude",
+        "longitude",
+        "primaryBorough",
+        "visibleBoroughs",
+        "prices",
+        "cheapestPrice",
+        "cheapestPint",
+        "averagePrice",
+        "hasStory",
+        "latestContributorPrice",
+        "latestContributorAt",
+        "bookingLink",
+        "imageUrl",
+        "description",
+        "dataQualityNotes",
+        "sourceDatasets",
+        "curation",
+        "filterHints",
+        "contacts",
+        "amenityStatus",
+        "bundlePrices",
+        "priceUpdates"
+      ],
+      "name": "The Gallimaufry",
+      "listedCategoryPrices": null,
+      "bundlePrices": {
+        "listed": {
+          "priceGbp": 6,
+          "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+          "observedAt": "2026-09-04T13:40:39.833Z"
+        },
+        "estimate": null
+      }
+    },
+    {
+      "venueId": "venue-1vse4lh",
+      "url": "https://pubmaxxing.com/api/venue/venue-1vse4lh",
+      "status": 200,
+      "at": "2026-09-30T16:22:37.694084+00:00",
+      "headers": {
+        "cache-control": "public",
+        "age": "0",
+        "x-vercel-cache": "MISS",
+        "date": "Wed, 30 Sep 2026 16:22:37 GMT"
+      },
+      "bodySha256": "3d52afe0b9cd0ed80ed46a546b37ba88361867ff70e6c11ce4e2096c0ef43f7b",
+      "venueKeys": [
+        "id",
+        "name",
+        "address",
+        "latitude",
+        "longitude",
+        "primaryBorough",
+        "visibleBoroughs",
+        "prices",
+        "cheapestPrice",
+        "cheapestPint",
+        "averagePrice",
+        "hasStory",
+        "latestContributorPrice",
+        "latestContributorAt",
+        "bookingLink",
+        "imageUrl",
+        "description",
+        "dataQualityNotes",
+        "sourceDatasets",
+        "curation",
+        "website",
+        "contacts",
+        "amenityStatus",
+        "bundlePrices",
+        "priceUpdates"
+      ],
+      "name": "The Brownswood",
+      "listedCategoryPrices": null,
+      "bundlePrices": {
+        "listed": {
+          "priceGbp": 2.6,
+          "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/",
+          "observedAt": "2026-09-21T18:56:51.214Z"
+        },
+        "estimate": {
+          "priceGbp": 4.89,
+          "basis": "regional_baseline:hackney",
+          "sampleSize": 48,
+          "computedAt": "2026-09-03T21:36:27.404Z"
+        }
+      }
+    }
+  ],
+  "limits": "Anonymous public GET and price projection only. Response may be cached; no deployed SHA, native UI, provider or account write proof."
+}

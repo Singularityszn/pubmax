@@ -1,0 +1,26 @@
+{
+  "createdAt": "2026-09-30T15:12:34.369879+00:00",
+  "status": "READY_UNRUN",
+  "runtime": "SDK exclusive until15:23:30UTC; root queued45minute slot not granted",
+  "originalSWTestTailByteIdentical": true,
+  "originalSWTestSha256": "5cddbca5a6e535c4f1e53f114bf0dd7cbb3aae88f00b9c93ea1e311c58d4b5da",
+  "artifacts": {
+    "r27-sw-observed.spec.ts.txt": "b32496561958d5eebc23981cee54b2dbff92424f2b88132be4c4963c304d31a2",
+    "r27-sw-observed.config.ts.txt": "f500ccabadf7ef413715dfd865c87134f2cbba74e3d932ec47f6a2d391ef8b13",
+    "r27-webgl-native-persistent-diagnostic.mts.txt": "18143ce9700512b21782b4a7283681165ebc5b969c973a9319f87fd4e727c844"
+  },
+  "requiredEnvironment": [
+    "PW_PORT=3351",
+    "PW_SKIP_WEBSERVER=1",
+    "PW_MAP_EVIDENCE=0",
+    "fresh PUBMAX_SW_DIAGNOSTIC_OUTPUT per attempt"
+  ],
+  "requiredCwd": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx",
+  "limitations": [
+    "Observers add overhead",
+    "Original full-five failures remain open",
+    "No diagnostic syntax/type/runtime validation yet",
+    "If journal-truncated appears, absent later events are not evidence",
+    "Native persistent loss arm supplements original synthetic fault, not original test replacement"
+  ]
+}

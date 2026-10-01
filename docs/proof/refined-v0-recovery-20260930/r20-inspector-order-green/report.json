@@ -1,0 +1,132 @@
+{
+  "diagnosticOnly": true,
+  "processPid": 46322,
+  "inspectorPath": "/_next/static/chunks/07ao84009amoy.js",
+  "held": [
+    {
+      "pathname": "/data/venues_slim.core.json",
+      "status": 200
+    },
+    {
+      "pathname": "/api/venue/venue-4xlgb0",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.manifest.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.525_-0.125.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.500_-0.125.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.475_-0.125.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.475_-0.150.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.450_-0.100.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.450_-0.125.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.450_-0.150.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.450_-0.175.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.475_-0.100.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.475_-0.175.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.500_-0.175.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.525_-0.175.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.525_-0.150.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.525_-0.100.json",
+      "status": 200
+    },
+    {
+      "pathname": "/data/venues_slim.cell.51.500_-0.100.json",
+      "status": 200
+    }
+  ],
+  "delivered": [
+    "/data/venues_slim.core.json",
+    "/api/venue/venue-4xlgb0",
+    "/data/venues_slim.manifest.json",
+    "/data/venues_slim.cell.51.525_-0.125.json",
+    "/data/venues_slim.cell.51.500_-0.125.json",
+    "/data/venues_slim.cell.51.475_-0.125.json",
+    "/data/venues_slim.cell.51.475_-0.150.json",
+    "/data/venues_slim.cell.51.450_-0.100.json",
+    "/data/venues_slim.cell.51.450_-0.125.json",
+    "/data/venues_slim.cell.51.450_-0.150.json",
+    "/data/venues_slim.cell.51.450_-0.175.json",
+    "/data/venues_slim.cell.51.475_-0.100.json",
+    "/data/venues_slim.cell.51.475_-0.175.json",
+    "/data/venues_slim.cell.51.500_-0.175.json",
+    "/data/venues_slim.cell.51.525_-0.175.json",
+    "/data/venues_slim.cell.51.525_-0.150.json",
+    "/data/venues_slim.cell.51.525_-0.100.json",
+    "/data/venues_slim.cell.51.500_-0.100.json"
+  ],
+  "released": true,
+  "inspectorRequests": [
+    {
+      "whileHeld": true,
+      "at": 1790758825888
+    }
+  ],
+  "detailRequests": 1,
+  "errors": [],
+  "orderingCheckpoint": {
+    "inspectorMounted": false,
+    "deliveredCarriers": [],
+    "heldCarriers": [
+      {
+        "pathname": "/data/venues_slim.core.json",
+        "status": 200
+      },
+      {
+        "pathname": "/api/venue/venue-4xlgb0",
+        "status": 200
+      }
+    ],
+    "detailRequests": 1
+  },
+  "concurrentAssetStart": true,
+  "verifiedInspector": {
+    "title": "Princess Louise",
+    "standing": "estimate",
+    "figure": "est. £6.50",
+    "activeTab": "Overview",
+    "tabFocused": true
+  },
+  "completed": true
+}

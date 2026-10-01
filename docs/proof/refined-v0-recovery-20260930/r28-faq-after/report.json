@@ -1,0 +1,189 @@
+{
+  "at": "2026-09-30T16:05:10.737Z",
+  "origin": "http://localhost:3351",
+  "reports": [
+    {
+      "width": 390,
+      "rows": [
+        {
+          "question": "How does PUBMAXXING work?",
+          "answer": "Say where you are and we show what a pint costs at the pubs around you, cheapest first. Each figure carries the day it was collected, and names the publisher when the record has one. Nothing else sets the order, and no pub can pay to sit higher.",
+          "rect": {
+            "x": 22,
+            "y": -100.328125,
+            "width": 346,
+            "height": 182.5625,
+            "top": -100.328125,
+            "right": 368,
+            "bottom": 82.234375,
+            "left": 22
+          }
+        },
+        {
+          "question": "Where do the prices come from?",
+          "answer": "Two places. A pub's own published price list, which we name and link beside the figure. And drinkers, who log what they paid on the day they paid it. When no publisher is recorded for a price, the price says so. We would rather leave a gap than invent a figure.",
+          "rect": {
+            "x": 22,
+            "y": 102.234375,
+            "width": 346,
+            "height": 203.5625,
+            "top": 102.234375,
+            "right": 368,
+            "bottom": 305.796875,
+            "left": 22
+          }
+        },
+        {
+          "question": "How do I log a price?",
+          "answer": "Open a pub on the map and press the price door. A photo of the bill is required. Add it, type what you paid and which drink it was, then press Log it. A pint photo and note are optional. Photos and notes are public and can show people, so only add what you are happy to share.",
+          "rect": {
+            "x": 22,
+            "y": 325.796875,
+            "width": 346,
+            "height": 229.15625,
+            "top": 325.796875,
+            "right": 368,
+            "bottom": 554.953125,
+            "left": 22
+          }
+        },
+        {
+          "question": "What is on today and tonight?",
+          "answer": "Today reads the London weather and says what sort of drinking day it is. Tonight lists what is on across the city through the evening, from published listings. Both cards near the top of this page stamp the day they speak for, so you can tell a fresh answer from a held one.",
+          "rect": {
+            "x": 22,
+            "y": 574.953125,
+            "width": 346,
+            "height": 229.15625,
+            "top": 574.953125,
+            "right": 368,
+            "bottom": 804.109375,
+            "left": 22
+          }
+        },
+        {
+          "question": "Does it work outside London?",
+          "answer": "We focus on London. Outside London, we show prices when we have a pub's published menu price or a drinker's logged price. Where we have neither, we say so. The map also opens in other UK cities.",
+          "rect": {
+            "x": 22,
+            "y": 824.109375,
+            "width": 346,
+            "height": 177.96875,
+            "top": 824.109375,
+            "right": 368,
+            "bottom": 1002.078125,
+            "left": 22
+          }
+        },
+        {
+          "question": "Is there an app?",
+          "answer": "This site installs to your home screen today. Open it in your phone browser and choose Add to Home Screen, and it opens full screen from then on. We are building the App Store and Play Store versions now.",
+          "rect": {
+            "x": 22,
+            "y": 1022.078125,
+            "width": 346,
+            "height": 177.96875,
+            "top": 1022.078125,
+            "right": 368,
+            "bottom": 1200.046875,
+            "left": 22
+          }
+        }
+      ],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "width": 1440,
+      "rows": [
+        {
+          "question": "How does PUBMAXXING work?",
+          "answer": "Say where you are and we show what a pint costs at the pubs around you, cheapest first. Each figure carries the day it was collected, and names the publisher when the record has one. Nothing else sets the order, and no pub can pay to sit higher.",
+          "rect": {
+            "x": 100,
+            "y": 83.328125,
+            "width": 1240,
+            "height": 137.75,
+            "top": 83.328125,
+            "right": 1340,
+            "bottom": 221.078125,
+            "left": 100
+          }
+        },
+        {
+          "question": "Where do the prices come from?",
+          "answer": "Two places. A pub's own published price list, which we name and link beside the figure. And drinkers, who log what they paid on the day they paid it. When no publisher is recorded for a price, the price says so. We would rather leave a gap than invent a figure.",
+          "rect": {
+            "x": 100,
+            "y": 241.078125,
+            "width": 1240,
+            "height": 158.75,
+            "top": 241.078125,
+            "right": 1340,
+            "bottom": 399.828125,
+            "left": 100
+          }
+        },
+        {
+          "question": "How do I log a price?",
+          "answer": "Open a pub on the map and press the price door. A photo of the bill is required. Add it, type what you paid and which drink it was, then press Log it. A pint photo and note are optional. Photos and notes are public and can show people, so only add what you are happy to share.",
+          "rect": {
+            "x": 100,
+            "y": 419.828125,
+            "width": 1240,
+            "height": 158.75,
+            "top": 419.828125,
+            "right": 1340,
+            "bottom": 578.578125,
+            "left": 100
+          }
+        },
+        {
+          "question": "What is on today and tonight?",
+          "answer": "Today reads the London weather and says what sort of drinking day it is. Tonight lists what is on across the city through the evening, from published listings. Both cards near the top of this page stamp the day they speak for, so you can tell a fresh answer from a held one.",
+          "rect": {
+            "x": 100,
+            "y": 598.578125,
+            "width": 1240,
+            "height": 158.75,
+            "top": 598.578125,
+            "right": 1340,
+            "bottom": 757.328125,
+            "left": 100
+          }
+        },
+        {
+          "question": "Does it work outside London?",
+          "answer": "We focus on London. Outside London, we show prices when we have a pub's published menu price or a drinker's logged price. Where we have neither, we say so. The map also opens in other UK cities.",
+          "rect": {
+            "x": 100,
+            "y": 777.328125,
+            "width": 1240,
+            "height": 131.5625,
+            "top": 777.328125,
+            "right": 1340,
+            "bottom": 908.890625,
+            "left": 100
+          }
+        },
+        {
+          "question": "Is there an app?",
+          "answer": "This site installs to your home screen today. Open it in your phone browser and choose Add to Home Screen, and it opens full screen from then on. We are building the App Store and Play Store versions now.",
+          "rect": {
+            "x": 100,
+            "y": 928.890625,
+            "width": 1240,
+            "height": 131.5625,
+            "top": 928.890625,
+            "right": 1340,
+            "bottom": 1060.453125,
+            "left": 100
+          }
+        }
+      ],
+      "overflow": false,
+      "errors": []
+    }
+  ],
+  "limits": "Native headless rendering, no provider submission, production release or account mutation."
+}

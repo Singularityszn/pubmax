@@ -1,0 +1,1843 @@
+{
+  "origin": "http://localhost:3351",
+  "method": "current CWV helper, mobile, one diagnostic sample per arm",
+  "arms": [
+    {
+      "name": "inherited-layers",
+      "errors": [],
+      "edits": [],
+      "coldAction": true,
+      "coldVitals": {
+        "lcpMs": 3872,
+        "cls": 0.006988692745975826,
+        "inpMs": 488
+      },
+      "coldAfter": {
+        "label": "cold-after-primary",
+        "at": 12335.20000000298,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": "layers",
+          "version": 1,
+          "savedAt": "2026-09-30T02:47:29.336Z"
+        },
+        "resume": {
+          "savedAt": 1790736449462,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 135
+        },
+        "control": {
+          "ariaLabel": "More map controls",
+          "expanded": "true",
+          "geometry": {
+            "class": "uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill",
+            "x": 328,
+            "y": 14,
+            "width": 44,
+            "height": 44,
+            "display": "flex",
+            "maxHeight": "none",
+            "transform": "none",
+            "motion": null
+          },
+          "blockedAncestors": [
+            {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "inert": true,
+              "display": "block"
+            }
+          ]
+        },
+        "sheet": {
+          "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+          "x": 0,
+          "y": 146.34375,
+          "width": 390,
+          "height": 633.65625,
+          "display": "flex",
+          "maxHeight": "776.48px",
+          "transform": "none",
+          "motion": "idle"
+        },
+        "activeElement": "<section data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet contextual open sheet-full\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_3_\" tabindex=\"-1\" style=\"max-height: 776.48px; will-change: auto;\"><header class=\"mobileSharedSheetHeader sheetDragHandle\"><button type=\"button\" class=",
+        "camera": {
+          "bearing": 4,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12000000000011823,
+            51.51999999999978
+          ],
+          "moving": false
+        },
+        "pins": 0,
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 3698,
+            "domContentLoaded": 2236.5
+          }
+        ]
+      },
+      "prime": {
+        "label": "warm-prime",
+        "at": 3712.800000011921,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": "layers",
+          "version": 1,
+          "savedAt": "2026-09-30T02:47:29.336Z"
+        },
+        "resume": {
+          "savedAt": 1790736449462,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 135
+        },
+        "control": null,
+        "sheet": null,
+        "activeElement": "<body data-social-friends-launch=\"1\"><div hidden=\"\"><!--$--><!--/$--></div><div id=\"pubmax-splash\" aria-hidden=\"true\"><svg class=\"pubmaxSplashMark\" viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\" focusable=\"false\"><g transform=\"translate(32 32) scale(0.9) translate(-32 -32)\"><polygon points=\"",
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 2653.1000000089407,
+            "domContentLoaded": 1122.300000011921
+          }
+        ]
+      },
+      "beforeAction": {
+        "label": "warm-before-primary",
+        "at": 3645.5,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": "layers",
+          "version": 1,
+          "savedAt": "2026-09-30T02:47:29.336Z"
+        },
+        "resume": {
+          "savedAt": 1790736449462,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 135
+        },
+        "control": null,
+        "sheet": null,
+        "activeElement": "<body data-social-friends-launch=\"1\"><div hidden=\"\"><!--$--><!--/$--></div><div id=\"pubmax-splash\" aria-hidden=\"true\"><svg class=\"pubmaxSplashMark\" viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\" focusable=\"false\"><g transform=\"translate(32 32) scale(0.9) translate(-32 -32)\"><polygon points=\"",
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 2584.7999999970198,
+            "domContentLoaded": 1051.8999999910593
+          }
+        ]
+      },
+      "action": false,
+      "vitals": {
+        "lcpMs": 10192,
+        "cls": 0.006988692745975826,
+        "inpMs": 16
+      },
+      "afterAction": {
+        "label": "warm-after-primary",
+        "at": 30499.39999999106,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": "layers",
+          "version": 1,
+          "savedAt": "2026-09-30T02:47:50.544Z"
+        },
+        "resume": {
+          "savedAt": 1790736470794,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 1033
+        },
+        "control": {
+          "ariaLabel": "More map controls",
+          "expanded": "true",
+          "geometry": {
+            "class": "uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill",
+            "x": 328,
+            "y": 14,
+            "width": 44,
+            "height": 44,
+            "display": "flex",
+            "maxHeight": "none",
+            "transform": "none",
+            "motion": null
+          },
+          "blockedAncestors": [
+            {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "inert": true,
+              "display": "block"
+            }
+          ]
+        },
+        "sheet": {
+          "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+          "x": 0,
+          "y": 146.34375,
+          "width": 390,
+          "height": 633.65625,
+          "display": "flex",
+          "maxHeight": "776.48px",
+          "transform": "none",
+          "motion": "idle"
+        },
+        "activeElement": "<section data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet contextual open sheet-full\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_3_\" tabindex=\"-1\" style=\"max-height: 776.48px; will-change: auto;\"><header class=\"mobileSharedSheetHeader sheetDragHandle\"><button type=\"button\" class=",
+        "camera": {
+          "bearing": 4,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12000000000011823,
+            51.51999999999978
+          ],
+          "moving": false
+        },
+        "pins": 0,
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 2584.7999999970198,
+            "domContentLoaded": 1051.8999999910593
+          }
+        ]
+      },
+      "attribution": {
+        "lcp": [
+          {
+            "at": 1216,
+            "size": 2952,
+            "renderTime": 1216,
+            "loadTime": 0,
+            "element": {
+              "tag": "P",
+              "id": "",
+              "class": "",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Loading London pubs…"
+            }
+          },
+          {
+            "at": 10192,
+            "size": 3483,
+            "renderTime": 10192,
+            "loadTime": 0,
+            "element": {
+              "tag": "H2",
+              "id": "_r_3_",
+              "class": "",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Map controls"
+            }
+          }
+        ],
+        "shifts": [
+          {
+            "at": 10137,
+            "value": 0.006988692745975826,
+            "hadRecentInput": false,
+            "sources": [
+              {
+                "node": {
+                  "tag": "DIV",
+                  "id": "",
+                  "class": "createFabRoot",
+                  "role": null,
+                  "ariaLabel": null,
+                  "text": ""
+                },
+                "previous": {
+                  "x": 307,
+                  "y": 699,
+                  "width": 83,
+                  "height": 86
+                },
+                "current": {
+                  "x": 307,
+                  "y": 563,
+                  "width": 83,
+                  "height": 86
+                }
+              }
+            ]
+          }
+        ],
+        "clicks": [],
+        "snapshots": [
+          {
+            "label": "warm-before-primary",
+            "at": 3645.5,
+            "mobile": {
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "filters": {
+                "query": "",
+                "maxPrice": 10,
+                "crawlStyle": "balanced",
+                "stopCount": 6,
+                "routeWindow": 20,
+                "requireBeerGarden": false,
+                "requireNonAlcoholic": false,
+                "requireLiveSports": false,
+                "requireFood": false,
+                "requireCocktails": false,
+                "requireWater": false,
+                "requireHeritage": false,
+                "requirePintDrops": false,
+                "canonicalOnly": false,
+                "openNow": false,
+                "requireStepFree": false,
+                "requireAccessibleToilet": false,
+                "requireSeatedService": false,
+                "drinkCategory": "",
+                "drinkBrand": "",
+                "drinkSubtype": "",
+                "topShelfOnly": false,
+                "zone": ""
+              },
+              "cityId": "london",
+              "nightArea": null,
+              "selectedVenueId": null,
+              "poiHidden": {
+                "tube": true,
+                "rail": true,
+                "bus": true,
+                "river": true,
+                "park": true,
+                "garden": true,
+                "market": true,
+                "historic": true,
+                "viewpoint": true,
+                "sight": true
+              },
+              "openSheet": "layers",
+              "version": 1,
+              "savedAt": "2026-09-30T02:47:29.336Z"
+            },
+            "resume": {
+              "savedAt": 1790736449462,
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "rows": 135
+            },
+            "control": null,
+            "sheet": null,
+            "activeElement": "<body data-social-friends-launch=\"1\"><div hidden=\"\"><!--$--><!--/$--></div><div id=\"pubmax-splash\" aria-hidden=\"true\"><svg class=\"pubmaxSplashMark\" viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\" focusable=\"false\"><g transform=\"translate(32 32) scale(0.9) translate(-32 -32)\"><polygon points=\"",
+            "reducedMotion": false,
+            "navigation": [
+              {
+                "loadEventEnd": 2584.7999999970198,
+                "domContentLoaded": 1051.8999999910593
+              }
+            ]
+          },
+          {
+            "label": "warm-after-primary",
+            "at": 30499.39999999106,
+            "mobile": {
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "filters": {
+                "query": "",
+                "maxPrice": 10,
+                "crawlStyle": "balanced",
+                "stopCount": 6,
+                "routeWindow": 20,
+                "requireBeerGarden": false,
+                "requireNonAlcoholic": false,
+                "requireLiveSports": false,
+                "requireFood": false,
+                "requireCocktails": false,
+                "requireWater": false,
+                "requireHeritage": false,
+                "requirePintDrops": false,
+                "canonicalOnly": false,
+                "openNow": false,
+                "requireStepFree": false,
+                "requireAccessibleToilet": false,
+                "requireSeatedService": false,
+                "drinkCategory": "",
+                "drinkBrand": "",
+                "drinkSubtype": "",
+                "topShelfOnly": false,
+                "zone": ""
+              },
+              "cityId": "london",
+              "nightArea": null,
+              "selectedVenueId": null,
+              "poiHidden": {
+                "tube": true,
+                "rail": true,
+                "bus": true,
+                "river": true,
+                "park": true,
+                "garden": true,
+                "market": true,
+                "historic": true,
+                "viewpoint": true,
+                "sight": true
+              },
+              "openSheet": "layers",
+              "version": 1,
+              "savedAt": "2026-09-30T02:47:50.544Z"
+            },
+            "resume": {
+              "savedAt": 1790736470794,
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "rows": 1033
+            },
+            "control": {
+              "ariaLabel": "More map controls",
+              "expanded": "true",
+              "geometry": {
+                "class": "uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill",
+                "x": 328,
+                "y": 14,
+                "width": 44,
+                "height": 44,
+                "display": "flex",
+                "maxHeight": "none",
+                "transform": "none",
+                "motion": null
+              },
+              "blockedAncestors": [
+                {
+                  "tag": "MAIN",
+                  "id": "main",
+                  "class": "appShell dark",
+                  "inert": true,
+                  "display": "block"
+                }
+              ]
+            },
+            "sheet": {
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+              "x": 0,
+              "y": 146.34375,
+              "width": 390,
+              "height": 633.65625,
+              "display": "flex",
+              "maxHeight": "776.48px",
+              "transform": "none",
+              "motion": "idle"
+            },
+            "activeElement": "<section data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet contextual open sheet-full\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_3_\" tabindex=\"-1\" style=\"max-height: 776.48px; will-change: auto;\"><header class=\"mobileSharedSheetHeader sheetDragHandle\"><button type=\"button\" class=",
+            "camera": {
+              "bearing": 4,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000011823,
+                51.51999999999978
+              ],
+              "moving": false
+            },
+            "pins": 0,
+            "reducedMotion": false,
+            "navigation": [
+              {
+                "loadEventEnd": 2584.7999999970198,
+                "domContentLoaded": 1051.8999999910593
+              }
+            ]
+          }
+        ],
+        "mutations": [
+          {
+            "at": 10130.79999999702,
+            "type": "attributes",
+            "attribute": "inert",
+            "value": "",
+            "target": {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMapPUBMAXXPUBMAXXLondonLONPints18"
+            }
+          },
+          {
+            "at": 10130.79999999702,
+            "type": "attributes",
+            "attribute": "style",
+            "value": "--mobile-map-chrome-measured-h: 112px;",
+            "target": {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMapPUBMAXXPUBMAXXLondonLONPints18"
+            }
+          },
+          {
+            "at": 10130.79999999702,
+            "type": "attributes",
+            "attribute": "data-sheet-motion",
+            "value": "entering",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10130.79999999702,
+            "type": "attributes",
+            "attribute": "class",
+            "value": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10130.79999999702,
+            "type": "attributes",
+            "attribute": "style",
+            "value": "max-height: 776.48px; will-change: auto;",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10455.699999988079,
+            "type": "attributes",
+            "attribute": "data-sheet-motion",
+            "value": "idle",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10455.699999988079,
+            "type": "attributes",
+            "attribute": "class",
+            "value": "mapDrawer mobileSharedSheet contextual open sheet-full",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "openSheet-cleared",
+      "errors": [],
+      "edits": [
+        {
+          "before": {
+            "viewport": {
+              "center": [
+                -0.12000000000011823,
+                51.51999999999978
+              ],
+              "zoom": 12,
+              "pitch": 38.00000000000001,
+              "bearing": 4
+            },
+            "filters": {
+              "query": "",
+              "maxPrice": 10,
+              "crawlStyle": "balanced",
+              "stopCount": 6,
+              "routeWindow": 20,
+              "requireBeerGarden": false,
+              "requireNonAlcoholic": false,
+              "requireLiveSports": false,
+              "requireFood": false,
+              "requireCocktails": false,
+              "requireWater": false,
+              "requireHeritage": false,
+              "requirePintDrops": false,
+              "canonicalOnly": false,
+              "openNow": false,
+              "requireStepFree": false,
+              "requireAccessibleToilet": false,
+              "requireSeatedService": false,
+              "drinkCategory": "",
+              "drinkBrand": "",
+              "drinkSubtype": "",
+              "topShelfOnly": false,
+              "zone": ""
+            },
+            "cityId": "london",
+            "nightArea": null,
+            "selectedVenueId": null,
+            "poiHidden": {
+              "tube": true,
+              "rail": true,
+              "bus": true,
+              "river": true,
+              "park": true,
+              "garden": true,
+              "market": true,
+              "historic": true,
+              "viewpoint": true,
+              "sight": true
+            },
+            "openSheet": "layers",
+            "version": 1,
+            "savedAt": "2026-09-30T02:48:15.200Z"
+          },
+          "after": {
+            "viewport": {
+              "center": [
+                -0.12000000000011823,
+                51.51999999999978
+              ],
+              "zoom": 12,
+              "pitch": 38.00000000000001,
+              "bearing": 4
+            },
+            "filters": {
+              "query": "",
+              "maxPrice": 10,
+              "crawlStyle": "balanced",
+              "stopCount": 6,
+              "routeWindow": 20,
+              "requireBeerGarden": false,
+              "requireNonAlcoholic": false,
+              "requireLiveSports": false,
+              "requireFood": false,
+              "requireCocktails": false,
+              "requireWater": false,
+              "requireHeritage": false,
+              "requirePintDrops": false,
+              "canonicalOnly": false,
+              "openNow": false,
+              "requireStepFree": false,
+              "requireAccessibleToilet": false,
+              "requireSeatedService": false,
+              "drinkCategory": "",
+              "drinkBrand": "",
+              "drinkSubtype": "",
+              "topShelfOnly": false,
+              "zone": ""
+            },
+            "cityId": "london",
+            "nightArea": null,
+            "selectedVenueId": null,
+            "poiHidden": {
+              "tube": true,
+              "rail": true,
+              "bus": true,
+              "river": true,
+              "park": true,
+              "garden": true,
+              "market": true,
+              "historic": true,
+              "viewpoint": true,
+              "sight": true
+            },
+            "openSheet": null,
+            "version": 1,
+            "savedAt": "2026-09-30T02:48:15.200Z"
+          }
+        },
+        {
+          "before": {
+            "viewport": {
+              "center": [
+                -0.12000000000011823,
+                51.51999999999978
+              ],
+              "zoom": 12,
+              "pitch": 38.00000000000001,
+              "bearing": 4
+            },
+            "filters": {
+              "query": "",
+              "maxPrice": 10,
+              "crawlStyle": "balanced",
+              "stopCount": 6,
+              "routeWindow": 20,
+              "requireBeerGarden": false,
+              "requireNonAlcoholic": false,
+              "requireLiveSports": false,
+              "requireFood": false,
+              "requireCocktails": false,
+              "requireWater": false,
+              "requireHeritage": false,
+              "requirePintDrops": false,
+              "canonicalOnly": false,
+              "openNow": false,
+              "requireStepFree": false,
+              "requireAccessibleToilet": false,
+              "requireSeatedService": false,
+              "drinkCategory": "",
+              "drinkBrand": "",
+              "drinkSubtype": "",
+              "topShelfOnly": false,
+              "zone": ""
+            },
+            "cityId": "london",
+            "nightArea": null,
+            "selectedVenueId": null,
+            "poiHidden": {
+              "tube": true,
+              "rail": true,
+              "bus": true,
+              "river": true,
+              "park": true,
+              "garden": true,
+              "market": true,
+              "historic": true,
+              "viewpoint": true,
+              "sight": true
+            },
+            "openSheet": null,
+            "version": 1,
+            "savedAt": "2026-09-30T02:48:15.200Z"
+          },
+          "after": {
+            "viewport": {
+              "center": [
+                -0.12000000000011823,
+                51.51999999999978
+              ],
+              "zoom": 12,
+              "pitch": 38.00000000000001,
+              "bearing": 4
+            },
+            "filters": {
+              "query": "",
+              "maxPrice": 10,
+              "crawlStyle": "balanced",
+              "stopCount": 6,
+              "routeWindow": 20,
+              "requireBeerGarden": false,
+              "requireNonAlcoholic": false,
+              "requireLiveSports": false,
+              "requireFood": false,
+              "requireCocktails": false,
+              "requireWater": false,
+              "requireHeritage": false,
+              "requirePintDrops": false,
+              "canonicalOnly": false,
+              "openNow": false,
+              "requireStepFree": false,
+              "requireAccessibleToilet": false,
+              "requireSeatedService": false,
+              "drinkCategory": "",
+              "drinkBrand": "",
+              "drinkSubtype": "",
+              "topShelfOnly": false,
+              "zone": ""
+            },
+            "cityId": "london",
+            "nightArea": null,
+            "selectedVenueId": null,
+            "poiHidden": {
+              "tube": true,
+              "rail": true,
+              "bus": true,
+              "river": true,
+              "park": true,
+              "garden": true,
+              "market": true,
+              "historic": true,
+              "viewpoint": true,
+              "sight": true
+            },
+            "openSheet": null,
+            "version": 1,
+            "savedAt": "2026-09-30T02:48:15.200Z"
+          }
+        }
+      ],
+      "coldAction": true,
+      "coldVitals": {
+        "lcpMs": 1120,
+        "cls": 0.006988692745975826,
+        "inpMs": 104
+      },
+      "coldAfter": {
+        "label": "cold-after-primary",
+        "at": 10563.09999999404,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": "layers",
+          "version": 1,
+          "savedAt": "2026-09-30T02:48:15.200Z"
+        },
+        "resume": {
+          "savedAt": 1790736495242,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 135
+        },
+        "control": {
+          "ariaLabel": "More map controls",
+          "expanded": "true",
+          "geometry": {
+            "class": "uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill",
+            "x": 328,
+            "y": 14,
+            "width": 44,
+            "height": 44,
+            "display": "flex",
+            "maxHeight": "none",
+            "transform": "none",
+            "motion": null
+          },
+          "blockedAncestors": [
+            {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "inert": true,
+              "display": "block"
+            }
+          ]
+        },
+        "sheet": {
+          "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+          "x": 0,
+          "y": 146.34375,
+          "width": 390,
+          "height": 633.65625,
+          "display": "flex",
+          "maxHeight": "776.48px",
+          "transform": "none",
+          "motion": "idle"
+        },
+        "activeElement": "<section data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet contextual open sheet-full\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_3_\" tabindex=\"-1\" style=\"max-height: 776.48px; will-change: auto;\"><header class=\"mobileSharedSheetHeader sheetDragHandle\"><button type=\"button\" class=",
+        "camera": {
+          "bearing": 4,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12000000000011823,
+            51.51999999999978
+          ],
+          "moving": false
+        },
+        "pins": 0,
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 2458.5,
+            "domContentLoaded": 967.3999999910593
+          }
+        ]
+      },
+      "prime": {
+        "label": "warm-prime",
+        "at": 4017.5,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": null,
+          "version": 1,
+          "savedAt": "2026-09-30T02:48:15.200Z"
+        },
+        "resume": {
+          "savedAt": 1790736495242,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 135
+        },
+        "control": null,
+        "sheet": null,
+        "activeElement": "<body data-social-friends-launch=\"1\"><div hidden=\"\"><!--$--><!--/$--></div><div id=\"pubmax-splash\" aria-hidden=\"true\"><svg class=\"pubmaxSplashMark\" viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\" focusable=\"false\"><g transform=\"translate(32 32) scale(0.9) translate(-32 -32)\"><polygon points=\"",
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 2956,
+            "domContentLoaded": 1423.0999999940395
+          }
+        ]
+      },
+      "beforeAction": {
+        "label": "warm-before-primary",
+        "at": 3567.2999999970198,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": null,
+          "version": 1,
+          "savedAt": "2026-09-30T02:48:15.200Z"
+        },
+        "resume": {
+          "savedAt": 1790736495242,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 135
+        },
+        "control": null,
+        "sheet": null,
+        "activeElement": "<body data-social-friends-launch=\"1\"><div hidden=\"\"><!--$--><!--/$--></div><div id=\"pubmax-splash\" aria-hidden=\"true\"><svg class=\"pubmaxSplashMark\" viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\" focusable=\"false\"><g transform=\"translate(32 32) scale(0.9) translate(-32 -32)\"><polygon points=\"",
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 2503.8999999910593,
+            "domContentLoaded": 961.8999999910593
+          }
+        ]
+      },
+      "action": true,
+      "vitals": {
+        "lcpMs": 2620,
+        "cls": 0.006988692745975826,
+        "inpMs": 72
+      },
+      "afterAction": {
+        "label": "warm-after-primary",
+        "at": 11136.59999999404,
+        "mobile": {
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "filters": {
+            "query": "",
+            "maxPrice": 10,
+            "crawlStyle": "balanced",
+            "stopCount": 6,
+            "routeWindow": 20,
+            "requireBeerGarden": false,
+            "requireNonAlcoholic": false,
+            "requireLiveSports": false,
+            "requireFood": false,
+            "requireCocktails": false,
+            "requireWater": false,
+            "requireHeritage": false,
+            "requirePintDrops": false,
+            "canonicalOnly": false,
+            "openNow": false,
+            "requireStepFree": false,
+            "requireAccessibleToilet": false,
+            "requireSeatedService": false,
+            "drinkCategory": "",
+            "drinkBrand": "",
+            "drinkSubtype": "",
+            "topShelfOnly": false,
+            "zone": ""
+          },
+          "cityId": "london",
+          "nightArea": null,
+          "selectedVenueId": null,
+          "poiHidden": {
+            "tube": true,
+            "rail": true,
+            "bus": true,
+            "river": true,
+            "park": true,
+            "garden": true,
+            "market": true,
+            "historic": true,
+            "viewpoint": true,
+            "sight": true
+          },
+          "openSheet": "layers",
+          "version": 1,
+          "savedAt": "2026-09-30T02:48:30.341Z"
+        },
+        "resume": {
+          "savedAt": 1790736510258,
+          "viewport": {
+            "center": [
+              -0.12000000000011823,
+              51.51999999999978
+            ],
+            "zoom": 12,
+            "pitch": 38.00000000000001,
+            "bearing": 4
+          },
+          "rows": 854
+        },
+        "control": {
+          "ariaLabel": "More map controls",
+          "expanded": "true",
+          "geometry": {
+            "class": "uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill",
+            "x": 328,
+            "y": 14,
+            "width": 44,
+            "height": 44,
+            "display": "flex",
+            "maxHeight": "none",
+            "transform": "none",
+            "motion": null
+          },
+          "blockedAncestors": [
+            {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "inert": true,
+              "display": "block"
+            }
+          ]
+        },
+        "sheet": {
+          "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+          "x": 0,
+          "y": 146.34375,
+          "width": 390,
+          "height": 633.65625,
+          "display": "flex",
+          "maxHeight": "776.48px",
+          "transform": "none",
+          "motion": "idle"
+        },
+        "activeElement": "<section data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet contextual open sheet-full\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_3_\" tabindex=\"-1\" style=\"max-height: 776.48px; will-change: auto;\"><header class=\"mobileSharedSheetHeader sheetDragHandle\"><button type=\"button\" class=",
+        "camera": {
+          "bearing": 4,
+          "pitch": 38.00000000000001,
+          "zoom": 12,
+          "center": [
+            -0.12000000000011823,
+            51.51999999999978
+          ],
+          "moving": false
+        },
+        "pins": 0,
+        "reducedMotion": false,
+        "navigation": [
+          {
+            "loadEventEnd": 2503.8999999910593,
+            "domContentLoaded": 961.8999999910593
+          }
+        ]
+      },
+      "attribution": {
+        "lcp": [
+          {
+            "at": 1152,
+            "size": 2754,
+            "renderTime": 1152,
+            "loadTime": 0,
+            "element": {
+              "tag": "P",
+              "id": "",
+              "class": "",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Loading London pubs…"
+            }
+          },
+          {
+            "at": 2620,
+            "size": 2952,
+            "renderTime": 2620,
+            "loadTime": 0,
+            "element": {
+              "tag": "P",
+              "id": "",
+              "class": "",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Loading London pubs…"
+            }
+          }
+        ],
+        "shifts": [
+          {
+            "at": 9966.79999999702,
+            "value": 0.006988692745975826,
+            "hadRecentInput": false,
+            "sources": [
+              {
+                "node": {
+                  "tag": "DIV",
+                  "id": "",
+                  "class": "createFabRoot",
+                  "role": null,
+                  "ariaLabel": null,
+                  "text": ""
+                },
+                "previous": {
+                  "x": 307,
+                  "y": 699,
+                  "width": 83,
+                  "height": 86
+                },
+                "current": {
+                  "x": 307,
+                  "y": 563,
+                  "width": 83,
+                  "height": 86
+                }
+              }
+            ]
+          }
+        ],
+        "clicks": [
+          {
+            "at": 10431.59999999404,
+            "trusted": true,
+            "control": {
+              "tag": "BUTTON",
+              "id": "",
+              "class": "uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill",
+              "role": null,
+              "ariaLabel": "More map controls",
+              "text": ""
+            }
+          }
+        ],
+        "snapshots": [
+          {
+            "label": "warm-before-primary",
+            "at": 3567.2999999970198,
+            "mobile": {
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "filters": {
+                "query": "",
+                "maxPrice": 10,
+                "crawlStyle": "balanced",
+                "stopCount": 6,
+                "routeWindow": 20,
+                "requireBeerGarden": false,
+                "requireNonAlcoholic": false,
+                "requireLiveSports": false,
+                "requireFood": false,
+                "requireCocktails": false,
+                "requireWater": false,
+                "requireHeritage": false,
+                "requirePintDrops": false,
+                "canonicalOnly": false,
+                "openNow": false,
+                "requireStepFree": false,
+                "requireAccessibleToilet": false,
+                "requireSeatedService": false,
+                "drinkCategory": "",
+                "drinkBrand": "",
+                "drinkSubtype": "",
+                "topShelfOnly": false,
+                "zone": ""
+              },
+              "cityId": "london",
+              "nightArea": null,
+              "selectedVenueId": null,
+              "poiHidden": {
+                "tube": true,
+                "rail": true,
+                "bus": true,
+                "river": true,
+                "park": true,
+                "garden": true,
+                "market": true,
+                "historic": true,
+                "viewpoint": true,
+                "sight": true
+              },
+              "openSheet": null,
+              "version": 1,
+              "savedAt": "2026-09-30T02:48:15.200Z"
+            },
+            "resume": {
+              "savedAt": 1790736495242,
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "rows": 135
+            },
+            "control": null,
+            "sheet": null,
+            "activeElement": "<body data-social-friends-launch=\"1\"><div hidden=\"\"><!--$--><!--/$--></div><div id=\"pubmax-splash\" aria-hidden=\"true\"><svg class=\"pubmaxSplashMark\" viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\" focusable=\"false\"><g transform=\"translate(32 32) scale(0.9) translate(-32 -32)\"><polygon points=\"",
+            "reducedMotion": false,
+            "navigation": [
+              {
+                "loadEventEnd": 2503.8999999910593,
+                "domContentLoaded": 961.8999999910593
+              }
+            ]
+          },
+          {
+            "label": "warm-after-primary",
+            "at": 11136.59999999404,
+            "mobile": {
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "filters": {
+                "query": "",
+                "maxPrice": 10,
+                "crawlStyle": "balanced",
+                "stopCount": 6,
+                "routeWindow": 20,
+                "requireBeerGarden": false,
+                "requireNonAlcoholic": false,
+                "requireLiveSports": false,
+                "requireFood": false,
+                "requireCocktails": false,
+                "requireWater": false,
+                "requireHeritage": false,
+                "requirePintDrops": false,
+                "canonicalOnly": false,
+                "openNow": false,
+                "requireStepFree": false,
+                "requireAccessibleToilet": false,
+                "requireSeatedService": false,
+                "drinkCategory": "",
+                "drinkBrand": "",
+                "drinkSubtype": "",
+                "topShelfOnly": false,
+                "zone": ""
+              },
+              "cityId": "london",
+              "nightArea": null,
+              "selectedVenueId": null,
+              "poiHidden": {
+                "tube": true,
+                "rail": true,
+                "bus": true,
+                "river": true,
+                "park": true,
+                "garden": true,
+                "market": true,
+                "historic": true,
+                "viewpoint": true,
+                "sight": true
+              },
+              "openSheet": "layers",
+              "version": 1,
+              "savedAt": "2026-09-30T02:48:30.341Z"
+            },
+            "resume": {
+              "savedAt": 1790736510258,
+              "viewport": {
+                "center": [
+                  -0.12000000000011823,
+                  51.51999999999978
+                ],
+                "zoom": 12,
+                "pitch": 38.00000000000001,
+                "bearing": 4
+              },
+              "rows": 854
+            },
+            "control": {
+              "ariaLabel": "More map controls",
+              "expanded": "true",
+              "geometry": {
+                "class": "uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill",
+                "x": 328,
+                "y": 14,
+                "width": 44,
+                "height": 44,
+                "display": "flex",
+                "maxHeight": "none",
+                "transform": "none",
+                "motion": null
+              },
+              "blockedAncestors": [
+                {
+                  "tag": "MAIN",
+                  "id": "main",
+                  "class": "appShell dark",
+                  "inert": true,
+                  "display": "block"
+                }
+              ]
+            },
+            "sheet": {
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+              "x": 0,
+              "y": 146.34375,
+              "width": 390,
+              "height": 633.65625,
+              "display": "flex",
+              "maxHeight": "776.48px",
+              "transform": "none",
+              "motion": "idle"
+            },
+            "activeElement": "<section data-sheet-motion=\"idle\" class=\"mapDrawer mobileSharedSheet contextual open sheet-full\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"_r_3_\" tabindex=\"-1\" style=\"max-height: 776.48px; will-change: auto;\"><header class=\"mobileSharedSheetHeader sheetDragHandle\"><button type=\"button\" class=",
+            "camera": {
+              "bearing": 4,
+              "pitch": 38.00000000000001,
+              "zoom": 12,
+              "center": [
+                -0.12000000000011823,
+                51.51999999999978
+              ],
+              "moving": false
+            },
+            "pins": 0,
+            "reducedMotion": false,
+            "navigation": [
+              {
+                "loadEventEnd": 2503.8999999910593,
+                "domContentLoaded": 961.8999999910593
+              }
+            ]
+          }
+        ],
+        "mutations": [
+          {
+            "at": 9965.29999999702,
+            "type": "attributes",
+            "attribute": "style",
+            "value": "--mobile-map-chrome-measured-h: 112px;",
+            "target": {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMapPUBMAXXPUBMAXXLondonLONPints18Describe the outing"
+            }
+          },
+          {
+            "at": 10442.89999999106,
+            "type": "attributes",
+            "attribute": "inert",
+            "value": "",
+            "target": {
+              "tag": "MAIN",
+              "id": "main",
+              "class": "appShell dark",
+              "role": null,
+              "ariaLabel": null,
+              "text": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMapPUBMAXXPUBMAXXLondonLONPints18"
+            }
+          },
+          {
+            "at": 10442.89999999106,
+            "type": "attributes",
+            "attribute": "data-sheet-motion",
+            "value": "entering",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10442.89999999106,
+            "type": "attributes",
+            "attribute": "class",
+            "value": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10442.89999999106,
+            "type": "attributes",
+            "attribute": "style",
+            "value": "max-height: 776.48px; will-change: auto;",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full sheet-entering",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10778.59999999404,
+            "type": "attributes",
+            "attribute": "data-sheet-motion",
+            "value": "idle",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          },
+          {
+            "at": 10778.59999999404,
+            "type": "attributes",
+            "attribute": "class",
+            "value": "mapDrawer mobileSharedSheet contextual open sheet-full",
+            "target": {
+              "tag": "SECTION",
+              "id": "",
+              "class": "mapDrawer mobileSharedSheet contextual open sheet-full",
+              "role": "dialog",
+              "ariaLabel": null,
+              "text": "Map controlsKeyLayersPricesEventsTransitPint prices and other venue price bandsPub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.££5.20 or less; low for its venue type££Over £"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "timedOut": false
+}

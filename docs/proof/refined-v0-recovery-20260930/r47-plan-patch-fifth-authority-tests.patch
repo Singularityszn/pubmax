@@ -1,0 +1,56 @@
+--- a/__tests__/planSelectedDrinkEvidenceCreate.test.ts
++++ b/__tests__/planSelectedDrinkEvidenceCreate.test.ts
+@@ -336,6 +336,53 @@
+     }
+   });
+ 
++  it("keeps the selected fifth listed serving on canonical venue PATCH and member reload", async () => {
++    const servings = ["125ml", "150ml", "175ml", "200ml", "250ml"];
++    const sourceUrl = "https://pub.example/venue-b/menu";
++    listedBundleFixture.rows = servings.map((servingSize, index) => ({
++      venueId: "venue-b",
++      name: "Venue B",
++      category: "wine",
++      priceGbp: [5.25, 5.5, 5.75, 6, 6.5][index]!,
++      drinkLabel: "Rioja",
++      servingSize,
++      sourceUrl,
++      observedAt,
++      lane: "site-harvest",
++      standing: "listed",
++      publisher: "Fixture publisher",
++      basis: null,
++      sampleSize: null,
++    }));
++    const selected = {
++      category: "wine",
++      pence: 650,
++      serving: "250ml",
++      source: "listed",
++      sourceUrl,
++      observedAt,
++    };
++    const { body } = await create("wine", null);
++    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
++      method: "PATCH",
++      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
++      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
++        { venueId: "venue-a" },
++        { venueId: "venue-b", venueName: "Venue B", selectedDrinkPriceEvidence: selected },
++        { venueId: "venue-c" },
++      ] }),
++    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
++    const updated = await response.json();
++    expect(response.status, JSON.stringify(updated)).toBe(200);
++    expect(updated.stops[1]?.selectedDrinkPriceEvidence).toEqual(selected);
++
++    const reload = await GET(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
++      headers: { authorization: `Bearer ${body.memberToken}` },
++    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
++    expect(reload.status).toBe(200);
++    expect((await reload.json()).stops[1]?.selectedDrinkPriceEvidence).toEqual(selected);
++  });
++
+   it("keeps listed evidence on a manual create payload without Night Context", () => {
+     const matched = { ...inferNightContext("wine").context, drinkCategory: "wine" as const, zeroProof: false };
+     const payloadFor = (

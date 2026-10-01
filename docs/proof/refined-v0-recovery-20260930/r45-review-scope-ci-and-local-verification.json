@@ -1,0 +1,129 @@
+{
+  "at": "2026-09-30T23:45:44.485959+00:00",
+  "run": 36791149951,
+  "job": 110144088552,
+  "status": "completed_failure",
+  "logRetrievalExit": 0,
+  "logSha256": "7b6b06f28149a5a727c8dba7b2253af341d361db541822ed1db94c6b977cc1d0",
+  "report": {
+    "base": "f33f77e42b8a045695529ec87f2ed1b6ed4cb719",
+    "head": "476f0615709faa3c4cb2caf61eed89a02dafb7cd",
+    "fileCount": 21,
+    "reviewFileCount": 21,
+    "regeneratedLanes": [],
+    "categories": {
+      "source": [
+        "scripts/chatgpt-map/package-lock.json",
+        "scripts/local-refresh/scheduler.mjs",
+        "scripts/whatson/eventsRefresh.mjs"
+      ],
+      "test": [
+        "__tests__/planGenerateRoute.test.ts"
+      ],
+      "config": [
+        "next.config.mjs",
+        "package-lock.json",
+        "package.json",
+        "tsconfig.json"
+      ],
+      "docs": [
+        "docs/DEPLOYMENT.md",
+        "docs/SOFT_LAUNCH_RUNBOOK.md",
+        "docs/plans/fablenextsteps.md",
+        "docs/rules/scripts-ci-gates-and-audits.md"
+      ],
+      "skill-pack": [
+        ".agents/skills/enhance-readme/package-lock.json",
+        ".agents/skills/enhance-readme/package.json",
+        ".agents/skills/orchestrate/scripts/bun.lock",
+        ".agents/skills/orchestrate/scripts/package.json",
+        ".agents/skills/poteto-mode/scripts/bun.lock",
+        ".agents/skills/poteto-mode/scripts/package.json",
+        "skills/enhance-readme/package-lock.json",
+        "skills/enhance-readme/package.json"
+      ],
+      "other": [
+        "README.md"
+      ]
+    },
+    "categoryCounts": {
+      "source": 3,
+      "test": 1,
+      "config": 4,
+      "docs": 4,
+      "skill-pack": 8,
+      "other": 1
+    },
+    "domains": [
+      "scripts"
+    ],
+    "warnings": [],
+    "forbidden": [
+      {
+        "category": "skill-pack",
+        "path": ".agents/skills/enhance-readme/package-lock.json"
+      },
+      {
+        "category": "skill-pack",
+        "path": ".agents/skills/enhance-readme/package.json"
+      },
+      {
+        "category": "skill-pack",
+        "path": ".agents/skills/orchestrate/scripts/bun.lock"
+      },
+      {
+        "category": "skill-pack",
+        "path": ".agents/skills/orchestrate/scripts/package.json"
+      },
+      {
+        "category": "skill-pack",
+        "path": ".agents/skills/poteto-mode/scripts/bun.lock"
+      },
+      {
+        "category": "skill-pack",
+        "path": ".agents/skills/poteto-mode/scripts/package.json"
+      },
+      {
+        "category": "skill-pack",
+        "path": "skills/enhance-readme/package-lock.json"
+      },
+      {
+        "category": "skill-pack",
+        "path": "skills/enhance-readme/package.json"
+      }
+    ],
+    "ok": false
+  },
+  "otherCompletedCiJobs": [
+    "Coverage",
+    "Production build",
+    "Unit tests1/2",
+    "Unit tests2/2",
+    "Lint/typecheck",
+    "Freshness release gate"
+  ],
+  "coreSourceFormat": {
+    "command": "git diff --check -- __tests__ e2e components lib scripts",
+    "exitCode": 0,
+    "claim": "Whitespace only; no test/app execution or current full gate."
+  },
+  "currentRuntimeHandle": {
+    "pid": 66158,
+    "pgid": 66158,
+    "kind": "npm verify",
+    "cwd": "/Users/karanmanoharan/.codex/worktrees/skills-package-refresh/pubmaxx",
+    "firstObservation": "Actual ps/cwd live, elapsed3m19s. New final476 verification after CI release.",
+    "status": "ABSENT on23:48 ps/lsof EXIT1; no restart",
+    "ownerResult": {
+      "head": "476f0615709faa3c4cb2caf61eed89a02dafb7cd",
+      "fullGate": "PASS reported by owner",
+      "unitPassed": 18467,
+      "rlsPassed": 449,
+      "unitSkipped": 6,
+      "lintWarnings": 15,
+      "next": "One final-head isolated build and8 focused browser checks. No release/Core grant."
+    }
+  },
+  "boundary": "Core source-only until actual local/runner cleanup and fresh Root grant. No policy edits/waivers performed.",
+  "updatedAt": "2026-09-30T23:48:51.584477+00:00"
+}

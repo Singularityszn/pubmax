@@ -1,0 +1,166 @@
+--- a/lib/planComposerHandoff.ts
++++ b/lib/planComposerHandoff.ts
+@@ -9,6 +9,7 @@
+ import {
+   PLAN_DRAFT_KEY,
+   PLAN_DRAFT_V2_KEY,
++  parsePlanDraftEnvelope,
+   readPlanDraftEnvelope,
+   writePlanDraftEnvelope,
+   type ParsedPlanDraft,
+@@ -17,11 +18,14 @@
+ import {
+   PLAN_ROUTE_DRAFT_KEY,
+   PLAN_ROUTE_DRAFT_V2_KEY,
++  parsePlanRouteDraftEnvelope,
+   readPlanRouteDraftEnvelope,
+   writePlanRouteDraftEnvelope,
+   type ParsedPlanRouteDraft,
+ } from "@/lib/planRouteDraft";
+ import {
++  parsePlanningIntent,
++  PLANNING_INTENT_STORAGE_KEY,
+   settlePlanningIntent,
+   type PlanningIntentArea,
+   type PlanningIntentSource,
+@@ -31,6 +35,7 @@
+ import type { CityId } from "@/lib/cities";
+ import type { PlanTemplate } from "@/lib/planTemplates";
+ import type { RememberedArea } from "@/lib/nightPatches";
++import { safeSessionStorage } from "@/lib/safeStorage";
+ 
+ /**
+  * L11 client glue between the L04 arbitration resolver and PlanComposer. It runs
+@@ -231,8 +236,11 @@
+ ): void {
+   if (!storage) return;
+   try {
+-    const existing = readPlanDraftEnvelope(storage, now);
+-    if (!existing?.draft.acceptedAnchor) return;
++    const rawV2 = storage.getItem(PLAN_DRAFT_V2_KEY);
++    const rawV1 = storage.getItem(PLAN_DRAFT_KEY);
++    const existing = parsePlanDraftEnvelope(rawV2, rawV1, now);
++    const legacy = parsePlanDraftEnvelope(null, rawV1, now);
++    if (!existing || (!existing.draft.acceptedAnchor && !legacy?.draft.acceptedAnchor)) return;
+     const withoutAcceptance: StoredPlanDraft = { ...existing.draft };
+     delete withoutAcceptance.acceptedAnchor;
+     if (!writePlanDraftEnvelope(withoutAcceptance, "manual", storage, now).v2) {
+@@ -250,8 +258,11 @@
+ ): void {
+   if (!storage) return;
+   try {
+-    const existing = readPlanRouteDraftEnvelope(storage, now);
+-    if (!existing?.value.anchorVenueId) return;
++    const rawV2 = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
++    const rawV1 = storage.getItem(PLAN_ROUTE_DRAFT_KEY);
++    const existing = parsePlanRouteDraftEnvelope(rawV2, rawV1, now);
++    const legacy = parsePlanRouteDraftEnvelope(null, rawV1, now);
++    if (!existing || (!existing.value.anchorVenueId && !legacy?.value.anchorVenueId)) return;
+     const written = writePlanRouteDraftEnvelope({
+       ...existing.value,
+       anchorVenueId: null,
+@@ -282,10 +293,12 @@
+  * anchored identity. All three go together, because dropping only the intent
+  * would let the next hydration hold the same Stop 1 again, which is how
+  * "released" would come back a moment later.
++ * Returns confirmation only when every supplied owner is readable and no
++ * acceptance survives. Other callers can keep their best-effort local release.
+  */
+ export function releaseAcceptedPlanContext(
+   storages: AcceptedContextStorages = {},
+-): void {
++): boolean {
+   settlePlanningIntent(
+     "dismissed",
+     storages.intent === undefined ? {} : { storage: storages.intent },
+@@ -293,6 +306,24 @@
+   const now = storages.now ?? Date.now();
+   dropPlanDraftAcceptance(storages.planDraft, now);
+   dropRouteDraftAcceptance(storages.routeDraft, now);
++  try {
++    const intentStorage = storages.intent === undefined ? safeSessionStorage() : storages.intent;
++    if (!intentStorage && storages.intent === undefined && typeof window !== "undefined") return false;
++    const rawIntent = intentStorage ? intentStorage.getItem(PLANNING_INTENT_STORAGE_KEY) : null;
++    const intentReleased = rawIntent === null || parsePlanningIntent(rawIntent, now) === null;
++    const planReleased = !storages.planDraft || (
++      !parsePlanDraftEnvelope(storages.planDraft.getItem(PLAN_DRAFT_V2_KEY), null, now)?.draft.acceptedAnchor
++      && !parsePlanDraftEnvelope(null, storages.planDraft.getItem(PLAN_DRAFT_KEY), now)?.draft.acceptedAnchor
++    );
++    const routeReleased = !storages.routeDraft || (
++      !parsePlanRouteDraftEnvelope(storages.routeDraft.getItem(PLAN_ROUTE_DRAFT_V2_KEY), null, now)?.value.anchorVenueId
++      && !parsePlanRouteDraftEnvelope(null, storages.routeDraft.getItem(PLAN_ROUTE_DRAFT_KEY), now)?.value.anchorVenueId
++    );
++    return intentReleased && planReleased && routeReleased;
++  } catch {
++    // A denied read cannot confirm that the next page will not hold Stop 1.
++    return false;
++  }
+ }
+ 
+ export type ProvisionalStopSeed = {
+--- a/components/plan/MapRouteTransferButton.tsx
++++ b/components/plan/MapRouteTransferButton.tsx
+@@ -46,10 +46,14 @@
+           : "Could not carry this route to Plan. Your route is still here. Try again.");
+         return;
+       }
+-      if (movedAnchor && releaseAnchor) releaseAcceptedPlanContext({
++      if (movedAnchor && releaseAnchor && !releaseAcceptedPlanContext({
+         planDraft: window.sessionStorage,
+         routeDraft: window.localStorage,
+-      });
++      })) {
++        event.preventDefault();
++        setError("Could not release your accepted Stop 1. Your current route is still here. Try again.");
++        return;
++      }
+       setError(null);
+     } catch {
+       event.preventDefault();
+--- a/__tests__/planComposerHandoff.test.ts
++++ b/__tests__/planComposerHandoff.test.ts
+@@ -525,6 +525,35 @@
+     expect(planDraft?.draft.acceptedAnchor).toBeUndefined();
+   });
+ 
++  it("confirms both draft versions and can retry a partially denied legacy write without changing current work", () => {
++    const storages = heldAcceptance();
++    const original = storages.planDraftStorage;
++    let denyLegacy = true;
++    const interrupted: Storage = {
++      get length() { return original.length; }, key: (index) => original.key(index),
++      clear: () => original.clear(), getItem: (key) => original.getItem(key),
++      setItem: (key, value) => {
++        if (denyLegacy && key === PLAN_DRAFT_KEY) throw new Error("legacy write denied");
++        original.setItem(key, value);
++      },
++      removeItem: (key) => {
++        if (denyLegacy && key === PLAN_DRAFT_KEY) throw new Error("legacy remove denied");
++        original.removeItem(key);
++      },
++    };
++    const options = { intent: storages.intentStorage, planDraft: interrupted,
++      routeDraft: storages.routeDraftStorage, now: NOW };
++    expect(releaseAcceptedPlanContext(options)).toBe(false);
++    // The canonical draft is released, but its rollback companion can still hold.
++    expect(readPlanDraftEnvelope(original, NOW)?.draft.acceptedAnchor).toBeUndefined();
++    expect(JSON.parse(original.getItem(PLAN_DRAFT_KEY)!).acceptedAnchor.venueId).toBe("venue-a");
++    expect(readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW)?.value.anchorVenueId).toBeNull();
++    denyLegacy = false;
++    expect(releaseAcceptedPlanContext(options)).toBe(true);
++    expect(JSON.parse(original.getItem(PLAN_DRAFT_KEY)!).acceptedAnchor).toBeUndefined();
++    expect(readPlanDraftEnvelope(original, NOW)?.draft.stops).toEqual([{ key: 1, venueId: "venue-a", venueName: "Venue A" }]);
++  });
++
+   it("still releases what it can when a storage is denied", () => {
+     const storages = heldAcceptance();
+     const denied = {
+@@ -541,6 +570,8 @@
+     })).not.toThrow();
+     expect(readPlanningIntent({ storage: storages.intentStorage, now: NOW })).toBeNull();
+     expect(readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW)?.value.anchorVenueId).toBeNull();
++    expect(releaseAcceptedPlanContext({ intent: storages.intentStorage, planDraft: denied,
++      routeDraft: storages.routeDraftStorage, now: NOW })).toBe(false);
+   });
+ });
+ 

@@ -1,0 +1,33 @@
+{
+  "capturedAtUtc": "2026-10-01T06:13:41Z",
+  "baseCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "scratchBase": "/tmp/pubmaxx-r47-listed-serving-cap/base",
+  "scratchCandidate": "/tmp/pubmaxx-r47-listed-serving-cap/candidate",
+  "patch": "/tmp/pubmaxx-r47-listed-serving-cap-red.patch",
+  "patchSha256": "8495b8e9d63ff78f9e256c660ac33039d071aa68f0e3e2bca55e3ae009d2a571",
+  "status": "UNRUN",
+  "files": [
+    {
+      "path": "__tests__/listedCategoryPrices.test.ts",
+      "baseSha256": "3fdbecae091da0f52669de504ccd25f27519230e1854317f8166b804490086d5",
+      "candidateSha256": "528ba2d9f41f4b4932a2e2f6ab3aad437a9f571888b8d82b37dba572b100d130"
+    },
+    {
+      "path": "__tests__/listedDiscoveryIndex.test.ts",
+      "baseSha256": "fe9a74eacb923599895070279d7f15795b0cb0c3bfd0c945f5e705267aa481f8",
+      "candidateSha256": "c4f0a4c1aa693396b646e7491e1c5368fed701ffc575909924ec28322efba702"
+    }
+  ],
+  "runtimeExecuted": false,
+  "productionFilesChanged": [],
+  "coverage": [
+    "Default per-category listed projection remains capped at four quotes.",
+    "A selected fifth eligible serving survives filtering before that cap.",
+    "Full servingGroups includes all five eligible groups, excluding unknown Btl, expired row and exact quarantined row.",
+    "The selected fifth group appears in discovery index without raising the 1000 global cap; truncation remains false."
+  ],
+  "limitations": [
+    "Test packet only. Production signature and same-projection metadata implementation await Root actual RED and Sol agreement.",
+    "No test, typecheck, or runtime executed by this agent."
+  ]
+}

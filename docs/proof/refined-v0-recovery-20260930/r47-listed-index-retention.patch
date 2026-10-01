@@ -1,0 +1,47 @@
+diff --git a/lib/ukPriceBundle.server.ts b/lib/ukPriceBundle.server.ts
+index 03c9f05..a7bedda 100644
+--- a/lib/ukPriceBundle.server.ts
++++ b/lib/ukPriceBundle.server.ts
+@@ -91,11 +91,12 @@ export async function ukPriceBundleCategoryIndex(category: DrinkCategory, now =
+   const read = await readUkPriceBundle();
+   const prices: Array<ReturnType<typeof listedCategoryPrices>[number] & { venueId: string }> = [];
+   let truncated = false;
+-  for (const [venueId, rows] of read.byVenue) {
+-    const quote = listedCategoryPrices(rows, now).find((value) => value.category === category);
+-    if (!quote) continue;
+-    if (prices.length === 1000) { truncated = true; break; }
+-    prices.push({ venueId, ...quote });
++  venues: for (const [venueId, rows] of read.byVenue) {
++    for (const quote of listedCategoryPrices(rows, now)) {
++      if (quote.category !== category) continue;
++      if (prices.length === 1000) { truncated = true; break venues; }
++      prices.push({ venueId, ...quote });
++    }
+   }
+   return { prices, truncated, degraded: read.status === "unavailable" };
+ }
+diff --git a/lib/mapExperienceLens.ts b/lib/mapExperienceLens.ts
+index c18e9a9..ac1478b 100644
+--- a/lib/mapExperienceLens.ts
++++ b/lib/mapExperienceLens.ts
+@@ -1,3 +1,4 @@
++import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
+ import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+ import { priceStandingFor } from "@/lib/priceTier";
+ import {
+@@ -45,6 +46,7 @@ export type MapLensPrice = {
+   observedAt?: string;
+   source: "community" | "sourced-anchor" | "listed";
+   servingSize?: string | null;
++  drinkLabel?: string | null;
+   sourceUrl?: string;
+ };
+ 
+@@ -420,6 +422,7 @@ export function readListedDrinkIndex(value: unknown, category: DrinkCategory): M
+     if (evidence?.source !== "listed") return [];
+     return [{ venueId: row.venueId, category, categoryLabel: CATEGORY_META[category].label,
+       priceGbp: evidence.pence / 100, source: "listed" as const, servingSize: evidence.serving,
++      drinkLabel: normalizeUkPriceBundleDrinkLabel(row.drinkLabel),
+       sourceUrl: evidence.sourceUrl, observedAt: evidence.observedAt }];
+   });
+ }

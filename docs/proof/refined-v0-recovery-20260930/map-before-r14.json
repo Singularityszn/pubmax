@@ -1,0 +1,36 @@
+{
+  "diagnostic": {
+    "permission": "granted",
+    "requests": [
+      143
+    ],
+    "watches": [
+      2220.5
+    ],
+    "href": "http://localhost:3351/map",
+    "chosenArea": "{\"cityId\":\"london\",\"label\":\"Near me\",\"slug\":\"near-me\",\"kind\":\"near-me\"}",
+    "saved": "{\"lat\":51.54,\"lng\":-0.21,\"savedAt\":1790645067098}",
+    "camera": {
+      "bearing": 0,
+      "pitch": 0,
+      "zoom": 14,
+      "center": [
+        -0.21,
+        51.54
+      ],
+      "moving": false
+    },
+    "dot": {
+      "hasSource": true,
+      "hasAccuracyLayer": true,
+      "hasCoreLayer": true,
+      "written": [
+        -0.09,
+        51.515
+      ],
+      "rendered": null
+    },
+    "tappableMarks": 7
+  },
+  "errors": []
+}

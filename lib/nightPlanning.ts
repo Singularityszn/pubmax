@@ -1,5 +1,5 @@
 import { formatGbp } from "@/lib/formatGbp";
-import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
+import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
@@ -69,7 +69,7 @@ const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
 
 function requestedDrinkCategory(query: string, zeroProof: boolean, reasons: ContextReason[]): DrinkCategory | null {
   if (zeroProof) return null;
-  const category = drinkCategoryFromText(query);
+  const category = planRequestedDrinkCategory(query);
   if (category) {
     reasons.push({ field: "drinkCategory", evidence: category, explanation: "Matched the requested drink category." });
   }

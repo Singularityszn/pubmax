@@ -1,0 +1,374 @@
+diff --git a/__tests__/priceSubmitRoute.test.ts b/__tests__/priceSubmitRoute.test.ts
+--- a/__tests__/priceSubmitRoute.test.ts
++++ b/__tests__/priceSubmitRoute.test.ts
+@@ -14,6 +14,23 @@
+ vi.mock("@/lib/supabase", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("@/lib/supabase")>();
+   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
++});
++
++const listedBundleState = vi.hoisted(() => ({
++  unavailable: false,
++  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
++}));
++vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
++  return {
++    ...actual,
++    ukPriceBundleRowsFor: async (venueId: string) =>
++      listedBundleState.unavailable
++        ? { status: "unavailable" as const, rows: [] }
++        : listedBundleState.rows !== null
++          ? { status: "ready" as const, rows: listedBundleState.rows.filter((row) => row.venueId === venueId) }
++          : actual.ukPriceBundleRowsFor(venueId),
++  };
+ });
+ 
+ const authState = vi.hoisted(() => ({ userId: null as string | null }));
+@@ -269,6 +286,8 @@
+   ukBaseIndexState.unavailable = false;
+   readBackState.override = null;
+   readBackState.statusOverride = null;
++  listedBundleState.unavailable = false;
++  listedBundleState.rows = null;
+   oneTapState.forcedOutcome = undefined;
+   oneTapState.beforeOutcome = null;
+   trustSyncState.override = null;
+@@ -1709,3 +1728,71 @@
+     expect((await res.json()).ok).toBe(true);
+   });
+ });
++
++
++describe("base venue published menu prices", () => {
++  const id = "venue-uk-n8308248176";
++  let restoreClock = () => {};
++  beforeEach(() => {
++    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T00:00:00Z"));
++    restoreClock = () => clock.mockRestore();
++    const row: import("@/lib/ukPriceBundle").UkPriceBundleRow = {
++      venueId: id, name: "The Sydney Arms", category: "wine", priceGbp: 10.5,
++      lane: "site-harvest", standing: "listed", sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
++      publisher: "sydneyarmschelsea.com", observedAt: "2026-09-29T10:40:17.846Z",
++      basis: null, sampleSize: null, servingSize: "250ml", drinkLabel: "Rioja, Spain",
++    };
++    // Reader fixture keeps this contract independent of legitimate menu updates.
++    // The actual serializer and route still decide eligibility and serving groups.
++    listedBundleState.rows = [
++      row, { ...row, priceGbp: 5.25, servingSize: "125ml" },
++      { ...row, standing: "estimate", sourceUrl: null, priceGbp: 1, drinkLabel: "Estimate" },
++      { ...row, observedAt: "2020-01-01T00:00:00.000Z", drinkLabel: "Expired", priceGbp: 1 },
++    ];
++  });
++  afterEach(() => { restoreClock(); });
++
++  it("delivers eligible exact-serving menu quotes separately from community observations", async () => {
++    const response = await GET(get(`?venueId=${id}`));
++    expect(response.status).toBe(200);
++    expect(response.headers.get("cache-control")).toContain("no-store");
++    const body = await response.json();
++    expect(body.prices).toEqual([]);
++    expect(body.signals).toEqual([]);
++    expect(body.listedPrices).toContainEqual({
++      source: "listed", category: "wine", drinkLabel: "Rioja, Spain",
++      priceGbp: 10.5, servingSize: "250ml",
++      sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
++      observedAt: "2026-09-29T10:40:17.846Z",
++    });
++    expect(body.listedPrices).toHaveLength(2);
++    expect(body.listedPrices.every((row: { source: string; category: string }) =>
++      row.source === "listed" && row.category !== "beer")).toBe(true);
++  });
++
++  it("keeps a published quote when community storage is degraded", async () => {
++    readBackState.statusOverride = { prices: [], degraded: true };
++    const body = await (await GET(get(`?venueId=${id}`))).json();
++    expect(body.degraded).toBe(true);
++    expect(body.prices).toEqual([]);
++    expect(body.listedPrices).toEqual(expect.arrayContaining([
++      expect.objectContaining({ drinkLabel: "Rioja, Spain", priceGbp: 10.5, servingSize: "250ml" }),
++    ]));
++  });
++
++  it("keeps community availability independent when the published read fails", async () => {
++    listedBundleState.unavailable = true;
++    const body = await (await GET(get(`?venueId=${id}`))).json();
++    expect(body).toEqual({ prices: [], signals: [], listedPrices: null });
++  });
++
++  it("answers an exact base id with no bundle rows as published-empty without inventing a pub", async () => {
++    const body = await (await GET(get("?venueId=venue-uk-n0000000000"))).json();
++    expect(body).toEqual({ prices: [], signals: [], listedPrices: [] });
++  });
++
++  it("leaves the curated per-venue payload unchanged", async () => {
++    const body = await (await GET(get("?venueId=venue-xjf3n0"))).json();
++    expect(body).not.toHaveProperty("listedPrices");
++  });
++});
+diff --git a/__tests__/unverifiedPubSheet.test.ts b/__tests__/unverifiedPubSheet.test.ts
+--- a/__tests__/unverifiedPubSheet.test.ts
++++ b/__tests__/unverifiedPubSheet.test.ts
+@@ -5,6 +5,7 @@
+ import UnverifiedPubSheet, { HarvestOverlayFields } from "@/components/map/UnverifiedPubSheet";
+ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+ import type { CommunityPrice } from "@/lib/communityPrice";
++import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
+ import type {
+   MapExperienceLens,
+   VenuePriceReadStatus,
+@@ -49,6 +50,7 @@
+     loadDrinkCategoryIndex: () => {},
+     drinkCategoryIndexStatus: new Map(),
+     listedDrinkPrices: new Map(),
++    listedPricesByVenueId: known ? new Map([[pub.id, []]]) : new Map(),
+     submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null, pintTrust: null, confirmationOutcome: null }),
+     submitVenueSignal: async () => ({ ok: true }),
+     submitting: false,
+@@ -326,3 +328,70 @@
+     expect(html).not.toMatch(/href="http:\/\//);
+   });
+ });
++
++
++describe("base published menu quote ownership", () => {
++  const listed: ListedCategoryPrice = {
++    source: "listed", category: "wine", drinkLabel: "Rioja, Spain",
++    priceGbp: 10.5, servingSize: "250ml",
++    sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
++    observedAt: "2026-09-29T10:40:17.846Z",
++  };
++  function renderPublished(
++    quotes: ListedCategoryPrice[] | null | undefined,
++    rows: CommunityPrice[] = [],
++    readStatus: VenuePriceReadStatus = "ready",
++    experienceLens: MapExperienceLens = "all",
++    drinkLensCategory: CommunityPrice["drinkCategory"] | null = null,
++  ) {
++    const communityPrices = state(rows, true, readStatus);
++    communityPrices.listedPricesByVenueId = quotes === undefined
++      ? new Map() : new Map([[pub.id, quotes]]);
++    return renderToStaticMarkup(createElement(UnverifiedPubSheet, {
++      pub, communityPrices, experienceLens, drinkLensCategory,
++    }));
++  }
++
++  it("shows an attributable exact-serving menu quote without promoting a base pub", () => {
++    const html = renderPublished([listed]);
++    expect(html).toContain("Prices on published menus");
++    expect(html).toContain("Rioja, Spain");
++    expect(html).toContain("£10.50");
++    expect(html).toContain("250ml");
++    expect(html).toContain("Price seen 29 September 2026");
++    expect(html).toContain(`href="${listed.sourceUrl}"`);
++    expect(html).not.toContain("No price yet");
++    expect(html).not.toContain("that is all we know");
++    expect(html).toContain("Prices never come from OpenStreetMap");
++  });
++
++  it("keeps published and community claims separate without comparing different drinks", () => {
++    const html = renderPublished([listed], [{
++      id: "community-coffee", venueId: pub.id, drinkCategory: "coffee",
++      priceGbp: 3.2, submittedAt: Date.now(), source: "community", corroborations: 1,
++    }]);
++    expect(html).toContain("£10.50");
++    expect(html).toContain("£3.20");
++    expect(html).toContain("Logged by a PUBMAXXER");
++    expect(html.indexOf("Prices on published menus")).toBeLessThan(html.indexOf("Logged by a PUBMAXXER"));
++  });
++
++  it("does not hide a published reading when community storage is unavailable", () => {
++    expect(renderPublished([listed], [], "degraded")).toContain("Rioja, Spain");
++  });
++
++  it("distinguishes pending and unavailable published reads from successful empty", () => {
++    expect(renderPublished(undefined)).toContain("Checking published menu prices");
++    expect(renderPublished(undefined)).not.toContain("No price yet");
++    expect(renderPublished(null)).toContain("Published menu prices unavailable just now");
++    expect(renderPublished(null)).not.toContain("No price yet");
++    expect(renderPublished([])).toContain("No price yet");
++  });
++
++  it("does not invent a measure or answer another lens with wine", () => {
++    expect(renderPublished([{ ...listed, servingSize: null }])).toContain("Serving not recorded");
++    for (const [lens, category] of [["food", null], ["no-alcohol", null], ["all", "coffee"]] as const) {
++      expect(renderPublished([listed], [], "ready", lens, category)).not.toContain("Rioja, Spain");
++    }
++  });
++});
+diff --git a/__tests__/communityPriceClientState.test.ts b/__tests__/communityPriceClientState.test.ts
+--- a/__tests__/communityPriceClientState.test.ts
++++ b/__tests__/communityPriceClientState.test.ts
+@@ -1,4 +1,15 @@
+-import { describe, expect, it } from "vitest";
++// @vitest-environment jsdom
++
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { act, createElement, useEffect } from "react";
++import { createRoot, type Root } from "react-dom/client";
++import { useCommunityPrices } from "@/components/map/useCommunityPrices";
++import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
++import type { UkBasePub } from "@/lib/ukBasePubs";
++
++vi.mock("@/components/auth/AuthProvider", () => ({
++  useAuth: () => ({ user: null, handle: null, identityResolved: true, loading: false, configured: true }),
++}));
+ 
+ import {
+   planProvisionalBaseVenueRead,
+@@ -329,3 +340,155 @@
+     ).toEqual([stored]);
+   });
+ });
++
++
++describe("published menu prices through the selected base read", () => {
++  const pub: UkBasePub = { id: "venue-uk-n123", name: "Test Arms", address: "", lat: 51.49, lng: -0.17, curatedVenueId: "", kind: "pub" };
++  const quote = {
++    source: "listed", category: "wine", drinkLabel: "Rioja, Spain", priceGbp: 10.5,
++    servingSize: "250ml", sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T10:40:17.846Z",
++  };
++  let root: Root | null = null;
++  let restoreClock = () => {};
++  let container: HTMLDivElement;
++  let current: ReturnType<typeof useCommunityPrices>;
++  function Surface({ selected }: { selected: UkBasePub }) {
++    const communityPrices = useCommunityPrices();
++    current = communityPrices;
++    const loadVenue = communityPrices.loadVenue;
++    // Same selected read as VenuePriceEntryPanel; dedupe must absorb both callers.
++    useEffect(() => { loadVenue(selected.id); }, [loadVenue, selected.id]);
++    return createElement(UnverifiedPubSheet, { pub: selected, communityPrices });
++  }
++  function mount(selected = pub) {
++    container = document.createElement("div");
++    document.body.append(container);
++    root = createRoot(container);
++    root.render(createElement(Surface, { selected }));
++  }
++  function mockPriceReads(read: (id: string) => Promise<Response> | Response) {
++    const fetcher = vi.fn((input: RequestInfo | URL) => {
++      const url = new URL(String(input), "http://localhost");
++      if (url.pathname === "/api/price-submit") return read(url.searchParams.get("venueId") ?? "");
++      return Promise.resolve(Response.json({ status: "ready", overlay: null }));
++    });
++    vi.stubGlobal("fetch", fetcher);
++    return fetcher;
++  }
++  beforeEach(() => {
++    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T00:00:00Z"));
++    restoreClock = () => clock.mockRestore();
++    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
++  });
++  afterEach(async () => {
++    await act(async () => { root?.unmount(); });
++    root = null;
++    container?.remove();
++    vi.unstubAllGlobals();
++    restoreClock();
++    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
++  });
++
++  it("uses the existing selected GET and keeps published rows out of community map authority", async () => {
++    const fetcher = mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [quote] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Rioja, Spain");
++    });
++    expect(container.textContent).toContain("250ml");
++    expect(current.byVenueId.get(pub.id)).toEqual([]);
++    expect(current.freshestByVenueId.has(pub.id)).toBe(false);
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++    expect(fetcher.mock.calls.filter(([input]) => String(input).startsWith("/api/price-submit?venueId="))).toHaveLength(1);
++  });
++
++  it.each([
++    { ...quote, source: "estimate" },
++    { ...quote, sourceUrl: "javascript:alert(1)" },
++    { ...quote, observedAt: "not-a-date" },
++    { ...quote, observedAt: "2024-01-01T00:00:00.000Z" },
++    { ...quote, servingSize: 250 },
++    { ...quote, drinkLabel: {} },
++    { ...quote, drinkLabel: "x".repeat(81) },
++    { ...quote, servingSize: "x".repeat(49) },
++    { ...quote, sourceUrl: `https://pub.example/${"x".repeat(2048)}` },
++  ])("does not render a malformed or expired published claim: %j", async (invalid) => {
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [invalid] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Published menu prices unavailable just now");
++    });
++    expect(container.textContent).not.toContain("£10.50");
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++  });
++
++  it("uses canonical label normalization without changing the quoted measure or amount", async () => {
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [
++      { ...quote, drinkLabel: "  Rioja, Spain  " },
++      { ...quote, drinkLabel: "   ", priceGbp: 5.25, servingSize: "125ml" },
++    ] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Rioja, Spain");
++    });
++    expect(current.listedPricesByVenueId?.get(pub.id)).toEqual([
++      { ...quote, drinkLabel: "Rioja, Spain" },
++      { ...quote, drinkLabel: null, priceGbp: 5.25, servingSize: "125ml" },
++    ]);
++    expect(container.textContent).toContain("250ml");
++    expect(container.textContent).toContain("125ml");
++  });
++
++  it("rejects overfull serving quote groups without changing the community read", async () => {
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: Array.from({ length: 5 }, () => quote) }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Published menu prices unavailable just now");
++    });
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++    expect(container.textContent).not.toContain("£10.50");
++  });
++
++  it("allows a failed published read to retry without changing community availability", async () => {
++    let attempt = 0;
++    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: attempt++ === 0 ? null : [quote] }));
++    await act(async () => { mount(); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Published menu prices unavailable just now");
++    });
++    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
++    await act(async () => { current.loadVenue(pub.id); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Rioja, Spain");
++    });
++    expect(attempt).toBe(2);
++  });
++
++  it("keeps a late A response attached to A after the selected base pub changes to B", async () => {
++    let finishA!: (response: Response) => void;
++    const responseA = new Promise<Response>((resolve) => { finishA = resolve; });
++    const second = { ...pub, id: "venue-uk-n456", name: "Second Arms" };
++    mockPriceReads((id) => id === pub.id ? responseA : Response.json({ prices: [], signals: [], listedPrices: [{ ...quote, drinkLabel: "Chardonnay", priceGbp: 8 }] }));
++    await act(async () => { mount(); });
++    await act(async () => { root!.render(createElement(Surface, { selected: second })); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(container.textContent).toContain("Chardonnay");
++    });
++    await act(async () => { finishA(Response.json({ prices: [], signals: [], listedPrices: [quote] })); });
++    await vi.waitFor(async () => {
++      await act(async () => {});
++      expect(current.listedPricesByVenueId?.get(pub.id)).toHaveLength(1);
++    });
++    expect(container.textContent).toContain("Second Arms");
++    expect(container.textContent).toContain("Chardonnay");
++    expect(container.textContent).not.toContain("Rioja, Spain");
++    expect(container.textContent).not.toContain("£10.50");
++  });
++});

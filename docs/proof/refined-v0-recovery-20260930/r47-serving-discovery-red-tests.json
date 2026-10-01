@@ -1,0 +1,26 @@
+{
+  "recordedAt": "2026-10-01T03:48:48.904470+00:00",
+  "status": "SOURCE_TEST_PREPARATION_UNRUN_PRODUCTION_UNCHANGED",
+  "base": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+  "compatibleObservedHead": "6ee2bfb43c6720bf0159bc23d5617c1a791c0e40",
+  "appliesAfter": "r47-minimal-release-composition.patch",
+  "path": "__tests__/listedDiscoveryIndex.test.ts",
+  "beforeSha256": "9c70ebb9e6f6a67716f0b45f8a0195f398028b54d31c40eb5d16942612e72c53",
+  "afterSha256": "cedaeecf6032882350adf91196092bf113cd68abb3c68ec642b05121ac5a4170",
+  "patchSha256": "52407a391f3ff49f7b925a4881dafd2b5b2262533c11d9390333efb6f1aeb4fd",
+  "bytes": 2183,
+  "scratch": "/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/pubmaxx-r47-serving-red-0rs71pg4",
+  "sourceValidation": "Scratch apply/check/whitespace/output hash PASS. Maintained source untouched.",
+  "expectedCurrent": "Both added cases expected RED from source trace only: category index .find drops125/250ml; client reader omits available drinkLabel. Not observed runtime results.",
+  "scope": "Read existing public helpers with existing filesystem mock. No new endpoint/group selector/default/inferred serving or limit raise. Unknown listings remain represented. Existing trust/expiry/cap and community tests retained.",
+  "notCovered": [
+    "Actual native category GET/List unknown-vs25ml ordering",
+    "Explicit group chooser before per-venue reduction",
+    "Unknown trusted community overriding eligible listed group",
+    "Capped available group completeness",
+    "Base venue identity and wine availability"
+  ],
+  "runtimeOwner": "Release owner first native falsifier/meaningful tests before production repair; Core no slot.",
+  "focusedCommand": "npm test -- __tests__/listedDiscoveryIndex.test.ts __tests__/listedCategoryPrices.test.ts __tests__/listedPriceComparison.test.ts --maxWorkers=1 --no-file-parallelism",
+  "reference": "https://vitest.dev/guide/mocking.html"
+}

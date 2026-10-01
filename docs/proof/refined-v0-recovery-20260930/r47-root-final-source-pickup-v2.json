@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-01T09:40:56.191485+00:00",
+  "status": "ALL_REQUESTED_SOURCE_PACKETS_READY_FOR_ROOT_RUNTIME",
+  "files": [
+    {
+      "patch": "r47-map-route-evidence-production.patch",
+      "manifest": "r47-map-route-evidence-production.json",
+      "sha256": "075d59dc3766914b6a0dd5b2d1dca1239e1d0abbda9f27364532f60243148149"
+    },
+    {
+      "patch": "r47-mobile-plan-activation-key-production.patch",
+      "manifest": "r47-mobile-plan-activation-key-production.json",
+      "sha256": "08eed6ce7592e2ea05b7a30d281690e6a8992677142bc01d6369ad5719e94050"
+    },
+    {
+      "patch": "r47-plan-backup-pg-final-tail.patch",
+      "manifest": "r47-plan-backup-pg-final-tail.json",
+      "sha256": "86e0f06470206ff5587eb9922b9cbe2ca1db39ac08bc0f4655daa607ad2ff5ae"
+    },
+    {
+      "patch": "r47-plan-backup-pg-fullchain-v2.patch",
+      "manifest": "r47-plan-backup-pg-fullchain-v2.json",
+      "sha256": "fafbafd646572cbb9561978176c10abb456a774de22c60f5c60ce2acd700f651"
+    },
+    {
+      "patch": "r47-alcohol-primary-test-first.patch",
+      "manifest": "r47-alcohol-primary-test-first.json",
+      "sha256": "f8e77a8fc9d8750469845edee7c2b6385cd1d697ab7c5bd732ec68d2804bdec4"
+    }
+  ],
+  "RootActions": "Applytwo producerhunks withcurrentpins; types/freshbuild/realvodkahandoff+Mappricequotation. AddPGbothpathsregistry/CI preservingfriend/group; realcurrent0182 PGzero skips+permissionMatrixEffective. Run primaryf8e7actualRED beforefurtherprimaryselectionrepair. CaptainSQL/deployboundary preserved."
+}

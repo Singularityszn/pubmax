@@ -1,0 +1,447 @@
+diff --git a/app/api/price-submit/route.ts b/app/api/price-submit/route.ts
+--- a/app/api/price-submit/route.ts
++++ b/app/api/price-submit/route.ts
+@@ -41,7 +41,8 @@
+ // Reads and reader reports remain keyless. New contributions require configured
+ // authentication plus a completed account profile.
+ 
+-import { ukPriceBundleCategoryIndex } from "@/lib/ukPriceBundle.server";
++import { ukPriceBundleCategoryIndex, ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
++import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+ import { jsonNoStore } from "@/lib/apiResponses";
+ import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
+@@ -582,19 +583,31 @@
+       }
+       priceVenueId = venueLookup.canonicalId;
+     }
+-    const [result, signalResult] = await Promise.all([
++    // A base id remains outside the curated venue index. Published quotes use
++    // only approved bundle rows keyed by that exact id; no new membership scan
++    // or community authority is involved in this public read.
++    const baseRead = isUkBaseId(priceVenueId);
++    const [result, signalResult, published] = await Promise.all([
+       readCommunityPricesWithStatus(priceVenueId),
+       readCommunityVenueSignalsWithStatus(priceVenueId),
++      baseRead
++        ? ukPriceBundleRowsFor(priceVenueId)
++            .then((bundle) => bundle.status === "unavailable"
++              ? null : listedCategoryPrices(bundle.rows, undefined, { includeBeer: true }))
++            .catch(() => null)
++        : undefined,
+     ]);
++    const listed = baseRead ? { listedPrices: published } : {};
+     const degraded = result.degraded || signalResult.degraded;
+     return jsonNoStore(
+       degraded
+         ? {
+             prices: result.prices,
+             signals: signalResult.signals,
++            ...listed,
+             degraded: true,
+           }
+-        : { prices: result.prices, signals: signalResult.signals },
++        : { prices: result.prices, signals: signalResult.signals, ...listed },
+       { status: 200 },
+     );
+   } catch {
+diff --git a/components/map/useCommunityPrices.ts b/components/map/useCommunityPrices.ts
+--- a/components/map/useCommunityPrices.ts
++++ b/components/map/useCommunityPrices.ts
+@@ -25,7 +25,18 @@
+   readContributionGateStatus,
+   type ContributionGateStatus,
+ } from "@/lib/contributionGateStatus";
+-import type { DrinkCategory } from "@/lib/drinks";
++import { DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
++import {
++  MAX_QUOTES_PER_CATEGORY,
++  MAX_SOURCE_URL_LENGTH,
++  MAX_SERVING_LENGTH,
++  type ListedCategoryPrice,
++} from "@/lib/listedCategoryPrices";
++import {
++  UK_PRICE_BUNDLE_DRINK_LABEL_MAX,
++  normalizeUkPriceBundleDrinkLabel,
++} from "@/lib/bundleDrinkFields";
++import { priceStandingFor } from "@/lib/priceTier";
+ import {
+   parseConfirmationOutcome,
+   type PintDropConfirmationOutcome,
+@@ -150,6 +161,9 @@
+    *  purpose - this is what the venue sheet renders, so every submission shows
+    *  there, dated, whether or not it has earned the map. */
+   byVenueId: Map<string, CommunityPrice[]>;
++  /** Base-sheet menu quotes. Separate from community rows and map authority.
++   * Missing key = unread; [] = ready empty; null = unavailable. */
++  listedPricesByVenueId?: ReadonlyMap<string, readonly ListedCategoryPrice[] | null>;
+   /** Community-observed pub signals loaded by the same per-venue request. */
+   signalsByVenueId: Map<string, CommunityVenueSignal[]>;
+   /** The freshest BEER price at a venue - the pin's CANDIDATE, not its verdict.
+@@ -409,6 +423,43 @@
+   return { status: "ready", prices };
+ }
+ 
++/** Published claims have their own read outcome, independent of community. */
++function readVenueListedPrices(value: unknown): ListedCategoryPrice[] | null {
++  if (!value || typeof value !== "object") return null;
++  const listed = (value as { listedPrices?: unknown }).listedPrices;
++  if (!Array.isArray(listed)
++    || listed.length > DRINK_CATEGORIES.length * MAX_QUOTES_PER_CATEGORY) return null;
++  const categoryCounts = new Map<DrinkCategory, number>();
++  const quotes: ListedCategoryPrice[] = [];
++  for (const item of listed) {
++    if (!item || typeof item !== "object") return null;
++    const row = item as Record<string, unknown>;
++    if (row.source !== "listed" || !isDrinkCategory(row.category)
++      || typeof row.priceGbp !== "number" || typeof row.sourceUrl !== "string"
++      || typeof row.observedAt !== "string" || row.sourceUrl.length > MAX_SOURCE_URL_LENGTH
++      || (row.drinkLabel !== null && (typeof row.drinkLabel !== "string"
++        || row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX))
++      || (row.servingSize !== null && (typeof row.servingSize !== "string"
++        || !row.servingSize.trim() || row.servingSize !== row.servingSize.trim()
++        || row.servingSize.length > MAX_SERVING_LENGTH
++        || /[\u0000-\u001f\u007f]/.test(row.servingSize)))) return null;
++    const count = (categoryCounts.get(row.category) ?? 0) + 1;
++    if (count > MAX_QUOTES_PER_CATEGORY) return null;
++    categoryCounts.set(row.category, count);
++    const decision = priceStandingFor({ listed: {
++      priceGbp: row.priceGbp, sourceUrl: row.sourceUrl, observedAt: row.observedAt,
++    } });
++    if (decision.standing !== "listed") return null;
++    quotes.push({
++      source: "listed", category: row.category, priceGbp: row.priceGbp,
++      drinkLabel: normalizeUkPriceBundleDrinkLabel(row.drinkLabel as string | null),
++      servingSize: row.servingSize as string | null,
++      sourceUrl: row.sourceUrl, observedAt: row.observedAt,
++    });
++  }
++  return quotes;
++}
++
+ export type VenueSignalLoad =
+   | { status: "ready"; signals: CommunityVenueSignal[] }
+   | { status: "degraded"; signals: CommunityVenueSignal[] }
+@@ -611,6 +662,12 @@
+   >("idle");
+   // Venues already fetched this session - the sheet re-mounts on every
+   // selection and must not re-hit the API for a venue it already read.
++  const [listedPricesByVenueId, setListedPricesByVenueId] = useState<
++    ReadonlyMap<string, readonly ListedCategoryPrice[] | null>
++  >(() => new Map());
++  const markListedRead = useCallback((venueId: string, quotes: ListedCategoryPrice[] | null) => {
++    setListedPricesByVenueId((current) => new Map(current).set(venueId, quotes));
++  }, []);
+   const loaded = useRef<Set<string>>(new Set());
+   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
+   const loadedSignalRows = useRef<Map<string, CommunityVenueSignal[]>>(
+@@ -665,9 +722,15 @@
+             discardBody(res);
+             loaded.current.delete(venueId);
+             markVenueRead(venueId, "degraded");
++            if (isUkBaseId(venueId)) markListedRead(venueId, null);
+             return;
+           }
+           const payload = await res.json();
++          if (isUkBaseId(venueId)) {
++            const quotes = readVenueListedPrices(payload);
++            markListedRead(venueId, quotes);
++            if (quotes === null) loaded.current.delete(venueId);
++          }
+           const result = readVenuePriceLoad(payload);
+           const signalResult = readVenueSignalLoad(payload);
+           if (result.status === "invalid" || signalResult.status === "invalid") {
+@@ -729,10 +792,11 @@
+           // Allow a later selection to retry this venue.
+           loaded.current.delete(venueId);
+           markVenueRead(venueId, "degraded");
++          if (isUkBaseId(venueId)) markListedRead(venueId, null);
+         }
+       })();
+     },
+-    [markVenueRead],
++    [markVenueRead, markListedRead],
+   );
+ 
+   const loadNoAlcoholIndex = useCallback(() => {
+@@ -1267,6 +1331,7 @@
+ 
+   return {
+     byVenueId,
++    listedPricesByVenueId,
+     signalsByVenueId,
+     freshestByVenueId,
+     noAlcoholIndexStatus,
+diff --git a/components/map/VenueDrinkPrices.tsx b/components/map/VenueDrinkPrices.tsx
+--- a/components/map/VenueDrinkPrices.tsx
++++ b/components/map/VenueDrinkPrices.tsx
+@@ -16,7 +16,7 @@
+   orderVenueDrinkPrices,
+ } from "@/lib/drinkLanes";
+ import type { DrinkCategory } from "@/lib/drinks";
+-import { CATEGORY_META } from "@/lib/drinks";
++import PublishedMenuPrices from "@/components/map/PublishedMenuPrices";
+ import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
+ import {
+   drinkLensEmptyVenueNote,
+@@ -26,58 +26,6 @@
+ import { formatPrice } from "@/lib/venues";
+ 
+ import "./venueDrinkPrices.css";
+-
+-const listedDayFormatter = new Intl.DateTimeFormat("en-GB", {
+-  day: "numeric",
+-  month: "long",
+-  year: "numeric",
+-  timeZone: "UTC",
+-});
+-
+-function PublishedMenuPrices({
+-  prices,
+-  unavailable,
+-}: {
+-  prices: readonly ListedCategoryPrice[];
+-  unavailable: boolean;
+-}) {
+-  if (unavailable) {
+-    return (
+-      <p className="venueListedPriceUnavailable" role="status">
+-        Published menu prices unavailable just now.
+-      </p>
+-    );
+-  }
+-  if (prices.length === 0) return null;
+-
+-  return (
+-    <div className="venueListedPrices">
+-      <h3>Prices on published menus</h3>
+-      <ul className="venueDrinkPricesList">
+-        {prices.map((quote, index) => (
+-          <li key={`${quote.category}-${quote.sourceUrl}-${index}`} className="venueListedPriceRow">
+-            <span className="venueDrinkPriceTag">
+-              {CATEGORY_META[quote.category].label}
+-              {quote.drinkLabel && quote.drinkLabel !== CATEGORY_META[quote.category].label
+-                ? ` · ${quote.drinkLabel}`
+-                : null}
+-            </span>
+-            <span className="venueDrinkPriceFigure">{formatPrice(quote.priceGbp)}</span>
+-            <span className="venueListedPriceMeasure">
+-              {quote.servingSize || "Serving not recorded"}
+-            </span>
+-            <span className="venueListedPriceSource">
+-              Price seen {listedDayFormatter.format(new Date(quote.observedAt))} ·{" "}
+-              <a href={quote.sourceUrl} target="_blank" rel="noopener noreferrer">
+-                View menu source
+-              </a>
+-            </span>
+-          </li>
+-        ))}
+-      </ul>
+-    </div>
+-  );
+-}
+ 
+ function emptyLaneNote(
+   hasCommunityRow: boolean,
+diff --git a/components/map/PublishedMenuPrices.tsx b/components/map/PublishedMenuPrices.tsx
+new file mode 100644
+--- /dev/null
++++ b/components/map/PublishedMenuPrices.tsx
+@@ -0,0 +1,63 @@
++import { CATEGORY_META } from "@/lib/drinks";
++import { formatPrice } from "@/lib/formatGbp";
++import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
++
++import "./venueDrinkPrices.css";
++
++const listedDayFormatter = new Intl.DateTimeFormat("en-GB", {
++  day: "numeric",
++  month: "long",
++  year: "numeric",
++  timeZone: "UTC",
++});
++
++export default function PublishedMenuPrices({
++  prices,
++  unavailable,
++  loading = false,
++}: {
++  prices: readonly ListedCategoryPrice[];
++  unavailable: boolean;
++  loading?: boolean;
++}) {
++  if (loading) {
++    return <p className="venueListedPriceUnavailable" role="status">Checking published menu prices.</p>;
++  }
++  if (unavailable) {
++    return (
++      <p className="venueListedPriceUnavailable" role="status">
++        Published menu prices unavailable just now.
++      </p>
++    );
++  }
++  if (prices.length === 0) return null;
++
++  return (
++    <div className="venueListedPrices">
++      <h3>Prices on published menus</h3>
++      <ul className="venueDrinkPricesList">
++        {prices.map((quote, index) => (
++          <li key={`${quote.category}-${quote.sourceUrl}-${index}`} className="venueListedPriceRow">
++            <span className="venueDrinkPriceTag">
++              {CATEGORY_META[quote.category].label}
++              {quote.drinkLabel && quote.drinkLabel !== CATEGORY_META[quote.category].label
++                ? ` · ${quote.drinkLabel}`
++                : null}
++            </span>
++            <span className="venueDrinkPriceFigure">{formatPrice(quote.priceGbp)}</span>
++            <span className="venueListedPriceMeasure">
++              {quote.servingSize || "Serving not recorded"}
++            </span>
++            <span className="venueListedPriceSource">
++              Price seen {listedDayFormatter.format(new Date(quote.observedAt))} ·{" "}
++              <a href={quote.sourceUrl} target="_blank" rel="noopener noreferrer">
++                View menu source
++              </a>
++            </span>
++          </li>
++        ))}
++      </ul>
++    </div>
++  );
++}
++
+diff --git a/components/map/UnverifiedPubSheet.tsx b/components/map/UnverifiedPubSheet.tsx
+--- a/components/map/UnverifiedPubSheet.tsx
++++ b/components/map/UnverifiedPubSheet.tsx
+@@ -6,6 +6,7 @@
+ 
+ import { useAuth } from "@/components/auth/AuthProvider";
+ import PriceBadge from "@/components/PriceBadge";
++import PublishedMenuPrices from "@/components/map/PublishedMenuPrices";
+ import CommunityPriceReport from "@/components/map/CommunityPriceReport";
+ import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
+ import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
+@@ -104,6 +105,14 @@
+   const pricesKnown = readStatus === "ready";
+   const readFailed = readStatus === "degraded";
+   const rows = communityPrices.byVenueId.get(pub.id);
++  const listed = communityPrices.listedPricesByVenueId?.get(pub.id);
++  const visibleListed = listed?.filter((quote) =>
++    experienceLens === "food" ? false
++      : experienceLens === "no-alcohol"
++        ? quote.category === "soft-drink" || quote.category === "alcohol-free"
++        : !drinkLensCategory || quote.category === drinkLensCategory,
++  ) ?? [];
++  const hasPublished = visibleListed.length > 0;
+   const communityPrice = freshestCommunityPrice(
+     experienceLens === "food"
+       ? undefined
+@@ -169,13 +178,17 @@
+       <div className="unverifiedPubHead">
+         <span className="unverifiedPubTag">
+           <Sparkles size={12} aria-hidden="true" />
+-          {communityPrice
+-            ? "Community price"
+-            : pricesKnown
+-              ? "No price yet"
+-              : readFailed
++          {hasPublished
++            ? "Published menu prices"
++            : communityPrice
++              ? "Community price"
++              : readFailed || listed === null
+                 ? "Prices unread"
+-                : "Checking community prices"}
++                : !pricesKnown
++                  ? "Checking community prices"
++                  : listed === undefined && experienceLens !== "food"
++                    ? "Checking published menu prices"
++                    : "No price yet"}
+         </span>
+         <h2 className="unverifiedPubName">{pub.name}</h2>
+         {pub.address ? (
+@@ -185,6 +198,14 @@
+           </p>
+         ) : null}
+       </div>
++
++      {experienceLens !== "food" ? (
++        <PublishedMenuPrices
++          prices={visibleListed}
++          unavailable={listed === null}
++          loading={listed === undefined}
++        />
++      ) : null}
+ 
+       {communityPrice ? (
+         <>
+@@ -221,7 +242,7 @@
+             />
+           </div>
+         </>
+-      ) : pricesKnown && experienceLens === "no-alcohol" ? (
++      ) : hasPublished ? null : pricesKnown && experienceLens === "no-alcohol" ? (
+         <p className="unverifiedPubLead">
+           {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
+         </p>
+@@ -235,8 +256,7 @@
+         </p>
+       ) : pricesKnown ? (
+         <p className="unverifiedPubLead">
+-          We know this {placeNoun} is here, and that is all we know. Nobody has
+-          logged what a drink costs - <strong>be the first</strong>.
++          Nobody has logged what a drink costs at this {placeNoun} - <strong>be the first</strong>.
+         </p>
+       ) : readFailed ? (
+         <p className="unverifiedPubLead">
+@@ -268,7 +288,7 @@
+ 
+       {/* ODbL requires attribution wherever these pins are publicly displayed
+           (data/osm/uk/README.md), and it is also the honest provenance line:
+-          the pub's existence is sourced, its price is not. */}
++          OSM sources the location, while each price names its own source. */}
+       <p className="unverifiedPubSource">
+         {placeNoun === "bar" ? "Bar" : "Pub"} location from{" "}
+         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+diff --git a/lib/listedCategoryPrices.ts b/lib/listedCategoryPrices.ts
+--- a/lib/listedCategoryPrices.ts
++++ b/lib/listedCategoryPrices.ts
+@@ -22,14 +22,15 @@
+   observedAt: string;
+ };
+ 
+-const MAX_QUOTES_PER_CATEGORY = 4;
+-const MAX_SOURCE_URL_LENGTH = 2048;
+-const MAX_SERVING_LENGTH = 48;
++export const MAX_QUOTES_PER_CATEGORY = 4;
++export const MAX_SOURCE_URL_LENGTH = 2048;
++export const MAX_SERVING_LENGTH = 48;
+ 
+-/** Venue-scoped, attributable non-beer quotes from the approved bundle. */
++/** Venue-scoped approved quotes. Beer is opt-in for the unranked base sheet. */
+ export function listedCategoryPrices(
+   rows: readonly UkPriceBundleRow[],
+   now: number = Date.now(),
++  { includeBeer = false }: { includeBeer?: boolean } = {},
+ ): ListedCategoryPrice[] {
+   const eligible: { quote: ListedCategoryPrice; index: number; row: UkPriceBundleRow }[] = [];
+ 
+@@ -37,7 +38,7 @@
+     if (
+       row.standing !== "listed" ||
+       !isDrinkCategory(row.category) ||
+-      row.category === "beer"
++      (row.category === "beer" && !includeBeer)
+     ) {
+       continue;
+     }
+@@ -116,7 +117,7 @@
+   );
+   const result: ListedCategoryPrice[] = [];
+   for (const category of DRINK_CATEGORIES) {
+-    if (category === "beer") continue;
++    if (category === "beer" && !includeBeer) continue;
+     const bestByServing = new Map<string, (typeof eligible)[number]>();
+     const neutral: (typeof eligible)[number][] = [];
+     for (const entry of current) {

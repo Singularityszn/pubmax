@@ -1,0 +1,127 @@
+{
+  "diagnosticOnly": true,
+  "completed": true,
+  "origin": "http://localhost:3351",
+  "runtimePrerequisite": "Operator must verify isolated keyless memory-store server and grant runtime before invoking",
+  "setup": {
+    "completed": true,
+    "slimStatus": 200,
+    "generationStatus": 200,
+    "creationStatus": 201,
+    "hostReadStatus": 200,
+    "joinStatus": 200,
+    "guestReadStatus": 200,
+    "anchorVenueId": "venue-11e0hkh",
+    "anchorVenueName": "The Belle Vue",
+    "actualOutcome": "route",
+    "actualStopCount": 3,
+    "hostMemberRead": true,
+    "joinedGuestMemberRead": true,
+    "nativeHostRouteVisible": true
+  },
+  "samples": [
+    {
+      "width": 390,
+      "completed": true,
+      "responses": [
+        {
+          "surface": "nativeDocumentIncludingInlineRsc",
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "containsAnchorId": true,
+          "forbiddenTokenCount": 1,
+          "anchorPropertyVisible": true,
+          "leakedAnchorVenueId": "venue-11e0hkh"
+        },
+        {
+          "surface": "anonymousRscRequest",
+          "status": 200,
+          "contentType": "text/x-component",
+          "containsAnchorId": true,
+          "forbiddenTokenCount": 1,
+          "anchorPropertyVisible": true,
+          "leakedAnchorVenueId": "venue-11e0hkh"
+        },
+        {
+          "surface": "anonymousPlanApi",
+          "status": 200,
+          "contentType": "application/json",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "hydratedClientText",
+          "status": 200,
+          "contentType": "text/plain",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        }
+      ],
+      "failures": [
+        "nativeDocumentIncludingInlineRsc:FORBIDDEN_PLAN_DATA",
+        "anonymousRscRequest:FORBIDDEN_PLAN_DATA"
+      ],
+      "visibleRouteCount": 0,
+      "visibleCrewRows": 1,
+      "previewVisible": true
+    },
+    {
+      "width": 1440,
+      "completed": true,
+      "responses": [
+        {
+          "surface": "nativeDocumentIncludingInlineRsc",
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "containsAnchorId": true,
+          "forbiddenTokenCount": 1,
+          "anchorPropertyVisible": true,
+          "leakedAnchorVenueId": "venue-11e0hkh"
+        },
+        {
+          "surface": "anonymousRscRequest",
+          "status": 200,
+          "contentType": "text/x-component",
+          "containsAnchorId": true,
+          "forbiddenTokenCount": 1,
+          "anchorPropertyVisible": true,
+          "leakedAnchorVenueId": "venue-11e0hkh"
+        },
+        {
+          "surface": "anonymousPlanApi",
+          "status": 200,
+          "contentType": "application/json",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        },
+        {
+          "surface": "hydratedClientText",
+          "status": 200,
+          "contentType": "text/plain",
+          "containsAnchorId": false,
+          "forbiddenTokenCount": 0,
+          "anchorPropertyVisible": false
+        }
+      ],
+      "failures": [
+        "nativeDocumentIncludingInlineRsc:FORBIDDEN_PLAN_DATA",
+        "anonymousRscRequest:FORBIDDEN_PLAN_DATA"
+      ],
+      "visibleRouteCount": 0,
+      "visibleCrewRows": 1,
+      "previewVisible": true
+    }
+  ],
+  "privacyFailures": [
+    "390:nativeDocumentIncludingInlineRsc:FORBIDDEN_PLAN_DATA",
+    "390:anonymousRscRequest:FORBIDDEN_PLAN_DATA",
+    "1440:nativeDocumentIncludingInlineRsc:FORBIDDEN_PLAN_DATA",
+    "1440:anonymousRscRequest:FORBIDDEN_PLAN_DATA"
+  ],
+  "setupFailures": [],
+  "timedOut": false,
+  "verdict": "RED_ANONYMOUS_PLAN_DATA_LEAK"
+}

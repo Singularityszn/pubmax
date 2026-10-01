@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Add provider-fixture-backed Pal plan-send and open-venue UI journeys after the existing concierge fixture composition.",
+  "status": "SOURCE_PATCH_APPLICATION_CHECK_ONLY",
+  "releaseBaseCommit": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+  "compositionOrder": [
+    {
+      "step": 1,
+      "artifact": "Core docs/proof/refined-v0-recovery-20260930/r47-pal-fixture-release-ad08000.patch",
+      "sha256": "d3b680933bfc0ebf72e735faf749af79f0c1e166f66070a3a6916edaf9a6c741",
+      "source": "Existing helper plus concierge fixture conversion."
+    },
+    {
+      "step": 2,
+      "artifact": "Core docs/proof/refined-v0-recovery-20260930/r47-pal-ui-coverage-port.patch",
+      "sha256": "f84b9ba454df24b3f01d83fe3f344ba3667b430ba789cf08731f1bf60d339d83",
+      "source": "This incremental test-only patch."
+    }
+  ],
+  "reusedHelper": {
+    "path": "e2e/helpers/palProviderDouble.ts",
+    "expectedSha256": "ae80fb25d5c973d6f4d398454a3ff82f41a5db1eae29d4f631e177322d5262ea",
+    "importsUsed": [
+      "mockPalPlanAnswer",
+      "mockPalVenueAnswer"
+    ]
+  },
+  "files": {
+    "e2e/pal-plan-send.spec.ts": {
+      "releaseBaseSha256": "78a19a086c52e913a1af7721ddc476d29b8f2357249e5a904abd06046d1d3296",
+      "afterExistingCompositionSha256": "78a19a086c52e913a1af7721ddc476d29b8f2357249e5a904abd06046d1d3296",
+      "afterIncrementalPatchSha256": "e4ccc23942f19b3b687da59bce481535da2d6c0b1de9e3d5c8e6d28552eafb3c"
+    },
+    "e2e/pal-openvenue.spec.ts": {
+      "releaseBaseSha256": "d6db536ce07fdf06c04ac056e285883b3dbb4bdac9dae87a7e8b5ffc282b942b",
+      "afterExistingCompositionSha256": "d6db536ce07fdf06c04ac056e285883b3dbb4bdac9dae87a7e8b5ffc282b942b",
+      "afterIncrementalPatchSha256": "92c16dbe46cdab3368d58f83140d88ebdac9f6cc7061d77f0167d9f0332aa155"
+    },
+    "e2e/pubpal-concierge-phone.spec.ts": {
+      "releaseBaseSha256": "3224a51bb29c8d25285309c5121e0b37c045629fa65406ab8ba38db2ad1d70cf",
+      "afterExistingCompositionSha256": "a5aa30d7dd6c610293071bfe5dd86e0a4e000483d45973628585ffc628ba9b44"
+    }
+  },
+  "requestAndAssertionCoverage": [
+    {
+      "journey": "pal-plan-send",
+      "fixtureQuery": "Plan a crawl in Soho for 4",
+      "fixtureScope": "Only POST /api/pub-pal/chat; plan creation/generation, locking, and invite-copy UI remain exercised by existing spec."
+    },
+    {
+      "journey": "pal-openvenue",
+      "fixtureQuery": "Quiet-ish near Bank, not pricey",
+      "fixtureScope": "Only POST /api/pub-pal/chat; asserts selected map venue equals fixture id venue-1h7w6h3, then waits for map inspector."
+    },
+    {
+      "journey": "concierge-success",
+      "source": "Existing composition already routes its provider-dependent success asks through palProviderDouble; this incremental patch does not change it."
+    },
+    {
+      "journey": "keyless-negative",
+      "source": "Existing concierge UI outage case returns a controlled 503 through page.route and is left unchanged. __tests__/pubPalChatRoute.test.ts separately covers actual route response 503 when ELEVENLABS_API_KEY is empty, with service dependencies mocked."
+    },
+    {
+      "journey": "live-provider",
+      "source": "e2e/pubpal-voice-live.spec.ts is a separately configured live-provider proof and is not intercepted or altered."
+    }
+  ],
+  "sourceApplicationChecks": {
+    "existingFixtureCompositionDryRunAndApply": "PASS on isolated scratch copy of immutable release base",
+    "incrementalPatchDryRunAndApply": "PASS on scratch after existing fixture composition",
+    "incrementalOutputMatchesScratchComposition": "PASS for both allowlisted test files",
+    "changedPaths": [
+      "e2e/pal-plan-send.spec.ts",
+      "e2e/pal-openvenue.spec.ts"
+    ],
+    "addedLineTrailingWhitespace": "NONE",
+    "releaseTreeModified": false,
+    "CoreSourceTreeModified": false
+  },
+  "notRun": {
+    "tests": "UNRUN",
+    "build": "UNRUN",
+    "browser": "UNRUN",
+    "providerCredentials": "NOT USED"
+  },
+  "remainingUnsupportedCases": [
+    "No real provider success is proved; fixture responses exercise browser journeys only.",
+    "The new tests do not exercise auth/session persistence, provider latency, rate limits, or real provider card grounding.",
+    "The controlled E2E 503 UI case is not proof of the real keyless route. Route-level keyless 503 is covered by the existing unit test; no separate E2E against an unconfigured provider was added."
+  ],
+  "acceptanceBoundary": "Only a source patch for two fixture-backed UI success journeys. Do not label E2E/runtime green until the composed release tree is tested in an authorized slot."
+}

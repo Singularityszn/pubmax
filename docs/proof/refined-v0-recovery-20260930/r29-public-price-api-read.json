@@ -1,0 +1,38 @@
+{
+  "reads": [
+    {
+      "venueId": "venue-1ctgk0m",
+      "url": "https://pubmaxxing.com/api/price-submit?venueId=venue-1ctgk0m",
+      "status": 200,
+      "at": "2026-09-30T16:21:15.017016+00:00",
+      "body": {
+        "prices": [],
+        "signals": []
+      },
+      "bodySha256": "08d6046111bbe181e6ed8eb27ceaf4b12964fe2ac706e2770c5db956a9d13319"
+    },
+    {
+      "venueId": "venue-bri-1o203s4",
+      "url": "https://pubmaxxing.com/api/price-submit?venueId=venue-bri-1o203s4",
+      "status": 200,
+      "at": "2026-09-30T16:21:15.640412+00:00",
+      "body": {
+        "prices": [],
+        "signals": []
+      },
+      "bodySha256": "08d6046111bbe181e6ed8eb27ceaf4b12964fe2ac706e2770c5db956a9d13319"
+    },
+    {
+      "venueId": "venue-1vse4lh",
+      "url": "https://pubmaxxing.com/api/price-submit?venueId=venue-1vse4lh",
+      "status": 200,
+      "at": "2026-09-30T16:21:13.691350+00:00",
+      "body": {
+        "prices": [],
+        "signals": []
+      },
+      "bodySha256": "08d6046111bbe181e6ed8eb27ceaf4b12964fe2ac706e2770c5db956a9d13319"
+    }
+  ],
+  "limits": "Anonymous public GET only. No browser flow, deployed SHA, account write or authentication proof."
+}

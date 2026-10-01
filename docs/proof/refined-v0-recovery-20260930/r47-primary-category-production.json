@@ -1,0 +1,56 @@
+{
+  "status": "SOURCE_FROZEN_RUNTIME_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "b4790e8915a809d0747362352396b2fa341782df",
+  "scratch": "/tmp/pubmaxx-r47-primary-category-production",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-primary-category-production.patch",
+  "patchSha256": "37455cd64075ecae565b26a9db802895cdf979e937ae3365039f12d06bbec643",
+  "files": [
+    {
+      "path": "lib/planGenerationSelection.server.ts",
+      "beforeSha256": "d2542083619fec8b1d161ffcac704c8746a6ad918370772c0dd9b82123d941a9",
+      "afterSha256": "c2b7253e089db4a58e2b0e6e93e45466bf8732a203abb1ebe1188fe6e1065abf"
+    },
+    {
+      "path": "lib/planRouteOptimizer.ts",
+      "beforeSha256": "8101d2ef17dc6e8071b60e75455ede0d9b628c3edc3c109ef31e449573410cb6",
+      "afterSha256": "7cafb490d1bd14b58e7ec720e49afc341b913b11500830043383512f10cf09dc"
+    }
+  ],
+  "actualRed": {
+    "path": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx/.audit/overnight-20261001/primary-category-required-red.json",
+    "sha256": "778df29b3b025eddd2df5d3cab85a2ad8e760d58d75ec5378c3fdf5d9d0b055e",
+    "tests": 22,
+    "passed": 21,
+    "failed": 1,
+    "skipped": 0,
+    "failure": "Final primary requested-category quote assertion; generation, eligibility, union, score, null-budget and proof controls passed"
+  },
+  "unchangedControls": {
+    "__tests__/planAnchoredGenerateRoute.test.ts": "2a15ed09204fbcd7d12f3a1fb0ff4e8e8d08b043a3e92110432ef9331c1f257e",
+    "lib/planGenerationDto.ts": "101d2cda23fc6109ed30325a9648d42db62c8665bba246b36bdf1d29f8239af7"
+  },
+  "sourceChecks": {
+    "beforePinsMatchCurrentRoot": true,
+    "scratchGitApplyCheck": true,
+    "scratchGitApplyWhitespaceError": true,
+    "appliedBytesMatchAfter": true,
+    "maintainedSourceEdited": false
+  },
+  "semantics": [
+    "Binary quote availability from existing closed DTO evidence projection; no amount bonus or comparator",
+    "After strongest feasible route, evaluate offered single-stop replacements using unchanged hard route evaluator",
+    "Anchored replacement starts at position 1, preserves exact accepted Stop 1",
+    "Rebuild timing/opening/constraints/alternative cohort from final actual route; route handler signs final IDs as before",
+    "Legacy selection unchanged when no qualifying quote or quote already primary; excluded quote invokes existing grounded optimizer, falls back to prior legacy choice only if no feasible grounded route",
+    "Pint/default/zeroProof evidence projection returns no quote IDs; original paths preserved",
+    "No score, GBP amount, serving, budget, cap, data, provider or SQL edits"
+  ],
+  "limitations": [
+    "Not global optimal coverage across multiple simultaneous replacements or outside existing bounded route search",
+    "Real publisher truth is upstream supplied evidence; synthetic regression cannot authenticate Sun Tavern offer",
+    "Fresh native four-category journeys, exact Root lint/types/focused and broad tests remain UNRUN for this port",
+    "Generic RoutePanel Pint-bill bug is separate and remains unresolved by this packet"
+  ],
+  "focusedCommand": "npx vitest run __tests__/planAnchoredGenerateRoute.test.ts __tests__/planRouteOptimizer.test.ts"
+}

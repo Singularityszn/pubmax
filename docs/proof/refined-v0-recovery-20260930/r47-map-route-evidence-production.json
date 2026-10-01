@@ -1,0 +1,22 @@
+{
+  "status": "FROZEN_ONEFILE_PARENT_SOURCE_PASS_ROOT_ACTUAL_GREEN_PENDING",
+  "scope": "One-file source patch in lib/mapRouteTransfer.ts: preserve cleaned primary and alternative selectedDrinkPriceEvidence from generated responses through the existing PlanRouteDraft envelope writer.",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "baselineHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "targetPath": "lib/mapRouteTransfer.ts",
+  "beforeSha256": "1f9283bd83f4f9bbf5d35aba0f66f6be12af3c56ec72d362f54b94205fd9e4bd",
+  "afterSha256": "0f024bd9059151be66c23ed03a372336283ab9ae523a8e23ca89ebd1e5856718",
+  "scratchBefore": "/tmp/pubmaxx-r47-map-route-producer/mapRouteTransfer.before.ts",
+  "scratchAfter": "/tmp/pubmaxx-r47-map-route-producer/mapRouteTransfer.after.ts",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-map-route-evidence-production.patch",
+  "patchSha256": "075d59dc3766914b6a0dd5b2d1dca1239e1d0abbda9f27364532f60243148149",
+  "scopeBoundary": "Reads only primary/alternative selectedDrinkPriceEvidence values. Existing cleanSelectedDrinkPriceEvidence projects to closed public fields; no raw stop, alternative, or response object is spread. Existing PlanRouteDraft envelope writer continues category/zero-proof context matching, bounds, and storage validation.",
+  "callers": [
+    "components/plan/MapRouteTransferButton.tsx",
+    "lib/webmcp/board.ts"
+  ],
+  "redEvidence": "Root reported actual focused Map/WebMCP regression at 82 total, 80 passed, 2 failed in plan-transfer-coverage-concurrency.json. This patch has not been executed or green-verified.",
+  "checks": "No tests, lint, typecheck, build, browser, database, or application run performed by this agent.",
+  "runtime": "UNRUN. Root owns all runtime verification.",
+  "parentChecks": "CurrentRootbefore/hash/applicationcheck/freshscratchafter PASS. Fullmapper+downstreamcleaner review, primary/backup closedprojection, no rawpassthrough, no category/measure/cap/grounding rewrite. Types/runtime stillRootrequired."
+}

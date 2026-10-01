@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-09-30T15:23:52Z",
+  "grantReceivedAt": "2026-09-30T15:23Z",
+  "grantedStart": "2026-09-30T15:21:00Z",
+  "grantedEnd": "2026-09-30T16:06:00Z",
+  "cleanupStart": "2026-09-30T16:03:00Z",
+  "ports3351and3352": "no listeners",
+  "foreignRuntime": {
+    "pid": 7097,
+    "ppid": 7093,
+    "pgid": 65722,
+    "cwd": "/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M3SCY3JBSZ98GKR44SN4FF0J",
+    "work": "Vitest RLS suite",
+    "activeForkPids": [
+      13488,
+      14333,
+      15031,
+      15520
+    ]
+  },
+  "rootRuntimeStarted": false,
+  "action": "Notified authorized coordinator; no foreign termination or duplicate test",
+  "status": "Waiting for actual overlap clearance and explicit coordinator direction"
+}

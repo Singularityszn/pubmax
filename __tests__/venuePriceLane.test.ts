@@ -453,10 +453,10 @@ describe("every surface that words an absent price asks the same module", () => 
     // an absence over a price it is showing, which is pinned where it renders:
     // __tests__/unverifiedPubSheet.test.ts.
     const sheet = readFileSync(join(ROOT, "components/map/UnverifiedPubSheet.tsx"), "utf8");
-    expect(sheet).toContain('? "Community price"');
-    expect(sheet).toContain('? "No price yet"');
-    expect(sheet.indexOf('? "Community price"')).toBeLessThan(
-      sheet.indexOf('? "No price yet"'),
+    expect(sheet).toContain('"Community price"');
+    expect(sheet).toContain('"No price yet"');
+    expect(sheet.indexOf('"Community price"')).toBeLessThan(
+      sheet.indexOf('"No price yet"'),
     );
   });
 });

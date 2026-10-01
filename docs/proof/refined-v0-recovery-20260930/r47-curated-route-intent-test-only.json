@@ -1,0 +1,65 @@
+{
+  "status": "SOURCE_FROZEN_TEST_ONLY_EXPECTED_RED_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "872021c1a12419129aee9849d7877597b7f7b4b4",
+  "scratch": "/tmp/pubmaxx-r47-curated-route-intent",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-curated-route-intent-test-only.patch",
+  "patchSha256": "d53218154df784d1b1c77a001c484a5a90019c93c6cf3ce256e88dcc542b94bd",
+  "files": [
+    {
+      "path": "e2e/map-curated-route-intent.spec.ts",
+      "beforeSha256": null,
+      "rootBeforeAbsent": true,
+      "afterSha256": "174c0f45418e958d0d714c6a530aa492501d0711552577ea8c755de93b966a60"
+    }
+  ],
+  "currentSourcePins": [
+    {
+      "path": "lib/curatedCrawls.ts",
+      "sha256": "d0d9d2821d12bf5f00f80237b5249c2b5aebce53b4bb3488134b48f05c68905d"
+    },
+    {
+      "path": "lib/mapSeedCrawlPolicy.ts",
+      "sha256": "1d796db597c639d544aeeb1f4370ba6d7bc5c37e828f37218b894632bdbec24c"
+    },
+    {
+      "path": "lib/mapSeedCrawl.ts",
+      "sha256": "9784de7bf7e46ecbc64a2dba7b54e61b9ff038701c4a6487c52548a5e7315bf9"
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "sha256": "bdb7171ad47bda90fde04d83dfd1bfaaabbfb55057b6a21dfbaf3c838fdc1642"
+    },
+    {
+      "path": "components/map/pubmap/useMapPlanCoordinator.ts",
+      "sha256": "9bd3b2860f9a1622605ab1407bcb30bc069e53bfc32d682bdccd8fa001a0a6b6"
+    },
+    {
+      "path": "e2e/map-generated-route-continuity.spec.ts",
+      "sha256": "14123578bc1cfe5d2a9072c1b5b77f3c5e80badecab24714ffecbcb1bdc363b6"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "49c12b41e10a769412081fcb0f1b8b32143ceae20722c212416ac060979367c8"
+    }
+  ],
+  "sourceValidation": {
+    "rootApplyCheck": true,
+    "whitespaceCheck": true,
+    "freshScratchApplyAfterHashMatches": true
+  },
+  "contract": [
+    "Two fresh signed-out 1440 cases, explicit public Vodka and zero-proof intent. Existing basemap fixture only; catalog/data/price routes real and untouched.",
+    "Uses committed canonical Victorian Soho ID order/blurb. plan=1 opens native desktop rail; no independent drink= lens. Scoped active RouteHeader blurb proves actual deferred catalog adoption before assertions.",
+    "URL and existing built-ID storage preserve exact order; list count settles before drink/unknown money/no Pint assertions. No fake quote, source/date/serve or generated proof claim.",
+    "Native Clear resets route IDs/public route metadata/manual header/Pint style, retaining independent lens absent.",
+    "No production repair; actual expected failure at drink header after real hydration is source-inferred until Root run."
+  ],
+  "focusedCommand": "PW_SKIP_WEBSERVER=1 PW_PORT=3371 npx playwright test e2e/map-curated-route-intent.spec.ts --project=chromium --workers=1 --retries=0",
+  "runtime": "UNRUN. Root owns existing correctly configured matching production server, native RED, later producer/fresh GREEN and all gates. No browser/install/tests/build executed here.",
+  "limits": [
+    "No real provider login, live publisher quote verification, real-street/GL painted-pin proof or cheapest/category coverage proof.",
+    "If hydration blurb never appears, setup/catalog adoption failure is distinct from business RED.",
+    "No maintained Root/Core product/test edits; new test-only scratch/artifact. Existing completion-share testcase belongs Root untouched."
+  ]
+}

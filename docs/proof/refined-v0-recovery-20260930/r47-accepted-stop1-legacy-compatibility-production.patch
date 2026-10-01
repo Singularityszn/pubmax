@@ -1,0 +1,19 @@
+--- a/lib/planComposerHandoff.ts
++++ b/lib/planComposerHandoff.ts
+@@ -241,7 +241,15 @@
+     const legacy = parsePlanDraftEnvelope(null, rawV1, now);
+     if (!existing || (!existing.draft.acceptedAnchor && !legacy?.draft.acceptedAnchor)) return;
+     if (canonical && !canonical.draft.acceptedAnchor) {
+-      bestEffortRemove(storage, PLAN_DRAFT_KEY);
++      // V2 already has current work; refresh only its legacy rollback copy.
++      let legacyWritten = false;
++      try {
++        storage.setItem(PLAN_DRAFT_KEY, JSON.stringify(canonical.draft));
++        legacyWritten = true;
++      } catch {
++        // Fall back to removing only the stale rollback copy below.
++      }
++      if (!legacyWritten) bestEffortRemove(storage, PLAN_DRAFT_KEY);
+       return;
+     }
+     const withoutAcceptance: StoredPlanDraft = { ...existing.draft };

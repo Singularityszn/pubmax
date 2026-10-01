@@ -1,0 +1,39 @@
+{
+  "task": "Preserve already-released canonical Plan and Route drafts during acceptance cleanup retry",
+  "status": "source-only proposed patch; not applied to maintained Root or Core checkout",
+  "rootCheckout": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "872021c1a12419129aee9849d7877597b7f7b4b4",
+  "scratchCheckout": "/tmp/pubmaxx-r47-accepted-stop1-retry-scratch",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-accepted-stop1-canonical-retry-production.patch",
+  "patchSha256": "63912d922695f155b5a22ed42ff3c5e26f3ab582658d913aad736ee0b512f227",
+  "files": [
+    {
+      "path": "lib/planComposerHandoff.ts",
+      "rootBeforeSha256": "7d0bdeec11738316f2df501bd6855e3723a7beb8a86f1e101b8b32b2448d1450",
+      "proposedAfterSha256": "ff3b7cf9e8bf0cf2c3daadfa6f7650679b25d2a2923b2937ddec135e4d807977"
+    }
+  ],
+  "behavior": [
+    "Parse canonical V2 separately from its V1 fallback companion.",
+    "When canonical V2 is valid and already unheld, preserve its raw bytes and remove only the stale V1 companion; release confirmation still fails if V1 cleanup is denied.",
+    "Apply the same stale-companion handling to Plan and Route drafts, preserving current stops, order and metadata.",
+    "Keep existing held-anchor cleanup path when canonical V2 itself still carries acceptance.",
+    "Remove unused readPlanDraftEnvelope and readPlanRouteDraftEnvelope imports."
+  ],
+  "sourceReproduction": {
+    "redReceipt": ".audit/overnight-20261001/accepted-stop1-canonical-retry-required-red.json",
+    "redSha256": "e0991b9c7c28d56590dfb217e55ed1e8b34c40de2daac4d74263792922ee711d",
+    "result": "53 total, 49 passed, 4 failed, 0 skipped. Both Plan and Route canonical-retry cases lost valid current V2 drafts for available and denied legacy cleanup.",
+    "testFile": "__tests__/planComposerHandoff.test.ts",
+    "testFileSha256": "20edab6c91ab1df2d6da26a0996be17efb80641e2b1463e996c473f415be1deb"
+  },
+  "validation": {
+    "tests": "UNRUN; Root owns runtime and focused/full gates.",
+    "typesLintBuildBrowser": "UNRUN.",
+    "patchApplication": "PASS: git apply --check against the exact current Root source; read-only check, no files modified."
+  },
+  "limits": [
+    "Does not confirm behavior until Root executes the focused tests.",
+    "If legacy cleanup is denied, the existing final verifier still returns false, keeping release unconfirmed."
+  ]
+}

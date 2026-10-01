@@ -1,0 +1,10 @@
+{
+  "recordedAt": "2026-09-30T14:08:39.820328+00:00",
+  "exitCode": 0,
+  "passed": 5,
+  "durationSeconds": 31.6,
+  "changes": "Only base empty-price GET fixture now includes listedPrices[]. Actual current API produces this separate field; NoPriceYet/price/bill/selection assertions unchanged. Application source/artifact unchanged.",
+  "unchangedThreeFailures": "Zoom/WebGL/SW passed unchanged in sequential focus; full failures remain unresolved flakiness/race evidence, not cleared.",
+  "serialSkippedWebGLSibling": "Executed and passed this focused run; original whole-run NOTRUN retained.",
+  "fullRegression": "Still RED4FAIL/24SKIP/1NOTRUN; final whole candidate rerun required."
+}

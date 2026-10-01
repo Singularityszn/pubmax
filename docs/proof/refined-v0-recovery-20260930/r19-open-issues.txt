@@ -1,0 +1,37 @@
+count: 32
+issues[32]{number,title,state,author,created}:
+  1843,"Great-circle distance is implemented twice: lib/haversine.ts and scripts/lib/geo.mjs",open,karanmrn,2d ago
+  1814,"Famous-venue pack's current-trading window expired 2026-09-24: build:slim and validate-data refuse to run",open,karanmrn,5d ago
+  1812,applyActivePlanFlushRollback can roll the active-plan cursor back past a later confirmed stop,open,karanmrn,5d ago
+  1809,"app/api/plans/anchor/route.ts: canonical planning-anchor preflight has zero callers",open,karanmrn,5d ago
+  1743,"app/api/night-signals/route.ts: public GET route for approved signals appears to have no caller",open,karanmrn,8d ago
+  1742,"app/api/contributors/route.ts: GET handler has zero callers, page fetches the data directly",open,karanmrn,8d ago
+  1709,"lib/convex/migration.ts + recordShadowComparison: the shadow-verification pipeline is fully built but never called",open,karanmrn,9d ago
+  1691,"lib/emailProvider.ts: fully-built seam with zero live callers and a stub that always throws",open,karanmrn,13d ago
+  1646,Converge the Bar Tab and Ledger venue reads onto lookupVenueDetail,open,karanmrn,18d ago
+  1641,"warmNavRoute strips the query, so IntentLink never warms a query-bearing route",open,karanmrn,18d ago
+  1639,"The map rail says its list is narrowed, never that an unlisted pub may qualify",open,karanmrn,18d ago
+  1623,Every UK pub on the map,open,karanmrn,22d ago
+  1622,Out shows every sourced listing as a real row,open,karanmrn,22d ago
+  1621,"Simple landing with the map as the picture, answer-first primary, and an FAQ",open,karanmrn,22d ago
+  1620,"Map first-visit card off the pins, desktop chrome cut, arrival bearing",open,karanmrn,22d ago
+  1618,"Research: the pubs London is talking about, last 30 days",open,karanmrn,22d ago
+  1617,"Two drinkers, two prices, and a bill photo on every new price",open,karanmrn,22d ago
+  1616,Five one-line production bugs from the live walk,open,karanmrn,22d ago
+  1615,Performance gate stops going red on runner noise,open,karanmrn,22d ago
+  1614,"Wayfinder: tonight's cut, 7 September 2026",open,karanmrn,22d ago
+  1580,"Grilling: onboarding, images and the social bet, the captain's priorities",open,karanmrn,24d ago
+  1576,"Wayfinder map: PlanAstra, the next set of features after v0",open,karanmrn,24d ago
+  1543,"iOS map: pin price labels render inside the system status bar",open,karanmrn,24d ago
+  1542,"iOS shell: /today and /out leave a tall empty band under the status bar that /tonight does not",open,karanmrn,24d ago
+  1540,Cold start on a plan URL shows the plan's own host the invitee teaser,open,karanmrn,24d ago
+  1534,Lock it in is disabled with no reason on screen when the host name is empty,open,karanmrn,24d ago
+  1531,"Onboarding: the hero photo pushes the primary action off screen once the consent bar is dismissed (Android shell, 390x844)",open,karanmrn,24d ago
+  1522,"The Local: remaining epic after the 5 Sep split",open,karanmrn,24d ago
+  1358,"Store enrolment and signing: owner checklist",open,karanmrn,26d ago
+  1354,"Wayfinder map: September relaunch, London first",open,karanmrn,26d ago
+  727,"Spec: reduce store/review bloat without hiding policy",open,karanmrn,1mo ago
+  437,"Wayfinder map: app-store-ready frontend",open,karanmrn,2mo ago
+help[2]:
+  Run `gh-axi issue view <number>` to view details
+  Run `gh-axi issue create --title "..." --body-file <path>` to create

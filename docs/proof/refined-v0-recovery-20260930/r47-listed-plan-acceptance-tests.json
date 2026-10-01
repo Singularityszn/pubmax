@@ -1,0 +1,110 @@
+{
+  "status": "SOURCE_APPLICATION_PASS_RUNTIME_UNRUN",
+  "recordedAt": "2026-10-01T04:03:56.861921+00:00",
+  "releaseBase": "6ee2bfb43c6720bf0159bc23d5617c1a791c0e40",
+  "applyAfter": {
+    "patch": "r47-minimal-release-composition.patch",
+    "sha256": "71ca01beac451c11dceba96d2bb1d499b6b253e24c8397b59ed85635d9def233",
+    "base": "720ddde22bd87232a95d9cafd6c5c095430ef956",
+    "requirement": "Apply minimal50 first. Existing untrusted-listed rejection and all release tests remain intact."
+  },
+  "patchSha256": "5ce12e55a1c34805e0a6abe45a1b41c3501ead171921c55a669f9a28b870bb39",
+  "patchBytes": 27017,
+  "paths": [
+    {
+      "path": "__tests__/planAnchoredGenerateRoute.test.ts",
+      "beforeSha256": "63fa54d0b17615dac6bac9d728eaa014220d5b0a1816ab42597e4f4c5418459a",
+      "afterSha256": "eff00a26fb78b60065cee3abbf981a118264c57e8def24956b9ee9fceffe21cf",
+      "releaseBlobSha256": "63fa54d0b17615dac6bac9d728eaa014220d5b0a1816ab42597e4f4c5418459a",
+      "baseline": "release blob"
+    },
+    {
+      "path": "__tests__/planGenerateRoute.test.ts",
+      "beforeSha256": "a6c773b8487b1b76d4c90eab2133890dfcb61542d4684fcea9133f04e0907636",
+      "afterSha256": "6f7ee8115bd2921d36bbe8b1a2e2c93870e13ffe2b1e69b188901ea7010e39f4",
+      "releaseBlobSha256": "a6c773b8487b1b76d4c90eab2133890dfcb61542d4684fcea9133f04e0907636",
+      "baseline": "release blob"
+    },
+    {
+      "path": "__tests__/planGenerationDto.test.ts",
+      "beforeSha256": "3bad275aa4bec7297b9f746047179acc4342b5b5d6d35515ae2dc849d3778616",
+      "afterSha256": "f83e71ebd772826a2d519dbc790c36852ade16ff4c3cbab840376a868d517e66",
+      "releaseBlobSha256": "3bad275aa4bec7297b9f746047179acc4342b5b5d6d35515ae2dc849d3778616",
+      "baseline": "release blob"
+    },
+    {
+      "path": "__tests__/planListedPriceResolver.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "48513eaa1a1e5c043e51ba7ff8217001520b0db2742c3201b5a81600249e92fe",
+      "releaseBlobSha256": null,
+      "baseline": "new test"
+    },
+    {
+      "path": "__tests__/planSelectedDrinkEvidenceCreate.test.ts",
+      "beforeSha256": "9959a61116c952bdb0f6f94e1ce35f7eb7157f5c19312ed5904a4bfed21e9b52",
+      "afterSha256": "c334b0cc3deca81911007b2d9f1f6fe93cee6a148ae5cc056089642147c5e5d1",
+      "releaseBlobSha256": "7205490d37917c2f47eb55d4b49a9e9251c18a31a8aea48dc08ab9e4e52f2eca",
+      "baseline": "minimal50 price trust fixture delta"
+    }
+  ],
+  "sourceValidation": {
+    "scratchApplyCheck": true,
+    "scratchApplyBytesEqualAfter": true,
+    "whitespaceErrorAll": true,
+    "testsRun": false,
+    "typecheckRun": false,
+    "lintRun": false,
+    "productionChanges": false,
+    "generatedOrRawChanges": false,
+    "releaseBaselineBlobsUnchanged": [
+      "__tests__/planAnchoredGenerateRoute.test.ts",
+      "__tests__/planGenerateRoute.test.ts",
+      "__tests__/planGenerationDto.test.ts",
+      "__tests__/planSelectedDrinkEvidenceCreate.test.ts"
+    ]
+  },
+  "owningSeams": [
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.server.ts",
+      "role": "create/PATCH and proposal server exact-venue price revalidation. Minimal50 remains deliberately community-only."
+    },
+    {
+      "path": "lib/planSelectedDrinkPriceEvidence.ts",
+      "role": "DTO and anchor-only selected evidence delivery helper remains community-only."
+    },
+    {
+      "path": "lib/planGeneration.server.ts",
+      "role": "candidate price preparation reads community index only; anchor-only response uses delivery helper."
+    },
+    {
+      "path": "lib/planGenerationDto.ts",
+      "role": "normal chosen stops and alternatives use delivery helper."
+    }
+  ],
+  "coverage": [
+    "Exact authoritative raw fixture reader with actual listed eligibility/standing/quarantine/projection, not mocked serializer.",
+    "Valid wine 125ml, gin 25ml, cocktail unknown serving. Exact venue/category/pence/source/date/serving rebuild.",
+    "Forged hint, changed/current or expired row, superseded same-drink/serve, estimate, wrong venue, unavailable reader, canonical quarantine rejected.",
+    "Independent bundle success survives degraded/partial/thrown community read; trusted community control, uncorroborated rejection, beer/zeroProof/context guards.",
+    "Real create and PATCH handlers + keyless memory store reload + capability member HTTP reload and anonymous HTTP preview. Stable operation replay and changed-serving conflict.",
+    "Real normal generator query/grounding response, selected stops and alternatives, same 125ml category fixtures; no amount-ranking acceptance.",
+    "Real anchor-only generator response retains source-stated metadata while draft routeReady remains false and signed grounding proof valid.",
+    "DTO distinct 125ml and 250ml delivery, no invented pint, wrong category/beer/zeroProof control.",
+    "Exact one-pub 125ml and 250ml quote selection stays distinct; cross-serving amount cannot authorize."
+  ],
+  "expectedCurrentRed": "INFERENCE ONLY. Valid listed resolver/create/PATCH/replay, generator, anchor-only and DTO cases currently drop listed evidence. Negative controls should remain green. No executed result claimed.",
+  "focusedCommand": "npx vitest run __tests__/planListedPriceResolver.test.ts __tests__/planSelectedDrinkEvidenceCreate.test.ts __tests__/planGenerateRoute.test.ts __tests__/planAnchoredGenerateRoute.test.ts __tests__/planGenerationDto.test.ts __tests__/planCollaborationRoutes.test.ts __tests__/planAnchoredCreateRoute.test.ts",
+  "correctionProposalOnly": [
+    "After meaningful RED, separately resolve listed hint against current eligible exact-venue bundle quote; compare category, pence, source URL, observation timestamp and source-stated serving. Hint alone never authorizes.",
+    "Keep existing community verification and beer/zeroProof gates. Independent readable listed authority is not invalidated by unavailable community store.",
+    "Join eligible listed category metadata into server candidate preparation, then extend existing delivery helper for already server-trusted candidate; retain query reconciliation, proof/idempotency and privacy projections.",
+    "No new hint interface, guessed serving, custom trust framework, generated-data changes or generic amount sort. Exact quoted drink label is not in existing selected evidence API; do not invent one in this test patch."
+  ],
+  "limitations": [
+    "Controlled fixture raw rows are contract evidence, not live publisher proof or provider/server entitlement. Reader status boundary is mocked; serializer/eligibility is real.",
+    "Displayed category serving-group ranking and API preservation remain a separate native falsifier and incomplete cheapest-any-alcohol acceptance. These tests do not claim price ranking safety.",
+    "Proposal persistence shares resolver but has no new independent proposal case; existing collaboration tests must run alongside new acceptance.",
+    "Historical Core R46 tests/data/browser proof do not verify this release add-on. Production widening prohibited before owner executes genuine RED.",
+    "Generator fixture uses identical 125ml across venues and existing category-index first representative seam. It does not exercise mixed serving groups or repair category-index loss; native category falsifier remains required."
+  ]
+}

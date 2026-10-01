@@ -1,0 +1,28 @@
+{
+  "status": "PASS_SOURCE_AND_RECORDED_FOCUSED_TDD; ROOT_NATIVE_FULL_GATES_PENDING",
+  "atUTC": "2026-10-01T14:55:04.053728+00:00",
+  "productionPatchSHA256": "9ba57a3132ac927fdfab6d836b08d15cc0a6b573b10c27f5b9c782be84c8bd43",
+  "testPatchSHA256": "a129175bde3133c6de875e852b8560bcb4e85156a6ac54864b4fc3adada094bf",
+  "independentChecks": [
+    "Exact current Root before pins",
+    "Read-only Root git apply --check --whitespace=error-all for each packet",
+    "Fresh scratch application and exact after hashes",
+    "Both raw JSON/log hashes and all three actual RED assertion names reviewed"
+  ],
+  "results": {
+    "red": [
+      18,
+      15,
+      3,
+      0
+    ],
+    "green": [
+      18,
+      18,
+      0,
+      0
+    ]
+  },
+  "sourceReview": "Existing closed parser accepts only routeLow=1 or non-beer closed category plus pubs; decoded nonempty IDs required. Two-line policy bypass prevents catalog stop replacement from erasing intent. No reset/custody/store changes. Generic catalog and invalid values remain eligible; lens short circuit unchanged.",
+  "limits": "Pure policy tests do not prove actual catalog hydration UI, Clear action, geometry, native quoted presentation, full compile or release. Historical blurb diagnostic is not permanent acceptance oracle."
+}

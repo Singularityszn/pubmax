@@ -1,0 +1,46 @@
+{
+  "status": "SOURCE_ONLY_TESTS_UNRUN",
+  "patchSha256": "c3e3bdab1a1ff97db81fe6de4e006f718d664ec806ab32be2ed23d1dc8b36fa0",
+  "bytes": 8211,
+  "files": [
+    {
+      "path": "__tests__/planningIntent.test.ts",
+      "beforeSha256": "be06af4e37d63b0506392d38f891768b9ba3f3da13f669b724c127b48374408c",
+      "afterSha256": "703b3f450b4a7ff1ee438bd5abf5581c7b2693f1b22ccac7b413e4db4da2ecd0"
+    },
+    {
+      "path": "__tests__/mapAcceptance.test.ts",
+      "beforeSha256": "d611f09b11d2828770455174e34539bc6027a3ee586c0b4c5fbee8f7a3242ee9",
+      "afterSha256": "4c42988c7363cf446fbf46d2be55e248543df6bc18c732ba015068c0b498ed52"
+    },
+    {
+      "path": "__tests__/planComposerHandoff.test.ts",
+      "beforeSha256": "ab3f134413395d2a51e22a593fd9534dbfbb442548efdb0792379556a973b5f9",
+      "afterSha256": "908b75106bb6146847ee40a98cac534a555962c5eaa857647a6e0ed15321ddce"
+    },
+    {
+      "path": "__tests__/planIntake.test.ts",
+      "beforeSha256": "82a39d953d08083d2defae1e034ee332edc1ba3bbc55422a088c9f6fb6eb39c3",
+      "afterSha256": "2ffc2fed405bde3225598c4bf9495847276de351d3b5d510f3998d36598adde9"
+    },
+    {
+      "path": "__tests__/mapCrawlUrlSync.test.tsx",
+      "beforeSha256": "0ee4e440ff027e7d7ca6ec542d9a6228ce3b547c81f70360395e648256fa311a",
+      "afterSha256": "559b2ab374be3d7a233e43095d95526ef2bf6f26cd02868d41f8cff2997b6f62"
+    }
+  ],
+  "sourceValidation": {
+    "scratchApplyWhitespace": true,
+    "exactAfterFiles": true,
+    "runtime": false
+  },
+  "focusedCommand": "npx vitest run __tests__/planningIntent.test.ts __tests__/mapAcceptance.test.ts __tests__/planComposerHandoff.test.ts __tests__/planIntake.test.ts __tests__/mapCrawlUrlSync.test.tsx",
+  "expectedRed": "Inference only: existing closed intent rejects selected hint; acceptance omits it; hydration/seed/draft strip it; generation intake ignores its category; crawl sync drops serving.",
+  "limits": [
+    "Public price hint remains untrusted until exact existing server resolver re-reads it; no new authority or storage key.",
+    "Generation intake test checks category only, not selected serving-aware route ranking or preserved exact hint after generator chooses a different offer.",
+    "Synthetic immutable named gin fixture; no invented live wine pair.",
+    "URL sync is real mounted hook, not native browser Back/Forward proof.",
+    "Root runtime and native acceptance pending; no product repair in packet."
+  ]
+}

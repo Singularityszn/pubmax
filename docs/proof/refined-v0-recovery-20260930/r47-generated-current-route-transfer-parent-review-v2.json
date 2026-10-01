@@ -1,0 +1,24 @@
+{
+  "status": "SOURCE_REVIEWED_V2_READY_ROOT_RUNTIME_PENDING",
+  "reviewedAtUTC": "2026-10-01T11:48:17.154047+00:00",
+  "patch": "r47-generated-current-route-transfer-v2.patch",
+  "sha256": "ec083ccc0549e0760b66e043ce4db90804a8052e54e5e449f920fbbb8edf3022",
+  "currentRootBeforePinsMatch": true,
+  "freshScratchApplicationAndAfterPinsMatch": true,
+  "runtime": null,
+  "sourceReview": [
+    "Current displayed IDs/order rather than captured original passed from PubMap through stable existing activation; price coordinator unchanged.",
+    "Same-set unanchored reorder uses original V1 candidate proof and preserves quote/backup attachments. Actual server only emits V1 for unanchored. No new proof mint/decoder/authentication claim in production.",
+    "Identity edits retire proofs/quote hints/totals/timing/confidence but preserve current IDs, drink intent and explicit stale review path.",
+    "Anchored exact-order change retires V2 proof; moving accepted Stop1 requires explicit release. V2 supplies both actual session and local stores to existing acceptance owner after successful transfer.",
+    "V1 omission of explicit acceptance stores corrected. New mounted intent/session release control added, unrun.",
+    "Storage failures prevent Link navigation and show retry instead of reading original/old stored route.",
+    "Original captured confidence/timing/endings shown only for unchanged ordered route."
+  ],
+  "limits": [
+    "Reload and CopyURL continuity remain separate actual RED repair scope.",
+    "Focused units, fresh native Reverse, anchored browser recovery and broad gates remain Root runtime owner.",
+    "No current or historical publisher authenticity, managed SQL or deployment proof."
+  ],
+  "supersededRejectedPatchSha256": "d19356178f001ad06cf61dfbd7d388f2ca6257783f55ba25a62b7167c773e3c3"
+}

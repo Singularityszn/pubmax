@@ -1,0 +1,11 @@
+{
+  "recordedAt": "2026-09-30T11:43:04.673955+00:00",
+  "checkedFiles": 2461,
+  "differencesFromFreshR23BuildSource": [
+    "e2e/desktop-map-chrome-fit.spec.ts",
+    "e2e/landmark-and-sheet.spec.ts",
+    "e2e/mobile-discover-coverage.spec.ts"
+  ],
+  "runtimeStarted": false,
+  "buildEnvironment": "Prior declared primary R23; verify owned config-derived restart before runtime"
+}

@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-09-30T12:16:22.974070+00:00",
+  "source": "Official npm registry via npm view",
+  "installed": {
+    "ai": "7.0.122",
+    "@ai-sdk/otel": "1.0.122",
+    "typescript": "5.9.3",
+    "@typescript-eslint/parser": "8.71.0"
+  },
+  "latest": {
+    "ai": {
+      "version": "7.0.123",
+      "nodeEngine": ">=22"
+    },
+    "@ai-sdk/otel": {
+      "version": "1.0.123"
+    },
+    "typescript": {
+      "version": "7.0.2",
+      "nodeEngine": ">=16.20.0"
+    },
+    "@typescript-eslint/parser": {
+      "version": "8.71.0",
+      "typescriptPeer": ">=4.8.4 <6.1.0"
+    }
+  },
+  "action": "Two compatible AI patches queued for controlled install/test. TypeScript7 incompatible with current latestparser peer range; migration remains separate. No installedpackage/lock change."
+}

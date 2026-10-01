@@ -1,0 +1,92 @@
+{
+  "status": "SOURCE_FROZEN_PRODUCTION_RUNTIME_UNRUN",
+  "rootWorkingTree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "rootHeadAtCapture": "b4790e8915a809d0747362352396b2fa341782df",
+  "scratch": "/tmp/pubmaxx-r47-generated-route-authority",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/r47-plan-backup-adaptation/pubmaxx/.audit/r47-generated-route-price-authority.patch",
+  "patchSha256": "5573952d0439a5dffbb711b513d6e4236bf3d00210b88973bc472a2292df6bab",
+  "files": [
+    {
+      "path": "components/map/pubmap/useMapPlanCoordinator.ts",
+      "beforeSha256": "be9d689d2ad26e25168077758e6ad2c558125f8ebadabf93838b8714e926d9b9",
+      "afterSha256": "8aded913d257cccd5cfc0889376508c9e6b157db6c1807b12d4487d08344ede2"
+    },
+    {
+      "path": "components/map/RoutePanel.tsx",
+      "beforeSha256": "8c9bb569480a105d0d6b6587a357156631038a90efe45bd7fec2d994688bc385",
+      "afterSha256": "fb2c4801277276124c34add073588e2b63ebd20aa4b2173969c829706c131ab7"
+    },
+    {
+      "path": "components/map/route/RouteMetrics.tsx",
+      "beforeSha256": "4492792d7263f719c39d48c370db6ce5f5dddd92c5262fa4c0162d41679be4ac",
+      "afterSha256": "ab7ccf85a2e6c5aa7a146c26791d2610713f5e92c3c8de7196f57da6b96e9b5d"
+    },
+    {
+      "path": "components/map/route/RouteList.tsx",
+      "beforeSha256": "94320ed1f48a5be012703af01b6e147e5a938fea6ff7a006b43e55aaa7831914",
+      "afterSha256": "2436ee4b8aaea2eb65e6235ef15a1e41292cb5cc6ed0819d3852775a1ae3b9bb"
+    },
+    {
+      "path": "components/map/route/RouteHeader.tsx",
+      "beforeSha256": "a1aca49bf27333e579a4c6cddd406ee63b76216e2174b21c90d55b0506554f45",
+      "afterSha256": "c864442f308e52e4eae0ee7dbded44e65272bd82f1179d3a40a8c49348445528"
+    },
+    {
+      "path": "components/plan/MobilePlanActivation.tsx",
+      "beforeSha256": "72807f915384ce3f714f8f34b1ec5569f0a90d1740dd75507e1820431c4d272b",
+      "afterSha256": "e77c1ba913d3e82ad333ffdd9c53ed04913244680964bc630ed91a51408b78f6"
+    },
+    {
+      "path": "components/PubMap.tsx",
+      "beforeSha256": "a8ba1191dd83dca16fe45cf4378aec2ec90e8d5d9160011df3e1e0dc687b717c",
+      "afterSha256": "cb8e8280036a8d6febfe51215582feed56bebdd92ea8f54f705e9f3c26f10085"
+    }
+  ],
+  "actualBefore": "Root preserved Chromium Vodka receipt/error context: generated context vodka and budget null, no manual Pint choice; generic route panel claims \u00a312.70 estimated round and 3 pint stops. Existing native f38f275 guard awaits Root execution.",
+  "semantics": [
+    "Coordinator keeps category/zeroProof, bounded existing server budget and closed cleaned primary quotes in memory only",
+    "Unique stop set/count matching gates original budget/quotes; reverse retains metadata, unrelated Suggest route cannot use it",
+    "Nonbeer/zeroProof metrics always keep round total unknown and name requested drink stops; never borrow canonical pint amounts",
+    "Attributed per-venue quote uses existing selectedDrinkPriceDescription; source link checked at use; no measure or source fabrication",
+    "Type-only optional selected evidence extends existing GeneratedStop so already-delivered HTTP payload can be passed through",
+    "Route header presents requested drink; copy-only style picker remains unchanged on manual/default Pint routes and is hidden on generated nonbeer routes",
+    "SaveCrawlStory receives null money on generated nonbeer routes, using existing number|null contract",
+    "No new storage/URL fields, route/proof/GPS/cap/provider/SQL changes"
+  ],
+  "lifecycle": {
+    "generate": "Snapshot replaces prior generated route metadata and exact IDs",
+    "reverse": "Retain requested category and snapshot; count/set matching permits reordered same route",
+    "mode": "Retain state; displayed different route gets null budget/no quote snapshot while requested category remains explicit",
+    "manualAddRemove": "Invalidate all quote/total snapshot fields; retain requested category so edit cannot silently become Pint money",
+    "clear": "Reset pricing and built IDs; existing storage removal remains",
+    "curatedArrivalOrLoad": "Explicit replacement resets generated pricing before existing curated mode/filters/copy",
+    "nearbyCrawl": "Explicit manual replacement resets pricing; map-only nearby result does not",
+    "landmarkCrawl": "Existing hook receives explicit resetting setter; pin inspection unchanged",
+    "mapLensOrCopyStyle": "Map lens/copy-only choice does not rewrite generated request category or budget"
+  },
+  "sourceChecks": {
+    "currentBeforePins": true,
+    "scratchApplyCheck": true,
+    "scratchWhitespaceError": true,
+    "freshAfterByteEquality": true,
+    "maintainedSourceEdited": false,
+    "PubMapStableCtaKeyPreserved": true,
+    "SaveCrawlStoryNullTypeVerified": true
+  },
+  "knownLimits": [
+    "MobilePlanActivation.result.mapRoute remains original captured response after reverse/edit: separate stale transfer CTA risk; no proof rewrite in this packet",
+    "Generated pricing metadata is not persisted or placed in shared URL; reload/shared IDs cannot prove original generated category/quote authority. Existing ID persistence unchanged; cross-document continuity not claimed",
+    "Selected evidence does not carry named drink labels; UI faithfully shows existing category/amount/source/day/measure contract only",
+    "Publisher truth remains data-owner responsibility; source quarantine/classification concern kept separate",
+    "Manual/default Pint presentation remains its original price semantics; no claim this packet repairs all manual incomplete sums",
+    "All lint/types/unit/native/new-build/full-gates UNRUN here; final resource ceilings remain unchanged"
+  ],
+  "futureNativeChecks": [
+    "Run original all-alcohol-journey with metrics guard on fresh Root build",
+    "Verify generated Vodka null total/no pint nouns + exact primary quote/source/day/unknown serving",
+    "Reverse then Switch Suggest/Build: same IDs retain valid snapshot; different suggested IDs get no old quote/budget",
+    "Add/remove: no stale quote/total or silent Pint relabel; clear/curated/nearby/landmark restore explicit manual controls",
+    "Fresh manual Pint route retains existing picker/list/metrics/calendar/map link and SaveCrawlStory behavior",
+    "Separately reproduce generate then edit/reverse then transfer CTA versus actual displayed route; do not fabricate proof/order"
+  ]
+}

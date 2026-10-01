@@ -58,6 +58,7 @@ import {
 import { estimateForPub } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
+  bundleRowServingSize,
   bundleRowSupersedes,
   isCategoryQuarantined,
   isValidUkPriceBundleRow,
@@ -175,6 +176,8 @@ function collectRows(report) {
       report.droppedInvalidRow += 1;
       return;
     }
+    const servingSize = bundleRowServingSize(row);
+    if (servingSize !== row.servingSize) row = { ...row, servingSize };
     const key = ukPriceBundleCollectKey(row);
     if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);

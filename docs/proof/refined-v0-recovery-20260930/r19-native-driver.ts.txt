@@ -1,0 +1,65 @@
+// R19 diagnostic used 30 September 2026 under the coordinator runtime lease.
+// Reuse requires a new runtime lease; this is an archived evidence driver.
+// No gate, baseline, app-source or timing helper changes. Observer overhead means
+// these figures attribute work, not replace strict uninstrumented gate evidence.
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { chromium, devices, expect } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs';
+import { installVitalsProbe, serveMapInitScript, SHIPPED_MAP_INIT_SCRIPT, applyVitalsDevice, coolBrowser, clearSampleResidue, exercisePrimaryAction, readVitals } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/e2e/helpers/webVitals.ts';
+import { uiUxChromiumLaunchOptions } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/scripts/lib/uiUxBattleTestBrowser.mjs';
+
+async function main() {
+const origin = new URL(process.argv[2] ?? 'http://localhost:3351').origin;
+if (!['localhost', '127.0.0.1'].includes(new URL(origin).hostname)) throw new Error('Loopback only');
+const route = process.argv[3] ?? '/';
+if (!['/', '/map?sel=venue-4xlgb0'].includes(route)) throw new Error('Declared Home or selected-venue route only');
+const output = process.argv[4] ?? '/tmp/pubmaxx-cwv-attribution-r18';
+const mode = process.argv[5] ?? 'attribution';
+if (!['reference', 'attribution'].includes(mode)) throw new Error('reference or attribution only');
+mkdirSync(output, { recursive: true });
+const report: any = { origin, route, mode, diagnosticOnly: true, processPid: process.pid, attributionOverhead: mode === 'attribution' ? 'Additional native observers and before/after-action evaluations; compare with reference, never substitute for strict gate' : 'Original installed observers only', samples: [], errors: [], requests: [] };
+const flush = () => writeFileSync(`${output}/report.json`, JSON.stringify(report, null, 2)+'\n');
+flush();
+const browser = await chromium.launch(uiUxChromiumLaunchOptions(process.env.UI_UX_BROWSER_CHANNEL));
+const deadline = setTimeout(() => { report.errors.push('180s owned diagnostic deadline'); flush(); void browser.close(); }, 180_000);
+try {
+ const context = await browser.newContext({ ...devices['Desktop Chrome'], baseURL: origin, serviceWorkers: 'block', storageState: { cookies: [], origins: [{ origin, localStorage: [{ name: 'pubmaxx:analytics-consent:v1', value: 'denied' }, { name: 'pubmax:map-first-visit-arrival:v1', value: 'dismissed' }] }] } });
+ const page = await context.newPage();
+ page.setDefaultTimeout(20_000);
+ page.on('pageerror', err => report.errors.push(String(err)));
+ await installVitalsProbe(page);
+ await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+ if (mode === 'attribution') {
+  await page.addInitScript({ path: '/tmp/pubmaxx-cwv-attribution-probe-r19.js' });
+  const session = await context.newCDPSession(page);
+  await session.send('Network.enable');
+  session.on('Network.requestWillBeSent', event => report.requests.push({event:'start',requestId:event.requestId,loaderId:event.loaderId,timestamp:event.timestamp,wallTime:event.wallTime,url:event.request.url,type:event.type,initiator:event.initiator}));
+  session.on('Network.responseReceived', event => report.requests.push({event:'response',requestId:event.requestId,timestamp:event.timestamp,url:event.response.url,status:event.response.status,fromDiskCache:event.response.fromDiskCache,fromServiceWorker:event.response.fromServiceWorker,timing:event.response.timing}));
+  session.on('Network.loadingFinished', event => report.requests.push({event:'finish',requestId:event.requestId,timestamp:event.timestamp,encodedDataLength:event.encodedDataLength}));
+ }
+ // Exactly the gate's warmup order and installed mobile profile. Five cold
+ // loads, unchanged cache reset, route ready +1s, actual installed interaction.
+ await page.goto('/plan',{waitUntil:'load'});
+ await applyVitalsDevice(page,'mobile');
+ for(let run=0;run<5;run++) {
+  await coolBrowser(page);
+  await clearSampleResidue(page,route);
+  await page.goto(route,{waitUntil:'load'});
+  await expect(page.locator(route==='/'?'main':'.venueInspector').first()).toBeVisible({timeout:180_000});
+  await page.waitForTimeout(1000);
+  const beforeAction = mode === 'attribution' ? await page.evaluate(()=>(window as any).__cwvActionSnapshot()) : null;
+  const interacted = await exercisePrimaryAction(page,route);
+  const vitals = await readVitals(page);
+  if(!interacted || Object.values(vitals).some(x=>!Number.isFinite(x)||x<0)) throw new Error(`Invalid sample ${run}`);
+  const details=mode==='attribution'?await page.evaluate(()=>({afterAction:(window as any).__cwvActionSnapshot(),trace:(window as any).__cwvAttribution,resources:performance.getEntriesByType('resource').map(x=>x.toJSON()),marks:performance.getEntriesByType('mark').map(x=>x.toJSON())})):null;
+  report.samples.push({run,interacted,...vitals,...(mode === 'attribution' ? {beforeAction} : {}),details});
+  flush();
+ }
+ // Screenshot after all measured interactions, preserving the gate's clock.
+ await page.screenshot({path:`${output}/after.png`,fullPage:false});
+ report.completed=true;
+ await context.close();
+} catch(error) { report.errors.push(String(error)); process.exitCode=1; }
+finally {clearTimeout(deadline); await browser.close(); flush();}
+
+}
+void main().catch(error => { console.error(error); process.exitCode = 1; });

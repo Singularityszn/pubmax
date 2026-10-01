@@ -1,0 +1,58 @@
+--- a/__tests__/planGenerateRoute.test.ts
++++ b/__tests__/planGenerateRoute.test.ts
+@@ -5,6 +5,7 @@
+ const listedBundleFixture = vi.hoisted(() => ({
+   rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
+   status: "ready" as "ready" | "empty" | "unavailable",
++  indexCoverage: null as { truncated: boolean; degraded: boolean } | null,
+ }));
+ vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
+@@ -21,7 +22,13 @@
+           .find((value) => value.category === category);
+         return quote ? [{ venueId, ...quote }] : [];
+       });
+-      return { prices, truncated: false, degraded: listedBundleFixture.status === "unavailable" };
++      return {
++        prices,
++        ...(listedBundleFixture.indexCoverage ?? {
++          truncated: false,
++          degraded: listedBundleFixture.status === "unavailable",
++        }),
++      };
+     },
+   };
+ });
+@@ -381,6 +388,32 @@
+     expect(body.planningConfidence.level).not.toBe("high");
+   });
+ 
++  it.each([
++    ["degraded", { truncated: false, degraded: true }, "We could not read the wine prices from every source just now. Any prices shown come from sources we could read."],
++    ["truncated", { truncated: true, degraded: false }, "Read from part of the wine prices, so some are still missing."],
++  ])("discloses %s listed wine index coverage when community index is ready", async (_status, listedCoverage, warning) => {
++    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: false });
++    listedBundleFixture.rows = [];
++    listedBundleFixture.status = "ready";
++    listedBundleFixture.indexCoverage = listedCoverage;
++    try {
++      const response = await POST(new Request("http://localhost/api/plans/generate", {
++        method: "POST",
++        body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
++      }));
++      const body = await response.json();
++
++      expect(response.status).toBe(200);
++      expect(body.inferredContext.drinkCategory).toBe("wine");
++      expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
++      expect(body.planningConfidence.warnings).toContain(warning);
++      expect(body.planningConfidence.level).not.toBe("high");
++    } finally {
++      listedBundleFixture.rows = null;
++      listedBundleFixture.indexCoverage = null;
++    }
++  });
++
+   it.each([5, 6])("returns a grounded %i-stop route from free text", async (stopCount) => {
+     const response = await POST(new Request("http://localhost/api/plans/generate", {
+       method: "POST",

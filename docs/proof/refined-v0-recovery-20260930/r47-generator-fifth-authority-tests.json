@@ -1,0 +1,41 @@
+{
+  "status": "TEST_FIRST_SOURCE_FROZEN_RUNTIME_UNRUN",
+  "createdAt": "2026-10-01T07:08:16.724675+00:00",
+  "releaseWorktree": "/Users/karanmanoharan/.codex/worktrees/overnight-pubpal-completion/pubmaxx",
+  "releaseHead": "b4790e8915a809d0747362352396b2fa341782df",
+  "scratch": "/tmp/pubmaxx-r47-generator-fifth-authority-tests",
+  "patch": "/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/docs/proof/refined-v0-recovery-20260930/r47-generator-fifth-authority-tests.patch",
+  "patchSha256": "62279ce055cf8df9a3da496eda362dbcffd74f831ea229c5c47a0aebc5372550",
+  "patchBytes": 4266,
+  "paths": [
+    {
+      "path": "__tests__/planAnchoredGenerateRoute.test.ts",
+      "beforeSha256": "5c183c3119582aaceb2169dd71c9a98328049483c4e60bd4c2298db685c88f38",
+      "afterSha256": "69cad1979317e49cf26aa632aaa92e9a8ae9db4482cb1ae4537f9d61d81052c1",
+      "currentReleaseMatchesBefore": true
+    }
+  ],
+  "productionChanged": false,
+  "test": "Actual POST /api/plans/generate with accepted fifth250ml \u00a38 source-stated wine plus two distinct-brand250ml approved companions; asserts grounded3-stop route, exact anchor amount/source/day/serve, same-group delivery without pint prices and V2 proof.",
+  "fixtureAdaptation": "Existing category-index reader double now threads serving third argument into actual listedCategoryPrices projection; otherwise the mock default4 would falsely omit anchor after real authority is repaired. No parser/cache/authority double added.",
+  "expectedBefore": "Current authority default4 excludes exact fifth250ml hint, truthful anchor-conflict rather than groundedroute. Expected RED is inference until Root executes.",
+  "expectedAfter": "After cap647 and helper810, exact250ml selected BEFORE existing4 and delivered with matching companions. GREEN is inference until actual owner runtime.",
+  "dependencies": [
+    "Current Root optional-anchor/generator7089 and selected-serving cap647 production must be composed for intended baseline.",
+    "Run BEFORE helper810 import to establish genuine generator-specific RED. Existing forged/stale/override/zero-proof controls unchanged."
+  ],
+  "checks": {
+    "currentRootTestPin": "PASS",
+    "scratchWhitespaceErrorApplyCheck": "PASS",
+    "scratchApplication": "PASS",
+    "exactAfterHash": "PASS",
+    "types": "UNRUN",
+    "tests": "UNRUN"
+  },
+  "runtimeCommand": "npx vitest run __tests__/planAnchoredGenerateRoute.test.ts",
+  "limitations": [
+    "Immutable source test packet, not actual execution receipt.",
+    "Approved menu/concierge identity fixtures use existing reader seams; not live publisher or real DB entitlement proof.",
+    "No generated data, source production, UI, SQL, build, browser or runtime changes."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "observedAt": "2026-09-30T14:45:34.576513+00:00",
+  "remoteMain": "76de20674da64604af22872ff42ee08fca7f156a",
+  "pr1880": {
+    "base_sha": "76de20674da64604af22872ff42ee08fca7f156a",
+    "head_sha": "7c1ea925af6cfe5628a6e19a43303deb7756a669",
+    "merged": false,
+    "number": 1880,
+    "state": "open",
+    "updated_at": "2026-09-30T14:21:35Z"
+  },
+  "hostedChecks1880": {
+    "passed": 18,
+    "failed": 0,
+    "skipped": 4,
+    "browserLawPins": "pass",
+    "fullBrowserSuite": "skip"
+  },
+  "pr1879": "Still open draft; hosted 18 pass/0 fail/4 skip covers previously published head, SDK follow-up own lane final gate pending.",
+  "integration": "Not merged or imported into root recovery candidate; no final v0 acceptance or deployment claim.",
+  "rootHead": "5de246205d8ff0fd1d601c94f3a73639476a3db1"
+}

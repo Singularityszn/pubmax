@@ -1,0 +1,11 @@
+{
+  "status": "SOURCE_APPLY_PASS_RUNTIME_UNRUN",
+  "path": "__tests__/authProviderBootstrapRace.test.tsx",
+  "beforeSha256": "eb90c2789e6984cd7ed4ebb46fd9f0fb5f9e3e9fb0388832f6c4baf000f9ae9c",
+  "afterSha256": "0f3357d0ef433358d4e66522c64314194c7e5367fa9117c575938887c21dba12",
+  "patchSha256": "8f32b77942d263c4821ad47c1fb0f31af36ba2ffd7aeda3d41bc747930dc8358",
+  "expectedBaseline": "Valid StrictMode cookie restore should remain PASS. No new failure claimed. Initial replay old effect exits at active guard before bootstrap starts.",
+  "runtimeCommand": "npx vitest run __tests__/authProviderBootstrapRace.test.tsx",
+  "productionIncluded": false,
+  "fixtureSDKEventSemanticsUnchanged": true
+}

@@ -1,0 +1,38 @@
+--- a/lib/ukPriceBundle.ts
++++ b/lib/ukPriceBundle.ts
+@@ -98,6 +98,8 @@
+ const CATEGORY_QUARANTINE: ReadonlyArray<
+   Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel" | "servingSize">
+ > = [
++  { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac 25ml" },
++  { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac", servingSize: "25ml" },
+   { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride 500ml" },
+   { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride", servingSize: "500ml" },
+   { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "wine", priceGbp: 3, drinkLabel: "Ting Grapefruit Soda 330ml" },
+--- a/__tests__/ukPriceBundle.test.ts
++++ b/__tests__/ukPriceBundle.test.ts
+@@ -269,6 +269,9 @@
+     const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+     expect(published.some((row) => row.lane === "site-harvest" && row.sourceUrl === sourceUrl
+       && row.category === "wine" && row.priceGbp === 3.95 && row.drinkLabel === rawDrinkLabel)).toBe(false);
++    expect(published.some((row) => row.lane === "site-harvest" && row.sourceUrl === sourceUrl
++      && row.category === "wine" && row.priceGbp === 3.95 && row.drinkLabel === normalizedDrinkLabel
++      && row.servingSize === "25ml")).toBe(false);
+ 
+     const genuineWineUrl = "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu";
+     const genuineWineLabel = "a classic Rioja, 13.5% glass";
+--- a/__tests__/siteHarvestReconciliation.test.ts
++++ b/__tests__/siteHarvestReconciliation.test.ts
+@@ -494,10 +494,11 @@
+     const validLedgerRows = ledgerBundleRows.filter(isValidUkPriceBundleRow);
+     expect(validLedgerRows).toHaveLength(rows.length);
+     const quarantined = validLedgerRows.filter(isCategoryQuarantined);
+-    expect(quarantined).toHaveLength(37);
++    expect(quarantined).toHaveLength(38);
+     const historicalQuarantineCount = publication.currentLedger.rowCount - publication.currentBundle.siteHarvestRows;
+     expect(historicalQuarantineCount).toBe(19);
+     const additionalQuarantines = quarantined.length - historicalQuarantineCount;
++    expect(additionalQuarantines).toBe(19);
+     const publishedSiteRows = bundleRows.filter((row) => row.lane === "site-harvest");
+     expect(bundleRows).toHaveLength(publication.currentBundle.rowCount - additionalQuarantines);
+     expect(publishedSiteRows).toHaveLength(publication.currentBundle.siteHarvestRows - additionalQuarantines);

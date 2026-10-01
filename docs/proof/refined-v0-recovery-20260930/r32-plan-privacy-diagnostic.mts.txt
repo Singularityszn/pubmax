@@ -1,0 +1,193 @@
+// UNRUN. Requires an explicitly authorized Core runtime slot and an isolated
+// loopback production server using Playwright's KEYLESS in-memory write setup.
+// No real provider/account credentials, remote origin, intercepted response or
+// signing/capability value is accepted or written into this diagnostic receipt.
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { chromium, devices, expect } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/node_modules/@playwright/test/index.mjs';
+import { uiUxChromiumLaunchOptions } from '/Users/karanmanoharan/.codex/worktrees/v0-integration/pubmaxx/scripts/lib/uiUxBattleTestBrowser.mjs';
+
+const target = new URL(process.argv[2] ?? 'http://localhost:3351');
+if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.protocol !== 'http:' || target.username || target.password || target.pathname !== '/' || target.search || target.hash) {
+  throw new Error('Setup requires plain loopback HTTP origin; remote writes refused');
+}
+const origin = target.origin;
+const output = process.argv[3] ?? '/tmp/pubmaxx-r32-plan-privacy-diagnostic';
+mkdirSync(output, { recursive: true });
+const report: any = { diagnosticOnly: true, completed: false, origin,
+  runtimePrerequisite: 'Operator must verify isolated keyless memory-store server and grant runtime before invoking',
+  setup: { completed: false }, samples: [], privacyFailures: [], setupFailures: [] };
+const flush = () => writeFileSync(`${output}/report.json`, JSON.stringify(report, null, 2) + '\n');
+flush();
+const browser = await chromium.launch(uiUxChromiumLaunchOptions(undefined));
+const contexts: any[] = [];
+let timedOut = false;
+const deadline = setTimeout(() => {
+  timedOut = true;
+  report.setupFailures.push('HARD_DEADLINE_180_SECONDS');
+  flush();
+  void browser.close();
+}, 180_000);
+const storageState = { cookies: [], origins: [{ origin, localStorage: [
+  { name: 'pubmaxx:analytics-consent:v1', value: 'denied' },
+  { name: 'pubmax:map-first-visit-arrival:v1', value: 'dismissed' },
+  { name: 'pubmax_onboarding_dismissed', value: '1' },
+  { name: 'pubmax-tour-v1-done', value: '1' },
+] }] };
+async function context(width: number) {
+  const result = await browser.newContext({ ...devices['Desktop Chrome'], baseURL: origin,
+    viewport: { width, height: width === 390 ? 844 : 1000 },
+    reducedMotion: 'reduce', serviceWorkers: 'block', storageState });
+  result.setDefaultTimeout(15_000);
+  contexts.push(result);
+  return result;
+}
+function requireSetup(condition: unknown, code: string) {
+  if (!condition) throw new Error(code);
+}
+async function checkedJson(response: any, stage: string) {
+  report.setup[`${stage}Status`] = response.status();
+  requireSetup(response.ok(), `${stage.toUpperCase()}_HTTP_NOT_OK`);
+  try { return await response.json(); } catch { throw new Error(`${stage.toUpperCase()}_NON_JSON`); }
+}
+
+try {
+  const owner = await context(1440);
+  const slim = await checkedJson(await owner.request.get('/data/venues_slim.json', { timeout: 20_000 }), 'slim');
+  // Real canonical row from the served dataset, not invented coordinates/names.
+  const anchor = slim.rows?.find((row: any) => row.id === 'venue-11e0hkh'
+    && row.filterHints?.canonical === true && typeof row.name === 'string');
+  requireSetup(anchor, 'CANONICAL_CLAPHAM_ANCHOR_MISSING');
+  const operationKey = randomUUID();
+  const generated = await checkedJson(await owner.request.post('/api/plans/generate', {
+    timeout: 40_000,
+    data: { query: 'Beer in Clapham for 2, three pub stops', cityId: 'london', operationKey,
+      context: { stopCount: 3 },
+      anchor: { venueId: anchor.id, source: 'map-search', acceptedArea: null, startsAt: null } },
+  }), 'generation');
+  requireSetup(generated.anchored === true && generated.anchorVenueId === anchor.id
+    && ['route', 'anchor-only'].includes(generated.outcome)
+    && generated.operationKey === operationKey && typeof generated.groundingProof === 'string'
+    && generated.stops?.length > 0 && generated.stops[0].venueId === anchor.id,
+  'REAL_ANCHORED_GENERATION_NOT_ESTABLISHED');
+  const privateTitle = `Privacy fixture ${randomUUID()}`;
+  const guestName = `Private guest ${randomUUID().slice(0, 8)}`;
+  const created = await checkedJson(await owner.request.post('/api/plans', {
+    timeout: 25_000, headers: { 'idempotency-key': operationKey },
+    data: { title: privateTitle, creatorName: 'Fixture host',
+      startTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), cityId: 'london',
+      stops: generated.stops, context: generated.inferredContext,
+      groundingProof: generated.groundingProof,
+      anchor: { venueId: anchor.id, source: generated.anchorSource, outcome: generated.outcome } },
+  }), 'creation');
+  const id = created.plan?.plan?.id;
+  requireSetup(typeof id === 'string' && created.plan.plan.anchorVenueId === anchor.id
+    && created.plan.stops[0]?.venueId === anchor.id, 'CREATED_PLAN_NOT_ACTUALLY_ANCHORED');
+  const hostState = await checkedJson(await owner.request.get(`/api/plans/${id}`), 'hostRead');
+  requireSetup(hostState.visibility === undefined && hostState.plan?.anchorVenueId === anchor.id
+    && hostState.stops?.length === generated.stops.length
+    && typeof hostState.inviteToken === 'string', 'HOST_CAPABILITY_READ_NOT_ESTABLISHED');
+  const guest = await context(390);
+  await checkedJson(await guest.request.post(`/api/plans/${id}/join`, {
+    headers: { 'idempotency-key': randomUUID() },
+    data: { name: guestName, inviteToken: hostState.inviteToken },
+  }), 'join');
+  const guestState = await checkedJson(await guest.request.get(`/api/plans/${id}`), 'guestRead');
+  requireSetup(guestState.visibility === undefined && guestState.plan?.anchorVenueId === anchor.id
+    && guestState.stops?.length === generated.stops.length
+    && guestState.crew?.some((row: any) => row.name === guestName), 'GUEST_CAPABILITY_READ_NOT_ESTABLISHED');
+  const ownerPage = await owner.newPage();
+  requireSetup((await ownerPage.goto(`/plan/${id}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }))?.status() === 200,
+    'HOST_DOCUMENT_NOT_OK');
+  // No manual token injection: real HttpOnly API cookie drives client upgrade.
+  await expect(ownerPage.locator('.planRoute').getByText(anchor.name, { exact: true }).first())
+    .toBeVisible({ timeout: 25_000 });
+  report.setup = { ...report.setup, completed: true, anchorVenueId: anchor.id,
+    anchorVenueName: anchor.name, actualOutcome: generated.outcome,
+    actualStopCount: generated.stops.length, hostMemberRead: true,
+    joinedGuestMemberRead: true, nativeHostRouteVisible: true };
+  // Never persist create, generation, member JSON, headers or storageState:
+  // these carry signed proof/member/invite capability values.
+  const forbidden = [...new Set([anchor.id, privateTitle, guestName,
+    ...hostState.stops.flatMap((row: any) => [row.venueId, row.venueName])])]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+  for (const width of [390, 1440]) {
+    const anonymous = await context(width);
+    const page = await anonymous.newPage();
+    const sample: any = { width, completed: false, responses: [], failures: [] };
+    report.samples.push(sample);
+    const pending: Promise<void>[] = [];
+    const inspect = (body: string, surface: string, status: number, contentType: string) => {
+      const leaked = forbidden.filter((token) => body.includes(token));
+      sample.responses.push({ surface, status, contentType,
+        containsAnchorId: body.includes(anchor.id), forbiddenTokenCount: leaked.length,
+        // Exact sanitized symptom only, never surrounding RSC/capability data.
+        anchorPropertyVisible: body.replace(/\\"/g, '"').includes(`"anchorVenueId":"${anchor.id}"`),
+        ...(body.includes(anchor.id) ? { leakedAnchorVenueId: anchor.id } : {}) });
+      if (leaked.length) sample.failures.push(`${surface}:FORBIDDEN_PLAN_DATA`);
+    };
+    page.on('response', response => {
+      const url = new URL(response.url());
+      if (url.origin !== origin || url.pathname !== `/plan/${id}`) return;
+      const headers = response.headers();
+      pending.push((async () => {
+        try { inspect(await response.text(), response.request().resourceType() === 'document'
+          ? 'nativeDocumentIncludingInlineRsc' : 'nativeRscResponse', response.status(), headers['content-type'] ?? ''); }
+        catch { sample.failures.push('NATIVE_PLAN_RESPONSE_UNREADABLE'); }
+      })());
+    });
+    try {
+      requireSetup((await page.goto(`/plan/${id}`, { waitUntil: 'load', timeout: 30_000 }))?.status() === 200,
+        `ANONYMOUS_${width}_DOCUMENT_NOT_OK`);
+      await expect(page.locator('.invitePreview')).toBeVisible({ timeout: 20_000 });
+      // A plain response from the real origin with Next's RSC request header.
+      // No Router-state fabrication, response interception or mock data.
+      const rscResponse = await anonymous.request.get(`/plan/${id}`, { headers: { RSC: '1' }, timeout: 20_000 });
+      requireSetup(rscResponse.status() === 200 && (rscResponse.headers()['content-type'] ?? '').includes('text/x-component'),
+        `ANONYMOUS_${width}_RSC_NOT_ESTABLISHED`);
+      inspect(await rscResponse.text(), 'anonymousRscRequest', rscResponse.status(), rscResponse.headers()['content-type']);
+      const previewResponse = await anonymous.request.get(`/api/plans/${id}`, { timeout: 20_000 });
+      requireSetup(previewResponse.status() === 200, `ANONYMOUS_${width}_API_NOT_OK`);
+      const previewText = await previewResponse.text();
+      inspect(previewText, 'anonymousPlanApi', previewResponse.status(), previewResponse.headers()['content-type']);
+      const preview = JSON.parse(previewText);
+      if (preview.visibility !== 'preview' || 'stops' in preview || 'crew' in preview
+        || 'inviteToken' in preview || 'memberToken' in preview) sample.failures.push('API_NOT_PREVIEW_ONLY');
+      const clientText = await page.locator('body').innerText();
+      inspect(clientText, 'hydratedClientText', 200, 'text/plain');
+      sample.visibleRouteCount = await page.locator('.planRoute').count();
+      sample.visibleCrewRows = await page.locator('.planCrew__list li').count();
+      sample.previewVisible = await page.locator('.invitePreview').isVisible();
+      if (sample.visibleRouteCount !== 0 || sample.visibleCrewRows > 1 || !sample.previewVisible) {
+        sample.failures.push('CLIENT_PREVIEW_ROUTE_OR_ROSTER_BOUNDARY');
+      }
+      await Promise.all(pending);
+      await page.screenshot({ path: `${output}/anonymous-${width}.png`, fullPage: true });
+      sample.completed = true;
+    } catch {
+      report.setupFailures.push(`ANONYMOUS_${width}_OBSERVATION_NOT_ESTABLISHED`);
+    } finally {
+      await Promise.allSettled(pending);
+      report.privacyFailures.push(...sample.failures.map((failure: string) => `${width}:${failure}`));
+      await anonymous.close();
+      flush();
+    }
+  }
+  report.completed = report.setup.completed && report.samples.length === 2
+    && report.samples.every((sample: any) => sample.completed) && report.setupFailures.length === 0;
+} catch (error) {
+  // Only our fixed setup codes survive. Do not serialize arbitrary SDK/HTTP
+  // errors, response bodies, cookies, member capabilities or invite tokens.
+  const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message)
+    ? error.message : 'LOCAL_FIXTURE_OR_MEMBER_RENDER_SETUP_FAILED';
+  report.setupFailures.push(code);
+} finally {
+  clearTimeout(deadline);
+  await Promise.allSettled(contexts.map(value => value.close()));
+  await browser.close();
+  report.timedOut = timedOut;
+  report.verdict = report.setupFailures.length ? 'SETUP_NOT_ESTABLISHED'
+    : report.privacyFailures.length ? 'RED_ANONYMOUS_PLAN_DATA_LEAK' : 'GREEN_OBSERVED_BOUNDARY';
+  flush();
+}
+process.exitCode = report.setupFailures.length ? 2 : report.privacyFailures.length ? 1 : 0;

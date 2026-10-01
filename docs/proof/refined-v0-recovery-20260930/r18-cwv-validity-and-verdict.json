@@ -1,0 +1,751 @@
+{
+  "exitCode": 1,
+  "tests": {
+    "failed": 1,
+    "passed": 1
+  },
+  "durationMinutes": 15.6,
+  "routeCells": 18,
+  "validRouteSamples": 90,
+  "productCells": 8,
+  "validProductSamples": 40,
+  "routeRaw": [
+    {
+      "key": "mobile:cold:/",
+      "samples": [
+        {
+          "lcpMs": 4560,
+          "cls": 0.0041862046771071445,
+          "inpMs": 360,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1564,
+          "cls": 0.004123474988610964,
+          "inpMs": 144,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1624,
+          "cls": 0.004123474988610964,
+          "inpMs": 624,
+          "interacted": true
+        },
+        {
+          "lcpMs": 3020,
+          "cls": 0.0041862046771071445,
+          "inpMs": 536,
+          "interacted": true
+        },
+        {
+          "lcpMs": 2648,
+          "cls": 0.0041862046771071445,
+          "inpMs": 376,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:warm:/",
+      "samples": [
+        {
+          "lcpMs": 1748,
+          "cls": 0.004123474988610964,
+          "inpMs": 312,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1576,
+          "cls": 0.004123474988610964,
+          "inpMs": 160,
+          "interacted": true
+        },
+        {
+          "lcpMs": 2248,
+          "cls": 0.004123474988610964,
+          "inpMs": 496,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1860,
+          "cls": 0.004123474988610964,
+          "inpMs": 120,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1428,
+          "cls": 0.004123474988610964,
+          "inpMs": 96,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:cold:/map",
+      "samples": [
+        {
+          "lcpMs": 2000,
+          "cls": 0.006988692745975826,
+          "inpMs": 528,
+          "interacted": true
+        },
+        {
+          "lcpMs": 2640,
+          "cls": 0.006988692745975826,
+          "inpMs": 88,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1464,
+          "cls": 0.006988692745975826,
+          "inpMs": 88,
+          "interacted": true
+        },
+        {
+          "lcpMs": 2788,
+          "cls": 0.006988692745975826,
+          "inpMs": 80,
+          "interacted": true
+        },
+        {
+          "lcpMs": 2820,
+          "cls": 0.006988692745975826,
+          "inpMs": 88,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:warm:/map",
+      "samples": [
+        {
+          "lcpMs": 1200,
+          "cls": 0.006988692745975826,
+          "inpMs": 96,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1216,
+          "cls": 0.006988692745975826,
+          "inpMs": 80,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1264,
+          "cls": 0.006988692745975826,
+          "inpMs": 88,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1236,
+          "cls": 0.006988692745975826,
+          "inpMs": 88,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1232,
+          "cls": 0.006988692745975826,
+          "inpMs": 80,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:cold:/map?sel=venue-4xlgb0",
+      "samples": [
+        {
+          "lcpMs": 8388,
+          "cls": 0.00040110244538877943,
+          "inpMs": 72,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8324,
+          "cls": 0.00040110244538877943,
+          "inpMs": 80,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8464,
+          "cls": 0.00040110244538877943,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8392,
+          "cls": 0.00040110244538877943,
+          "inpMs": 48,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8416,
+          "cls": 0.00040110244538877943,
+          "inpMs": 56,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:warm:/map?sel=venue-4xlgb0",
+      "samples": [
+        {
+          "lcpMs": 8104,
+          "cls": 0.00040110244538877943,
+          "inpMs": 72,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8180,
+          "cls": 0.00040110244538877943,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8344,
+          "cls": 0.00040110244538877943,
+          "inpMs": 56,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8404,
+          "cls": 0.00040110244538877943,
+          "inpMs": 48,
+          "interacted": true
+        },
+        {
+          "lcpMs": 8348,
+          "cls": 0.00040110244538877943,
+          "inpMs": 64,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:cold:/tonight",
+      "samples": [
+        {
+          "lcpMs": 1884,
+          "cls": 0.003860520400845121,
+          "inpMs": 72,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1580,
+          "cls": 0.003860520400845121,
+          "inpMs": 72,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1604,
+          "cls": 0.003860520400845121,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1572,
+          "cls": 0.003860520400845121,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1588,
+          "cls": 0.003860520400845121,
+          "inpMs": 64,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:warm:/tonight",
+      "samples": [
+        {
+          "lcpMs": 1604,
+          "cls": 0.003860520400845121,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1588,
+          "cls": 0.003860520400845121,
+          "inpMs": 56,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1592,
+          "cls": 0.003860520400845121,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1616,
+          "cls": 0.003860520400845121,
+          "inpMs": 56,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1616,
+          "cls": 0.003860520400845121,
+          "inpMs": 72,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:cold:/today",
+      "samples": [
+        {
+          "lcpMs": 1364,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1364,
+          "cls": 0.003860520400845121,
+          "inpMs": 40,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1388,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1372,
+          "cls": 0.003860520400845121,
+          "inpMs": 40,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1356,
+          "cls": 0.003860520400845121,
+          "inpMs": 40,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:warm:/today",
+      "samples": [
+        {
+          "lcpMs": 1372,
+          "cls": 0.003860520400845121,
+          "inpMs": 40,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1372,
+          "cls": 0.003860520400845121,
+          "inpMs": 40,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1368,
+          "cls": 0.003860520400845121,
+          "inpMs": 40,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1376,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1360,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:cold:/plan",
+      "samples": [
+        {
+          "lcpMs": 1308,
+          "cls": 0.003860520400845121,
+          "inpMs": 72,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1320,
+          "cls": 0.003860520400845121,
+          "inpMs": 56,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1320,
+          "cls": 0.003860520400845121,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1324,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1340,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "mobile:warm:/plan",
+      "samples": [
+        {
+          "lcpMs": 1320,
+          "cls": 0.003860520400845121,
+          "inpMs": 144,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1304,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1332,
+          "cls": 0.003860520400845121,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1328,
+          "cls": 0.003860520400845121,
+          "inpMs": 56,
+          "interacted": true
+        },
+        {
+          "lcpMs": 1324,
+          "cls": 0.003860520400845121,
+          "inpMs": 48,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "desktop:cold:/",
+      "samples": [
+        {
+          "lcpMs": 936,
+          "cls": 0.001613135067033179,
+          "inpMs": 88,
+          "interacted": true
+        },
+        {
+          "lcpMs": 688,
+          "cls": 0.001613135067033179,
+          "inpMs": 104,
+          "interacted": true
+        },
+        {
+          "lcpMs": 696,
+          "cls": 0.001613135067033179,
+          "inpMs": 96,
+          "interacted": true
+        },
+        {
+          "lcpMs": 700,
+          "cls": 0.001613135067033179,
+          "inpMs": 96,
+          "interacted": true
+        },
+        {
+          "lcpMs": 700,
+          "cls": 0.001613135067033179,
+          "inpMs": 96,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "desktop:warm:/",
+      "samples": [
+        {
+          "lcpMs": 680,
+          "cls": 0.001613135067033179,
+          "inpMs": 88,
+          "interacted": true
+        },
+        {
+          "lcpMs": 704,
+          "cls": 0.001613135067033179,
+          "inpMs": 104,
+          "interacted": true
+        },
+        {
+          "lcpMs": 684,
+          "cls": 0.001613135067033179,
+          "inpMs": 96,
+          "interacted": true
+        },
+        {
+          "lcpMs": 684,
+          "cls": 0.001613135067033179,
+          "inpMs": 104,
+          "interacted": true
+        },
+        {
+          "lcpMs": 700,
+          "cls": 0.001613135067033179,
+          "inpMs": 88,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "desktop:cold:/map",
+      "samples": [
+        {
+          "lcpMs": 2960,
+          "cls": 0.01658723851165981,
+          "inpMs": 80,
+          "interacted": true
+        },
+        {
+          "lcpMs": 780,
+          "cls": 0,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 460,
+          "cls": 0.004612761488340192,
+          "inpMs": 80,
+          "interacted": true
+        },
+        {
+          "lcpMs": 580,
+          "cls": 0,
+          "inpMs": 80,
+          "interacted": true
+        },
+        {
+          "lcpMs": 2860,
+          "cls": 0.011974477023319616,
+          "inpMs": 64,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "desktop:warm:/map",
+      "samples": [
+        {
+          "lcpMs": 600,
+          "cls": 0.011974477023319616,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 4352,
+          "cls": 0.01826723073532879,
+          "inpMs": 56,
+          "interacted": true
+        },
+        {
+          "lcpMs": 600,
+          "cls": 0.011974477023319616,
+          "inpMs": 80,
+          "interacted": true
+        },
+        {
+          "lcpMs": 628,
+          "cls": 0.01658723851165981,
+          "inpMs": 64,
+          "interacted": true
+        },
+        {
+          "lcpMs": 480,
+          "cls": 0.01658723851165981,
+          "inpMs": 80,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "desktop:cold:/pal",
+      "samples": [
+        {
+          "lcpMs": 984,
+          "cls": 0,
+          "inpMs": 104,
+          "interacted": true
+        },
+        {
+          "lcpMs": 492,
+          "cls": 0,
+          "inpMs": 128,
+          "interacted": true
+        },
+        {
+          "lcpMs": 480,
+          "cls": 0,
+          "inpMs": 120,
+          "interacted": true
+        },
+        {
+          "lcpMs": 552,
+          "cls": 0,
+          "inpMs": 112,
+          "interacted": true
+        },
+        {
+          "lcpMs": 476,
+          "cls": 0,
+          "inpMs": 112,
+          "interacted": true
+        }
+      ]
+    },
+    {
+      "key": "desktop:warm:/pal",
+      "samples": [
+        {
+          "lcpMs": 480,
+          "cls": 0,
+          "inpMs": 88,
+          "interacted": true
+        },
+        {
+          "lcpMs": 484,
+          "cls": 0,
+          "inpMs": 112,
+          "interacted": true
+        },
+        {
+          "lcpMs": 488,
+          "cls": 0,
+          "inpMs": 120,
+          "interacted": true
+        },
+        {
+          "lcpMs": 484,
+          "cls": 0,
+          "inpMs": 120,
+          "interacted": true
+        },
+        {
+          "lcpMs": 492,
+          "cls": 0,
+          "inpMs": 112,
+          "interacted": true
+        }
+      ]
+    }
+  ],
+  "productRawRoundedLogReadings": [
+    {
+      "key": "mobile:map-usable-venues",
+      "samplesMs": [
+        10986.0,
+        11138.0,
+        11129.0,
+        11102.0,
+        11110.0
+      ]
+    },
+    {
+      "key": "mobile:map-venue-sheet",
+      "samplesMs": [
+        8421.0,
+        8368.0,
+        8230.0,
+        8317.0,
+        8354.0
+      ]
+    },
+    {
+      "key": "mobile:plan-editable",
+      "samplesMs": [
+        1601.0,
+        1676.0,
+        1684.0,
+        1665.0,
+        1687.0
+      ]
+    },
+    {
+      "key": "mobile:plan-acknowledged-save",
+      "samplesMs": [
+        1276.0,
+        1231.0,
+        1265.0,
+        1202.0,
+        1220.0
+      ]
+    },
+    {
+      "key": "desktop:map-usable-venues",
+      "samplesMs": [
+        4254.0,
+        4682.0,
+        4784.0,
+        4930.0,
+        4588.0
+      ]
+    },
+    {
+      "key": "desktop:map-venue-sheet",
+      "samplesMs": [
+        3881.0,
+        3887.0,
+        3344.0,
+        3720.0,
+        3942.0
+      ]
+    },
+    {
+      "key": "desktop:plan-editable",
+      "samplesMs": [
+        1102.0,
+        901.0,
+        911.0,
+        897.0,
+        896.0
+      ]
+    },
+    {
+      "key": "desktop:plan-acknowledged-save",
+      "samplesMs": [
+        503.0,
+        509.0,
+        489.0,
+        495.0,
+        512.0
+      ]
+    }
+  ],
+  "regressions": [
+    {
+      "key": "mobile:cold:/",
+      "metric": "lcpMs",
+      "baseline": 2032,
+      "allowed": 2641.6,
+      "measured": 2648
+    },
+    {
+      "key": "mobile:cold:/",
+      "metric": "inpMs",
+      "baseline": 104,
+      "allowed": 184,
+      "measured": 376
+    }
+  ],
+  "baselineRecordingEnabled": false,
+  "cleanup": {
+    "resumedClockUtc": "2026-09-30 07:30:40",
+    "deadlineUtc": "2026-09-30 07:27:00",
+    "lateCleanup": true,
+    "serverExitCode": 143,
+    "ownedKnownPidsAbsent": true,
+    "ports3351And3352Free": true
+  }
+}

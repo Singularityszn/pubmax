@@ -1,0 +1,16 @@
+diff --git a/__tests__/planComposerHandoff.test.ts b/__tests__/planComposerHandoff.test.ts
+index d5a515a96..deed84c9b 100644
+--- a/__tests__/planComposerHandoff.test.ts
++++ b/__tests__/planComposerHandoff.test.ts
+@@ -580,7 +580,10 @@ describe("accepted published offer composer hydration", () => {
+     const input = { acceptedVenueId: hydration.heldVenueId, selectedDrinkPriceEvidence: selected };
+     expect(seedProvisionalStop1(input)).toHaveProperty("selectedDrinkPriceEvidence", selected);
+     const storage = memoryStorage();
+-    const draft = storedPlan({ acceptedAnchor: hydration.acceptedAnchor! as NonNullable<StoredPlanDraft["acceptedAnchor"]> });
++    const draft = storedPlan({
++      stops: [{ key: 1, venueId: hydration.heldVenueId!, venueName: "Accepted fixture pub" }],
++      acceptedAnchor: hydration.acceptedAnchor! as NonNullable<StoredPlanDraft["acceptedAnchor"]>,
++    });
+     writePlanDraftEnvelope(draft, "planning-intent", storage, NOW);
+     const restored = readPlanDraftEnvelope(storage, NOW + 1_000);
+     expect(restored?.draft.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);

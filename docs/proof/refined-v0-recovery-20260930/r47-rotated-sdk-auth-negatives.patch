@@ -1,0 +1,35 @@
+diff --git a/__tests__/authProviderBootstrapRace.test.tsx b/__tests__/authProviderBootstrapRace.test.tsx
+index 6e343e5..7476e5d 100644
+--- a/__tests__/authProviderBootstrapRace.test.tsx
++++ b/__tests__/authProviderBootstrapRace.test.tsx
+@@ -307,7 +307,8 @@ async function mountEnteredBootstrap(strict = false) {
+   return container;
+ }
+ 
+-it("retires an already-entered cookie SDK installation after explicit logout", async () => {
++it.each([false, true])("retires an already-entered cookie SDK installation after explicit logout (rotated=%s)", async (rotated) => {
++  state.rotateBootstrapTokens = rotated;
+   const container = await mountEnteredBootstrap();
+   await act(async () => { container.querySelector("button")?.click(); });
+   expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("signed-out");
+@@ -326,9 +327,11 @@ it("retires an already-entered cookie SDK installation after explicit logout", a
+   expect(state.sdkSession).toBeNull();
+   expect(state.cookieSession).toBeNull();
+   expect(state.persistedTokens).not.toContain("late-a-access");
++  expect(state.persistedTokens).not.toContain("late-a-rotated-access");
+ });
+ 
+-it("keeps a newer login when an older entered cookie SDK installation emits late SIGNED_IN", async () => {
++it.each([false, true])("keeps a newer login when an older entered cookie SDK installation emits late SIGNED_IN (rotated=%s)", async (rotated) => {
++  state.rotateBootstrapTokens = rotated;
+   const container = await mountEnteredBootstrap();
+   const newer = { access_token: "newer-b-access", refresh_token: "newer-b-refresh",
+     user: { id: "newer-b", email: "b@example.test" } } as Session;
+@@ -349,6 +352,7 @@ it("keeps a newer login when an older entered cookie SDK installation emits late
+   expect(state.sdkSession?.user.id).toBe("newer-b");
+   expect(state.cookieSession?.user.id).toBe("newer-b");
+   expect(state.persistedTokens).not.toContain("late-a-access");
++  expect(state.persistedTokens).not.toContain("late-a-rotated-access");
+ });
+ 
+ it("publishes and persists an unrevoked cookie SDK installation", async () => {

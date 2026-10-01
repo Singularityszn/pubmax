@@ -1,0 +1,64 @@
+{
+  "observed_at": "2026-09-30T15:01:16.234624+00:00",
+  "url": "https://pubmaxxing.com/",
+  "http_status": 200,
+  "surface": "rendered homepage FAQ HTML",
+  "question": "How do I log a price?",
+  "answer": "Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. A photo of the bill or the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.",
+  "contradiction": "FAQ bill photo optional vs composer/API mandatory bill for new priced writes",
+  "not_proved": [
+    "browser interaction",
+    "live build SHA",
+    "real authenticated submission"
+  ],
+  "outside_london_source_contradiction": {
+    "statement": "Not for prices yet. Every listed price we hold today is a London one.",
+    "listedRowsPath": "public/data/uk_prices/rows.json",
+    "listedRowsSha256": "f1349f599568de016c799328ced938aac4de067b8a03244a13a3c0d1f5705f45",
+    "venueMetadataPath": "data/generated/uk_pub_search.json",
+    "venueMetadataSha256": "d804fe3424b819ea32bd7f8b46248c0945c87d1a88ee59bd6bf0c50d1743b4d6",
+    "exampleVenue": {
+      "osmKey": "n10860672669",
+      "name": "MacKays on the Mile",
+      "address": "223, Canongate, Edinburgh, EH8 8BJ",
+      "lat": 55.95119,
+      "lng": -3.18142,
+      "venueId": "venue-uk-n10860672669"
+    },
+    "exampleQuotes": [
+      {
+        "venueId": "venue-uk-n10860672669",
+        "name": "MacKays on the Mile",
+        "category": "alcohol-free",
+        "priceGbp": 6.2,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://mackaysonthemile.com/wp-content/uploads/2026/07/Mackays_Drinks_Menu_Fringe_2026.pdf",
+        "publisher": "mackaysonthemile.com",
+        "observedAt": "2026-09-04T17:46:23.635Z",
+        "basis": null,
+        "sampleSize": null
+      },
+      {
+        "venueId": "venue-uk-n10860672669",
+        "name": "MacKays on the Mile",
+        "category": "beer",
+        "priceGbp": 3.9,
+        "lane": "site-harvest",
+        "standing": "listed",
+        "sourceUrl": "https://mackaysonthemile.com/wp-content/uploads/2026/07/Mackays_Drinks_Menu_Fringe_2026.pdf",
+        "publisher": "mackaysonthemile.com",
+        "observedAt": "2026-09-04T17:46:23.635Z",
+        "basis": null,
+        "sampleSize": null
+      }
+    ],
+    "limitation": "Committed source data, not fresh live API/offer proof"
+  },
+  "outside_london_live_faq": {
+    "observed_at": "2026-09-30T15:09:52.622533+00:00",
+    "http_status": 200,
+    "question": "Does it work outside London?",
+    "answer": "Not for prices yet. Every listed price we hold today is a London one. The map opens in eleven other UK cities, and a pub there stays without a price until somebody logs the first one."
+  }
+}

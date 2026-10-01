@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-30T23:15:54.393988+00:00",
+  "classification": "VERIFIED_WAIT_INTERVAL_THEN_HANDLE_ABSENT",
+  "process": {
+    "pid": 27554,
+    "pgid": 27554,
+    "cwd": "/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M3T7M0S607HN2YQEW0AVC04Q",
+    "ps": "",
+    "exitCode": 1
+  },
+  "observations": [
+    "Actual process/cwd observed23:13; same process remained live after45s bounded wait.",
+    "Driver29195 absent on second poll; actor27554 remains live. No restart."
+  ],
+  "ownerScope": "Installed SDK transport via local endpoints/dummy keys. Production-auth transport unknown.",
+  "coreExecution": "None; prepared regressions remain UNRUN.",
+  "boundary": "Actual package cleanup plus fresh Root runtime grant required. Owner custody23:30/cleanup23:27.",
+  "currentObservation": "Final ps returnedEXIT1/empty: actor27554 no longer live. Prior live interval was observed, not restarted. Await actual pipeline result/cleanup and fresh grant."
+}
