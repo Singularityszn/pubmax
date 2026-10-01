@@ -29,14 +29,14 @@ describe("the voice-off card", () => {
   it("explains itself in house voice and offers the door that works", () => {
     const markup = renderToStaticMarkup(createElement(PalVoiceOffline));
     expect(markup).toContain(PAL_VOICE_UNAVAILABLE_LINE);
-    expect(markup).toContain('href="/pal/chat"');
-    expect(markup).toContain("Ask in writing");
+    expect(markup).toContain('href="/map"');
+    expect(markup).toContain("Ask on the map");
   });
 
   it("names no plumbing and slams no door", () => {
     expect(PAL_VOICE_UNAVAILABLE_LINE).not.toMatch(/ElevenLabs|API|token|503|env/i);
     expect(PAL_VOICE_UNAVAILABLE_LINE).not.toContain("—");
-    expect(PAL_VOICE_UNAVAILABLE_LINE).toMatch(/Ask me in writing/);
+    expect(PAL_VOICE_UNAVAILABLE_LINE).toMatch(/Use Ask on the map/);
   });
 });
 

@@ -66,7 +66,7 @@ for (const viewport of [
     });
     await page.goto("/pal");
 
-    await expect(page.getByRole("heading", { name: "A little signal that becomes yours." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Choose your Pub Pal." })).toBeVisible();
     await expect(page.locator(".palPortraitCore")).toBeVisible();
     expect(await page.evaluate(() => document.body.scrollWidth)).toBe(viewport.width);
   });

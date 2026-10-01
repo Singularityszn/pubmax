@@ -7,9 +7,7 @@
   flex-direction: column;
   min-height: 100dvh;
   padding-top: env(safe-area-inset-top, 0px);
-  background:
-    radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--brass) 9%, transparent), transparent 26rem),
-    var(--paper);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -274,7 +272,7 @@
 
 .palChatCardPlace svg {
   flex: 0 0 auto;
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .palChatCardWhen {
@@ -306,7 +304,7 @@
   border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
   border-radius: var(--radius-pill, 999px);
   background: color-mix(in srgb, var(--brass) 10%, transparent);
-  color: color-mix(in srgb, var(--brass) 76%, var(--ink));
+  color: var(--tint-ink-accent);
   font: 640 0.64rem/1 var(--font-data);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -328,7 +326,7 @@
 
 .palChatCardCta {
   margin-left: auto;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   font: 640 0.68rem/1 var(--font-data);
   letter-spacing: 0.03em;
 }
@@ -359,7 +357,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.01em;

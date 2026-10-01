@@ -95,7 +95,7 @@ describe("Pub Pal first meeting and onboarding", () => {
     await settle();
 
     expect(container.textContent).toContain("3 of 5");
-    expect(container.textContent).toContain("Tune the signal.");
+    expect(container.textContent).toContain("Choose its look.");
     expect(container.textContent).not.toContain("Meet your Pub Pal");
   });
 

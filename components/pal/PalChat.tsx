@@ -503,7 +503,7 @@ export default function PalChat() {
         }
         title={"What's the night?"}
         titleId="pal-chat-title"
-        lede="Straight answers from what we have actually seen. Every card keeps its source. No made-up venues, prices, or events."
+        lede="Tell me the area and what you fancy. Pub and event cards keep their sources."
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 

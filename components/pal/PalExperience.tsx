@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -107,7 +107,28 @@ const relationshipCopy: Record<PubPalPersonality["relationship"], string> = {
   confidant: "Confidant",
 };
 
+const memoryKindCopy: Record<PubPalMemory["kind"], string> = {
+  venue_preference: "Favourite pubs",
+  atmosphere_preference: "Atmosphere",
+  accessibility_preference: "Accessibility",
+  transport_preference: "Getting home",
+  drink_preference: "Favourite drinks",
+  night_outcome: "Past night",
+  correction: "Correction",
+};
+
+const memoryOriginCopy: Record<PubPalMemory["provenance"], string> = {
+  user_confirmed: "You approved this",
+  completed_plan: "From a night you completed",
+  user_correction: "You corrected this",
+};
+
 type PrivacyState = PalOnboardingPrivacy;
+
+type MemoryState =
+  | { status: "loading" }
+  | { status: "ready"; memories: PubPalMemory[] }
+  | { status: "error" };
 
 const DEFAULT_PRIVACY: PrivacyState = {
   proposeMemories: false,
@@ -123,7 +144,7 @@ const palStateSpeech: Record<PalAnimationState, string> = {
   speaking: "Here's what I found. You choose what happens next.",
   celebrating: "Signal confirmed. Nice one.",
   sleeping: "Voice is muted. Tap the control when you want me back.",
-  error: "The signal dropped. Text still works, and nothing was saved.",
+  error: "Something went wrong. Use Ask on the map.",
 };
 
 function previewSpeech(step: number, draft: PubPalDraft): string {
@@ -224,9 +245,9 @@ export function PalMeetingScreen({
         as="section"
         className="palMeetingStage"
         kicker="Your Pub Pal"
-        title="A little signal that becomes yours."
+        title="Choose your Pub Pal."
         titleId="pal-meeting-title"
-        lede="Choose its form, voice and boundaries. It can help plan the night. You choose what it may do."
+        lede="Pick its look and voice. It can help plan your night. You approve what it remembers."
         primary={
           <button type="button" onClick={onMeet}>
             Meet your Pub Pal
@@ -261,7 +282,8 @@ export default function PalExperience() {
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [memories, setMemories] = useState<PubPalMemory[]>([]);
+  const [memoryState, setMemoryState] = useState<MemoryState>({ status: "loading" });
+  const memories = memoryState.status === "ready" ? memoryState.memories : [];
   const [palAnimationState, setPalAnimationState] = useState<PalAnimationState>("idle");
   const [editingMemoryId, setEditingMemoryId] = useState("");
   const [editingMemoryValue, setEditingMemoryValue] = useState("");
@@ -271,6 +293,29 @@ export default function PalExperience() {
   const palMutationRef = useRef<{ ownerId: string; requestId: number } | null>(null);
   const controlSavingRef = useRef<{ ownerId: string; requestId: number } | null>(null);
   const controlRequestIdRef = useRef(0);
+  const memoryRequestRef = useRef<AbortController | null>(null);
+
+  const loadMemories = useCallback(async (ownerId: string) => {
+    if (activeOwnerRef.current !== ownerId) return;
+    memoryRequestRef.current?.abort();
+    const controller = new AbortController();
+    memoryRequestRef.current = controller;
+    setMemoryState({ status: "loading" });
+    try {
+      const response = await authedActionFetch("/api/pub-pal/memories", { signal: controller.signal }, { requiresIdentity: true });
+      const body = await response.json() as { memories?: PubPalMemory[] };
+      if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
+      setMemoryState(response.ok && Array.isArray(body.memories)
+        ? { status: "ready", memories: body.memories }
+        : { status: "error" });
+    } catch {
+      if (!controller.signal.aborted && activeOwnerRef.current === ownerId) {
+        setMemoryState({ status: "error" });
+      }
+    } finally {
+      if (memoryRequestRef.current === controller) memoryRequestRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -338,7 +383,7 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId) return;
       setActiveOwnerId(ownerId);
       setPal(null);
-      setMemories([]);
+      setMemoryState({ status: "loading" });
       setEditingMemoryId("");
       setEditingMemoryValue("");
       setError(null);
@@ -383,12 +428,7 @@ export default function PalExperience() {
               // Invalid local consent fails closed: proposals remain disabled.
             }
           }
-          void authedActionFetch("/api/pub-pal/memories", { signal: controller.signal }, { requiresIdentity: true })
-            .then(async (memoryResponse) => {
-              const memoryBody = await memoryResponse.json().catch(() => ({})) as { memories?: PubPalMemory[] };
-              if (!controller.signal.aborted && activeOwnerRef.current === ownerId && memoryResponse.ok) setMemories(memoryBody.memories ?? []);
-            })
-            .catch(() => {});
+          void loadMemories(ownerId);
         }
         if (!controller.signal.aborted && activeOwnerRef.current === ownerId) setReady(true);
       })
@@ -399,11 +439,15 @@ export default function PalExperience() {
           setActivePlanPalContext({ id: next.id, name: next.name });
           setPal(next);
           setMode("home");
+          void loadMemories(ownerId);
         }
         setReady(true);
       });
-    return () => controller.abort();
-  }, [user]);
+    return () => {
+      controller.abort();
+      memoryRequestRef.current?.abort();
+    };
+  }, [loadMemories, user]);
 
   const previewName = draft.name.trim() || `Your ${speciesCopy[draft.appearance.species].title}`;
   const canContinue = step !== 0 || draft.adultConfirmed;
@@ -453,6 +497,7 @@ export default function PalExperience() {
       setActivePlanPalContext({ id: next.id, name: next.name });
       setMode("home");
       clearPalOnboardingDraft(draftOwner);
+      void loadMemories(ownerId);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setError(cause instanceof Error ? cause.message : "Your Pal could not be created.");
@@ -565,9 +610,12 @@ export default function PalExperience() {
         body: JSON.stringify({ value: editingMemoryValue }),
       }, { requiresIdentity: true });
       const body = await response.json().catch(() => ({})) as { memory?: PubPalMemory; error?: string };
-      if (!response.ok || !body.memory) throw new Error(errorMessageFrom(body, "That memory correction could not be saved."));
+      const correctedMemory = body.memory;
+      if (!response.ok || !correctedMemory) throw new Error(errorMessageFrom(body, "That memory correction could not be saved."));
       if (activeOwnerRef.current !== ownerId) return;
-      setMemories((current) => current.map((memory) => memory.id === memoryId ? body.memory! : memory));
+      setMemoryState((current) => current.status === "ready"
+        ? { ...current, memories: current.memories.map((memory) => memory.id === memoryId ? correctedMemory : memory) }
+        : current);
       setEditingMemoryId("");
       setEditingMemoryValue("");
       setPalAnimationState("celebrating");
@@ -596,7 +644,9 @@ export default function PalExperience() {
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "That memory could not be deleted."));
       if (activeOwnerRef.current !== ownerId) return;
-      setMemories((current) => current.filter((item) => item.id !== memory.id));
+      setMemoryState((current) => current.status === "ready"
+        ? { ...current, memories: current.memories.filter((item) => item.id !== memory.id) }
+        : current);
       if (editingMemoryId === memory.id) {
         setEditingMemoryId("");
         setEditingMemoryValue("");
@@ -660,7 +710,7 @@ export default function PalExperience() {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(`${PRIVACY_KEY}:${ownerId}`);
       setActivePlanPalContext(null);
-      setMemories([]);
+      setMemoryState({ status: "ready", memories: [] });
       setPal(null);
       setDraft(DEFAULT_PAL_DRAFT);
       setPrivacy(DEFAULT_PRIVACY);
@@ -744,17 +794,24 @@ export default function PalExperience() {
         <section className="palMemoryControls" aria-labelledby="pal-memory-title">
           <div className="palMemoryControls__header">
             <div>
-              <p className="palEyebrow">Visible context</p>
+              <p className="palEyebrow">Memories</p>
               <h2 id="pal-memory-title">What {pal.name} remembers.</h2>
               <p>Only these confirmed facts can shape suggestions. Correct or delete any item; conversations and voice content never appear here.</p>
             </div>
-            <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={17} /> Export my context</button>
+            <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={17} /> Export memories</button>
           </div>
-          {memories.length ? (
+          {memoryState.status === "loading" ? (
+            <p role="status">Loading your memories</p>
+          ) : memoryState.status === "error" ? (
+            <div className="palMemoryEmpty">
+              <p className="palError" role="alert">Could not load your memories.</p>
+              <Button type="button" variant="secondary" onClick={() => void loadMemories(pal.ownerId)}>Try again</Button>
+            </div>
+          ) : memories.length ? (
             <ul className="palMemoryList">
               {memories.map((memory) => (
                 <li key={memory.id}>
-                  <div className="palMemoryList__meta"><span>{memory.kind.replaceAll("_", " ")}</span><small>{memory.provenance.replaceAll("_", " ")}</small></div>
+                  <div className="palMemoryList__meta"><span>{memoryKindCopy[memory.kind]}</span><small>{memoryOriginCopy[memory.provenance]}</small></div>
                   {editingMemoryId === memory.id ? (
                     <div className="palMemoryList__edit">
                       <label><span>Correct this memory</span><textarea value={editingMemoryValue} onChange={(event) => setEditingMemoryValue(event.target.value)} maxLength={500} rows={3} disabled={saving} /></label>
@@ -770,7 +827,7 @@ export default function PalExperience() {
                 </li>
               ))}
             </ul>
-          ) : <div className="palMemoryEmpty"><ShieldCheck /><p>No confirmed context. {pal.name} can still help with the route in front of you.</p></div>}
+          ) : <div className="palMemoryEmpty"><ShieldCheck /><p>No approved memories yet. {pal.name} can still help with the route in front of you.</p></div>}
           {error ? <p className="palError" role="alert">{error}</p> : null}
         </section>
       </main>
@@ -818,10 +875,10 @@ export default function PalExperience() {
           {step === 1 && (
             <div className="palStep">
               <p className="palEyebrow">Form and name</p>
-              <h1>Who finds you?</h1>
-              <p>Each Pal has the same planning intelligence. Choose the presence you want beside you.</p>
+              <h1>Choose a Pal and name.</h1>
+              <p>Every Pal can help plan your night. Pick one to join you.</p>
               <div className="palChoiceList palSpeciesGrid">{PAL_ONBOARDING_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
-              <label className="palField"><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Anything feels right" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>This is yours. Change it whenever you want.</small></label>
+              <label className="palField"><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Name your Pal" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>Pick a name for your Pal.</small></label>
               <div className="palNameIdeas" aria-label="Name inspiration">
                 {Object.entries(nameIdeas).map(([generation, names]) => (
                   <div key={generation}>
@@ -835,7 +892,7 @@ export default function PalExperience() {
           {step === 2 && (
             <div className="palStep">
               <p className="palEyebrow">Appearance</p>
-              <h1>Tune the signal.</h1>
+              <h1>Choose its look.</h1>
               <fieldset><legend>Affinity</legend><div className="palChoiceGrid palChoiceGridThree">{SIGNAL_FAMILIES.map((signal) => <ChoiceButton key={signal} selected={draft.appearance.signalAffinity === signal} title={signalCopy[signal]} onClick={() => updateAppearance({ signalAffinity: signal })} />)}</div></fieldset>
               <fieldset><legend>Material</legend><div className="palChoiceGrid">{(["hologram", "chrome", "glass"] as const).map((material) => <ChoiceButton key={material} selected={draft.appearance.material === material} title={materialCopy[material]} onClick={() => updateAppearance({ material })} />)}</div></fieldset>
               <fieldset><legend>Accessory</legend><div className="palChoiceGrid">{(["none", "collar", "monocle", "signal-ring"] as const).map((accessory) => <ChoiceButton key={accessory} selected={draft.appearance.accessory === accessory} title={accessoryCopy[accessory]} onClick={() => updateAppearance({ accessory })} />)}</div></fieldset>
@@ -844,7 +901,7 @@ export default function PalExperience() {
           {step === 3 && (
             <div className="palStep">
               <p className="palEyebrow">Personality</p>
-              <h1>Set the chemistry.</h1>
+              <h1>Choose its voice and mood.</h1>
               <fieldset><legend>Relationship</legend><div className="palChoiceGrid">{(["guide", "sidekick", "confidant"] as const).map((relationship) => <ChoiceButton key={relationship} selected={draft.personality.relationship === relationship} title={relationshipCopy[relationship]} onClick={() => updatePersonality({ relationship })} />)}</div></fieldset>
               <RangeControl label="Temper" low="Dry" high="Playful" value={draft.personality.playfulness} onChange={(playfulness) => updatePersonality({ playfulness })} />
               <RangeControl label="Energy" low="Calm" high="Chaotic" value={draft.personality.energy} onChange={(energy) => updatePersonality({ energy })} />
