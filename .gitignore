@@ -54,11 +54,8 @@ scratch-*.mjs
 .claude-flow/
 .cursor/*
 !.cursor/mcp.json
-# Cursor discovers project skills from .cursor/skills/ and .agents/skills/ only.
-# skills/ is the browsable mirror; .cursor/skills/ symlinks to it; .agents/skills/ holds
-# npx-skills project installs (Matt Pocock, Kenji, kunchenguid, last30days, …).
-!.cursor/skills/
-!.cursor/skills/**
+# Project skills live only under .agents/skills/. The machine-wide set is
+# ~/.agents/skills. .cursor/skills/ is not a second project skill root.
 .claude/
 .mcp.json
 .playwright-mcp/
@@ -70,9 +67,9 @@ skills_used_global.md
 .data/
 .firecrawl/
 
-# Wave J — commit Taste/Emil skills under skills/ (not machine .agents/)
-!skills/
-!skills/**
+# The old browsable mirror at the repo root. Project skills are .agents/skills/
+# (un-ignored above). The leading slash keeps this from matching that directory.
+/skills/
 .codex/
 .lavish/
 .codex-worktrees/

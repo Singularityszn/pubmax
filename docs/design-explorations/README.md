@@ -54,7 +54,7 @@ Hierarchy on purpose: brand → map (the product) → Plan CTA → stops/friends
 
 ## Skill mapping
 
-These comps are meant to be read through the design-skills stack researched in [`.firecrawl/design-skills/PUBMAX-DESIGN-SKILLS-REPORT.md`](../../.firecrawl/design-skills/PUBMAX-DESIGN-SKILLS-REPORT.md).
+These comps were read through the design-skills stack researched in [`.firecrawl/design-skills/PUBMAX-DESIGN-SKILLS-REPORT.md`](../../.firecrawl/design-skills/PUBMAX-DESIGN-SKILLS-REPORT.md). The packs this repo keeps are in [`docs/DESIGN_SKILLS_CATALOG.md`](../DESIGN_SKILLS_CATALOG.md).
 
 ### Impeccable — `/impeccable colorize` (+ typeset / layout / critique)
 
@@ -114,6 +114,6 @@ Vocabulary stays singular: *Plan* (not “trip”/“itinerary” mixed), *Stop*
 ## How to use these
 
 1. Open `index.html`, pick a direction gut-feel for “PubMax at night with friends.”  
-2. Run Impeccable `colorize` / Taste critique against the winner before tokenizing into `app/globals.css`.  
+2. Use the project design packs in [`docs/DESIGN_SKILLS_CATALOG.md`](../DESIGN_SKILLS_CATALOG.md) on the winner before tokenizing into `app/globals.css`.  
 3. Preserve the Layers objects when restyling — map chrome and sheet chrome should still read Plan / Stop / Venue / Friend.  
 4. Prefer shipping **one** direction’s accent system; don’t blend A’s coral paper with B’s neon and C’s river in one theme.
