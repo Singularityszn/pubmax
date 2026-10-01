@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import type { ConversationDTO } from "../lib/messages";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 type DirectoryMode = "normal" | "fail-first-hari";
@@ -97,10 +98,23 @@ async function installPickerFixture(
       return;
     }
     if (path === "/api/messages") {
+      const lastMessage = messages.at(-1);
+      const conversations: ConversationDTO[] = activeThread ? [{
+        id: activeThread.id,
+        kind: activeThread.kind,
+        otherHandle: activeThread.members[1],
+        memberHandles: activeThread.members,
+        ...(activeThread.title ? { title: activeThread.title } : {}),
+        ...(typeof lastMessage?.body === "string" ? { lastBody: lastMessage.body } : {}),
+        lastAt: typeof lastMessage?.createdAt === "string" ? lastMessage.createdAt : "2026-10-01T19:00:00.000Z",
+        lastFromMe: lastMessage?.senderHandle === ACCOUNTS.A.handle,
+        unread: 0,
+      }] : [];
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ conversations: [] }),
+        headers: { "cache-control": "no-store" },
+        body: JSON.stringify({ conversations }),
       });
       return;
     }
@@ -178,6 +192,7 @@ test("a selected public profile starts a direct message from the inbox", async (
 test("a named group opens with three members and sends a synthetic message receipt", async ({
   page,
 }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   const journal = await installPickerFixture(page);
   await page.goto("/messages");
   await page.getByRole("button", { name: "New message" }).click();
@@ -206,6 +221,10 @@ test("a named group opens with three members and sends a synthetic message recei
   await expect(page).toHaveURL(/\/messages\/group-hari-maisie$/);
   await expect(page.locator(".threadWith")).toContainText("Synthetic pub crew");
   await expect(page.locator(".threadWithMembers")).toHaveText("3 people");
+  const groupLink = page.locator('.messagesInboxPane a[href="/messages/group-hari-maisie"]');
+  await expect(groupLink).toBeVisible();
+  await expect(groupLink).toContainText("Synthetic pub crew");
+  await expect(groupLink).toHaveAttribute("aria-current", "page");
 
   const syntheticMessage = "Synthetic meet-up at the north door at 19:00.";
   await page.locator(".composerInput").fill(syntheticMessage);
