@@ -8,6 +8,7 @@ import {
   normalizeSiteHarvestLedgerRow,
   parseSiteHarvestLedgerText,
   type SiteHarvestLedgerRow,
+  siteHarvestLedgerCollectKey, loadCuratedUkBaseOwners, siteHarvestLedgerDuplicateKeys,
 } from "@/lib/siteHarvestLedger";
 import { isHarvestableDrinkUpdateUrl } from "@/lib/harvest/sourcePolicy";
 import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
@@ -108,6 +109,17 @@ type Reconciliation = {
     supersededRowSha256: string;
     currentLedger: { sha256: string; rowCount: number; rowIdentitySetSha256: string };
     currentBundle: { rowCount: number; siteHarvestRows: number };
+  };
+  currentPublication: {
+    sourceLedger: { path: string; sha256: string; rowCount: number; rowIdentitySetSha256: string };
+    currentLedger: { path: string; sha256: string; rowCount: number; rowIdentitySetSha256: string };
+    currentBundle: { path: string; sha256: string; rowCount: number; siteHarvestRows: number };
+    historicalLedgers: Array<{ path: string; sha256: string; rowCount: number; rowIdentitySetSha256: string }>;
+    accounting: { sourceRows: number; canonicalRows: number; supersededRows: number; unexplainedLosses: number };
+    supersededRows: Array<{
+      sourceRowNumber: number; collectKey: string; beforeSha256: string; currentSha256: string;
+      beforeObservedAt: string; currentObservedAt: string;
+    }>;
   };
   accounting: {
     refusedNicholsonRows: number;
@@ -341,9 +353,13 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(audit.held).toBe(0);
     expect(audit.retained + audit.withdrawn + audit.held).toBe(audit.rowCount);
     expect(audit.unexplainedLosses).toBe(0);
+    const laterSupersessions = new Set(
+      reconciliation.currentPublication.supersededRows.map((row) => row.beforeSha256),
+    );
     for (const hash of retainedHashes) {
       expect(currentIdentityHashes.has(hash)).toBe(
-        hash !== reconciliation.postReconciliationPublication.supersededRowSha256,
+        hash !== reconciliation.postReconciliationPublication.supersededRowSha256 &&
+          !laterSupersessions.has(hash),
       );
     }
     for (const row of audit.rows.filter((item) => item.disposition === "retain")) {
@@ -447,12 +463,18 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(publication.supersededRowSha256).toBe(
       "fbcc91ed985cdc6506dea865b397e3b621bf731b1009043b1ea5871885a4e4b1",
     );
+    const historicalLedger = reconciliation.currentPublication.historicalLedgers.find(
+      (ledger) => ledger.sha256 === publication.currentLedger.sha256,
+    );
+    expect(historicalLedger).toBeDefined();
+    const historicalText = readFileSync(join(ROOT, historicalLedger!.path), "utf8");
+    const historicalRows = parseSiteHarvestLedgerText(historicalText);
     expect(publication.currentLedger).toEqual({
-      sha256: sha256(ledgerText),
-      rowCount: rows.length,
-      rowIdentitySetSha256: identitySetSha256(rows),
+      sha256: sha256(historicalText),
+      rowCount: historicalRows.length,
+      rowIdentitySetSha256: identitySetSha256(historicalRows),
     });
-    expect(rows.length).toBe(reconciliation.publishedLedger.rowCount - 1 + 24);
+    expect(historicalRows.length).toBe(reconciliation.publishedLedger.rowCount - 1 + 24);
 
     const sourceRows = rows.filter(
       (row) => row.sourceUrl === publication.sourceUrl,
@@ -494,14 +516,15 @@ describe("site-harvest withdrawal reconciliation", () => {
     const validLedgerRows = ledgerBundleRows.filter(isValidUkPriceBundleRow);
     expect(validLedgerRows).toHaveLength(rows.length);
     const quarantined = validLedgerRows.filter(isCategoryQuarantined);
-    expect(quarantined).toHaveLength(38);
+    const current = reconciliation.currentPublication;
+    expect(quarantined).toHaveLength(current.currentLedger.rowCount - current.currentBundle.siteHarvestRows);
     const historicalQuarantineCount = publication.currentLedger.rowCount - publication.currentBundle.siteHarvestRows;
     expect(historicalQuarantineCount).toBe(19);
     const additionalQuarantines = quarantined.length - historicalQuarantineCount;
-    expect(additionalQuarantines).toBe(19);
+    const addedCanonicalRows = rows.length - historicalRows.length;
     const publishedSiteRows = bundleRows.filter((row) => row.lane === "site-harvest");
-    expect(bundleRows).toHaveLength(publication.currentBundle.rowCount - additionalQuarantines);
-    expect(publishedSiteRows).toHaveLength(publication.currentBundle.siteHarvestRows - additionalQuarantines);
+    expect(bundleRows).toHaveLength(publication.currentBundle.rowCount + addedCanonicalRows - additionalQuarantines);
+    expect(publishedSiteRows).toHaveLength(publication.currentBundle.siteHarvestRows + addedCanonicalRows - additionalQuarantines);
 
     // Curated aliases change venue IDs. Every other published claim must still
     // match its source, including the literal serving recovered by the builder.
@@ -528,4 +551,57 @@ describe("site-harvest withdrawal reconciliation", () => {
       .map((row) => claimIdentity({ ...row, servingSize: bundleRowServingSize(row) })).sort();
     expect(publishedClaims).toEqual(retainedClaims);
   });
+  it("binds every Albion refresh observation to current publication or an archived newer same-key quote", () => {
+    const publication = reconciliation.currentPublication;
+    const rawText = readFileSync(join(ROOT, publication.sourceLedger.path), "utf8");
+    const rawRows = parseSiteHarvestLedgerText(rawText);
+    expect(publication.sourceLedger).toEqual({
+      path: "data/uk_prices/observations/c309a158dc5bff241518cb826b679bc3725fdd7bc762691207b7300739ad9599.jsonl",
+      sha256: "c309a158dc5bff241518cb826b679bc3725fdd7bc762691207b7300739ad9599",
+      rowCount: 3282, rowIdentitySetSha256: identitySetSha256(rawRows),
+    });
+    expect(sha256(rawText)).toBe(publication.sourceLedger.sha256);
+    expect(rawRows).toHaveLength(3282);
+    expect(publication.currentLedger).toEqual({
+      path: "data/uk_prices/site_harvest.jsonl", sha256: sha256(ledgerText),
+      rowCount: 3200, rowIdentitySetSha256: identitySetSha256(rows),
+    });
+    expect(publication.accounting).toEqual({ sourceRows: 3282, canonicalRows: 3200, supersededRows: 82, unexplainedLosses: 0 });
+    expect(publication.supersededRows).toHaveLength(82);
+    const owners = loadCuratedUkBaseOwners(ROOT);
+    expect(siteHarvestLedgerDuplicateKeys(rows, owners)).toEqual([]);
+    const currentByIdentity = new Map(rows.map((row) => [rowIdentitySha256(row), row]));
+    const superseded = new Set<string>();
+    for (const binding of publication.supersededRows) {
+      const before = rawRows[binding.sourceRowNumber - 1];
+      const current = currentByIdentity.get(binding.currentSha256);
+      expect(before).toBeDefined();
+      expect(current).toBeDefined();
+      expect(rowIdentitySha256(before)).toBe(binding.beforeSha256);
+      expect(siteHarvestLedgerCollectKey(before, owners)).toBe(binding.collectKey);
+      expect(siteHarvestLedgerCollectKey(current!, owners)).toBe(binding.collectKey);
+      expect(before.observedAt).toBe(binding.beforeObservedAt);
+      expect(current!.observedAt).toBe(binding.currentObservedAt);
+      expect(binding.currentObservedAt > binding.beforeObservedAt).toBe(true);
+      expect(currentIdentityHashes.has(binding.beforeSha256)).toBe(false);
+      superseded.add(binding.beforeSha256);
+    }
+    expect(superseded.size).toBe(82);
+    const rawIdentities = rawRows.map(rowIdentitySha256);
+    expect(new Set(rawIdentities).size).toBe(3282);
+    expect([...new Set([...currentIdentityHashes, ...superseded])].sort()).toEqual(rawIdentities.sort());
+    expect(publication.supersededRows.filter((row) => row.beforeObservedAt === "2026-10-01T13:19:29.334Z")).toHaveLength(81);
+    expect(publication.supersededRows.filter((row) => row.beforeObservedAt === "2026-09-21T18:35:11.734Z")).toHaveLength(1);
+    expect(publication.supersededRows.find((row) => row.beforeSha256 === "b6857ce0558ce035e79674e39b810582c433ab57d57cbceabdd740f7aabbaeda")).toBeDefined();
+    const lines = rawText.split(/(?<=\n)/);
+    expect(sha256(lines.slice(0, 3198).join(""))).toBe("88bc1995f82ad87a6ebd715d18f0b12a37214b15036127d33d92e6070ec5d3f1");
+    expect(sha256(lines.slice(3198).join(""))).toBe("85a7546d5eb684a2b72bf126140c7a30ec9d61bd25a7b6839935b1f828962d34");
+    const bundleText = readFileSync(join(ROOT, publication.currentBundle.path), "utf8");
+    const bundleRows = JSON.parse(bundleText) as UkPriceBundleRow[];
+    expect(publication.currentBundle).toEqual({
+      path: "public/data/uk_prices/rows.json", sha256: sha256(bundleText), rowCount: bundleRows.length,
+      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+    });
+  });
+
 });

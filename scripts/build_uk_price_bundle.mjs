@@ -44,6 +44,7 @@
 // __tests__/priceEstimateAuthorityFence.test.ts for it: the bundle PRESENTS an
 // estimate as an estimate, which is exactly the exception that list exists for.
 
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -56,7 +57,9 @@ import {
   isHarvestableDrinkUpdateUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { estimateForPub } from "@/lib/priceEstimate";
-import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
+import {
+  dedupeSiteHarvestLedgerRows, normalizeSiteHarvestLedgerRow, siteHarvestLedgerCollectKey,
+} from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
   bundleRowServingSize,
@@ -86,6 +89,7 @@ const PUBLISHED_HARVEST_ROWS = path.join(
   "data/uk_prices/site_harvest.jsonl",
 );
 const OUT_DIR = path.join(ROOT, "public/data/uk_prices");
+const RECONCILIATION_PATH = path.join(ROOT, "data/uk_prices/site_harvest_reconciliation.json");
 
 const DRY_RUN = process.argv.includes("--dry-run");
 
@@ -138,18 +142,156 @@ function siteHarvestRows() {
     ? HARVEST_LEDGER_ROWS
     : PUBLISHED_HARVEST_ROWS;
   if (!existsSync(file)) return { rows: [], from: null };
-  const rows = readFileSync(file, "utf8")
-    .split("\n")
-    .filter((line) => line.trim().length > 0)
-    .map((line) => {
-      try {
-        return JSON.parse(line);
-      } catch {
-        return null;
-      }
-    })
-    .filter((row) => row && typeof row === "object");
-  return { rows, from: path.relative(ROOT, file) };
+  const rawText = readFileSync(file, "utf8");
+  const rawRows = readLedgerRows(rawText);
+  const { rows, supersededRows } = canonicalHarvestRows(rawRows, curatedOwners());
+  return { rows, rawRows, rawText, supersededRows, from: path.relative(ROOT, file) };
+}
+
+function sha256(text) {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+function rowIdentitySha256(row) {
+  return sha256(JSON.stringify(Object.fromEntries(
+    Object.entries(row).sort(([left], [right]) => left.localeCompare(right)),
+  )));
+}
+
+function ledgerIdentity(text, rows, file) {
+  return {
+    path: file,
+    sha256: sha256(text),
+    rowCount: rows.length,
+    rowIdentitySetSha256: sha256(`${rows.map(rowIdentitySha256).sort().join("\n")}\n`),
+  };
+}
+
+function readLedgerRows(text) {
+  return text.split("\n").filter((line) => line.trim()).map((line) => {
+    const row = JSON.parse(line);
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      throw new Error("Site-harvest observation must be an object");
+    }
+    const normalized = normalizeSiteHarvestLedgerRow(row);
+    if (!isValidUkPriceBundleRow({
+      ...normalized, lane: "site-harvest", standing: "listed",
+      ...bundleDrinkFieldsFromPrintedName(normalized.drinkLabel ?? normalized.drinkName ?? null, normalized.category),
+    })) {
+      throw new Error("Site-harvest observation cannot be published without its source, date and valid price");
+    }
+    return row;
+  });
+}
+
+function canonicalHarvestRows(rawRows, owners) {
+  const originals = new Map();
+  for (const [index, row] of rawRows.entries()) {
+    const identity = rowIdentitySha256(normalizeSiteHarvestLedgerRow(row));
+    if (!originals.has(identity)) originals.set(identity, { row, index });
+  }
+  // The shared helper owns winner selection. Publish the original observation,
+  // preserving retained category-quarantine and withdrawal identities too.
+  const selected = dedupeSiteHarvestLedgerRows(rawRows, owners).map((row) => {
+    const original = originals.get(rowIdentitySha256(row));
+    if (!original) throw new Error("Canonical site-harvest row lost its source observation");
+    return original;
+  });
+  const keys = new Set(rawRows.map((row) => siteHarvestLedgerCollectKey(row, owners)));
+  if (keys.has(null) || keys.size !== selected.length) {
+    throw new Error("Canonical site-harvest ledger contains an unaccounted observation");
+  }
+  const selectedIndices = new Set(selected.map(({ index }) => index));
+  const byKey = new Map(selected.map(({ row }) => [siteHarvestLedgerCollectKey(row, owners), row]));
+  const supersededRows = rawRows.flatMap((row, index) => {
+    if (selectedIndices.has(index)) return [];
+    const collectKey = siteHarvestLedgerCollectKey(row, owners);
+    const current = byKey.get(collectKey);
+    return [{
+      sourceRowNumber: index + 1, collectKey,
+      beforeSha256: rowIdentitySha256(row), currentSha256: rowIdentitySha256(current),
+      beforeObservedAt: row.observedAt, currentObservedAt: current.observedAt,
+    }];
+  });
+  return { rows: selected.map(({ row }) => row), supersededRows };
+}
+
+function archivePath(text) {
+  return `data/uk_prices/observations/${sha256(text)}.jsonl`;
+}
+
+function historicalLedgerArchives(harvest, reconciliation) {
+  const historical = reconciliation?.postReconciliationPublication?.currentLedger;
+  if (!historical) return [];
+  const file = `data/uk_prices/observations/${historical.sha256}.jsonl`;
+  const text = existsSync(path.join(ROOT, file))
+    ? readFileSync(path.join(ROOT, file), "utf8")
+    : harvest.rawText.split(/(?<=\n)/).slice(0, historical.rowCount).join("");
+  const rows = readLedgerRows(text);
+  const identity = ledgerIdentity(text, rows, file);
+  if (identity.sha256 !== historical.sha256 || identity.rowCount !== historical.rowCount ||
+      identity.rowIdentitySetSha256 !== historical.rowIdentitySetSha256) {
+    throw new Error("Historical site-harvest publication is not bound to its original ledger bytes");
+  }
+  return [{ identity, text }];
+}
+
+function prepareHarvestPublication(harvest, bundleRows) {
+  if (!harvest.rawRows?.length) return null;
+  const reconciliation = existsSync(RECONCILIATION_PATH) ? read(RECONCILIATION_PATH) : {};
+  const ledgerText = `${harvest.rows.map((row) => JSON.stringify(row)).join("\n")}\n`;
+  const currentLedger = ledgerIdentity(ledgerText, harvest.rows, "data/uk_prices/site_harvest.jsonl");
+  const bundleText = `${JSON.stringify(bundleRows)}\n`;
+  const currentBundle = {
+    path: "public/data/uk_prices/rows.json", sha256: sha256(bundleText),
+    rowCount: bundleRows.length, siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+  };
+  const previous = reconciliation.currentPublication;
+  if (previous?.currentLedger.sha256 === currentLedger.sha256) {
+    const source = previous.sourceLedger;
+    if (!/^[a-f0-9]{64}$/.test(source.sha256) || source.path !== `data/uk_prices/observations/${source.sha256}.jsonl`) {
+      throw new Error("Site-harvest source archive path is not bound to its hash");
+    }
+    const text = readFileSync(path.join(ROOT, source.path), "utf8");
+    if (sha256(text) !== source.sha256) throw new Error("Site-harvest source archive changed");
+    return { ledgerText, bundleText, archives: [],
+      reconciliation: { ...reconciliation, currentPublication: { ...previous, currentLedger, currentBundle } },
+    };
+  }
+  const sourceLedger = ledgerIdentity(harvest.rawText, harvest.rawRows, archivePath(harvest.rawText));
+  const historical = historicalLedgerArchives(harvest, reconciliation);
+  const currentPublication = {
+    sourceLedger, currentLedger, currentBundle,
+    historicalLedgers: historical.map(({ identity }) => identity),
+    accounting: {
+      sourceRows: harvest.rawRows.length, canonicalRows: harvest.rows.length,
+      supersededRows: harvest.supersededRows.length, unexplainedLosses: 0,
+    },
+    supersededRows: harvest.supersededRows,
+  };
+  return {
+    ledgerText, bundleText,
+    archives: [{ identity: sourceLedger, text: harvest.rawText }, ...historical],
+    reconciliation: { ...reconciliation,
+      ...(previous ? { publicationHistory: [...(reconciliation.publicationHistory ?? []), previous] } : {}),
+      currentPublication,
+    },
+  };
+}
+
+function preserveHarvestArchives(publication) {
+  for (const { identity, text } of publication.archives) {
+    const file = path.join(ROOT, identity.path);
+    if (existsSync(file) && readFileSync(file, "utf8") !== text) {
+      throw new Error("Refusing to overwrite a changed site-harvest source archive");
+    }
+  }
+  for (const { identity, text } of publication.archives) {
+    const file = path.join(ROOT, identity.path);
+    if (existsSync(file)) continue;
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, text, { flag: "wx" });
+  }
 }
 
 /** Every lane's rows, gathered once, with the drops counted into `report`. */
@@ -360,6 +502,7 @@ function main() {
     pubsWithNoBasis: 0,
   };
   const { rows, notes, harvest } = collectRows(report);
+  const publication = prepareHarvestPublication(harvest, rows);
 
   const byStanding = {};
   const byLane = {};
@@ -372,6 +515,7 @@ function main() {
     version: UK_PRICE_BUNDLE_VERSION,
     generatedAt: new Date().toISOString(),
     rowsPath: "/data/uk_prices/rows.json",
+    ...(DRY_RUN && publication ? { siteHarvestPublication: publication.reconciliation.currentPublication } : {}),
     counts: {
       rows: rows.length,
       venues: new Set(rows.map((row) => row.venueId)).size,
@@ -389,8 +533,9 @@ function main() {
     return;
   }
 
+  if (publication) preserveHarvestArchives(publication);
   mkdirSync(OUT_DIR, { recursive: true });
-  writeFileSync(path.join(OUT_DIR, "rows.json"), `${JSON.stringify(rows)}\n`);
+  writeFileSync(path.join(OUT_DIR, "rows.json"), publication?.bundleText ?? `${JSON.stringify(rows)}\n`);
   writeFileSync(
     path.join(OUT_DIR, "manifest.json"),
     `${JSON.stringify(manifest, null, 2)}\n`,
@@ -402,8 +547,12 @@ function main() {
     mkdirSync(path.dirname(PUBLISHED_HARVEST_ROWS), { recursive: true });
     writeFileSync(
       PUBLISHED_HARVEST_ROWS,
-      `${harvest.rows.map((row) => JSON.stringify(row)).join("\n")}\n`,
+      publication.ledgerText,
     );
+  }
+
+  if (publication) {
+    writeFileSync(RECONCILIATION_PATH, `${JSON.stringify(publication.reconciliation, null, 2)}\n`);
   }
 
   console.log(

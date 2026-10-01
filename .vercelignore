@@ -28,6 +28,8 @@
 # Harvest shards and crawler output. Gitignored, large, and read by scripts the
 # deployed functions never run.
 /data-harvest/
+# Immutable price-observation archives are retained Git audit inputs, never read by the web build.
+/data/uk_prices/observations/
 /.firecrawl/
 
 # Agent tooling checkouts. Not inputs to any build. `.gitnexus` is the local code

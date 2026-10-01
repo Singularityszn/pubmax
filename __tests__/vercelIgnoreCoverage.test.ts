@@ -81,6 +81,7 @@ describe(".vercelignore covers what a deploy would otherwise upload", () => {
     for (const name of [
       ".next",
       "data-harvest",
+      "data/uk_prices/observations",
       ".opencode",
       ".cursor",
       ".agents",
