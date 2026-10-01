@@ -80,3 +80,18 @@ The interface is the handler. The existing tests already call it the way those c
 **Files changed:** none. This section is the record.
 
 **Fully resolved:** no. The filed question asked for a wire-or-delete call. The contract and the measurement URL keep the route, and the fenced composer is the caller that was not wired. A skip is not fully resolved.
+
+## 1742 GET /api/contributors
+
+**Still true:** yes. `app/contributors/page.tsx` (line 23) calls `enrichContributorBoard(await readContributorLeaderboard())`. `app/api/contributors/route.ts` (line 11) calls the same expression. Both import those two functions from `lib/contributorLeaderboardStore.ts`. There is no second copy of the read. A search for `/api/contributors` in TypeScript and JavaScript finds the route and `__tests__/contributorLeaderboardRoute.test.ts` (which imports `GET`). No component, page, e2e spec, iOS shell, or Android shell fetches the path. `components/contributors/` renders the board the page already loaded. It does not call the route.
+
+**Seam decision:** keep. Do not delete the route. Do not add a client fetch of this app's own route. Do not invent a mobile caller. The module is `readContributorLeaderboard` and `enrichContributorBoard` in `lib/contributorLeaderboardStore.ts`. Depth is one board: the durable all-time aggregate when Supabase is configured, otherwise a degraded empty board, then avatar URLs on a ready board with entries. Two adapters sit on it, and both call it the same way:
+
+- `app/contributors/page.tsx` is the server adapter. It passes the board to `ContributorRecord`.
+- `app/api/contributors/route.ts` is the public JSON adapter. `GET` returns that board through `jsonNoStore`.
+
+The interface is that call. `__tests__/contributorLeaderboardRoute.test.ts` calls `GET` the way a keyless client does. Process-memory price logs, Visit Reports, and weather Recommendations stay off the body, and an empty keyless read is `status: "degraded"` with `entries: []`. That is the deletion test for a route that invented a second tally from process memory. The page does not fetch the route, so a client fetch was not added.
+
+**Files changed:** none. This section is the record.
+
+**Fully resolved:** no. The filed question asked for a human wire-or-delete call. The page and the route already share one module, so this run settles the seam and leaves both adapters. A keep of that kind is not fully resolved.
