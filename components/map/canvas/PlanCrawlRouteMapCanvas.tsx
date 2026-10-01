@@ -79,6 +79,7 @@ export default function PlanCrawlRouteMapCanvas({
       interactive: false,
     });
     mapRef.current = map;
+    const attributionSlot = attributionSlotRef?.current ?? null;
     // MapLibre opens the compact attribution expanded and only collapses it on
     // a drag, which this static preview never gets, so the panel would sit on
     // the last stop. Start it at the (i) button. The button then leaves the
@@ -88,8 +89,7 @@ export default function PlanCrawlRouteMapCanvas({
       live?.classList.remove("maplibregl-compact-show");
       live?.removeAttribute("open");
       const liveCorner = container.querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right");
-      const liveSlot = attributionSlotRef?.current ?? null;
-      if (liveCorner && liveSlot) liveSlot.replaceChildren(liveCorner);
+      if (liveCorner && attributionSlot) attributionSlot.replaceChildren(liveCorner);
       for (const node of container.querySelectorAll<HTMLElement>(
         "button, a, input, select, textarea, canvas, [tabindex]",
       )) {
@@ -123,7 +123,7 @@ export default function PlanCrawlRouteMapCanvas({
 
     return () => {
       themeObserver.disconnect();
-      const parked = attributionSlotRef?.current?.querySelector(".maplibregl-ctrl-bottom-right");
+      const parked = attributionSlot?.querySelector(".maplibregl-ctrl-bottom-right");
       if (parked) container.appendChild(parked);
       map.remove();
       mapRef.current = null;
