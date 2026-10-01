@@ -13,16 +13,16 @@ import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } fro
 import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
-import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
-import { groupVenuePrices, type Venue, type VenuePrice, formatGbp } from "@/lib/venues";
+import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { venueMapUrl } from "@/lib/venueIndex";
+import { formatGbp } from "@/lib/venues";
 
 import "./barTab.css";
 
 // The Bar Tab (issue #36): a venue's recent Spills as an Instagram-style profile
 // grid, the "screenshot-worthy" venue surface, distinct from the Ledger (the
 // Boomer/heritage reading surface). Same seams as the Ledger page: the memoized
-// dataset read for the venue header, and the SAME pint-drop store's
+// shared detail read for the venue header, and the SAME pint-drop store's
 // listVisible(venueId), so the #29 visibility guarantees (no friends/legacy
 // leak; anonymous drops show the safe "a PUBMAXXER" label) hold by construction.
 //
@@ -31,61 +31,13 @@ import "./barTab.css";
 
 type PageProps = { params: Promise<{ id: string }> };
 
-// Mirrors app/ledger/[id]'s memoized venue read: group the bundled dataset once
-// per process, look up by id. Never throws, and never words a failed read as an
-// absence (astra-review P1-2): the catch used to memoise the EMPTY map, so one
-// unreadable dataset made every Bar Tab URL say the pub is not on the tab until
-// the instance recycled. Only a successful parse is cached; a failed read is
-// its own answer, and the next request reads the file again.
-let cachedVenues: Map<string, Venue> | null = null;
-
-type VenueReadResult =
-  | { status: "found"; venue: Venue }
-  | { status: "absent" }
-  | { status: "unavailable" };
-
-async function readVenueDataset(): Promise<Map<string, Venue> | null> {
-  if (cachedVenues) return cachedVenues;
-  try {
-    await getVenueIndex(); // keeps the shared dataset read warm/memoized
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as unknown;
-    if (!Array.isArray(rows)) return null;
-    const index = new Map<string, Venue>();
-    for (const venue of groupVenuePrices(rows as VenuePrice[])) {
-      index.set(venue.id, venue);
-    }
-    cachedVenues = index;
-    return index;
-  } catch {
-    return null;
-  }
-}
-
-async function readVenue(id: string): Promise<VenueReadResult> {
-  const venues = await readVenueDataset();
-  if (!venues) return { status: "unavailable" };
-  const direct = venues.get(id);
-  if (direct) return { status: "found", venue: direct };
-  // Resolve a merged duplicate id (D1) so a Bar Tab link to a losing id still
-  // opens the surviving canonical venue.
-  const canonical = await lookupCanonicalVenueId(id);
-  // An alias file we could not read is a read we could not run, never a pub
-  // that is not here: it is the same answer the dataset failure gets.
-  if (canonical.status === "unavailable") return { status: "unavailable" };
-  const aliased = canonical.venueId === id ? null : venues.get(canonical.venueId);
-  return aliased ? { status: "found", venue: aliased } : { status: "absent" };
-}
-
 function pintDropStoreFor() {
   return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const read = await readVenue(id);
+  const read = await lookupVenueDetail(id, { includeHarvestOverlay: false });
   // A read we could not run claims nothing in the unfurl: the same bare title
   // an absent pub gets, because the answer is unknown, not "no".
   if (read.status !== "found") {
@@ -148,15 +100,18 @@ export default async function BarTabPage({ params }: PageProps) {
   const { id } = await params;
   // Three answers, and the order is the rule: a read we could not run is
   // answered BEFORE the not-found card, or the card swallows it.
-  const read = await readVenue(id);
+  const read = await lookupVenueDetail(id, { includeHarvestOverlay: false });
   if (read.status === "unavailable") {
     // A read we could not run may never be held as a fact: this dynamic read
     // keeps the unavailable document out of the full route cache, so the next
-    // request opens the dataset again instead of being served this answer.
+    // request retries the detail read instead of being served this answer.
     await headers();
     return <TabReadUnavailable id={id} />;
   }
-  if (read.status === "absent") return <NotInTheTab />;
+  if (read.status === "missing") {
+    await headers();
+    return <NotInTheTab />;
+  }
   const { venue } = read;
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same drops/ratings,
