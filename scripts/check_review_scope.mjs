@@ -3,7 +3,9 @@
 // Review-scope report for pull requests. This script is deliberately
 // dependency-free so CI can run it before installing the application.
 //
-// It FAILS on one thing: generated or skill-pack output in a human review.
+// It fails on generated output or skill-pack content in a human review.
+// The existing executable helpers own dependency configuration listed below;
+// their skill instructions, implementation and other metadata stay forbidden.
 // The file count and the runtime-domain count are warnings, because a wide
 // review is a judgement and a machine-written file in one is not. The single
 // exception is a REGENERATED LANE, declared below: output the same diff can be
@@ -28,6 +30,19 @@ const CATEGORY_ORDER = [
   "skill-pack",
   "other",
 ];
+
+// Closed dependency metadata for the four existing executable helper packages.
+// This is not permission for skill content or newly added helper packages.
+const HELPER_DEPENDENCY_PATHS = new Set([
+  ".agents/skills/enhance-readme/package.json",
+  ".agents/skills/enhance-readme/package-lock.json",
+  ".agents/skills/orchestrate/scripts/package.json",
+  ".agents/skills/orchestrate/scripts/bun.lock",
+  ".agents/skills/poteto-mode/scripts/package.json",
+  ".agents/skills/poteto-mode/scripts/bun.lock",
+  "skills/enhance-readme/package.json",
+  "skills/enhance-readme/package-lock.json",
+]);
 
 const SKILL_PACK_PATH = /(?:^|\/)skills(?:\/|$)/;
 const GENERATED_PATHS = [
@@ -59,9 +74,11 @@ const GENERATED_PATHS = [
  * when the same diff also changes the generator that writes it or the source
  * input it is cut from, which is exactly the case where a reviewer can check
  * the output against something. A lane's permission covers that lane alone.
- * Output nobody in the diff produced stays forbidden, as does every skill
- * pack, and the human-review count leaves permitted output out because a
- * reviewer reads the generator, never 600 machine-written cells.
+ * Output nobody in the diff produced stays forbidden, as do skill
+ * instructions, implementation and output. HELPER_DEPENDENCY_PATHS names
+ * the only helper dependency metadata classified as configuration. The
+ * human-review count leaves permitted output out because a reviewer reads
+ * the generator, never 600 machine-written cells.
  *
  * A lane is declared here or it does not exist. Adding one means naming the
  * generator that writes it and the input it reads.
@@ -116,7 +133,8 @@ export function classifyReviewFile(value) {
   const path = normalizeReviewPath(value);
   let category = "other";
 
-  if (SKILL_PACK_PATH.test(path)) category = "skill-pack";
+  if (HELPER_DEPENDENCY_PATHS.has(path)) category = "config";
+  else if (SKILL_PACK_PATH.test(path)) category = "skill-pack";
   else if (isGeneratedPath(path)) category = "generated";
   else if (MIGRATION_PATH.test(path)) category = "migration";
   else if (EVIDENCE_PATH.test(path)) category = "evidence";
