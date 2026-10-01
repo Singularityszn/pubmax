@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -23,6 +23,8 @@ beforeEach(() => {
   __resetMemoryProfiles();
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("requireLinkedActor (Wave I2)", () => {
   it("401s without a JWT", async () => {
     const gate = await requireLinkedActor(new Request("http://localhost"), "ken");
@@ -38,6 +40,19 @@ describe("requireLinkedActor (Wave I2)", () => {
     authState.userId = "user-ken";
     const gate = await requireLinkedActor(new Request("http://localhost"), "mallory");
     expect(gate).toEqual({ ok: true, handle: "ken", userId: "user-ken" });
+  });
+
+  it("refuses an asserted handle when the linked-profile lookup is unavailable", async () => {
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    authState.userId = "user-ken";
+    const lookup = vi.spyOn(memoryProfileStore, "getHandleByUserId")
+      .mockRejectedValueOnce(new Error("profile store unavailable"));
+
+    const gate = await requireLinkedActor(new Request("http://localhost"), "mallory");
+
+    expect(lookup).toHaveBeenCalledWith("user-ken");
+    expect(gate).toMatchObject({ ok: false, status: 503 });
+    expect(gate).not.toHaveProperty("handle");
   });
 
   it("returns an asserted new handle when JWT has no linked profile yet", async () => {
