@@ -10,9 +10,9 @@ type LayoutProps = {
   params: Promise<{ handle: string }>;
 };
 
-// loading.tsx wraps the page in Suspense and streams a 200 before that page
-// can call notFound(). This layout sits outside that boundary, so a withheld
-// handle still answers with a real 404.
+// Route-level loading.tsx streamed a 200 before notFound() could set status.
+// This layout withholds blocked handles before the page renders so /u/* answers
+// a real 404.
 export default async function ProfileHandleLayout({ children, params }: LayoutProps) {
   const requestedHandle = normalizeHandle((await params).handle);
   if (
