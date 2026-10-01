@@ -195,9 +195,13 @@ function renderOverview(
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[base.id, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
-  const community = communityPrices(base.id);
-  community.byVenueId.set(base.id, options.communityRows ?? []);
-  community.venuePriceStatus.set(base.id, options.communityReadStatus ?? "ready");
+  const community: CommunityPricesState = {
+    ...communityPrices(base.id),
+    byVenueId: new Map([[base.id, options.communityRows ?? []]]),
+    venuePriceStatus: new Map<string, VenuePriceReadStatus>([
+      [base.id, options.communityReadStatus ?? "ready"],
+    ]),
+  };
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
       venue: merged,
