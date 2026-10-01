@@ -1,5 +1,5 @@
-/* 1:1 messaging surfaces (PRD E4). Colours stay on the shared tokens (globals);
-   this file is layout + the bubble language only.
+/* Direct and group messaging use the scoped visual rule in
+   docs/rules/components-venue-plan-and-message-surfaces.md.
 
    THE SHAPE, on a phone: a sticky head naming who you are talking to, the
    thread as the page's own scroll, and a composer pinned over the foot of the
@@ -11,7 +11,7 @@
 
    THE EDGES follow the de-box rule (docs/DESIGN_SYSTEM.md): borders are for
    inputs, fills are for selection, hairlines are for structure. An inbox row
-   is a flat row with a face; a bubble is a fill; the composer has one border. */
+   is a flat row with a face; a text bubble is a fill; the composer has one border. */
 
 .messagesPage {
   --messages-surface: var(--color-on-photo);
@@ -1098,8 +1098,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   color: #b3261e;
 }
 
-/* Send: a 44px circle with the arrow dead
-   centre. Disabled it drops to a panel fill rather than a ghost of coral. */
+/* Send keeps a 44px target; disabled controls use the neutral panel fill. */
 .composerSend {
   display: inline-flex;
   align-items: center;
