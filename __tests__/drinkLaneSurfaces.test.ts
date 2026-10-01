@@ -177,7 +177,7 @@ describe("VenueDrinkPrices", () => {
     expect(html).toContain("20 September 2026");
     expect(html).toContain('href="https://pub.example/menu"');
     expect(html).not.toContain("Logged by a PUBMAXXER");
-    expect(html).not.toContain("No wine price logged here yet");
+    expect(html).not.toContain("No wine price logged by drinkers yet");
   });
 
   it("keeps a listed quote visible when the community read is degraded", () => {
