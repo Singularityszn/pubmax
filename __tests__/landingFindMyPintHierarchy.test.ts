@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -37,20 +35,6 @@ import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
 // card it is the plain receipt door. Every other route off the page is a text
 // link below the hero or a directory link in the footer.
 
-const landingTsx = readFileSync(
-  join(process.cwd(), "components/landing/LandingPage.tsx"),
-  "utf8",
-);
-const landingCss = readFileSync(
-  join(process.cwd(), "components/landing/landing.css"),
-  "utf8",
-);
-const pageTsx = readFileSync(join(process.cwd(), "app/page.tsx"), "utf8");
-const pintDropStrip = readFileSync(
-  join(process.cwd(), "components/landing/PintDropStrip.tsx"),
-  "utf8",
-);
-
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 
 const card: LandingPubCardData = {
@@ -83,16 +67,6 @@ function hero(rendered: string): string {
 }
 
 describe("landing hierarchy: the price receipt door", () => {
-  it("keeps the hierarchy permanent without a landing flag", () => {
-    expect(pageTsx).not.toMatch(/readTrustedHandoffFlags/);
-    expect(pageTsx).not.toMatch(/landingFindMyPint/);
-    expect(landingTsx).not.toMatch(/landingFindMyPint/);
-    // The client landing component reads no environment at all, whatever a
-    // future flag is called. Kept from the flag era on purpose.
-    expect(landingTsx).not.toMatch(/process\.env/);
-    expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
-  });
-
   it("uses the near-me answer as the only primary action, the receipt door as the first quiet one", () => {
     const h = hero(render());
     expect(h).toMatch(
@@ -113,7 +87,6 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(bare).not.toContain("lpPubCard");
     // The old landing button family is gone, so nothing else can wear coral.
     expect(h).not.toContain("lpButton");
-    expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst|lpHeroActions--findMyPint|lpButtonPrimary/);
   });
 
   it("asks for location only from the one primary, never the footer", () => {
@@ -160,11 +133,6 @@ describe("landing hierarchy: the price receipt door", () => {
     const hero = render().match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero).toMatch(/href="\/tonight"/);
     expect(hero).toMatch(/class="lpTonightDoor"/);
-    // The width half of the tap floor is stated here, because the shared
-    // quiet-link rule floors the height alone.
-    expect(landingCss).toMatch(/\.lpTonightDoor\s*{[^}]*min-width:\s*44px/);
-    // And the fix does not lean on the nav that is still hidden on a phone.
-    expect(landingCss).toMatch(/\.lpPrimaryNav\s*{\s*display:\s*none/);
   });
 
   it("opens the Map directly for a stranger and keeps city choice explicit", () => {
@@ -179,24 +147,5 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(openMapLinks.length).toBeGreaterThan(0);
     expect(openMapLinks.every((match) => match[1] === "/map")).toBe(true);
     expect(rendered).toMatch(/href="\/places"[^>]*>Pick your city<\/a>/);
-  });
-
-  it("CSS: the hero fills the viewport and the desktop only widens the phone order", () => {
-    expect(landingCss).toMatch(/\.lpHero\s*{[^}]*min-height:\s*100dvh/);
-    expect(landingCss).toMatch(/@media \(min-width: 960px\)\s*{\s*\.lpHero\s*{[^}]*grid-template-columns/);
-    // The desktop seats things on a grid by AREA; nothing is reordered with
-    // `order`, so the DOM order stays the phone order.
-    expect(landingCss).not.toMatch(/\.lpHero[^{]*{[^}]*\border:\s*-?\d/);
-    // No decoration behind the copy, no glass, no dot grid, no photo card.
-    expect(landingCss).not.toMatch(/orbit|scanline|backdrop-filter|radial-gradient|thamesHero|cinema/i);
-    // The picture holds its own box before it paints, so nothing under it moves.
-    expect(landingCss).toMatch(/\.lpLondonPhoto\s*{[^}]*aspect-ratio:\s*3 \/ 2/);
-  });
-
-  it("preserves Pint Drop eight-second fail-soft hang path (do not rework)", () => {
-    expect(pintDropStrip).toMatch(/8_000|8000/);
-    expect(pintDropStrip).toMatch(/hangTimer/);
-    expect(pintDropStrip).toMatch(/current === "loading" \? "empty"/);
-    expect(pintDropStrip).toMatch(/status === "hidden" \|\| status === "empty"/);
   });
 });

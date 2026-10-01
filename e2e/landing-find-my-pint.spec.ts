@@ -189,6 +189,7 @@ test.describe("landing hierarchy", () => {
       for (let index = 0; index < doorCount; index += 1) {
         const door = await quietDoors.nth(index).boundingBox();
         expect(door?.height ?? 0).toBeGreaterThanOrEqual(44);
+        expect(door?.width ?? 0).toBeGreaterThanOrEqual(44);
       }
     });
   }

@@ -7,13 +7,18 @@ import { expect, test, type Page } from "@playwright/test";
 // action under the fold at 390x844, the law e2e/landing-find-my-pint.spec.ts
 // owns, and the reason the picture is the card's backdrop rather than a band.
 
-async function open(page: Page, path: string, viewport: { width: number; height: number }) {
+async function open(
+  page: Page,
+  path: string,
+  viewport: { width: number; height: number },
+  waitUntil: "load" | "domcontentloaded" = "load",
+) {
   await page.setViewportSize(viewport);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
-  const response = await page.goto(path);
+  const response = await page.goto(path, { waitUntil });
   expect(response?.status()).toBe(200);
 }
 
@@ -25,6 +30,9 @@ test("the landing card stands on a photograph that really loaded", async ({ page
 
   const image = card.locator(".landingPhoto__img");
   await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((image: HTMLImageElement) =>
+    image.complete && image.naturalWidth > 0 && image.naturalHeight > 0)).toBe(true);
+  await image.evaluate((image: HTMLImageElement) => image.decode());
   // A decoded picture, not a broken <img> with alt text where a photo should be.
   const decoded = await image.evaluate((node) => {
     const img = node as HTMLImageElement;
@@ -40,23 +48,61 @@ test("the landing card stands on a photograph that really loaded", async ({ page
   await expect(credit).toContainText(/Photo: .+, (CC |Public domain|PDM)/);
 });
 
-for (const viewport of [
-  { width: 390, height: 844 },
-  { width: 768, height: 1024 },
-  { width: 1440, height: 900 },
-]) {
-  test(`the London skyline paints without horizontal overflow at ${viewport.width}`, async ({ page }) => {
-    await open(page, "/", viewport);
-    const photo = page.getByRole("img", { name: "Tower Bridge and the Thames in London from above" });
-    await expect(photo).toBeVisible();
-    await expect.poll(() => photo.evaluate((image: HTMLImageElement) =>
-      image.complete && image.naturalWidth > 0)).toBe(true);
-    expect(await photo.evaluate((image: HTMLImageElement) => image.currentSrc)).toContain("/landing/hero-thames-");
-    await expect(page.locator("svg.lpMapSnapshot")).toHaveCount(0);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow).toBeLessThanOrEqual(0);
-  });
-}
+test.describe("responsive London skyline", () => {
+  test.use({ deviceScaleFactor: 2 });
+
+  for (const { viewport, sourceWidth } of [
+    { viewport: { width: 320, height: 568 }, sourceWidth: 1024 },
+    { viewport: { width: 390, height: 844 }, sourceWidth: 1024 },
+    { viewport: { width: 768, height: 1024 }, sourceWidth: 1024 },
+    { viewport: { width: 1150, height: 900 }, sourceWidth: 1024 },
+    { viewport: { width: 1440, height: 900 }, sourceWidth: 1600 },
+  ]) {
+    test(`reserves photo space and fetches the right width at ${viewport.width}`, async ({ page }) => {
+      const requested = new Set<string>();
+      let releasePhoto!: () => void;
+      const photoHeld = new Promise<void>((resolve) => { releasePhoto = resolve; });
+      await page.route("**/landing/hero-thames-*", async (route) => {
+        requested.add(route.request().url());
+        await photoHeld;
+        await route.continue();
+      });
+      await open(page, "/", viewport, "domcontentloaded");
+      await page.evaluate(() => document.fonts.ready);
+      const photo = page.getByRole("img", { name: "Tower Bridge and the Thames in London from above" });
+      await expect(photo).toBeVisible();
+      const reserved = await photo.boundingBox();
+      const primary = page.locator(".lpHero [data-primary-action] a");
+      const before = await primary.boundingBox();
+      try {
+        expect(reserved).not.toBeNull();
+        expect(reserved!.width).toBeGreaterThan(0);
+        expect(reserved!.width / reserved!.height).toBeCloseTo(1.5, 2);
+        expect(await photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(0);
+        expect(before).not.toBeNull();
+      } finally {
+        releasePhoto();
+      }
+
+      await expect.poll(() => photo.evaluate((image: HTMLImageElement) =>
+        image.complete && image.naturalWidth > 0 && image.naturalHeight > 0)).toBe(true);
+      await photo.evaluate((image: HTMLImageElement) => image.decode());
+      const src = await photo.evaluate((image: HTMLImageElement) => image.currentSrc);
+      expect(src).toContain(`/landing/hero-thames-${sourceWidth}.`);
+      expect([...requested]).toEqual([src]);
+      const painted = await photo.boundingBox();
+      const after = await primary.boundingBox();
+      expect(painted).not.toBeNull();
+      expect(painted!.width).toBeCloseTo(reserved!.width, 1);
+      expect(painted!.height).toBeCloseTo(reserved!.height, 1);
+      expect(after).not.toBeNull();
+      expect(after!.y).toBeCloseTo(before!.y, 1);
+      await expect(page.locator("svg.lpMapSnapshot")).toHaveCount(0);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
+});
 
 test("the card's scrim ships the alpha the contrast contract is proved at", async ({ page }) => {
   await open(page, "/", { width: 390, height: 844 });

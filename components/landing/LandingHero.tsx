@@ -72,7 +72,12 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
-const HERO_PHOTO_SIZES = "(max-width: 959px) 100vw, 34rem";
+const HERO_PHOTO_SIZES = [
+  "(max-width: 640px) min(calc(100vw - clamp(22px, 5vw, 32px) - 80px), 34rem, calc((100svh - 64px) * .33))",
+  "(max-width: 959px) min(calc(100vw - clamp(22px, 5vw, 32px) - 80px), 34rem, max(14rem, 36svh))",
+  "(max-width: 1279px) min(34rem, calc((min(1240px, 100vw) - 64px - clamp(28px, 4vw, 56px)) * .475))",
+  "min(34rem, calc((min(1240px, calc(100vw - 64px)) - 64px - clamp(28px, 4vw, 56px)) * .475))",
+].join(", ");
 const HERO_PHOTO_AVIF_SRCSET = "/landing/hero-thames-1024.avif 1024w, /landing/hero-thames-1600.avif 1600w";
 
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
