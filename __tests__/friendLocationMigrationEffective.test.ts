@@ -34,6 +34,42 @@ beforeAll(async () => {
 afterAll(async () => { if (pg) await pg.stop(); });
 
 describe.skipIf(Boolean(postgresSkipReason()))("private friend location SQL", () => {
+  it("removes export-reader default SELECT from every private table without weakening RLS", () => {
+    expect(pg.sql("select exists(select 1 from pg_roles where rolname='posthog_reader')")).toBe("f");
+    pg.applyFile(rollback);
+    pg.sql(`create role posthog_reader nologin nosuperuser nobypassrls noreplication;
+      alter default privileges in schema public grant select on tables to posthog_reader;
+      create table public.friend_location_export_control(id integer);`);
+    pg.applyFile(migration);
+
+    try {
+      pg.sql("create table public.friend_location_export_future_control(id integer)");
+      expect(pg.sql("select has_table_privilege('posthog_reader','public.friend_location_export_control','SELECT')")).toBe("t");
+      expect(pg.sql("select has_table_privilege('posthog_reader','public.friend_location_export_future_control','SELECT')")).toBe("t");
+      expect(pg.sql("select not rolsuper and not rolbypassrls and not rolreplication from pg_roles where rolname='posthog_reader'")).toBe("t");
+      for (const table of ["private_friend_location_generations", "private_friend_location_sessions", "private_friend_location_grants"]) {
+        for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+          expect(pg.sql(`select has_table_privilege('service_role','public.${table}','${privilege}')`)).toBe("t");
+        }
+      }
+      const access = JSON.parse(pg.sql(`select jsonb_object_agg(c.relname,
+        jsonb_build_object('select',has_table_privilege('posthog_reader',c.oid,'SELECT'),'rls',c.relrowsecurity))
+        from pg_class c join pg_namespace n on n.oid=c.relnamespace
+        where n.nspname='public' and c.relname in (
+          'private_friend_location_generations',
+          'private_friend_location_sessions',
+          'private_friend_location_grants'
+        )`));
+
+      expect(access).toEqual({
+        private_friend_location_generations: { select: false, rls: true },
+        private_friend_location_sessions: { select: false, rls: true },
+        private_friend_location_grants: { select: false, rls: true },
+      });
+    } finally {
+      pg.sql("drop table public.friend_location_export_control, public.friend_location_export_future_control");
+    }
+  });
   it("shows only explicitly selected mutuals; strangers and forged actors fail closed", () => {
     expect(call(ids[1], "read").friends).toEqual([]);
     const share = call(ids[0], "start", { ...point, recipients: [ids[1]] });
