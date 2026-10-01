@@ -6,6 +6,7 @@ import {
   decodeResumeCookie,
   accessJwt,
   installAuthDoubles,
+  observeHeldResumeCancellation,
   readDeviceIdentity,
   resumeCookie,
   seedSignedIn,
@@ -24,6 +25,10 @@ test("a held A resume cannot replace B signed in from another tab", async ({ con
   await page.goto("/today");
   await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);
   await expect.poll(() => resumeCookie(page, baseURL)).toBeTruthy();
+  const resumeObservation = await observeHeldResumeCancellation(page, {
+    access_token: accessJwt(ACCOUNTS.A),
+    refresh_token: ACCOUNTS.A.refreshToken,
+  });
 
   // Start a cold restore with A's durable cookie, then hold its answer while a
   // second tab completes B's normal callback and publishes the new SDK session.
@@ -64,39 +69,50 @@ test("a held A resume cannot replace B signed in from another tab", async ({ con
     });
   });
 
-  await page.reload();
-  await redeemHeld;
-  expect(redeemRequests).toBe(1);
-  expect(await page.evaluate((key) => window.localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
+  try {
+    await page.reload();
+    await redeemHeld;
+    expect(redeemRequests).toBe(1);
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
+    await resumeObservation.arm();
 
-  const secondTab = await context.newPage();
-  const secondTabAuth = await installAuthDoubles(secondTab, { initialSeedOnly: true, realResumeCookie: true });
-  await secondTab.goto("/today");
-  await secondTabAuth.signedInAs("B");
-  await secondTab.goto("/today");
-  await expect.poll(async () => (await readDeviceIdentity(secondTab)).handle).toBe(ACCOUNTS.B.handle);
-  await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
-  await expect.poll(async () => page.evaluate((key) => {
-    try {
-      return JSON.parse(window.localStorage.getItem(key) ?? "{}").user?.id ?? null;
-    } catch {
-      return null;
-    }
-  }, AUTH_STORAGE_KEY)).toBe(ACCOUNTS.B.id);
-  await expect.poll(async () =>
-    decodeResumeCookie(await resumeCookie(page, baseURL))?.rt,
-  ).toBe(ACCOUNTS.B.refreshToken);
+    const secondTab = await context.newPage();
+    const secondTabAuth = await installAuthDoubles(secondTab, { initialSeedOnly: true, realResumeCookie: true });
+    await secondTab.goto("/today");
+    await secondTabAuth.signedInAs("B");
+    await secondTab.goto("/today");
+    await expect.poll(async () => (await readDeviceIdentity(secondTab)).handle).toBe(ACCOUNTS.B.handle);
+    await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
+    await expect.poll(async () => page.evaluate((key) => {
+      try {
+        return JSON.parse(window.localStorage.getItem(key) ?? "{}").user?.id ?? null;
+      } catch {
+        return null;
+      }
+    }, AUTH_STORAGE_KEY)).toBe(ACCOUNTS.B.id);
+    await expect.poll(async () =>
+      decodeResumeCookie(await resumeCookie(page, baseURL))?.rt,
+    ).toBe(ACCOUNTS.B.refreshToken);
 
-  await releaseA?.();
-  await expect.poll(async () => page.evaluate((key) => {
-    try {
-      return JSON.parse(window.localStorage.getItem(key) ?? "{}").user?.id ?? null;
-    } catch {
-      return null;
-    }
-  }, AUTH_STORAGE_KEY)).toBe(ACCOUNTS.B.id);
-  await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
-  await expect.poll(async () =>
-    decodeResumeCookie(await resumeCookie(page, baseURL))?.rt,
-  ).toBe(ACCOUNTS.B.refreshToken);
+    expect(await resumeObservation.read()).toEqual(["restore-cancelled"]);
+    await releaseA?.();
+    // The first read stops bootstrap's SDK install; the second finishes the
+    // provider's awaited bootstrap without publishing the retired account.
+    await expect.poll(resumeObservation.read).toEqual([
+      "restore-cancelled", "A-body-read", "captured-signal-read", "captured-signal-read",
+    ]);
+    await expect.poll(async () => page.evaluate((key) => {
+      try {
+        return JSON.parse(window.localStorage.getItem(key) ?? "{}").user?.id ?? null;
+      } catch {
+        return null;
+      }
+    }, AUTH_STORAGE_KEY)).toBe(ACCOUNTS.B.id);
+    await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
+    await expect.poll(async () =>
+      decodeResumeCookie(await resumeCookie(page, baseURL))?.rt,
+    ).toBe(ACCOUNTS.B.refreshToken);
+  } finally {
+    await resumeObservation.dispose();
+  }
 });

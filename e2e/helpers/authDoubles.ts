@@ -40,6 +40,117 @@ export type Stub = {
   setServerHandle: (handle: string | null) => void;
 };
 
+type HeldResumeEvent = "restore-cancelled" | "A-body-read" | "captured-signal-read";
+type HeldResumeObservation = {
+  arm: () => void;
+  read: () => HeldResumeEvent[];
+  dispose: () => void;
+};
+
+declare global {
+  interface Window {
+    __pubmaxxHeldResumeObservation?: HeldResumeObservation;
+  }
+}
+
+/** Observe real body consumption and both cancellation reads, without an SDK double. */
+export async function observeHeldResumeCancellation(
+  page: Page,
+  expected: { access_token: string; refresh_token: string },
+): Promise<{
+  arm: () => Promise<void>;
+  read: () => Promise<HeldResumeEvent[]>;
+  dispose: () => Promise<void>;
+}> {
+  await page.addInitScript((tokens) => {
+    const abortDescriptor = Object.getOwnPropertyDescriptor(AbortController.prototype, "abort");
+    const abortedDescriptor = Object.getOwnPropertyDescriptor(AbortSignal.prototype, "aborted");
+    const jsonDescriptor = Object.getOwnPropertyDescriptor(Response.prototype, "json");
+    if (!abortDescriptor || !abortedDescriptor?.get || !jsonDescriptor) {
+      throw new Error("Native resume observation descriptors are missing.");
+    }
+    const nativeAbort = AbortController.prototype.abort;
+    const nativeAborted = abortedDescriptor.get;
+    const nativeJson = Response.prototype.json;
+    const events: HeldResumeEvent[] = [];
+    let armed = false;
+    let capturedSignal: AbortSignal | null = null;
+    let bodyRead = false;
+
+    // AuthProvider cancels its held bootstrap before updateSession advances
+    // revision signals, whose abort calls carry an explicit DOMException.
+    function observeAbort(this: AbortController, ...args: Parameters<AbortController["abort"]>) {
+      const candidate = armed && !capturedSignal && !bodyRead && args.length === 0
+        ? this.signal : null;
+      const wasAborted = candidate ? nativeAborted.call(candidate) : false;
+      const result = nativeAbort.apply(this, args);
+      if (candidate && !wasAborted && nativeAborted.call(candidate)) {
+        capturedSignal = candidate;
+        events.push("restore-cancelled");
+      }
+      return result;
+    }
+
+    function observeAborted(this: AbortSignal) {
+      const aborted = nativeAborted.call(this);
+      if (bodyRead && this === capturedSignal && aborted) events.push("captured-signal-read");
+      return aborted;
+    }
+
+    async function observeJson(this: Response): Promise<unknown> {
+      const body: unknown = await nativeJson.call(this);
+      const url = new URL(this.url, window.location.href);
+      if (armed && capturedSignal && !bodyRead && this.ok &&
+        url.origin === window.location.origin && url.pathname === "/api/auth/session" &&
+        typeof body === "object" && body !== null &&
+        "status" in body && body.status === "restored" && "session" in body) {
+        const session = body.session;
+        if (typeof session === "object" && session !== null &&
+          "access_token" in session && session.access_token === tokens.access_token &&
+          "refresh_token" in session && session.refresh_token === tokens.refresh_token) {
+          bodyRead = true;
+          events.push("A-body-read");
+        }
+      }
+      return body;
+    }
+
+    Object.defineProperty(AbortController.prototype, "abort", { ...abortDescriptor, value: observeAbort });
+    Object.defineProperty(AbortSignal.prototype, "aborted", { ...abortedDescriptor, get: observeAborted });
+    Object.defineProperty(Response.prototype, "json", { ...jsonDescriptor, value: observeJson });
+    window.__pubmaxxHeldResumeObservation = {
+      arm() {
+        if (armed) throw new Error("Held resume observation already armed.");
+        armed = true;
+      },
+      read: () => [...events],
+      dispose() {
+        Object.defineProperty(AbortController.prototype, "abort", abortDescriptor);
+        Object.defineProperty(AbortSignal.prototype, "aborted", abortedDescriptor);
+        Object.defineProperty(Response.prototype, "json", jsonDescriptor);
+        delete window.__pubmaxxHeldResumeObservation;
+      },
+    };
+  }, expected);
+
+  return {
+    arm: () => page.evaluate(() => {
+      const observation = window.__pubmaxxHeldResumeObservation;
+      if (!observation) throw new Error("Held resume observation not installed.");
+      observation.arm();
+    }),
+    read: () => page.evaluate(() => {
+      const observation = window.__pubmaxxHeldResumeObservation;
+      if (!observation) throw new Error("Held resume observation not installed.");
+      return observation.read();
+    }),
+    dispose: async () => {
+      if (page.isClosed()) return;
+      await page.evaluate(() => window.__pubmaxxHeldResumeObservation?.dispose());
+    },
+  };
+}
+
 /** A cross-origin POST carrying `apikey` needs the preflight answered too. */
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
