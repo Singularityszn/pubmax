@@ -17,9 +17,9 @@
 //    measures the rendered boxes at 390px and 1280px.
 //
 // 2. THE COMPOSER. A message is somebody talking, so the field helps them the
-//    way every other field on their phone does: sentence case, autocorrect on,
-//    spelling checked. `autocorrect="off"` anywhere on this surface is the
-//    defect, and the sweep below is tree-wide over components/messages.
+//    way every other free-text message field does: sentence case, autocorrect
+//    on, spelling checked. The sweep below pins composer-adjacent prose fields;
+//    the recipient picker has a separate lowercase handle-search fence.
 //
 // 3. THE OVERSIZED PHOTO. Captain report from live mobile use. The tile was
 //    capped at `max-height: 15rem`, which is the READER'S FONT rather than the
@@ -38,7 +38,7 @@
 //    jump; on a phone held sideways (844x390) the 40dvh limb binds at 124.8x156.
 //    `e2e/message-bubble-geometry.spec.ts` measures the rendered boxes.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -77,6 +77,13 @@ const CSS = read("app/messages/messages.css") + read("components/messages/messag
 const THREAD = read("components/messages/MessageThread.tsx");
 const PICKER = read("components/messages/MessageAttachmentPicker.tsx");
 const PHOTO = read("components/messages/MessagePhoto.tsx");
+const RECIPIENT_DIALOG_PATH = join(
+  process.cwd(),
+  "components/messages/MessageRecipientDialog.tsx",
+);
+const RECIPIENT_DIALOG = existsSync(RECIPIENT_DIALOG_PATH)
+  ? readFileSync(RECIPIENT_DIALOG_PATH, "utf8")
+  : "";
 
 /** One rule body out of the shipped stylesheet, by selector. */
 function rule(selector: string): string {
@@ -175,6 +182,19 @@ describe("the composer is a field somebody can talk into", () => {
       );
       expect(source, `${file} turns spellcheck off`).not.toMatch(/spellCheck=\{false\}/);
     }
+  });
+
+  it("keeps recipient handle search lowercase and out of autocorrect", () => {
+    const labelAt = RECIPIENT_DIALOG.indexOf('htmlFor={`${fieldId}-search`}');
+    const inputAt = RECIPIENT_DIALOG.indexOf('id={`${fieldId}-search`}', labelAt);
+    const inputEnd = RECIPIENT_DIALOG.indexOf("/>", inputAt);
+    expect(labelAt).toBeGreaterThan(-1);
+    expect(inputAt).toBeGreaterThan(labelAt);
+    expect(inputEnd).toBeGreaterThan(inputAt);
+    const search = RECIPIENT_DIALOG.slice(inputAt, inputEnd);
+    expect(search).toContain('autoCapitalize="none"');
+    expect(search).toContain('autoCorrect="off"');
+    expect(search).toContain("spellCheck={false}");
   });
 
   it("grows with what is typed and stops where the CSS says", () => {
