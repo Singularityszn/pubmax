@@ -21,7 +21,7 @@ Full rules: [`docs/rules/app-auth-and-account-routes.md`](../docs/rules/app-auth
 Full rules: [`docs/rules/app-landing-city-and-listing-pages.md`](../docs/rules/app-landing-city-and-listing-pages.md).
 
 - [A governed price landing is a crawler's page, and `/area/{slug}` is HELD.](../docs/rules/app-landing-city-and-listing-pages.md#a-governed-price-landing-is-a-crawler-s-page-and-area-slug-is-held)
-- [The root landing LANDS ON THE ANSWER, and the first tap is a receipt.](../docs/rules/app-landing-city-and-listing-pages.md#the-root-landing-lands-on-the-answer-and-the-first-tap-is-a-receipt)
+- [The root landing keeps pub evidence grounded.](../docs/rules/app-landing-city-and-listing-pages.md#the-root-landing-lands-on-the-answer-and-the-first-tap-is-a-receipt)
 - [A city is CHOSEN once, and the surfaces that read it follow.](../docs/rules/app-landing-city-and-listing-pages.md#a-city-is-chosen-once-and-the-surfaces-that-read-it-follow)
 - [THE ANSWER COMES FIRST, AND WHAT ACTS ON IT COMES AFTER IT.](../docs/rules/app-landing-city-and-listing-pages.md#the-answer-comes-first-and-what-acts-on-it-comes-after-it)
 - [The homepage share card IS the invite preview, so it may hold no figure of its own.](../docs/rules/app-landing-city-and-listing-pages.md#the-homepage-share-card-is-the-invite-preview-so-it-may-hold-no-figure-of-its-ow)

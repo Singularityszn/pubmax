@@ -666,7 +666,7 @@ a.lpPubPint:hover { color: var(--ink); }
   }
 }
 
-/* On a phone the fixed tab bar owns the bottom of the screen, so the drawing's
+/* On a phone the fixed tab bar owns the bottom of the screen, so the photo's
    share is taken from the height above the bar, with no floor: at 320x568 the
    14rem floor pushed the primary under the bar and a tap landed on a tab. Only
    the photo narrows; the caption keeps the figure's width, or it wraps a
