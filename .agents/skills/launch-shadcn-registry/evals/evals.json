@@ -1,0 +1,23 @@
+{
+  "skill_name": "launch-shadcn-registry",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just published my shadcn registry at https://motionkit.dev/r. It has three animation component presets. I want to get listed in the official shadcn directory, registry.directory, the awesome lists, and shadcntemplates. I also need social posts. Can you handle the full launch?",
+      "expected_output": "Collects the registry profile, runs validate-registry.sh, prepares submissions for all five targets, presents each pull request for approval, and drafts separate posts for Reddit, X, Dev.to, and Hacker News.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Hey, my scope is @chartblocks and the site is https://chartblocks.io. I only want the official shadcn-ui/ui directory and registry.directory. I don't need the awesome lists or social posts. What do I need to prepare?",
+      "expected_output": "Confirms the two requested targets, collects the required profile fields, runs preflight validation, and prepares only the official directory and registry.directory entries with pull request bodies.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "My registry @iconhive merged into the official shadcn directory last week. Now I want announcement drafts for Reddit r/shadcn, X, Dev.to, and Hacker News. The registry is at https://iconhive.dev/r.",
+      "expected_output": "Skips directory submission work because the registry is already live, collects the missing profile details, reads the social references, and writes a distinct draft for each of the four platforms. The drafts mention that the registry is now listed in the shadcn registry directory.",
+      "files": []
+    }
+  ]
+}

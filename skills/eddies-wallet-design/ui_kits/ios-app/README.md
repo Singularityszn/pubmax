@@ -1,1 +1,0 @@
-ui_kits/ios-app/App.jsx, ui_kits/ios-app/WalletScreen.jsx, ui_kits/ios-app/Sheets.jsx — click-through prototype of the parent+child wallet, PIN gate, and money-event flows described in the PRD's Journeys B–E and §8.4–8.9.
