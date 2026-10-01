@@ -10,6 +10,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
+import { Button } from "@/components/ui/button";
 // Shared nav atoms (bell/messages island) carry their styling in siteNav.css.
 
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
@@ -30,6 +31,7 @@ import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
+import { SPOONS_VALUE_ROUTE } from "@/lib/spoonsValue";
 
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
@@ -154,6 +156,20 @@ export default function LandingPage({
           >
             Open the map
           </Link>
+          <div className="lpValueDoor">
+            <p id="lp-value-description">
+              Compare what £10 buys in Wetherspoons, pub by pub.
+            </p>
+            <Button asChild variant="secondary">
+              <Link
+                prefetch={false}
+                href={SPOONS_VALUE_ROUTE}
+                aria-describedby="lp-value-description"
+              >
+                Value for money
+              </Link>
+            </Button>
+          </div>
         </section>
 
         <div className="lpDrops">
