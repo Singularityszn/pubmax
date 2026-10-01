@@ -10,8 +10,8 @@ route; `__tests__/coreUiAudit.test.ts` counts one primary action per route.
 Rules the table obeys:
 
 - Value first, account at the first kept action. No primary action on a
-  public route is "Sign in", with ONE recorded exception, added 21 September
-  2026: the Social posts tab while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1`. There the
+  public route is "Sign in", except Messages and the Social posts tab while
+  `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1`. On those private surfaces the
   body a signed-out reader meets IS the sign-in boundary, so there is no value
   left to paint and the door is the first kept action; the boundary under it
   then prints its line alone rather than repeating the same link. The rule
@@ -52,7 +52,7 @@ Rules the table obeys:
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. | Find my pint | Open the map |
 | `/out` | Out in London | What's on tonight. | Open the map | Plan a night |
-| `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger on the posts tab, the one exception to the opening rule); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
+| `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger on the posts tab); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
 | `/plan` | Sort the outing | Describe the outing. We'll put it in order. | Sort it (submit the ask) | Guide me instead |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |
@@ -71,7 +71,7 @@ Rules the table obeys:
 | `/pint-index` | Pint Index | London pint prices, month by month. | Open the map | Download the CSV |
 | `/pint-index/[month]` | Pint Index | London pint prices, (month). | Open the map | Download the CSV |
 | `/rounds` | Rounds | Who bought the last round. | Start a round | Open a round code |
-| `/messages` | Messages | Messages. | New message | Find your lot |
+| `/messages` | (none) | Messages | New message (signed in); Sign in (signed out) | (none) |
 | `/activity` | Activity | Activity. | Open the map | Find your lot |
 | `/moment` | Moment | Save a Moment. | Save this Moment | Back |
 | `/about` | About | (the founder line) | Open the map | Contact |

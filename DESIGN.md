@@ -76,6 +76,8 @@ This system explicitly rejects purple-glow SaaS dark, cream+terracotta DTC defau
 
 Candle Coral neutrals by day; Night Out ink by night. Coral stays primary in both themes and semantic colours stay named.
 
+For the messaging exception to these surface and accent rules, see the [design system](docs/DESIGN_SYSTEM.md).
+
 ### Primary
 
 - **Candle Coral** (`#ff5a5f` / `--brass`): Plan CTA, selection, active accent in both themes. Legacy token name `--brass` - keep the name so `readTokens()` and existing components keep working.
