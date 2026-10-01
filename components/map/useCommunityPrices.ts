@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
   freshestCommunityPrice,
   freshestPintPrice,
+  NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
   type CommunityPrice,
   type CommunityPriceAttribution,
@@ -180,7 +181,8 @@ export type CommunityPricesState = {
    * not check would contradict the figures in front of them.
    */
   noAlcoholIndexStatus: NoAlcoholIndexStatus;
-  /** Load soft-drink and alcohol-free rows across venues once per session. */
+  listedNoAlcoholPrices: readonly MapLensPrice[];
+  /** Load soft-drink and alcohol-free rows across venues, retrying failed reads. */
   loadNoAlcoholIndex: () => void;
   /** Load one selected drink category across venues once per session. */
   loadDrinkCategoryIndex: (category: DrinkCategory, serving?: string | null) => void;
@@ -693,6 +695,7 @@ export function useCommunityPrices(): CommunityPricesState {
     Map<string, CategoryPriceIndexStatus>
   >(() => new Map());
   const [listedDrinkPrices, setListedDrinkPrices] = useState<ReadonlyMap<string, MapLensPrice[]>>(() => new Map());
+  const [listedNoAlcoholPrices, setListedNoAlcoholPrices] = useState<readonly MapLensPrice[]>([]);
   const [drinkServingGroups, setDrinkServingGroups] = useState<ReadonlyMap<DrinkCategory, readonly string[]>>(() => new Map());
   const noAlcoholIndexLoaded = useRef(false);
   const drinkCategoryIndexesLoaded = useRef<Set<string>>(new Set());
@@ -813,7 +816,11 @@ export function useCommunityPrices(): CommunityPricesState {
           discardBody(response);
           throw new Error("category index unavailable");
         }
-        const result = readCategoryPriceIndexLoad(await response.json());
+        const body = await response.json();
+        const result = readCategoryPriceIndexLoad(body);
+        setListedNoAlcoholPrices(NO_ALCOHOL_DRINK_CATEGORIES.flatMap(
+          (category) => readListedDrinkIndex(body.listedPrices, category),
+        ));
         if (result.status === "invalid") {
           noAlcoholIndexLoaded.current = false;
           setNoAlcoholIndexStatus("degraded");
@@ -836,6 +843,7 @@ export function useCommunityPrices(): CommunityPricesState {
           }
           return next;
         });
+        if (result.status === "degraded") noAlcoholIndexLoaded.current = false;
         setNoAlcoholIndexStatus(
           result.status === "degraded"
             ? "degraded"
@@ -1346,6 +1354,7 @@ export function useCommunityPrices(): CommunityPricesState {
     signalsByVenueId,
     freshestByVenueId,
     noAlcoholIndexStatus,
+    listedNoAlcoholPrices,
     loadNoAlcoholIndex,
     loadDrinkCategoryIndex,
     drinkCategoryIndexStatus,

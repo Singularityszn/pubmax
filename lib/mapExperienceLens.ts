@@ -144,6 +144,7 @@ function noAlcoholLabel(category: NoAlcoholDrinkCategory): string {
 export function trustedNoAlcoholLensPrices(
   rowsByVenue: ReadonlyMap<string, readonly CommunityPrice[]>,
   now: number = Date.now(),
+  listed: readonly MapLensPrice[] = [],
 ): Map<string, MapLensPrice> {
   const out = new Map<string, MapLensPrice>();
   for (const [venueId, rows] of rowsByVenue) {
@@ -170,6 +171,18 @@ export function trustedNoAlcoholLensPrices(
       }
     }
     if (best) out.set(venueId, best);
+  }
+  // Community authority keeps its existing precedence. A publisher quote
+  // fills an otherwise unknown venue, retaining its own category and serving.
+  for (const category of NO_ALCOHOL_DRINK_CATEGORIES) {
+    for (const [venueId, quote] of discoveryDrinkLensPrices(new Map(), category, listed, now)) {
+      const current = out.get(venueId);
+      if (current?.source === "community") continue;
+      if (!current || quote.priceGbp < current.priceGbp || (
+        quote.priceGbp === current.priceGbp &&
+        (quote.observedAt ?? "") > (current.observedAt ?? "")
+      )) out.set(venueId, quote);
+    }
   }
   return out;
 }

@@ -1970,8 +1970,9 @@ export default function PubMap({
       trustedNoAlcoholLensPrices(
         communityPrices.byVenueId,
         experiencePolicyNow,
+        communityPrices.listedNoAlcoholPrices,
       ),
-    [communityPrices.byVenueId, experiencePolicyNow],
+    [communityPrices.byVenueId, communityPrices.listedNoAlcoholPrices, experiencePolicyNow],
   );
   const venueSignals = useMemo(
     // The age gate reads the clock inside the merge (its `now` default) rather
@@ -3038,7 +3039,7 @@ export default function PubMap({
     let noAlcoholPriceCount = 0;
     let sourcedFoodPriceCount = 0;
     for (const price of experienceLensPrices?.values() ?? []) {
-      if (price.source === "community") noAlcoholPriceCount += 1;
+      if (price.source === "community" || price.source === "listed") noAlcoholPriceCount += 1;
       if (price.source === "sourced-anchor") sourcedFoodPriceCount += 1;
     }
     return experienceLensSummary(

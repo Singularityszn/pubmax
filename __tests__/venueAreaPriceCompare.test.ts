@@ -324,6 +324,7 @@ describe("VenueOverviewTab area-price compare mount", () => {
       signalsByVenueId: new Map(),
       freshestByVenueId: new Map(),
       noAlcoholIndexStatus: "idle",
+      listedNoAlcoholPrices: [],
       loadNoAlcoholIndex: noop,
       loadDrinkCategoryIndex: noop,
       drinkCategoryIndexStatus: new Map(),

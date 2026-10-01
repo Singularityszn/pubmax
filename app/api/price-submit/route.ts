@@ -547,14 +547,18 @@ export async function GET(request: Request): Promise<Response> {
       );
     }
     if (searchParams.get("lens") === "no-alcohol") {
-      const result = await readCommunityPriceCategoryIndex(
-        NO_ALCOHOL_DRINK_CATEGORIES,
-      );
+      const now = Date.now();
+      const [result, ...listedIndexes] = await Promise.all([
+        readCommunityPriceCategoryIndex(NO_ALCOHOL_DRINK_CATEGORIES),
+        ...NO_ALCOHOL_DRINK_CATEGORIES.map((category) => ukPriceBundleCategoryIndex(category, now)),
+      ]);
+      const listedPrices = listedIndexes.flatMap((index) => index.prices);
       return jsonNoStore(
         {
           prices: result.prices,
-          truncated: result.truncated,
-          ...(result.degraded ? { degraded: true } : {}),
+          listedPrices: listedPrices.slice(0, 1000),
+          truncated: result.truncated || listedIndexes.some((index) => index.truncated) || listedPrices.length > 1000,
+          ...(result.degraded || listedIndexes.some((index) => index.degraded) ? { degraded: true } : {}),
         },
         { status: 200 },
       );
