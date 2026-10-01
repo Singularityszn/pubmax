@@ -13,6 +13,8 @@ type ListedQuote = {
   priceGbp: number;
   sourceUrl: string;
   observedAt: string;
+  drinkLabel?: string | null;
+  servingSize?: string | null;
 };
 type ListedEvidence = {
   category: string;
@@ -36,22 +38,27 @@ type RouteCandidate = {
 };
 type RouteStop = RouteCandidate & { alternatives?: RouteCandidate[] };
 
-// These two pubs are inside Shoreditch Night Area's 1.6 km radius and carry
-// current published-menu rows in the committed bundle. They are evidence
-// anchors, not hard-coded price expectations.
+// Four journeys retain their Shoreditch source anchors. Gin requires the
+// Albion's named offer inside Hammersmith's existing radius and cannot pass
+// until the official harvest and builder publish that captured menu reading.
 const journeys = [
-  { category: "whisky", label: "Whisky", noun: "whisky", query: "Whisky in Shoreditch for 2", anchor: "venue-ndc1rt" },
-  { category: "gin", label: "Gin", noun: "gin", query: "Gin in Shoreditch for 2", anchor: "venue-ndc1rt" },
-  { category: "vodka", label: "Vodka", noun: "vodka", query: "Vodka in Shoreditch for 2", anchor: "venue-t3ii33" },
-  { category: "rum", label: "Rum", noun: "rum", query: "Rum in Shoreditch for 2", anchor: "venue-ndc1rt" },
-  { category: "shot", label: "Shots", noun: "shot", query: "Shots in Shoreditch for 2", anchor: "venue-ndc1rt" },
+  { category: "whisky", label: "Whisky", noun: "whisky", query: "Whisky in Shoreditch for 2", nightArea: "shoreditch", anchor: "venue-ndc1rt" },
+  { category: "gin", label: "Gin", noun: "gin", query: "Gin in Hammersmith for 2", nightArea: "hammersmith", anchor: "venue-1qge8u" },
+  { category: "vodka", label: "Vodka", noun: "vodka", query: "Vodka in Shoreditch for 2", nightArea: "shoreditch", anchor: "venue-t3ii33" },
+  { category: "rum", label: "Rum", noun: "rum", query: "Rum in Shoreditch for 2", nightArea: "shoreditch", anchor: "venue-ndc1rt" },
+  { category: "shot", label: "Shots", noun: "shot", query: "Shots in Shoreditch for 2", nightArea: "shoreditch", anchor: "venue-ndc1rt" },
 ] as const satisfies ReadonlyArray<{
   category: Category;
   label: string;
   noun: string;
   query: string;
+  nightArea: "shoreditch" | "hammersmith";
   anchor: string;
 }>;
+
+// Publisher PDF captured through the permission-checked official reader.
+// The observation date is read from the committed row, never supplied here.
+const albionGinSourceUrl = "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206";
 
 const aliasDocument = JSON.parse(readFileSync("public/data/venue_id_aliases.json", "utf8")) as {
   aliases: Record<string, string>;
@@ -133,6 +140,21 @@ for (const journey of journeys) {
         && source.category === row.category && source.standing === "listed"
         && source.priceGbp === row.priceGbp && source.sourceUrl === row.sourceUrl
         && source.observedAt === row.observedAt))).toBe(true);
+    const ginSource = journey.category === "gin" ? committedPrices.find((row) =>
+      canonicalVenueId(row.venueId) === canonicalVenueId(journey.anchor)
+      && row.category === "gin" && row.standing === "listed"
+      && Math.round(row.priceGbp * 100) === 400 && row.drinkLabel === "GORDONS"
+      && row.servingSize === "25ml" && row.sourceUrl === albionGinSourceUrl,
+    ) : undefined;
+    if (journey.category === "gin") {
+      expect(ginSource, "Official bundle must retain the captured Albion GORDONS £4.00 / 25ml offer").toBeDefined();
+      expect(index.listedPrices.some((row) =>
+        canonicalVenueId(row.venueId) === canonicalVenueId(journey.anchor)
+        && row.category === "gin" && Math.round(row.priceGbp * 100) === 400
+        && row.drinkLabel === "GORDONS" && row.servingSize === "25ml"
+        && row.sourceUrl === albionGinSourceUrl && row.observedAt === ginSource?.observedAt,
+      ), "Map Gin index must preserve the exact committed named offer and its real observation date").toBe(true);
+    }
 
     await expect(async () => {
       await page.getByTestId("create-fab").click();
@@ -168,7 +190,7 @@ for (const journey of journeys) {
       basis: "selected-drink-price-unavailable",
     });
     expect(generated.inferredContext).toMatchObject({
-      nightArea: "shoreditch", drinkCategory: journey.category, zeroProof: false,
+      nightArea: journey.nightArea, drinkCategory: journey.category, zeroProof: false,
     });
     expect(generated.stops?.length).toBeGreaterThan(0);
     // The generated non-beer route has no comparable serving/budget. Its
@@ -180,9 +202,19 @@ for (const journey of journeys) {
     await expect(generatedRouteMetrics).not.toContainText(/\bpint stops?\b/i);
     const candidates = generated.stops!.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
     const quoted = candidates.filter((candidate) => candidate.selectedDrinkPriceEvidence);
-    expect(quoted.length, `Shoreditch route should surface a ${journey.category} attributable quote`).toBeGreaterThan(0);
+    expect(quoted.length, `The ${journey.nightArea} route should surface a ${journey.category} attributable quote`).toBeGreaterThan(0);
     expect(generated.stops!.some((stop) => stop.selectedDrinkPriceEvidence),
-      `Shoreditch primary route should show a ${journey.category} quote`).toBe(true);
+      `The ${journey.nightArea} primary route should show a ${journey.category} quote`).toBe(true);
+    if (journey.category === "gin") {
+      expect(generated.stops!.some((stop) => {
+        const evidence = stop.selectedDrinkPriceEvidence;
+        return canonicalVenueId(stop.venueId) === canonicalVenueId(journey.anchor)
+          && evidence?.source === "listed" && evidence.category === "gin"
+          && evidence.pence === 400 && evidence.serving === "25ml"
+          && evidence.sourceUrl === albionGinSourceUrl
+          && evidence.observedAt === ginSource?.observedAt;
+      }), "Hammersmith primary route must deliver the committed Albion GORDONS quote").toBe(true);
+    }
     for (const candidate of quoted) {
       const evidence = candidate.selectedDrinkPriceEvidence!;
       expect(evidence).toMatchObject({ category: journey.category });

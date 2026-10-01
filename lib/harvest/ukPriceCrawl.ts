@@ -261,7 +261,7 @@ function isHalfMeasure(before: string): boolean {
   return !between.includes("£");
 }
 
-const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
+const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)\b(?!\d|\.\d)/g;
 
 // A zero-strength claim in the printed item name beats spirit or cocktail
 // words in its description. Keep the marker close to the name so a 0.0%
@@ -306,6 +306,30 @@ function printedItemName(text: string, at: number): PrintedItemName | undefined 
     own: line.trim(),
     preceding: since.split("\n").map((part) => part.trim()).filter(Boolean),
   };
+}
+
+// Only standalone printed headings scope subsequent item lines. An unsupported
+// recognized section ends the previous scope; a later heading supplies no measure to
+// an earlier item. Prices and descriptions cannot themselves open a section.
+const DRINK_SECTION_HEADING = /^(gin|vodka|rum|whisk(?:y|ey)|tequila|shots?|alcohol[- ]free|non[- ]alcoholic|spirits|liqueurs(?: & spirits)?|cognac|brandy|soft drinks(?: & mixers)?|mixers|beers?|wines?|red wines?|white wines?|ros[eé]|cocktails?|coffee|hot drinks)(?:\s+([1-9]\d{0,2})\s*ml)?$/i;
+
+function printedDrinkSection(text: string, at: number): {
+  category: DrinkCategory;
+  servingSize?: string;
+} | null {
+  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+  const lines = text.slice(0, lineStart).split("\n");
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const heading = DRINK_SECTION_HEADING.exec(lines[index].trim());
+    if (!heading) continue;
+    const category = categoryFor(heading[1]);
+    if (!category || (!SPIRIT_CATEGORIES.includes(category) && category !== "alcohol-free")) return null;
+    return {
+      category,
+      ...(heading[2] ? { servingSize: `${heading[2]}ml` } : {}),
+    };
+  }
+  return null;
 }
 
 function titleCategory(name: string): DrinkCategory | null {
@@ -373,7 +397,7 @@ export function drinkLabelFromPriceContext(
 
   const before = context.slice(0, priceAt);
   let start = 0;
-  const priorPrices = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)];
+  const priorPrices = [...before.matchAll(PRICE_PATTERN)];
   if (priorPrices.length > 0) {
     const last = priorPrices[priorPrices.length - 1];
     start = (last.index ?? 0) + last[0].length;
@@ -733,9 +757,15 @@ function decideKeylessUkPriceAt(
   if (OFFER_WORDS.test(context)) {
     return { drop: "offer-not-a-menu-price" };
   }
-  const drinkLabel =
-    drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
-  const decisionFromLabel = categoryDecisionFromLabel(drinkLabel, printedItemName(text, at));
+  const section = printedDrinkSection(text, at);
+  const itemName = printedItemName(text, at);
+  const drinkLabel = (section && itemName?.own
+    ? normalizeHarvestDrinkLabel(itemName.own)
+    : drinkLabelFromPriceContext(context, verbatim, priceAtInContext)) ?? undefined;
+  const scopedItemName = section?.category === "alcohol-free" && itemName
+    ? { ...itemName, preceding: itemName.preceding.filter((line) => !DRINK_SECTION_HEADING.test(line)) }
+    : itemName;
+  const decisionFromLabel = categoryDecisionFromLabel(drinkLabel, scopedItemName);
   if (typeof decisionFromLabel === "string") return { drop: decisionFromLabel };
   const statedIdentity = statedWineIdentity(context, verbatim, priceAtInContext);
   const wineIdentity = statedIdentity && (inWineSection || categoryDecisionFor(
@@ -747,9 +777,12 @@ function decideKeylessUkPriceAt(
   )) {
     return { drop: "no-category-word-nearby" };
   }
-  const decision = decisionFromLabel ?? (wineIdentity
-    ? { category: "wine" as const, fromMixer: false }
-    : categoryDecisionFor(context, at - contextStart));
+  const decision = section?.category === "alcohol-free"
+    ? { category: section.category, fromMixer: decisionFromLabel?.fromMixer ?? false }
+    : decisionFromLabel ?? (wineIdentity
+      ? { category: "wine" as const, fromMixer: false }
+      : section ? { category: section.category, fromMixer: false }
+        : categoryDecisionFor(context, at - contextStart));
   if (!decision) {
     return {
       drop: Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby",
@@ -779,6 +812,7 @@ function decideKeylessUkPriceAt(
       context,
       drinkLabel: category === "wine" ? wineIdentity?.drinkLabel ?? drinkLabel : drinkLabel,
       ...(category === "wine" && wineIdentity ? { servingSize: wineIdentity.servingSize } : {}),
+      ...(section?.category === category && section.servingSize ? { servingSize: section.servingSize } : {}),
     },
   };
 }
