@@ -22,7 +22,7 @@ export const PAL_VOICE_GET_HOME_REGISTER_RULES = [
 ] as const;
 
 export const PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE =
-  "You may propose a fact or plan change, but never apply it yourself. Say what you would save and ask the user to confirm in the app before it counts.";
+  "You may propose a fact or plan change when the user explicitly asks, but never apply it yourself. Say what you would save and ask the user to confirm in the app before it counts.";
 
 const SESSION_CAP_RULE =
   `End the call with end_call once the chat reaches ${PAL_VOICE_MAX_SESSION_SECONDS} seconds or the user is done. Do not run past that cap.`;
@@ -69,6 +69,12 @@ export function buildPalVoiceSystemPrompt(pal: PubPal): string {
     sliderHints(pal),
     "British spelling. No exclamation marks. No em dashes.",
     PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
+    pal.proposalPreferences?.memories === true
+      ? "You may offer memory proposals. Every proposed fact still needs the user's approval in the app."
+      : "Do not offer unsolicited memory proposals. Only suggest a fact to remember when the user explicitly asks.",
+    pal.proposalPreferences?.routes !== false
+      ? "You may offer route proposals. Every proposed change still needs the user's approval in the app."
+      : "Do not offer unsolicited route proposals. Only suggest a route change when the user explicitly asks.",
     SESSION_CAP_RULE,
     PAL_VOICE_GET_HOME_REGISTER_INTRO,
     ...PAL_VOICE_GET_HOME_REGISTER_RULES,
