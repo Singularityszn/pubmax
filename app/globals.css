@@ -496,16 +496,6 @@
   font-variant-numeric: normal;
 }
 
-/* Phone document bleed: a negative-margin top bar or a 100vw helper can
-   widen scrollWidth by a few pixels while inner rails keep their own pan-x.
-   Same containment idea as nativeShell.css body overflow-x, but clip so the
-   map shell is not turned into a scroll container (#1516). */
-@media (max-width: 640px) {
-  html {
-    overflow-x: clip;
-  }
-}
-
 body {
   margin: 0;
   background: var(--gradient-party);

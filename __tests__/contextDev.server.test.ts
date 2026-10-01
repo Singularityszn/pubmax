@@ -31,6 +31,7 @@ function extractOkBody() {
     request_id: "test",
     cache_metadata: { age_ms: 0, status: "miss" },
     metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
+    markdown: "# Events\nQuiz night at The Red Lion",
   };
 }
 
@@ -368,7 +369,7 @@ describe("extract", () => {
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.data.events).toHaveLength(1);
-    expect(result.markdown).toBe("");
+    expect(result.markdown).toContain("Quiz night");
     expect(result.urlsAnalyzed).toEqual(["https://www.fullers.co.uk/events"]);
     expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("/v1/web/extract");
     expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
@@ -407,7 +408,15 @@ describe("extract", () => {
   });
 
   it("fails closed when JSON succeeds but same-scrape Markdown evidence is absent", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ status: "ok", url: "https://www.fullers.co.uk/events", data: { events: [{ title: "Quiz" }] }, urls_analyzed: [], request_id: "t", cache_metadata: { age_ms: 0, status: "miss" }, metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 0 }, partial: true }));
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      status: "ok",
+      url: "https://www.fullers.co.uk/events",
+      data: { events: [{ title: "Quiz" }] },
+      urls_analyzed: ["https://www.fullers.co.uk/events"],
+      request_id: "t",
+      cache_metadata: { age_ms: 0, status: "miss" },
+      metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
+    }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
