@@ -420,7 +420,7 @@ iOS and Android submission through the owner-only steps in `docs/STORE_READINESS
 ### 10.8 Engineering debt worth a lane each
 
 - The P2 lists: `lib/` is 871 flat modules (fold by domain); ten test files are half the suite's cost; 209 exported lib symbols exist only for tests; four runtime import cycles in the auth provider; the design law lives in four places (one door now, the rest to fold); one-area geometry and location-ask fences; the dataset should have one reader.
-- The vendored `skills/` dump and the 300 KB catalog at `docs/agents/INSTALLED_SKILLS.md` (held call `vendored-skills-in-repo`). Project skills now live only under `.agents/skills/`, recorded in `.agents/skills/SOURCES.md`.
+- The vendored `skills/` dump (call `vendored-skills-in-repo`) is no longer in this tree. Project skills live under `.agents/skills/`, recorded in `.agents/skills/SOURCES.md`.
 - 279 venue-pack files on main carry `revision: local` (harmless in production, restore on a future commit).
 - Pint Index: empty since 16 July; hold or seed (D10).
 - `/drink/pravha` 404; test handles on the founders wall; `/rounds` stub; `/we-are-out` dark. The two city pickers are now one: `/places` is the picker, and `/choose-city` 308s to it (`app/AGENTS.md`).
