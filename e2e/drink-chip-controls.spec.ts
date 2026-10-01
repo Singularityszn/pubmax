@@ -52,47 +52,75 @@ function colourDistance(left: PaintedColour, right: PaintedColour): number {
 
 async function expectPaintedClusterKey(key: Locator, mixed: boolean): Promise<void> {
   const sample = key.locator(".mapKeyClusterSample");
-  await sample.scrollIntoViewIfNeeded();
+  await key.page().evaluate(() => document.fonts.ready);
+  await key.evaluate((element) => element.scrollIntoView({
+    block: "center", inline: "nearest", behavior: "instant",
+  }));
   await expect(sample).toBeVisible();
-  const geometry = await sample.evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
+  await expect(sample).toBeInViewport({ ratio: 1 });
+  for (const swatch of await key.locator(".mapKeyPriceSwatch").all()) {
+    await expect(swatch).toBeInViewport({ ratio: 1 });
+  }
+  const readGeometry = () => key.evaluate((element) => {
+    const sample = element.querySelector<HTMLElement>(".mapKeyClusterSample");
+    if (!sample) throw new Error("Cluster sample missing from map key");
+    const bounds = (node: Element) => {
+      const box = node.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    };
+    const style = getComputedStyle(sample);
     return {
-      width: box.width,
-      height: box.height,
+      ...bounds(sample),
       border: Number.parseFloat(style.borderTopWidth),
       backgroundImage: style.backgroundImage,
+      swatches: Array.from(element.querySelectorAll(".mapKeyPriceSwatch"), bounds),
+      devicePixelRatio: window.devicePixelRatio,
     };
   });
+  const geometry = await readGeometry();
   expect(geometry.border).toBeGreaterThan(0);
-  const { data, info } = await sharp(await sample.screenshot())
+  expect(geometry.devicePixelRatio).toBeGreaterThan(0);
+  const boxes = [geometry, ...geometry.swatches];
+  const clipX = Math.floor(Math.min(...boxes.map((box) => box.x)));
+  const clipY = Math.floor(Math.min(...boxes.map((box) => box.y)));
+  const clip = {
+    x: clipX,
+    y: clipY,
+    width: Math.ceil(Math.max(...boxes.map((box) => box.x + box.width))) - clipX,
+    height: Math.ceil(Math.max(...boxes.map((box) => box.y + box.height))) - clipY,
+  };
+  const { data, info } = await sharp(await key.page().screenshot({ clip, scale: "device" }))
     .removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  expect(await readGeometry(), "map key geometry stays fixed during paint capture").toEqual(geometry);
+  expect(Math.abs(info.width - clip.width * geometry.devicePixelRatio)).toBeLessThanOrEqual(1);
+  expect(Math.abs(info.height - clip.height * geometry.devicePixelRatio)).toBeLessThanOrEqual(1);
   const pixel = (x: number, y: number): PaintedColour => {
-    const offset = (y * info.width + x) * info.channels;
+    const pixelX = Math.floor((x - clip.x) * geometry.devicePixelRatio);
+    const pixelY = Math.floor((y - clip.y) * geometry.devicePixelRatio);
+    expect(pixelX).toBeGreaterThanOrEqual(0);
+    expect(pixelX).toBeLessThan(info.width);
+    expect(pixelY).toBeGreaterThanOrEqual(0);
+    expect(pixelY).toBeLessThan(info.height);
+    const offset = (pixelY * info.width + pixelX) * info.channels;
     return [data[offset]!, data[offset + 1]!, data[offset + 2]!];
   };
   // Sample the middle of the computed border, clear of its antialiased edges
-  // and the central #. Physical-pixel scaling follows the actual screenshot.
+  // and the central #. An integer screenshot clip includes fractional edge
+  // pixels; it does not stretch the element to the crop's width or height.
   const radius = Math.min(geometry.width, geometry.height) / 2 - geometry.border / 2;
   const ring = Array.from({ length: 32 }, (_, index) => {
     const angle = ((index + 0.5) / 32) * Math.PI * 2;
     return pixel(
-      Math.floor(info.width / 2 + radius * Math.cos(angle) * info.width / geometry.width),
-      Math.floor(info.height / 2 + radius * Math.sin(angle) * info.height / geometry.height),
+      geometry.x + geometry.width / 2 + radius * Math.cos(angle),
+      geometry.y + geometry.height / 2 + radius * Math.sin(angle),
     );
   });
   const swatches: PaintedColour[] = [];
-  for (const swatch of await key.locator(".mapKeyPriceSwatch").all()) {
-    const painted = await sharp(await swatch.screenshot())
-      .removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    const centre = (Math.floor(painted.info.height / 2) * painted.info.width +
-      Math.floor(painted.info.width / 2)) * painted.info.channels;
-    const colour: PaintedColour = [
-      painted.data[centre]!, painted.data[centre + 1]!, painted.data[centre + 2]!,
-    ];
+  for (const swatch of geometry.swatches) {
+    const colour = pixel(swatch.x + swatch.width / 2, swatch.y + swatch.height / 2);
     // The circular swatch's outer corner is the actual underlying panel.
     // A transparent or background-coloured replacement is not grey paint.
-    const background: PaintedColour = [painted.data[0]!, painted.data[1]!, painted.data[2]!];
+    const background = pixel(swatch.x, swatch.y);
     expect(colourDistance(colour, background), "legend swatch visibly differs from its background")
       .toBeGreaterThan(2);
     swatches.push(colour);
