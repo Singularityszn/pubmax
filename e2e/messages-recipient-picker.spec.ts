@@ -247,6 +247,65 @@ test("unknown prefixes stay disabled and directory failure retries as an error, 
   await expect(chat).toBeDisabled();
 });
 
+test("mobile keyboard keeps picker action inside visible viewport above tab bar", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const viewport = Object.assign(new EventTarget(), {
+      height: 544,
+      offsetTop: 0,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: viewport,
+    });
+  });
+  await installPickerFixture(page);
+  await page.goto("/messages");
+
+  await page.getByRole("button", { name: "New message" }).click();
+  const dialog = page.getByRole("dialog", { name: "New message" });
+  const search = dialog.getByRole("textbox", { name: "Search people" });
+  const chat = dialog.getByRole("button", { name: "Chat", exact: true });
+  const tabBar = page.locator(".mobileTabBar");
+  await expect(dialog).toBeVisible();
+  await expect(search).toBeFocused();
+  await expect(tabBar).toHaveAttribute("aria-hidden", "true");
+  await expect(tabBar).toHaveAttribute("inert", "");
+
+  const geometry = await page.evaluate(() => {
+    const backdrop = document.querySelector<HTMLElement>(
+      ".messagesNewGroupBackdrop",
+    );
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+    const action = dialog?.querySelector<HTMLElement>(".messagesNewGroupCreate");
+    const tabBar = document.querySelector<HTMLElement>(".mobileTabBar");
+    if (!backdrop || !dialog || !action || !tabBar || !window.visualViewport) {
+      throw new Error("keyboard picker fixture is incomplete");
+    }
+    return {
+      layoutHeight: window.innerHeight,
+      visibleHeight: window.visualViewport.height,
+      offsetTop: window.visualViewport.offsetTop,
+      dialogBottom: dialog.getBoundingClientRect().bottom,
+      actionBottom: action.getBoundingClientRect().bottom,
+      backdropZ: Number.parseInt(getComputedStyle(backdrop).zIndex, 10),
+      tabBarZ: Number.parseInt(getComputedStyle(tabBar).zIndex, 10),
+      tabBarBottom: tabBar.getBoundingClientRect().bottom,
+    };
+  });
+
+  expect(geometry.layoutHeight).toBe(844);
+  expect(geometry.visibleHeight).toBe(544);
+  expect(geometry.offsetTop).toBe(0);
+  expect(geometry.dialogBottom).toBeLessThanOrEqual(geometry.visibleHeight);
+  expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.visibleHeight);
+  expect(geometry.backdropZ).toBeGreaterThan(geometry.tabBarZ);
+  expect(geometry.tabBarBottom).toBeGreaterThan(geometry.visibleHeight);
+  await expect(chat).toBeDisabled();
+});
+
 const PICKER_LAYOUTS = [
   { name: "desktop-light", width: 1440, height: 900, colorScheme: "light" as const },
   { name: "desktop-dark", width: 1440, height: 900, colorScheme: "dark" as const },
