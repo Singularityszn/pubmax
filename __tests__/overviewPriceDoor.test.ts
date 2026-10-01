@@ -25,6 +25,9 @@ import VenueOverviewTab, {
   overviewComposerOpen,
 } from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import DrinkMenu from "@/components/drinks/DrinkMenu";
+import type { CommunityPrice } from "@/lib/communityPrice";
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { drinkLaneLogActionLabel } from "@/lib/drinkLanes";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
@@ -48,7 +51,9 @@ import {
   BASELINE_NO_PUBLISHER_CAPTION,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
-import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
+import { groupVenuePrices, mergeVenueDrops, type SummaryDrop, type Venue, type VenuePrice } from "@/lib/venues";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import { venueMenuForInspector } from "@/lib/venueMenu";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -180,10 +185,19 @@ function communityPrices(venueId: string): CommunityPricesState {
 function renderOverview(
   drops: SummaryDrop[],
   base: Venue = venue(),
-  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean } = {},
+  options: {
+    priceFocusRequest?: number;
+    priceSignInRequested?: boolean;
+    withConfirm?: boolean;
+    communityRows?: CommunityPrice[];
+    communityReadStatus?: VenuePriceReadStatus;
+  } = {},
 ): string {
-  const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
+  const [merged] = mergeVenueDrops([base], new Map([[base.id, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
+  const community = communityPrices(base.id);
+  community.byVenueId.set(base.id, options.communityRows ?? []);
+  community.venuePriceStatus.set(base.id, options.communityReadStatus ?? "ready");
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
       venue: merged,
@@ -197,7 +211,7 @@ function renderOverview(
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
-      communityPrices: communityPrices(VENUE_ID),
+      communityPrices: community,
       experienceLens: "all",
       drinkLensCategory: null,
       onToggleStop: noop,
@@ -381,6 +395,89 @@ describe("the rendered Overview carries exactly one price door", () => {
     const html = renderOverview([], bar);
     expect(doorCount(html)).toBe(0);
     expect(html).not.toContain("venuePriceSubmit");
+  });
+});
+
+describe("published prices and drinker-log absence on the rendered Overview", () => {
+  // The same committed catalogue rows as the Camden browser reproduction.
+  // No copied price/source/date fixture and no community-to-publisher merge.
+  function swissCottage(): Venue {
+    const rows = JSON.parse(readFileSync(
+      join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8",
+    )) as VenuePrice[];
+    const [base] = groupVenuePrices(rows.filter((row) => row.pub_name === "Ye Olde Swiss Cottage"));
+    expect(base).toBeDefined();
+    return base;
+  }
+
+  function communityRow(base: Venue, drinkCategory: "beer" | "coffee"): CommunityPrice {
+    return {
+      id: `community-${drinkCategory}`,
+      venueId: base.id,
+      drinkCategory,
+      priceGbp: drinkCategory === "beer" ? 4.8 : 3.2,
+      submittedAt: NOW - DAY_MS,
+      source: "community",
+      corroborations: 1,
+    };
+  }
+
+  it("names missing drinker logs while keeping both recorded Camden pints and their publisher", () => {
+    const base = swissCottage();
+    const catalogue = structuredClone(base.prices);
+    const overview = renderOverview([], base);
+    expect(overview).toContain("No beer price logged by drinkers yet.");
+    expect(overview).not.toContain("No beer price logged here yet.");
+    expect(overview).toContain("£3.40");
+    expect(overview).toContain("Pint Prices");
+    expect(overview).toContain('data-price-door="log"');
+    expect(doorCount(overview)).toBe(1);
+
+    const drinks = renderToStaticMarkup(createElement(DrinkMenu, {
+      drinks: venueMenuForInspector(base), venueName: base.name, venueId: base.id,
+    }));
+    expect(drinks).toContain("Pale Ale");
+    expect(drinks).toContain("£3.40");
+    expect(drinks).toContain("Alpine Lager");
+    expect(drinks).toContain("£4.20");
+    expect(drinks).toContain("Pint Prices");
+    for (const row of catalogue) expect(drinks).toContain(`href="${row.pub_url}"`);
+    expect(drinks).toMatch(/<time[^>]*datetime=/i);
+    expect(drinks).toContain(PINT_DATASET_OBSERVED_AT.toISOString());
+    expect(base.prices).toEqual(catalogue);
+  });
+
+  it("does not let a coffee log answer the absence of drinker-logged beer", () => {
+    const base = swissCottage();
+    const html = renderOverview([], base, { communityRows: [communityRow(base, "coffee")] });
+    expect(html).toContain("No beer price logged by drinkers yet.");
+    expect(html).toContain("Coffee");
+    expect(html).toContain("£3.20");
+    expect(html).toContain("£3.40");
+    expect(html).toContain("Pint Prices");
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it("removes the absence once a drinker logs beer without replacing the publisher's price", () => {
+    const base = swissCottage();
+    const html = renderOverview([], base, { communityRows: [communityRow(base, "beer")] });
+    expect(html).not.toContain("No beer price logged");
+    expect(html).toContain("Logged by a PUBMAXXER");
+    expect(html).toContain("£4.80");
+    expect(html).toContain("£3.40");
+    expect(html).toContain("Pint Prices");
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it.each(["loading", "degraded"] as const)("keeps a %s community read distinct from absence and preserves the recorded price", (status) => {
+    const html = renderOverview([], swissCottage(), { communityReadStatus: status });
+    expect(html).not.toContain("No beer price logged");
+    expect(html).toContain(status === "loading"
+      ? "Checking beer prices logged here."
+      : "We could not read this pub&#x27;s beer prices just now.");
+    expect(html).toContain("£3.40");
+    expect(html).toContain("Pint Prices");
+    expect(doorCount(html)).toBe(1);
   });
 });
 

@@ -242,7 +242,7 @@ describe("VenueDrinkPrices", () => {
       activeLane: "cocktail",
       laneNoun: "cocktail",
     });
-    expect(html).toContain("No cocktail price logged here yet.");
+    expect(html).toContain("No cocktail price logged by drinkers yet.");
     expect(html).toContain("Log a cocktail price");
     // The pub's real beer row is still there: an empty lane hides nothing.
     expect(html).toContain("£6.20");
