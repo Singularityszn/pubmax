@@ -59,6 +59,7 @@ import { estimateForPub } from "@/lib/priceEstimate";
 import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
+  bundleRowServingSize,
   bundleRowSupersedes,
   isCategoryQuarantined,
   isValidUkPriceBundleRow,
@@ -176,6 +177,8 @@ function collectRows(report) {
       report.droppedInvalidRow += 1;
       return;
     }
+    const servingSize = bundleRowServingSize(row);
+    if (servingSize !== row.servingSize) row = { ...row, servingSize };
     const key = ukPriceBundleCollectKey(row);
     if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);
@@ -217,11 +220,25 @@ function collectRows(report) {
 /** Lane one: the prices a pub's or a chain's own site stated. */
 function addSiteHarvestRows(harvestRows, owners, push, report) {
   for (const ledgerRow of harvestRows) {
-    const row = normalizeSiteHarvestLedgerRow(ledgerRow);
-    if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
+    if (!isHarvestableDrinkUpdateUrl(ledgerRow.sourceUrl ?? "")) {
       report.droppedRefusedHost += 1;
       continue;
     }
+    // Retire exact retained contradictions before wine-label normalization.
+    // The ordinary push guard also checks the canonical claim afterwards.
+    if (isCategoryQuarantined({
+      ...ledgerRow,
+      lane: "site-harvest",
+      standing: "listed",
+      ...bundleDrinkFieldsFromPrintedName(
+        ledgerRow.drinkLabel ?? ledgerRow.drinkName ?? null,
+        ledgerRow.category,
+      ),
+    })) {
+      report.droppedCategoryContradiction += 1;
+      continue;
+    }
+    const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     const osmRef =
       typeof row.venueId === "string"
         ? row.venueId.replace(/^venue-uk-/, "")
