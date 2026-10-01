@@ -15,27 +15,10 @@ import {
   type WhatsOnEventRow,
 } from "@/lib/whatson/eventNormalise.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
+import { contextDevExtractEnvelope } from "./helpers/contextDevExtractEnvelope";
 
 const fullers = contextDevEventSources().find((source) => source.id === "fullers-event-finder-events");
 const observedAt = "2026-08-16T09:00:00.000Z";
-
-function contextDevExtractEnvelope(
-  data: Record<string, unknown>,
-  options: { url?: string; partial?: boolean; markdown?: string } = {},
-) {
-  const url = options.url ?? fullers?.url ?? "https://www.fullers.co.uk/event-finder";
-  return {
-    status: "ok",
-    url,
-    data,
-    urls_analyzed: [url],
-    request_id: "test",
-    cache_metadata: { age_ms: 0, status: "miss" },
-    metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
-    ...(options.markdown === undefined ? {} : { markdown: options.markdown }),
-    ...(options.partial ? { partial: true } : {}),
-  };
-}
 
 describe("contextDevEventSources register gate", () => {
   it("lists allowed FIRST-PARTY venue-events pages only", () => {

@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 import * as contextDev from "@/lib/contextDev";
 import { runEventsRefresh } from "../scripts/whatson/eventsRefresh.mjs";
+import { contextDevExtractEnvelope } from "./helpers/contextDevExtractEnvelope";
 
 const temporaryDirs: string[] = [];
 afterAll(() => {
@@ -33,25 +34,6 @@ const heldFullersRow = (id: string) => ({
 });
 
 const heldGeneratedAt = "2026-08-15T09:00:00.000Z";
-const FULLERS_EVENT_FINDER = "https://www.fullers.co.uk/event-finder";
-
-function contextDevExtractEnvelope(
-  data: Record<string, unknown>,
-  options: { url?: string; partial?: boolean; markdown?: string } = {},
-) {
-  const url = options.url ?? FULLERS_EVENT_FINDER;
-  return {
-    status: "ok",
-    url,
-    data,
-    urls_analyzed: [url],
-    request_id: "test",
-    cache_metadata: { age_ms: 0, status: "miss" },
-    metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
-    ...(options.markdown === undefined ? {} : { markdown: options.markdown }),
-    ...(options.partial ? { partial: true } : {}),
-  };
-}
 
 function writeHeldFile(outPath: string, rows: unknown[]) {
   writeFileSync(

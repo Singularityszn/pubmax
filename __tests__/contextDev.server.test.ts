@@ -10,30 +10,9 @@ import {
   scrapeHtml,
   scrapeMarkdown,
 } from "@/lib/contextDev.server";
+import { contextDevExtractOkBody } from "./helpers/contextDevExtractEnvelope";
 
 const noSleep = async () => {};
-
-function extractOkBody() {
-  return {
-    status: "ok",
-    url: "https://www.fullers.co.uk/events",
-    data: {
-      events: [
-        {
-          title: "Quiz night",
-          placeName: "The Red Lion",
-          kind: "event",
-          sourceUrl: "https://example.com/e/1",
-        },
-      ],
-    },
-    urls_analyzed: ["https://www.fullers.co.uk/events"],
-    request_id: "test",
-    cache_metadata: { age_ms: 0, status: "miss" },
-    metadata: { maxCrawlDepth: 0, numBlocked: 0, numFailed: 0, numSkipped: 0, numSuccess: 1 },
-    markdown: "# Events\nQuiz night at The Red Lion",
-  };
-}
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -357,7 +336,7 @@ describe("run request budget", () => {
 describe("extract", () => {
   it.each([undefined, 0, 43_200_000])("collects fresh joint extraction despite cache preference %s", async (maxAgeMs) => {
     const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
-      jsonResponse(extractOkBody()),
+      jsonResponse(contextDevExtractOkBody()),
     );
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
@@ -382,7 +361,7 @@ describe("extract", () => {
   });
 
   it("fails closed when JSON extraction failed despite a successful page scrape", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ ...extractOkBody(), data: {}, partial: true }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ ...contextDevExtractOkBody(), data: {}, partial: true }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -395,7 +374,7 @@ describe("extract", () => {
   });
 
   it("refuses a successful but partial joint extraction without retry", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ ...extractOkBody(), partial: true }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ ...contextDevExtractOkBody(), partial: true }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -408,7 +387,7 @@ describe("extract", () => {
   });
 
   it("refuses a successful joint extraction when the API marks isPartial", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ ...extractOkBody(), isPartial: true }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ ...contextDevExtractOkBody(), isPartial: true }));
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
