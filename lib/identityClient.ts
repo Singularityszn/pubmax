@@ -6,6 +6,7 @@ import {
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import { readProviderAccountRevision } from "@/lib/authProviderRevision";
 import {
   deviceAccountOwner,
   emitDeviceIdentityChanged,
@@ -105,27 +106,39 @@ export async function resolveCanonicalIdentity(
   session: Pick<Session, "access_token" | "user"> | null,
   storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
   request: AccountBoundRequest = fetch,
+  mayPublish: () => boolean = () => true,
 ): Promise<CanonicalIdentityResolution> {
   const auth = captureAccountAuth(expectedUserId, session);
   if (!auth) return { ok: false };
+  const accountRevision = readProviderAccountRevision();
+  const deviceOwner = deviceAccountOwner(storage);
+  const isCurrent = () => mayPublish() &&
+    readProviderAccountRevision() === accountRevision &&
+    deviceAccountOwner(storage) === deviceOwner;
+  if (!isCurrent()) return { ok: false };
   const response = await accountBoundFetch(
     auth,
     "/api/identity/handle/current",
     {},
     request,
   );
-  if (!response.ok) {
+  if (!response.ok || !isCurrent()) {
     discardBody(response);
     return { ok: false };
   }
   const body = await response.json().catch(() => null) as {
     handle?: unknown;
   } | null;
+  if (!isCurrent()) return { ok: false };
   const handle =
     typeof body?.handle === "string" ? normalizeHandle(body.handle) : "";
   if (!handle) return { ok: true, identity: null };
-  clearClaimedRoundAnonymousHandle(handle, storage);
-  syncDeviceHandle(storage, handle);
+  // A verified read may answer the caller without replacing another account's
+  // device artifacts. Legacy unstamped devices still accept their first read.
+  if (deviceOwner === null || deviceOwner === auth.userId) {
+    clearClaimedRoundAnonymousHandle(handle, storage);
+    syncDeviceHandle(storage, handle);
+  }
   return {
     ok: true,
     identity: { ownerId: auth.userId, handle },
@@ -153,9 +166,10 @@ export async function handleClaimRouteAfterSignIn(
   landedUrl: string,
   storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
   request: AccountBoundRequest = fetch,
+  mayPublish: () => boolean = () => true,
 ): Promise<string | null> {
   const userId = session?.user?.id;
-  if (!userId) return null;
+  if (!userId || !mayPublish()) return null;
   try {
     const landed = new URL(landedUrl, "https://pubmax.invalid");
     if (landed.hash) return null;
@@ -179,7 +193,8 @@ export async function handleClaimRouteAfterSignIn(
     session,
     storage,
     request,
+    mayPublish,
   ).catch(() => null);
-  if (!resolution?.ok || resolution.identity) return null;
+  if (!mayPublish() || !resolution?.ok || resolution.identity) return null;
   return HANDLE_CLAIM_NEXT;
 }

@@ -116,6 +116,7 @@ import {
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
+  readProviderAccountRevision,
   readProviderAuthState,
   readProviderIdentityRevision,
   resolveSupabaseAuthState,
@@ -393,6 +394,7 @@ export function AuthProvider({
   const explicitSignOutAwaitingConfirmation = useRef(false);
   const signedInEventVersion = useRef(0);
   const latestSignedInSession = useRef<Session | null>(null);
+  const canonicalAuth = useRef<AccountAuthSnapshot | null>(null);
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
@@ -424,6 +426,9 @@ export function AuthProvider({
         setCanonicalIdentityState(nextUserId ? UNKNOWN_IDENTITY : NOBODY_IDENTITY);
       }
       const nextAuth = captureAccountAuth(nextUserId, nextSession);
+      // Auth events invalidate older canonical reads before React cleans up
+      // their effects, including a token rotation for the same account.
+      canonicalAuth.current = nextAuth;
       if (
         nextAuth &&
         rejectedContributionAuthRef.current &&
@@ -481,13 +486,17 @@ export function AuthProvider({
 
   useEffect(() => {
     const user = session?.user ?? null;
+    const auth = captureAccountAuth(user?.id ?? null, session);
     let active = true;
+    const isCurrent = () => active &&
+      readProviderIdentityRevision() === accountRevision &&
+      sameAccountAuth(auth, canonicalAuth.current);
     const onChanged = (event: Event) => {
       const handle = identityHandleForOwner(
         (event as CustomEvent<unknown>).detail,
         user?.id ?? null,
       );
-      if (handle !== null && user) {
+      if (handle !== null && user && isCurrent()) {
         setCanonicalIdentityState({
           status: "resolved",
           identity: { ownerId: user.id, handle: normalizeHandle(handle) },
@@ -505,10 +514,12 @@ export function AuthProvider({
         user.id,
         session,
         browserLocalStorage(),
+        undefined,
+        isCurrent,
       ).catch(() => null);
       // A read that failed is not evidence the account has no handle, so the
       // answer stays unknown rather than becoming a confident "nobody".
-      if (!active || !resolution?.ok) return;
+      if (!isCurrent() || !resolution?.ok) return;
       setCanonicalIdentityState({
         status: "resolved",
         identity: resolution.identity,
@@ -523,7 +534,7 @@ export function AuthProvider({
       active = false;
       window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     };
-  }, [session]);
+  }, [accountRevision, session]);
 
   useEffect(() => {
     const bootstrapController = new AbortController();
@@ -824,6 +835,11 @@ export function AuthProvider({
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
+          const callbackAuth = captureAccountAuth(exchangedSession.user.id, exchangedSession);
+          const callbackAccountRevision = readProviderAccountRevision();
+          const isCurrentCallback = () => active &&
+            readProviderAccountRevision() === callbackAccountRevision &&
+            sameAccountAuth(callbackAuth, canonicalAuth.current);
           setSessionLoading(false);
           if (!captured.localAttemptOwned) {
             setAuthSignedInNotice(
@@ -852,10 +868,12 @@ export function AuthProvider({
                 exchangedSession,
                 captured.cleanUrl,
                 browserLocalStorage(),
+                undefined,
+                isCurrentCallback,
               ),
             )
             .then((destination) => {
-              if (destination && active) window.location.assign(destination);
+              if (destination && isCurrentCallback()) window.location.assign(destination);
             })
             .catch(() => {});
         }
