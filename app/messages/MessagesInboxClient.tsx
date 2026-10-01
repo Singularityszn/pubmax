@@ -127,6 +127,11 @@ export default function MessagesInboxClient({
   const retryingRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
   const requestGenerationRef = useRef(0);
+  const pendingReadRef = useRef<{
+    generation: number;
+    signal?: AbortSignal;
+    promise: Promise<void>;
+  } | null>(null);
   const liveRef = useRef(false);
   useLayoutEffect(() => {
     accountRevisionRef.current = accountRevision;
@@ -134,6 +139,7 @@ export default function MessagesInboxClient({
     return () => {
       liveRef.current = false;
       requestGenerationRef.current += 1;
+      pendingReadRef.current = null;
     };
   }, [accountRevision, user, authHandle, paneHidden]);
 
@@ -150,9 +156,13 @@ export default function MessagesInboxClient({
   }, [authHandle]);
 
   const refresh = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, supersede = false) => {
       const requestRevision = accountRevision;
       if (!liveRef.current || signal?.aborted || requestRevision !== accountRevisionRef.current) return;
+      const pending = pendingReadRef.current;
+      if (!supersede && pending && !pending.signal?.aborted && pending.generation === requestGenerationRef.current) {
+        return pending.promise;
+      }
       const generation = ++requestGenerationRef.current;
       const stillCurrent = () =>
         liveRef.current &&
@@ -178,53 +188,59 @@ export default function MessagesInboxClient({
         setLoadedRevision(requestRevision);
         return;
       }
-      try {
-        const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
-          signal,
-        }, { requiresIdentity: true });
-        if (!stillCurrent()) {
-          discardBody(res);
-          return;
-        }
-        if (res.status === 401) {
-          discardBody(res);
-          setNeedsSignIn(true);
-          setConversations([]);
-          setFailed(false);
-          setPartial(false);
-          return;
-        }
-        if (!res.ok) {
-          discardBody(res);
+      const promise = Promise.resolve().then(async () => {
+        try {
+          if (!stillCurrent()) return;
+          const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
+            signal,
+          }, { requiresIdentity: true });
+          if (!stillCurrent()) {
+            discardBody(res);
+            return;
+          }
+          if (res.status === 401) {
+            discardBody(res);
+            setNeedsSignIn(true);
+            setConversations([]);
+            setFailed(false);
+            setPartial(false);
+            return;
+          }
+          if (!res.ok) {
+            discardBody(res);
+            setNeedsSignIn(false);
+            setFailed(true);
+            setPartial(false);
+            return;
+          }
           setNeedsSignIn(false);
-          setFailed(true);
-          setPartial(false);
-          return;
+          const body = (await res.json()) as {
+            conversations?: ConversationDTO[];
+            status?: string;
+          };
+          if (!stillCurrent()) return;
+          const rows = Array.isArray(body.conversations) ? body.conversations : [];
+          const degraded = body.status === "degraded";
+          setConversations(rows);
+          // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
+          // answered, so the honest surface is the same one a failed read gets.
+          setFailed(degraded && rows.length === 0);
+          setPartial(degraded && rows.length > 0);
+        } catch (err) {
+          const aborted =
+            signal?.aborted || (err instanceof Error && err.name === "AbortError");
+          if (!aborted && stillCurrent()) {
+            setNeedsSignIn(false);
+            setFailed(true);
+            setPartial(false);
+          }
+        } finally {
+          if (stillCurrent()) setLoadedRevision(requestRevision);
+          if (pendingReadRef.current?.generation === generation) pendingReadRef.current = null;
         }
-        setNeedsSignIn(false);
-        const body = (await res.json()) as {
-          conversations?: ConversationDTO[];
-          status?: string;
-        };
-        if (!stillCurrent()) return;
-        const rows = Array.isArray(body.conversations) ? body.conversations : [];
-        const degraded = body.status === "degraded";
-        setConversations(rows);
-        // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
-        // answered, so the honest surface is the same one a failed read gets.
-        setFailed(degraded && rows.length === 0);
-        setPartial(degraded && rows.length > 0);
-      } catch (err) {
-        const aborted =
-          signal?.aborted || (err instanceof Error && err.name === "AbortError");
-        if (!aborted && stillCurrent()) {
-          setNeedsSignIn(false);
-          setFailed(true);
-          setPartial(false);
-        }
-      } finally {
-        if (stillCurrent()) setLoadedRevision(requestRevision);
-      }
+      });
+      pendingReadRef.current = { generation, signal, promise };
+      return promise;
     },
     // `handle` is deliberately NOT a dependency: the read derives the handle
     // itself, and re-keying on the state copy made every mount fetch the inbox
@@ -332,7 +348,7 @@ export default function MessagesInboxClient({
               .map((conversation) => ({ handle: conversation.otherHandle, avatarUrl: conversation.otherAvatarUrl })) : []}
             onOpened={(conversationId) => {
               setComposeRevision(null);
-              void refresh();
+              void refresh(undefined, true);
               router.push(`/messages/${encodeURIComponent(conversationId)}`);
             }}
           />
