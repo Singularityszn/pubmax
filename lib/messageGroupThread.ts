@@ -157,19 +157,12 @@ export const GROUP_CREATE_LABEL = "New group";
 export const GROUP_CREATE_HEADING = "Start a group";
 export const GROUP_TITLE_LABEL = "Name it (optional)";
 export const GROUP_TITLE_PLACEHOLDER = "Friday session";
-export const GROUP_MEMBERS_LABEL = "Who's coming";
-export const GROUP_MEMBERS_PLACEHOLDER = "handle, handle";
-export const GROUP_MEMBERS_HINT =
-  "Handles, separated by commas. Three people minimum, twelve maximum.";
 
 export const GROUP_TOO_SMALL_LINE =
   "A group needs at least three people, you included. Add another handle.";
 export const GROUP_TOO_LARGE_LINE =
   "A group holds twelve people at most. Take one off the list.";
 export const GROUP_MEMBER_UNKNOWN_LINE = "We couldn't find one of those handles.";
-export const GROUP_CREATE_FAILED_LINE = "Couldn't start that group. Try again.";
-/** The door into a group that has just been opened, from where it was opened. */
-export const GROUP_OPENED_LINE = "Open the group you just started";
 
 export const GROUP_LEAVE_LABEL = "Leave group";
 export const GROUP_LEFT_LINE = "You've left this group.";
