@@ -27,9 +27,6 @@ vi.mock("next/link", async () => {
   const { createElement } = await import("react");
   return { default: ({ children, ...props }: ComponentProps<"a">) => createElement("a", props, children) };
 });
-vi.mock("@/components/pubpal/PubPalAvatar", () => ({
-  PubPalAvatar: ({ name }: { name: string }) => createElement("span", { role: "img", "aria-label": `${name} avatar` }),
-}));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/pal/PalPortrait", () => ({ default: () => null }));
 vi.mock("@/components/pubpal/PubPalVoice", () => ({ default: () => null }));
@@ -39,6 +36,7 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 import PalExperience from "@/components/pal/PalExperience";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
 import { DEFAULT_PAL_DRAFT, type PubPal } from "@/lib/pubPal";
+import { readOwnedPalCache } from "@/lib/pubPalCache";
 
 const PAL_CACHE_KEY = "pubmax_pub_pal_v1";
 let container: HTMLDivElement;
@@ -220,5 +218,44 @@ describe("owned Pub Pal summon", () => {
     viewer.pathname = "/";
     await render();
     expect(summon()).toBeNull();
+  });
+
+  it.each([
+    { ownerId: "owner-a", name: "Old Pal" },
+    { ...ownedPal(), appearance: null },
+    { ...ownedPal(), appearance: { ...DEFAULT_PAL_DRAFT.appearance, species: "unknown-animal" } },
+  ])("refuses incomplete or invalid owned objects before the real avatar renders %j", async (cached) => {
+    localStorage.setItem(PAL_CACHE_KEY, JSON.stringify(cached));
+
+    await expect(render()).resolves.toBeUndefined();
+
+    expect(summon()).toBeNull();
+    expect(container.querySelector(".palAvatar")).toBeNull();
+  });
+
+  it("preserves a complete legacy Pal's customization, metadata and preference defaults", async () => {
+    const legacy = ownedPal("owner-a", {
+      name: "Ripley",
+      appearance: { species: "hound", signalAffinity: "gin", material: "glass", accessory: "monocle" },
+      personality: { playfulness: 17, energy: 86, storytelling: 72, relationship: "confidant" },
+      voice: { id: "velvet", pace: 24, warmth: 61, energy: 58 },
+      muted: true,
+      masteryPoints: 143,
+      createdAt: "2026-07-01T10:00:00.000Z",
+      updatedAt: "2026-09-29T12:00:00.000Z",
+    });
+    const withoutPreferences: Partial<PubPal> = { ...legacy };
+    delete withoutPreferences.proposalPreferences;
+    localStorage.setItem(PAL_CACHE_KEY, JSON.stringify(withoutPreferences));
+
+    await render();
+
+    expect(summon()?.getAttribute("aria-label")).toBe("Summon Ripley, your Pub Pal");
+    expect(summon()?.querySelector(".palAvatar")?.classList.contains("pal-hound")).toBe(true);
+    expect(summon()?.textContent).toContain("Muted");
+    expect(readOwnedPalCache("owner-a")).toEqual({
+      ...legacy,
+      proposalPreferences: { memories: false, routes: true },
+    });
   });
 });
