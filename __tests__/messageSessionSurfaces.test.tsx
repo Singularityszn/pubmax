@@ -19,6 +19,7 @@ const viewerState = vi.hoisted(() => ({
     unresolved: boolean;
   },
 }));
+const routerState = vi.hoisted(() => ({ push: vi.fn() }));
 const fetchState = vi.hoisted(() => ({
   pending: false,
   requests: [] as Array<{
@@ -33,6 +34,9 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => viewerState.current,
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => routerState,
 }));
 vi.mock("@/components/auth/SignInButton", () => ({
   default: () => createElement("button", { type: "button" }, "Continue with email"),
@@ -125,6 +129,7 @@ async function releaseFetch(
 
 beforeEach(() => {
   signedOut();
+  routerState.push.mockClear();
   fetchState.pending = false;
   fetchState.requests = [];
   fetchState.response = null;
@@ -201,6 +206,20 @@ describe("message sign-in doors", () => {
     expect(host.textContent).not.toContain("@bridget");
     expect(host.textContent).toContain("With you in a sec.");
     await releaseFetch(Response.json({ conversations: [] }));
+  });
+
+  it("gives a signed-in empty inbox one clear door to start a message", async () => {
+    signedIn("user-empty", "alice", 1);
+    fetchState.response = () => Response.json({ conversations: [] });
+
+    await render(createElement(MessagesInboxClient));
+
+    expect(host.textContent).toContain("Your messages start here");
+    expect(host.textContent).toContain(
+      "Tap New message to find a person or start a group",
+    );
+    expect(host.querySelector('button[aria-label="New message"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("Nobody in here yet.");
   });
 
   it("hides account A thread content while account B is still loading", async () => {
