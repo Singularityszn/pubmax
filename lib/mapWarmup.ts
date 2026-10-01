@@ -150,6 +150,7 @@ export function scheduleMapCanvasWarmup({
 
 /** Session-deduped route prefetch + slim-data warm (landing CTAs + tab bar). */
 const warmedRoutes = new Set<string>();
+const MAX_WARMED_ROUTES = 64;
 const mapCanvasWarmState: MapCanvasWarmState = { status: "idle" };
 
 function warmMapCanvasModule(): void {
@@ -189,8 +190,9 @@ export function warmNavRoute(
   // address the click then had to reconcile, and the landed URL lost its
   // fragment: the price receipt's "See your impact" link stopped scrolling to
   // the contribution card it names.
-  const prefetchHref = href.split("#")[0]?.split("?")[0] || href;
-  const isMapRoute = prefetchHref === "/map" || prefetchHref.startsWith("/map/");
+  const prefetchHref = href.split("#")[0] || href;
+  const pathname = prefetchHref.split("?")[0] || prefetchHref;
+  const isMapRoute = pathname === "/map" || pathname.startsWith("/map/");
   if (isMapRoute) warmMapCanvasModule();
   if (!prefetchHref || seen.has(prefetchHref)) return;
   try {
@@ -199,6 +201,11 @@ export function warmNavRoute(
     // HMR, router-not-mounted, transient) must let the next intent retry
     // rather than get silently deduped forever.
     seen.add(prefetchHref);
+    while (seen.size > MAX_WARMED_ROUTES) {
+      const oldest = seen.values().next().value;
+      if (oldest === undefined) break;
+      seen.delete(oldest);
+    }
   } catch {
     // Best-effort — navigation must never depend on prefetch. Leave `seen`
     // untouched so a follow-up hover/touch can try again.
