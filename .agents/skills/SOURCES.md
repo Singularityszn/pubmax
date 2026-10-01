@@ -15,7 +15,7 @@ These were already in the tree. They are not part of the five packs below.
 | `maplibre-terrain-rendering` | MapLibre terrain rendering for this app's map. Same upstream repo. |
 | `maplibre-tile-sources` | MapLibre tile sources for this app's map. Same upstream repo. |
 | `maplibre-v6-migration` | MapLibre GL JS v5 to v6 migration for this app's map. Same upstream repo. |
-| `continual-learning` | Approval-gated mining of this workspace's transcripts into `AGENTS.md`. `__tests__/skillInstallationIntegrity.test.ts` fences that contract. It is not in `~/.agents/skills`. |
+| `continual-learning` | Approval-gated mining of this workspace's transcripts into `AGENTS.md`. It is not in `~/.agents/skills`. |
 
 The MapLibre and Capacitor skills are the set vendored for this repo's map and native shell (pull request 1678).
 
@@ -30,7 +30,9 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 - Repo: https://github.com/emilkowalski/skills
 - Commit: `d16ebe60d09a5ba2afcb7054ede9d0a10c9f6128` (`main`)
 
-`animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `prototype`, `review-animations`, `write-swift`.
+`animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `emil-prototype`, `review-animations`, `write-swift`.
+
+`emil-prototype` is the upstream `prototype` skill. The directory and the frontmatter `name` are `emil-prototype` so this copy does not shadow the machine-wide `prototype` skill.
 
 ### Leonxlnx/taste-skill
 
@@ -69,13 +71,13 @@ Directory name, then frontmatter `name` when it differs:
 
 `01-establish-visual-hierarchy`, `02-apply-typography-scale`, `03-build-color-palette`, `04-apply-consistent-spacing`, `05-design-button-hierarchy`, `06-eliminate-visual-clutter`, `07-design-empty-states`, `08-use-shadows-appropriately`, `09-manage-color-contrast`, `10-group-related-elements`, `meta-refactor-ui`.
 
-The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. `skills.json` still records upstream paths of the form `skills/<id>/SKILL.md`. In this checkout those skills are siblings of `refactoring-ui-plugin/`, not children of it. `meta-refactor-ui` names each skill by id, and those ids match the sibling directories.
+The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. Each `path` in `skills.json` is `.agents/skills/<id>/SKILL.md`. `meta-refactor-ui` reads `../refactoring-ui-plugin/skills.json`.
 
 ### shadcn-labs/skills
 
 - Repo: https://github.com/shadcn-labs/skills
 - Commit: `cb4cd2b719e9539720f3cd07cf297999e58b5eff` (`main`)
 
-From `skills/`: `icon-set-audit`, `icon-set-extend`, `icon-set-generator`, `launch-shadcn-registry`, `mastra-file-agents`, `tailwind-to-stylex`.
+Kept from that pack: `icon-set-audit`, `icon-set-extend`, `icon-set-generator`, `launch-shadcn-registry`, `tailwind-to-stylex`.
 
-From `.agents/skills/` in that repo: `docs-i18n-zh`, `skill-creator`, `unslop`, `writing-great-skills`.
+Dropped, because they sit outside that UI scope or duplicate the machine-wide set: `docs-i18n-zh`, `mastra-file-agents`, `skill-creator`, `unslop`, `writing-great-skills`.
