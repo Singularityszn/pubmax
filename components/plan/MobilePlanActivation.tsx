@@ -3,6 +3,7 @@
 import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
+import type { DisplayedMapRoute } from "@/lib/mapRouteTransfer";
 import { MapRouteTransferButton, type MapRouteResponse } from "@/components/plan/MapRouteTransferButton";
 
 import PubmaxxLoadingEmber from "@/components/brand/PubmaxxLoadingEmber";
@@ -55,11 +56,13 @@ export function MobilePlanActivation({
   cityId,
   initialNightArea,
   venuesById,
+  displayedRoute,
   onGenerated,
 }: {
   cityId: CityId;
   initialNightArea: NightAreaSlug;
   venuesById?: ReadonlyMap<string, Venue>;
+  displayedRoute?: DisplayedMapRoute;
   onGenerated: (plan: GeneratedMobilePlan) => void;
 }) {
   const { user } = useAuth();
@@ -214,6 +217,11 @@ export function MobilePlanActivation({
     }
   }
 
+  const resultMatchesDisplayedRoute = !displayedRoute || (
+    result?.mapRoute?.stops?.length === displayedRoute.length
+    && displayedRoute.every((venue, index) => venue.id === result?.mapRoute?.stops?.[index]?.venueId)
+  );
+
   return (
     <section className="mobilePlannerIntent" aria-labelledby="mobile-plan-intent-title">
       <div className="mobilePlannerIntentHeading">
@@ -259,13 +267,20 @@ export function MobilePlanActivation({
       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
       {result ? (
         <div className="mobilePlannerResult" role="status">
+          {resultMatchesDisplayedRoute ? (
+            <>
           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
             <ShieldCheck size={17} aria-hidden="true" />
             <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
+            </>
+          ) : (
+            <p>The route changed. Plan will review the current stops and order.</p>
+          )}
           <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
-          <MapRouteTransferButton response={result.mapRoute} />
+          <MapRouteTransferButton response={result.mapRoute} displayedRoute={displayedRoute} />
+          {resultMatchesDisplayedRoute ? (
           <div className="mobilePlannerEndings" aria-label="Ending recommendations">
             {result.endings.map((ending) => (
               <div key={ending.kind} data-recommended={ending.preselected ? "true" : undefined}>
@@ -274,6 +289,7 @@ export function MobilePlanActivation({
               </div>
             ))}
           </div>
+          ) : null}
         </div>
       ) : null}
     </section>

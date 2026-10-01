@@ -1,4 +1,5 @@
 import { PLANNING_INTENT_SOURCES, type PlanningIntentSource } from "@/lib/planningIntent";
+import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
   writePlanRouteDraftEnvelope,
@@ -12,8 +13,8 @@ import {
  * PlanRouteDraft V2 (origin "map-generated") so the Plan composer hydrates the
  * exact same Route — same Stops, order, anchor, and proof — without issuing a
  * second generation request. It only ever writes storage; it never fetches.
- * A malformed or incomplete Route maps to null and nothing is written, so the
- * caller falls back to the existing navigate-and-regenerate path.
+ * A malformed or incomplete Route maps to null and nothing is written. The
+ * Map CTA keeps the current route visible when its transfer cannot be saved.
  */
 
 type RawStop = {
@@ -41,6 +42,8 @@ export type MapGeneratedRouteResponse = {
   routeTotals?: unknown;
   planningConfidence?: unknown;
 };
+
+export type DisplayedMapRoute = readonly { id: string; name: string }[];
 
 type RouteDraftValue = ParsedPlanRouteDraft["value"];
 type RouteDraftAlternative = RouteDraftValue["stops"][number]["alternatives"][number];
@@ -130,6 +133,52 @@ export function mapGeneratedRouteDraftValue(
   };
 }
 
+/** Carry the route actually shown; client inspection never authenticates a proof. */
+export function mapCurrentRouteDraftValue(
+  body: MapGeneratedRouteResponse | null | undefined,
+  displayedRoute: DisplayedMapRoute,
+  releaseAnchor = false,
+): RouteDraftValue | null {
+  const original = mapGeneratedRouteDraftValue(body);
+  const count = displayedRoute.length;
+  if (!original || !isPlanStopCount(count)) return null;
+  const ids = displayedRoute.map((venue) => text(venue.id));
+  if (ids.some((id) => !id) || new Set(ids).size !== ids.length
+    || displayedRoute.some((venue) => !text(venue.name))) return null;
+  const originalIds = original.stops.map((stop) => stop.venueId);
+  if (new Set(originalIds).size !== originalIds.length) return null;
+  const unchanged = originalIds.length === ids.length && ids.every((id, index) => id === originalIds[index]);
+  if (unchanged) return original;
+  const movedAnchor = original.anchorVenueId !== null && ids[0] !== original.anchorVenueId;
+  if (movedAnchor && !releaseAnchor) return null;
+  const sameSet = originalIds.length === ids.length && ids.every((id) => originalIds.includes(id!));
+  const keepCandidateProof = original.outcome === "unanchored" && sameSet;
+  const routeIds = new Set(ids);
+  const stops = displayedRoute.map((venue, index) => {
+    const id = ids[index]!;
+    const previous = keepCandidateProof ? original.stops.find((stop) => stop.venueId === id) : undefined;
+    return previous ? {
+      ...previous, key: index + 1,
+      alternatives: previous.alternatives.filter((alternative) => !routeIds.has(alternative.venueId)),
+    } : { key: index + 1, venueId: id, venueName: venue.name.trim(), alternatives: [] };
+  });
+  return {
+    ...original,
+    ...(movedAnchor ? { anchorVenueId: null, anchorSource: null, outcome: "unanchored" as const } : {}),
+    stops,
+    alternatives: [],
+    nightContext: original.nightContext ? { ...original.nightContext, stopCount: count } : null,
+    groundingProof: keepCandidateProof ? original.groundingProof : null,
+    operationKey: keepCandidateProof ? original.operationKey : null,
+    routeRevision: null,
+    routeStale: !keepCandidateProof || !original.groundingProof || original.routeStale,
+    routeTotals: null,
+    transportBasis: null,
+    planningConfidence: null,
+    warnings: keepCandidateProof ? [] : ["You changed this route. Review a refreshed route before locking it in."],
+  };
+}
+
 /**
  * Transfer a generate response into the Plan route draft. Returns true only
  * when the canonical V2 envelope was written. Storage exceptions and malformed
@@ -155,6 +204,10 @@ export function transferMapRouteToDraft(
   body: MapGeneratedRouteResponse | null | undefined,
   storage: PlanRouteDraftStorage | null,
   now = Date.now(),
+  displayedRoute?: DisplayedMapRoute,
+  releaseAnchor = false,
 ): boolean {
-  return transferGeneratedRouteToDraft(body, storage, "map-generated", now);
+  if (!displayedRoute) return transferGeneratedRouteToDraft(body, storage, "map-generated", now);
+  const value = mapCurrentRouteDraftValue(body, displayedRoute, releaseAnchor);
+  return Boolean(value && storage && writePlanRouteDraftEnvelope(value, "map-generated", storage, now).v2);
 }

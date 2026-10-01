@@ -135,6 +135,40 @@ describe("curated crawls", () => {
     expect(href).toContain(riverside!.venueIds[0]);
   });
 
+  it("shares only current generated drink intent through the crawl URL encoder", () => {
+    const venueIds = ["venue-a", "venue-b"];
+    expect(crawlShareMapHref({ venueIds })).toBe("/map?mode=build&pubs=venue-a%2Cvenue-b");
+
+    const vodka = new URL(crawlShareMapHref({
+      venueIds,
+      routeDrinkIntent: { drinkCategory: "vodka", zeroProof: false },
+    }), "https://pubmaxx.test");
+    expect([...vodka.searchParams.keys()]).toEqual(["mode", "pubs", "routeDrink"]);
+    expect(vodka.searchParams.get("routeDrink")).toBe("vodka");
+    expect(vodka.searchParams.get("drink")).toBeNull();
+    expect(vodka.searchParams.get("serving")).toBeNull();
+
+    const zeroProof = new URL(crawlShareMapHref({
+      venueIds,
+      routeDrinkIntent: { drinkCategory: "vodka", zeroProof: true },
+    }), "https://pubmaxx.test");
+    expect(zeroProof.searchParams.get("routeLow")).toBe("1");
+    expect(zeroProof.searchParams.get("routeDrink")).toBeNull();
+  });
+
+  it.each(["beer", "other"] as const)(
+    "does not share %s as a generated drink-category route intent",
+    (drinkCategory) => {
+      const href = crawlShareMapHref({
+        venueIds: ["venue-a", "venue-b"],
+        routeDrinkIntent: { drinkCategory, zeroProof: false },
+      });
+      const params = new URL(href, "https://pubmaxx.test").searchParams;
+      expect(params.get("routeDrink")).toBeNull();
+      expect(params.get("routeLow")).toBeNull();
+    },
+  );
+
   it("routes city-prefixed venue shares onto /map/{city}", () => {
     const href = crawlShareMapHref({
       venueIds: ["venue-oxf-16404bl", "venue-oxf-n2un97"],

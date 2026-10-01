@@ -10,7 +10,7 @@ import {
   normalizeBrandQuery,
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
-import { isMapLensDrinkCategory } from "@/lib/drinks";
+import { isMapLensDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
 import { clamp } from "@/lib/mathClamp";
@@ -46,7 +46,20 @@ export const altStyleStopNoun: Record<AltCrawlStyle, string> = {
 // Decode is defensive: unknown/malformed params are ignored, numbers clamp to
 // the slider bounds, unknown styles drop. It NEVER throws on bad input.
 
+export type RouteDrinkIntent = { drinkCategory?: DrinkCategory; zeroProof: boolean };
+
+/** Public requested drink only. No price, proof or private planning context. */
+export function routeDrinkIntentFromSearch(search: string): RouteDrinkIntent | null {
+  const params = new URLSearchParams(search);
+  if (!params.get("pubs")?.trim()) return null;
+  if (params.get("routeLow") === "1") return { zeroProof: true };
+  const category = params.get("routeDrink");
+  return category && category !== "beer" && isMapLensDrinkCategory(category)
+    ? { drinkCategory: category, zeroProof: false } : null;
+}
+
 export type CrawlUrlState = {
+  routeDrinkIntent?: RouteDrinkIntent | null;
   mode: CrawlMode;
   filters: Filters;
   builtIds: string[];
@@ -144,7 +157,13 @@ export function encodeCrawl(state: CrawlUrlState): string {
   // Zone lens: only a concrete 1–6 zone is encoded ("" / "all" is the default).
   const zone = parseZoneParam(filters.zone);
   if (zone !== null && zone !== "all") params.set("zone", String(zone));
-  if (builtIds.length) params.set("pubs", builtIds.join(","));
+  if (builtIds.length) {
+    params.set("pubs", builtIds.join(","));
+    const intent = state.routeDrinkIntent;
+    if (intent?.zeroProof === true) params.set("routeLow", "1");
+    else if (intent?.drinkCategory && intent.drinkCategory !== "beer"
+      && isMapLensDrinkCategory(intent.drinkCategory)) params.set("routeDrink", intent.drinkCategory);
+  }
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
   if (state.bandId) params.set("band", state.bandId);
@@ -288,6 +307,8 @@ export function decodeCrawl(
     out.altStyle = alt as AltCrawlStyle;
   }
 
+  const routeDrinkIntent = routeDrinkIntentFromSearch(params.toString());
+  if (routeDrinkIntent) out.routeDrinkIntent = routeDrinkIntent;
   return out;
 }
 

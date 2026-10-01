@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   mapGeneratedRouteDraftValue,
+  mapCurrentRouteDraftValue,
   transferMapRouteToDraft,
   type MapGeneratedRouteResponse,
 } from "@/lib/mapRouteTransfer";
@@ -10,6 +11,7 @@ import {
   PLAN_ROUTE_DRAFT_V2_KEY,
   readPlanRouteDraftEnvelope,
 } from "@/lib/planRouteDraft";
+import { mintPlanGroundingProof, verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { createWebMcpBoard, publishWebMcpRoute, writeWebMcpRouteToPlanDraft } from "@/lib/webmcp/board";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
@@ -217,4 +219,105 @@ describe("mapGeneratedRouteDraftValue / transferMapRouteToDraft", () => {
     expect(boundedStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
   });
 
+});
+
+
+describe("current displayed Map route transfer", () => {
+  const reversed = [
+    { id: "venue-c", name: "Venue C" }, { id: "venue-b", name: "Venue B" }, { id: "venue-a", name: "Venue A" },
+  ];
+
+  it("leaves an unchanged response draft and proof intact", () => {
+    const response = evidenceResponse();
+    const original = mapGeneratedRouteDraftValue(response)!;
+    expect(mapCurrentRouteDraftValue(response, original.stops.map((stop) => ({ id: stop.venueId, name: stop.venueName }))))
+      .toEqual(original);
+  });
+
+  it("transfers actual reversed order with original per-stop and backup quotes and a valid V1 candidate proof", () => {
+    const response = evidenceResponse();
+    const proof = mintPlanGroundingProof(["venue-a", "venue-b", "venue-c", "venue-x", "venue-y"], "operation-1", NOW);
+    response.groundingProof = proof;
+    const original = mapGeneratedRouteDraftValue(response)!;
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(true);
+    const value = readPlanRouteDraftEnvelope(storage, NOW)!.value;
+    expect(value.stops.map((stop) => stop.venueId)).toEqual(["venue-c", "venue-b", "venue-a"]);
+    expect(value.stops.map((stop) => stop.selectedDrinkPriceEvidence)).toEqual([...original.stops].reverse().map((stop) => stop.selectedDrinkPriceEvidence));
+    expect(value.stops.map((stop) => stop.alternatives)).toEqual([...original.stops].reverse().map((stop) => stop.alternatives));
+    expect(value.groundingProof).toBe(proof);
+    expect(value.operationKey).toBe("operation-1");
+    expect(verifyPlanGroundingProof(value.groundingProof, value.stops.map((stop) => stop.venueId), value.operationKey!, NOW)).toBe(true);
+    expect(verifyPlanGroundingProof(value.groundingProof, ["venue-c", "venue-b", "venue-unknown"], value.operationKey!, NOW)).toBe(false);
+    expect(value).toMatchObject({ routeTotals: null, transportBasis: null, planningConfidence: null, routeRevision: null, routeStale: false });
+    expect(value.nightContext?.drinkCategory).toBe("wine");
+  });
+
+  it("keeps edited current identities and requested drink as a refreshable preview, without resurrecting captured proof or quotes", () => {
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(evidenceResponse(), storage, NOW, [
+      { id: "venue-new", name: "New Venue" }, { id: "venue-b", name: "Venue B" },
+    ])).toBe(true);
+    const value = readPlanRouteDraftEnvelope(storage, NOW)!.value;
+    expect(value.stops).toEqual([
+      { key: 1, venueId: "venue-new", venueName: "New Venue", alternatives: [] },
+      { key: 2, venueId: "venue-b", venueName: "Venue B", alternatives: [] },
+    ]);
+    expect(value.nightContext).toMatchObject({ drinkCategory: "wine", stopCount: 2 });
+    expect(value).toMatchObject({ groundingProof: null, operationKey: null, routeRevision: null, routeStale: true, routeTotals: null, planningConfidence: null });
+    expect(value.warnings).toEqual(["You changed this route. Review a refreshed route before locking it in."]);
+  });
+
+  it("never silently releases an accepted Stop 1, but explicit release carries the actual route as a stale preview", () => {
+    const response = evidenceResponse();
+    Object.assign(response, { outcome: "route", anchored: true, anchorVenueId: "venue-a", anchorSource: "near" });
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(false);
+    expect(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
+    expect(transferMapRouteToDraft(response, storage, NOW, reversed, true)).toBe(true);
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value).toMatchObject({
+      anchorVenueId: null, anchorSource: null, outcome: "unanchored", groundingProof: null, operationKey: null, routeStale: true,
+    });
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value.stops.map((stop) => stop.venueId)).toEqual(["venue-c", "venue-b", "venue-a"]);
+  });
+
+  it("retires an anchored changed-order proof even when its held Stop 1 remains first", () => {
+    const response = generateResponse({ outcome: "route", anchored: true, anchorVenueId: "venue-a", anchorSource: "near" });
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(response, storage, NOW, [
+      { id: "venue-a", name: "Venue A" }, { id: "venue-c", name: "Venue C" }, { id: "venue-b", name: "Venue B" },
+    ])).toBe(true);
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value).toMatchObject({
+      anchorVenueId: "venue-a", anchorSource: "near", outcome: "route", groundingProof: null, routeStale: true,
+    });
+  });
+
+  it.each(["expired", "malformed"] as const)("keeps an %s proof from authorizing the reversed preview", (kind) => {
+    const response = generateResponse({ groundingProof: kind === "expired" ? fakeProof(NOW - 1) : "malformed.signature" });
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(true);
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value).toMatchObject({ groundingProof: null, routeStale: true });
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value.stops.map((stop) => stop.venueId)).toEqual(["venue-c", "venue-b", "venue-a"]);
+  });
+
+  it("preserves zero-proof intent and never transfers an alcoholic price", () => {
+    const response = evidenceResponse();
+    response.inferredContext = { ...(response.inferredContext as Record<string, unknown>), zeroProof: true };
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(response, storage, NOW, reversed)).toBe(true);
+    const value = readPlanRouteDraftEnvelope(storage, NOW)!.value;
+    expect(value.nightContext?.zeroProof).toBe(true);
+    expect(value.stops.every((stop) => !stop.selectedDrinkPriceEvidence && stop.alternatives.every((alt) => !alt.selectedDrinkPriceEvidence))).toBe(true);
+  });
+
+  it("refuses duplicate or empty displayed routes without overwriting a saved draft", () => {
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(generateResponse(), storage, NOW)).toBe(true);
+    const previous = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    for (const route of [[], [{ id: "venue-a", name: "A" }, { id: "venue-a", name: "A" }]]) {
+      expect(transferMapRouteToDraft(generateResponse(), storage, NOW, route)).toBe(false);
+      expect(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(previous);
+    }
+    expect(transferMapRouteToDraft(generateResponse(), memoryStorage({ alwaysThrow: true }), NOW, reversed)).toBe(false);
+  });
 });

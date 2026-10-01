@@ -5,8 +5,12 @@ import {
 } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
-import type { AltCrawlStyle } from "@/lib/crawlUrl";
-import type { CrawlStyle } from "@/lib/venues";
+import {
+  encodeCrawl,
+  type AltCrawlStyle,
+  type RouteDrinkIntent,
+} from "@/lib/crawlUrl";
+import { initialFilters, type CrawlStyle } from "@/lib/venues";
 
 // Named "generational" curated crawls — hand-picked routes through pubs that
 // genuinely cluster in a themed patch of London, so an older drinker's pub
@@ -383,6 +387,7 @@ const SHARE_MAP_STOP_CAP = 12;
 
 export function crawlShareMapHref(input: {
   venueIds: readonly string[];
+  routeDrinkIntent?: RouteDrinkIntent | null;
   placeStoryBandId?: string | null;
   crawlId?: string | null;
   cityId?: CityId | string | null;
@@ -403,6 +408,19 @@ export function crawlShareMapHref(input: {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", ids.join(","));
+  if (input.routeDrinkIntent) {
+    const encoded = new URLSearchParams(encodeCrawl({
+      mode: "build",
+      filters: initialFilters,
+      builtIds: ids,
+      selectedVenueId: "",
+      routeDrinkIntent: input.routeDrinkIntent,
+    }));
+    const routeLow = encoded.get("routeLow");
+    const routeDrink = encoded.get("routeDrink");
+    if (routeLow) params.set("routeLow", routeLow);
+    else if (routeDrink) params.set("routeDrink", routeDrink);
+  }
   const crawlId = input.crawlId?.trim();
   if (crawlId) params.set("crawl", crawlId);
   const pack = input.crawls ?? curatedCrawls;

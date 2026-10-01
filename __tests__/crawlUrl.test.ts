@@ -5,6 +5,7 @@ import {
   encodeCrawl,
   decodeCrawl,
   seedCrawlState,
+  routeDrinkIntentFromSearch,
   type CrawlUrlState,
 } from "@/lib/crawlUrl";
 import { initialFilters } from "@/components/map/ControlRail";
@@ -373,5 +374,38 @@ describe("crawlUrl", () => {
       expect(buildCrawlMapHref(["venue-abc"])).toBeNull();
       expect(buildCrawlMapHref(["", ""])).toBeNull();
     });
+  });
+});
+
+
+describe("public route drink intent", () => {
+  it("round-trips route category separately from a different Map lens without quote/proof/context metadata", () => {
+    const encoded = encodeCrawl({ ...sample, filters: { ...sample.filters, drinkCategory: "wine" },
+      routeDrinkIntent: { drinkCategory: "vodka", zeroProof: false } });
+    expect(decodeCrawl(new URLSearchParams(encoded)).filters?.drinkCategory).toBe("wine");
+    expect(routeDrinkIntentFromSearch(encoded)).toEqual({ drinkCategory: "vodka", zeroProof: false });
+    expect(decodeCrawl(new URLSearchParams(encoded)).routeDrinkIntent).toEqual({ drinkCategory: "vodka", zeroProof: false });
+    expect([...new URLSearchParams(encoded).keys()].filter((key) => key.startsWith("route"))).toEqual(["routeDrink"]);
+    expect(encoded).not.toMatch(/pence|sourceUrl|proof|observedAt|nightArea/);
+  });
+
+  it("zero-proof wins without a truthy false value or an alcoholic category", () => {
+    const encoded = encodeCrawl({ ...sample, routeDrinkIntent: { drinkCategory: "gin", zeroProof: true } });
+    expect(new URLSearchParams(encoded).has("routeDrink")).toBe(false);
+    expect(routeDrinkIntentFromSearch(encoded)).toEqual({ zeroProof: true });
+    expect(routeDrinkIntentFromSearch("pubs=a,b&routeLow=false")).toBeNull();
+    expect(routeDrinkIntentFromSearch("pubs=a,b&routeLow=0&routeDrink=vodka"))
+      .toEqual({ drinkCategory: "vodka", zeroProof: false });
+  });
+
+  it.each(["pubs=a,b&routeDrink=unknown", "pubs=a,b&routeDrink=beer", "pubs=a,b&routeDrink=Gin",
+    "routeDrink=gin", "pubs=&routeDrink=gin", "pubs=a,b&drink=gin", "pubs=a,b&low=1"])("ignores unsupported or legacy lens-only intent %s", (search) => {
+    expect(routeDrinkIntentFromSearch(search)).toBeNull();
+  });
+
+  it("clears route metadata when manual ownership replaces it or removes the stops", () => {
+    expect(encodeCrawl(sample)).not.toMatch(/routeDrink|routeLow/);
+    expect(encodeCrawl({ ...sample, builtIds: [], routeDrinkIntent: { drinkCategory: "gin", zeroProof: false } }))
+      .not.toMatch(/routeDrink|routeLow/);
   });
 });

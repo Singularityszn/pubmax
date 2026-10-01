@@ -16,10 +16,13 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 import RoutePanel from "@/components/map/RoutePanel";
 import {
+  currentMapRoutePricing,
   useMapPlanCoordinator,
   useMapPlanPresentation,
 } from "@/components/map/pubmap/useMapPlanCoordinator";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
+import { routeDrinkIntentFromSearch } from "@/lib/crawlUrl";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { Venue } from "@/lib/venues";
@@ -99,14 +102,16 @@ function generatedPlan({
 
 function Harness({
   generated = generatedPlan(), activationIds = ORIGINAL_IDS,
-  suggestedIds = ["a", "b", "d"],
+  suggestedIds = ["a", "b", "d"], currentPrices = new Map(),
 }: {
   generated?: GeneratedMobilePlan;
   activationIds?: string[];
   suggestedIds?: string[];
+  currentPrices?: ReadonlyMap<string, MapLensPrice>;
 }) {
   const coordinator = useMapPlanCoordinator({
     mode: "build", builtIds: ORIGINAL_IDS, routeMapped: true,
+    routeDrinkIntent: routeDrinkIntentFromSearch(window.location.search),
     planningOpen: false, nightArea: "piccadilly-soho",
   });
   const [altStyle, setAltStyle] = useState<AltCrawlStyle>("pint");
@@ -127,7 +132,7 @@ function Harness({
     <RoutePanel
       mode={coordinator.mode} crawlStyle="cheapest" altStyle={altStyle}
       onAltStyleChange={setAltStyle} route={presentation.route}
-      generatedPricing={coordinator.generatedPricing} filteredVenues={VENUES}
+      generatedPricing={currentMapRoutePricing(coordinator.generatedPricing, currentPrices)} filteredVenues={VENUES}
       builtIds={coordinator.builtIds} activeVenueId={undefined}
       venueSignals={SELECTED_SIGNALS} routeMapped={coordinator.routeMapped}
       poisPath={null} onMapRoute={() => coordinator.setRouteMapped(true)}
@@ -319,6 +324,24 @@ describe("generated map route pricing rendered lifecycle", () => {
     expect(host.querySelector("h2")?.textContent).toBe("Gin plan");
   });
 
+  it.each([false, true])("completion shares the retained public drink intent after a real picker edit (zeroProof=%s)", async (zeroProof) => {
+    await mount({ generated: generatedPlan({ category: "gin", zeroProof, quote: zeroProof ? null : LISTED_QUOTE }) });
+    await click("Activate generated plan");
+    await click("Fixture pub d£5.50 · WestminsterAdd", host.querySelector(".venuePicker")!);
+    expect(stopRows()).toHaveLength(4);
+    expectUnknownRound(zeroProof ? "alcohol-free stops" : "gin stops");
+    expectNoQuotes();
+    await click("Start this crawl");
+    await click("Mark complete");
+    const link = host.querySelector<HTMLAnchorElement>('[data-testid="crawl-share-open"]');
+    expect(link?.textContent).toBe("Open shared crawl");
+    const url = new URL(link!.href);
+    expect(url.searchParams.get("pubs")?.split(",")).toEqual(["a", "b", "c", "d"]);
+    expect(routeDrinkIntentFromSearch(url.search)).toEqual(zeroProof
+      ? { zeroProof: true } : { drinkCategory: "gin", zeroProof: false });
+    expect(Array.from(url.searchParams.keys())).toEqual(["mode", "pubs", zeroProof ? "routeLow" : "routeDrink"]);
+  });
+
   it("invalidates generated beer totals on add/remove and retains them for a pure reverse", async () => {
     await mount({ generated: generatedPlan({ category: "beer", quote: null, total: 700 }) });
     await click("Activate generated plan");
@@ -347,5 +370,63 @@ describe("generated map route pricing rendered lifecycle", () => {
       expect(metricText()).toContain("£16.50estimated round");
       expect(metricText()).toContain("pint stops");
     }
+  });
+});
+
+
+describe("restored public route drink intent", () => {
+  const currentPrices = new Map<string, MapLensPrice>([["a", {
+    venueId: "a", category: "gin", categoryLabel: "Gin", priceGbp: 7,
+    source: "listed", servingSize: null, sourceUrl: "https://pub.example/category-offer/menu",
+    observedAt: "2026-09-29T12:00:00.000Z",
+  }], ["not-in-route", {
+    venueId: "not-in-route", category: "gin", categoryLabel: "Gin", priceGbp: 3,
+    source: "listed", servingSize: "25ml", sourceUrl: "https://pub.example/other/menu",
+    observedAt: "2026-09-29T12:00:00.000Z",
+  }]]);
+
+  it("restores requested category with unknown money, then renders a currently supplied exact-ID quote", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeDrink=gin&drink=wine");
+    await mount();
+    expect(host.querySelector("h2")?.textContent).toBe("Gin plan");
+    expectUnknownRound("gin stops");
+    expectNoQuotes();
+    await mount({ currentPrices });
+    expect(rowFor("a").querySelector("p")?.textContent).toBe("Gin £7.00, published menu 29 Sept 2026. Serving size not recorded.");
+    expect(host.querySelector('.routeList a[href="https://pub.example/other/menu"]')).toBeNull();
+    expectUnknownRound("gin stops");
+    await mount({ currentPrices: new Map() });
+    expectNoQuotes();
+    expect(rowFor("a").querySelector("p")?.textContent).toBe("Gin price not recorded");
+  });
+
+  it("never reapplies reread quotes after a live add/remove edit", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeDrink=gin");
+    await mount({ currentPrices });
+    expect(rowFor("a").querySelector("p")?.textContent).toContain("published menu");
+    await click("Fixture pub d£5.50 · WestminsterAdd", host.querySelector(".venuePicker")!);
+    expectUnknownRound("gin stops");
+    expectNoQuotes();
+    await click("Fixture pub d£5.50 · WestminsterRemove", host.querySelector(".venuePicker")!);
+    expectNoQuotes();
+    await click("Replace with manual route");
+    expect(host.querySelector("h2")?.textContent).toBe("Hand-built plan");
+    expect(metricText()).toContain("£16.50estimated round");
+  });
+
+  it("restores zero-proof without borrowing supplied alcohol quotes or manual pint money", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeLow=1&routeDrink=gin");
+    await mount({ currentPrices });
+    expect(host.querySelector("h2")?.textContent).toBe("Alcohol-free plan");
+    expectUnknownRound("alcohol-free stops");
+    expectNoQuotes();
+  });
+
+  it("keeps legacy lens-only manual Pint routes under their existing owner", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&drink=gin");
+    await mount({ currentPrices });
+    expect(host.querySelector("h2")?.textContent).toBe("Hand-built plan");
+    expect(metricText()).toContain("£16.50estimated round");
+    expectNoQuotes();
   });
 });

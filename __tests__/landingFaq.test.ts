@@ -54,11 +54,17 @@ describe("the landing FAQ", () => {
     ]);
   });
 
-  it("states the photo rule the composer itself states", () => {
+  it("says a price needs the bill, keeps the pint photo optional and warns about public uploads", () => {
     const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
-    expect(answer).toContain("optional");
-    expect(answer).toContain("public");
-    expect(answer).toMatch(/photo of the bill or the pint/);
+    const html = renderToStaticMarkup(createElement(LandingFaq));
+    expect(answer).toContain("You need a photo of the bill.");
+    expect(answer).toContain("A photo of the pint is optional.");
+    expect(answer).not.toContain("bill or the pint is optional");
+    expect(answer).toContain("Photos and notes are public and can show people");
+    expect(answer).toContain("only add one you are happy to share");
+    expect(answer.indexOf("photo of the bill")).toBeLessThan(answer.indexOf("press Log it"));
+    expect(html).toContain("You need a photo of the bill.");
+    expect(html).toContain("A photo of the pint is optional.");
   });
 
   it("keeps London as the focus while explaining listed prices in other UK cities", () => {

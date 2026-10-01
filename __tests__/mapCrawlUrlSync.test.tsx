@@ -71,7 +71,7 @@ function HistoryHarness({
   holdCleanUrl?: boolean;
   maxPrice?: number;
   zone?: Filters["zone"];
-  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId">;
+  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId" | "routeDrinkIntent">;
   pending?: boolean;
   landmarkId?: string;
 }) {
@@ -572,5 +572,30 @@ describe("selected serving crawl URL continuity", () => {
     await act(async () => root.render(createElement(Harness, { query: "Sydney", pending: false, drinkCategory: "" })));
     act(() => vi.advanceTimersByTime(300));
     expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
+  });
+});
+
+
+describe("public route intent at the landed history owner", () => {
+  it("keeps independent route/lens intent, then removes route intent on actual Home after manual replacement", async () => {
+    window.history.replaceState({ root: true }, "", "/map?mode=build&pubs=a,b,c&routeDrink=vodka&drink=gin");
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ["a", "b", "c"],
+        routeDrinkIntent: { drinkCategory: "vodka", zeroProof: false } },
+    })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("routeDrink")).toBe("vodka");
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe("gin");
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ["c", "b"], routeDrinkIntent: null },
+    })));
+    await traverseHistory(() => closeHistorySurfaces());
+    const landed = new URLSearchParams(window.location.search);
+    expect(landed.has("routeDrink")).toBe(false);
+    expect(landed.has("routeLow")).toBe(false);
+    expect(landed.get("drink")).toBe("gin");
+    expect(landed.get("pubs")).toBe("c,b");
+    expect(window.history.state.root).toBe(true);
   });
 });

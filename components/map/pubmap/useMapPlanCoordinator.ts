@@ -8,16 +8,37 @@ import type { NightAreaSlug } from "@/lib/nightAreas";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
-import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+
+import type { RouteDrinkIntent } from "@/lib/crawlUrl";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
 export type GeneratedMapRoutePricing = {
+  /** Only explicit shared/restored intent rereads current public price authority. */
+  readCurrentQuotes?: boolean;
   context: Pick<GeneratedMobilePlan["context"], "drinkCategory" | "zeroProof">;
   budget: GeneratedMobilePlan["budget"] | null;
   venueIds: readonly string[];
   quotes: ReadonlyMap<string, SelectedDrinkPriceEvidence>;
 };
 
+/** Restored intent never restores a generated budget or server proof. */
+export function currentMapRoutePricing(
+  pricing: GeneratedMapRoutePricing | null,
+  currentPrices: ReadonlyMap<string, MapLensPrice>,
+): GeneratedMapRoutePricing | null {
+  if (!pricing?.readCurrentQuotes) return pricing;
+  const quotes = new Map<string, SelectedDrinkPriceEvidence>();
+  for (const id of pricing.venueIds) {
+    const price = currentPrices.get(id);
+    const quote = price?.venueId === id ? selectedDrinkPriceEvidenceForPrice(price, pricing.context) : null;
+    if (quote) quotes.set(id, quote);
+  }
+  return { ...pricing, budget: null, quotes };
+}
+
 type InitialPlanState = {
+  routeDrinkIntent?: RouteDrinkIntent | null;
   mode: CrawlMode;
   builtIds: string[];
   routeMapped: boolean;
@@ -29,7 +50,9 @@ type InitialPlanState = {
 export function useMapPlanCoordinator(initial: InitialPlanState) {
   const [mode, setMode] = useState<CrawlMode>(initial.mode);
   const [builtIds, setBuiltIdsState] = useState<string[]>(initial.builtIds);
-  const [generatedPricing, setGeneratedPricing] = useState<GeneratedMapRoutePricing | null>(null);
+  const [generatedPricing, setGeneratedPricing] = useState<GeneratedMapRoutePricing | null>(() => initial.routeDrinkIntent && initial.builtIds.length
+    ? { context: initial.routeDrinkIntent, venueIds: [...initial.builtIds], budget: null, quotes: new Map(), readCurrentQuotes: true }
+    : null);
   const [routeMapped, setRouteMapped] = useState(initial.routeMapped);
   const [planningOpen, setPlanningOpen] = useState(initial.planningOpen);
   const [plannedNightArea, setPlannedNightArea] = useState<NightAreaSlug | null>(initial.nightArea);
@@ -38,7 +61,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState) {
   const setBuiltIds = useCallback<Dispatch<SetStateAction<string[]>>>((ids) => {
     setBuiltIdsState(ids);
     setGeneratedPricing((current) => current
-      ? { ...current, budget: null, quotes: new Map() }
+      ? { ...current, budget: null, quotes: new Map(), readCurrentQuotes: false }
       : null);
   }, []);
   const replaceBuiltIds = useCallback((ids: string[]) => {

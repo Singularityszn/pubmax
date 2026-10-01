@@ -347,9 +347,10 @@ const LogIntentFallback = dynamic(
   { ssr: false },
 );
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
-import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { currentMapRoutePricing, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import { routeDrinkIntentFromSearch } from "@/lib/crawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
   clearFavoritePint,
@@ -1624,6 +1625,7 @@ export default function PubMap({
     activateGeneratedPlan,
   } = useMapPlanCoordinator({
     mode: seed.mode,
+    routeDrinkIntent: routeDrinkIntentFromSearch(arrivalSearch),
     builtIds: seed.builtIds,
     routeMapped: seed.routeMapped,
     nightArea: restoredSession.nightArea,
@@ -1949,6 +1951,20 @@ export default function PubMap({
       mapDrinkLensCategory,
     ],
   );
+  const restoredRouteCategory = generatedPricing?.readCurrentQuotes && !generatedPricing.context.zeroProof
+    ? generatedPricing.context.drinkCategory ?? null : null;
+  useEffect(() => {
+    if (restoredRouteCategory) loadDrinkCategoryIndex(restoredRouteCategory);
+  }, [loadDrinkCategoryIndex, restoredRouteCategory]);
+  const currentRoutePricing = useMemo(() => currentMapRoutePricing(
+    generatedPricing,
+    restoredRouteCategory ? discoveryDrinkLensPrices(
+      communityPrices.byVenueId, restoredRouteCategory,
+      communityPrices.listedDrinkPrices.get(restoredRouteCategory) ?? [], experiencePolicyNow,
+    ) : new Map(),
+  ), [generatedPricing, restoredRouteCategory, communityPrices.byVenueId, communityPrices.listedDrinkPrices, experiencePolicyNow]);
+  const restoredRoutePriceStatus = restoredRouteCategory
+    ? communityPrices.drinkCategoryIndexStatus.get(restoredRouteCategory) ?? "idle" : null;
   const noAlcoholLensPrices = useMemo(
     () =>
       trustedNoAlcoholLensPrices(
@@ -3241,6 +3257,13 @@ export default function PubMap({
       () => ({
         mode,
         filters,
+        routeDrinkIntent: generatedPricing
+          ? generatedPricing.context.zeroProof
+            ? { zeroProof: true }
+            : generatedPricing.context.drinkCategory && generatedPricing.context.drinkCategory !== "beer"
+              ? { drinkCategory: generatedPricing.context.drinkCategory, zeroProof: false }
+              : null
+          : null,
         builtIds,
         selectedVenueId,
         bandId: activeBandId,
@@ -3251,6 +3274,7 @@ export default function PubMap({
       [
         mode,
         filters,
+        generatedPricing,
         builtIds,
         selectedVenueId,
         activeBandId,
@@ -5369,6 +5393,7 @@ export default function PubMap({
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
+        displayedRoute={route}
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
@@ -5411,7 +5436,7 @@ export default function PubMap({
       ) : null}
       <RoutePanel
         mode={mode}
-        generatedPricing={generatedPricing}
+        generatedPricing={currentRoutePricing}
         crawlStyle={filters.crawlStyle}
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
@@ -5440,6 +5465,11 @@ export default function PubMap({
         poisPath={city.poisPath}
         onRoundStarted={setActiveRoundStartedCode}
       >
+        {restoredRoutePriceStatus && restoredRoutePriceStatus !== "ready" ? <p role="status">
+          {restoredRoutePriceStatus === "degraded" ? "Current drink prices could not be read. Try again by reopening this route."
+            : restoredRoutePriceStatus === "partial" ? "Some current drink prices could not be read. Prices shown keep their source and date."
+              : "Checking current drink prices. The round total is not recorded."}
+        </p> : null}
         {renderPlannerEmptyState()}
       </RoutePanel>
       {plannerFoot}
