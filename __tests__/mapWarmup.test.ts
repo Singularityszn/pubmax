@@ -221,8 +221,7 @@ describe("warmNavRoute", () => {
     warmNavRoute({ prefetch }, "/tonight", seen);
     warmNavRoute({ prefetch }, "/social", seen);
     warmNavRoute({ prefetch }, "/tonight", seen);
-    // A query and a fragment are both dropped: only the path is fetchable, and
-    // a hash-bearing prefetch key cost the landed URL its own fragment.
+    // Fragments stay browser-side; queries name distinct server destinations.
     warmNavRoute({ prefetch }, "/u/night_owl#contribution-impact", seen);
     warmNavRoute({ prefetch }, "/u/night_owl", seen);
     warmNavRoute({ prefetch }, "/plan?occasion=quiet", seen);
@@ -230,9 +229,55 @@ describe("warmNavRoute", () => {
     expect(prefetch).toHaveBeenCalledWith("/u/night_owl");
     expect(prefetch).not.toHaveBeenCalledWith("/u/night_owl#contribution-impact");
     expect(prefetch).toHaveBeenCalledWith("/plan");
-    expect(prefetch).toHaveBeenCalledTimes(4);
+    expect(prefetch).toHaveBeenCalledWith("/plan?occasion=quiet");
+    expect(prefetch).toHaveBeenCalledTimes(5);
     expect(prefetch).toHaveBeenCalledWith("/tonight");
     expect(prefetch).toHaveBeenCalledWith("/social");
+  });
+
+  it("warms each Social query independently and strips only fragments", async () => {
+    const { warmNavRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+
+    warmNavRoute({ prefetch }, "/social?tab=discover#top", seen);
+    warmNavRoute({ prefetch }, "/social?feed=nearby", seen);
+    warmNavRoute({ prefetch }, "/social?tab=discover", seen);
+
+    expect(prefetch.mock.calls.map(([href]) => href)).toEqual([
+      "/social?tab=discover",
+      "/social?feed=nearby",
+    ]);
+  });
+
+  it("retains at most 64 successful destinations and lets an evicted intent warm again", async () => {
+    const { warmNavRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+
+    for (let index = 0; index < 65; index += 1) {
+      warmNavRoute({ prefetch }, `/social?person=${index}`, seen);
+    }
+
+    expect(seen.size).toBe(64);
+    expect(seen.has("/social?person=0")).toBe(false);
+    expect(seen.has("/social?person=64")).toBe(true);
+    warmNavRoute({ prefetch }, "/social?person=0", seen);
+    expect(prefetch).toHaveBeenLastCalledWith("/social?person=0");
+    expect(prefetch).toHaveBeenCalledTimes(66);
+    expect(seen.size).toBe(64);
+  });
+
+  it("keeps a full successful cache intact when a new prefetch throws", async () => {
+    const { warmNavRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set(Array.from({ length: 64 }, (_, index) => `/social?person=${index}`));
+    const prefetch = vi.fn(() => { throw new Error("router unavailable"); });
+
+    warmNavRoute({ prefetch }, "/social?person=64", seen);
+
+    expect(seen.size).toBe(64);
+    expect(seen.has("/social?person=0")).toBe(true);
+    expect(seen.has("/social?person=64")).toBe(false);
   });
 
 });
@@ -244,7 +289,8 @@ describe("warmMapRoute", () => {
     const prefetch = vi.fn();
     warmMapRoute({ prefetch }, "/map?log=1", seen);
     warmMapRoute({ prefetch }, "/map", seen);
-    expect(prefetch).toHaveBeenCalledTimes(1);
+    expect(prefetch).toHaveBeenCalledTimes(2);
+    expect(prefetch).toHaveBeenCalledWith("/map?log=1");
     expect(prefetch).toHaveBeenCalledWith("/map");
     expect(seen.has("/map")).toBe(true);
   });
