@@ -48,6 +48,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
 });
 
+import { composerCreatePayload } from "@/components/plan/PlanComposer";
 import { POST } from "@/app/api/plans/route";
 import { GET, PATCH } from "@/app/api/plans/[id]/route";
 import { inferNightContext } from "@/lib/nightPlanning";
@@ -273,6 +274,86 @@ describe("Plan create selected drink evidence", () => {
     expect((await create("wine", community)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(community);
   });
 
+  it("retains current listed evidence through member route replacement without Night Context", async () => {
+    const observedAt = new Date(Date.now() - 60_000).toISOString();
+    const a = {
+      category: "wine",
+      pence: 525,
+      serving: "125ml",
+      source: "listed",
+      sourceUrl: "https://pub.example/manual/menu",
+      observedAt,
+    };
+    const submittedHint = { ...a, contributor: "private-canary" };
+    listedBundleFixture.rows = [{
+      venueId: "venue-a",
+      name: "Venue A",
+      category: "wine",
+      priceGbp: 5.25,
+      drinkLabel: "Rioja",
+      servingSize: "125ml",
+      sourceUrl: a.sourceUrl,
+      observedAt,
+      lane: "site-harvest",
+      standing: "listed",
+      publisher: "Fixture publisher",
+      basis: null,
+      sampleSize: null,
+    }];
+
+    const createResponse = await POST(new Request("http://localhost/api/plans", {
+      method: "POST",
+      headers: { "idempotency-key": `manual-null-patch-${++sequence}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        title: "Manual wine stop",
+        creatorName: "Host",
+        startTime: "2026-09-30T19:00:00.000Z",
+        stops: [{ venueId: "venue-a", venueName: "Venue A", selectedDrinkPriceEvidence: submittedHint }],
+      }),
+    }));
+    const created = await createResponse.json();
+    expect(createResponse.status, JSON.stringify(created)).toBe(201);
+    expect(created.plan.context).toBeNull();
+    expect(created.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+
+    const planId = created.plan.plan.id as string;
+    const patchResponse = await PATCH(new Request(`http://localhost/api/plans/${planId}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${created.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
+        { venueId: "venue-a", venueName: "Venue A", selectedDrinkPriceEvidence: submittedHint },
+        { venueId: "venue-b", venueName: "Venue B" },
+        { venueId: "venue-c", venueName: "Venue C" },
+      ] }),
+    }), { params: Promise.resolve({ id: planId }) });
+    const updated = await patchResponse.json();
+    expect(patchResponse.status, JSON.stringify(updated)).toBe(200);
+    expect(updated.context).toBeNull();
+    expect(updated.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+
+    const stored = await memoryPlanStore.get(planId);
+    expect(stored?.context).toBeNull();
+    expect(stored?.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+
+    const memberReload = await GET(new Request(`http://localhost/api/plans/${planId}`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), { params: Promise.resolve({ id: planId }) });
+    expect(memberReload.status).toBe(200);
+    const memberPlan = await memberReload.json();
+    expect(memberPlan.context).toBeNull();
+    expect(memberPlan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+
+    const anonymousRead = await GET(new Request(`http://localhost/api/plans/${planId}`), {
+      params: Promise.resolve({ id: planId }),
+    });
+    expect(anonymousRead.status).toBe(200);
+    const preview = await anonymousRead.json();
+    expect(preview).toMatchObject({ visibility: "preview", stopCount: 3 });
+    for (const privateValue of ["venue-a", "venue-b", "venue-c", a.sourceUrl, "selectedDrinkPriceEvidence", "private-canary"]) {
+      expect(JSON.stringify(preview)).not.toContain(privateValue);
+    }
+  });
+
 });
 
 
@@ -333,6 +414,137 @@ describe("Plan listed-price authority and persistence", () => {
     for (const canary of [a.sourceUrl, b.sourceUrl, "selectedDrinkPriceEvidence", "private-canary", "venue-b"]) {
       expect(JSON.stringify(preview)).not.toContain(canary);
     }
+  });
+
+  it("keeps the selected fifth listed serving on canonical venue PATCH and member reload", async () => {
+    const servings = ["125ml", "150ml", "175ml", "200ml", "250ml"];
+    const sourceUrl = "https://pub.example/venue-b/menu";
+    listedBundleFixture.rows = servings.map((servingSize, index) => ({
+      venueId: "venue-b",
+      name: "Venue B",
+      category: "wine",
+      priceGbp: [5.25, 5.5, 5.75, 6, 6.5][index]!,
+      drinkLabel: "Rioja",
+      servingSize,
+      sourceUrl,
+      observedAt,
+      lane: "site-harvest",
+      standing: "listed",
+      publisher: "Fixture publisher",
+      basis: null,
+      sampleSize: null,
+    }));
+    const selected = {
+      category: "wine",
+      pence: 650,
+      serving: "250ml",
+      source: "listed",
+      sourceUrl,
+      observedAt,
+    };
+    const { body } = await create("wine", null);
+    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
+        { venueId: "venue-a" },
+        { venueId: "venue-b", venueName: "Venue B", selectedDrinkPriceEvidence: selected },
+        { venueId: "venue-c" },
+      ] }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    const updated = await response.json();
+    expect(response.status, JSON.stringify(updated)).toBe(200);
+    expect(updated.stops[1]?.selectedDrinkPriceEvidence).toEqual(selected);
+
+    const reload = await GET(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      headers: { authorization: `Bearer ${body.memberToken}` },
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(reload.status).toBe(200);
+    expect((await reload.json()).stops[1]?.selectedDrinkPriceEvidence).toEqual(selected);
+  });
+
+  it("keeps listed evidence on a manual create payload without Night Context", () => {
+    const matched = { ...inferNightContext("wine").context, drinkCategory: "wine" as const, zeroProof: false };
+    const payloadFor = (
+      context: Parameters<typeof composerCreatePayload>[0]["context"],
+      selectedDrinkPriceEvidence: unknown,
+    ) => composerCreatePayload({
+      title: "Manual wine stop",
+      creatorName: "Host",
+      startTime: "2026-09-30T19:00:00.000Z",
+      stops: [{ venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence }],
+      context,
+    });
+
+    const manual = payloadFor(null, a);
+    expect(manual).not.toHaveProperty("context");
+    expect(manual.stops).toEqual([{
+      venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence: a,
+    }]);
+    expect(payloadFor(null, {
+      category: "wine", pence: 525, serving: null, source: "community", reportedAt: observedAt,
+    }).stops).toEqual([{ venueId: "venue-a", venueName: "Fixture pub" }]);
+    expect(payloadFor(matched, a).stops).toEqual([{
+      venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence: a,
+    }]);
+    expect(payloadFor({ ...matched, drinkCategory: "cocktail" }, a).stops).toEqual([
+      { venueId: "venue-a", venueName: "Fixture pub" },
+    ]);
+    expect(payloadFor({ ...matched, zeroProof: true }, a).stops).toEqual([
+      { venueId: "venue-a", venueName: "Fixture pub" },
+    ]);
+  });
+
+  it("verifies and reloads a listed quote on manual create when Night Context is absent", async () => {
+    const requestBody = {
+      title: "Manual wine stop",
+      creatorName: "Host",
+      startTime: "2026-09-30T19:00:00.000Z",
+      stops: [{ venueId: "venue-a", venueName: "Fixture pub", selectedDrinkPriceEvidence: a }],
+    };
+    const response = await POST(new Request("http://localhost/api/plans", {
+      method: "POST",
+      headers: { "idempotency-key": `manual-listed-${++sequence}`, "content-type": "application/json" },
+      body: JSON.stringify(requestBody),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(201);
+    expect(body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+    const reloaded = await memoryPlanStore.get(body.plan.plan.id);
+    expect(reloaded?.stops[0]?.selectedDrinkPriceEvidence).toEqual(a);
+  });
+
+  it("verifies a selected fifth wine serving at create without raising the four-quote projection cap", async () => {
+    const servings = ["125ml", "150ml", "175ml", "200ml", "250ml"];
+    const selectedSourceUrl = "https://pub.example/selected/menu";
+    listedBundleFixture.rows = servings.map((servingSize, index) => ({
+      venueId: "venue-a",
+      name: "Fixture pub",
+      category: "wine",
+      priceGbp: [5.25, 5.5, 5.75, 6, 6.5][index]!,
+      drinkLabel: "Rioja",
+      servingSize,
+      sourceUrl: selectedSourceUrl,
+      observedAt,
+      lane: "site-harvest",
+      standing: "listed",
+      publisher: "Fixture publisher",
+      basis: null,
+      sampleSize: null,
+    }));
+    const fifthServing = {
+      category: "wine",
+      pence: 650,
+      serving: "250ml",
+      source: "listed",
+      sourceUrl: selectedSourceUrl,
+      observedAt,
+    };
+
+    const { body, reloaded } = await create("wine", fifthServing);
+
+    expect(body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(fifthServing);
+    expect(reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(fifthServing);
   });
 
   it("replays verified listed evidence after a lost response but rejects a changed serving on the same operation key", async () => {

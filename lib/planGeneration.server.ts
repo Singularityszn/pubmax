@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
+import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
@@ -26,6 +27,8 @@ import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
+import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
+import { listedServingGroup } from "@/lib/listedPriceComparison";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
@@ -129,6 +132,9 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 		requestNow,
 		anchorVenueId,
 	);
+	if (!selection.ok && isNationalBaseVenueId(anchorVenueId)) {
+		return baseAnchorOnlyResponse(anchorResolution, params);
+	}
 	if (!selection.ok) {
 		return anchorConflict(
 			"ANCHOR_ROUTE_CONFLICT",
@@ -303,6 +309,26 @@ export async function preparePlanGeneration(
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
+	const acceptedHint = parsedRequest.value.anchor?.selectedDrinkPriceEvidence;
+	let selectedServing: string | null = null;
+	if (acceptedHint && !context.zeroProof && acceptedHint.category === context.drinkCategory) {
+		const anchor = parsedRequest.value.anchor!;
+		const canonical = await resolvePlanningAnchor({ cityId, venueId: anchor.venueId,
+			startsAt: anchor.startsAt, acceptedArea: anchor.acceptedArea, now: requestNow });
+		const rejectHint = (reason: string, message: string) => ({ response: jsonNoStore({
+			grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
+			stops: [], reason, message, operationKey, nightArea: { id: area.slug, ...coverage },
+		}, { status: 200 }) });
+		if (canonical.status === "conflict") return rejectHint(canonical.code, canonical.message);
+		const [verified] = await resolvePlanSelectedDrinkPriceEvidence(
+			[{ venueId: canonical.canonical.venueId, venueName: canonical.display.venueName }],
+			[{ selectedDrinkPriceEvidence: acceptedHint }], context);
+		const approved = verified?.selectedDrinkPriceEvidence;
+		if (!approved) return rejectHint("ANCHOR_ROUTE_CONFLICT",
+			"That accepted menu price could not be checked. Open the pub and choose its current offer again.");
+		selectedServing = approved.source === "listed"
+			? listedServingGroup(approved.category, approved.serving) : null;
+	}
 	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
 		? context.drinkCategory
 		: null;
@@ -312,7 +338,7 @@ export async function preparePlanGeneration(
 			requestNow,
 		).catch(() => ({ prices: [] as CommunityPrice[], truncated: false, degraded: true })),
 		requestedCategory
-			? ukPriceBundleCategoryIndex(requestedCategory, requestNow).catch(() => ({ prices: [], truncated: false, degraded: true }))
+			? ukPriceBundleCategoryIndex(requestedCategory, requestNow, selectedServing).catch(() => ({ prices: [], truncated: false, degraded: true }))
 			: Promise.resolve(null),
 	]);
 	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
@@ -328,7 +354,8 @@ export async function preparePlanGeneration(
 	const listedDrinkPricesByVenue = new Map<string, MapLensPrice>();
 	if (requestedCategory && listedPriceIndex) {
 		for (const price of readListedDrinkIndex(listedPriceIndex.prices, requestedCategory)) {
-			if (!listedDrinkPricesByVenue.has(price.venueId)) {
+			if ((!selectedServing || listedServingGroup(requestedCategory, price.servingSize) === selectedServing)
+				&& !listedDrinkPricesByVenue.has(price.venueId)) {
 				listedDrinkPricesByVenue.set(price.venueId, price);
 			}
 		}
@@ -343,6 +370,9 @@ export async function preparePlanGeneration(
 					: "ready",
 		)
 		: null;
+	// Without a chosen, verified measure no non-beer GBP amount is a ranking signal.
+	// Community reports retain their display lane; their null serving cannot join it.
+	const comparableDrinkPrices = selectedServing ? listedDrinkPricesByVenue : undefined;
 	const venues = await loadConciergeVenues(cityId);
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
@@ -361,7 +391,7 @@ export async function preparePlanGeneration(
 				planningWeather,
 				naLensPrices,
 				wetherspoonsMatchedIds,
-				drinkLensPrices,
+				comparableDrinkPrices,
 			);
 			return {
 				venue,
@@ -369,7 +399,9 @@ export async function preparePlanGeneration(
 				tonightEvents,
 				signalClaims,
 				...scored,
-				selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
+				selectedDrinkPrice: selectedServing
+					? listedDrinkPricesByVenue.get(venue.id) ?? null
+					: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
 			};
 		})
 		.filter(({ distance, venue, signalClaims }) =>
@@ -395,4 +427,44 @@ export async function preparePlanGeneration(
 		candidates,
 		anchor: parsedRequest.value.anchor,
 	} };
+}
+
+/** A canonical base pub is a grounded meetup, not a fabricated curated crawl candidate. */
+async function baseAnchorOnlyResponse(
+  anchor: Extract<Awaited<ReturnType<typeof resolvePlanningAnchor>>, { status: "resolved" }>,
+  input: { context: NightContext; intake: ParsedPlanGenerationIntake | null; requestNow: number;
+    operationKey: string; anchor: PlanGenerationAnchor; area: NightArea;
+    coverage: ReturnType<typeof publicNightAreaCoverage> },
+): Promise<{ done: Response }> {
+  const { context, intake, requestNow, operationKey, area, coverage } = input;
+  const coordinates = anchor.canonical.coordinates;
+  const requiredAccess = context.accessibility.length > 0 || Boolean(intake?.handoff.accessibilityNeeds.length);
+  const invalidArea = intake?.exactNightArea && (!coordinates || distanceKm(area.centre,
+    { lat: coordinates.lat, lng: coordinates.lng }) > area.radiusKm);
+  if (requiredAccess || context.budgetLimitPence !== null || invalidArea) {
+    return { done: jsonNoStore({ grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
+      stops: [], reason: requiredAccess ? "ANCHOR_ACCESS_CONFLICT" : invalidArea ? "ANCHOR_AREA_CONFLICT" : "ANCHOR_BUDGET_CONFLICT",
+      message: "We cannot confirm that pub meets those plan requirements. Keep the requirements or choose another pub.",
+      operationKey, nightArea: { id: area.slug, ...coverage } }, { status: 200 }) };
+  }
+  const id = anchor.canonical.venueId;
+  const [approved] = await resolvePlanSelectedDrinkPriceEvidence(
+    [{ venueId: id, venueName: anchor.display.venueName }],
+    [{ selectedDrinkPriceEvidence: input.anchor.selectedDrinkPriceEvidence }], context);
+  let proof: string;
+  try { proof = mintPlanGroundingProofV2({ routeVenueIds: [id], allowedVenueIds: [id], anchorVenueId: id,
+    anchorSource: input.anchor.source, outcome: "anchor-only", operationKey }, requestNow); }
+  catch (error) { const unavailable = planSigningUnavailableResponse(error); if (unavailable) return { done: unavailable }; throw error; }
+  return { done: jsonNoStore({ grounded: true, outcome: "anchor-only", anchored: true, routeReady: false,
+    reason: "ANCHOR_COMPANIONS_INSUFFICIENT", anchorVenueId: id, anchorSource: input.anchor.source,
+    groundingProof: proof, operationKey, inferredContext: context, nightArea: { id: area.slug, ...coverage },
+    stops: [{ venueId: id, venueName: anchor.display.venueName, position: 0,
+      estimatedPintPricePence: null, priceEvidence: null,
+      selectedDrinkPriceEvidence: approved?.selectedDrinkPriceEvidence ?? null, accessEvidence: {},
+      constraintFlags: [{ code: "opening_hours_unconfirmed", message: "Opening hours have not been confirmed." }],
+      operationalEvidence: { openingAtVisit: "unknown", openingSource: null, visitWindow: null,
+        transportBasis: "compact-straight-line" },
+      provenance: [{ kind: "venue_dataset", label: "OpenStreetMap pub location", url: "https://www.openstreetmap.org/copyright" }],
+      alternatives: [] }],
+  }, { status: 200 }) };
 }

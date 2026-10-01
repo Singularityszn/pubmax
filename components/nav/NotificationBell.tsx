@@ -8,47 +8,43 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
-const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 60_000;
 
-function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+export default function NotificationBell(): React.JSX.Element {
+  const { user, handle } = useAuth();
+  const identity = `${user?.id ?? "guest"}:${normalizeHandle(handle ?? "")}`;
+  return (
+    <AccountNotificationBell
+      key={identity}
+      userId={user?.id ?? null}
+      authHandle={handle}
+    />
+  );
 }
 
-export default function NotificationBell(): React.JSX.Element {
+function AccountNotificationBell({
+  userId,
+  authHandle,
+}: {
+  userId: string | null;
+  authHandle: string | null;
+}): React.JSX.Element {
   const router = useRouter();
-  const { handle: authHandle } = useAuth();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const [handle, setHandle] = useState("");
+  const handle = normalizeHandle(authHandle ?? "");
   const [unread, setUnread] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    if (!socialFriendsLaunchEnabled) return;
-    let active = true;
-    void Promise.resolve().then(() => {
-      if (!active) return;
-      const fromAuth = normalizeHandle(authHandle ?? "");
-      setHandle(fromAuth || readHandle());
-    });
-    return () => {
-      active = false;
-    };
-  }, [authHandle, socialFriendsLaunchEnabled]);
-
   const refresh = useCallback(async () => {
-    if (!socialFriendsLaunchEnabled) return;
-    const h = normalizeHandle(authHandle ?? "") || handle.trim();
-    if (!h) return;
+    if (!socialFriendsLaunchEnabled || !userId || !handle) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await authedActionFetch(`/api/notifications?handle=${encodeURIComponent(h)}`, {
+      const res = await authedActionFetch(`/api/notifications?handle=${encodeURIComponent(handle)}`, {
         signal: controller.signal,
       }, { requiresIdentity: true });
       if (!res.ok) {
@@ -56,25 +52,30 @@ export default function NotificationBell(): React.JSX.Element {
         return;
       }
       const body = (await res.json()) as { unread?: number };
-      setUnread(typeof body.unread === "number" ? body.unread : 0);
+      if (!controller.signal.aborted) {
+        setUnread(typeof body.unread === "number" ? body.unread : 0);
+      }
     } catch {
       // Aborted / offline — leave the badge as-is; the nav never breaks on this.
     }
-  }, [handle, authHandle, socialFriendsLaunchEnabled]);
+  }, [handle, socialFriendsLaunchEnabled, userId]);
 
   useEffect(() => {
-    if (!socialFriendsLaunchEnabled) return;
-    if (!handle.trim() && !authHandle) return;
-    void Promise.resolve().then(() => refresh());
+    if (!socialFriendsLaunchEnabled || !userId || !handle) return;
+    let disposed = false;
+    void Promise.resolve().then(() => {
+      if (!disposed) return refresh();
+    });
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     const interval = window.setInterval(() => void refresh(), POLL_MS);
     return () => {
+      disposed = true;
       window.removeEventListener("focus", onFocus);
       window.clearInterval(interval);
       abortRef.current?.abort();
     };
-  }, [handle, refresh, authHandle, socialFriendsLaunchEnabled]);
+  }, [handle, refresh, socialFriendsLaunchEnabled, userId]);
 
   const label = !socialFriendsLaunchEnabled
     ? "Social preview"

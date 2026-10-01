@@ -20,6 +20,7 @@ import { publicApiError } from "@/lib/apiError";
 import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { listedCategoryPrices as projectListedCategoryPrices } from "@/lib/listedCategoryPrices";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
@@ -59,6 +60,8 @@ export async function GET(
     bundle.status === "unavailable"
       ? null
       : bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY);
+  const listedCategoryPrices =
+    bundle.status === "unavailable" ? null : projectListedCategoryPrices(bundle.rows);
 
   // WHAT THE TWO OBSERVED PACKS HOLD ABOUT THIS PUB, scoped here for the same
   // reason the bundle is: the Drinks tab drew a handful of rows about one pub
@@ -117,6 +120,7 @@ export async function GET(
         contacts,
         amenityStatus,
         bundlePrices,
+        listedCategoryPrices,
         priceUpdates,
       },
       busyness,

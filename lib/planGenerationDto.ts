@@ -209,7 +209,11 @@ export function buildPlanGenerationStops(params: {
       ],
       reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
       alternatives: alternatives
-        .sort((left, right) => left.distanceKm - right.distanceKm)
+        // Keep a current selected-category offer discoverable within the same
+        // two-backup cap. Availability is not a comparison of unknown measures.
+        .sort((left, right) => (!usesPintPrices
+          ? Number(Boolean(right.selectedDrinkPriceEvidence)) - Number(Boolean(left.selectedDrinkPriceEvidence))
+          : 0) || left.distanceKm - right.distanceKm)
         .slice(0, 2),
     };
   });

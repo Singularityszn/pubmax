@@ -16,6 +16,23 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
+const listedBundleState = vi.hoisted(() => ({
+  unavailable: false,
+  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
+}));
+vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
+  return {
+    ...actual,
+    ukPriceBundleRowsFor: async (venueId: string) =>
+      listedBundleState.unavailable
+        ? { status: "unavailable" as const, rows: [] }
+        : listedBundleState.rows !== null
+          ? { status: "ready" as const, rows: listedBundleState.rows.filter((row) => row.venueId === venueId) }
+          : actual.ukPriceBundleRowsFor(venueId),
+  };
+});
+
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
@@ -269,6 +286,8 @@ beforeEach(async () => {
   ukBaseIndexState.unavailable = false;
   readBackState.override = null;
   readBackState.statusOverride = null;
+  listedBundleState.unavailable = false;
+  listedBundleState.rows = null;
   oneTapState.forcedOutcome = undefined;
   oneTapState.beforeOutcome = null;
   trustSyncState.override = null;
@@ -1707,5 +1726,90 @@ describe("POST /api/price-submit report", () => {
     const res = await POST(reportAs("20.0.0.8", { action: "report", id }));
     expect(res.status).toBe(200);
     expect((await res.json()).ok).toBe(true);
+  });
+});
+
+
+describe("base venue published menu prices", () => {
+  const id = "venue-uk-n8308248176";
+  let restoreClock = () => {};
+  beforeEach(() => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T00:00:00Z"));
+    restoreClock = () => clock.mockRestore();
+    const row: import("@/lib/ukPriceBundle").UkPriceBundleRow = {
+      venueId: id, name: "The Sydney Arms", category: "wine", priceGbp: 10.5,
+      lane: "site-harvest", standing: "listed", sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
+      publisher: "sydneyarmschelsea.com", observedAt: "2026-09-29T10:40:17.846Z",
+      basis: null, sampleSize: null, servingSize: "250ml", drinkLabel: "Rioja, Spain",
+    };
+    // Reader fixture keeps this contract independent of legitimate menu updates.
+    // The actual serializer and route still decide eligibility and serving groups.
+    listedBundleState.rows = [
+      row, { ...row, priceGbp: 5.25, servingSize: "125ml" },
+      { ...row, standing: "estimate", sourceUrl: null, priceGbp: 1, drinkLabel: "Estimate" },
+      { ...row, observedAt: "2020-01-01T00:00:00.000Z", drinkLabel: "Expired", priceGbp: 1 },
+    ];
+  });
+  afterEach(() => { restoreClock(); });
+
+  it("delivers eligible exact-serving menu quotes separately from community observations", async () => {
+    const response = await GET(get(`?venueId=${id}`));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const body = await response.json();
+    expect(body.prices).toEqual([]);
+    expect(body.signals).toEqual([]);
+    expect(body.listedPrices).toContainEqual({
+      source: "listed", category: "wine", drinkLabel: "Rioja, Spain",
+      priceGbp: 10.5, servingSize: "250ml",
+      sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
+      observedAt: "2026-09-29T10:40:17.846Z",
+    });
+    expect(body.listedPrices).toHaveLength(2);
+    expect(body.listedPrices.every((row: { source: string; category: string }) =>
+      row.source === "listed" && row.category !== "beer")).toBe(true);
+  });
+
+  it("includes a base pub's listed beer with no inferred measure and excludes estimates", async () => {
+    const beerId = "venue-uk-n10167487694";
+    const beer: import("@/lib/ukPriceBundle").UkPriceBundleRow = {
+      venueId: beerId, name: "Donard Bar", category: "beer", priceGbp: 4.9,
+      lane: "site-harvest", standing: "listed", sourceUrl: "https://donardbar.co.uk/menus/",
+      publisher: "donardbar.co.uk", observedAt: "2026-09-04T10:00:00Z",
+      basis: null, sampleSize: null,
+    };
+    listedBundleState.rows = [beer, { ...beer, standing: "estimate", sourceUrl: null, priceGbp: 1 }];
+    const body = await (await GET(get(`?venueId=${beerId}`))).json();
+    expect(body).toEqual({ prices: [], signals: [], listedPrices: [{
+      source: "listed", category: "beer", drinkLabel: null, priceGbp: 4.9,
+      servingSize: null, sourceUrl: "https://donardbar.co.uk/menus/",
+      observedAt: "2026-09-04T10:00:00Z",
+    }] });
+  });
+
+  it("keeps a published quote when community storage is degraded", async () => {
+    readBackState.statusOverride = { prices: [], degraded: true };
+    const body = await (await GET(get(`?venueId=${id}`))).json();
+    expect(body.degraded).toBe(true);
+    expect(body.prices).toEqual([]);
+    expect(body.listedPrices).toEqual(expect.arrayContaining([
+      expect.objectContaining({ drinkLabel: "Rioja, Spain", priceGbp: 10.5, servingSize: "250ml" }),
+    ]));
+  });
+
+  it("keeps community availability independent when the published read fails", async () => {
+    listedBundleState.unavailable = true;
+    const body = await (await GET(get(`?venueId=${id}`))).json();
+    expect(body).toEqual({ prices: [], signals: [], listedPrices: null });
+  });
+
+  it("answers an exact base id with no bundle rows as published-empty without inventing a pub", async () => {
+    const body = await (await GET(get("?venueId=venue-uk-n0000000000"))).json();
+    expect(body).toEqual({ prices: [], signals: [], listedPrices: [] });
+  });
+
+  it("leaves the curated per-venue payload unchanged", async () => {
+    const body = await (await GET(get("?venueId=venue-xjf3n0"))).json();
+    expect(body).not.toHaveProperty("listedPrices");
   });
 });

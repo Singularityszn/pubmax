@@ -379,3 +379,23 @@ describe("PlanningIntent change announcement", () => {
     expect(() => clearPlanningIntent({ storage })).not.toThrow();
   });
 });
+
+describe("selected published offer PlanningIntent handoff", () => {
+  it("round-trips exact selected evidence under the existing bounded envelope", () => {
+    const selected = {
+      category: "gin" as const, pence: 420, serving: "25ml", source: "listed" as const,
+      sourceUrl: "https://example.com/published-menu", observedAt: new Date(NOW - 60_000).toISOString(),
+    };
+    const input = { ...INPUT, selectedDrinkPriceEvidence: selected };
+    const created = createPlanningIntent(input, NOW);
+    expect(created).not.toBeNull();
+    expect(created).toHaveProperty("selectedDrinkPriceEvidence", selected);
+    const storage = memoryStorage();
+    expect(writePlanningIntent(input, { storage, now: NOW })).not.toBeNull();
+    expect(readPlanningIntent({ storage, now: NOW + 1_000 })).toHaveProperty("selectedDrinkPriceEvidence", selected);
+    expect(parsePlanningIntent(validRaw({ selectedDrinkPriceEvidence: { ...selected, sourceUrl: "javascript:alert(1)" } }), NOW)).toBeNull();
+    expect(parsePlanningIntent(validRaw({ selectedDrinkPriceEvidence: { ...selected, category: "beer" } }), NOW)).toBeNull();
+    expect(parsePlanningIntent(validRaw({ selectedDrinkPriceEvidence: { ...selected, privateToken: "unexpected" } }), NOW)).toBeNull();
+    expect(parsePlanningIntent(validRaw(), NOW)).not.toHaveProperty("selectedDrinkPriceEvidence");
+  });
+});

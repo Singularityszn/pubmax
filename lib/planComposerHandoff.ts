@@ -1,3 +1,4 @@
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
   arbitratePlanDrafts,
   type DraftArbitrationConflict,
@@ -72,6 +73,7 @@ export type ComposerHydration = {
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
     expiresAt: string | null;
+    selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   } | null;
   area: PlanningIntentArea;
   /** Show the accepted Venue/area/date summary before intake. */
@@ -140,6 +142,8 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
         startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
           ? input.planningIntent.startsAt
           : result.startsAt.value,
+        ...(result.acceptedVenueId.source === "planning-intent" && input.planningIntent?.selectedDrinkPriceEvidence
+          ? { selectedDrinkPriceEvidence: input.planningIntent.selectedDrinkPriceEvidence } : {}),
         expiresAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
           ? input.planningIntent.expiresAt
           : null,
@@ -292,6 +296,7 @@ export function releaseAcceptedPlanContext(
 }
 
 export type ProvisionalStopSeed = {
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   key: 1;
   venueId: string;
   venueName: string;
@@ -329,6 +334,7 @@ export const UNRESOLVED_ACCEPTED_VENUE_LABEL = "The pub you kept";
  */
 export function seedProvisionalStop1(input: {
   acceptedVenueId: string | null | undefined;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   venues?: ReadonlyArray<SeedVenue> | null;
   recoveredRouteStops?: ReadonlyArray<SeedStop> | null;
   recoveredPlanStops?: ReadonlyArray<SeedStop> | null;
@@ -340,12 +346,14 @@ export function seedProvisionalStop1(input: {
   if ((input.recoveredRouteStops?.length ?? 0) > 0 || (input.recoveredPlanStops?.length ?? 0) > 0) {
     return null;
   }
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(input.selectedDrinkPriceEvidence);
   const indexed = input.venues?.find((venue) => venue.id.trim() === venueId);
   const venueName = indexed?.name.trim() || UNRESOLVED_ACCEPTED_VENUE_NAME;
   return {
     key: 1,
     venueId,
     venueName,
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
     alternatives: [],
   };
 }

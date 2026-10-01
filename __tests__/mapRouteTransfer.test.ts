@@ -10,6 +10,7 @@ import {
   PLAN_ROUTE_DRAFT_V2_KEY,
   readPlanRouteDraftEnvelope,
 } from "@/lib/planRouteDraft";
+import { createWebMcpBoard, publishWebMcpRoute, writeWebMcpRouteToPlanDraft } from "@/lib/webmcp/board";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
 
@@ -52,6 +53,36 @@ function generateResponse(overrides: Partial<MapGeneratedRouteResponse> = {}): M
     planningConfidence: { level: "medium", score: 0.5, routeReady: false, missingEvidence: [], warnings: ["check opening"], provenance: [] },
     ...overrides,
   };
+}
+
+function evidenceResponse(): MapGeneratedRouteResponse {
+  const context = {
+    nightArea: "clapham", daypart: "evening", partyType: "friends", groupSize: 4,
+    budget: "standard", budgetLimitPence: null, zeroProof: false, drinkCategory: "wine",
+    wetherspoonsPreferred: false, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [],
+  };
+  const listed = { category: "wine", pence: 625, serving: "125ml", source: "listed",
+    sourceUrl: "https://example.org/menu", observedAt: "2026-07-23T10:40:17.846Z" };
+  const community = { category: "wine", pence: 575, serving: null, source: "community",
+    reportedAt: "2026-07-23T11:00:00.000Z" };
+  return {
+    ...generateResponse({ inferredContext: context }),
+    grounded: true,
+    stops: [
+      { venueId: "venue-a", venueName: "Venue A",
+        selectedDrinkPriceEvidence: { ...listed, contributor: "private-account-canary" },
+        alternatives: [{ venueId: "venue-x", venueName: "Venue X",
+          selectedDrinkPriceEvidence: { ...community, actor: "private-actor-canary" } }] },
+      { venueId: "venue-b", venueName: "Venue B",
+        selectedDrinkPriceEvidence: { ...community, accountId: "private-account-canary" },
+        alternatives: [{ venueId: "venue-y", venueName: "Venue Y",
+          selectedDrinkPriceEvidence: { ...listed, privateMetadata: "private-source-canary" } }] },
+      { venueId: "venue-c", venueName: "Venue C", alternatives: [] },
+    ],
+    latitude: 51.515,
+    longitude: -0.09,
+    deviceUrl: "https://private.example/location?token=private-url-canary",
+  } as unknown as MapGeneratedRouteResponse;
 }
 
 describe("mapGeneratedRouteDraftValue / transferMapRouteToDraft", () => {
@@ -117,4 +148,73 @@ describe("mapGeneratedRouteDraftValue / transferMapRouteToDraft", () => {
     expect(second?.value.stops.map((stop) => stop.venueId)).toEqual(first?.value.stops.map((stop) => stop.venueId));
     expect(second?.value.operationKey).toBe(first?.value.operationKey);
   });
+
+  it("carries listed and community evidence through Map and WebMCP Plan transfers", () => {
+    const response = evidenceResponse();
+    const listed = { category: "wine", pence: 625, serving: "125ml", source: "listed",
+      sourceUrl: "https://example.org/menu", observedAt: "2026-07-23T10:40:17.846Z" };
+    const community = { category: "wine", pence: 575, serving: null, source: "community",
+      reportedAt: "2026-07-23T11:00:00.000Z" };
+    const assertEvidence = (storage: Storage) => {
+      const parsed = readPlanRouteDraftEnvelope(storage, NOW);
+      expect(parsed?.value.stops.map((stop) => stop.selectedDrinkPriceEvidence))
+        .toEqual([listed, community, undefined]);
+      expect(parsed?.value.stops.map((stop) => stop.alternatives)).toEqual([
+        [{ venueId: "venue-x", venueName: "Venue X", selectedDrinkPriceEvidence: community }],
+        [{ venueId: "venue-y", venueName: "Venue Y", selectedDrinkPriceEvidence: listed }],
+        [],
+      ]);
+      const serialized = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY) ?? "";
+      for (const canary of ["private-account-canary", "private-actor-canary", "private-source-canary",
+        "private-url-canary", "51.515", "-0.09"]) expect(serialized).not.toContain(canary);
+    };
+
+    const mapStorage = memoryStorage();
+    expect(transferMapRouteToDraft(response, mapStorage, NOW)).toBe(true);
+    assertEvidence(mapStorage);
+
+    const board = publishWebMcpRoute(createWebMcpBoard(), response);
+    expect(board.route?.originalResponse?.stops).toBeDefined();
+    if (!board.route) throw new Error("WebMCP route fixture was not accepted");
+    const webmcpStorage = memoryStorage();
+    expect(writeWebMcpRouteToPlanDraft(board.route, webmcpStorage, NOW)).toBe(true);
+    assertEvidence(webmcpStorage);
+  });
+
+  it("strips malformed citations and keeps the existing backup-count ceiling", () => {
+    const invalid = { category: "wine", pence: 625, serving: "125ml", source: "listed",
+      sourceUrl: "javascript:alert(1)", observedAt: "2026-07-23T10:40:17.846Z",
+      contributor: "private-account-canary" };
+    const malformed = { ...generateResponse({ inferredContext: {
+      nightArea: "clapham", daypart: "evening", partyType: "friends", groupSize: 4,
+      budget: "standard", budgetLimitPence: null, zeroProof: false, drinkCategory: "wine",
+      wetherspoonsPreferred: false, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [],
+    } }), stops: [
+      { venueId: "venue-a", venueName: "Venue A", selectedDrinkPriceEvidence: invalid,
+        alternatives: [{ venueId: "venue-x", venueName: "Venue X", selectedDrinkPriceEvidence: invalid }] },
+      { venueId: "venue-b", venueName: "Venue B", alternatives: [] },
+      { venueId: "venue-c", venueName: "Venue C", alternatives: [] },
+    ] } as unknown as MapGeneratedRouteResponse;
+    const storage = memoryStorage();
+    expect(transferMapRouteToDraft(malformed, storage, NOW)).toBe(true);
+    const parsed = readPlanRouteDraftEnvelope(storage, NOW);
+    expect(parsed?.value.stops[0]).toMatchObject({
+      venueId: "venue-a", venueName: "Venue A", alternatives: [{ venueId: "venue-x", venueName: "Venue X" }],
+    });
+    expect(parsed?.value.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+    expect(parsed?.value.stops[0]?.alternatives[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+    expect(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY) ?? "").not.toContain("private-account-canary");
+
+    const overCap = { ...generateResponse(), stops: [
+      { venueId: "venue-a", venueName: "Venue A", alternatives: Array.from({ length: 25 }, (_, index) => ({
+        venueId: `venue-${index + 10}`, venueName: `Venue ${index + 10}`,
+      })) },
+      { venueId: "venue-b", venueName: "Venue B", alternatives: [] },
+      { venueId: "venue-c", venueName: "Venue C", alternatives: [] },
+    ] } as unknown as MapGeneratedRouteResponse;
+    const boundedStorage = memoryStorage();
+    expect(transferMapRouteToDraft(overCap, boundedStorage, NOW)).toBe(false);
+    expect(boundedStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
+  });
+
 });

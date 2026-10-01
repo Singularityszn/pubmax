@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
@@ -255,9 +256,10 @@ export function planSummaryRouteUpdateBody(input: {
   authority: RouteGenerationAuthority | null;
 }): Record<string, unknown> {
   return {
-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
+    stops: routeStopsWithAvailableBackups(input.stops).map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
       venueId, venueName,
       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+      ...(alternatives?.length ? { alternatives } : {}),
     })),
     expectedRouteRevision: input.expectedRouteRevision,
     ...(input.authority ?? {}),
@@ -489,6 +491,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     venueName: stop.venueName,
     position: typeof stop.position === "number" ? stop.position : index,
     ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+    ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
   }));
 
   function adoptCanonical(canonical: PlanState): void {
@@ -770,9 +773,10 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
           planId={planId}
           memberToken={memberToken}
           isHost={isHost}
-          draftStops={draftStops.map((stop, index) => ({
+          draftStops={routeStopsWithAvailableBackups(draftStops).map((stop, index) => ({
             venueId: stop.venueId, venueName: stop.venueName, position: index,
             ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+            ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
           }))}
           routeRevision={routeRevision}
           canPropose={!anchoredPlan && !isHost && canSaveDraft}

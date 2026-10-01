@@ -37,7 +37,56 @@ const state = vi.hoisted(() => ({
   deferredLotResponses: [] as Array<() => void>,
   crewReadCount: 0,
   crewUnavailableAfterFirst: false,
+  viewerRole: "owner" as "owner" | "member",
+  planStatus: "ready" as "ready" | "completed" | "abandoned",
+  planStops: [] as Array<{ venueId: string; venueName: string; position: number }>,
+  completionBodies: [] as Array<Record<string, unknown>>,
+  completionMode: "ok" as "ok" | "conflict" | "deferred",
+  deferredCompletionResponses: [] as Array<() => void>,
 }));
+
+function crewPayload() {
+  return {
+    kind: "member",
+    crewId: CREW_ID,
+    title: "Open Friday",
+    visibility: state.visibility,
+    phase: "planning",
+    nightArea: "camden",
+    startsAt: "2026-08-24T18:30:00.000Z",
+    authorityRevision: 1,
+    viewer: {
+      memberId: "30000000-0000-4000-8000-000000000001",
+      role: state.viewerRole,
+    },
+    owner: {
+      memberId: "30000000-0000-4000-8000-000000000001",
+      handle: "alice",
+    },
+    members: [
+      {
+        memberId: "30000000-0000-4000-8000-000000000001",
+        handle: "alice",
+        role: "owner",
+        joinedAt: "2026-08-22T18:30:00.000Z",
+      },
+    ],
+    plan: {
+      plan: {
+        id: "60000000-0000-4000-8000-000000000001",
+        title: "Open Friday",
+        startTime: "2026-08-24T18:30:00.000Z",
+        createdAt: "2026-08-22T18:30:00.000Z",
+        routeRevision: 1,
+        status: state.planStatus,
+      },
+      stops: state.planStops,
+      context: null,
+      actions: [],
+      ending: null,
+    },
+  };
+}
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
@@ -74,52 +123,28 @@ vi.mock("@/components/nav/SiteNav", () => ({
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (url === `/api/social/crews/${CREW_ID}/complete` && init?.method === "POST") {
+      state.completionBodies.push(JSON.parse(String(init.body)));
+      if (state.completionMode === "conflict") {
+        return Response.json({ error: "Social Crew changed before this request." }, { status: 409 });
+      }
+      const crew = crewPayload();
+      crew.plan.plan.status = "completed";
+      const response = Response.json({ crew, created: true }, { status: 201 });
+      if (state.completionMode === "deferred") {
+        return new Promise<Response>((resolve) => {
+          state.deferredCompletionResponses.push(() => resolve(response));
+        });
+      }
+      return response;
+    }
     if (url === `/api/social/crews/${CREW_ID}`) {
       state.crewReadCount += 1;
       if (state.crewMissing) return Response.json({}, { status: 404 });
       if (state.crewUnavailableAfterFirst && state.crewReadCount > 1) {
         return Response.json({}, { status: 503 });
       }
-      return Response.json({
-        kind: "member",
-        crewId: CREW_ID,
-        title: "Open Friday",
-        visibility: state.visibility,
-        phase: "planning",
-        nightArea: "camden",
-        startsAt: "2026-08-24T18:30:00.000Z",
-        authorityRevision: 1,
-        viewer: {
-          memberId: "30000000-0000-4000-8000-000000000001",
-          role: "owner",
-        },
-        owner: {
-          memberId: "30000000-0000-4000-8000-000000000001",
-          handle: "alice",
-        },
-        members: [
-          {
-            memberId: "30000000-0000-4000-8000-000000000001",
-            handle: "alice",
-            role: "owner",
-            joinedAt: "2026-08-22T18:30:00.000Z",
-          },
-        ],
-        plan: {
-          plan: {
-            id: "60000000-0000-4000-8000-000000000001",
-            title: "Open Friday",
-            startTime: "2026-08-24T18:30:00.000Z",
-            createdAt: "2026-08-22T18:30:00.000Z",
-            routeRevision: 1,
-            status: "ready",
-          },
-          stops: [],
-          context: null,
-          actions: [],
-          ending: null,
-        },
-      });
+      return Response.json(crewPayload());
     }
     if (url === `/api/social/crews/${CREW_ID}/join-requests` && !init?.method) {
       if (state.queueMissing) {
@@ -201,6 +226,12 @@ beforeEach(() => {
   responseBody.discardBody.mockReset();
   state.crewReadCount = 0;
   state.crewUnavailableAfterFirst = false;
+  state.viewerRole = "owner";
+  state.planStatus = "ready";
+  state.planStops = [];
+  state.completionBodies = [];
+  state.completionMode = "ok";
+  state.deferredCompletionResponses = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => {
@@ -499,5 +530,127 @@ describe("host join-request queue", () => {
     });
     await settle();
     expect(responseBody.discardBody).toHaveBeenCalledTimes(2);
+  });
+});
+
+
+describe("Social Crew owner completion", () => {
+  beforeEach(() => {
+    state.visibility = "friends";
+    state.planStops = [
+      { venueId: "venue-a", venueName: "First pub", position: 0 },
+      { venueId: "venue-b", venueName: "Second pub", position: 1 },
+      { venueId: "venue-c", venueName: "Third pub", position: 2 },
+    ];
+  });
+
+  it("lets an owner select an arrival before saving the night ending", async () => {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    expect(container.textContent).toContain("End this night");
+    const arrival = container.querySelector<HTMLSelectElement>('.crews__field select');
+    expect(arrival).not.toBeNull();
+    expect(Array.from(arrival!.options).map((option) => option.textContent))
+      .toEqual(["Choose a stop", "First pub", "Second pub", "Third pub"]);
+    const save = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "Save ending: got home");
+    expect(save).toBeDefined();
+    expect(save!.disabled).toBe(true);
+    await act(async () => {
+      arrival!.value = "1";
+      arrival!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(save!.disabled).toBe(false);
+  });
+
+  async function chooseArrival(): Promise<HTMLButtonElement> {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    const arrival = container.querySelector<HTMLSelectElement>('.crews__field select');
+    expect(arrival).not.toBeNull();
+    await act(async () => {
+      arrival!.value = "1";
+      arrival!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const save = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "Save ending: got home");
+    expect(save).toBeDefined();
+    return save!;
+  }
+
+  it("saves one chosen arrival on two immediate taps and adopts the completed Plan", async () => {
+    const save = await chooseArrival();
+    await act(async () => { save.click(); save.click(); });
+    await settle();
+    expect(state.completionBodies).toHaveLength(1);
+    expect(state.completionBodies[0]).toMatchObject({
+      expectedRouteRevision: 1,
+      arrivedStopPosition: 1,
+      ending: "get_home",
+      endingSelection: { kind: "get_home", optionId: "transport:got-home" },
+    });
+    expect(Object.keys(state.completionBodies[0]!).sort()).toEqual([
+      "arrivedStopPosition", "ending", "endingSelection", "expectedRouteRevision",
+    ]);
+    expect(container.textContent).toContain("Night saved. Your crew's Plan is complete.");
+    expect(container.textContent).not.toContain("End this night");
+  });
+
+  it("keeps a chosen arrival after conflict and allows a successful retry", async () => {
+    state.completionMode = "conflict";
+    const save = await chooseArrival();
+    await act(async () => save.click());
+    await settle();
+    expect(container.textContent).toContain("Social Crew changed before this request.");
+    expect(container.querySelector<HTMLSelectElement>('.crews__field select')?.value).toBe("1");
+    expect(save.disabled).toBe(false);
+    state.completionMode = "ok";
+    await act(async () => save.click());
+    await settle();
+    expect(state.completionBodies).toHaveLength(2);
+    expect(container.textContent).toContain("Night saved. Your crew's Plan is complete.");
+  });
+
+  it("does not adopt a deferred owner completion after the account changes", async () => {
+    state.completionMode = "deferred";
+    const save = await chooseArrival();
+    await act(async () => save.click());
+    expect(state.deferredCompletionResponses).toHaveLength(1);
+    state.accountRevision = 2;
+    state.viewerRole = "member";
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    const memberMetadata = container.querySelector('.crewPage__meta')?.textContent;
+    expect(memberMetadata).toBeTruthy();
+    await act(async () => state.deferredCompletionResponses[0]?.());
+    await settle();
+    expect(container.querySelector('.crewPage__meta')?.textContent).toBe(memberMetadata);
+    expect(container.textContent).not.toContain("Night saved. Your crew's Plan is complete.");
+    expect(container.textContent).not.toContain("End this night");
+  });
+
+  it.each([
+    ["member", "ready"],
+    ["owner", "completed"],
+    ["owner", "abandoned"],
+  ] as const)("does not offer completion to %s on a %s Plan", async (role, status) => {
+    state.viewerRole = role;
+    state.planStatus = status;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    expect(container.querySelector("h1")?.textContent).toBe("Open Friday");
+    expect(container.querySelector('a[href="/u/alice"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("End this night");
+    expect(Array.from(container.querySelectorAll("button"))
+      .some((button) => button.textContent === "Save ending: got home")).toBe(false);
   });
 });

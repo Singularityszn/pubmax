@@ -206,9 +206,9 @@
       "lcpMs": 400
     },
     {
-      "path": "/discover",
+      "path": "/social?tab=discover",
       "readySelector": "main.socialPage",
-      "why": "Discovery, on the same shell, budgeted apart so a change to one cannot hide inside the other.",
+      "why": "Public discovery tab, measured directly so retired URL redirects cannot hide its page cost.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
@@ -222,29 +222,24 @@
       }
     },
     {
+      "path": "/discover",
+      "readySelector": "main.socialPage",
+      "why": "Retired discovery URL answers a permanent redirect. Its destination is measured separately at /social?tab=discover.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/social?tab=discover"
+    },
+    {
       "path": "/drinks",
       "readySelector": "main.socialPage",
-      "why": "The drink lanes surface, same shell again.",
+      "why": "Retired discovery URL answers a permanent redirect. Its destination is measured separately at /social?tab=discover.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1130,
-      "requests": 56,
-      "lcpMs": 1000,
-      "ceilingRaises": [
-        {
-          "metric": "lcpMs",
-          "from": 400,
-          "to": 1000,
-          "measured": 684,
-          "why": "This path is not a surface any more. app/drinks/page.tsx has been a permanentRedirect to /social?tab=discover since #765 (6 August), so the row measures the discover tab plus one redirect round trip, and /discover is budgeted 1000 for exactly that content and passes at 688. The 400 here was written for the drink lanes page that no longer exists. Measured on the Avrea runner at 684 ms (samples 708/684/488), and locally against a production build under the tracked throttle at 856 ms against /social's 692 ms on the same run, the two carrying identical decoded JS. The captain ruled the raise on 6 September 2026. It goes to /discover's own figure and no further, so the redirect can never cost more than the page it lands on."
-        }
-      ],
-      "noisy": {
-        "metrics": [
-          "lcpMs"
-        ],
-        "measuredSpreadPct": 37,
-        "why": "The same social shell as /discover plus a redirect round trip, and named by the same method check. Its samples on the Avrea runner were 708/684/488, which is a 32 percent spread on a route judged by a median of three."
-      }
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/social?tab=discover"
     },
     {
       "path": "/messages",

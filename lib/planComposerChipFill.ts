@@ -97,6 +97,13 @@ export function composerGeolocationMaySeedIntake(input: {
   return !input.showsDescribeFirst && !input.hasQueryText;
 }
 
+/** A new drink request replaces a correction made for the previous generated query. */
+export function newQuerySupersedesDrinkChoice(previousQuery: string | null, nextQuery: string): boolean {
+  if (previousQuery === null || previousQuery.trim() === nextQuery.trim()) return false;
+  const inferred = inferNightContext(nextQuery).context;
+  return inferred.drinkCategory !== null || inferred.zeroProof;
+}
+
 export function mergeInferredNightContext(
   inferred: NightContext,
   explicit: Partial<NightContext>,

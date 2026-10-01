@@ -10,12 +10,10 @@
 .arrivalWelcome {
   position: fixed;
   z-index: calc(var(--z-modal, 1200) - 1);
-  /* BELOW the top bar, never over it. The greeting must not cover the wordmark,
-     the nav links or the theme control: a line that hides the way out is a gate
-     wearing a toast's clothes. --topbar-h is the app-shell bar height
-     (components/nav/siteNav.css). */
+  /* SiteNav owns its measured viewport edge. In-flow tablet and desktop bars
+     include page spacing and taller controls than the mobile frame token. */
   top: calc(
-    max(0.5rem, env(safe-area-inset-top)) + var(--topbar-h, 52px) + 0.5rem
+    var(--site-nav-bottom, calc(max(0.5rem, env(safe-area-inset-top)) + var(--topbar-h, 52px))) + 0.5rem
   );
   left: max(0.75rem, env(safe-area-inset-left));
   right: max(0.75rem, env(safe-area-inset-right));

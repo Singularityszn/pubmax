@@ -280,6 +280,8 @@ body:has(.mobileMapUtilityCorner) {
 
   body:has(.appShell.detail-open) .mobileTabBar,
   body:has(.appShell.planning-open) .mobileTabBar,
+  /* The landmark portal owns the phone frame before shell classes update. */
+  body:has(.mobileSheetPortal[data-sheet-kind="landmark"]) .mobileTabBar,
   /* Night mode (components/plan/NightCrawlMode.tsx) is a fixed, full-screen
      surface with its own way out; the bar under it owned the centre of its
      lowest button, "Get me home", at 320x568 (verify-preview-4 RED 2). */
@@ -287,6 +289,12 @@ body:has(.mobileMapUtilityCorner) {
     opacity: 0;
     pointer-events: none;
     transform: translateY(110%);
+  }
+
+  /* A story owns its navigation. Opacity and translation alone leave the
+     primary tabs in the keyboard and accessibility trees. */
+  body:has(.mobileSheetPortal[data-sheet-kind="landmark"]) .mobileTabBar {
+    visibility: hidden;
   }
 
   /* The on-screen keyboard. The bar is fixed to the LAYOUT viewport, which no

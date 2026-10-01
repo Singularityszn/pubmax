@@ -101,7 +101,7 @@ describe("map opening location", () => {
     expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it("requests coordinates when Permissions API is unavailable", async () => {
+  it("waits for a tap when Permissions API is unavailable", async () => {
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
         coords: { latitude: 51.5, longitude: -0.1 },
@@ -113,9 +113,9 @@ describe("map opening location", () => {
       { onPermissionPrompt },
     );
 
-    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
+    expect(location).toBeNull();
     expect(onPermissionPrompt).toHaveBeenCalledOnce();
-    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
   it("does not request coordinates after permission is denied", async () => {
@@ -131,7 +131,7 @@ describe("map opening location", () => {
     expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it("tries coordinates when the permission query fails", async () => {
+  it("waits for a tap when the permission query fails", async () => {
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
         coords: { latitude: 51.5, longitude: -0.1 },
@@ -144,11 +144,11 @@ describe("map opening location", () => {
       geolocation: { getCurrentPosition },
     });
 
-    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
-    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(location).toBeNull();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it("tries coordinates when the permission result is malformed", async () => {
+  it("waits for a tap when the permission result is malformed", async () => {
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
         coords: { latitude: 51.5, longitude: -0.1 },
@@ -161,12 +161,13 @@ describe("map opening location", () => {
       geolocation: { getCurrentPosition },
     });
 
-    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
-    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(location).toBeNull();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
   it("falls back when geolocation throws or returns malformed coordinates", async () => {
     const throwing = await readOpeningMapLocation({
+      permissions: { query: vi.fn(async () => ({ state: "granted" } as PermissionStatus)) },
       geolocation: {
         getCurrentPosition: vi.fn(() => { throw new Error("unsupported"); }),
       },
@@ -174,6 +175,7 @@ describe("map opening location", () => {
     expect(throwing).toBeNull();
 
     const malformed = await readOpeningMapLocation({
+      permissions: { query: vi.fn(async () => ({ state: "granted" } as PermissionStatus)) },
       geolocation: {
         getCurrentPosition: vi.fn((success: PositionCallback) => {
           success({ coords: null } as unknown as GeolocationPosition);

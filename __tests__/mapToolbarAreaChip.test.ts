@@ -57,6 +57,27 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
   return renderToStaticMarkup(createElement(MapToolbar, toolbarProps(overrides)));
 }
 
+describe("the closed drink control", () => {
+  it("names the selected serving beside its drink category", () => {
+    const html = renderToolbar({ drinkCategory: "gin", drinkServingGroup: "25ml" });
+    expect(html).toContain("Drink: Gin · 25ml");
+    expect(html.match(/Drink: Gin/g)).toHaveLength(1);
+  });
+
+  it("names the all-servings view when no serving is selected", () => {
+    const html = renderToolbar({ drinkCategory: "gin", drinkServingGroup: null });
+    expect(html).toContain("Drink: Gin · all servings");
+    expect(html.match(/Drink: Gin/g)).toHaveLength(1);
+  });
+
+  it("keeps the default pint label without a serving qualifier", () => {
+    const html = renderToolbar({ drinkCategory: "beer", drinkServingGroup: "25ml" });
+    expect(html).toContain("Drink: Pints");
+    expect(html).not.toContain("25ml");
+    expect(html).not.toContain("all servings");
+  });
+});
+
 describe("the desktop map area chip", () => {
   it("names the city when no area has been chosen", () => {
     const html = renderToolbar();

@@ -6,6 +6,7 @@ import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
+import PublishedMenuPrices from "@/components/map/PublishedMenuPrices";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
@@ -33,6 +34,8 @@ import {
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
 
+import { Button } from "@/components/ui/button";
+
 import "./unverifiedPubSheet.css";
 
 // The sheet behind a UK base pin - a pub OpenStreetMap knows about but the
@@ -50,6 +53,8 @@ type UnverifiedPubSheetProps = {
   experienceLens?: MapExperienceLens;
   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
   drinkLensCategory?: DrinkCategory | null;
+  onAcceptStop1?: () => void;
+  acceptanceError?: string | null;
 };
 
 export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverlay }) {
@@ -89,11 +94,34 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
   );
 }
 
+function basePriceReadLabel({
+  published,
+  community,
+  unread,
+  communityPending,
+  publishedPending,
+}: {
+  published: boolean;
+  community: boolean;
+  unread: boolean;
+  communityPending: boolean;
+  publishedPending: boolean;
+}) {
+  if (published) return "Published menu prices";
+  if (community) return "Community price";
+  if (unread) return "Prices unread";
+  if (communityPending) return "Checking community prices";
+  if (publishedPending) return "Checking published menu prices";
+  return "No price yet";
+}
+
 export default function UnverifiedPubSheet({
   pub,
   communityPrices,
   experienceLens = "all",
   drinkLensCategory = null,
+  onAcceptStop1,
+  acceptanceError = null,
 }: UnverifiedPubSheetProps) {
   const { user, loading: authLoading, configured: authConfigured } = useAuth();
   // The base-layer half of the release funnel's third step, through the one
@@ -104,6 +132,14 @@ export default function UnverifiedPubSheet({
   const pricesKnown = readStatus === "ready";
   const readFailed = readStatus === "degraded";
   const rows = communityPrices.byVenueId.get(pub.id);
+  const listed = communityPrices.listedPricesByVenueId?.get(pub.id);
+  const visibleListed = (listed ?? []).filter((quote) =>
+    experienceLens === "food" ? false
+      : experienceLens === "no-alcohol"
+        ? quote.category === "soft-drink" || quote.category === "alcohol-free"
+        : !drinkLensCategory || quote.category === drinkLensCategory,
+  );
+  const hasPublished = visibleListed.length > 0;
   const communityPrice = freshestCommunityPrice(
     experienceLens === "food"
       ? undefined
@@ -169,13 +205,13 @@ export default function UnverifiedPubSheet({
       <div className="unverifiedPubHead">
         <span className="unverifiedPubTag">
           <Sparkles size={12} aria-hidden="true" />
-          {communityPrice
-            ? "Community price"
-            : pricesKnown
-              ? "No price yet"
-              : readFailed
-                ? "Prices unread"
-                : "Checking community prices"}
+          {basePriceReadLabel({
+            published: hasPublished,
+            community: Boolean(communityPrice),
+            unread: readFailed || listed === null,
+            communityPending: !pricesKnown,
+            publishedPending: listed === undefined && experienceLens !== "food",
+          })}
         </span>
         <h2 className="unverifiedPubName">{pub.name}</h2>
         {pub.address ? (
@@ -185,6 +221,14 @@ export default function UnverifiedPubSheet({
           </p>
         ) : null}
       </div>
+
+      {experienceLens !== "food" ? (
+        <PublishedMenuPrices
+          prices={visibleListed}
+          unavailable={listed === null}
+          loading={listed === undefined}
+        />
+      ) : null}
 
       {communityPrice ? (
         <>
@@ -221,7 +265,7 @@ export default function UnverifiedPubSheet({
             />
           </div>
         </>
-      ) : pricesKnown && experienceLens === "no-alcohol" ? (
+      ) : hasPublished ? null : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
           {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
         </p>
@@ -235,8 +279,7 @@ export default function UnverifiedPubSheet({
         </p>
       ) : pricesKnown ? (
         <p className="unverifiedPubLead">
-          We know this {placeNoun} is here, and that is all we know. Nobody has
-          logged what a drink costs - <strong>be the first</strong>.
+          Nobody has logged what a drink costs at this {placeNoun} - <strong>be the first</strong>.
         </p>
       ) : readFailed ? (
         <p className="unverifiedPubLead">
@@ -245,6 +288,12 @@ export default function UnverifiedPubSheet({
         </p>
       ) : null}
 
+      {pub.kind === "pub" && onAcceptStop1 ? (
+        <Button type="button" variant="ghost" onClick={onAcceptStop1} aria-label={`Make ${pub.name} Stop 1`}>
+          Make it Stop 1
+        </Button>
+      ) : null}
+      {acceptanceError ? <p role="alert">{acceptanceError}</p> : null}
       {overlay ? <HarvestOverlayFields overlay={overlay} /> : null}
 
       <VenueSheetPriceEntry
@@ -268,7 +317,7 @@ export default function UnverifiedPubSheet({
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:
-          the pub's existence is sourced, its price is not. */}
+          OSM sources the location, while each price names its own source. */}
       <p className="unverifiedPubSource">
         {placeNoun === "bar" ? "Bar" : "Pub"} location from{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">

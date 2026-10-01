@@ -52,7 +52,6 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/useVenueOccupancy.ts", fetchCount: 2, reason: "occupancy now-read is fail-soft and must never cache as an empty pub; flag fallback uses bare fetch when auth is absent, and the report beside it is a write" },
   { path: "components/out/useOutListings.ts", fetchCount: 1, reason: "an answer is held with the day it is about, so a pressed day chip repaints pending rather than another day's cached answer" },
   { path: "components/messages/MessageVenuePicker.tsx", fetchCount: 1, reason: "message composer typeahead must not cache partial queries" },
-  { path: "components/messages/useMessageRecipientSearch.ts", fetchCount: 1, reason: "public profile typeahead is no-store, aborts on query or account changes, and never reuses recipients as a cached reload surface" },
   { path: "components/night/NightCalmLine.tsx", fetchCount: 1, reason: "night calm is an optional live signal" },
   { path: "components/night/NightModeCard.tsx", fetchCount: 6, reason: "night venue data and actions are no-store interactive flows; the plan state itself is the shared read in components/plan/usePlanMemberRead.ts" },
   { path: "components/pintdrop/CommentThread.tsx", fetchCount: 1, reason: "comments are Social interaction reads and mutations" },

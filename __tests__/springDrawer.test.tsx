@@ -71,20 +71,21 @@ describe.each([700, 768, 769, 900])("drawer at %ipx", (width) => {
 
         render(true, "First pub");
         const drawer = host.firstElementChild!;
-        expect(drawer.hasAttribute("inert")).toBe(false);
+        const content = drawer.firstElementChild!;
+        expect(content.hasAttribute("inert")).toBe(false);
         render(true, "Latest pub");
         render(false, "");
-        expect(drawer.hasAttribute("inert")).toBe(true);
+        expect(content.hasAttribute("inert")).toBe(true);
         expect(drawer.textContent).toBe("Latest pub");
 
         frame(0);
         expect(drawer.textContent).toBe("Latest pub");
         frame(5_000);
         expect(drawer.textContent).toBe(keepMounted ? "Latest pub" : "");
-        expect(drawer.hasAttribute("inert")).toBe(true);
+        expect(content.hasAttribute("inert")).toBe(true);
 
         render(true, "Next pub");
-        expect(drawer.hasAttribute("inert")).toBe(false);
+        expect(content.hasAttribute("inert")).toBe(false);
         expect(drawer.textContent).toBe("Next pub");
       });
     }

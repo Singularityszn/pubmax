@@ -135,6 +135,8 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
       const starterRect = starter.getBoundingClientRect();
       const railRect = rail.getBoundingClientRect();
       const actionRect = action.getBoundingClientRect();
+      const markers = Array.from(summary.querySelectorAll<HTMLElement>(".planSummary__marker"));
+      if (!markers.length) throw new Error("Stored route markers are absent");
       const overlaps = (first: DOMRect, second: DOMRect) =>
         first.left < second.right &&
         first.right > second.left &&
@@ -144,9 +146,21 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
       return {
         starterRailOverlap: overlaps(starterRect, railRect),
         actionRailOverlap: overlaps(actionRect, railRect),
+        actionHeight: actionRect.height,
+        railMarkerOffsets: markers.map((marker) => {
+          const rect = marker.getBoundingClientRect();
+          return Math.abs((railRect.left + railRect.width / 2) - (rect.left + rect.width / 2));
+        }),
       };
     });
 
+    expect
+      .soft(geometry.actionHeight, `Start Round keeps a 44px target at ${viewport.width}px`)
+      .toBeGreaterThanOrEqual(44);
+    for (const offset of geometry.railMarkerOffsets) {
+      expect.soft(offset, `Route spine runs through each marker centre at ${viewport.width}px`)
+        .toBeLessThanOrEqual(1);
+    }
     expect
       .soft(
         geometry.starterRailOverlap,

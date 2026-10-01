@@ -9,7 +9,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
-import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext } from "@/lib/planSelectedDrinkPriceEvidence";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -162,7 +162,7 @@ function planFromRow(row: Record<string, unknown>): PlanDTO {
   };
 }
 
-function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
+export function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
   const snapshot = Array.isArray(row.route_snapshot) ? row.route_snapshot : [];
   return {
     id: String(row.id),
@@ -177,6 +177,7 @@ function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
       venue_name: (stop as Record<string, unknown>).venueName,
       position: (stop as Record<string, unknown>).position,
       selected_drink_price_evidence: (stop as Record<string, unknown>).selectedDrinkPriceEvidence,
+      alternatives: (stop as Record<string, unknown>).alternatives,
     })).sort((a, b) => a.position - b.position),
     qualifyingArrival:
       typeof row.qualifying_arrival_action_id === "string"
@@ -207,11 +208,20 @@ function routeRevisionOf(plan: PlanDTO): number {
 
 function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selected_drink_price_evidence);
+  const alternatives = Array.isArray(row.alternatives) ? row.alternatives.flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const alternative = raw as Record<string, unknown>;
+    if (typeof alternative.venueId !== "string" || typeof alternative.venueName !== "string") return [];
+    const price = cleanSelectedDrinkPriceEvidence(alternative.selectedDrinkPriceEvidence);
+    return [{ venueId: alternative.venueId, venueName: alternative.venueName,
+      ...(price ? { selectedDrinkPriceEvidence: price } : {}) }];
+  }) : [];
   return {
     venueId: String(row.venue_id),
     venueName: String(row.venue_name),
     position: Number(row.position),
     ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+    ...(alternatives.length ? { alternatives } : {}),
   };
 }
 
@@ -241,11 +251,14 @@ async function readSupabasePlanState(
   if (!planRow) return null;
   const readStops = async () => {
     const result = await admin.from(STOPS)
-      .select("venue_id,venue_name,position,selected_drink_price_evidence")
+      .select("venue_id,venue_name,position,selected_drink_price_evidence,alternatives")
       .eq("plan_id", id).order("position");
     if (result.error?.code !== "42703") return result;
-    return admin.from(STOPS).select("venue_id,venue_name,position")
+    const withoutAlternatives = await admin.from(STOPS)
+      .select("venue_id,venue_name,position,selected_drink_price_evidence")
       .eq("plan_id", id).order("position");
+    if (withoutAlternatives.error?.code !== "42703") return withoutAlternatives;
+    return admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position");
   };
   const [
     { data: stopRows, error: stopsError },
@@ -434,9 +447,10 @@ export const supabasePlanStore: PlanStore = {
           p_plan_id: id,
           p_token_hash: hashPlanMemberToken(rawToken),
           p_expected_route_revision: update.expectedRouteRevision,
-          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
+          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
             venueId, venueName,
             ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+            ...(alternatives?.length ? { alternatives } : {}),
           })),
           p_context: update.context ?? null,
           // Anchored Plans upgrade to a grounded route only after proof verification.
@@ -622,7 +636,11 @@ function mintInviteToken(): string {
 function publicState(value: MemoryPlan): PlanState {
   return {
     plan: { ...value.plan },
-    stops: value.stops.map((stop) => ({ ...stop })).sort((a, b) => a.position - b.position),
+    stops: value.stops.map((stop) => stopFromRow({
+      venue_id: stop.venueId, venue_name: stop.venueName, position: stop.position,
+      selected_drink_price_evidence: stop.selectedDrinkPriceEvidence,
+      alternatives: stop.alternatives,
+    })).sort((a, b) => a.position - b.position),
     crew: value.crew.map((member) => ({
       id: member.id,
       name: member.name,
@@ -782,13 +800,7 @@ export const memoryPlanStore: PlanStore = {
       // One synchronous mutation keeps the demo store's route + revision
       // semantics equivalent to the production RPC transaction.
       const context = update.context ?? plan.context;
-      plan.stops = stops.map((stop) => {
-        if (!stop.selectedDrinkPriceEvidence ||
-          (!context?.zeroProof && stop.selectedDrinkPriceEvidence.category === context?.drinkCategory)) return stop;
-        const nextStop = { ...stop };
-        delete nextStop.selectedDrinkPriceEvidence;
-        return nextStop;
-      });
+      plan.stops = stops.map((stop) => planStopEvidenceForContext(stop, context));
       plan.plan.routeRevision = routeRevisionOf(plan.plan) + 1;
       if (plan.plan.anchorVenueId) {
         plan.plan.outcome = "route";
@@ -802,12 +814,7 @@ export const memoryPlanStore: PlanStore = {
     if (update.status) plan.plan.status = update.status;
     if (update.context) {
       plan.context = structuredClone(update.context);
-      for (const stop of plan.stops) {
-        if (stop.selectedDrinkPriceEvidence && (update.context.zeroProof
-          || stop.selectedDrinkPriceEvidence.category !== update.context.drinkCategory)) {
-          delete stop.selectedDrinkPriceEvidence;
-        }
-      }
+      plan.stops = plan.stops.map((stop) => planStopEvidenceForContext(stop, update.context!));
     }
     return { ok: true, plan: publicState(plan) };
   },

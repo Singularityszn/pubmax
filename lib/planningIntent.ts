@@ -1,3 +1,4 @@
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
@@ -52,6 +53,7 @@ export type PlanningIntentV1 = {
     kind: PlanningIntentEvidenceKind;
     observedAt: string | null;
   };
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   acceptedAt: string;
   expiresAt: string;
 };
@@ -218,7 +220,8 @@ export function parsePlanningIntent(
     return null;
   }
 
-  if (!isPlainRecord(value) || !hasExactKeys(value, INTENT_KEYS)) return null;
+  if (!isPlainRecord(value) || (!hasExactKeys(value, INTENT_KEYS)
+    && !hasExactKeys(value, [...INTENT_KEYS, "selectedDrinkPriceEvidence"]))) return null;
   if (value.version !== 1) return null;
   if (!isOneOf(value.source, PLANNING_INTENT_SOURCES)) return null;
   if (!isCityId(value.cityId)) return null;
@@ -227,6 +230,20 @@ export function parsePlanningIntent(
     !VENUE_ID_PATTERN.test(value.acceptedVenueId)
   ) return null;
 
+  let selectedDrinkPriceEvidence: SelectedDrinkPriceEvidence | null = null;
+  if (value.selectedDrinkPriceEvidence !== undefined) {
+    const hint = value.selectedDrinkPriceEvidence;
+    if (!isPlainRecord(hint)) return null;
+    const keys = hint.source === "listed"
+      ? ["category", "pence", "serving", "source", "sourceUrl", "observedAt"]
+      : ["category", "pence", "serving", "source", "reportedAt"];
+    if (!hasExactKeys(hint, keys)) return null;
+    selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(hint);
+    if (!selectedDrinkPriceEvidence) return null;
+    const observed = selectedDrinkPriceEvidence.source === "listed"
+      ? selectedDrinkPriceEvidence.observedAt : selectedDrinkPriceEvidence.reportedAt;
+    if (Date.parse(observed) > now + PLANNING_INTENT_MAX_FUTURE_SKEW_MS) return null;
+  }
   const acceptedArea = parseArea(value.acceptedArea);
   if (acceptedArea === undefined) return null;
 
@@ -263,6 +280,7 @@ export function parsePlanningIntent(
       kind: value.displayEvidence.kind,
       observedAt,
     },
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
     acceptedAt: acceptedAt.value,
     expiresAt: expiresAt.value,
   };

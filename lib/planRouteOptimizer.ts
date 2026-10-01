@@ -67,6 +67,8 @@ export type GroundedPlanRouteConstraints = {
   budgetTier: Budget | null;
   /** Category plans have no comparable, attributable price evidence for a hard ceiling. */
   selectedDrinkPrice?: boolean;
+  /** Server-approved requested-category offers; availability never adds a GBP score. */
+  requestedDrinkVenueIds?: readonly string[];
   groupSize: number | null;
   transportConstraints: readonly string[];
   routeWindow: { startsAt: string; endsAt: string } | null;
@@ -266,6 +268,29 @@ function better<T>(candidate: EvaluatedRoute<T>, incumbent: EvaluatedRoute<T> | 
     return candidate.timing.straightLineWalkingKm < incumbent.timing.straightLineWalkingKm;
   }
   return candidate.key.localeCompare(incumbent.key, "en-GB") < 0;
+}
+
+/** Prefer a feasible offered-drink replacement without changing scores or a held anchor. */
+function withRequestedDrinkOffer<T>(
+  current: EvaluatedRoute<T>,
+  eligible: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+  firstReplaceablePosition: number,
+): EvaluatedRoute<T> {
+  const offeredIds = new Set(constraints.requestedDrinkVenueIds ?? []);
+  if (offeredIds.size === 0 || current.route.some((candidate) => offeredIds.has(candidate.venueId))) return current;
+  const selectedIds = new Set(current.route.map((candidate) => candidate.venueId));
+  let covered: EvaluatedRoute<T> | null = null;
+  for (const candidate of eligible) {
+    if (!offeredIds.has(candidate.venueId) || selectedIds.has(candidate.venueId)) continue;
+    for (let position = firstReplaceablePosition; position < current.route.length; position += 1) {
+      const replacement = [...current.route];
+      replacement[position] = candidate;
+      const evaluated = evaluateRoute(replacement, constraints);
+      if (evaluated && better(evaluated, covered)) covered = evaluated;
+    }
+  }
+  return covered ?? current;
 }
 
 function permutations(length: number): number[][] {
@@ -504,8 +529,9 @@ export function selectGroundedPlanRoute<T>(
     return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
   }
 
-  const best = findBestRoute(routeEligible, constraints);
-  if (!best) return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
+  const strongest = findBestRoute(routeEligible, constraints);
+  if (!strongest) return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
+  const best = withRequestedDrinkOffer(strongest, routeEligible, constraints, 0);
 
   const stops = selectedStops(best);
   const selectedIds = new Set(best.route.map((candidate) => candidate.venueId));
@@ -587,8 +613,9 @@ export function selectAnchoredGroundedPlanRoute<T>(
     .filter((candidate) => candidate.venueId !== anchorVenueId);
   if (companions.length < planStopCount(constraints.stopCount) - 1) return insufficient;
 
-  const best = findBestAnchoredRoute(anchor, companions, constraints);
-  if (!best) return insufficient;
+  const strongest = findBestAnchoredRoute(anchor, companions, constraints);
+  if (!strongest) return insufficient;
+  const best = withRequestedDrinkOffer(strongest, companions, constraints, 1);
 
   const stops = selectedStops(best);
   const selectedIds = new Set(best.route.map((candidate) => candidate.venueId));

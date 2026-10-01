@@ -176,6 +176,8 @@ for (const width of PHONE_WIDTHS) {
 
     const portal = page.locator('.mobileSheetPortal[data-sheet-kind="landmark"]');
     await expect(portal).toBeVisible({ timeout: 30_000 });
+    // The landmark portal owns the viewport from its first visible frame.
+    await expect(page.locator(".mobileTabBar")).toBeHidden();
     // No card of the old kind is pinned over the map any more.
     await expect(page.locator(".landmarkCard")).toHaveCount(0);
 

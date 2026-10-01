@@ -1,3 +1,4 @@
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { DAY_MS } from "@/lib/dayMs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
@@ -32,6 +33,7 @@ export type StoredPlanDraft = {
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
     expiresAt: string;
+    selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   };
 };
 
@@ -139,7 +141,8 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         stops: stops as StoredPlanDraft["stops"],
       };
     }
-    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
+    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)
+      && !hasExactKeys(anchor, [...ACCEPTED_ANCHOR_KEYS, "selectedDrinkPriceEvidence"])) return null;
     const venueId = boundedText(anchor.venueId, 200);
     const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
       ? anchor.source as PlanningIntentSource
@@ -160,7 +163,11 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
           ? area as PlanningIntentArea
           : undefined;
     if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
-    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt };
+    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(anchor.selectedDrinkPriceEvidence);
+    if (anchor.selectedDrinkPriceEvidence !== undefined && !selectedDrinkPriceEvidence) return null;
+    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt,
+      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+    };
   }
   return {
     title,

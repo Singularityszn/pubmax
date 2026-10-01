@@ -94,6 +94,8 @@ type CollaborationMemory = {
   // Keyed `${planId}:${memberId}` so a revote overwrites the member's row.
   vibeVotes: Map<string, PlanVibeVote>;
   idempotency: Map<string, unknown>;
+  pendingProposals: Map<string, Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>>;
+  pendingDecisions: Map<string, Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>>;
 };
 
 const globalMemory = globalThis as typeof globalThis & { __pubmaxPlanCollaboration?: CollaborationMemory };
@@ -104,7 +106,11 @@ const memory = globalMemory.__pubmaxPlanCollaboration ??= {
   votes: new Map(),
   vibeVotes: new Map(),
   idempotency: new Map(),
+  pendingProposals: new Map(),
+  pendingDecisions: new Map(),
 };
+memory.pendingProposals ??= new Map();
+memory.pendingDecisions ??= new Map();
 
 function inviteHash(token: string): string {
   const salt = process.env.PLAN_INVITE_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-invite";
@@ -133,7 +139,7 @@ function publicInvite(invite: StoredInvite): PlanInvite {
 function cloneProposal(proposal: PlanRouteProposal): PlanRouteProposal {
   return {
     ...proposal,
-    stops: proposal.stops.map((stop) => ({ ...stop })),
+    stops: structuredClone(proposal.stops),
     resolvedConstraintIds: [...proposal.resolvedConstraintIds],
     unresolvedConstraintIds: [...proposal.unresolvedConstraintIds],
   };
@@ -205,7 +211,12 @@ function proposalFromRow(row: Record<string, unknown>): PlanRouteProposal {
     stops: rawStops.map((stop) => {
       const value = stop as Record<string, unknown>;
       const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
-      return { venueId: String(value.venueId), venueName: String(value.venueName), position: Number(value.position), ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}) };
+      const alternatives = Array.isArray(value.alternatives) ? value.alternatives.flatMap((raw) => {
+        if (!raw || typeof raw !== "object" || typeof raw.venueId !== "string" || typeof raw.venueName !== "string") return [];
+        const price = cleanSelectedDrinkPriceEvidence(raw.selectedDrinkPriceEvidence);
+        return [{ venueId: raw.venueId, venueName: raw.venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) }];
+      }) : [];
+      return { venueId: String(value.venueId), venueName: String(value.venueName), position: Number(value.position), ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}), ...(alternatives.length ? { alternatives } : {}) };
     }),
     reason: String(row.reason), resolvedConstraintIds: strings(row.resolved_constraint_ids), unresolvedConstraintIds: strings(row.unresolved_constraint_ids),
     status: row.status as PlanRouteProposal["status"], createdAt: String(row.created_at), decidedAt: typeof row.decided_at === "string" ? row.decided_at : null,
@@ -471,25 +482,36 @@ const memoryStore: PlanCollaborationStore = {
     const planLookup = await planStateResult(planId);
     if (!planLookup.ok) return { ok: false, error: "error" };
     if (!planLookup.plan) return { ok: false, error: "not_found" };
-    if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
+    const currentPlan = planLookup.plan;
+    if (currentPlan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
     const idem = idempotencyKey(planId, identity.memberId, "proposal:create", input.idempotencyKey);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
     if (replay) return structuredClone(replay);
-    const activeConstraints = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId);
-    const resolved: string[] = [];
-    const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);
-    const proposal: PlanRouteProposal = {
-      id: randomUUID(), planId, proposedByMemberId: identity.memberId,
-      expectedRouteRevision: input.expectedRouteRevision,
-      stops: pricedStops.map((stop, position) => ({ ...stop, position })), reason,
-      resolvedConstraintIds: resolved,
-      unresolvedConstraintIds: activeConstraints.filter((constraint) => constraint.priority === "required" && !resolved.includes(constraint.id)).map((constraint) => constraint.id),
-      status: "pending", createdAt: (input.now ?? new Date()).toISOString(), decidedAt: null,
-    };
-    memory.proposals.set(proposal.id, proposal);
-    const result = { ok: true as const, proposal: cloneProposal(proposal) };
-    memory.idempotency.set(idem, result);
-    return structuredClone(result);
+    const pending = memory.pendingProposals.get(idem);
+    if (pending) return structuredClone(await pending);
+    const creation = (async () => {
+      const activeConstraints = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId);
+      const resolved: string[] = [];
+      const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, currentPlan.context);
+      const proposal: PlanRouteProposal = {
+        id: randomUUID(), planId, proposedByMemberId: identity.memberId,
+        expectedRouteRevision: input.expectedRouteRevision,
+        stops: pricedStops.map((stop, position) => ({ ...stop, position })), reason,
+        resolvedConstraintIds: resolved,
+        unresolvedConstraintIds: activeConstraints.filter((constraint) => constraint.priority === "required" && !resolved.includes(constraint.id)).map((constraint) => constraint.id),
+        status: "pending", createdAt: (input.now ?? new Date()).toISOString(), decidedAt: null,
+      };
+      memory.proposals.set(proposal.id, proposal);
+      const result = { ok: true as const, proposal: cloneProposal(proposal) };
+      memory.idempotency.set(idem, result);
+      return result;
+    })();
+    memory.pendingProposals.set(idem, creation);
+    try {
+      return structuredClone(await creation);
+    } finally {
+      if (memory.pendingProposals.get(idem) === creation) memory.pendingProposals.delete(idem);
+    }
   },
 
   async vote(planId, token, proposalId, value, key, now = new Date()) {
@@ -548,18 +570,28 @@ const memoryStore: PlanCollaborationStore = {
     const idem = idempotencyKey(planId, identity.memberId, "proposal:decision", key);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
     if (replay) return structuredClone(replay);
+    const pending = memory.pendingDecisions.get(idem);
+    if (pending) return structuredClone(await pending);
     const proposal = memory.proposals.get(proposalId);
     if (!proposal || proposal.planId !== planId) return { ok: false, error: "not_found" };
     if (proposal.status !== "pending") return { ok: false, error: "conflict" };
     const currentRequired = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId && constraint.priority === "required");
     proposal.unresolvedConstraintIds = currentRequired.filter((constraint) => !evidenceCoversProposal(constraint, proposal)).map((constraint) => constraint.id);
     if (decision === "accepted" && proposal.unresolvedConstraintIds.length > 0) return { ok: false, error: "constraints_unresolved" };
-    if (decision === "accepted" && !(await apply(cloneProposal(proposal)))) return { ok: false, error: "conflict" };
-    proposal.status = decision;
-    proposal.decidedAt = now.toISOString();
-    const result = { ok: true as const, proposal: cloneProposal(proposal) };
-    memory.idempotency.set(idem, result);
-    return structuredClone(result);
+    const deciding = (async () => {
+      if (decision === "accepted" && !(await apply(cloneProposal(proposal)))) return { ok: false as const, error: "conflict" as const };
+      proposal.status = decision;
+      proposal.decidedAt = now.toISOString();
+      const result = { ok: true as const, proposal: cloneProposal(proposal) };
+      memory.idempotency.set(idem, result);
+      return result;
+    })();
+    memory.pendingDecisions.set(idem, deciding);
+    try {
+      return structuredClone(await deciding);
+    } finally {
+      if (memory.pendingDecisions.get(idem) === deciding) memory.pendingDecisions.delete(idem);
+    }
   },
 
   async list(planId, token) {
@@ -927,4 +959,6 @@ export function __resetPlanCollaboration(): void {
   memory.votes.clear();
   memory.vibeVotes.clear();
   memory.idempotency.clear();
+  memory.pendingProposals.clear();
+  memory.pendingDecisions.clear();
 }

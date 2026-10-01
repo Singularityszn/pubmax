@@ -1045,6 +1045,15 @@ export default function VenueOverviewTab({
           venueId={venue.id}
           venueName={venue.name}
           rows={drinkPriceRows}
+          listedPrices={
+            experienceLens === "no-alcohol"
+              ? venue.listedCategoryPrices === null
+                ? null
+                : venue.listedCategoryPrices?.filter((quote) =>
+                    quote.category === "soft-drink" || quote.category === "alcohol-free",
+                  )
+              : venue.listedCategoryPrices
+          }
           activeLane={leadLane}
           laneNoun={leadLaneNoun}
           readStatus={venueReadStatus}

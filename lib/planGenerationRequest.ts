@@ -21,6 +21,7 @@ import {
 } from "@/lib/planningIntent";
 import { isPlanIdempotencyKey } from "@/lib/planStore";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
@@ -52,6 +53,7 @@ export type PlanGenerationAnchor = {
   source: PlanningIntentSource;
   acceptedArea: PlanningIntentArea;
   startsAt: string | null;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
 type PlanGenerationRequest = {
@@ -124,7 +126,10 @@ function canonicalIsoOrNull(value: unknown): string | null | undefined {
 /** Parse the optional acceptance anchor. `undefined` return rejects the request. */
 function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
   if (value === undefined || value === null) return null;
-  if (!isPlainRecord(value) || !hasExactKeys(value, ANCHOR_KEYS)) return undefined;
+  if (!isPlainRecord(value) || !(hasExactKeys(value, ANCHOR_KEYS)
+    || hasExactKeys(value, [...ANCHOR_KEYS, "selectedDrinkPriceEvidence"]))) return undefined;
+  const selected = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
+  if (Object.hasOwn(value, "selectedDrinkPriceEvidence") && !selected) return undefined;
   if (typeof value.venueId !== "string" || !ANCHOR_VENUE_ID_PATTERN.test(value.venueId)) return undefined;
   if (typeof value.source !== "string" || !(PLANNING_INTENT_SOURCES as readonly string[]).includes(value.source)) {
     return undefined;
@@ -138,6 +143,7 @@ function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
     source: value.source as PlanningIntentSource,
     acceptedArea,
     startsAt,
+    ...(selected ? { selectedDrinkPriceEvidence: selected } : {}),
   };
 }
 

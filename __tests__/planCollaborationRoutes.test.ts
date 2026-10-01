@@ -26,7 +26,7 @@ import { POST as CREATE_PROPOSAL } from "@/app/api/plans/[id]/proposals/route";
 import { POST as DECIDE } from "@/app/api/plans/[id]/proposals/[proposalId]/decision/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { POST as COMPLETE } from "@/app/api/plans/[id]/complete/route";
-import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
+import { __resetPlanCollaboration, planCollaborationStore } from "@/lib/planCollaborationStore";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { inferNightContext } from "@/lib/nightPlanning";
 
@@ -54,6 +54,44 @@ async function joinInvited(host: Awaited<ReturnType<typeof createPlan>>, name = 
 }
 
 describe("Plan collaboration HTTP contract", () => {
+  it("returns one proposal for concurrent retries while trusted price lookup is pending", async () => {
+    const created = await CREATE(new Request(URL, { method: "POST", headers: { "idempotency-key": "proposal-concurrent-host" }, body: JSON.stringify({
+      startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), creatorName: "Host", stops: route,
+      context: { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" },
+    }) }));
+    expect(created.status).toBe(201);
+    const host = await created.json() as Awaited<ReturnType<typeof createPlan>>;
+    const guest = await (await joinInvited(host)).json() as { memberToken: string };
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    let releaseIndex!: () => void;
+    const pendingIndex = new Promise((resolve) => {
+      releaseIndex = () => resolve({ prices: [{ venueId: route[1]!.venueId, drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }], degraded: false, truncated: false });
+    });
+    categoryIndexMock.mockReturnValue(pendingIndex);
+    const propose = () => CREATE_PROPOSAL(new Request(`${URL}/${host.plan.plan.id}/proposals`, {
+      method: "POST", headers: { authorization: `Bearer ${guest.memberToken}`, "idempotency-key": "proposal-concurrent-retry" },
+      body: JSON.stringify({ reason: "Keep this route", expectedRouteRevision: 1, stops: route.map((stop, index) => index === 1 ? { ...stop, selectedDrinkPriceEvidence: evidence } : stop), resolvedConstraintIds: [] }),
+    }), ctx(host.plan.plan.id));
+    const first = propose();
+    const second = propose();
+    const responses = await (async () => {
+      try {
+        await vi.waitFor(() => expect(categoryIndexMock).toHaveBeenCalled());
+      } finally {
+        releaseIndex();
+      }
+      return Promise.all([first, second]);
+    })();
+    expect(responses.map((response) => response.status)).toEqual([201, 201]);
+    const proposals = await Promise.all(responses.map((response) => response.json() as Promise<{ proposal: { id: string; stops: Array<{ selectedDrinkPriceEvidence?: unknown }> } }>));
+    expect(proposals[0]?.proposal.id).toBe(proposals[1]?.proposal.id);
+    expect(proposals[0]?.proposal.stops[1]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    expect(categoryIndexMock).toHaveBeenCalledTimes(1);
+    const listed = await planCollaborationStore().list(host.plan.plan.id, guest.memberToken);
+    expect(listed).toMatchObject({ ok: true, proposals: [{ id: proposals[0]?.proposal.id }] });
+  });
+
   it.each(["wine", "cocktail"] as const)("keeps verified %s evidence when a guest proposal is accepted", async (category) => {
     const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     const created = await CREATE(new Request(URL, { method: "POST", headers: { "idempotency-key": `proposal-price-host-${category}` }, body: JSON.stringify({

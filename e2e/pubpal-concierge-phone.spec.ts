@@ -1,17 +1,22 @@
 import { mkdir } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
+import {
+  mockPalConciergePhoneAnswers,
+  mockPalPlanAnswer,
+} from "./helpers/palProviderDouble";
 
-// Pub Pal V0.1 on a phone, keyless.
+// Pub Pal V0.1 phone UI contracts.
 //
-// Every proof runs against the real deterministic path: no OpenRouter, no
-// ElevenLabs, no Supabase.
-//   1. a text ask comes back grounded, with a source chip on every card,
+// Successful chat journeys use grounded provider fixtures. A separate test
+// exercises the unavailable-provider UI boundary; the route unit test pins the
+// real keyless 503 response.
+//   1. source-backed answers keep provenance visible,
 //   2. find_desk says "No seat data yet" rather than offering a pub as a desk,
-//   3. propose_plan offers one Open in Plan link and moves nothing until it is taken,
-//   4. the Pal recalls a subject raised earlier in the same thread,
+//   3. propose_plan offers one Open in Plan link and moves nothing until taken,
+//   4. in-thread recall names a subject raised earlier in the chat,
 //   5. the meeting fits 360, 390 and 430 with tappable controls,
-//   6. voice, unconfigured, explains itself instead of failing on the tap.
+//   6. unconfigured chat and voice explain that provider service is unavailable.
 
 const PHONE = { width: 390, height: 844 };
 const SHOTS = "docs/proof/pubpal-v01";
@@ -30,9 +35,10 @@ test.describe("Pub Pal concierge at 390px", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
   });
 
-  test("a text ask answers from our own rows, and every card keeps its source", async ({
+  test("a grounded provider reply keeps a source chip on every card", async ({
     page,
   }) => {
+    await mockPalConciergePhoneAnswers(page);
     await page.goto("/pal/chat");
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expect(page.locator(".mobileTabBar")).toBeVisible();
@@ -62,6 +68,7 @@ test.describe("Pub Pal concierge at 390px", () => {
   for (const theme of ["light", "dark"] as const) {
     test(`proof shot at 390px in ${theme}`, async ({ page }) => {
       test.skip(!process.env.PUBPAL_V01_SHOTS, "design proof runs on demand");
+      await mockPalConciergePhoneAnswers(page);
       await page.addInitScript((value) => {
         window.localStorage.setItem("pubmax-theme", value);
       }, theme);
@@ -78,6 +85,7 @@ test.describe("Pub Pal concierge at 390px", () => {
   }
 
   test("a cheapest-pint ask with tonight still names the area", async ({ page }) => {
+    await mockPalConciergePhoneAnswers(page);
     await page.goto("/pal/chat");
     await askOnPhone(page, "Cheapest pint in Camden tonight");
 
@@ -88,11 +96,19 @@ test.describe("Pub Pal concierge at 390px", () => {
     await expect(answer.locator(".palChatBubble").first()).not.toContainText(
       "Name a listed pub or a London area",
     );
+    await expect(answer.locator(".palChatCard").first()).toContainText(
+      "Ye Olde Swiss Cottage",
+    );
+    await expect(answer.locator(".palChatCard").first()).toContainText("£3.40");
+    await expect(answer.locator(".palChatCard").first().locator(".palChatProv")).toContainText(
+      "On record",
+    );
   });
 
   test("find_desk says there is no seat data rather than offering a pub", async ({
     page,
   }) => {
+    await mockPalConciergePhoneAnswers(page);
     await page.goto("/pal/chat");
     await askOnPhone(page, "Somewhere to work with wifi in Angel");
 
@@ -105,6 +121,7 @@ test.describe("Pub Pal concierge at 390px", () => {
   });
 
   test("a crawl ask proposes one way on and waits to be taken", async ({ page }) => {
+    await mockPalPlanAnswer(page);
     await page.goto("/pal/chat");
     await askOnPhone(page, "Plan a crawl in Soho for 4");
 
@@ -124,6 +141,7 @@ test.describe("Pub Pal concierge at 390px", () => {
   });
 
   test("a crawl ask opens Plan and auto-generates the route", async ({ page }) => {
+    await mockPalPlanAnswer(page);
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -145,9 +163,10 @@ test.describe("Pub Pal concierge at 390px", () => {
     });
   });
 
-  test("the Pal recalls a subject the drinker raised earlier in the thread", async ({
+  test("a follow-up sends prior asks and recalls the earlier Camden request", async ({
     page,
   }) => {
+    await mockPalConciergePhoneAnswers(page);
     await page.goto("/pal/chat");
     await askOnPhone(page, "Quiet pub in Camden for four");
     await askOnPhone(page, "cheaper");
@@ -156,6 +175,45 @@ test.describe("Pub Pal concierge at 390px", () => {
     await expect(page.locator(".palChatRecall").last()).toContainText(
       "You asked about Camden earlier.",
     );
+  });
+
+  test("a chat-provider 503 shows a retryable error without inventing an answer", async ({
+    page,
+  }) => {
+    await page.route("**/api/pub-pal/chat", async (route) => {
+      const body = route.request().postDataJSON() as { query?: string };
+      if (body.query !== "Cheapest pint in Camden tonight") {
+        throw new Error(`Unexpected Pub Pal outage query: ${body.query}`);
+      }
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "Couldn't answer that. Try again.",
+          code: "UNAVAILABLE",
+          retryable: true,
+        }),
+      });
+    });
+    await page.goto("/pal/chat");
+    const chatResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/pub-pal/chat") &&
+        response.request().method() === "POST",
+    );
+    await askOnPhone(page, "Cheapest pint in Camden tonight");
+
+    const chatResponse = await chatResponsePromise;
+    expect(chatResponse.status()).toBe(503);
+    await expect(chatResponse.json()).resolves.toMatchObject({
+      error: "Couldn't answer that. Try again.",
+      code: "UNAVAILABLE",
+      retryable: true,
+    });
+    await expect(page.locator(".palChatBubble--error")).toHaveText(
+      "Couldn't answer that. Try again.",
+    );
+    await expect(page.locator(".palChatCard, .palChatPlanHandoff")).toHaveCount(0);
   });
 
   // The meeting is the persona's first impression, so it is held to the phone

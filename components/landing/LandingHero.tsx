@@ -44,7 +44,7 @@ import { priceMovementLine } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { discardBody } from "@/lib/responseBody";
-import { formatPrice } from "@/lib/venues";
+import { formatPrice } from "@/lib/formatGbp";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";

@@ -1,3 +1,8 @@
+import { listedServingGroup } from "@/lib/listedPriceComparison";
+
+import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { priceStandingFor } from "@/lib/priceTier";
 import {
   drivesMap,
   mapCandidateOf,
@@ -41,7 +46,9 @@ export type MapLensPrice = {
   priceGbp: number;
   submittedAt?: number;
   observedAt?: string;
-  source: "community" | "sourced-anchor";
+  source: "community" | "sourced-anchor" | "listed";
+  servingSize?: string | null;
+  drinkLabel?: string | null;
   sourceUrl?: string;
 };
 
@@ -281,7 +288,7 @@ export function drinkLensCoverageNote(
     return `Checking ${drinkNoun} prices across the map.`;
   }
   if (status === "degraded") {
-    return `We could not read the ${drinkNoun} prices just now, so none are shown yet.`;
+    return `We could not read the ${drinkNoun} prices from every source just now. Any prices shown come from sources we could read.`;
   }
   if (status === "partial") {
     return `Read from part of the ${drinkNoun} prices, so some are still missing.`;
@@ -403,4 +410,43 @@ export function experienceLensSummary(
     return `We read part of the ${noun} prices and none of them are here. Food venues still show menu prices we have.`;
   }
   return `No ${noun} prices logged here yet. Food venues still show menu prices we have.`;
+}
+
+export function readListedDrinkIndex(value: unknown, category: DrinkCategory): MapLensPrice[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 1000).flatMap((row) => {
+    if (!row || typeof row !== "object" || typeof row.venueId !== "string" || row.category !== category) return [];
+    if (typeof row.observedAt !== "string" || !Number.isFinite(Date.parse(row.observedAt))) return [];
+    const evidence = cleanSelectedDrinkPriceEvidence({
+      category, pence: Math.round(row.priceGbp * 100), serving: row.servingSize,
+      source: row.source, sourceUrl: row.sourceUrl, observedAt: new Date(row.observedAt).toISOString(),
+    });
+    if (evidence?.source !== "listed") return [];
+    return [{ venueId: row.venueId, category, categoryLabel: CATEGORY_META[category].label,
+      priceGbp: evidence.pence / 100, source: "listed" as const, servingSize: evidence.serving,
+      drinkLabel: normalizeUkPriceBundleDrinkLabel(row.drinkLabel),
+      sourceUrl: evidence.sourceUrl, observedAt: evidence.observedAt }];
+  });
+}
+
+export function discoveryDrinkLensPrices(
+  rowsByVenue: ReadonlyMap<string, readonly CommunityPrice[]>,
+  category: DrinkCategory,
+  listed: readonly MapLensPrice[],
+  now: number,
+  serving?: string | null,
+): Map<string, MapLensPrice> {
+  const selected = listedServingGroup(category, serving);
+  const prices = trustedDrinkLensPrices(rowsByVenue, category, now);
+  for (const quote of listed) {
+    if (quote.category !== category || quote.source !== "listed") continue;
+    const existing = prices.get(quote.venueId);
+    const matches = selected !== null && listedServingGroup(category, quote.servingSize) === selected;
+    const existingMatches = existing?.source === "listed" && selected !== null
+      && listedServingGroup(category, existing.servingSize) === selected;
+    if (existing && (!matches || existingMatches)) continue;
+    if (priceStandingFor({ listed: { priceGbp: quote.priceGbp, sourceUrl: quote.sourceUrl ?? "", observedAt: quote.observedAt ?? "" } }, now).standing !== "listed") continue;
+    prices.set(quote.venueId, quote);
+  }
+  return prices;
 }

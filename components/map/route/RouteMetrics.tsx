@@ -15,7 +15,7 @@ import { formatPrice } from "@/lib/venues";
 import type { RouteLegsSummary, RoutePace } from "@/lib/routeLegs";
 
 type RouteMetricsProps = {
-  summaryTotal: number;
+  summaryTotal: number | null;
   summaryDistance: number;
   legSummary: RouteLegsSummary;
   pace: RoutePace;
@@ -45,8 +45,8 @@ export default function RouteMetrics({
     <div className="routeMetrics">
       <div>
         <BadgePoundSterling size={17} />
-        <span>{formatPrice(summaryTotal)}</span>
-        <small>estimated round</small>
+        <span>{summaryTotal === null ? "Not recorded" : formatPrice(summaryTotal)}</span>
+        <small>{summaryTotal === null ? "round total" : "estimated round"}</small>
       </div>
       <div
         title="Haversine (straight-line) distance between stops. Walking distance will be longer."

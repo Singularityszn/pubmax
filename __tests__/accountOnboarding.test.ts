@@ -215,7 +215,7 @@ describe("account onboarding surface", () => {
     // birth. Mounted at the app root, the dialog covered every tab, and only
     // React state ever dismissed it, so it returned on the next mount.
     const source = readFileSync(
-      join(process.cwd(), "components/identity/AccountOnboarding.tsx"),
+      join(process.cwd(), "components/identity/AccountOnboardingHost.tsx"),
       "utf8",
     );
     expect(source).not.toContain("AccountOwnedIdentity");

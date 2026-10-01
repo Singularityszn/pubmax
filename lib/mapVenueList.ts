@@ -1,3 +1,4 @@
+import { listedServingGroup } from "@/lib/listedPriceComparison";
 import { formatGbp } from "@/lib/formatGbp";
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
 import { haversineKm } from "@/lib/haversine";
@@ -31,12 +32,14 @@ export const MAP_VENUE_LIST_LIMIT = 60;
 /** How List view orders the pubs currently in view. Default stays nearest. */
 export type MapVenueListSortMode = "nearest" | "cheapest";
 
+export type MapVenueListRow = LogNearbyCandidate & { lensPrice?: MapLensPrice; sortPrice?: number | null };
+
 export type MapVenueListModel = {
   /**
    * Rows to render. Default order is nearest-first to the viewport centre when
    * known; "cheapest" ranks priced pubs ascending and leaves unpriced pubs last.
    */
-  rows: LogNearbyCandidate[];
+  rows: MapVenueListRow[];
   /** Total venues currently on the map (pre-cap). */
   total: number;
   /** Rows actually shown (post-cap). */
@@ -56,16 +59,14 @@ export type MapVenueListModel = {
  * The list is the DOM parallel to the unpriced pins, so it names what OSM
  * states: a bar reads as a bar. Neither kind carries a price.
  */
-type UkBasePubListLabel =
-  | "Other pub · no listed price"
-  | "Other bar · no listed price";
-
-type UkBasePubListRow = {
+export type UkBasePubListRow = {
   id: string;
   name: string;
-  priceLabel: UkBasePubListLabel;
+  priceLabel: string;
   distanceKm?: number;
   pub: UkBasePub;
+  lensPrice?: MapLensPrice;
+  sortPrice?: number | null;
 };
 
 export type UkBasePubListModel = {
@@ -150,18 +151,33 @@ function mapVenueListPintPriceLabel(
  * via venueSignals. A bare non-pub figure without complete provenance is not
  * shown on the row, so it cannot climb the cheapest sort.
  */
-function mapVenueListSortPrice(
-  venue: Venue,
-  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
-  venueSignals: MapVenueListVenueSignals | null = null,
-): number | null {
-  if (lensPrices !== null) {
-    const price = lensPrices.get(venue.id)?.priceGbp;
-    return typeof price === "number" && Number.isFinite(price) && price > 0
-      ? price
-      : null;
-  }
-  return mapVenueListPintPrice(venue, venueSignals);
+function comparableLensAmount(price: MapLensPrice | undefined, serving?: string | null): number | null {
+  if (!price || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0) return null;
+  // Experience-only legacy callers retain their own quantity contract. Selected
+  // drink lanes always supply null or a chosen group, so unknown serves never rank.
+  if (serving === undefined) return price.priceGbp;
+  if (price.source !== "listed" || !price.category || !serving) return null;
+  const selected = listedServingGroup(price.category, serving);
+  return selected && listedServingGroup(price.category, price.servingSize) === selected ? price.priceGbp : null;
+}
+
+function byComparablePrice(left: { sortPrice?: number | null; name: string; id: string; distanceKm?: number },
+  right: { sortPrice?: number | null; name: string; id: string; distanceKm?: number }): number {
+  const a = left.sortPrice ?? null;
+  const b = right.sortPrice ?? null;
+  if (a !== null && b !== null) return a - b || left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
+  if (a !== null) return -1;
+  if (b !== null) return 1;
+  return (left.distanceKm ?? Infinity) - (right.distanceKm ?? Infinity)
+    || left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
+}
+
+/** One serving group ranks across both catalogues; base identity stays intact. */
+export function combineMapVenueListRows(curated: readonly MapVenueListRow[], base: readonly UkBasePubListRow[],
+  sortMode: MapVenueListSortMode): Array<MapVenueListRow | UkBasePubListRow> {
+  const rows = [...curated, ...base];
+  return sortMode === "cheapest" ? rows.sort(byComparablePrice) : rows.sort((a, b) =>
+    (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
 /**
@@ -182,6 +198,7 @@ export function buildMapVenueListModel(
   lensStatus: CategoryPriceIndexStatus = "ready",
   sortMode: MapVenueListSortMode = "nearest",
   venueSignals: MapVenueListVenueSignals | null = null,
+  serving?: string | null,
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -206,6 +223,7 @@ export function buildMapVenueListModel(
           return {
             ...row,
             priceLabel: mapVenueListPintPriceLabel(item, venueSignals),
+            sortPrice: mapVenueListPintPrice(item, venueSignals),
             priceBand: priceBand(pint, priceBandAreaForVenue(item.id)),
           };
         })
@@ -213,6 +231,8 @@ export function buildMapVenueListModel(
           const lensPrice = lensPrices.get(row.id);
           return {
             ...row,
+            ...(lensPrice ? { lensPrice } : {}),
+            sortPrice: comparableLensAmount(lensPrice, serving),
             priceLabel: lensPrice
               ? `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`
               : unknownLabel,
@@ -222,15 +242,7 @@ export function buildMapVenueListModel(
                 : null,
           };
         });
-  const rows =
-    sortMode === "cheapest"
-      ? sortMapVenueListRowsCheapest(
-          labelledRows,
-          venues,
-          lensPrices,
-          venueSignals,
-        )
-      : labelledRows;
+  const rows = sortMode === "cheapest" ? [...labelledRows].sort(byComparablePrice) : labelledRows;
   return {
     rows,
     total,
@@ -241,44 +253,13 @@ export function buildMapVenueListModel(
   };
 }
 
-function sortMapVenueListRowsCheapest(
-  rows: LogNearbyCandidate[],
-  venues: Venue[],
-  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
-  venueSignals: MapVenueListVenueSignals | null,
-): LogNearbyCandidate[] {
-  const venueById = new Map(venues.map((venue) => [venue.id, venue]));
-  return [...rows].sort((left, right) => {
-    const leftVenue = venueById.get(left.id);
-    const rightVenue = venueById.get(right.id);
-    const leftPrice = leftVenue
-      ? mapVenueListSortPrice(leftVenue, lensPrices, venueSignals)
-      : null;
-    const rightPrice = rightVenue
-      ? mapVenueListSortPrice(rightVenue, lensPrices, venueSignals)
-      : null;
-    if (leftPrice !== null && rightPrice !== null) {
-      return (
-        leftPrice - rightPrice ||
-        left.name.localeCompare(right.name) ||
-        left.id.localeCompare(right.id)
-      );
-    }
-    if (leftPrice !== null) return -1;
-    if (rightPrice !== null) return 1;
-    return (
-      (left.distanceKm ?? Number.POSITIVE_INFINITY) -
-        (right.distanceKm ?? Number.POSITIVE_INFINITY) ||
-      left.name.localeCompare(right.name) ||
-      left.id.localeCompare(right.id)
-    );
-  });
-}
-
 export function buildUkBasePubListModel(
   pubs: UkBasePub[],
   viewportCenter: [number, number] | null,
   limit: number = pubs.length,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
+  sortMode: MapVenueListSortMode = "nearest",
+  serving?: string | null,
 ): UkBasePubListModel {
   const origin =
     viewportCenter &&
@@ -289,8 +270,11 @@ export function buildUkBasePubListModel(
   const rows = pubs.map<UkBasePubListRow>((pub) => ({
     id: pub.id,
     name: pub.name,
-    priceLabel:
-      pub.kind === "bar"
+    ...(lensPrices?.get(pub.id) ? { lensPrice: lensPrices.get(pub.id),
+      sortPrice: comparableLensAmount(lensPrices.get(pub.id), serving) } : {}),
+    priceLabel: lensPrices?.get(pub.id)
+      ? `${lensPrices.get(pub.id)!.categoryLabel} · ${formatGbp(lensPrices.get(pub.id)!.priceGbp)}`
+      : pub.kind === "bar"
         ? "Other bar · no listed price"
         : "Other pub · no listed price",
     ...(origin
@@ -307,6 +291,7 @@ export function buildUkBasePubListModel(
         left.id.localeCompare(right.id),
     );
   }
+  if (sortMode === "cheapest") rows.sort(byComparablePrice);
   const bounded = rows.slice(0, Math.max(0, Math.floor(limit)));
   return {
     rows: bounded,

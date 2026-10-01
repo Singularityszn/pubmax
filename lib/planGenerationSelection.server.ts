@@ -4,6 +4,8 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 import { canAffectRoute } from "@/lib/nightSignalClaims";
 import type { NightContext } from "@/lib/nightPlanning";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
@@ -30,6 +32,7 @@ export type ScoredPlanCandidate = {
   venue: ConciergeVenue;
   score: number;
   signalClaims: NightSignalClaim[];
+  selectedDrinkPrice?: MapLensPrice | null;
 };
 
 export type PlanGenerationSelection<T extends ScoredPlanCandidate> =
@@ -107,6 +110,7 @@ function groundedConstraints(
   intake: ParsedPlanGenerationIntake | null,
   accessibilityNeeds: readonly PlanAccessibilityNeed[],
   now: number,
+  requestedDrinkVenueIds: readonly string[],
 ): GroundedPlanRouteConstraints {
   return {
     exactArea: intake?.exactNightArea ?? null,
@@ -114,12 +118,22 @@ function groundedConstraints(
     budgetLimitPence: context.budgetLimitPence,
     budgetTier: context.budget,
     selectedDrinkPrice: !planUsesPintPrices(context),
+    requestedDrinkVenueIds,
     groupSize: context.groupSize,
     stopCount: normalizePlanStopCount(context.stopCount),
     transportConstraints: context.transportConstraints,
     routeWindow: intake?.routeWindow ?? null,
     now,
   };
+}
+
+function requestedDrinkOfferIds<T extends ScoredPlanCandidate>(
+  candidates: readonly T[],
+  context: NightContext,
+): string[] {
+  return candidates.filter((candidate) =>
+    selectedDrinkPriceEvidenceForPrice(candidate.selectedDrinkPrice, context) !== null)
+    .map((candidate) => candidate.venue.id);
 }
 
 /** Join canonical evidence and run the hard-constraint optimizer. */
@@ -130,16 +144,20 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   now: number,
 ): Promise<PlanGenerationSelection<T>> {
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
+  const requestedDrinkVenueIds = requestedDrinkOfferIds(candidates, context);
   const hasContextHardConstraint = accessibilityNeeds.length > 0
     || context.budgetLimitPence !== null
     || context.transportConstraints.length > 0
     || normalizePlanStopCount(context.stopCount) !== DEFAULT_PLAN_STOP_COUNT;
-  if (!intake && !hasContextHardConstraint) {
-    return { ok: true, legacy: true, chosen: candidates.slice(0, normalizePlanStopCount(context.stopCount)) };
+  const legacy = !intake && !hasContextHardConstraint;
+  const legacyChosen = candidates.slice(0, normalizePlanStopCount(context.stopCount));
+  if (legacy && (requestedDrinkVenueIds.length === 0
+    || legacyChosen.some((candidate) => requestedDrinkVenueIds.includes(candidate.venue.id)))) {
+    return { ok: true, legacy: true, chosen: legacyChosen };
   }
   const selection = selectGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
-    groundedConstraints(context, intake, accessibilityNeeds, now),
+    groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),
   );
   return selection.ok
     ? {
@@ -149,7 +167,9 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
         selection,
         accessibilityEnforced: accessibilityNeeds.length > 0,
       }
-    : { ok: false, selection };
+    : legacy
+      ? { ok: true, legacy: true, chosen: legacyChosen }
+      : { ok: false, selection };
 }
 
 /**
@@ -165,9 +185,10 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
   anchorVenueId: string,
 ): Promise<AnchoredPlanGenerationSelection<T>> {
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
+  const requestedDrinkVenueIds = requestedDrinkOfferIds(candidates, context);
   const selection = selectAnchoredGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
-    groundedConstraints(context, intake, accessibilityNeeds, now),
+    groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),
     anchorVenueId,
   );
   if (!selection.ok) return { ok: false, reason: "ANCHOR_MISSING" };

@@ -286,11 +286,11 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           Drink Wall
         </h2>
         <p className="outStatus">
-          Pints, pub fronts and London views from drinkers on the map.{" "}
-          <Link prefetch={false} href="/wall" className="outPlansFootLink">
-            Browse the wall
-          </Link>
+          Pints, pub fronts and London views from drinkers on the map.
         </p>
+        <Link prefetch={false} href="/wall" className="outPlansFootLink">
+          Browse the wall
+        </Link>
       </section>
 
       <EditorialRail />

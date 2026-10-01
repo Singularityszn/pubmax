@@ -65,6 +65,13 @@
   text-underline-offset: 2px;
 }
 
+.lpPhotoCredit a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
+}
+
 .landingPhotoCredit a:hover {
   color: #fbf9f6;
 }

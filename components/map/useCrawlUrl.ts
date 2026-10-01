@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
+import { listedServingGroup } from "@/lib/listedPriceComparison";
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 
 // (a) seedCrawlState reads the URL once on mount for a lazy useState initializer;
@@ -45,6 +46,9 @@ export function mergeCrawlUrlSearch(
     const value = live.get(key);
     if (value !== null && !params.has(key)) params.set(key, value);
   }
+  const category = params.get("drink");
+  const serving = category && category === live.get("drink") ? listedServingGroup(category, live.get("serving")) : null;
+  if (serving) params.set("serving", serving);
   const crawl = live.get("crawl");
   if (preserveCrawlParam && crawl !== null && !params.has("crawl")) {
     params.set("crawl", crawl);

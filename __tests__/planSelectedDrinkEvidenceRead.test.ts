@@ -4,6 +4,8 @@ const db = vi.hoisted(() => ({
   stopRow: null as Record<string, unknown> | null,
   completionRow: null as Record<string, unknown> | null,
   oldSchema: false,
+  missingAlternatives: false,
+  stopsError: null as { code: string; message: string } | null,
   selects: [] as string[],
 }));
 
@@ -20,12 +22,16 @@ vi.mock("@/lib/supabase", () => ({
         order() { return query; },
         then(onFulfilled: (value: { data: Record<string, unknown>[] | null; error: { code: string; message: string } | null }) => unknown) {
           if (table === "plan_stops") {
+            if (db.stopsError) return Promise.resolve({ data: null, error: db.stopsError }).then(onFulfilled);
             if (db.oldSchema && columns.includes("selected_drink_price_evidence")) {
               return Promise.resolve({ data: null, error: { code: "42703", message: "column plan_stops.selected_drink_price_evidence does not exist" } }).then(onFulfilled);
             }
-            const row = db.stopRow && db.oldSchema
-              ? Object.fromEntries(Object.entries(db.stopRow).filter(([key]) => key !== "selected_drink_price_evidence"))
-              : db.stopRow;
+            if ((db.oldSchema || db.missingAlternatives) && columns.split(",").includes("alternatives")) {
+              return Promise.resolve({ data: null, error: { code: "42703", message: "column plan_stops.alternatives does not exist" } }).then(onFulfilled);
+            }
+            const row = db.stopRow
+              ? Object.fromEntries(Object.entries(db.stopRow).filter(([key]) => columns.split(",").includes(key)))
+              : null;
             return Promise.resolve({ data: row ? [row] : [], error: null }).then(onFulfilled);
           }
           return Promise.resolve({ data: [], error: null }).then(onFulfilled);
@@ -54,12 +60,15 @@ const EVIDENCE = {
 describe("saved Plan selected drink evidence reads", () => {
   beforeEach(() => {
     db.oldSchema = false;
+    db.missingAlternatives = false;
+    db.stopsError = null;
     db.selects = [];
     db.completionRow = null;
     db.stopRow = { venue_id: "venue-a", venue_name: "A", position: 0, selected_drink_price_evidence: EVIDENCE };
   });
 
   it("returns bounded selected evidence on a member Plan read", async () => {
+    db.stopRow = { ...db.stopRow, selected_drink_price_evidence: { ...EVIDENCE, contributor: "private-account-canary" } };
     const result = await supabasePlanStore.read(PLAN_ID);
     expect(result.status).toBe("found");
     if (result.status !== "found") return;
@@ -82,7 +91,40 @@ describe("saved Plan selected drink evidence reads", () => {
     if (result.status !== "found") return;
     expect(result.state.stops[0]).toMatchObject({ venueId: "venue-a", venueName: "A", position: 0 });
     expect(result.state.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
-    expect(db.selects).toEqual(["venue_id,venue_name,position,selected_drink_price_evidence", "venue_id,venue_name,position"]);
+    expect(db.selects).toEqual([
+      "venue_id,venue_name,position,selected_drink_price_evidence,alternatives",
+      "venue_id,venue_name,position,selected_drink_price_evidence",
+      "venue_id,venue_name,position",
+    ]);
+  });
+
+  it("keeps selected evidence when only the alternatives column is missing", async () => {
+    db.missingAlternatives = true;
+    db.stopRow = { ...db.stopRow, alternatives: [
+      { venueId: "venue-b", venueName: "B", selectedDrinkPriceEvidence: EVIDENCE },
+    ] };
+    const result = await supabasePlanStore.read(PLAN_ID);
+    expect(result.status).toBe("found");
+    if (result.status !== "found") return;
+    expect(result.state.stops[0]).toMatchObject({ venueId: "venue-a", venueName: "A", position: 0 });
+    expect(result.state.stops[0]?.selectedDrinkPriceEvidence).toEqual(EVIDENCE);
+    expect(result.state.stops[0]?.alternatives).toBeUndefined();
+    expect(db.selects).toEqual([
+      "venue_id,venue_name,position,selected_drink_price_evidence,alternatives",
+      "venue_id,venue_name,position,selected_drink_price_evidence",
+    ]);
+  });
+
+  it("refuses an unrelated database read error without retrying a narrower projection", async () => {
+    db.stopsError = { code: "42501", message: "permission denied for table plan_stops" };
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(await supabasePlanStore.read(PLAN_ID)).toEqual({ status: "unavailable" });
+      expect(db.selects).toEqual(["venue_id,venue_name,position,selected_drink_price_evidence,alternatives"]);
+      expect(log).toHaveBeenCalledExactlyOnceWith("[plans] read failed:", db.stopsError.message);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("returns bounded selected evidence from a saved completion snapshot", async () => {

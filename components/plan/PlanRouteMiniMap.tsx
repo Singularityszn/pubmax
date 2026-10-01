@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useId, useMemo, useState } from "react";
 
 import {
@@ -78,7 +78,6 @@ export default function PlanRouteMiniMap({
   stops: PlanCrawlRouteStop[];
   mapHref?: string | null;
 }) {
-  const router = useRouter();
   const [resolved, setResolved] = useState<ResolvedPlanCrawlRoute | null>(null);
   const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [drawn, setDrawn] = useState<DrawnRoute | null>(null);
@@ -157,26 +156,19 @@ export default function PlanRouteMiniMap({
 
   return (
     <figure
-      className={`planRouteMiniMap planRouteMiniMap--in${mapHref ? " planRouteMiniMap--clickable" : ""}`} data-source={activeDrawn.source}
-      onClick={
-        mapHref
-          ? () => {
-              router.push(mapHref);
-            }
-          : undefined
-      }
-      onKeyDown={
-        mapHref
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                router.push(mapHref);
-              }
-            }
-          : undefined
-      }
-      tabIndex={mapHref ? 0 : undefined}
- role={mapHref ? "button" : "group"} aria-labelledby={`${titleId} ${descId}`}>
+      className={`planRouteMiniMap planRouteMiniMap--in${mapHref ? " planRouteMiniMap--clickable" : ""}`}
+      data-source={activeDrawn.source}
+      role="group"
+      aria-labelledby={`${titleId} ${descId}`}
+    >
+      {mapHref ? (
+        <Link
+          href={mapHref}
+          prefetch={false}
+          className="planRouteMiniMap__routeLink"
+          aria-labelledby={`${titleId} ${descId}`}
+        />
+      ) : null}
       <p id={titleId} className="planRouteMiniMap__title">
         {title}
       </p>

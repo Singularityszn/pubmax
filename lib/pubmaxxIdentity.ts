@@ -1,5 +1,4 @@
-import { normalizeHandle } from "@/lib/profiles";
-import { HANDLE_MAX } from "@/lib/handleNormalize";
+import { HANDLE_MAX, normalizeHandle } from "@/lib/handleNormalize";
 
 export const HANDLE_RENAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1_000;
 

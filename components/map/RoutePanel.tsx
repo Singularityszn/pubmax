@@ -34,6 +34,8 @@ import VenuePicker from "@/components/map/route/VenuePicker";
 import { useRoutePois } from "@/components/map/route/useRoutePois";
 import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
 import "@/components/map/routePanel.css";
+import type { GeneratedMapRoutePricing } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { categoryLabel } from "@/lib/drinks";
 
 type VenueSignals = Map<
   string,
@@ -48,6 +50,7 @@ type RoutePanelProps = {
   altStyle: AltCrawlStyle;
   onAltStyleChange: (style: AltCrawlStyle) => void;
   route: Venue[];
+  generatedPricing?: GeneratedMapRoutePricing | null;
   filteredVenues: Venue[];
   builtIds: string[];
   activeVenueId: string | undefined;
@@ -85,12 +88,31 @@ type RoutePanelProps = {
   journeyTotalMinutes?: number | null;
 };
 
+/** Generated totals and quotes belong to the exact stop set, even after a reverse. */
+function generatedRoutePricePresentation(route: readonly Venue[], pricing: GeneratedMapRoutePricing | null) {
+  if (!pricing) return null;
+  const nonPint = pricing.context.zeroProof
+    || Boolean(pricing.context.drinkCategory && pricing.context.drinkCategory !== "beer");
+  const drinkLabel = pricing.context.zeroProof ? "Alcohol-free"
+    : pricing.context.drinkCategory && pricing.context.drinkCategory !== "beer"
+      ? categoryLabel(pricing.context.drinkCategory) : null;
+  const matches = new Set(pricing.venueIds).size === route.length
+    && pricing.venueIds.length === route.length
+    && new Set(route.map((venue) => venue.id)).size === route.length
+    && route.every((venue) => pricing.venueIds.includes(venue.id));
+  const pence = matches ? pricing.budget?.estimatedPerPersonPence : null;
+  const roundTotal = !nonPint && typeof pence === "number" && Number.isSafeInteger(pence) && pence >= 0
+    ? pence / 100 : null;
+  return { drinkLabel, roundTotal, quotes: matches ? pricing.quotes : undefined };
+}
+
 export default function RoutePanel({
   mode,
   crawlStyle,
   altStyle,
   onAltStyleChange,
   route,
+  generatedPricing = null,
   filteredVenues,
   builtIds,
   activeVenueId,
@@ -117,6 +139,12 @@ export default function RoutePanel({
   journeyTotalMinutes = null,
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
+  const generatedPresentation = useMemo(
+    () => generatedRoutePricePresentation(route, generatedPricing),
+    [route, generatedPricing],
+  );
+  const generatedDrinkLabel = generatedPresentation?.drinkLabel ?? null;
+  const roundTotal = generatedPresentation ? generatedPresentation.roundTotal : summary.total;
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
   const routeHeritageCount = route.filter((venue) => venue.hasStory).length;
   const routeWriterCount = route.filter((venue) => venue.curation.writerPick).length;
@@ -136,7 +164,7 @@ export default function RoutePanel({
   // Alt-style copy: a "coffee stop" / "food stop" / "mocktail stop" instead of
   // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
   // in sync with the URL round-trip.
-  const stopNoun = altStyleStopNoun[altStyle];
+  const stopNoun = generatedDrinkLabel ? `${generatedDrinkLabel.toLowerCase()} stop` : altStyleStopNoun[altStyle];
   const crawlTitle =
     mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
 
@@ -193,6 +221,8 @@ export default function RoutePanel({
       onTheWayByLeg={onTheWayByLeg}
       journeyByToIndex={journeyByToIndex}
       onSelectVenue={onSelectVenue}
+      generatedDrinkLabel={generatedDrinkLabel}
+      generatedQuotes={generatedPresentation?.quotes}
     />
   );
 
@@ -205,12 +235,13 @@ export default function RoutePanel({
         crawlBlurb={crawlBlurb}
         altStyle={altStyle}
         onAltStyleChange={onAltStyleChange}
+        generatedDrinkLabel={generatedDrinkLabel}
       />
 
       {stopsFirst ? stopsList : null}
 
       <RouteMetrics
-        summaryTotal={summary.total}
+        summaryTotal={roundTotal}
         summaryDistance={summary.distance}
         legSummary={legSummary}
         pace={pace}
@@ -261,9 +292,8 @@ export default function RoutePanel({
           stops={route.map((venue) => ({
             venueId: venue.id,
             name: venue.name,
-            // The route's representative per-stop price (same signal the metrics
-            // total uses) — the cheapest listed pint at that venue.
-            priceGbp: venue.cheapestPrice,
+            // A generated drink route cannot turn a pint into that drink's price.
+            priceGbp: generatedDrinkLabel ? null : venue.cheapestPrice,
           }))}
           defaultTitle={
             mode === "build"

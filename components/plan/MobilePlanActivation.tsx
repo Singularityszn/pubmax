@@ -31,7 +31,9 @@ import { recordKeptAction } from "@/lib/nativeReviewPrompt";
 import type { Venue } from "@/lib/venues";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 
-type GeneratedStop = { venueId: string; venueName: string };
+import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+
+type GeneratedStop = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence | null };
 
 export type GeneratedMobilePlan = {
   stops: GeneratedStop[];

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -39,9 +39,11 @@ import "./siteNavMoment.css";
 // list (see siteNav.css @media ≤640px). On desktop the full links + active
 // state show. Nothing may horizontally overflow at 390px.
 //
-// No effects: usePathname() marks the active link, which keeps this clear of
-// react-hooks/set-state-in-effect. `active` can also be passed explicitly by the
-// host page; the pathname is the fallback so a nav always lights the right tab.
+// usePathname() marks the active link. `active` can also be passed explicitly
+// by the host page; the pathname is the fallback.
+
+// A retiring route cannot remove the frame measured by its replacement.
+let measuredNavOwner: HTMLElement | null = null;
 
 type NavKey =
   | "home"
@@ -121,6 +123,33 @@ export default function SiteNav({
   const isMap =
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
+  const navRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    measuredNavOwner = nav;
+    const updateBottom = () => {
+      if (measuredNavOwner !== nav) return;
+      document.documentElement.style.setProperty(
+        "--site-nav-bottom",
+        `${Math.max(0, nav.getBoundingClientRect().bottom)}px`,
+      );
+    };
+    updateBottom();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateBottom);
+    observer?.observe(nav);
+    window.addEventListener("resize", updateBottom);
+    window.addEventListener("scroll", updateBottom, true);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateBottom);
+      window.removeEventListener("scroll", updateBottom, true);
+      if (measuredNavOwner !== nav) return;
+      measuredNavOwner = null;
+      document.documentElement.style.removeProperty("--site-nav-bottom");
+    };
+  }, [pathname, isMap]);
+
   // Active state is the filled pill only (.siteNavLink.isActive) — same single
   // signal as the mobile tab bar. The gliding brass underline was removed so
   // desktop does not double-encode "here".
@@ -130,6 +159,7 @@ export default function SiteNav({
 
   return (
     <nav
+      ref={navRef}
       className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
       role="navigation"
       aria-label="Site navigation"

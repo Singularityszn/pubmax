@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
 import {
   buildMapVenueListModel,
+  combineMapVenueListRows,
   buildUkBasePubListModel,
   projectedItemIdsInViewport,
   MAP_VENUE_LIST_LIMIT,
@@ -603,5 +604,51 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
     );
     expect(model.coverageNote).toBeNull();
     expect(model.rows[0].priceLabel).toBe("£4.50");
+  });
+});
+
+
+describe("listed category amounts rank only within the reader's selected serving", () => {
+  const now = "2026-09-21T12:00:00.000Z";
+  const quote = (id: string, amount: number, serving: string | null): import("@/lib/mapExperienceLens").MapLensPrice => ({
+    venueId: id, category: "gin", categoryLabel: "Gin", priceGbp: amount,
+    servingSize: serving, source: "listed", drinkLabel: "Named gin",
+    sourceUrl: "https://pub.example/drinks", observedAt: now,
+  });
+
+  it("leaves unknown and different serves visible but unranked after comparable offers", () => {
+    const venues = [venue({ id: "unknown", longitude: -0.12 }),
+      venue({ id: "double", longitude: -0.12 }), venue({ id: "priced", longitude: -0.12 })];
+    const prices = new Map([
+      ["unknown", quote("unknown", 2, null)],
+      ["double", quote("double", 3, "50ml")],
+      ["priced", quote("priced", 4.2, "25ml")],
+    ]);
+    const model = buildMapVenueListModel(venues, [-0.12, 51.5], undefined,
+      prices, "gin", "ready", "cheapest", null, "25ml");
+    expect(model.rows.map((row) => row.id)).toEqual(["priced", "double", "unknown"]);
+    expect(model.rows.find((row) => row.id === "unknown")?.priceLabel).toContain("£2.00");
+    expect(model.rows.find((row) => row.id === "priced")?.lensPrice).toMatchObject({
+      drinkLabel: "Named gin", servingSize: "25ml", sourceUrl: "https://pub.example/drinks", observedAt: now,
+    });
+  });
+
+  it("joins base offers by exact id and sorts comparable base and curated offers together", () => {
+    const base: UkBasePub = { id: "venue-uk-n1001", name: "Base Arms", address: "",
+      lat: 51.5, lng: -0.12, curatedVenueId: "", kind: "pub" };
+    const unknown: UkBasePub = { ...base, id: "venue-uk-n1002", name: "Unpriced Arms" };
+    const prices = new Map([[base.id, quote(base.id, 4.1, "25ml")],
+      ["curated", quote("curated", 4.2, "25ml")]]);
+    const curated = buildMapVenueListModel([venue({ id: "curated" })], [-0.12, 51.5],
+      undefined, prices, "gin", "ready", "cheapest", null, "25ml");
+    const bases = buildUkBasePubListModel([base, unknown], [-0.12, 51.5], undefined,
+      prices, "cheapest", "25ml");
+    expect(bases.rows.find((row) => row.id === base.id)).toMatchObject({
+      pub: base, lensPrice: { source: "listed", priceGbp: 4.1, servingSize: "25ml",
+        sourceUrl: "https://pub.example/drinks", observedAt: now },
+    });
+    expect(combineMapVenueListRows(curated.rows, bases.rows, "cheapest").map((row) => row.id))
+      .toEqual([base.id, "curated", unknown.id]);
+    expect(bases.rows.find((row) => row.id === unknown.id)?.priceLabel).not.toMatch(/£/);
   });
 });

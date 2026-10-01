@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import LandingPage from "@/components/landing/LandingPage";
+import LandingLondonCollage from "@/components/landing/LandingLondonCollage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
@@ -110,6 +111,7 @@ export default async function Home() {
         averages={averages}
         answers={answers}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
+        londonCollage={<LandingLondonCollage />}
       />
     </>
   );

@@ -551,8 +551,9 @@ export async function measurePerfRedirect(
     `${route.path} is budgeted as a redirect to ${route.redirectsTo}, so it must answer one.`,
   ).toBeGreaterThanOrEqual(300);
   expect(response.status(), `${route.path} answered ${response.status()}`).toBeLessThan(400);
+  const destination = new URL(response.headers().location ?? "", "http://localhost");
   expect(
-    new URL(response.headers().location ?? "", "http://localhost").pathname,
+    `${destination.pathname}${destination.search}`,
     `${route.path} redirects somewhere other than its budgeted target.`,
   ).toBe(route.redirectsTo);
 

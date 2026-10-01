@@ -264,35 +264,78 @@ describe("POST /api/plans/generate", () => {
     }
   });
 
-  it("joins trusted wine prices into value ranking without using pint prices", async () => {
-    loadConciergeVenuesMock.mockResolvedValueOnce([
+  it("retains trusted wine attribution without amount-ranking unknown servings or borrowing pint prices", async () => {
+    const venues = [
       generatedVenue("v1", { cheapestPrice: 4 }),
       generatedVenue("v2", { cheapestPrice: 6 }),
       generatedVenue("v3", { cheapestPrice: 3 }),
-    ]);
+    ];
     const now = Date.now();
-    categoryIndexMock.mockResolvedValueOnce({
-      prices: [
-        { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
-        { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
-        { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
-      ],
-      truncated: false,
-      degraded: false,
-    });
-
-    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    const previousListedRows = listedBundleFixture.rows;
+    listedBundleFixture.rows = [];
+    const request = () => new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({ query: "cheap wine in Clapham for 2 after work" }),
-    }));
+    });
+    const seedReads = (firstAmount: number, secondAmount: number) => {
+      loadConciergeVenuesMock.mockResolvedValueOnce(venues);
+      categoryIndexMock.mockResolvedValueOnce({
+        prices: [
+          { venueId: "v1", drinkCategory: "wine", priceGbp: firstAmount, submittedAt: now, source: "community", corroborations: 2 },
+          { venueId: "v2", drinkCategory: "wine", priceGbp: secondAmount, submittedAt: now, source: "community", corroborations: 2 },
+          { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
+        ],
+        truncated: false,
+        degraded: false,
+      });
+    };
+    try {
+      seedReads(9, 7);
+      const original = await preparePlanGeneration(request());
+      expect("prepared" in original).toBe(true);
+      if (!("prepared" in original)) return;
+      expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), now);
+      expect(original.prepared.context.drinkCategory).toBe("wine");
+      const originalRank = original.prepared.candidates.map(({ venue, score }) => ({ id: venue.id, score }));
+      for (const [id, priceGbp] of [["v1", 9], ["v2", 7]] as const) {
+        const candidate = original.prepared.candidates.find(({ venue }) => venue.id === id)!;
+        expect(candidate.selectedDrinkPrice).toMatchObject({ category: "wine", priceGbp, source: "community", submittedAt: now });
+        expect(candidate.selectedDrinkPrice?.servingSize ?? null).toBeNull();
+        expect(candidate.reasons.join(" ")).not.toMatch(/pints from|wine price £/i);
+      }
+      expect(original.prepared.candidates.find(({ venue }) => venue.id === "v3")?.selectedDrinkPrice).toBeNull();
 
-    expect("prepared" in result).toBe(true);
-    if (!("prepared" in result)) return;
-    expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
-    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
-    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
-    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
-    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+      // Reverse the cheaper report decisively. Unknown servings carry
+      // attribution, never a raw-GBP comparison or a score bonus.
+      seedReads(2, 20);
+      const changed = await preparePlanGeneration(request());
+      expect("prepared" in changed).toBe(true);
+      if (!("prepared" in changed)) return;
+      expect(changed.prepared.candidates.map(({ venue, score }) => ({ id: venue.id, score }))).toEqual(originalRank);
+      expect(changed.prepared.candidates.find(({ venue }) => venue.id === "v1")?.selectedDrinkPrice?.priceGbp).toBe(2);
+      expect(changed.prepared.candidates.find(({ venue }) => venue.id === "v2")?.selectedDrinkPrice?.priceGbp).toBe(20);
+      expect(changed.prepared.candidates.find(({ venue }) => venue.id === "v3")?.selectedDrinkPrice).toBeNull();
+
+      seedReads(9, 7);
+      const response = await POST(request());
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.stops.map((stop: { venueId: string }) => stop.venueId).sort()).toEqual(["v1", "v2", "v3"]);
+      expect(body.budgetSummary).toMatchObject({ estimatedPerPersonPence: null, estimatedCrewPence: null,
+        basis: "selected-drink-price-unavailable" });
+      for (const [id, pence] of [["v1", 900], ["v2", 700]] as const) {
+        expect(body.stops.find((stop: { venueId: string }) => stop.venueId === id)).toMatchObject({
+          estimatedPintPricePence: null, priceEvidence: null,
+          selectedDrinkPriceEvidence: { category: "wine", pence, serving: null,
+            source: "community", reportedAt: new Date(now).toISOString() },
+        });
+      }
+      expect(body.stops.find((stop: { venueId: string }) => stop.venueId === "v3")?.selectedDrinkPriceEvidence ?? null).toBeNull();
+    } finally {
+      listedBundleFixture.rows = previousListedRows;
+      clock.mockRestore();
+    }
   });
 
   it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {

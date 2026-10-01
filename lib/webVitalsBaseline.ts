@@ -29,6 +29,8 @@
 
 import baselineJson from "@/perf/cwv-baseline.json";
 
+import { median } from "./performanceBudgets";
+
 /**
  * The three Core Web Vitals, and the product timings beside them.
  *
@@ -255,6 +257,38 @@ export function productTimingKey(key: string, device: VitalsDevice): string {
 /** The measured side of a comparison: what a later sweep actually read. */
 export type MeasuredVitals = Pick<VitalsRecord, "lcpMs" | "inpMs" | "cls">;
 
+export type VitalsSample = MeasuredVitals & {
+  /**
+   * Whether the route's primary action was actually exercised.
+   *
+   * A control that never appeared leaves the probe with no interaction to
+   * report, and INP then reads at the floor - which puts the route at the TOP
+   * of the table as the most responsive thing on the site. That failure is
+   * silent and flattering, which is the worst combination a measurement can
+   * have, so every sample must prove an interaction before aggregation.
+   */
+  interacted: boolean;
+};
+
+export function aggregateVitalsSamples(samples: readonly VitalsSample[]): MeasuredVitals {
+  if (samples.length === 0) throw new Error("No Core Web Vitals samples were measured");
+  samples.forEach((sample, index) => {
+    if (sample.interacted !== true) {
+      throw new Error(`Core Web Vitals sample ${index + 1} has no primary interaction`);
+    }
+    for (const metric of VITAL_METRICS) {
+      if (!Number.isFinite(sample[metric]) || sample[metric] < 0) {
+        throw new Error(`Core Web Vitals sample ${index + 1} has invalid ${metric}`);
+      }
+    }
+  });
+  return {
+    lcpMs: median(samples.map((sample) => sample.lcpMs)),
+    inpMs: median(samples.map((sample) => sample.inpMs)),
+    cls: median(samples.map((sample) => sample.cls)),
+  };
+}
+
 export type VitalsRegression = {
   key: string;
   metric: string;
@@ -290,7 +324,7 @@ export function findVitalsRegressions(
     if (!run) continue;
     for (const metric of VITAL_METRICS) {
       const allowed = regressionCeiling(metric, record[metric]);
-      if (!Number.isFinite(run[metric]) || run[metric] <= allowed) continue;
+      if (Number.isFinite(run[metric]) && run[metric] >= 0 && run[metric] <= allowed) continue;
       regressions.push({
         key,
         metric,
@@ -304,6 +338,16 @@ export function findVitalsRegressions(
   return regressions;
 }
 
+export function aggregateProductTimingSamples(samples: readonly number[]): number {
+  if (samples.length === 0) throw new Error("No product timing samples were measured");
+  samples.forEach((sample, index) => {
+    if (!Number.isFinite(sample) || sample < 0) {
+      throw new Error(`Product timing sample ${index + 1} is invalid`);
+    }
+  });
+  return median(samples);
+}
+
 /** The same question for the product timings. */
 export function findProductTimingRegressions(
   baseline: readonly ProductTimingRecord[],
@@ -312,10 +356,10 @@ export function findProductTimingRegressions(
   const regressions: VitalsRegression[] = [];
   for (const record of baseline) {
     const key = productTimingKey(record.key, record.device);
-    const run = measured.get(key);
-    if (run === undefined || !Number.isFinite(run)) continue;
+    if (!measured.has(key)) continue;
+    const run = measured.get(key)!;
     const allowed = regressionCeiling("productMs", record.ms);
-    if (run <= allowed) continue;
+    if (Number.isFinite(run) && run >= 0 && run <= allowed) continue;
     regressions.push({
       key,
       metric: "ms",

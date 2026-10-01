@@ -372,6 +372,12 @@ describe("drinkLensCoverageNote — three findings, never merged", () => {
     expect(degraded).not.toBeNull();
   });
 
+  it("allows visible prices when one of the listed and community sources fails", () => {
+    const degraded = drinkLensCoverageNote("whisky", "degraded");
+    expect(degraded).toContain("Any prices shown");
+    expect(degraded).not.toContain("none are shown");
+  });
+
   it("marks an unstarted or in-flight read as unfinished", () => {
     expect(drinkLensCoverageNote("whisky", "idle")).toContain("Checking");
     expect(drinkLensCoverageNote("whisky", "loading")).toContain("Checking");

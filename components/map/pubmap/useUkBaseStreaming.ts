@@ -15,6 +15,7 @@ import {
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { discardBody } from "@/lib/responseBody";
+import { filterUkBasePubsByKind, type VenueKindVisibility } from "@/lib/venueKindFilters";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
@@ -50,6 +51,7 @@ type Options = {
   /** Reseeded by buildScene after a theme setStyle wipes every source. */
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
   drawableVenueIds: ReadonlySet<string>;
+  venueKindVisibility: VenueKindVisibility;
   /** Visibility-only marks keyed by stable `venue-uk-*` ids. */
   provisionalVenueIds?: ReadonlySet<string> | null;
   /**
@@ -232,6 +234,7 @@ export function useUkBaseStreaming({
   applyToMap,
   ukBaseDataRef,
   drawableVenueIds,
+  venueKindVisibility,
   provisionalVenueIds = null,
   spoonsValue = null,
   suspended = false,
@@ -260,41 +263,49 @@ export function useUkBaseStreaming({
     () => ({ scopeKey, status: "loading", count: 0, pubs: [] }),
   );
   const publishedModeRef = useRef({ scopeKey, suspended });
+  // The loader owns shard cache; this ref keeps only the last viewport answer
+  // so a kind toggle can redraw it without another read or camera debounce.
+  const viewportPubsRef = useRef<UkBasePub[]>([]);
+  const paintInputsRef = useRef({
+    drawableVenueIds,
+    venueKindVisibility,
+    provisionalVenueIds,
+    spoonsValue,
+  });
 
   const publish = useCallback(
     (nextPubs: UkBasePub[], status: UkBaseStreamStatus) => {
+      viewportPubsRef.current = nextPubs;
+      const inputs = paintInputsRef.current;
       const drawablePubs = ukBasePubsForDrawableVenues(
         nextPubs,
-        drawableVenueIds,
+        inputs.drawableVenueIds,
+      );
+      const visiblePubs = filterUkBasePubsByKind(
+        drawablePubs,
+        inputs.venueKindVisibility,
       );
       const data =
-        drawablePubs.length > 0
-          ? ukBasePubsToGeoJSON(drawablePubs, provisionalVenueIds, spoonsValue)
+        visiblePubs.length > 0
+          ? ukBasePubsToGeoJSON(visiblePubs, inputs.provisionalVenueIds, inputs.spoonsValue)
           : EMPTY;
       ukBaseDataRef.current = data;
       setPublished({
         scopeKey,
         status,
-        count: drawablePubs.length,
-        // Keep the padded source rows available for immediate reprojection as
-        // the camera moves. PubMapCanvas publishes only rows actually on the
-        // rendered canvas, so stale AABB membership never reaches the DOM list
-        // or provisional-mark reader while the next shard fetch is debounced.
-        pubs: drawablePubs,
+        count: visiblePubs.length,
+        // The list, resident search and visibility projection read the same
+        // rows as the GeoJSON source. The raw viewport answer stays in the ref
+        // above for immediate re-filtering when a kind changes.
+        pubs: visiblePubs,
       });
       applyToMap("uk-base:data", (map) => {
         (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
       });
-      return drawablePubs;
+      // A filtered bar may still be the target of a cold ?sel= restore.
+      return nextPubs;
     },
-    [
-      applyToMap,
-      drawableVenueIds,
-      provisionalVenueIds,
-      scopeKey,
-      spoonsValue,
-      ukBaseDataRef,
-    ],
+    [applyToMap, scopeKey, ukBaseDataRef],
   );
 
   // Scope and lens ownership can change without a camera event. Clear the old
@@ -308,6 +319,43 @@ export function useUkBaseStreaming({
     publishedModeRef.current = { scopeKey, suspended };
     publish([], suspended ? "suspended" : "loading");
   }, [publish, scopeKey, suspended]);
+
+  // Kind and curated-owner changes alter paint, not which shards the viewport
+  // needs. Republish the resident answer before paint rather than restarting
+  // the stream's 180 ms camera debounce.
+  useLayoutEffect(() => {
+    const previous = paintInputsRef.current;
+    if (
+      previous.drawableVenueIds === drawableVenueIds &&
+      previous.venueKindVisibility === venueKindVisibility &&
+      previous.provisionalVenueIds === provisionalVenueIds &&
+      previous.spoonsValue === spoonsValue
+    ) return;
+    paintInputsRef.current = {
+      drawableVenueIds,
+      venueKindVisibility,
+      provisionalVenueIds,
+      spoonsValue,
+    };
+    // A simultaneous city/lens transition already cleared the source above.
+    // The render's old status must not turn that new loading state into ready.
+    if (
+      published.scopeKey !== scopeKey ||
+      published.status === "suspended" ||
+      suspended
+    ) return;
+    publish(viewportPubsRef.current, published.status);
+  }, [
+    drawableVenueIds,
+    venueKindVisibility,
+    provisionalVenueIds,
+    spoonsValue,
+    publish,
+    published.scopeKey,
+    published.status,
+    scopeKey,
+    suspended,
+  ]);
 
   // Cold restore: resolve the shared link before (and without) the viewport
   // stream. One-shot per restoreId; stream-path restore below is the fallback
@@ -392,10 +440,10 @@ export function useUkBaseStreaming({
               requestedMode,
             )
           ) return;
-          const drawablePubs = publish(read.pubs, read.status);
+          const viewportPubs = publish(read.pubs, read.status);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
-          const hit = drawablePubs.find((pub) => pub.id === wanted);
+          const hit = viewportPubs.find((pub) => pub.id === wanted);
           if (!hit) return;
           restoreIdRef.current = null;
           onRestorePubRef.current?.(hit);

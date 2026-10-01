@@ -626,3 +626,21 @@ describe("canonicalizeAcceptedArrivalSelection", () => {
     });
   });
 });
+
+describe("Map acceptance selected published offer", () => {
+  it("persists exact selection without inventing dated arrival provenance", () => {
+    const selected = {
+      category: "gin" as const, pence: 420, serving: "25ml", source: "listed" as const,
+      sourceUrl: "https://example.com/published-menu", observedAt: new Date(NOW - 60_000).toISOString(),
+    };
+    const storage = memoryStorage();
+    const input = { cityId: "london" as const, acceptedVenueId: ACCEPTED_VENUE,
+      search: "?drink=gin&serving=25ml", selectedDrinkPriceEvidence: selected };
+    expect(acceptMapVenue(input, { storage, now: NOW }).accepted).toBe(true);
+    expect(storedIntent(storage)).toMatchObject({
+      acceptedVenueId: ACCEPTED_VENUE, acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+      selectedDrinkPriceEvidence: selected,
+    });
+  });
+});

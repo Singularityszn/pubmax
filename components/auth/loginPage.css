@@ -66,6 +66,16 @@
   line-height: 1.4;
 }
 
+.loginPageUnavailable {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.loginPageUnavailable p {
+  margin: 0;
+}
+
 .loginPageForm {
   display: grid;
   gap: 0.75rem;

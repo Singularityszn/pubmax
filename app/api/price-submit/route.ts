@@ -41,6 +41,10 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
+import { listedServingGroup } from "@/lib/listedPriceComparison";
+
+import { ukPriceBundleCategoryIndex, ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
@@ -557,12 +561,22 @@ export async function GET(request: Request): Promise<Response> {
     }
     const drinkCategory = searchParams.get("drinkCategory");
     if (isDrinkCategory(drinkCategory)) {
-      const result = await readCommunityPriceCategoryIndex([drinkCategory]);
+      const requestedServing = searchParams.get("serving");
+      const serving = listedServingGroup(drinkCategory, requestedServing);
+      if (requestedServing !== null && !serving) {
+        return publicApiError("Choose a source-stated serving size.", "INVALID_REQUEST", 400);
+      }
+      const [result, listed] = await Promise.all([
+        readCommunityPriceCategoryIndex([drinkCategory]),
+        ukPriceBundleCategoryIndex(drinkCategory, Date.now(), serving),
+      ]);
       return jsonNoStore(
         {
           prices: result.prices,
-          truncated: result.truncated,
-          ...(result.degraded ? { degraded: true } : {}),
+          listedPrices: listed.prices,
+          ...(listed.servingGroups ? { servingGroups: listed.servingGroups } : {}),
+          truncated: result.truncated || listed.truncated,
+          ...(result.degraded || listed.degraded ? { degraded: true } : {}),
         },
         { status: 200 },
       );
@@ -577,19 +591,31 @@ export async function GET(request: Request): Promise<Response> {
       }
       priceVenueId = venueLookup.canonicalId;
     }
-    const [result, signalResult] = await Promise.all([
+    // A base id remains outside the curated venue index. Published quotes use
+    // only approved bundle rows keyed by that exact id; no new membership scan
+    // or community authority is involved in this public read.
+    const baseRead = isUkBaseId(priceVenueId);
+    const [result, signalResult, published] = await Promise.all([
       readCommunityPricesWithStatus(priceVenueId),
       readCommunityVenueSignalsWithStatus(priceVenueId),
+      baseRead
+        ? ukPriceBundleRowsFor(priceVenueId)
+            .then((bundle) => bundle.status === "unavailable"
+              ? null : listedCategoryPrices(bundle.rows, undefined, { includeBeer: true }))
+            .catch(() => null)
+        : undefined,
     ]);
+    const listed = baseRead ? { listedPrices: published } : {};
     const degraded = result.degraded || signalResult.degraded;
     return jsonNoStore(
       degraded
         ? {
             prices: result.prices,
             signals: signalResult.signals,
+            ...listed,
             degraded: true,
           }
-        : { prices: result.prices, signals: signalResult.signals },
+        : { prices: result.prices, signals: signalResult.signals, ...listed },
       { status: 200 },
     );
   } catch {

@@ -1,7 +1,7 @@
 import type { Page, Request } from "@playwright/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { aggregatePerfMetric, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
+import { aggregatePerfMetric, measurePerfRedirect, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
 import { PERFORMANCE_BUDGETS, type BudgetMethod } from "../lib/performanceBudgets";
 
 // The quiet window is scaled to the tracked network profile, so these cases
@@ -123,5 +123,40 @@ describe("the quiet window follows the tracked network profile", () => {
 describe("performance measurement aggregation", () => {
   it("keeps an absent metric unmeasured instead of treating it as zero", () => {
     expect(Number.isNaN(aggregatePerfMetric([Number.NaN, 700, 710]))).toBe(true);
+  });
+});
+
+
+describe("redirect measurement keeps its complete destination", () => {
+  function redirectPage(location: string, status = 308) {
+    const get = vi.fn().mockResolvedValue({ status: () => status, headers: () => ({ location }) });
+    return { page: { request: { get } } as unknown as Page, get };
+  }
+
+  const discovery = { path: "/discover", readySelector: "main.socialPage", redirectsTo: "/social?tab=discover" };
+
+  it.each(["/social?tab=discover", "https://pubmaxxing.com/social?tab=discover"])(
+    "measures matching relative or absolute redirect %s without following it",
+    async (destination) => {
+      const harness = redirectPage(destination);
+      await expect(measurePerfRedirect(harness.page, discovery)).resolves.toMatchObject({
+        requests: 1, jsDecodedKB: 0, lcpMs: 0, cls: 0,
+      });
+      expect(harness.get).toHaveBeenCalledWith("/discover", {
+        maxRedirects: 0,
+        headers: { accept: expect.stringContaining("text/html") },
+      });
+    },
+  );
+
+  it.each(["/social", "/social?tab=crews", "/social?tab=discover&unbudgeted=1"])(
+    "refuses a destination that loses or changes the budgeted query: %s",
+    async (destination) => {
+      await expect(measurePerfRedirect(redirectPage(destination).page, discovery)).rejects.toThrow();
+    },
+  );
+
+  it("still refuses a document response even when its location matches", async () => {
+    await expect(measurePerfRedirect(redirectPage(discovery.redirectsTo, 200).page, discovery)).rejects.toThrow();
   });
 });

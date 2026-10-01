@@ -1,3 +1,4 @@
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
   NIGHT_PATCHES,
   resolveNightPatch,
@@ -666,6 +667,7 @@ export type PlanGenerationIntakeBody = {
 
 export type PlanGenerationAnchorInput = PlanGenerationWireAnchor & {
   cityId?: CityId | null;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
 /** Remove values inherited from an earlier intake before applying its current answers. */
@@ -697,7 +699,12 @@ export function buildPlanGenerationIntakeBody(
   anchor?: PlanGenerationAnchorInput | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
+  const selected = cleanSelectedDrinkPriceEvidence(anchor?.selectedDrinkPriceEvidence);
+  // A recovered night or a deliberate edit owns its category; the acceptance
+  // seeds only an unanswered choice, never replaces an existing one.
   const context = {
+    ...(selected && !explicitContext.zeroProof && !currentContext?.zeroProof
+      ? { drinkCategory: selected.category } : {}),
     ...stripPlanIntakeOwnedContext(currentContext),
     ...explicitContext,
     ...planIntakeNightContextPatch(draft),
@@ -713,6 +720,8 @@ export function buildPlanGenerationIntakeBody(
         source: anchor.source,
         acceptedArea: anchor.acceptedArea,
         startsAt: anchor.startsAt,
+        ...(selected && !context.zeroProof && context.drinkCategory === selected.category
+          ? { selectedDrinkPriceEvidence: selected } : {}),
       },
     } : {}),
   };

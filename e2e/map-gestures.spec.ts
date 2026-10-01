@@ -43,6 +43,9 @@ const MIN_BEARING_CHANGE = 20;
 const PITCH_DRAG_PX = 420;
 const PITCH_STEPS = 60;
 const MIN_PITCH_CHANGE = 8;
+// MapLibre also recognizes a two-finger tap within 30px and zooms out on
+// release. A tilt must leave that tap radius before either finger lifts.
+const MIN_PITCH_DRAG_PX = 40;
 
 /** How long the camera is watched for movement nobody asked for. */
 const STILLNESS_WINDOW_MS = 4_000;
@@ -87,6 +90,38 @@ async function readCamera(page: Page): Promise<CameraReading> {
     return probe.read();
   }) as Promise<CameraReading>;
 }
+
+test("Layers keeps a 44px close target during its entrance", async ({ page }) => {
+  test.slow();
+  await page.setViewportSize(TABLET_VIEWPORT);
+  await openMap(page);
+  const panel = page.locator(".mapLayersControl > .mapLayersPanel");
+  const fab = page.locator(".mapLayersControl > .mapLayersFab");
+  const close = panel.getByRole("button", { name: "Close layers", exact: true });
+  await expect(async () => {
+    if (!(await panel.isVisible())) await fab.click();
+    await expect(close).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const geometry = await panel.evaluate((element) => {
+    const entrance = element.getAnimations().find((animation) =>
+      animation instanceof CSSAnimation && animation.animationName === "mapLayersPanelIn",
+    );
+    if (!entrance) throw new Error("Layers entrance animation is absent");
+    const duration = Number(entrance.effect?.getComputedTiming().duration);
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error("Layers entrance has no duration");
+    // Inspect the actual rendered control halfway through its own entrance.
+    entrance.pause();
+    entrance.currentTime = duration / 2;
+    const control = element.querySelector<HTMLElement>(".mapLayersClose");
+    if (!control) throw new Error("Layers close control is absent");
+    const box = control.getBoundingClientRect();
+    return { width: box.width, height: box.height };
+  });
+  expect(geometry.width).toBeGreaterThanOrEqual(44);
+  expect(geometry.height).toBeGreaterThanOrEqual(44);
+  await close.click();
+  await expect(panel).toHaveCount(0);
+});
 
 async function paintedPoints(page: Page): Promise<PaintedPoint[]> {
   return page.evaluate(() => {
@@ -236,7 +271,10 @@ async function twoFingerTilt(
   for (let step = 1; step <= PITCH_STEPS; step += 1) {
     await dispatchTouch(cdp, "touchMove", pair(-(PITCH_DRAG_PX / PITCH_STEPS) * step));
     await nextFrame(page);
-    if (Math.abs((await readCamera(page)).pitch - start) > MIN_PITCH_CHANGE) break;
+    if (
+      (PITCH_DRAG_PX / PITCH_STEPS) * step >= MIN_PITCH_DRAG_PX
+      && Math.abs((await readCamera(page)).pitch - start) > MIN_PITCH_CHANGE
+    ) break;
   }
   await dispatchTouch(cdp, "touchEnd", []);
 }
@@ -349,14 +387,21 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
     { timeout: 10_000 },
   ).toBeGreaterThan(MIN_PITCH_CHANGE);
 
+  await expect.poll(async () => (await readCamera(page)).moving, { timeout: 20_000 })
+    .toBe(false);
   const tilted = await readCamera(page);
   // A tilt is a tilt. Nothing else about the camera may come with it.
   expect(Math.abs(tilted.bearing - before.bearing)).toBeLessThan(1);
+  expect(Math.abs(tilted.zoom - before.zoom)).toBeLessThan(0.2);
 
   // A tilt changes which marks survive symbol collision, so the anchoring
   // claim is made about a pin the map is STILL drawing rather than about one
   // chosen in advance. There has to be one, or the map emptied itself.
-  const pinsAfter = await paintedPoints(page);
+  let pinsAfter: PaintedPoint[] = [];
+  await expect.poll(async () => {
+    pinsAfter = (await paintedPoints(page)).filter((point) => point.kind === "pin");
+    return pinsBefore.some((pin) => pinsAfter.some((point) => point.id === pin.id));
+  }, { timeout: 10_000, message: "not one pin survived the tilt" }).toBe(true);
   const before2 = pinsBefore.find((pin) => pinsAfter.some((point) => point.id === pin.id));
   expect(before2, "not one pin survived the tilt").toBeTruthy();
   if (!before2) return;

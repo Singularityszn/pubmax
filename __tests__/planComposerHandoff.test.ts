@@ -564,3 +564,31 @@ describe("composer template + lifecycle helpers", () => {
     expect(londonServiceDateLabel("not-a-date")).toBeNull();
   });
 });
+
+describe("accepted published offer composer hydration", () => {
+  it("retains the exact untrusted hint through hydration, draft reload and provisional Stop 1", () => {
+    const selected = {
+      category: "gin" as const, pence: 420, serving: "25ml", source: "listed" as const,
+      sourceUrl: "https://example.com/published-menu", observedAt: new Date(NOW - 60_000).toISOString(),
+    };
+    const base = intent();
+    expect(base).not.toBeNull();
+    const accepted = { ...base!, selectedDrinkPriceEvidence: selected };
+    const hydration = resolveComposerHydration({ planDraft: null, routeDraft: null,
+      intakeDraft: null, planningIntent: accepted, rememberedArea: null });
+    expect(hydration.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);
+    const input = { acceptedVenueId: hydration.heldVenueId, selectedDrinkPriceEvidence: selected };
+    expect(seedProvisionalStop1(input)).toHaveProperty("selectedDrinkPriceEvidence", selected);
+    const storage = memoryStorage();
+    const draft = storedPlan({
+      stops: [{ key: 1, venueId: hydration.heldVenueId!, venueName: "Accepted fixture pub" }],
+      acceptedAnchor: hydration.acceptedAnchor! as NonNullable<StoredPlanDraft["acceptedAnchor"]>,
+    });
+    writePlanDraftEnvelope(draft, "planning-intent", storage, NOW);
+    const restored = readPlanDraftEnvelope(storage, NOW + 1_000);
+    expect(restored?.draft.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);
+    const rehydrated = resolveComposerHydration({ planDraft: restored, routeDraft: null,
+      intakeDraft: null, planningIntent: null, rememberedArea: null });
+    expect(rehydrated.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);
+  });
+});

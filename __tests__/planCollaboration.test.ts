@@ -154,6 +154,49 @@ describe("plan collaboration capabilities", () => {
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
+  it("applies one canonical route revision for overlapping retries of the same host decision", async () => {
+    const { id, host, guest } = await members();
+    const store = planCollaborationStore();
+    const nextStops = stops.map((stop, position) => position === 2
+      ? { venueId: "venue-d", venueName: "D", position } : stop);
+    const created = await store.createProposal(id, guest, {
+      reason: "Try the shorter route", expectedRouteRevision: 1, stops: nextStops,
+      resolvedConstraintIds: [], idempotencyKey: "proposal-decision-pending",
+    });
+    if (!created.ok) throw new Error("proposal setup failed");
+
+    let releaseApply!: () => void;
+    const pendingApply = new Promise<void>((resolve) => { releaseApply = resolve; });
+    // Existing public store callback performs the same revision-bound mutation as the decision route.
+    const apply = vi.fn(async (proposal: typeof created.proposal) => {
+      await pendingApply;
+      return (await memoryPlanStore.update(id, host, {
+        stops: proposal.stops, expectedRouteRevision: proposal.expectedRouteRevision,
+      })).ok;
+    });
+    const decide = () => store.decideProposal(id, host, created.proposal.id, "accepted", "same-decision-retry", apply);
+    const first = decide();
+    const retry = decide();
+    try {
+      // A task boundary drains both requests' existing authorization/lookup awaits; no fake store state.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(await store.decideProposal(id, guest, created.proposal.id, "accepted", "same-decision-retry", apply))
+        .toMatchObject({ ok: false, error: "forbidden" });
+      releaseApply();
+      const results = await Promise.all([first, retry]);
+      expect(results[0]).toMatchObject({ ok: true, proposal: { status: "accepted" } });
+      expect(results[1]).toEqual(results[0]);
+      expect(apply).toHaveBeenCalledTimes(1);
+      expect((await memoryPlanStore.get(id))?.plan.routeRevision).toBe(2);
+      expect((await memoryPlanStore.get(id))?.stops).toEqual(nextStops);
+      expect(await decide()).toEqual(results[0]);
+      expect(apply).toHaveBeenCalledTimes(1);
+    } finally {
+      releaseApply();
+      await Promise.allSettled([first, retry]);
+    }
+  });
+
   it("never carries hard-constraint evidence onto an unrelated proposal", async () => {
     const { id, host, guest } = await members();
     const store = planCollaborationStore();

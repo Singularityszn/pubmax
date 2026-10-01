@@ -1,4 +1,16 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, createElement, useEffect } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { useCommunityPrices } from "@/components/map/useCommunityPrices";
+import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
+import type { UkBasePub } from "@/lib/ukBasePubs";
+import { DRINK_CATEGORIES } from "@/lib/drinks";
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({ user: null, handle: null, identityResolved: true, loading: false, configured: true }),
+}));
 
 import {
   planProvisionalBaseVenueRead,
@@ -327,5 +339,233 @@ describe("community venue signal client state", () => {
         true,
       ),
     ).toEqual([stored]);
+  });
+});
+
+
+describe("published menu prices through the selected base read", () => {
+  const pub: UkBasePub = { id: "venue-uk-n123", name: "Test Arms", address: "", lat: 51.49, lng: -0.17, curatedVenueId: "", kind: "pub" };
+  const quote = {
+    source: "listed", category: "wine", drinkLabel: "Rioja, Spain", priceGbp: 10.5,
+    servingSize: "250ml", sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T10:40:17.846Z",
+  };
+  let root: Root | null = null;
+  let restoreClock = () => {};
+  let container: HTMLDivElement;
+  let current: ReturnType<typeof useCommunityPrices>;
+  function Surface({ selected }: { selected: UkBasePub }) {
+    const communityPrices = useCommunityPrices();
+    current = communityPrices;
+    const loadVenue = communityPrices.loadVenue;
+    // Same selected read as VenuePriceEntryPanel; dedupe must absorb both callers.
+    useEffect(() => { loadVenue(selected.id); }, [loadVenue, selected.id]);
+    return createElement(UnverifiedPubSheet, { pub: selected, communityPrices });
+  }
+  function mount(selected = pub) {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    root.render(createElement(Surface, { selected }));
+  }
+  function mockPriceReads(read: (id: string) => Promise<Response> | Response) {
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/price-submit") return read(url.searchParams.get("venueId") ?? "");
+      return Promise.resolve(Response.json({ status: "ready", overlay: null }));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    return fetcher;
+  }
+  beforeEach(() => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-30T00:00:00Z"));
+    restoreClock = () => clock.mockRestore();
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  });
+  afterEach(async () => {
+    await act(async () => { root?.unmount(); });
+    root = null;
+    container?.remove();
+    vi.unstubAllGlobals();
+    restoreClock();
+    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  it("isolates deferred category reads by explicit serving and preserves within-group dedupe", async () => {
+    const completions = new Map<string, (response: Response) => void>();
+    const categoryRequests: string[] = [];
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.searchParams.has("drinkCategory")) {
+        const serving = url.searchParams.get("serving") ?? "none";
+        categoryRequests.push(serving);
+        return new Promise<Response>((resolve) => { completions.set(serving, resolve); });
+      }
+      return Promise.resolve(Response.json({ prices: [], signals: [], listedPrices: [] }));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await act(async () => { mount(); });
+    // The second argument is the intended optional extension to the existing loader.
+    const load = current.loadDrinkCategoryIndex as (category: "gin", serving?: string) => void;
+    act(() => { load("gin", "25ml"); load("gin", "50ml"); load("gin", "25ml"); });
+    expect(categoryRequests).toEqual(["25ml", "50ml"]);
+    const single = { ...quote, venueId: pub.id, category: "gin", drinkLabel: "Published gin",
+      priceGbp: 4.2, servingSize: "25ml" };
+    const double = { ...single, priceGbp: 7.9, servingSize: "50ml" };
+    await act(async () => {
+      completions.get("50ml")!(Response.json({ prices: [], listedPrices: [double],
+        servingGroups: ["25ml", "50ml"], truncated: false }));
+    });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect((current.listedDrinkPrices as ReadonlyMap<string, unknown>).get("gin:50ml"))
+        .toEqual([expect.objectContaining({ servingSize: "50ml", priceGbp: 7.9 })]);
+    });
+    await act(async () => {
+      completions.get("25ml")!(Response.json({ prices: [], listedPrices: [single],
+        servingGroups: ["25ml", "50ml"], truncated: false }));
+    });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect((current.listedDrinkPrices as ReadonlyMap<string, unknown>).get("gin:25ml"))
+        .toEqual([expect.objectContaining({ servingSize: "25ml", priceGbp: 4.2 })]);
+    });
+    expect((current.listedDrinkPrices as ReadonlyMap<string, unknown>).get("gin:50ml"))
+      .toEqual([expect.objectContaining({ servingSize: "50ml", priceGbp: 7.9 })]);
+    expect(current.freshestByVenueId.has(pub.id)).toBe(false);
+    expect(categoryRequests).toEqual(["25ml", "50ml"]);
+  });
+
+  it("uses the existing selected GET and keeps published rows out of community map authority", async () => {
+    const fetcher = mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [quote] }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("Rioja, Spain");
+    });
+    expect(container.textContent).toContain("250ml");
+    expect(current.byVenueId.get(pub.id)).toEqual([]);
+    expect(current.freshestByVenueId.has(pub.id)).toBe(false);
+    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
+    expect(fetcher.mock.calls.filter(([input]) => String(input).startsWith("/api/price-submit?venueId="))).toHaveLength(1);
+  });
+
+  it("renders an unknown-serving listed beer without community price authority or a second GET", async () => {
+    const beer = { ...quote, category: "beer", drinkLabel: null, priceGbp: 4.9, servingSize: null,
+      sourceUrl: "https://donardbar.co.uk/menus/", observedAt: "2026-09-04T10:00:00Z" };
+    const fetcher = mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [beer] }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("£4.90");
+    });
+    expect(container.textContent).toContain("Serving not recorded");
+    expect(container.textContent).not.toContain("No price yet");
+    expect(current.listedPricesByVenueId?.get(pub.id)).toEqual([beer]);
+    expect(current.byVenueId.get(pub.id)).toEqual([]);
+    expect(current.freshestByVenueId.has(pub.id)).toBe(false);
+    expect(fetcher.mock.calls.filter(([input]) => String(input).startsWith("/api/price-submit?venueId="))).toHaveLength(1);
+  });
+
+  it("accepts the bounded four quotes in every category, including neutral beer", async () => {
+    const listedPrices = DRINK_CATEGORIES.flatMap(category => Array.from({ length: 4 }, (_, index) => ({
+      ...quote, category, drinkLabel: `Drink ${category} ${index}`, servingSize: null,
+    })));
+    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(current.listedPricesByVenueId?.get(pub.id)).toEqual(listedPrices);
+    });
+    expect(container.textContent).not.toContain("Published menu prices unavailable just now");
+    expect(current.byVenueId.get(pub.id)).toEqual([]);
+  });
+
+  it.each([
+    { ...quote, source: "estimate" },
+    { ...quote, sourceUrl: "javascript:alert(1)" },
+    { ...quote, observedAt: "not-a-date" },
+    { ...quote, observedAt: "2024-01-01T00:00:00.000Z" },
+    { ...quote, servingSize: 250 },
+    { ...quote, drinkLabel: {} },
+    { ...quote, drinkLabel: "x".repeat(81) },
+    { ...quote, servingSize: "x".repeat(49) },
+    { ...quote, sourceUrl: `https://pub.example/${"x".repeat(2048)}` },
+  ])("does not render a malformed or expired published claim: %j", async (invalid) => {
+    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [invalid] }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("Published menu prices unavailable just now");
+    });
+    expect(container.textContent).not.toContain("£10.50");
+    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
+  });
+
+  it("uses canonical label normalization without changing the quoted measure or amount", async () => {
+    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [
+      { ...quote, drinkLabel: "  Rioja, Spain  " },
+      { ...quote, drinkLabel: "   ", priceGbp: 5.25, servingSize: "125ml" },
+    ] }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("Rioja, Spain");
+    });
+    expect(current.listedPricesByVenueId?.get(pub.id)).toEqual([
+      { ...quote, drinkLabel: "Rioja, Spain" },
+      { ...quote, drinkLabel: null, priceGbp: 5.25, servingSize: "125ml" },
+    ]);
+    expect(container.textContent).toContain("250ml");
+    expect(container.textContent).toContain("125ml");
+  });
+
+  it("rejects overfull serving quote groups without changing the community read", async () => {
+    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: Array.from({ length: 5 }, () => quote) }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("Published menu prices unavailable just now");
+    });
+    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
+    expect(container.textContent).not.toContain("£10.50");
+  });
+
+  it("allows a failed published read to retry without changing community availability", async () => {
+    let attempt = 0;
+    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: attempt++ === 0 ? null : [quote] }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("Published menu prices unavailable just now");
+    });
+    expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
+    await act(async () => { current.loadVenue(pub.id); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("Rioja, Spain");
+    });
+    expect(attempt).toBe(2);
+  });
+
+  it("keeps a late A response attached to A after the selected base pub changes to B", async () => {
+    let finishA!: (response: Response) => void;
+    const responseA = new Promise<Response>((resolve) => { finishA = resolve; });
+    const second = { ...pub, id: "venue-uk-n456", name: "Second Arms" };
+    mockPriceReads((id) => id === pub.id ? responseA : Response.json({ prices: [], signals: [], listedPrices: [{ ...quote, drinkLabel: "Chardonnay", priceGbp: 8 }] }));
+    await act(async () => { mount(); });
+    await act(async () => { root!.render(createElement(Surface, { selected: second })); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("Chardonnay");
+    });
+    await act(async () => { finishA(Response.json({ prices: [], signals: [], listedPrices: [quote] })); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(current.listedPricesByVenueId?.get(pub.id)).toHaveLength(1);
+    });
+    expect(container.textContent).toContain("Second Arms");
+    expect(container.textContent).toContain("Chardonnay");
+    expect(container.textContent).not.toContain("Rioja, Spain");
+    expect(container.textContent).not.toContain("£10.50");
   });
 });

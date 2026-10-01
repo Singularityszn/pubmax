@@ -81,10 +81,12 @@ export default function CrewDetailClient({
     useState<JoinRequestLoadState>("idle");
   const [joinRequestAttempt, setJoinRequestAttempt] = useState(0);
   const [focusJoinRequests, setFocusJoinRequests] = useState(false);
+  const [arrivedStopPosition, setArrivedStopPosition] = useState("");
   const [loadedIdentityKey, setLoadedIdentityKey] = useState<string | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const joinRequestHeading = useRef<HTMLHeadingElement | null>(null);
   const previousScopeKey = useRef(scopeKey);
+  const completionScopeKey = useRef<string | null>(null);
   const queueRefreshAuthorityRevision = useRef<number | null>(null);
 
   useEffect(() => {
@@ -107,6 +109,7 @@ export default function CrewDetailClient({
       setJoinRequestsHaveMore(false);
       setJoinRequestStatus("idle");
       setFocusJoinRequests(false);
+      setArrivedStopPosition("");
       setLoadedIdentityKey(null);
       queueRefreshAuthorityRevision.current = null;
     });
@@ -497,6 +500,47 @@ export default function CrewDetailClient({
     }
   };
 
+  const completeNight = async () => {
+    if (busy || completionScopeKey.current === scopeKey ||
+      crew?.kind !== "member" || crew.viewer.role !== "owner" ||
+      arrivedStopPosition === "") return;
+    const position = Number(arrivedStopPosition);
+    if (!crew.plan.stops.some((stop) => stop.position === position)) return;
+    const requestScopeKey = scopeKey;
+    completionScopeKey.current = requestScopeKey;
+    setBusy(true);
+    setProblem(null);
+    try {
+      const response = await write(`/api/social/crews/${encodeURIComponent(crewId)}/complete`, {
+        method: "POST",
+        prefix: "crew-complete",
+        body: JSON.stringify({
+          expectedRouteRevision: crew.plan.plan.routeRevision,
+          arrivedStopPosition: position,
+          ending: "get_home",
+          endingSelection: {
+            kind: "get_home",
+            optionId: "transport:got-home",
+            evidenceSnapshot: { label: "Got home", confidence: "unknown", source: "PUBMAXX transport choice", warnings: [] },
+          },
+        }),
+      });
+      if (previousScopeKey.current !== requestScopeKey) return;
+      const updated = parseCrewRead(response?.crew);
+      if (!updated || updated.kind !== "member") throw new Error("Could not read the completed night.");
+      setCrew(updated);
+      setArrivedStopPosition("");
+      setNotice({ identityKey, text: "Night saved. Your crew's Plan is complete." });
+    } catch (error) {
+      if (previousScopeKey.current === requestScopeKey) {
+        setProblem({ identityKey, text: error instanceof Error ? error.message : "That did not go through." });
+      }
+    } finally {
+      if (completionScopeKey.current === requestScopeKey) completionScopeKey.current = null;
+      if (previousScopeKey.current === requestScopeKey) setBusy(false);
+    }
+  };
+
   const body = (() => {
     if (!identityResolved || loadedIdentityKey !== identityKey) {
       return (
@@ -649,6 +693,30 @@ export default function CrewDetailClient({
             ))}
           </ul>
         </section>
+
+        {crew.viewer.role === "owner" &&
+        crew.plan.plan.status !== "completed" &&
+        crew.plan.plan.status !== "abandoned" ? (
+          <section aria-labelledby="crew-complete-title" className="crews__form">
+            <h2 id="crew-complete-title" className="crews__title">End this night</h2>
+            <p className="crews__note">Choose a stop you reached. Saving marks your arrival there and ends the Plan as got home.</p>
+            <label className="crews__field">
+              <span>Stop you reached</span>
+              <select value={arrivedStopPosition} onChange={(event) => setArrivedStopPosition(event.target.value)}>
+                <option value="">Choose a stop</option>
+                {crew.plan.stops.map((stop) => (
+                  <option key={stop.position} value={stop.position}>{stop.venueName}</option>
+                ))}
+              </select>
+            </label>
+            <div className="crews__formActions">
+              <button type="button" className="crews__button crews__button--primary"
+                disabled={busy || arrivedStopPosition === ""} onClick={() => void completeNight()}>
+                {busy ? "Saving…" : "Save ending: got home"}
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         {managesOpenCrew ? (
           joinRequestStatus === "ready" ? (

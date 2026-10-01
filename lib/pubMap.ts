@@ -17,6 +17,7 @@ import {
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
+import type { MapChosenArea } from "@/lib/mapChosenArea";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
@@ -275,8 +276,8 @@ export function mapArrivalFrame(input: {
  * May the map ask the browser where the reader is?
  *
  * Only on a clean arrival with nothing already saying where to open. A resume
- * snapshot or a restored viewport is an answer we already hold, and asking over
- * one spends a permission prompt on a camera move nobody needs.
+ * snapshot or a restored viewport already answers the ordinary opening view.
+ * A remembered Near me has its own granted-only refresh path.
  */
 export function shouldResolveOpeningLocation(input: {
   needsOpeningResolution: boolean;
@@ -287,6 +288,29 @@ export function shouldResolveOpeningLocation(input: {
     input.needsOpeningResolution &&
     !input.mapResumeSeed &&
     !input.restoredMobileSession?.viewport
+  );
+}
+
+export function liveNearMeOwnsCamera(
+  hasLiveLocation: boolean,
+  explicitArrivalIntent: boolean,
+  chosenAreaKind: MapChosenArea["kind"] | undefined,
+): boolean {
+  return hasLiveLocation && !explicitArrivalIntent && chosenAreaKind === "near-me";
+}
+
+/** A remembered Near me may refresh a saved view; named places keep their view. */
+export function shouldResumeNearMeLocation(input: {
+  stored: MapChosenArea | null;
+  cityId: CityId;
+  explicitArrivalIntent: boolean;
+  cameraTouched: boolean;
+}): boolean {
+  return (
+    input.stored?.kind === "near-me" &&
+    input.stored.cityId === input.cityId &&
+    !input.explicitArrivalIntent &&
+    !input.cameraTouched
   );
 }
 
@@ -398,7 +422,7 @@ export function mapDrinkLensSelection(input: {
 export function drinkIndexStatusFor(
   mapDrinkLensCategory: DrinkCategory | null,
   experienceLens: MapExperienceLens,
-  drinkCategoryIndexStatus: ReadonlyMap<DrinkCategory, CategoryPriceIndexStatus>,
+  drinkCategoryIndexStatus: ReadonlyMap<string, CategoryPriceIndexStatus>,
   noAlcoholIndexStatus: CategoryPriceIndexStatus,
 ): CategoryPriceIndexStatus {
   if (mapDrinkLensCategory) {
@@ -744,11 +768,13 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
   };
 }
 
-/** The viewport the map opens on: a resume snapshot, else a restored session, else none. */
+/** A live Near me wins; otherwise use the saved viewport when one exists. */
 export function openingViewportFrom(
   resumeViewport: MapViewportSnapshot | null,
   restoredSession: RestoredSessionLike<string>,
+  liveNearMeOwnsCamera = false,
 ): MapViewportSnapshot | null {
+  if (liveNearMeOwnsCamera) return null;
   return resumeViewport ?? restoredSession?.viewport ?? null;
 }
 

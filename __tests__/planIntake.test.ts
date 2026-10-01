@@ -428,3 +428,20 @@ describe("intake accessibility and entry invariants", () => {
     expect(html).toContain('href="/pal/chat"');
   });
 });
+
+describe("accepted offer generation intake category", () => {
+  it("carries the selected category without weakening explicit zero-proof or category changes", () => {
+    const selected = { category: "gin" as const, pence: 420, serving: "25ml",
+      source: "listed" as const, sourceUrl: "https://example.com/published-menu",
+      observedAt: "2026-07-24T11:59:00.000Z" };
+    const anchor = { venueId: "venue-intent", source: "map-search" as const,
+      cityId: "london" as const, acceptedArea: null, startsAt: null,
+      selectedDrinkPriceEvidence: selected };
+    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, {}, anchor).context)
+      .toMatchObject({ drinkCategory: "gin" });
+    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, { drinkCategory: "wine" }, anchor).context)
+      .toMatchObject({ drinkCategory: "wine" });
+    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, { zeroProof: true }, anchor).context)
+      .not.toHaveProperty("drinkCategory", "gin");
+  });
+});

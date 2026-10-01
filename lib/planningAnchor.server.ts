@@ -1,8 +1,9 @@
 import "server-only";
 
-import type { CityId } from "@/lib/cities";
+import { CITIES, pointInCityBounds, type CityId } from "@/lib/cities";
+import { isNationalBaseVenueId, venueIdMatchesCity } from "@/lib/cityVenueIds";
+import { lookupUkBasePub } from "@/lib/ukBaseIndex";
 import { formatGbp } from "@/lib/formatGbp";
-import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import {
   nearestNightAreaForViewport,
   isNightAreaRouteReady,
@@ -148,6 +149,7 @@ export async function resolvePlanningAnchor(
   if (typeof input.venueId !== "string" || !VENUE_ID_PATTERN.test(input.venueId)) {
     return conflict("ANCHOR_VENUE_INVALID");
   }
+  if (isNationalBaseVenueId(input.venueId)) return resolveBasePlanningAnchor(input);
 
   const canonicalVenueId = (await deps.resolveAlias(input.venueId)).trim();
   if (!canonicalVenueId) return conflict("ANCHOR_VENUE_INVALID");
@@ -217,4 +219,47 @@ export async function resolvePlanningAnchor(
 
 function conflict(code: PlanningAnchorConflict["code"]): PlanningAnchorConflict {
   return planningAnchorConflict(code);
+}
+
+/** Base identity stays OSM identity: no curated Venue, prices or amenities are synthesized. */
+async function resolveBasePlanningAnchor(input: ResolvePlanningAnchorInput): Promise<PlanningAnchorResult> {
+  const lookup = await lookupUkBasePub(input.venueId);
+  if (lookup.status !== "ready" || lookup.pub.kind !== "pub") return conflict("ANCHOR_VENUE_INVALID");
+  const pub = lookup.pub;
+  if (!pointInCityBounds(pub.lat, pub.lng, CITIES[input.cityId])) return conflict("ANCHOR_CITY_MISMATCH");
+  if (input.acceptedArea && (input.acceptedArea.kind === "borough"
+    || nearestNightPatch(pub.lat, pub.lng)?.id !== input.acceptedArea.id)) {
+    return conflict("ANCHOR_AREA_CONFLICT");
+  }
+  // This pack has no accessibility or budget evidence. It cannot satisfy an asserted requirement.
+  if (input.requiresStepFreeAccess) return conflict("ANCHOR_ACCESS_CONFLICT");
+  if (typeof input.budgetPerPersonPence === "number" && Number.isFinite(input.budgetPerPersonPence)) {
+    return conflict("ANCHOR_BUDGET_CONFLICT");
+  }
+  const now = typeof input.now === "number" && Number.isFinite(input.now) ? input.now : Date.now();
+  const nightArea = nearestNightAreaForViewport(input.cityId, [pub.lng, pub.lat]);
+  const startsAt = canonicalStartsAt(input.startsAt);
+  return {
+    status: "resolved",
+    display: {
+      venueId: pub.id,
+      venueName: pub.name,
+      areaName: areaNameFor(input.acceptedArea, nightArea?.name ?? null),
+      startLabel: startsAt,
+      priceEvidence: null,
+      routeWindowOk: nightArea ? isNightAreaRouteReady(nightArea, new Date(now)) : true,
+      budgetCompatible: true,
+      accessibilityCompatible: true,
+    },
+    canonical: {
+      cityId: input.cityId,
+      venueId: pub.id,
+      nightAreaSlug: nightArea?.slug ?? null,
+      acceptedArea: input.acceptedArea,
+      coordinates: { lat: pub.lat, lng: pub.lng },
+      startsAt,
+      priceObservedAt: null,
+      priceFreshnessKind: "unknown",
+    },
+  };
 }

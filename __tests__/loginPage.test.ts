@@ -23,6 +23,7 @@ const authState = vi.hoisted(() => ({
     user: null as { email?: string; user_metadata?: Record<string, unknown> } | null,
     loading: false,
     configured: true,
+    supabaseAuthState: "signed-out" as "signed-out" | "unavailable",
     welcomeBack: null as { maskedEmail: string | null } | null,
   },
 }));
@@ -51,6 +52,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     user: authState.current.user,
     loading: authState.current.loading,
     configured: authState.current.configured,
+    supabaseAuthState: authState.current.supabaseAuthState,
     clerkIntegrationConfigured: false,
     socialProviders: { google: true, apple: true , microsoft: false },
     signInWithGoogle: authActions.google,
@@ -114,6 +116,7 @@ beforeEach(() => {
     user: null,
     loading: false,
     configured: true,
+    supabaseAuthState: "signed-out",
     welcomeBack: null,
   };
   navigation.redirect.mockClear();
@@ -192,6 +195,40 @@ describe("login page", () => {
     expect(settled).not.toContain("loginPageSkeleton");
     expect(settled).toContain("Sign-in is not configured on this build");
     expect(settled).not.toContain("email form");
+  });
+
+  it("offers recovery instead of sign-in actions when the configured auth client is unavailable", () => {
+    authState.current.supabaseAuthState = "unavailable";
+    const html = renderToStaticMarkup(createElement(LoginPage));
+
+    expect(html).toContain('class="loginPageTitle">Sign-in is temporarily unavailable</h1>');
+    expect(html).toContain('role="alert"');
+    expect(html).toMatch(/<button[^>]*type="button"[^>]*>Try again<\/button>/);
+    expect(html).toContain("Browse without signing in");
+    expect(html).not.toContain("Use your email, or pick a handle");
+    expect(html).not.toContain("By signing in you agree");
+    expect(html).not.toContain('aria-label="Sign-in options"');
+    expect(html).not.toContain("email form");
+    expect(html).not.toContain("social");
+    expect(html).not.toContain("password");
+  });
+
+  it("keeps the loading skeleton while unavailable auth is still resolving", () => {
+    authState.current.supabaseAuthState = "unavailable";
+    authState.current.loading = true;
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("loginPageSkeleton");
+    expect(html).not.toContain("Sign-in is temporarily unavailable");
+    expect(html).not.toContain("email form");
+  });
+
+  it("keeps an existing account's map door when Supabase is unavailable", () => {
+    authState.current.supabaseAuthState = "unavailable";
+    authState.current.user = { email: "member@example.test" };
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("You are signed in");
+    expect(html).toContain("Continue to the map");
+    expect(html).not.toContain("Sign-in is temporarily unavailable");
   });
 
   it("drops the skeleton once the session has answered", () => {

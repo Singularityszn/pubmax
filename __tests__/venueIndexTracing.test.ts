@@ -41,9 +41,21 @@ import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
 import { MAP_EAGER_VENUE_INDEX_TRACING_INCLUDE } from "@/lib/mapEagerVenueIndexFile.mjs";
 import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { parseUkBaseManifest, UK_BASE_MANIFEST_PATH } from "@/lib/ukBasePubs";
 
 const root = join(__dirname, "..");
 const temporaryRoots: string[] = [];
+
+function ukBasePackFiles(): string[] {
+  const manifestFile = `./public${UK_BASE_MANIFEST_PATH}`;
+  const manifest = parseUkBaseManifest(
+    JSON.parse(readFileSync(join(root, manifestFile), "utf8")),
+  );
+  if (!manifest || manifest.shards.length === 0) {
+    throw new Error("Committed UK base manifest must declare its runtime shards");
+  }
+  return [manifestFile, ...manifest.shards.map((shard) => `./public${shard.url}`)];
+}
 
 function tracingIncludes(): Record<string, string[]> {
   const out = execFileSync(
@@ -75,6 +87,74 @@ afterEach(() => {
 });
 
 describe("runtime data-pack tracing", () => {
+  it("declares the UK base manifest and exactly its current generation shards", () => {
+    const pack = RUNTIME_DATA_PACKS.find((entry) =>
+      entry.modules.includes("lib/ukBaseIndex.ts"),
+    );
+    expect(pack, "UK base runtime reads must be a declared data pack").toBeDefined();
+    expect(new Set(pack?.files ?? [])).toEqual(new Set(ukBasePackFiles()));
+    expect(RUNTIME_PATH_MODULES_PENDING_DECLARATION).not.toHaveProperty("lib/ukBaseIndex.ts");
+  });
+
+  it("ships every UK base runtime file to the existing lookup and write APIs", () => {
+    const includes = tracingIncludes();
+    const files = ukBasePackFiles();
+    for (const route of [
+      "/api/uk-base/\\[id\\]",
+      "/api/price-submit",
+      "/api/venues/\\[id\\]/occupancy",
+    ]) {
+      for (const file of files) {
+        expect(includes[route] ?? [], `${route} must ship ${file}`).toContain(file);
+      }
+    }
+  });
+
+  it("inherits the complete UK base pack through existing and new Plan readers", () => {
+    temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
+    writeFixture("lib/ukBaseIndex.ts", "export const lookup = () => null;\n");
+    writeFixture("lib/venueWriteTarget.server.ts", 'import "@/lib/ukBaseIndex";\n');
+    writeFixture("lib/planningAnchor.server.ts", 'import "@/lib/ukBaseIndex";\n');
+    writeFixture("lib/planGeneration.server.ts", 'import "./planningAnchor.server";\n');
+    writeFixture("lib/planRoute.ts", 'export { lookup } from "./ukBaseIndex";\n');
+    writeFixture("lib/canonicalPlanRoute.ts", 'import "@/lib/planRoute";\n');
+    for (const [route, reader] of [
+      ["uk-base/[id]", "ukBaseIndex"],
+      ["price-submit", "venueWriteTarget.server"],
+      ["venues/[id]/occupancy", "venueWriteTarget.server"],
+      ["plans/anchor", "planningAnchor.server"],
+      ["plans/generate", "planGeneration.server"],
+      ["plans", "planRoute"],
+      ["plans/[id]", "canonicalPlanRoute"],
+      ["plans/[id]/proposals", "canonicalPlanRoute"],
+    ]) {
+      writeFixture(`app/api/${route}/route.ts`, `import "@/lib/${reader}";\n`);
+    }
+    writeFixture("app/api/unrelated/route.ts", "export const GET = () => null;\n");
+    writeFixture("app/api/type-only/route.ts", 'import type {} from "@/lib/ukBaseIndex";\n');
+
+    const expectedRoutes = [
+      "/api/plans",
+      "/api/plans/\\[id\\]",
+      "/api/plans/\\[id\\]/proposals",
+      "/api/plans/anchor",
+      "/api/plans/generate",
+      "/api/price-submit",
+      "/api/uk-base/\\[id\\]",
+      "/api/venues/\\[id\\]/occupancy",
+    ];
+    expect(
+      discoverRuntimeReaderRouteGlobs(temporaryRoots[0], "lib/ukBaseIndex.ts"),
+    ).toEqual(expectedRoutes);
+    const includes = runtimeDataPackRouteIncludes(temporaryRoots[0]);
+    for (const route of expectedRoutes) {
+      expect(new Set(includes[route] ?? []), route).toEqual(new Set(ukBasePackFiles()));
+    }
+    expect(includes["/api/unrelated"]).toBeUndefined();
+    expect(includes["/api/type-only"]).toBeUndefined();
+    expect(includes["/api/plans/[id]"]).toBeUndefined();
+  });
+
   it("derives route globs by following local imports from App Router entries", () => {
     temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
 

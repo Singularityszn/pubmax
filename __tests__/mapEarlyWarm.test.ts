@@ -5,6 +5,58 @@ import { describe, expect, it, vi } from "vitest";
 import { loadSlimVenuesFromPath, loadSlimVenuesFromPathResult } from "@/lib/venuesSlim";
 
 describe("mapEarlyWarm", () => {
+  it.each([
+    ["recent", 30 * 60 * 1000 - 1, true, true, 51.7, 0.2],
+    ["expired", 30 * 60 * 1000, false, false, 51.7, 0.2],
+    ["future", -1, false, false, 51.7, 0.2],
+    ["undated", null, false, false, 51.7, 0.2],
+    ["fresh other city", 0, false, true, 53.48, -2.24],
+  ] as const)("handles a %s remembered fix when warming cells", async (_name, age, warmRemembered, retained, lat, lng) => {
+    const now = 1_000_000_000;
+    const key = "pubmax:map-opening-location:v1";
+    const values = new Map([
+      ["pubmax:first-pins-seen:v1", "1"],
+      [key, JSON.stringify({
+        lat,
+        lng,
+        ...(age === null ? {} : { savedAt: now - age }),
+      })],
+    ]);
+    const calls: string[] = [];
+    const fetch = async (input: string) => {
+      calls.push(input);
+      return { ok: true, json: async () => input.includes("manifest") ? {
+        revision: "deploy-42",
+        shards: [
+          { url: "/data/london.json", bbox: [-0.3, 51.3, -0.1, 51.6] },
+          { url: "/data/remembered.json", bbox: [0.1, 51.69, 0.4, 51.75] },
+        ],
+      } : { revision: "deploy-42", rows: [] } };
+    };
+    const script = readFileSync(new URL("../public/map-first-paint-init.js", import.meta.url), "utf8");
+    new Function("window", "document", "navigator", "fetch", "URL", "Date", script)(
+      {
+        innerWidth: 390,
+        innerHeight: 844,
+        location: { href: "https://pubmaxxing.com/map" },
+        localStorage: {
+          getItem: (entry: string) => values.get(entry) ?? null,
+          removeItem: (entry: string) => values.delete(entry),
+        },
+      },
+      { currentScript: { src: "https://pubmaxxing.com/map-first-paint-init.js?v=deploy-42" } },
+      {},
+      fetch,
+      URL,
+      { now: () => now },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toContain(warmRemembered ? "/data/remembered.json?v=deploy-42" : "/data/london.json?v=deploy-42");
+    expect(calls).not.toContain(warmRemembered ? "/data/london.json?v=deploy-42" : "/data/remembered.json?v=deploy-42");
+    expect(values.has(key)).toBe(retained);
+  });
+
+
   it("reuses head-start JSON instead of fetching again", async () => {
     const payload = [
       {

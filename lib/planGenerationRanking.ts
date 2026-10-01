@@ -23,7 +23,7 @@ function priceAndZeroProof(
       const price = drinkLensPrices?.get(venue.id);
       if (price?.category === category && price.priceGbp > 0) {
         score += Math.min(5, 10 / price.priceGbp);
-        reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
+        reasons.push(`${price.source === "listed" ? `listed ${price.servingSize ?? ""}` : "corroborated community"} ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
       }
     } else if (!context.zeroProof) {
       const price = venue.cheapestPrice;

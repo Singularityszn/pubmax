@@ -27,7 +27,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
-import AccountOnboarding from "@/components/identity/AccountOnboarding";
+import AccountOnboarding from "@/components/identity/AccountOnboardingHost";
 import IdentityNudge from "@/components/identity/IdentityNudge";
 import { markArrival, takeChosenIntent } from "@/lib/arrivalWelcome";
 import { oauthOpensInSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
@@ -91,7 +91,7 @@ import {
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedActionFetch, publishAuthActionState } from "@/lib/authedFetch";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import {
   claimSignupReferralFromAuthCallback,
   withReferralSignupProof,

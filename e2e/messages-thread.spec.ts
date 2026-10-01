@@ -242,14 +242,27 @@ test.describe("the message thread on a phone", () => {
     await page.goto("/messages/c1");
     await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(8);
 
-    const field = page.locator(".composerInput");
-    await field.fill("On my way, two minutes");
-    await expect(page.locator(".composerSend")).toBeEnabled();
-    await page.locator(".composerSend").click();
+    let releaseReply!: () => void;
+    const replyHeld = new Promise<void>((resolve) => { releaseReply = resolve; });
+    await page.route("**/api/messages/c1**", async (route) => {
+      if (route.request().method() === "POST") await replyHeld;
+      await route.fallback();
+    });
 
-    // The optimistic bubble, and the field cleared, before any answer.
-    await expectMessageInView(page, "On my way, two minutes");
-    await expect(field).toHaveValue("");
+    const field = page.locator(".composerInput");
+    // Hold the POST until the optimistic bubble and its sending state are visible.
+    try {
+      await field.fill("On my way, two minutes");
+      await expect(page.locator(".composerSend")).toBeEnabled();
+      await page.locator(".composerSend").click();
+      const sendingRow = page.locator(".messageRow[data-sending]");
+      await expect(sendingRow.locator(".messageBubble")).toHaveText("On my way, two minutes");
+      await expect(sendingRow.locator(".messageReadState")).toHaveText("Sending");
+      await expectMessageInView(page, "On my way, two minutes");
+      await expect(field).toHaveValue("");
+    } finally {
+      releaseReply();
+    }
     // The stored row replaces it: still nine bubbles, still in view.
     await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(9);
     await expect(page.locator(".messageRow[data-sending]")).toHaveCount(0);

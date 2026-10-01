@@ -1,4 +1,5 @@
 import type { Venue, VenueKind } from "@/lib/venues";
+import type { UkBasePub } from "@/lib/ukBasePubs";
 
 export type CuratedVenueKind = "pub" | "bar" | "food" | "restaurant";
 export type VenueKindVisibility = Record<CuratedVenueKind, boolean>;
@@ -94,6 +95,15 @@ export function filterVenuesByKind(
     const kind = curatedVenueKind(venue.kind);
     return kind !== null && visibility[kind];
   });
+}
+
+/** Apply the shared pub and bar toggles to the separately streamed UK base layer. */
+export function filterUkBasePubsByKind(
+  pubs: UkBasePub[],
+  visibility: VenueKindVisibility,
+): UkBasePub[] {
+  if (visibility.pub && visibility.bar) return pubs;
+  return pubs.filter((pub) => visibility[pub.kind]);
 }
 
 /**

@@ -58,13 +58,22 @@ describe("profiles search privacy (WP7)", () => {
       join(process.cwd(), "app/api/profiles/search/route.ts"),
       "utf8",
     );
+    const searchOwner = readFileSync(
+      join(process.cwd(), "lib/publicProfileSearch.server.ts"),
+      "utf8",
+    );
     expect(searchRoute).toMatch(/publicApiError/);
-    expect(searchRoute).toMatch(/isLimited/);
-    expect(searchRoute).toMatch(/toPublicMatch/);
+    expect(searchRoute).toContain('from "@/lib/publicProfileSearch.server"');
+    expect(searchRoute).toContain("return publicProfileSearchResponse(request);");
+    expect(searchOwner).toMatch(/publicApiError/);
+    expect(searchOwner).toMatch(/isLimited/);
+    expect(searchOwner).toMatch(/toPublicMatch/);
+    expect(searchOwner).toContain("return jsonNoStore({ matches }, { status: 200 });");
+    expect(searchOwner).toContain("requiresSupabaseStore() && !isSupabaseConfigured()");
     // Comment may mention email/DOB as excluded; the projection object must not.
-    expect(searchRoute).toContain("id: profile.id");
-    expect(searchRoute).toContain("handle: profile.handle");
+    expect(searchOwner).toContain("id: profile.id");
+    expect(searchOwner).toContain("handle: profile.handle");
+    expect(searchOwner).not.toMatch(/dateOfBirth:|fullName:|gender:|email:/);
     expect(searchRoute).not.toMatch(/dateOfBirth:|fullName:|gender:|email:/);
   });
 });
-

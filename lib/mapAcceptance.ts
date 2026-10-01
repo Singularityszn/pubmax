@@ -1,3 +1,4 @@
+import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 // Map-originated Venue acceptance (trusted-handoff §4.8).
 //
 // Turning an inspected Venue into an accepted Stop 1 from the Map writes a
@@ -78,6 +79,8 @@ export type MapAcceptanceInput = {
   acceptedVenueId: string;
   /** The frozen Map arrival search, used to recognise an accepted handoff. */
   search?: string;
+  /** Public display hint, revalidated against server-owned prices when a Plan is written. */
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
 export type MapAcceptanceResult = {
@@ -106,6 +109,7 @@ function planningIntentInput(intent: PlanningIntentV1): PlanningIntentInput {
     acceptedArea: intent.acceptedArea,
     startsAt: intent.startsAt,
     displayEvidence: intent.displayEvidence,
+    ...(intent.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: intent.selectedDrinkPriceEvidence } : {}),
   };
 }
 
@@ -297,7 +301,10 @@ export function acceptMapVenue(
     intentInput = planningIntentInput(arrivalIntent);
   }
 
-  const intent = writePlanningIntent(intentInput, options);
+  const intent = writePlanningIntent({
+    ...intentInput,
+    ...(input.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: input.selectedDrinkPriceEvidence } : {}),
+  }, options);
   if (!intent) {
     return { accepted: false, destination: null, telemetry: null };
   }

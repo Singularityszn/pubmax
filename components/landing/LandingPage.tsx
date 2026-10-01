@@ -1,9 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -36,19 +35,13 @@ import { SPOONS_VALUE_ROUTE } from "@/lib/spoonsValue";
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
-import LandingLondonCollage from "./LandingLondonCollage";
+import DeferredPintDropStrip from "./DeferredPintDropStrip";
 import LandingSavings from "./LandingSavings";
-import PintDropStripLoading from "./PintDropStripLoading";
 import "./landing.css";
 
 function trackLandingCta(target: LandingCtaTarget) {
   trackEvent("landing_cta_clicked", { target });
 }
-
-const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
-  ssr: false,
-  loading: PintDropStripLoading,
-});
 
 export default function LandingPage({
   card = null,
@@ -58,6 +51,7 @@ export default function LandingPage({
   answers = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
+  londonCollage,
 }: {
   /** The one real pub above the fold, or null when the data cannot back one. */
   card?: LandingPubCardData | null;
@@ -70,6 +64,8 @@ export default function LandingPage({
   /** What is on today and what is on tonight, one sentence each. */
   answers?: LandingAnswers | null;
   socialFriendsLaunchEnabled?: boolean;
+  /** The London collage arrives as a server-rendered slot. */
+  londonCollage?: ReactNode;
 }) {
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
@@ -134,14 +130,14 @@ export default function LandingPage({
 
       <main id="main">
         {/* The whole first screen, at every width: brand kicker, the claim, one
-            line under it, the drawing of London, one primary action (Cheapest
+            line under it, the London photograph, one primary action (Cheapest
             pints near me), the quiet row of the receipt door and Tonight, then
             the one real pub and three next-cheapest rows. The DOM order is the
             phone order; the desktop only seats the picture and the rows beside
             the copy. */}
         <LandingHero card={card} archive={archive} rail={rail} />
 
-        <LandingLondonCollage />
+        {londonCollage}
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 
@@ -172,9 +168,7 @@ export default function LandingPage({
           </div>
         </section>
 
-        <div className="lpDrops">
-          <PintDropStrip />
-        </div>
+        <DeferredPintDropStrip />
 
         <LandingFaq />
       </main>

@@ -1,5 +1,8 @@
 import "server-only";
 
+import type { DrinkCategory } from "@/lib/drinks";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -82,4 +85,24 @@ export function resetUkPriceBundleForTests(): void {
     cached = null;
     pending = null;
   }
+}
+
+export async function ukPriceBundleCategoryIndex(category: DrinkCategory, now = Date.now(), serving?: string | null) {
+  const read = await readUkPriceBundle();
+  const prices: Array<ReturnType<typeof listedCategoryPrices>[number] & { venueId: string }> = [];
+  let truncated = false;
+  const groups = new Set<string>();
+  const onServingGroup = (groupCategory: DrinkCategory, group: string) => {
+    if (groupCategory === category) groups.add(group);
+  };
+  for (const [venueId, rows] of read.byVenue) {
+    for (const quote of listedCategoryPrices(rows, now, { serving, onServingGroup })) {
+      if (quote.category !== category) continue;
+      if (prices.length === 1000) { truncated = true; continue; }
+      prices.push({ venueId, ...quote });
+    }
+  }
+  return { prices, truncated, degraded: read.status === "unavailable",
+    ...(read.status !== "unavailable" ? { servingGroups: [...groups].sort((a, b) => parseInt(a, 10) - parseInt(b, 10)) } : {}),
+  };
 }

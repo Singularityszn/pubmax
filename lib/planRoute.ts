@@ -1,16 +1,19 @@
-import { CITIES, type CityId } from "@/lib/cities";
+import { CITIES, pointInCityBounds, type CityId } from "@/lib/cities";
+import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
+import { lookupUkBasePub } from "@/lib/ukBaseIndex";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { cultureWaypointPois } from "@/lib/cultureCrawl.server";
 import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { PlanStopDTO } from "@/lib/plan";
-import { isPlanStopCount } from "@/lib/planStopCount";
+import { isPlanStopCount, MAX_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 
-export type PlanStopTarget = { venueId: string; venueName: string };
+export type PlanStopTarget = { venueId: string; venueName: string; alternatives?: PlanStopDTO["alternatives"] };
 
 /**
  * The ONE answer to "may a Plan hold this Stop id, and what is it called".
- * Two id shapes resolve, both against server-owned data: a listed venue from
- * the Venue Dataset, and a `place:<poi id>` meeting point from the ambient POI
+ * Listed venues and submitted UK base pub identities resolve against their own
+ * server packs, alongside a `place:<poi id>` meeting point from the ambient POI
  * layer. Free text resolves to nothing, so it can never be stored.
  *
  * Creation is city-scoped and route replacement is not (a Plan persists no
@@ -19,10 +22,30 @@ export type PlanStopTarget = { venueId: string; venueName: string };
  */
 export async function planStopResolver(
   cityId?: CityId,
+  submitted: readonly unknown[] = [],
 ): Promise<(raw: unknown) => PlanStopTarget | null> {
   const cities = cityId ? [cityId] : (Object.keys(CITIES) as CityId[]);
   const venueLists = await Promise.all(cities.map((city) => loadConciergeVenues(city)));
-  const venuesById = new Map(venueLists.flat().map((venue) => [venue.id, venue]));
+  const venuesById = new Map<string, PlanStopTarget>(venueLists.flat().map((venue) =>
+    [venue.id, { venueId: venue.id, venueName: venue.name }]));
+  const submittedTargets = submitted.length <= MAX_PLAN_STOP_COUNT ? submitted.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [raw];
+    const alternatives = (raw as Record<string, unknown>).alternatives;
+    return alternatives === undefined ? [raw]
+      : Array.isArray(alternatives) && alternatives.length <= 24 ? [raw, ...alternatives] : [];
+  }) : [];
+  const baseIds = [...new Set(submittedTargets.flatMap((raw) => {
+    const id = raw && typeof raw === "object" ? (raw as Record<string, unknown>).venueId : raw;
+    return typeof id === "string" && isNationalBaseVenueId(id) ? [id] : [];
+  }))];
+  for (const id of baseIds) {
+    const lookup = await lookupUkBasePub(id);
+    if (lookup.status === "ready" && lookup.pub.kind === "pub"
+      && cities.some((city) => pointInCityBounds(lookup.pub.lat, lookup.pub.lng, CITIES[city]))) {
+      venuesById.set(id, venuesById.get(lookup.pub.curatedVenueId)
+        ?? { venueId: lookup.pub.id, venueName: lookup.pub.name });
+    }
+  }
   const placesById = new Map(
     cities.flatMap((city) =>
       cultureWaypointPois(city).map((poi) => [poi.id, poi] as const),
@@ -42,25 +65,43 @@ export async function planStopResolver(
         : null;
     }
     const venue = venuesById.get(classified.venueId);
-    return venue ? { venueId: venue.id, venueName: venue.name } : null;
+    return venue ?? null;
   };
 }
 
 /**
  * Rebuild a proposed route from the server-owned data. A Plan does not persist
- * a city yet, so replacement accepts only ids that occur in a shipped city
- * dataset (or that city's POI layer) and always returns their canonical
+ * a city yet, so replacement accepts only canonical ids in shipped city
+ * datasets, their POI layers, or UK base pubs within those city bounds. It returns canonical
  * display names.
  */
-export async function canonicalPlanRoute(raw: unknown): Promise<PlanStopDTO[] | null> {
+export async function canonicalPlanRoute(raw: unknown, cityId?: CityId): Promise<PlanStopDTO[] | null> {
   if (!Array.isArray(raw) || !isPlanStopCount(raw.length)) return null;
-  const resolve = await planStopResolver();
+  const resolve = await planStopResolver(cityId, raw);
   const stops = raw.map((value, position) => {
     const target = resolve(value);
-    return target ? { ...target, position } : null;
+    if (!target) return null;
+    const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
+    const rawAlternatives = row.alternatives;
+    if (rawAlternatives !== undefined && (!Array.isArray(rawAlternatives) || rawAlternatives.length > 24)) return null;
+    const alternatives = (rawAlternatives ?? []).map((alternative: unknown) => {
+      const canonical = resolve(alternative);
+      if (!canonical) return null;
+      const price = cleanSelectedDrinkPriceEvidence(alternative && typeof alternative === "object"
+        ? (alternative as Record<string, unknown>).selectedDrinkPriceEvidence : null);
+      return { ...canonical, ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
+    });
+    if (alternatives.some((alternative: PlanStopTarget | null) => alternative === null)) return null;
+    const hint = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+    return { ...target, position, ...(hint ? { selectedDrinkPriceEvidence: hint } : {}),
+      ...(alternatives.length ? { alternatives: alternatives as NonNullable<PlanStopDTO["alternatives"]> } : {}) };
   });
   if (stops.some((stop) => stop === null)) return null;
   const resolved = stops as PlanStopDTO[];
-  const ids = resolved.map((stop) => stop.venueId);
-  return new Set(ids).size === ids.length ? resolved : null;
+  const routeIds = new Set(resolved.map((stop) => stop.venueId));
+  if (routeIds.size !== resolved.length) return null;
+  return resolved.some((stop) => {
+    const ids = stop.alternatives?.map((alternative) => alternative.venueId) ?? [];
+    return ids.some((id) => routeIds.has(id)) || new Set(ids).size !== ids.length;
+  }) ? null : resolved;
 }

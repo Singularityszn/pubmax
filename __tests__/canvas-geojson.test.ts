@@ -369,14 +369,14 @@ describe("pubsToGeoJSON experience-lens price isolation", () => {
       lensPrices,
     ).features[0]?.properties ?? {};
 
-    expect(props.priceLabel).toBe("£3.20 Soft drinks");
-    expect(props.bucket).toBe(priceBucket(3.2));
+    expect(props).not.toHaveProperty("priceLabel");
+    expect(props.bucket).toBe(priceBucket(null));
     expect(props.drops).toBe(false);
     expect(props.provisional).toBe(false);
     expect(venue.cheapestPrice).toBe(6);
   });
 
-  it("shows whisky as whisky and leaves a pint-only pub unknown", () => {
+  it("keeps whisky and pint-only pubs neutral under a whisky lens", () => {
     const known = makeVenue({ id: "known", cheapestPrice: 5 });
     const pintOnly = makeVenue({ id: "pint-only", cheapestPrice: 4 });
     const lensPrices = new Map([
@@ -401,11 +401,37 @@ describe("pubsToGeoJSON experience-lens price isolation", () => {
     ).features;
 
     expect(knownFeature?.properties).toMatchObject({
-      bucket: priceBucket(6),
-      priceLabel: "£6 Whisky",
+      bucket: priceBucket(null),
     });
+    expect(knownFeature?.properties).not.toHaveProperty("priceLabel");
     expect(unknownFeature?.properties?.bucket).toBe(priceBucket(null));
     expect(unknownFeature?.properties?.priceLabel).toBeUndefined();
+  });
+
+  it("does not colour or price-tag an unknown whisky serving as a pint", () => {
+    const venue = makeVenue({ id: "whisky", cheapestPrice: 5.4 });
+    const lensPrices = new Map([
+      ["whisky", {
+        venueId: "whisky",
+        category: "whisky" as const,
+        categoryLabel: "Whisky",
+        priceGbp: 6,
+        submittedAt: 2_000,
+        source: "community" as const,
+      }],
+    ]);
+    const props = pubsToGeoJSON(
+      [venue],
+      new Map<string, VenueSignal>(),
+      null,
+      "whisky",
+      null,
+      null,
+      lensPrices,
+    ).features[0]?.properties ?? {};
+
+    expect(props.bucket).toBe(priceBucket(null));
+    expect(props).not.toHaveProperty("priceLabel");
   });
 
   it("suppresses a pub's own sourced pint figure while a view owns the map", () => {

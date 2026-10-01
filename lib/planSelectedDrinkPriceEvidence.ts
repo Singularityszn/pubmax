@@ -1,3 +1,4 @@
+import type { PlanStopDTO } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
@@ -100,4 +101,17 @@ export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEviden
   });
   const serving = evidence.serving ? `Serving ${evidence.serving}.` : "Serving size not recorded.";
   return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, ${evidence.source === "community" ? "community report" : "published menu"} ${reported}. ${serving}`;
+}
+
+/** Context changes apply to the selected venue and its saved backups alike. */
+export function planStopEvidenceForContext(stop: PlanStopDTO, context: NightContext | null | undefined): PlanStopDTO {
+  const filter = (value: { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence }) => {
+    const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
+    return { venueId: value.venueId, venueName: value.venueName,
+      ...(evidence && (!context ? evidence.source === "listed"
+        : !context.zeroProof && evidence.category === context.drinkCategory)
+        ? { selectedDrinkPriceEvidence: evidence } : {}) };
+  };
+  return { ...filter(stop), position: stop.position,
+    ...(stop.alternatives?.length ? { alternatives: stop.alternatives.map(filter) } : {}) };
 }

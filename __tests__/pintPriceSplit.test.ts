@@ -136,6 +136,7 @@ function communityPrices(): CommunityPricesState {
     loadNoAlcoholIndex: () => {},
     loadDrinkCategoryIndex: () => {},
     drinkCategoryIndexStatus: new Map(),
+    listedDrinkPrices: new Map(),
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: () => {},
     loadVenue: () => {},

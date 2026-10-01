@@ -329,6 +329,7 @@ async function withRetries<T>(
 }
 
 function contextDevClient(apiKey: string, options: ContextDevCallOptions): ContextDev {
+  const fetchImpl = options.fetchImpl ?? fetch;
   return new ContextDev({
     apiKey,
     baseURL: CONTEXT_DEV_API_BASE,
@@ -337,7 +338,25 @@ function contextDevClient(apiKey: string, options: ContextDevCallOptions): Conte
     // budget this module never counted and would wait on a schedule that
     // ignores the Retry-After ceiling above.
     maxRetries: 0,
-    ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
+    fetch: async (input, init) => {
+      const response = await fetchImpl(input, init);
+      if (!response.ok || response.status === 204) return response;
+
+      const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+      if (contentType !== "application/json" && !contentType?.endsWith("+json")) return response;
+      if ((await response.clone().text()) !== "") return response;
+
+      // The SDK only recognizes empty JSON when Content-Length is explicitly 0.
+      // Add that metadata to an actually empty successful response so its parser
+      // returns null and the call is classified as EMPTY_BODY without retrying.
+      const headers = new Headers(response.headers);
+      headers.set("content-length", "0");
+      return new Response(null, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    },
   });
 }
 

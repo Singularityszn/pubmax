@@ -17,6 +17,44 @@
   min-width: 0;
 }
 
+.venueListedPrices {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.venueListedPrices h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.venueListedPriceRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+
+.venueListedPriceMeasure,
+.venueListedPriceSource {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.venueListedPriceSource a { color: var(--tint-ink-accent); }
+
+.venueListedPriceUnavailable {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
 /* A row is a drink, a figure and a day. The tag column is fixed so the figures
    line up down the list; everything else wraps rather than truncating, because
    every part of this row carries the meaning of the price beside it. */

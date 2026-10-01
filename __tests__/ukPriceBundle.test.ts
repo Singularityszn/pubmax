@@ -7,6 +7,9 @@
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
+import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 
 import {
   UK_PRICE_BUNDLE_LANES,
@@ -15,6 +18,7 @@ import {
   bundleRowSupersedes,
   bundleRowsByVenue,
   ukPriceBundleCollectKey,
+  isCategoryQuarantined,
   isUkPriceBundleLane,
   isValidUkPriceBundleRow,
   parseUkPriceBundleRows,
@@ -109,6 +113,207 @@ describe("what a bundle row owes", () => {
 });
 
 describe("which rows a surface may treat as a fact", () => {
+  it.each([
+    { sourceUrl: "https://thebellonthegreen.com/drinks/", priceGbp: 4, rawLabel: "London Pride 500ml", drinkLabel: "London Pride", servingSize: "500ml" },
+    { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", priceGbp: 3, rawLabel: "Ting Grapefruit Soda 330ml", drinkLabel: "Ting Grapefruit Soda", servingSize: "330ml" },
+  ])("withholds the normalized wrong-wine claim from $sourceUrl", ({ sourceUrl, priceGbp, rawLabel, drinkLabel, servingSize }) => {
+    const raw: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp, drinkLabel: rawLabel };
+    const normalized: UkPriceBundleRow = { ...raw, drinkLabel, servingSize };
+    for (const claim of [raw, normalized]) {
+      expect(isValidUkPriceBundleRow(claim)).toBe(true);
+      expect(parseUkPriceBundleRows([claim])).toEqual([]);
+      expect(authoritativeBundleRows([claim])).toEqual([]);
+      expect(bundlePricesForCategory([claim], "wine").listed).toBeNull();
+      expect(listedCategoryPrices([claim], NOW)).toEqual([]);
+    }
+    const controls: UkPriceBundleRow[] = [
+      { ...normalized, sourceUrl: "https://another-pub.example/menu" },
+      { ...normalized, priceGbp: priceGbp + 1 },
+      { ...normalized, drinkLabel: "House Chardonnay" },
+      { ...normalized, servingSize: "175ml" },
+      { ...normalized, category: "beer" },
+      { ...normalized, lane: "drink-price-update" },
+    ];
+    expect(parseUkPriceBundleRows(controls)).toEqual(controls);
+    expect(authoritativeBundleRows(controls)).toEqual(controls);
+  });
+
+  it("withholds seven exact Prospect claims while retaining their audit rows and neighboring drinks", () => {
+    const sourceUrl = "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu";
+    const now = Date.parse("2026-09-30T12:00:00.000Z");
+    const evidence = [
+      ["wine", 7.8, "/"],
+      ["wine", 11, "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda"],
+      ["wine", 11, "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda"],
+      ["wine", 11, "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda"],
+      ["rum", 9, "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice"],
+      ["cocktail", 9, "## 0% Espresso Martini The classic coffee cocktail shaken with Clean Co Clean V"],
+      ["cocktail", 9, "Zesty and refreshing Clean Co Clean R with Mexican lime, Moroccan mint and soda"],
+    ] as const;
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim().split("\n").map((line) => JSON.parse(line));
+    for (const [category, priceGbp, drinkLabel] of evidence) {
+      const source = ledger.find((row) => row.sourceUrl === sourceUrl && row.category === category &&
+        row.priceGbp === priceGbp && row.drinkLabel === drinkLabel);
+      expect(source).toBeDefined();
+      const claim: UkPriceBundleRow = { ...listed, sourceUrl, category, priceGbp, drinkLabel,
+        observedAt: source.observedAt };
+      expect(isValidUkPriceBundleRow(claim)).toBe(true);
+      expect(parseUkPriceBundleRows([claim])).toEqual([]);
+      expect(authoritativeBundleRows([claim])).toEqual([]);
+      expect(bundlePricesForCategory([claim], category).listed).toBeNull();
+      expect(listedCategoryPrices([claim], now)).toEqual([]);
+
+      const variants: UkPriceBundleRow[] = [
+        { ...claim, sourceUrl: "https://another-pub.example/menu" },
+        { ...claim, priceGbp: priceGbp + 1 },
+        { ...claim, drinkLabel: "Another printed drink" },
+        { ...claim, category: category === "wine" ? "gin" : "wine" },
+      ];
+      expect(parseUkPriceBundleRows(variants)).toEqual(variants);
+      expect(authoritativeBundleRows(variants)).toEqual(variants);
+      for (const variant of variants) {
+        expect(bundlePricesForCategory([variant], variant.category).listed?.priceGbp)
+          .toBe(variant.priceGbp);
+        expect(listedCategoryPrices([variant], now)).toEqual([
+          expect.objectContaining({ category: variant.category, priceGbp: variant.priceGbp,
+            drinkLabel: variant.drinkLabel, sourceUrl: variant.sourceUrl }),
+        ]);
+      }
+    }
+
+    const retainedControls: UkPriceBundleRow[] = [
+      { ...listed, sourceUrl, category: "wine", priceGbp: 7.6,
+        drinkLabel: "Baron de Ley Reserva Rioja, Spain", lane: "drink-price-update" },
+      { ...listed, sourceUrl, category: "cocktail", priceGbp: 10.5,
+        drinkLabel: "## Margarita A bold blend of Altos Plata Tequila, Mexican lime and blood orange" },
+      { ...listed, sourceUrl, category: "rum", priceGbp: 9 },
+    ];
+    expect(parseUkPriceBundleRows(retainedControls)).toEqual(retainedControls);
+    expect(authoritativeBundleRows(retainedControls)).toEqual(retainedControls);
+    for (const neighbor of retainedControls) {
+      expect(bundlePricesForCategory([neighbor], neighbor.category).listed?.priceGbp)
+        .toBe(neighbor.priceGbp);
+      expect(listedCategoryPrices([neighbor], now)).toEqual([
+        expect.objectContaining({ category: neighbor.category, priceGbp: neighbor.priceGbp,
+          drinkLabel: neighbor.drinkLabel ?? null, sourceUrl }),
+      ]);
+    }
+  });
+
+  it("withholds seven retained category contradictions without removing neighboring claims", () => {
+    const evidence = [
+      ["https://thebellonthegreen.com/drinks/", "wine", 4, "London Pride 500ml"],
+      ["https://thegallimaufry.co.uk/food-drink/", "wine", 3, "Ting Grapefruit Soda 330ml"],
+      ["https://thebrownswood.co.uk/drinks-menu/", "beer", 2.6, "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-"],
+      ["https://thebrownswood.co.uk/drinks-menu/", "rum", 8, "Paloma –"],
+      ["https://thebrownswood.co.uk/drinks-menu/", "vodka", 4, "Virgin Bloody Mary AF –"],
+      ["https://thebrownswood.co.uk/drinks-menu/", "coffee", 4.3, "Liquors Amaretto Lazzaroni –"],
+      ["https://thegallimaufry.co.uk/food-drink/", "cocktail", 6, ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml"],
+    ] as const;
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim().split("\n").map((line) => JSON.parse(line));
+    for (const [sourceUrl, category, priceGbp, drinkLabel] of evidence) {
+      expect(ledger.some((item) => item.sourceUrl === sourceUrl && item.category === category &&
+        item.priceGbp === priceGbp && item.drinkLabel === drinkLabel)).toBe(true);
+      const claim = { ...listed, sourceUrl, category, priceGbp, drinkLabel };
+      expect(parseUkPriceBundleRows([claim])).toEqual([]);
+      expect(authoritativeBundleRows([claim])).toEqual([]);
+      expect(bundlePricesForCategory([claim], category).listed).toBeNull();
+      const neighbors = [
+        { ...claim, drinkLabel: "Another printed drink" },
+        { ...claim, sourceUrl: "https://another-pub.example/menu" },
+        { ...claim, priceGbp: priceGbp + 1 },
+        { ...claim, category: "other" },
+      ];
+      expect(parseUkPriceBundleRows(neighbors)).toEqual(neighbors);
+    }
+    const luckySod = { ...listed, sourceUrl: "https://thebrownswood.co.uk/drinks-menu/",
+      category: "whisky", priceGbp: 4.3, drinkLabel: "Lucky Sod –" };
+    expect(authoritativeBundleRows([luckySod])).toEqual([luckySod]);
+  });
+
+  it("withholds retained Courvoisier cognac misfiled as wine before and after measure normalization", () => {
+    const sourceUrl = "https://www.thewhitehartmoreton.co.uk/wine-list";
+    const rawDrinkLabel = "\u200b Courvoisier VSOP Cognac 25ml";
+    const normalizedDrinkLabel = "\u200b Courvoisier VSOP Cognac";
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim().split("\n").map((line) => JSON.parse(line));
+    const rawSource = ledger.find((row) => row.sourceUrl === sourceUrl && row.category === "wine"
+      && row.priceGbp === 3.95 && row.drinkLabel === rawDrinkLabel);
+    expect(rawSource).toMatchObject({
+      venueId: "venue-uk-w229049090", observedAt: "2026-09-04T13:50:18.415Z",
+    });
+    if (!rawSource) return;
+
+    const rawClaim: UkPriceBundleRow = {
+      ...listed, venueId: rawSource.venueId, name: rawSource.name, category: "wine", priceGbp: 3.95,
+      sourceUrl, publisher: "thewhitehartmoreton.co.uk", observedAt: rawSource.observedAt,
+      drinkLabel: rawDrinkLabel, ...bundleDrinkFieldsFromPrintedName(rawDrinkLabel, "wine"),
+    };
+    expect(rawClaim.drinkLabel).toBe(rawDrinkLabel);
+    expect(isCategoryQuarantined(rawClaim)).toBe(true);
+
+    const normalizedSource = normalizeSiteHarvestLedgerRow(rawSource);
+    expect(normalizedSource).toMatchObject({ drinkLabel: normalizedDrinkLabel, servingSize: "25ml" });
+    const normalizedClaim: UkPriceBundleRow = {
+      ...rawClaim, ...normalizedSource, lane: "site-harvest", standing: "listed",
+      ...bundleDrinkFieldsFromPrintedName(normalizedSource.drinkLabel, "wine"),
+    };
+    expect(isCategoryQuarantined(normalizedClaim)).toBe(true);
+    expect(authoritativeBundleRows([normalizedClaim])).toEqual([]);
+    expect(parseUkPriceBundleRows([normalizedClaim])).toEqual([]);
+    expect(bundlePricesForCategory([normalizedClaim], "wine").listed).toBeNull();
+    expect(listedCategoryPrices([normalizedClaim], Date.parse("2026-09-30T12:00:00.000Z"))).toEqual([]);
+
+    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    expect(published.some((row) => row.lane === "site-harvest" && row.sourceUrl === sourceUrl
+      && row.category === "wine" && row.priceGbp === 3.95 && row.drinkLabel === rawDrinkLabel)).toBe(false);
+    expect(published.some((row) => row.lane === "site-harvest" && row.sourceUrl === sourceUrl
+      && row.category === "wine" && row.priceGbp === 3.95 && row.drinkLabel === normalizedDrinkLabel
+      && row.servingSize === "25ml")).toBe(false);
+
+    const genuineWineUrl = "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu";
+    const genuineWineLabel = "a classic Rioja, 13.5% glass";
+    const genuineWineSource = ledger.find((row) => row.sourceUrl === genuineWineUrl && row.category === "wine"
+      && row.priceGbp === 8.2 && row.drinkLabel === genuineWineLabel);
+    expect(genuineWineSource).toBeDefined();
+    if (!genuineWineSource) return;
+    const genuineWine: UkPriceBundleRow = {
+      ...listed, venueId: genuineWineSource.venueId, name: genuineWineSource.name, category: "wine",
+      priceGbp: 8.2, sourceUrl: genuineWineUrl, publisher: "greeneking.co.uk",
+      observedAt: genuineWineSource.observedAt, drinkLabel: genuineWineLabel,
+    };
+    expect(isCategoryQuarantined(genuineWine)).toBe(false);
+    expect(authoritativeBundleRows([genuineWine])).toEqual([genuineWine]);
+    expect(parseUkPriceBundleRows([genuineWine])).toEqual([genuineWine]);
+    expect(listedCategoryPrices([genuineWine], Date.parse("2026-09-30T12:00:00.000Z")))
+      .toEqual([expect.objectContaining({ category: "wine", priceGbp: 8.2, drinkLabel: genuineWineLabel })]);
+  });
+
+  it("withholds retained Punch & Judy slash and Spritz claims from wine", () => {
+    const sourceUrl = "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu";
+    const evidence = [
+      [8.1, "/"],
+      [13, "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda"],
+      [13, "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda"],
+      [13, "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda"],
+    ] as const;
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim().split("\n").map((line) => JSON.parse(line));
+    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    for (const [priceGbp, drinkLabel] of evidence) {
+      expect(ledger.some((row) => row.sourceUrl === sourceUrl && row.category === "wine" && row.priceGbp === priceGbp && row.drinkLabel === drinkLabel)).toBe(true);
+      const row: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp, drinkLabel };
+      expect(authoritativeBundleRows([row])).toEqual([]);
+      expect(parseUkPriceBundleRows([row])).toEqual([]);
+      expect(bundlePricesForCategory([row], "wine").listed).toBeNull();
+      expect(published.some((item) => item.lane === "site-harvest" && item.sourceUrl === sourceUrl && item.category === "wine" && item.priceGbp === priceGbp && item.drinkLabel === drinkLabel)).toBe(false);
+    }
+    const genuine: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp: 8.2, drinkLabel: "Baron de Ley Reserva Rioja, Spain" };
+    expect(authoritativeBundleRows([genuine])).toEqual([genuine]);
+  });
+
   it("withholds retained elderflower and raspberry soda claims misfiled as wine", () => {
     const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
       .trim()
