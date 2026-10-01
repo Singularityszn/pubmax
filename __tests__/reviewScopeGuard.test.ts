@@ -1,6 +1,6 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
@@ -12,6 +12,92 @@ import {
 } from "../scripts/check_review_scope.mjs";
 
 describe("review scope guard", () => {
+  const helperPackages = [
+    [".agents/skills/enhance-readme", "package-lock.json", "playwright", "1.59.1", "1.63.0"],
+    [".agents/skills/orchestrate/scripts", "bun.lock", "@cursor/sdk", "1.0.18", "1.0.34"],
+    [".agents/skills/poteto-mode/scripts", "bun.lock", "commander", "14.0.0", "15.0.0"],
+    ["skills/enhance-readme", "package-lock.json", "playwright", "1.59.1", "1.63.0"],
+  ] as const;
+
+  function withHelperDependencyDiff(
+    check: (repo: string, base: string, git: (...args: string[]) => string) => void,
+  ) {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-helper-review-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+    const writeMetadata = (after: boolean) => {
+      for (const [directory, lock, dependency, beforeVersion, afterVersion] of helperPackages) {
+        mkdirSync(join(repo, directory), { recursive: true });
+        const dependencies = { [dependency]: after ? afterVersion : beforeVersion };
+        writeFileSync(join(repo, directory, "package.json"), `${JSON.stringify({ private: true, dependencies })}\n`);
+        const locked = lock === "bun.lock"
+          ? { lockfileVersion: 1, workspaces: { "": { dependencies } }, packages: {} }
+          : { lockfileVersion: 3, packages: { "": { dependencies } } };
+        writeFileSync(join(repo, directory, lock), `${JSON.stringify(locked)}\n`);
+      }
+    };
+    try {
+      git("init", "-q");
+      git("config", "user.email", "review-scope@example.invalid");
+      git("config", "user.name", "Review Scope Test");
+      writeMetadata(false);
+      git("add", ".");
+      git("commit", "-qm", "seed helper dependency metadata");
+      const base = git("rev-parse", "HEAD");
+      writeMetadata(true);
+      check(repo, base, git);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  }
+
+  function runGuard(repo: string, base: string, head: string) {
+    const result = spawnSync(process.execPath, [
+      resolve("scripts/check_review_scope.mjs"), "--base", base, "--head", head, "--repo", repo,
+    ], { encoding: "utf8", timeout: 10_000 });
+    if (result.error) throw result.error;
+    return { status: result.status, stderr: result.stderr, report: JSON.parse(result.stdout) };
+  }
+
+  it("allows the eight existing helper dependency files through the public CLI", () => {
+    withHelperDependencyDiff((repo, base, git) => {
+      git("commit", "-am", "update helper dependencies");
+      const result = runGuard(repo, base, git("rev-parse", "HEAD"));
+      expect(result.stderr).toBe("");
+      expect({ status: result.status, forbidden: result.report.forbidden }).toEqual({ status: 0, forbidden: [] });
+      expect(result.report.categoryCounts).toEqual({ config: 8 });
+      expect(result.report.reviewFileCount).toBe(8);
+      expect(result.report.domains).toEqual([]);
+    });
+  });
+
+  it.each([
+    [".agents/skills/enhance-readme/SKILL.md", "skill-pack"],
+    ["skills/enhance-readme/SKILL.md", "skill-pack"],
+    [".agents/skills/enhance-readme/scripts/record-readme-tour.mjs", "skill-pack"],
+    [".agents/skills/unrelated/package.json", "skill-pack"],
+    ["skills/unrelated/package-lock.json", "skill-pack"],
+    [".agents/skills/orchestrate/scripts/package-lock.json", "skill-pack"],
+    ["data/generated/venue-pack.json", "generated"],
+  ])("still rejects %s beside allowed helper metadata through the public CLI", (path, category) => {
+    withHelperDependencyDiff((repo, base, git) => {
+      mkdirSync(dirname(join(repo, path)), { recursive: true });
+      const content = path.endsWith("SKILL.md")
+        ? "# Example skill\nChanged instructions remain skill-pack content.\n"
+        : path.endsWith(".mjs")
+          ? "export const tour = () => 'changed helper source';\n"
+          : `${JSON.stringify({ private: true, dependencies: { commander: "15.0.0" } })}\n`;
+      writeFileSync(join(repo, path), content);
+      git("add", ".");
+      git("commit", "-qm", "update helper dependencies and unrelated content");
+      const result = runGuard(repo, base, git("rev-parse", "HEAD"));
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(1);
+      expect(result.report.forbidden).toContainEqual({ category, path });
+      expect(result.report.ok).toBe(false);
+    });
+  });
+
   it("reports source, migration, generated, and evidence files by category", () => {
     const report = summarizeReviewScope([
       "app/api/price-submit/route.ts",
