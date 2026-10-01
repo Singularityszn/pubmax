@@ -19,7 +19,12 @@ const requests = vi.hoisted(() => ({
     cache?: RequestCache;
     signal?: AbortSignal;
   }>,
-  postCalls: [] as Array<{ url: string; method: string; body: string }>,
+  postCalls: [] as Array<{
+    url: string;
+    method: string;
+    body: string;
+    signal?: AbortSignal;
+  }>,
   searchRespond: null as
     | ((url: string, init?: RequestInit) => Promise<Response>)
     | null,
@@ -54,6 +59,7 @@ vi.mock("@/lib/authedFetch", () => ({
       url,
       method,
       body: typeof init?.body === "string" ? init.body : "",
+      signal: init?.signal ?? undefined,
     });
     return (
       requests.postRespond?.(url, init) ??
@@ -169,7 +175,9 @@ async function click(button: HTMLButtonElement): Promise<void> {
 }
 
 function postBodies(): unknown[] {
-  return requests.postCalls.map((call) => JSON.parse(call.body) as unknown);
+  return requests.postCalls
+    .filter((call) => call.method === "POST")
+    .map((call) => JSON.parse(call.body) as unknown);
 }
 
 beforeEach(() => {
@@ -241,6 +249,8 @@ describe("message recipient picker", () => {
     const addHari = buttonNamed("Add @hari");
     expect(addHari).not.toBeNull();
     await click(addHari!);
+    expect(search.value).toBe("");
+    expect(document.activeElement).toBe(search);
 
     await typeInto(search!, "not-a-recipient");
     await settle(260);
@@ -355,6 +365,94 @@ describe("message recipient picker", () => {
     expect(buttonNamed("Add @jane")).not.toBeNull();
   });
 
+  it("ignores stale results when same-account search returns to an earlier prefix", async () => {
+    const pending: Array<{
+      url: string;
+      resolve: (response: Response) => void;
+      signal?: AbortSignal;
+    }> = [];
+    requests.searchRespond = (url, init) =>
+      new Promise<Response>((resolve) =>
+        pending.push({ url, resolve, signal: init?.signal ?? undefined }),
+      );
+
+    await mount();
+    const search = searchInput()!;
+    await typeInto(search, "ha");
+    await settle(260);
+    await typeInto(search, "har");
+    await settle(260);
+    await typeInto(search, "ha");
+    await settle(260);
+    expect(pending).toHaveLength(3);
+
+    await act(async () => {
+      pending[2].resolve(
+        Response.json({
+          matches: [{ id: "profile-hannah", handle: "hannah", displayName: "Hannah" }],
+        }),
+      );
+    });
+    await settle();
+    expect(buttonNamed("Add @hannah")).not.toBeNull();
+
+    await act(async () => {
+      pending[0].resolve(
+        Response.json({
+          matches: [{ id: "profile-harriet", handle: "harriet", displayName: "Harriet" }],
+        }),
+      );
+    });
+    await settle();
+    await act(async () => {
+      pending[1].resolve(
+        Response.json({
+          matches: [{ id: "profile-hari", handle: "hari", displayName: "Hari" }],
+        }),
+      );
+    });
+    await settle();
+    expect(buttonNamed("Add @harriet")).toBeNull();
+    expect(buttonNamed("Add @hari")).toBeNull();
+    expect(buttonNamed("Add @hannah")).not.toBeNull();
+  });
+
+  it("keeps unknown prefixes disabled and retries directory failure without showing an empty result", async () => {
+    let searchAttempts = 0;
+    requests.searchRespond = async (url) => {
+      searchAttempts += 1;
+      if (searchAttempts === 1) {
+        return Response.json({ error: "directory unavailable" }, { status: 503 });
+      }
+      const query = new URL(url, "http://local").searchParams.get("q");
+      return Response.json({
+        matches:
+          query === "hari"
+            ? [{ id: "profile-hari", handle: "hari", displayName: "Hari" }]
+            : [],
+      });
+    };
+
+    await mount();
+    await typeInto(searchInput()!, "hari");
+    await settle(260);
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("No people found");
+    expect(buttonNamed("Add @hari")).toBeNull();
+
+    await click(buttonNamed("Retry search")!);
+    expect(searchAttempts).toBe(2);
+    expect(buttonNamed("Add @hari")).not.toBeNull();
+
+    await typeInto(searchInput()!, "unknown-prefix");
+    await settle(260);
+    const chat = buttonNamed("Chat");
+    expect(chat).not.toBeNull();
+    expect(chat!.disabled || chat!.getAttribute("aria-disabled") === "true").toBe(
+      true,
+    );
+  });
+
   it("keeps selection after a failed create and permits a deliberate retry", async () => {
     let postAttempts = 0;
     requests.searchRespond = async () =>
@@ -421,5 +519,85 @@ describe("message recipient picker", () => {
     });
     await settle();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("does not open a late create result after account changes", async () => {
+    let resolveCreate: ((response: Response) => void) | undefined;
+    const oldOnOpened = vi.fn();
+    const newOnOpened = vi.fn();
+    requests.postRespond = () =>
+      new Promise<Response>((resolve) => {
+        resolveCreate = resolve;
+      });
+
+    await mount({ onOpened: oldOnOpened });
+    await typeInto(searchInput()!, "hari");
+    await settle(260);
+    await click(buttonNamed("Add @hari")!);
+    await click(buttonNamed("Chat")!);
+    expect(resolveCreate).toBeDefined();
+
+    authState.current = {
+      user: { id: "user-lee" },
+      handle: "lee",
+      accountRevision: 2,
+    };
+    await renderPicker(
+      {
+        handle: "lee",
+        onOpened: newOnOpened,
+        open: true,
+        allowDirect: true,
+      },
+      "picker",
+    );
+    await act(async () => {
+      resolveCreate?.(
+        Response.json({ conversationId: "stale-conversation" }, { status: 201 }),
+      );
+    });
+    await settle();
+
+    expect(oldOnOpened).not.toHaveBeenCalled();
+    expect(newOnOpened).not.toHaveBeenCalled();
+  });
+
+  it("does not open a late create result after the reader cancels", async () => {
+    let resolveCreate: ((response: Response) => void) | undefined;
+    let createSignal: AbortSignal | undefined;
+    const onOpened = vi.fn();
+    const onClose = vi.fn();
+    requests.postRespond = (_url, init) =>
+      new Promise<Response>((resolve) => {
+        resolveCreate = resolve;
+        createSignal = init?.signal ?? undefined;
+      });
+    const props: PickerProps = {
+      handle: "ken",
+      onOpened,
+      onClose,
+      open: true,
+      allowDirect: true,
+    };
+
+    await mount(props);
+    await typeInto(searchInput()!, "hari");
+    await settle(260);
+    await click(buttonNamed("Add @hari")!);
+    await click(buttonNamed("Chat")!);
+    expect(resolveCreate).toBeDefined();
+
+    await click(buttonNamed("Close new message")!);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await renderPicker({ ...props, open: false });
+    expect(createSignal?.aborted).toBe(true);
+    await act(async () => {
+      resolveCreate?.(
+        Response.json({ conversationId: "cancelled-conversation" }, { status: 201 }),
+      );
+    });
+    await settle();
+
+    expect(onOpened).not.toHaveBeenCalled();
   });
 });
