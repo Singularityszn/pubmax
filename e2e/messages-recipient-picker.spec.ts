@@ -24,6 +24,7 @@ const PEOPLE = [
 async function installPickerFixture(
   page: Page,
   directoryMode: DirectoryMode = "normal",
+  people = PEOPLE,
 ): Promise<PickerJournal> {
   const stub = await installAuthDoubles(page);
   await seedSignedIn(page, "A");
@@ -56,7 +57,7 @@ async function installPickerFixture(
       contentType: "application/json",
       headers: { "cache-control": "no-store" },
       body: JSON.stringify({
-        matches: PEOPLE.filter((person) => person.handle.startsWith(query ?? "")),
+        matches: people.filter((person) => person.handle.startsWith(query ?? "")),
       }),
     });
   });
@@ -247,64 +248,95 @@ test("unknown prefixes stay disabled and directory failure retries as an error, 
   await expect(chat).toBeDisabled();
 });
 
-test("mobile keyboard keeps picker action inside visible viewport above tab bar", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    const viewport = Object.assign(new EventTarget(), {
-      height: 544,
-      offsetTop: 0,
-    });
-    Object.defineProperty(window, "visualViewport", {
-      configurable: true,
-      value: viewport,
-    });
-  });
-  await installPickerFixture(page);
-  await page.goto("/messages");
+const KEYBOARD_LAYOUTS = [
+  { name: "phone", width: 390, height: 844, inset: 300 },
+  { name: "tablet", width: 768, height: 1024, inset: 300 },
+  { name: "landscape", width: 1024, height: 768, inset: 300 },
+  { name: "short-landscape", width: 844, height: 390, inset: 100 },
+];
 
-  await page.getByRole("button", { name: "New message" }).click();
-  const dialog = page.getByRole("dialog", { name: "New message" });
-  const search = dialog.getByRole("textbox", { name: "Search people" });
-  const chat = dialog.getByRole("button", { name: "Chat", exact: true });
-  const tabBar = page.locator(".mobileTabBar");
-  await expect(dialog).toBeVisible();
-  await expect(search).toBeFocused();
-  await expect(tabBar).toHaveAttribute("aria-hidden", "true");
-  await expect(tabBar).toHaveAttribute("inert", "");
-
-  const geometry = await page.evaluate(() => {
-    const backdrop = document.querySelector<HTMLElement>(
-      ".messagesNewGroupBackdrop",
-    );
-    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
-    const action = dialog?.querySelector<HTMLElement>(".messagesNewGroupCreate");
-    const tabBar = document.querySelector<HTMLElement>(".mobileTabBar");
-    if (!backdrop || !dialog || !action || !tabBar || !window.visualViewport) {
-      throw new Error("keyboard picker fixture is incomplete");
+for (const layout of KEYBOARD_LAYOUTS) {
+  test(`${layout.name} keyboard keeps direct and group actions visible and focusable`, async ({ page }) => {
+    await page.setViewportSize({ width: layout.width, height: layout.height });
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: Object.assign(new EventTarget(), { height: window.innerHeight, offsetTop: 0 }),
+      });
+    });
+    const people = Array.from({ length: 8 }, (_, i) => ({
+      id: `profile-person${i}`, handle: `person${i}`, displayName: `Person ${i}`,
+    }));
+    await installPickerFixture(page, "normal", people);
+    await page.goto("/messages");
+    const opener = page.getByRole("button", { name: "New message" });
+    await opener.click();
+    const dialog = page.getByRole("dialog", { name: "New message" });
+    const search = dialog.getByRole("textbox", { name: "Search people" });
+    await expect(search).toBeFocused();
+    await page.evaluate((height) => {
+      Object.assign(window.visualViewport!, { height });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+    }, layout.height - layout.inset);
+    if (layout.width <= 640) {
+      const tabBar = page.locator(".mobileTabBar");
+      await expect(tabBar).toHaveAttribute("aria-hidden", "true");
+      await expect(tabBar).toHaveAttribute("inert", "");
+      const layering = await page.evaluate(() => {
+        const backdrop = document.querySelector<HTMLElement>(".messagesNewGroupBackdrop")!;
+        const bar = document.querySelector<HTMLElement>(".mobileTabBar")!;
+        return {
+          picker: Number.parseInt(getComputedStyle(backdrop).zIndex, 10),
+          bar: Number.parseInt(getComputedStyle(bar).zIndex, 10),
+          barBottom: bar.getBoundingClientRect().bottom,
+          visibleBottom: window.visualViewport!.height,
+        };
+      });
+      expect(layering.picker).toBeGreaterThan(layering.bar);
+      expect(layering.barBottom).toBeGreaterThan(layering.visibleBottom);
     }
-    return {
-      layoutHeight: window.innerHeight,
-      visibleHeight: window.visualViewport.height,
-      offsetTop: window.visualViewport.offsetTop,
-      dialogBottom: dialog.getBoundingClientRect().bottom,
-      actionBottom: action.getBoundingClientRect().bottom,
-      backdropZ: Number.parseInt(getComputedStyle(backdrop).zIndex, 10),
-      tabBarZ: Number.parseInt(getComputedStyle(tabBar).zIndex, 10),
-      tabBarBottom: tabBar.getBoundingClientRect().bottom,
-    };
-  });
+    await search.fill("person");
+    await expect(dialog.locator(".messagesNewGroupResult")).toHaveCount(8);
+    await expect(search).toBeFocused();
 
-  expect(geometry.layoutHeight).toBe(844);
-  expect(geometry.visibleHeight).toBe(544);
-  expect(geometry.offsetTop).toBe(0);
-  expect(geometry.dialogBottom).toBeLessThanOrEqual(geometry.visibleHeight);
-  expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.visibleHeight);
-  expect(geometry.backdropZ).toBeGreaterThan(geometry.tabBarZ);
-  expect(geometry.tabBarBottom).toBeGreaterThan(geometry.visibleHeight);
-  await expect(chat).toBeDisabled();
-});
+    const assertActions = async () => {
+      await expect.poll(() => dialog.evaluate((element) => {
+        const visibleBottom = window.visualViewport!.height;
+        const bounds = element.getBoundingClientRect();
+        return bounds.top >= 0 && bounds.bottom <= visibleBottom;
+      })).toBe(true);
+      for (const action of [dialog.locator(".messagesNewGroupCreate"), dialog.getByRole("button", { name: "Cancel", exact: true })]) {
+        expect(await action.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return box.top >= 0 && box.bottom <= window.visualViewport!.height &&
+            box.left >= 0 && box.right <= window.innerWidth && Boolean(hit && element.contains(hit));
+        })).toBe(true);
+      }
+    };
+    await assertActions();
+    await expect(dialog.getByRole("button", { name: "Chat", exact: true })).toBeDisabled();
+    await dialog.getByRole("button", { name: "Add @person0" }).click();
+    await expect(search).toBeFocused();
+    await search.fill("person");
+    await expect(dialog.locator(".messagesNewGroupResult")).toHaveCount(8);
+    await expect(dialog.getByRole("button", { name: "Chat", exact: true })).toBeEnabled();
+    await assertActions();
+    await dialog.getByRole("button", { name: "Add @person1" }).click();
+    await expect(search).toBeFocused();
+    await search.fill("person");
+    await expect(dialog.locator(".messagesNewGroupResult")).toHaveCount(8);
+    await expect(dialog.getByRole("button", { name: "Create group", exact: true })).toBeEnabled();
+    await assertActions();
+    const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+    await cancel.focus();
+    await page.keyboard.press("Tab");
+    await expect(dialog.getByRole("button", { name: "Close new message" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+  });
+}
 
 const PICKER_LAYOUTS = [
   { name: "desktop-light", width: 1440, height: 900, colorScheme: "light" as const },

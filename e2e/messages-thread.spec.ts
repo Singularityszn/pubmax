@@ -332,6 +332,35 @@ test.describe("the message thread on a phone", () => {
 });
 
 test.describe("the message thread at 320", () => {
+  test("composer growth stays bounded and attachment targets stay touch-safe", async ({ page }) => {
+    await page.setViewportSize(NARROW);
+    await installThread(page, fixture());
+    await page.goto("/messages/c1");
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    await expect(field).toBeVisible();
+    await field.fill(Array.from({ length: 20 }, () => "One more line").join("\n"));
+    const measured = await field.evaluate((element) => ({
+      height: element.getBoundingClientRect().height,
+      rootFont: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    }));
+    expect(measured.height).toBeGreaterThanOrEqual(44);
+    expect(measured.height).toBeLessThanOrEqual(9 * measured.rootFont);
+    expect(measured.scrollHeight).toBeGreaterThan(measured.clientHeight);
+    await expect(page.locator(".composerPhotoDesktop")).toBeHidden();
+    await page.getByRole("button", { name: "Add an attachment", exact: true }).click();
+    const chooser = page.getByRole("dialog", { name: "Add to message" });
+    await expect(chooser).toBeVisible();
+    for (const target of await chooser.locator(".messageAttachTarget").all()) {
+      const geometry = await target.boundingBox();
+      expect(geometry!.width).toBeGreaterThanOrEqual(56);
+      expect(geometry!.height).toBeGreaterThanOrEqual(56);
+      await expect(target).toHaveCSS("touch-action", "manipulation");
+      await expect(target).toHaveCSS("user-select", "none");
+    }
+  });
+
   test("never scrolls sideways, and every control keeps 44px", async ({ page }) => {
     await page.setViewportSize(NARROW);
     await installThread(page, fixture());

@@ -136,6 +136,15 @@ function searchInput(): HTMLInputElement | null {
     : null;
 }
 
+it("renders handle search without keyboard correction or capitalization", async () => {
+  await mount();
+  const field = searchInput();
+  expect(field).not.toBeNull();
+  expect(field!.getAttribute("autocapitalize")).toBe("none");
+  expect(field!.getAttribute("autocorrect")).toBe("off");
+  expect(field!.getAttribute("spellcheck")).toBe("false");
+});
+
 function buttonNamed(name: string): HTMLButtonElement | null {
   return (
     Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
