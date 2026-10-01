@@ -13,14 +13,8 @@ const MENU_URL = "https://www.some-free-house.co.uk/drinks";
 
 function scrapeMarkdownResponse(markdown: string) {
   return new Response(JSON.stringify({
-    success: true,
     url: MENU_URL,
-    markdown,
-    contentLength: markdown.length,
-    finalDOMState: "loaded",
-    request_id: "test",
-    cache_metadata: { age_ms: 0, status: "miss" },
-    metadata: { finalUrl: MENU_URL, sourceUrl: MENU_URL },
+    markdown: { requested: true, success: true, data: markdown },
   }), { headers: { "content-type": "application/json" } });
 }
 

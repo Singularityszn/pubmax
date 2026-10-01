@@ -6,7 +6,6 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 import * as contextDev from "@/lib/contextDev";
 import { runEventsRefresh } from "../scripts/whatson/eventsRefresh.mjs";
-import { contextDevExtractEnvelope } from "./helpers/contextDevExtractEnvelope";
 
 const temporaryDirs: string[] = [];
 afterAll(() => {
@@ -172,7 +171,7 @@ describe("eventsRefresh Context.dev lane", () => {
       { title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z" },
       { title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-19", sourceUrl: "https://example.com/event" },
     ] }, "Quiz at The Dove on 18 August 2026 at 20:00.\nOpen mic at The Dove on 19 August 2026."],
-  ])("retains held Fuller's rows when its JSON capture is %s while Ticketmaster updates", async (_case, data, _markdown = "") => {
+  ])("retains held Fuller's rows when its JSON capture is %s while Ticketmaster updates", async (_case, data, markdown = "") => {
     const outPath = temporaryOutPath();
     const held = [
       { ...heldFullersRow("events-cd-blank-held"), observedAt: heldGeneratedAt },
@@ -183,7 +182,11 @@ describe("eventsRefresh Context.dev lane", () => {
       const url = String(input);
       if (url.startsWith("https://api.context.dev/")) {
         return new Response(
-          JSON.stringify(contextDevExtractEnvelope(data, { markdown: _markdown || undefined })),
+          JSON.stringify({
+            url: "https://www.fullers.co.uk/event-finder",
+            json: { requested: true, success: true, data },
+            markdown: { requested: true, success: true, data: markdown },
+          }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }
@@ -216,12 +219,14 @@ describe("eventsRefresh Context.dev lane", () => {
     const outPath = temporaryOutPath();
     writeHeldFile(outPath, [heldFullersRow("held-quiz"), { ...heldFullersRow("held-mic"), title: "Open mic" }]);
     const before = readFileSync(outPath, "utf8");
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(
-      contextDevExtractEnvelope({ events: [
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: "https://www.fullers.co.uk/event-finder",
+      markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026.\nOpen mic at The Swan on 19 August 2026." },
+      json: { requested: true, success: true, data: { events: [
         { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
         { title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-18" },
-      ] }, { partial: true }),
-    ), { status: 200, headers: { "content-type": "application/json" } }));
+      ] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
     const result = await runEventsRefresh({
       argv: ["node", "eventsRefresh.mjs", "--allow-empty"],
       env: { CONTEXT_DEV_API_KEY: "test-key" },
@@ -247,11 +252,14 @@ describe("eventsRefresh Context.dev lane", () => {
     writeHeldFile(outPath, held);
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).startsWith("https://api.context.dev/")) {
-        return new Response(JSON.stringify(
-          contextDevExtractEnvelope({ events: [
+        return new Response(JSON.stringify({
+          url: "https://www.fullers.co.uk/event-finder",
+          isPartial: true,
+          markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026." },
+          json: { requested: true, success: true, data: { events: [
             { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
-          ] }, { partial: true }),
-        ), { status: 200, headers: { "content-type": "application/json" } });
+          ] } },
+        }), { status: 200, headers: { "content-type": "application/json" } });
       }
       return answeringTicketmaster(String(input));
     });

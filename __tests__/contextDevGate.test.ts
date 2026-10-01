@@ -30,25 +30,8 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   });
 }
 
-function scrapeEnvelope(url: string) {
-  return {
-    success: true as const,
-    url,
-    finalDOMState: "loaded" as const,
-    request_id: "test",
-    cache_metadata: { age_ms: 0, status: "miss" as const },
-    metadata: { finalUrl: url, sourceUrl: url },
-  };
-}
-
 function scrapeOutput(format: "markdown" | "html", data: string | null, success = true) {
-  if (!success || data === null) {
-    return { success: false, url: PERMITTED, error_code: "EMPTY" };
-  }
-  const base = scrapeEnvelope(PERMITTED);
-  return format === "markdown"
-    ? { ...base, markdown: data, contentLength: data.length }
-    : { ...base, html: data, type: "html" as const };
+  return { url: PERMITTED, [format]: { requested: true, success, data } };
 }
 
 function allowRobots(): RobotsChecker {
@@ -147,10 +130,11 @@ describe("maxAgeMs", () => {
       sleepImpl: noSleep,
       maxAgeMs: 0,
     });
-    const request = new URL(seen[0]);
-    expect(request.pathname).toBe("/v1/web/scrape/markdown");
-    expect(request.searchParams.get("url")).toBe(PERMITTED);
-    expect(request.searchParams.get("maxAgeMs")).toBe("0");
+    expect(seen[0]).toContain("/web/scrape");
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      url: PERMITTED, formats: { markdown: true }, maxAgeMs: 0,
+    });
   });
 
   it("is absent from the request when the caller names none", async () => {
@@ -164,8 +148,7 @@ describe("maxAgeMs", () => {
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
     });
-    const request = new URL(String(fetchImpl.mock.calls[0]?.[0]));
-    expect(request.searchParams.get("maxAgeMs")).toBeNull();
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).not.toHaveProperty("maxAgeMs");
   });
 });
 
@@ -197,38 +180,12 @@ describe("scrapeHtml", () => {
 
   it("does not accept failed Markdown output from a partial scrape", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({
-      success: true,
       url: PERMITTED,
-      markdown: "",
-      contentLength: 0,
-      finalDOMState: "still-loading",
-      request_id: "test",
-      cache_metadata: { age_ms: 0, status: "miss" },
-      metadata: { finalUrl: PERMITTED, sourceUrl: PERMITTED },
+      markdown: { requested: true, success: false, data: "stale text" },
+      html: { requested: false, success: null, data: null },
+      isPartial: true,
     }));
     const result = await scrapeMarkdown(PERMITTED, {
-      env: KEY,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
-      sleepImpl: noSleep,
-    });
-    expect(result.status).toBe("error");
-    if (result.status !== "error") throw new Error("expected error");
-    expect(result.error.code).toBe("EMPTY_BODY");
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not accept html from a partial scrape", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({
-      success: true,
-      url: PERMITTED,
-      html: "<partial>",
-      type: "html" as const,
-      finalDOMState: "still-loading",
-      request_id: "test",
-      cache_metadata: { age_ms: 0, status: "miss" },
-      metadata: { finalUrl: PERMITTED, sourceUrl: PERMITTED },
-    }));
-    const result = await scrapeHtml(PERMITTED, {
       env: KEY,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,

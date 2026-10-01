@@ -341,15 +341,6 @@ function contextDevClient(apiKey: string, options: ContextDevCallOptions): Conte
   });
 }
 
-type ContextDevTransport = ContextDev & {
-  get<Rsp>(path: string, opts?: { query?: Record<string, unknown> }): Promise<Rsp>;
-  post<Rsp>(path: string, opts?: { body?: unknown }): Promise<Rsp>;
-};
-
-function contextDevTransport(client: ContextDev): ContextDevTransport {
-  return client as ContextDevTransport;
-}
-
 /**
  * Send one SDK call and classify its outcome the way `withRetries` expects.
  *
@@ -464,11 +455,6 @@ function positiveMaxAge(options: ContextDevCallOptions): number | undefined {
   return options.maxAgeMs === undefined ? undefined : Math.max(0, options.maxAgeMs);
 }
 
-function scrapeQuery(url: string, options: ContextDevCallOptions) {
-  const maxAgeMs = positiveMaxAge(options);
-  return maxAgeMs === undefined ? { url } : { url, maxAgeMs };
-}
-
 /** Scrape one page to Markdown. 1 credit. */
 export async function scrapeMarkdown(
   url: string,
@@ -476,25 +462,11 @@ export async function scrapeMarkdown(
 ): Promise<ContextDevScrapeResult> {
   return guardedCall<ContextDevScrapeOk>(url, options, (client) =>
     attempt(
-      () => contextDevTransport(client).get("/web/scrape/markdown", { query: scrapeQuery(url, options) }),
-      (body) => {
-        const record = body as {
-          success?: boolean;
-          finalDOMState?: string;
-          markdown?: unknown;
-          url?: string;
-        };
-        return record.success === true
-          && record.finalDOMState === "loaded"
-          && typeof record.markdown === "string"
-          && record.markdown.length > 0
-          ? {
-              status: "ok" as const,
-              url: typeof record.url === "string" && record.url ? record.url : url,
-              markdown: record.markdown,
-            }
-          : null;
-      },
+      () => client.web.scrape({ url, formats: { markdown: true }, maxAgeMs: positiveMaxAge(options) }),
+      (body) =>
+        body.markdown?.success === true && typeof body.markdown.data === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown.data }
+          : null,
       "Scrape returned no markdown.",
     ),
   );
@@ -507,25 +479,11 @@ export async function scrapeHtml(
 ): Promise<ContextDevHtmlResult> {
   return guardedCall<ContextDevHtmlOk>(url, options, (client) =>
     attempt(
-      () => contextDevTransport(client).get("/web/scrape/html", { query: scrapeQuery(url, options) }),
-      (body) => {
-        const record = body as {
-          success?: boolean;
-          finalDOMState?: string;
-          html?: unknown;
-          url?: string;
-        };
-        return record.success === true
-          && record.finalDOMState === "loaded"
-          && typeof record.html === "string"
-          && record.html.length > 0
-          ? {
-              status: "ok" as const,
-              url: typeof record.url === "string" && record.url ? record.url : url,
-              html: record.html,
-            }
-          : null;
-      },
+      () => client.web.scrape({ url, formats: { html: true }, maxAgeMs: positiveMaxAge(options) }),
+      (body) =>
+        body.html?.success === true && typeof body.html.data === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html.data }
+          : null,
       "Scrape returned no html.",
     ),
   );
@@ -560,13 +518,11 @@ export async function sitemapUrls(
           ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
         }),
       (body) =>
-        body.success === true && Array.isArray(body.urls)
+        Array.isArray(body?.urls)
           ? {
               status: "ok" as const,
               domain: typeof body.domain === "string" && body.domain ? body.domain : domain,
-              urls: body.urls
-                .map((entry) => (typeof entry === "string" ? entry : entry?.url))
-                .filter((entry): entry is string => typeof entry === "string" && entry.length > 0),
+              urls: body.urls.map((entry) => entry?.url).filter((entry): entry is string => typeof entry === "string"),
             }
           : null,
       "Sitemap read returned no urls.",
@@ -617,7 +573,7 @@ export async function crawlMarkdown(
 }
 
 /**
- * Extract one page into a JSON schema through POST `/web/extract`.
+ * Extract one page into a JSON schema through the unified scrape.
  *
  * Freshness, capture completeness and credit costs are defined in
  * docs/rules/lib-shared-seams-stores-http-freshness-brand.md, Context.dev contract.
@@ -634,41 +590,24 @@ export async function extract<T extends Record<string, unknown> = Record<string,
   return guardedCall<ContextDevExtractOk<T>>(url, options, (client) =>
     attempt(
       () =>
-        contextDevTransport(client).post("/web/extract", {
-          body: {
-            url,
-            schema,
-            maxAgeMs: 0,
-            ...(instructions === undefined ? {} : { instructions }),
-          },
+        client.web.scrape({
+          url,
+          formats: { json: true, markdown: true },
+          jsonParams: { schema, ...(instructions === undefined ? {} : { instructions }) },
+          maxAgeMs: 0,
         }),
-      (body) => {
-        const record = body as {
-          status?: string;
-          partial?: boolean;
-          isPartial?: boolean;
-          url?: string;
-          data?: unknown;
-          markdown?: unknown;
-          urls_analyzed?: unknown;
-        };
-        const markdown = typeof record.markdown === "string" ? record.markdown : "";
-        return record.status === "ok" && record.partial !== true && record.isPartial !== true
-          && typeof record.url === "string" && record.url.length > 0
-          && typeof record.data === "object" && record.data !== null
-          && markdown.length > 0
+      (body) =>
+        body?.isPartial !== true && body?.json?.success === true && typeof body.json.data === "object" && body.json.data !== null
+          && body.markdown?.success === true && typeof body.markdown.data === "string"
+          && typeof body.url === "string" && body.url.length > 0
           ? {
               status: "ok" as const,
-              url: record.url,
-              data: record.data as T,
-              markdown,
-              urlsAnalyzed:
-                Array.isArray(record.urls_analyzed) && record.urls_analyzed.length > 0
-                  ? record.urls_analyzed.filter((entry): entry is string => typeof entry === "string")
-                  : [record.url],
+              url: body.url,
+              data: body.json.data as T,
+              markdown: body.markdown.data,
+              urlsAnalyzed: [body.url],
             }
-          : null;
-      },
+          : null,
       "Extract returned no data.",
     ),
   );
