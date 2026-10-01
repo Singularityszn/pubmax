@@ -2,7 +2,7 @@
 // timeout, curated house-voice error copy (no raw JS error text ever reaches the
 // UI), and provenance preserved through both response shapes. Hermetic: injected
 // fetch, no network, deterministic timers.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { createPalChatSession } from "@/lib/palChatClient";
@@ -43,7 +43,21 @@ const WHATS_ON_BODY = {
   ],
 };
 
+afterEach(() => vi.useRealTimers());
+
 describe("createPalChatSession", () => {
+  it("accepts a sourced response late in the server's 28-second window", async () => {
+    vi.useFakeTimers();
+    const ask = createPalChatSession({
+      fetchImpl: (_input, init) => new Promise((resolve, reject) => {
+        setTimeout(() => resolve(jsonResponse(VENUE_BODY)), 27_000);
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      }),
+    });
+    const pending = ask("quiet near bank", "london");
+    await vi.advanceTimersByTimeAsync(27_000);
+    expect(await pending).toMatchObject({ status: "answered", cards: [{ venueId: "venue-1" }] });
+  });
   it("returns a grounded venue answer with On-record provenance", async () => {
     const ask = createPalChatSession({
       fetchImpl: async () => jsonResponse(VENUE_BODY),

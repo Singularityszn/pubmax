@@ -42,6 +42,29 @@ function dryRun() {
 }
 
 describe("pubpal:agent dry run", () => {
+  it("binds every webhook receipt to the runtime conversation rather than an LLM guess", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const start = printed.indexOf("{");
+    const end = printed.lastIndexOf("}");
+    const body = JSON.parse(printed.slice(start, end + 1)) as {
+      webhook_tool_configs?: Array<{
+        api_schema: {
+          request_body_schema: {
+            required: string[];
+            properties: Record<string, unknown>;
+          };
+        };
+      }>;
+    };
+    expect(body.webhook_tool_configs?.length).toBe(14);
+    for (const tool of body.webhook_tool_configs ?? []) {
+      expect(tool.api_schema.request_body_schema.required).toContain("conversation_id");
+      expect(tool.api_schema.request_body_schema.properties.conversation_id).toEqual({
+        type: "string",
+        dynamic_variable: "system__conversation_id",
+      });
+    }
+  });
   it("prints the agent it would write without printing the shared secret", () => {
     const result = dryRun();
     expect(result.status).toBe(0);
