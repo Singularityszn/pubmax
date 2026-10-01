@@ -184,10 +184,15 @@ async function expectComposerInView(page: Page): Promise<void> {
 async function expectMessageInView(page: Page, text: string): Promise<void> {
   const bubble = page.locator(".messageBubble", { hasText: text }).last();
   await expect(bubble).toBeVisible();
-  const [bubbleBox, dock] = await Promise.all([bubble.boundingBox(), box(page, ".composerDock")]);
-  expect(bubbleBox).not.toBeNull();
-  expect(bubbleBox!.y, `${text}: top inside the viewport`).toBeGreaterThanOrEqual(0);
-  expect(bubbleBox!.y + bubbleBox!.height, `${text}: sits above the composer`).toBeLessThanOrEqual(dock.top + 1);
+  // The thread scrolls on the resize animation frame. Read current geometry
+  // until that frame lands, keeping the same whole-bubble bounds.
+  await expect.poll(async () => (await bubble.boundingBox())?.y ?? -1, {
+    message: `${text}: top inside the viewport`,
+  }).toBeGreaterThanOrEqual(0);
+  await expect.poll(async () => {
+    const [bubbleBox, dock] = await Promise.all([bubble.boundingBox(), box(page, ".composerDock")]);
+    return bubbleBox ? bubbleBox.y + bubbleBox.height - dock.top : Number.POSITIVE_INFINITY;
+  }, { message: `${text}: sits above the composer` }).toBeLessThanOrEqual(1);
 }
 
 /** Send is a 44px circle, and the arrow inside it is dead centre. */
