@@ -174,7 +174,7 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "no-alcohol");
-    expect(empty).toContain("No alcohol-free or soft drink price logged here yet");
+    expect(empty).toContain("No alcohol-free or soft drink price logged by drinkers yet");
     expect(empty).not.toContain("£5.80");
   });
 
@@ -201,19 +201,19 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "all", "ready", "coffee");
-    expect(empty).toContain("No coffee price logged here yet.");
+    expect(empty).toContain("No coffee price logged by drinkers yet.");
     expect(empty).not.toContain("£5.80");
     expect(empty).not.toContain("alcohol-free or soft drink");
     expect(empty).not.toContain("Nobody has logged");
 
     const loading = renderSheet([], "all", "loading", "coffee");
     expect(loading).toContain("Checking coffee prices logged here.");
-    expect(loading).not.toContain("No coffee price logged here yet.");
+    expect(loading).not.toContain("No coffee price logged by drinkers yet.");
 
     const degraded = renderSheet([], "all", "degraded", "coffee");
     expect(degraded).toContain("could not read this pub");
     expect(degraded).toContain("coffee prices just now");
-    expect(degraded).not.toContain("No coffee price logged here yet.");
+    expect(degraded).not.toContain("No coffee price logged by drinkers yet.");
   });
 
   it("never shows a beer price in the food view", () => {
@@ -281,11 +281,11 @@ describe("UnverifiedPubSheet", () => {
   it("keeps the no-alcohol empty state behind an answered read", () => {
     const pending = renderSheet([], "no-alcohol", "loading");
     expect(pending).toContain("Checking community prices");
-    expect(pending).not.toContain("price logged here yet");
+    expect(pending).not.toContain("price logged by drinkers yet");
 
     const failed = renderSheet([], "no-alcohol", "degraded");
     expect(failed).toContain("could not read what has been logged here");
-    expect(failed).not.toContain("price logged here yet");
+    expect(failed).not.toContain("price logged by drinkers yet");
   });
 
   it("shows be-the-first framing only after a confirmed empty response", () => {
