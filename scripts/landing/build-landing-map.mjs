@@ -1,12 +1,9 @@
 #!/usr/bin/env node
-// Draw the landing's map of London, once, at build time.
+// Generate the London geometry and historic-pub count used by landing and OG copy.
 //
-// Captain 7 Sep 2026: the front door shows the places to visit and the historic
-// pubs, and it shows them fast. The live MapLibre canvas cannot do that: it
-// costs a WebGL context, a style, a font stack and megabytes of tiles before a
-// stranger sees anything. So the landing gets a DRAWING instead, generated from
-// the two datasets this repository already ships, and the live map stays one
-// tap away.
+// The front-door rule in docs/rules/components-design-system-and-launch-primitives.md
+// owns the current hero picture. This module retains the former drawing's
+// source geometry for the generated-data checks.
 //
 // THREE RULES.
 //
@@ -21,11 +18,9 @@
 //     at most six of them. Re-run the script after the heritage data changes and
 //     the pins follow the data rather than somebody's taste.
 //
-// (3) IT SHIPS AS GEOMETRY, NOT AS AN IMAGE FILE. The output is a TypeScript
-//     module of path data that components/landing/LondonMapSnapshot.tsx paints
-//     inline, so the drawing takes the reader's own theme tokens, costs no
-//     request at all, and is sharp at every width. The size ceiling lives in
-//     __tests__/landingMapSnapshot.test.ts.
+// (3) THE GENERATED MODULE RETAINS THE HISTORIC PUB COUNT used by the landing
+//     and OG copy. The outline and pin data remain checked for source fidelity
+//     in __tests__/landingMapSnapshot.test.ts.
 //
 // Usage: node scripts/landing/build-landing-map.mjs
 
@@ -75,7 +70,7 @@ const PIN_MARK_RADIUS = 9.5;
  * Where a pin's writing may sit, tried in this order: beside the pin, then
  * just above it, then just below. `dx` is how far along the line the writing
  * starts from the pin and `dy` how far the two lines move up or down;
- * LondonMapSnapshot.tsx reads both from the generated pin.
+ * The generated pin retains both values for source-fidelity checks.
  */
 const PLACEMENTS = [
   { dx: 18, dy: 0 },
@@ -84,11 +79,11 @@ const PLACEMENTS = [
 ];
 /**
  * The box each line of a pin's writing takes, from the pin's centre before
- * `dy`. Top and bottom are the fonts' own ascent and descent at .lpMapPinName
- * (27px Space Grotesk Bold, baseline -2) and .lpMapPinLabel (22px JetBrains
- * Mono, baseline 24). The width per character is wider than either font runs:
- * Chromium measured 0.50 to 0.52 em for the names and 0.60 em for the dates on
- * 14 Sep 2026, so writing this script seats is clear in the browser too.
+ * `dy`. Top and bottom retain the former drawing's font metrics: 27px Space
+ * Grotesk Bold at baseline -2 for names, 22px JetBrains Mono at baseline 24
+ * for dates. The width per character exceeds the Chromium measurements from
+ * 14 Sep 2026: 0.50 to 0.52 em for names and 0.60 em for dates. These boxes
+ * preserve label separation in the generated geometry, not a current DOM view.
  */
 const NAME_BOX = { size: 27, em: 0.56, top: -30, bottom: 7 };
 const DATE_BOX = { size: 22, em: 0.62, top: 1, bottom: 31 };

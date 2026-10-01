@@ -70,9 +70,10 @@ describe("the landing hero stands on a photograph", () => {
     expect(html).toContain("data:image/webp;base64,");
   });
 
-  it("preloads exactly one image and marks exactly one as the largest paint", () => {
+  it("preloads only the skyline and gives it the only high-priority image request", () => {
     expect(html.match(/rel="preload"/g)?.length ?? 0).toBe(1);
     expect(html.match(/fetchPriority="high"|fetchpriority="high"/gi)?.length ?? 0).toBe(2);
+    expect(html).toContain('/landing/hero-thames-1024.avif 1024w');
   });
 
   it("never prints the venue lane's empty state on a landing", () => {

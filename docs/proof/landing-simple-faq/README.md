@@ -6,6 +6,8 @@
 > audit D21): every label is written clear of every named pin, with a
 > land-coloured halo over the pub dots. The rows, the "five named pins" wording
 > and the shots below stay unchanged as dated history.
+> The 1 October 2026 change also replaced the drawing. Current picture and
+> action contracts live in the [front-door rule](../../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap).
 
 Branch `fm/landing-simple-faq`. The captain's ask, 7 September 2026: a landing a
 stranger understands at a glance, with the map of places to visit and the
@@ -29,17 +31,10 @@ overlay, not the page.
 
 ## What the picture is
 
-Not the live MapLibre canvas, and not a photograph. It is inline vector
-geometry generated once at build by `scripts/landing/build-landing-map.mjs`
-from `data/london_boroughs_simplified.json` and `public/data/historic_pubs.json`,
-painted by `components/landing/LondonMapSnapshot.tsx`. 26.9 KB of generated
-module against the 80 KB ceiling `__tests__/landingMapSnapshot.test.ts` holds.
-No request, no script, sharp at both widths from one set of bytes, and it takes
-the reader's own theme tokens.
-
-Every mark is a real place: 293 dots for the historic pubs inside the frame,
-and five named pins picked by a rule rather than by hand (sourced, dated,
-oldest first, at least 150 user units apart so no two labels touch).
+At capture time, the hero used inline vector geometry: 293 historic-pub dots
+and five named pins. The generated module measured 26.9 KB against its 80 KB
+ceiling. These measurements describe the drawing in the shots, not the current
+landing hero. The front-door rule linked above owns the current contract.
 
 ## The figures on the page
 
