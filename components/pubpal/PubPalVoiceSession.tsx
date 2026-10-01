@@ -318,9 +318,16 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
 
   const send = () => {
     const value = text.trim();
-    if (!value) return;
+    if (!value || status !== "connected" || isStarting) return;
+    try {
+      sendUserMessage(value);
+    } catch {
+      setError("Could not send that message. Try again.");
+      onStateChange?.("error");
+      return;
+    }
+    setError(null);
     onStateChange?.("thinking");
-    sendUserMessage(value);
     const conversationId = conversationIdRef.current;
     if (conversationId) {
       void syncVoiceToolTurn({
@@ -361,10 +368,14 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
           <input
             value={text}
             onChange={(event) => setText(event.target.value)}
-            onKeyDown={(event) => { if (event.key === "Enter") send(); }}
-            placeholder="Or type the night you want…"
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              send();
+            }}
+            placeholder={status === "connected" ? "Or type the night you want…" : "Connect voice to send text"}
           />
-          <button type="button" onClick={send} aria-label="Send message">
+          <button type="button" onClick={send} disabled={status !== "connected" || isStarting || !text.trim()} aria-label="Send message">
             <Send size={17} />
           </button>
         </label>
