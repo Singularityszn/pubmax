@@ -189,6 +189,7 @@ test.describe("landing hierarchy", () => {
       for (let index = 0; index < doorCount; index += 1) {
         const door = await quietDoors.nth(index).boundingBox();
         expect(door?.height ?? 0).toBeGreaterThanOrEqual(44);
+        expect(door?.width ?? 0).toBeGreaterThanOrEqual(44);
       }
     });
   }
@@ -211,7 +212,7 @@ test.describe("landing hierarchy", () => {
   test("reads the same order on a phone as on a desktop: kicker, heading, line, picture, primary, quiet row, pub, rail", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      [".lpHero > .kicker, .lpHero .screenHead > .kicker", "#hero-title", ".lpHero .screenLede", ".lpHero .lpMapFigure", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
+      [".lpHero > .kicker, .lpHero .screenHead > .kicker", "#hero-title", ".lpHero .screenLede", ".lpHero .lpLondonFigure", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );

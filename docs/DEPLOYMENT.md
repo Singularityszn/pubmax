@@ -41,9 +41,9 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
 | `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask). Pal typed chat and voice do not use OpenRouter. |
 
-### Required in production — Pub Pal typed chat and voice
+### Pub Pal voice and hosted typed chat (ElevenLabs)
 
-Map Ask on `/api/ask` stays keyless without ElevenLabs. `/pal/chat` and voice need the agent values below. Full runbook: `docs/PUB_PAL_SETUP.md`.
+Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs (`/api/pub-pal/chat` falls back to the same grounded `runAsk` tools). Voice and the hosted-LLM typed path need the agent values below. Full runbook: `docs/PUB_PAL_SETUP.md`.
 
 | Var | Purpose |
 |---|---|

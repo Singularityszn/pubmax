@@ -17,7 +17,7 @@ Ship **Wave J** from `origin/main`:
 
 | ID | Deliverable |
 | --- | --- |
-| J0 | Install Taste + Emil skills into `skills/`; PRD + CURRENT_STATE pointer |
+| J0 | Install Taste + Emil skills; PRD + CURRENT_STATE pointer |
 | J1 | Warm basemap paint overrides, colorful price/cluster pins, wire `mapColor.css`, clearer Cost/Layers copy |
 | J2 | Skeleton handoff, ease-out motions, less map glass, tab-bar active-state consistency |
 | J3 | Taste pass on landing + feed (+ discover display fonts) within DESIGN_SYSTEM |
@@ -25,7 +25,7 @@ Ship **Wave J** from `origin/main`:
 
 ## Skills (agent guidance, not runtime)
 
-Committed under `skills/` (CLI installs to `.agents/skills/`, which stays gitignored):
+Where they live is [`.agents/skills/SOURCES.md`](../.agents/skills/SOURCES.md):
 
 - `design-taste-frontend` (VARIANCE=4, MOTION=5, DENSITY=5)
 - `redesign-existing-projects`

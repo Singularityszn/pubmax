@@ -30,6 +30,7 @@ const CATEGORY_ORDER = [
 ];
 
 const SKILL_PACK_PATH = /(?:^|\/)skills(?:\/|$)/;
+const PROJECT_SKILL_ROOT = /^(?:\.agents\/skills)(?:\/|$)/;
 const GENERATED_PATHS = [
   /^(?:data|public\/data)\/generated(?:\/|$)/,
   /^public\/data\/venues_slim[^/]*\.json$/,
@@ -59,8 +60,9 @@ const GENERATED_PATHS = [
  * when the same diff also changes the generator that writes it or the source
  * input it is cut from, which is exactly the case where a reviewer can check
  * the output against something. A lane's permission covers that lane alone.
- * Output nobody in the diff produced stays forbidden, as does every skill
- * pack, and the human-review count leaves permitted output out because a
+ * Output nobody in the diff produced stays forbidden. An added or modified
+ * skill path outside `.agents/skills/` stays forbidden too; deleting one
+ * does not. The human-review count leaves permitted output out because a
  * reviewer reads the generator, never 600 machine-written cells.
  *
  * A lane is declared here or it does not exist. Adding one means naming the
@@ -107,16 +109,22 @@ function runtimeDomain(path, category) {
   return SOURCE_ROOTS.has(root) ? root : null;
 }
 
+function isSkillPackLeak(path, status = "") {
+  if (PROJECT_SKILL_ROOT.test(path)) return false;
+  if (!SKILL_PACK_PATH.test(path)) return false;
+  return !String(status).toUpperCase().startsWith("D");
+}
+
 /**
  * Classify one changed path. The category is the review lane; `domain` is
  * populated only for runtime source so evidence and migration files do not
  * inflate the runtime-domain warning.
  */
-export function classifyReviewFile(value) {
+export function classifyReviewFile(value, status = "") {
   const path = normalizeReviewPath(value);
   let category = "other";
 
-  if (SKILL_PACK_PATH.test(path)) category = "skill-pack";
+  if (isSkillPackLeak(path, status)) category = "skill-pack";
   else if (isGeneratedPath(path)) category = "generated";
   else if (MIGRATION_PATH.test(path)) category = "migration";
   else if (EVIDENCE_PATH.test(path)) category = "evidence";
@@ -143,15 +151,41 @@ function uniqueSorted(values) {
   return [...new Set(values)].sort();
 }
 
+function reviewChange(value) {
+  if (value && typeof value === "object") {
+    return {
+      path: normalizeReviewPath(value.path),
+      status: String(value.status ?? ""),
+    };
+  }
+  return { path: normalizeReviewPath(value), status: "" };
+}
+
+function uniqueChanges(values) {
+  const byPath = new Map();
+  for (const value of values) {
+    const change = reviewChange(value);
+    if (!change.path) continue;
+    const previous = byPath.get(change.path);
+    const previousDeleted = (previous?.status ?? "").toUpperCase().startsWith("D");
+    const changeDeleted = change.status.toUpperCase().startsWith("D");
+    if (!previous || (previousDeleted && !changeDeleted)) {
+      byPath.set(change.path, change);
+    }
+  }
+  return [...byPath.values()].sort((left, right) => left.path.localeCompare(right.path));
+}
+
 /**
  * Build a deterministic report from changed paths. Large or mixed reviews
  * warn, but only generated and skill-pack paths make the report fail.
  */
 export function summarizeReviewScope(values) {
-  const paths = uniqueSorted(values.map(normalizeReviewPath).filter(Boolean));
+  const changes = uniqueChanges(values);
+  const paths = changes.map((change) => change.path);
   const explainedLanes = explainedRegeneratedLanes(paths);
-  const classifications = paths.map((path) => {
-    const item = classifyReviewFile(path);
+  const classifications = changes.map((change) => {
+    const item = classifyReviewFile(change.path, change.status);
     if (item.category !== "generated") return item;
     const lane = explainedLanes.find((candidate) => candidate.output.test(item.path));
     return lane ? { ...item, category: "regenerated", lane: lane.id } : item;
@@ -215,10 +249,19 @@ export function changedFilesFromGit(base, head, cwd) {
     : base;
   const output = execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMRD", diffBase, head],
+    ["diff", "--name-status", "--diff-filter=ACMRD", diffBase, head],
     { cwd, encoding: "utf8" },
   );
-  return output.split("\n").filter(Boolean);
+  return output.split("\n").filter(Boolean).flatMap(parseNameStatus);
+}
+
+function parseNameStatus(line) {
+  const fields = line.split("\t");
+  const code = String(fields[0] ?? "").charAt(0).toUpperCase();
+  if (!code) return [];
+  const path = code === "R" || code === "C" ? fields[fields.length - 1] : fields[1];
+  if (!path) return [];
+  return [{ path, status: code }];
 }
 
 function usage() {

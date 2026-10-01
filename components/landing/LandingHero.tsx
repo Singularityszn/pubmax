@@ -44,11 +44,16 @@ import { priceMovementLine } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { discardBody } from "@/lib/responseBody";
+import {
+  LANDING_SKYLINE_HERO_AVIF_SRCSET,
+  LANDING_SKYLINE_HERO_JPG_FALLBACK,
+  LANDING_SKYLINE_HERO_SIZES,
+  LANDING_SKYLINE_HERO_WEBP_SRCSET,
+} from "@/lib/landingSkylineHero";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
-import LandingPhoto, { LandingPhotoCredit, LandingPhotoPreload } from "./LandingPhoto";
-import LondonMapSnapshot from "./LondonMapSnapshot";
+import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
 // The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask):
@@ -57,12 +62,8 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 // DOM order is the phone order; the desktop seats the picture and the rows
 // beside the copy.
 //
-// THE PICTURE IS A DRAWING, NOT THE MAP. A stranger asked for "the places to
-// visit, the historical pubs", and the live MapLibre canvas costs a WebGL
-// context, a style and megabytes of tiles before anything appears. So the hero
-// paints inline vector geometry generated from the borough outlines and the
-// heritage dataset (components/landing/LondonMapSnapshot.tsx). No request, no
-// script, sharp at every width, and the real map is one tap away.
+// The hero shows the London skyline the captain selected. The responsive files
+// are committed under public/landing; the live map is still one tap away.
 //
 // THE PRIMARY GIVES BEFORE IT ASKS. The receipt door was the primary until
 // today and it ends in a sign-in ask, so it is the first QUIET door now and
@@ -77,7 +78,6 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
-
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
@@ -299,13 +299,6 @@ export default function LandingHero({
       ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.area) }
       : {},
   );
-  // Only the anchor's photograph is preloaded: it is the one this prerendered
-  // document already knows about, and a preload for a picture the browser may
-  // never ask for is bytes taken from the picture it will.
-  const anchorPhoto = card
-    ? landingPhotoFor({ venueId: card.id, boroughSlug: slugifyBorough(card.area) })
-    : null;
-
   // The one filled action, and it is the same door whether or not a pub card
   // stands behind the document: /near answers a stranger in one tap.
   const primary = (
@@ -342,10 +335,6 @@ export default function LandingHero({
   );
 
   return (
-    <>
-      {anchorPhoto ? (
-        <LandingPhotoPreload resolved={anchorPhoto} sizes={ANSWER_PHOTO_SIZES} />
-      ) : null}
     <Screen
       className="lpHero"
       kicker="PUBMAXX"
@@ -353,10 +342,31 @@ export default function LandingHero({
       titleId="hero-title"
       lede={`London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`}
       answer={
-        <figure className="lpMapFigure">
-          <LondonMapSnapshot />
-          <figcaption className="lpMapCaption">
-            The London boroughs, and every old pub we hold a history for.
+        <figure className="lpLondonFigure">
+          <picture>
+            <source
+              type="image/avif"
+              srcSet={LANDING_SKYLINE_HERO_AVIF_SRCSET}
+              sizes={LANDING_SKYLINE_HERO_SIZES}
+            />
+            <source
+              type="image/webp"
+              srcSet={LANDING_SKYLINE_HERO_WEBP_SRCSET}
+              sizes={LANDING_SKYLINE_HERO_SIZES}
+            />
+            <img
+              className="lpLondonPhoto"
+              src={LANDING_SKYLINE_HERO_JPG_FALLBACK}
+              width={1600}
+              height={1067}
+              alt="Tower Bridge and the Thames in London from above"
+              decoding="sync"
+              loading="eager"
+              fetchPriority="high"
+            />
+          </picture>
+          <figcaption className="lpLondonCaption">
+            Tower Bridge and the Thames, looking across London.
           </figcaption>
         </figure>
       }
@@ -384,7 +394,6 @@ export default function LandingHero({
       {answer ? <AnswerCard answer={answer} near={near} onLocate={locate} photo={photo} /> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
-    </>
   );
 }
 
@@ -416,7 +425,7 @@ function AnswerCard({
       className="lpPubCard lpAnswerCard lpPubCard--photo"
       aria-labelledby="lp-answer-name"
     >
-      <LandingPhoto resolved={photo} sizes={ANSWER_PHOTO_SIZES} priority />
+      <LandingPhoto resolved={photo} sizes={ANSWER_PHOTO_SIZES} />
       <div className="lpAnswerHead">
         <Kicker tone="muted">
           {kicker}

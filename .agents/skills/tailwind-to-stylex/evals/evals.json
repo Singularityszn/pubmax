@@ -1,0 +1,49 @@
+{
+  "skill_name": "tailwind-to-stylex",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "This project already has StyleX wired into the Vite build. Can you migrate src/PriceCard.tsx from Tailwind to StyleX without changing how it renders?",
+      "expected_output": "Rewrites PriceCard.tsx with the StyleX import and a module-level stylex.create call. Every host element uses stylex.props instead of className. Responsive widths and button states use conditional property values with a default. The text utilities keep both font size and line height. No Tailwind classes remain.",
+      "files": ["evals/files/price-card"],
+      "expectations": [
+        "Adds `import * as stylex from '@stylexjs/stylex'` and defines styles with `stylex.create` at module scope",
+        "Every element uses `{...stylex.props(...)}`; no `className` or Tailwind utility strings remain",
+        "The responsive width from w-full, md:w-1/2, and lg:w-1/3 becomes a `width` object with a 100% default and media keys at 768px and 1024px",
+        "Button hover, focus-visible, and disabled states become value-level backgroundColor conditions with a `default` key",
+        "text-sm and text-3xl each produce fontSize and lineHeight",
+        "Multi-value shorthands are avoided: border is split into borderWidth/borderStyle/borderColor rather than a single `border` string",
+        "Rendered result keeps the colors, spacing, radii, and shadow from the Tailwind original"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Please convert src/Button.tsx to StyleX. It uses cn() from ./lib/utils for variants and a caller className, and it renders a Spinner component. Keep the caller override behavior.",
+      "expected_output": "Rewrites Button.tsx with stylex.create and stylex.props. The style arguments preserve the original variant and loading conditions, with the caller override last. The public API accepts a StyleX style prop instead of className. Spinner receives that style and applies stylex.props to its own svg host element. animate-spin becomes a stylex.keyframes animation.",
+      "files": ["evals/files/button"],
+      "expectations": [
+        "The cn(...) call is replaced by stylex.props(...) with the same last-wins ordering",
+        "Primary and secondary variants use a conditional style argument inside stylex.props",
+        "The loading conditional becomes a `loading && styles.x` argument",
+        "The caller override moves from className to a StyleX style prop and stays last in stylex.props",
+        "Spinner receives a style prop and applies stylex.props to its own svg host element",
+        "animate-spin becomes stylex.keyframes referenced by animationName",
+        "No Tailwind class strings or cn import remain in Button.tsx for the migrated element"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Migrate src/Navbar.tsx to StyleX. The project uses class-based dark mode through `darkMode: 'class'` in tailwind.config.ts. Convert what maps cleanly and report anything that needs a structural change.",
+      "expected_output": "Converts Navbar.tsx to stylex.create and stylex.props. space-x-6 becomes gap on the flex parent. px-[18px] becomes paddingInline set to 18px. The result reports that group-hover requires React state or a shared variable because StyleX cannot target ancestor state. Class-based dark mode uses defineVars with createTheme, or the summary marks that work as required instead of dropping the styles.",
+      "files": ["evals/files/navbar"],
+      "expectations": [
+        "space-x-6 becomes `gap` on the flex container rather than sibling margins",
+        "The arbitrary value px-[18px] becomes paddingInline: '18px'",
+        "group-hover:opacity-100 is reported as ancestor-state styling with React state or a shared CSS variable as the alternative",
+        "Class-based dark mode uses StyleX theming with defineVars and createTheme, or the summary marks that work as required",
+        "text-sm and text-lg keep both fontSize and lineHeight",
+        "The final summary explicitly calls out space-x, group-hover, and dark-mode handling so the user can review the design-affecting decisions"
+      ]
+    }
+  ]
+}

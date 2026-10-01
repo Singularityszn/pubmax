@@ -4,13 +4,15 @@
 
 ## What is installed here
 
-All skill-bearing [kunchenguid](https://github.com/kunchenguid) repos are installed for Cursor and mirrored under `skills/` (see `skills/kunchenguid-SOURCE.md`):
+Skill-bearing [kunchenguid](https://github.com/kunchenguid) repos install into the machine-wide set at `~/.agents/skills/` (symlinked into `~/.cursor/skills/`). This repo does not mirror them.
 
-- **firstmate** — 19 skills (`afk`, `bearings`, `stow`, `harness-adapters`, `no-mistakes` pipeline hooks, …)
-- **axi family** — `axi`, `gh-axi`, `chrome-devtools-axi`, `lavish` / `lavish-design`, `quota-axi`, `tasks-axi`
-- **workflows** — `no-mistakes`, `gnhf`, `whathappened`, `stow`, ProgramBench skills, design-system packs, …
+Project skills are committed under `.agents/skills/`. The list and upstream commits are in [`.agents/skills/SOURCES.md`](../.agents/skills/SOURCES.md).
 
-Global copies live in `~/.agents/skills/` (symlinked into `~/.cursor/skills/`).
+The global set includes:
+
+- **firstmate**: `afk`, `bearings`, `stow`, `harness-adapters`, and the no-mistakes pipeline hooks
+- **axi family**: `axi`, `gh-axi`, `chrome-devtools-axi`, `lavish` / `lavish-design`, `quota-axi`, `tasks-axi`
+- **workflows**: `no-mistakes`, `gnhf`, `whathappened`, `stow`
 
 ## Firstmate home (orchestrator)
 
@@ -39,5 +41,5 @@ Captain notes: `~/firstmate/config/README.cursor.md`.
 npx skills add kunchenguid/firstmate -g -a cursor --all -y
 npx skills add kunchenguid/no-mistakes -g -a cursor --all -y
 npx skills add kunchenguid/axi -g -a cursor --all -y
-# …or every skill-bearing repo listed in skills/kunchenguid-SOURCE.md
+# other kunchenguid skill repos install the same way, into ~/.agents/skills
 ```

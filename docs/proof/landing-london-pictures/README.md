@@ -1,5 +1,10 @@
 # The landing pages show London
 
+> Dated proof for the 6 September 2026 change. The 1 October change replaced
+> the root hero picture and loading priorities. Measurements below describe
+> the earlier build. Current behaviour lives in the
+> [front-door rule](../../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap).
+
 Captain 6 September 2026: "I want the landing pages to show the pictures of
 London." What is on this page is the measurement behind that change: what a
 reader sees at four widths before and after, what the picture costs the

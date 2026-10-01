@@ -194,6 +194,36 @@ describe("review scope guard", () => {
     ]);
   });
 
+  it("allows the project skill root and a deleted skill path outside it", () => {
+    const report = summarizeReviewScope([
+      { path: ".agents/skills/animate/SKILL.md", status: "A" },
+      { path: ".agents/skills", status: "M" },
+      { path: "skills/impeccable/SKILL.md", status: "D" },
+      { path: ".cursor/skills/example/SKILL.md", status: "D" },
+      { path: "lib/skills/helper.mjs", status: "D" },
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.categories["skill-pack"]).toBeUndefined();
+  });
+
+  it("fails an added or modified skill path outside the project root", () => {
+    const report = summarizeReviewScope([
+      { path: "skills/example/SKILL.md", status: "A" },
+      { path: ".cursor/skills/example/SKILL.md", status: "M" },
+      { path: "lib/skills/helper.mjs", status: "R" },
+      { path: ".agents/skills/animate/SKILL.md", status: "A" },
+    ]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "skill-pack", path: ".cursor/skills/example/SKILL.md" },
+      { category: "skill-pack", path: "lib/skills/helper.mjs" },
+      { category: "skill-pack", path: "skills/example/SKILL.md" },
+    ]);
+  });
+
   it("never permits a skill pack, whatever else the diff carries", () => {
     const report = summarizeReviewScope([
       "scripts/build_uk_base_shards.mjs",
@@ -220,6 +250,40 @@ describe("review scope guard", () => {
     expect(report.warnings).toEqual([]);
   });
 
+  it("forbids an added skill pack and allows a deletion plus the project root", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-skills-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+
+    try {
+      git("init", "-q");
+      git("config", "user.email", "review-scope@example.invalid");
+      git("config", "user.name", "Review Scope Test");
+      mkdirSync(join(repo, "skills/impeccable"), { recursive: true });
+      writeFileSync(join(repo, "skills/impeccable/SKILL.md"), "old impeccable body that must leave the tree\n");
+      git("add", ".");
+      git("commit", "-qm", "seed skill pack");
+      const base = git("rev-parse", "HEAD");
+
+      rmSync(join(repo, "skills"), { recursive: true });
+      mkdirSync(join(repo, ".agents/skills/animate"), { recursive: true });
+      writeFileSync(join(repo, ".agents/skills/animate/SKILL.md"), "animate project skill body\n");
+      mkdirSync(join(repo, "skills/fresh"), { recursive: true });
+      writeFileSync(join(repo, "skills/fresh/SKILL.md"), "brand new skill pack body\n");
+      git("add", "-A");
+      git("commit", "-qm", "replace skill pack");
+      const head = git("rev-parse", "HEAD");
+
+      const report = summarizeReviewScope(changedFilesFromGit(base, head, repo));
+      expect(report.ok).toBe(false);
+      expect(report.forbidden).toEqual([
+        { category: "skill-pack", path: "skills/fresh/SKILL.md" },
+      ]);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
   it("keeps deleted generated paths in the changed-file report", () => {
     const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-"));
     const git = (...args: string[]) =>
@@ -239,7 +303,7 @@ describe("review scope guard", () => {
       const head = git("rev-parse", "HEAD");
 
       expect(changedFilesFromGit(base, head, repo)).toEqual([
-        "data/generated/venues.json",
+        { path: "data/generated/venues.json", status: "D" },
       ]);
       expect(summarizeReviewScope(changedFilesFromGit(base, head, repo)).forbidden).toEqual([
         { category: "generated", path: "data/generated/venues.json" },
@@ -265,7 +329,7 @@ describe("review scope guard", () => {
       const head = git("rev-parse", "HEAD");
 
       const files = changedFilesFromGit("0".repeat(40), head, repo);
-      expect(files).toEqual(["public/data/venues_slim.json"]);
+      expect(files).toEqual([{ path: "public/data/venues_slim.json", status: "A" }]);
       expect(summarizeReviewScope(files).ok).toBe(false);
     } finally {
       rmSync(repo, { recursive: true, force: true });

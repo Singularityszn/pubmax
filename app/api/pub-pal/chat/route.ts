@@ -1,5 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
@@ -29,10 +30,6 @@ function normaliseTurns(raw: unknown): AskTurn[] {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!palVoiceConfigured()) {
-    return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
-  }
-
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   if (
     await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
@@ -58,6 +55,24 @@ export async function POST(request: Request): Promise<Response> {
     typeof record.query === "string" ? record.query.trim().slice(0, MAX_QUERY_LENGTH) : "";
   if (!query) {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
+  }
+
+  // Voice is optional. Keyless deploys still answer from the same grounded
+  // tools as /api/ask, and they never call OpenRouter.
+  if (!palVoiceConfigured()) {
+    try {
+      const answer = await runAsk({
+        query,
+        cityId: record.cityId,
+        turns: normaliseTurns(record.turns),
+        skipModel: true,
+        traceRoute: "api/pub-pal/chat",
+      });
+      return jsonNoStore(answer);
+    } catch (error) {
+      console.error("pub-pal-chat.unexpected_error", error);
+      return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+    }
   }
 
   const outcome = await runPalElevenLabsChatTurn({

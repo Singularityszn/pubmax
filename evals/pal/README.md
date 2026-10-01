@@ -1,8 +1,9 @@
 # Pal evals
 
 Graded regression suite for the shared Night OS Ask tool registry via `runAsk`
-(map Ask keyless path). Production Pal typed chat and voice use the ElevenLabs
-agent (`docs/PUB_PAL_SETUP.md`); this harness does not drive `/api/pub-pal/chat`.
+(map Ask keyless path and the keyless `/api/pub-pal/chat` fallback). Production
+Pal voice and the hosted-LLM typed path use the ElevenLabs agent
+(`docs/PUB_PAL_SETUP.md`); this harness does not HTTP-drive `/api/pub-pal/chat`.
 
 ## What a right answer means here
 

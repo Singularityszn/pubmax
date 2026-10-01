@@ -51,8 +51,9 @@ export default function Screen({
   /** One line under the heading, or nothing. */
   lede?: ReactNode;
   /**
-   * The answer the actions act on, between the heading and the actions, so a
-   * phone reads the pub before it reads "Still £6.50?". Hero prototype #1357.
+   * Content that must precede the actions in reading and tab order at every
+   * width. The caller chooses the content; landing hero policy lives in
+   * docs/rules/components-design-system-and-launch-primitives.md.
    */
   answer?: ReactNode;
   /**

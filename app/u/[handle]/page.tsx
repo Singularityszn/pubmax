@@ -119,6 +119,8 @@ export default async function ProfilePage({ params }: PageProps) {
     requestedHandle !== YOU_SENTINEL &&
     (await publicProfileRouteWithholdsNotFound(requestedHandle))
   ) {
+    // Status is decided in layout.tsx. This call still renders the not-found UI
+    // if the page is reached another way.
     notFound();
   }
   return <ProfilePageClient params={params} />;

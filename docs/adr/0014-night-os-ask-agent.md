@@ -44,9 +44,12 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
    The model selects tools only; `composeAnswer` builds reader copy from
    returned hints and cards.
-6. **Pal typed chat and voice (ElevenLabs)** — production Pal surfaces share one
-   ElevenLabs agent (hosted LLM on the ElevenLabs plan). Typed chat uses
-   `POST /api/pub-pal/chat`; voice uses the same agent over WebRTC. Server
+6. **Pal typed chat and voice (ElevenLabs when configured)** — without
+   `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
+   `POST /api/pub-pal/chat` uses the same keyless `runAsk` tool path as map Ask
+   (`skipModel: true`). With both values set, typed chat and voice share one
+   ElevenLabs agent (hosted LLM on the ElevenLabs plan): typed chat over HTTP,
+   voice over WebRTC. Server
    webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
    handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`
    (`lib/pubPalToolTurnStore.ts`): webhook bodies may carry only a short query

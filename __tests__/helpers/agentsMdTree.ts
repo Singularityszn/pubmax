@@ -12,7 +12,7 @@ import { AGENT_TOOLING_PATHS } from "@/lib/agentToolingPaths.mjs";
  * rather than `git ls-tree`, because an area file a future agent has written
  * and not yet staged is exactly the file the fences exist to catch.
  *
- * The vendored packs under `.agents/` and `skills/` ship their own upstream
+ * Vendored packs under `.agents/skills/` may ship their own upstream
  * `AGENTS.md`. They are not ours, and `lib/agentToolingPaths.mjs` is already
  * the ONE list of what agent tooling writes into this checkout, so this reads
  * that list rather than starting a second one.

@@ -2,11 +2,11 @@
 
 These are Unsplash photos (free to use under the
 [Unsplash License](https://unsplash.com/license)), used by the first-run
-onboarding surface.
+onboarding and the root landing hero.
 
 | File | Subject | Source |
 | --- | --- | --- |
-| `hero-thames.jpg` | London / Thames evening skyline | [Unsplash — photo-1513635269975-59663e0ac1ad](https://images.unsplash.com/photo-1513635269975-59663e0ac1ad) |
+| `hero-thames.jpg`, `hero-thames-{1024,1600}.avif`, `hero-thames-{1024,1600}.webp`, `hero-thames-1600.jpg` | Tower Bridge and the Thames skyline | [Unsplash photo-1513635269975-59663e0ac1ad](https://images.unsplash.com/photo-1513635269975-59663e0ac1ad) |
 
 No attribution is required by the license; this file records provenance for the team.
 

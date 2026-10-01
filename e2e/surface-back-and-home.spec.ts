@@ -78,6 +78,15 @@ async function openPlannerFromSheet(page: Page): Promise<void> {
   }).toPass({ timeout: 30_000 });
 }
 
+/** Select the Layers section inside the map-controls sheet (hydration-safe tap). */
+async function selectLayersTab(page: Page): Promise<void> {
+  const layersTab = page.getByRole("tab", { name: "Layers" });
+  await expect(async () => {
+    await layersTab.click();
+    await expect(layersTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 test.describe("every surface offers a way back and a way home", () => {
   test.use({ viewport: PHONE });
 
@@ -94,7 +103,7 @@ test.describe("every surface offers a way back and a way home", () => {
   test("a second sheet gains a Back that names where it goes", async ({ page }) => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
-    await page.getByRole("tab", { name: "Layers" }).click();
+    await selectLayersTab(page);
     await openPlannerFromSheet(page);
 
     await expect(back(page)).toHaveCount(1);
@@ -106,7 +115,7 @@ test.describe("every surface offers a way back and a way home", () => {
   test("Back steps to the parent, Home leaves from any depth", async ({ page }) => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
-    await page.getByRole("tab", { name: "Layers" }).click();
+    await selectLayersTab(page);
     await openPlannerFromSheet(page);
 
     await back(page).click();
@@ -122,8 +131,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     // Leave the sheet on a section that is NOT the one it opens on.
-    await page.getByRole("tab", { name: "Layers" }).click();
-    await expect(page.getByRole("tab", { name: "Layers" })).toHaveAttribute("aria-selected", "true");
+    await selectLayersTab(page);
 
     await openPlannerFromSheet(page);
 
@@ -137,7 +145,7 @@ test.describe("every surface offers a way back and a way home", () => {
   test("the browser's Back agrees with the Back arrow", async ({ page }) => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
-    await page.getByRole("tab", { name: "Layers" }).click();
+    await selectLayersTab(page);
     await openPlannerFromSheet(page);
 
     await page.goBack();
@@ -150,7 +158,7 @@ test.describe("every surface offers a way back and a way home", () => {
   test("Escape is the keyboard's Back, one level at a time", async ({ page }) => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
-    await page.getByRole("tab", { name: "Layers" }).click();
+    await selectLayersTab(page);
     await openPlannerFromSheet(page);
 
     await page.keyboard.press("Escape");
