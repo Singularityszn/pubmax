@@ -14,6 +14,7 @@
 // ever reached through the `available` branch.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   ConversationProvider,
   useConversationControls,
@@ -379,6 +380,11 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             <Send size={17} />
           </button>
         </label>
+        {status !== "connected" ? (
+          <Link className="palVoiceWriteLink" href="/pal/chat" prefetch={false}>
+            <Send size={17} aria-hidden="true" /> Ask in writing
+          </Link>
+        ) : null}
       </div>
       {error && <p className="palVoiceError" role="alert">{error}</p>}
       <p className="palVoicePrivacy">
