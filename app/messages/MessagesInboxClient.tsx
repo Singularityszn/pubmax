@@ -1,6 +1,8 @@
 "use client";
 
+import { MessageCircle, Search, SquarePen } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -87,9 +89,9 @@ export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
 
   return (
     <div>
-      <p className="messagesThreadEyebrow">Your conversations</p>
-      <h2>Pick a message</h2>
-      <p>Choose someone from your inbox to read the thread and reply.</p>
+      <MessageCircle className="messagesThreadEmptyIcon" size={44} aria-hidden="true" />
+      <h2>Your messages</h2>
+      <p>Choose a conversation or start a new message.</p>
     </div>
   );
 }
@@ -99,6 +101,7 @@ export default function MessagesInboxClient({
 }: {
   activeConversationId?: string;
 }): React.JSX.Element {
+  const router = useRouter();
   const { accountRevision, user, handle: authHandle } = useAuth();
   const viewerSession = useViewerSession();
   const isMobileViewport = useSyncExternalStore(
@@ -108,6 +111,8 @@ export default function MessagesInboxClient({
   );
   // The thread route hides this pane on a phone; a hidden list owes no read.
   const paneHidden = Boolean(activeConversationId) && isMobileViewport;
+  const [composeRevision, setComposeRevision] = useState<number | null>(null);
+  const [inboxSearch, setInboxSearch] = useState({ revision: accountRevision, query: "" });
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
@@ -262,23 +267,25 @@ export default function MessagesInboxClient({
   // One clock for the whole list per render, so every row's time is measured
   // from the same instant.
   const now = new Date();
+  const searchQuery = inboxSearch.revision === accountRevision ? inboxSearch.query : "";
+  const filteredConversations = conversations.filter((conversation) =>
+    conversationRowName(conversation, handle).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
+  const openCompose = () => setComposeRevision(accountRevision);
 
   return (
     <Screen
       as="section"
       className="messagesScreen"
-      kicker="Messages"
       title="Messages"
       titleId="messages-title"
-      // A new message starts from a person, and the people are on Social.
-      // Signed out, the one painted control is the door that WORKS: a
-      // painted New message led to a sign-in wall, and the reader met two
-      // doors for one step. The sign-in door carries the way back here.
       primary={
         viewerSession.signedOut ? (
           <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
         ) : (
-          <Link href="/social">New message</Link>
+          <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle}>
+            <SquarePen size={25} aria-hidden="true" />
+          </button>
         )
       }
     >
@@ -290,12 +297,34 @@ export default function MessagesInboxClient({
         </p>
       ) : null}
 
-      {/* A GROUP IS OPENED FROM THE INBOX, because a group is not "with" one
-          person and there is no profile to start it from. It sits under the
-          head rather than beside it: the head's one painted control is the
-          door to the people, and a screen has one primary. */}
       {!viewerSession.signedOut && user ? (
-        <MessagesNewGroup handle={handle} onOpened={() => void refresh()} />
+        <>
+          <label className="messagesInboxSearch">
+            <Search size={18} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search conversations"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(event) => setInboxSearch({ revision: accountRevision, query: event.target.value })}
+            />
+          </label>
+          <MessagesNewGroup
+            key={`${accountRevision}:${handle}`}
+            handle={handle}
+            open={composeRevision === accountRevision}
+            onClose={() => setComposeRevision(null)}
+            allowDirect
+            suggestedRecipients={accountDataReady ? conversations
+              .filter((conversation) => conversation.kind !== "group")
+              .map((conversation) => ({ handle: conversation.otherHandle, avatarUrl: conversation.otherAvatarUrl })) : []}
+            onOpened={(conversationId) => {
+              setComposeRevision(null);
+              void refresh();
+              router.push(`/messages/${encodeURIComponent(conversationId)}`);
+            }}
+          />
+        </>
       ) : null}
 
       {!accountDataReady ? (
@@ -314,12 +343,8 @@ export default function MessagesInboxClient({
           <EmptyState title="Couldn&rsquo;t load your conversations." action={retryButton} />
         </div>
       ) : conversations.length === 0 ? (
-        <EmptyState
-          title="Nobody in here yet."
-          action={<Link href="/social">Find someone to message</Link>}
-        >
-          Find someone worth a pint on the feed, open their profile, and tap
-          Message. That&rsquo;s how a round starts.
+        <EmptyState title="Your messages start here.">
+          Tap New message to find a person or start a group.
         </EmptyState>
       ) : (
         <>
@@ -334,8 +359,9 @@ export default function MessagesInboxClient({
               {retryButton}
             </p>
           ) : null}
+          {filteredConversations.length === 0 ? <p className="messagesSearchEmpty">No conversations match your search.</p> : null}
           <ul className="conversationList">
-            {conversations.map((c) => {
+            {filteredConversations.map((c) => {
               const active = c.id === activeConversationId;
               const unread = (c.unread ?? 0) > 0;
               const classes = [
@@ -353,7 +379,7 @@ export default function MessagesInboxClient({
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
                   >
-                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} />
+                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} size={56} />
                     <div className="conversationBody">
                       {/* ONE naming rule for every kind (`conversationRowName`):
                           a DM is the other person, a group is its title or its
