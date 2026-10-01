@@ -138,6 +138,7 @@ vi.mock("@/lib/identityClient", async (importOriginal) => {
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 let root: Root | null = null;
 let restoreCanonicalFetch: (() => void) | null = null;
@@ -168,6 +169,7 @@ function CanonicalViewer() {
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = null;
+  setProviderIdentity("clerk", null);
   state.authEvent = null;
   state.resolveBootstrap = null;
   state.bootstrapSignal = null;
@@ -201,10 +203,15 @@ async function mountHeldCanonicalIdentity() {
     user: { id: "identity-a", email: "a@example.test" } } as Session;
   let releaseA!: (response: Response) => void;
   const heldA = new Promise<Response>((resolve) => { releaseA = resolve; });
+  let accountAReads = 0;
   const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     expect(String(input)).toBe("/api/identity/handle/current");
     const bearer = new Headers(init?.headers).get("authorization");
-    if (bearer === "Bearer identity-a-access") return heldA;
+    if (bearer === "Bearer identity-a-access") {
+      accountAReads += 1;
+      return accountAReads === 1 ? heldA : Response.json({ handle: "newalice" });
+    }
+    if (bearer === "Bearer identity-a-new-access") return Response.json({ handle: "newalice" });
     expect(bearer).toBe("Bearer identity-b-access");
     return Response.json({ handle: "bob" });
   });
@@ -588,5 +595,80 @@ it("preserves a genuinely post-logout login while cookie clearing and bootstrap 
     state.releaseInstall?.();
     state.releaseCookieClear?.();
     await act(async () => { await state.bootstrapPromise; await state.signOutPromise; });
+  }
+});
+
+
+it("keeps a refreshed same-account canonical handle when the old token reply arrives", async () => {
+  const { container, pendingA, release } = await mountHeldCanonicalIdentity();
+  const refreshedA = { access_token: "identity-a-new-access", refresh_token: "identity-a-new-refresh",
+    user: { id: "identity-a", email: "a@example.test" } } as Session;
+  try {
+    await act(async () => {
+      state.sdkSession = refreshedA;
+      state.authEvent?.("TOKEN_REFRESHED", refreshedA);
+    });
+    await vi.waitFor(() => expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("newalice"));
+    await act(async () => { release(); await pendingA; });
+    expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("newalice");
+    expect(container.querySelector("[data-testid=you]")?.getAttribute("href")).toBe("/u/newalice");
+    expect(localStorage.getItem("pubmax_handle")).toBe("newalice");
+  } finally {
+    await act(async () => { release(); await pendingA; });
+  }
+});
+
+it("rejects a reply from A's earlier lifetime after an A-B-A switch with reused tokens", async () => {
+  const { container, pendingA, release } = await mountHeldCanonicalIdentity();
+  const accountB = { access_token: "identity-b-access", refresh_token: "identity-b-refresh",
+    user: { id: "identity-b", email: "b@example.test" } } as Session;
+  const accountA = { access_token: "identity-a-access", refresh_token: "identity-a-refresh",
+    user: { id: "identity-a", email: "a@example.test" } } as Session;
+  try {
+    await act(async () => {
+      state.sdkSession = accountB;
+      state.authEvent?.("SIGNED_IN", accountB);
+    });
+    await vi.waitFor(() => expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("bob"));
+    await act(async () => {
+      state.sdkSession = accountA;
+      state.authEvent?.("SIGNED_IN", accountA);
+    });
+    await vi.waitFor(() => expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("newalice"));
+    await act(async () => { release(); await pendingA; });
+    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("identity-a");
+    expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("newalice");
+    expect(localStorage.getItem("pubmax_handle")).toBe("newalice");
+  } finally {
+    await act(async () => { release(); await pendingA; });
+  }
+});
+
+it("does not restore canonical device artifacts after its provider effect unmounts", async () => {
+  const { pendingA, release } = await mountHeldCanonicalIdentity();
+  await act(async () => root?.unmount());
+  root = null;
+  await act(async () => { release(); await pendingA; });
+  expect(deviceAccountOwner(localStorage)).toBe("identity-a");
+  expect(localStorage.getItem("pubmax_handle")).toBeNull();
+});
+
+it("still resolves an active Supabase viewer after the other identity provider changes", async () => {
+  const { container, pendingA, release } = await mountHeldCanonicalIdentity();
+  try {
+    await act(async () => {
+      setProviderIdentity("clerk", "other-provider-account");
+      release();
+      await pendingA;
+    });
+    // Both replies are verified handles for A. This positive control checks
+    // the new revision guard cannot leave the unchanged Supabase viewer unknown.
+    await vi.waitFor(() => expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toMatch(/^(alice|newalice)$/));
+    const handle = container.querySelector("[data-testid=viewer-handle]")?.textContent;
+    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("identity-a");
+    expect(localStorage.getItem("pubmax_handle")).toBe(handle);
+    expect(container.querySelector("[data-testid=you]")?.getAttribute("href")).toBe(`/u/${handle}`);
+  } finally {
+    await act(async () => { release(); await pendingA; });
   }
 });

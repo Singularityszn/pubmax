@@ -380,3 +380,49 @@ describe("canonical identity account boundaries", () => {
     expect(dispatchEvent).toHaveBeenCalledTimes(noticesBeforeA);
   });
 });
+
+
+describe("canonical lifecycle sibling controls", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("does not route an obsolete callback to claim a handle after its reply arrives", async () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+    bindDeviceAccountOwner("user-a", storage);
+    let active = true;
+    let release!: (response: Response) => void;
+    const heldReply = new Promise<Response>((resolve) => { release = resolve; });
+    const request = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token-a");
+      return heldReply;
+    });
+    const pendingRoute = handleClaimRouteAfterSignIn(
+      { access_token: "token-a", user: { id: "user-a" } } as never,
+      "/map", storage, request, () => active,
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+    active = false;
+    release(Response.json({ handle: null }));
+    await expect(pendingRoute).resolves.toBeNull();
+    expect(storage.getItem("pubmax_handle")).toBeNull();
+  });
+
+  it.each(["absent", "blocked"] as const)("still resolves the current server identity with %s device storage", async (mode) => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    const storage = mode === "absent" ? null : {
+      getItem: () => { throw new Error("Storage blocked"); },
+      setItem: () => { throw new Error("Storage blocked"); },
+      removeItem: () => { throw new Error("Storage blocked"); },
+    };
+    await expect(resolveCanonicalIdentity(
+      "user-a", { access_token: "token-a", user: { id: "user-a" } } as never,
+      storage, vi.fn(async () => Response.json({ handle: "alice" })),
+    )).resolves.toEqual({ ok: true, identity: { ownerId: "user-a", handle: "alice" } });
+    expect(dispatchEvent).not.toHaveBeenCalled();
+  });
+});
