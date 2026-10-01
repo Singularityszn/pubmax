@@ -69,13 +69,8 @@ export { eventsOutputPath } from "./eventsOutputPath.mjs";
 // failure inside the lane's catch, so the lane reported an upstream fault every
 // run. Loading it up front makes a broken specifier a loud start-up error.
 //
-// LOADER: this file is run through tsx (`node --import tsx`), like every other
-// script here that imports a `.ts` module. Bare `node` relied on unflagged type
-// stripping, which lands in 22.18 while `engines` admits 22.12, so on 22.12
-// through 22.17 the refresh died here with ERR_UNKNOWN_FILE_EXTENSION and `/out`
-// and `/tonight` quietly stopped being refreshed. The flags live once, in
-// `EVENTS_REFRESH_NODE_ARGS` (scripts/local-refresh/scheduler.mjs), which
-// package.json's `refresh:events` mirrors.
+// The loader contract lives at EVENTS_REFRESH_NODE_ARGS in
+// scripts/local-refresh/scheduler.mjs; package.json's refresh:events mirrors it.
 import {
   contextDevLaneStatus,
   contextDevSourceLabels,
