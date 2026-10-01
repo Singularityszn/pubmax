@@ -1,17 +1,7 @@
 #!/usr/bin/env node
 // Create or update the Pub Pal ElevenLabs Agent, idempotently.
 //
-// The agent is a THIN SHELL. It owns no knowledge: every answer comes from our
-// own tool registry through the Custom LLM bridge at /api/pub-pal/llm, which
-// runs the same grounded Night OS Ask path the text surface runs (ADR 0014).
-// So this script sets four things and nothing else:
-//
-//   1. the Custom LLM URL plus its shared secret,
-//   2. no voice recording; ElevenLabs may still retain conversation data
-//      under its default policy for custom-LLM agents,
-//   3. a default voice, when one is set, and the per-session overrides that
-//      let each Pal speak in its own species voice,
-//   4. the house first message and the propose-then-confirm rule (ADR 0006).
+// Text and voice share this hosted agent and the grounded webhook registry.
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -114,7 +104,7 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   cheapest_pint_near: {
     conversation_id: {
       type: "string",
-      description: "ElevenLabs conversation id from the active session.",
+      dynamic_variable: "system__conversation_id",
     },
     query: {
       type: "string",
@@ -126,7 +116,7 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   propose_plan: {
     conversation_id: {
       type: "string",
-      description: "ElevenLabs conversation id from the active session.",
+      dynamic_variable: "system__conversation_id",
     },
     query: {
       type: "string",
@@ -136,7 +126,7 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   search_venues: {
     conversation_id: {
       type: "string",
-      description: "ElevenLabs conversation id from the active session.",
+      dynamic_variable: "system__conversation_id",
     },
     query: { type: "string", description: "The venue search ask." },
   },
@@ -145,7 +135,7 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
 const DEFAULT_WEBHOOK_BODY_PROPERTIES = {
   conversation_id: {
     type: "string",
-    description: "ElevenLabs conversation id from the active session.",
+    dynamic_variable: "system__conversation_id",
   },
   query: {
     type: "string",
@@ -169,6 +159,7 @@ function webhookToolConfig(name, baseUrl, secretId) {
       },
       request_body_schema: {
         type: "object",
+        required: ["conversation_id"],
         properties:
           TOOL_WEBHOOK_BODY_PROPERTIES[name] ?? DEFAULT_WEBHOOK_BODY_PROPERTIES,
       },
@@ -252,6 +243,9 @@ function redactAgentPreview(body, baseUrl) {
     ...body,
     webhook_tools: (AGENT_CONFIG.toolNames ?? []).map(
       (name) => `${baseUrl}/api/pub-pal/tools/${name}`,
+    ),
+    webhook_tool_configs: (AGENT_CONFIG.toolNames ?? []).map(
+      (name) => webhookToolConfig(name, baseUrl, "dry-run-secret-locator"),
     ),
     llm: AGENT_CONFIG.llm,
     llmCreditNote: AGENT_CONFIG.llmCreditNote,

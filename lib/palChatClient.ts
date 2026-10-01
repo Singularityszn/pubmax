@@ -11,12 +11,11 @@ import {
 } from "@/lib/palChat";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { answerFromBody } from "@/lib/conciergeAskClient";
+import { PAL_CHAT_CLIENT_TIMEOUT_MS } from "@/lib/palChatDeadline";
 
 export type PalChatResult =
   | (PalAnswer & { proposals: AskProposal[] })
   | { status: "error"; message: string };
-
-const PAL_CHAT_TIMEOUT_MS = 25_000;
 
 type SessionOptions = {
   timeoutMs?: number;
@@ -89,7 +88,7 @@ function askBodyToPal(body: unknown): PalChatResult {
  * Create a chat ask session with latest-wins ordering and in-thread memory.
  */
 export function createPalChatSession(options: SessionOptions = {}) {
-  const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? PAL_CHAT_CLIENT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? fetch;
   let currentId = 0;
   const turns: AskTurn[] = [];
