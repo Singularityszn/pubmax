@@ -20,6 +20,9 @@ Field Guide jobs retained: `--river` / `--pint` / `--brick` stay semantic for
 pins and prices. Coral owns the primary CTA in both themes; amber stays a
 transport and price signal.
 
+Messages follow their [scoped visual rule](rules/components-venue-plan-and-message-surfaces.md#a-thread-reads-like-a-conversation-and-its-composer-is-pinned-over-the-foot-of-t).
+Where its surface and accent choices differ, that rule takes precedence.
+
 Pointers: [`PRODUCT.md`](../PRODUCT.md) · [`DESIGN.md`](../DESIGN.md) ·
 [`docs/design-explorations/`](./design-explorations/).
 
