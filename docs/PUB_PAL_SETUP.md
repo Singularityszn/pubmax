@@ -21,8 +21,9 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 | Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
 | Voice | No | Needs the four ElevenLabs values below |
 
-With voice off, `/pal` says so in the Pal's own words and offers the writing
-door. It never shows a Start button that would fail on the tap.
+When the shared provider is unconfigured, `/pal` offers Map Ask. Typed chat
+needs that same provider, so it cannot be the keyless fallback. A configured
+session with denied microphone permission keeps the writing door.
 
 ---
 
@@ -85,8 +86,23 @@ and PATCHes the agent plus workspace webhook tools. Each tool calls
 allows 30 seconds via `maxDuration`). Deploying the app alone does not change
 timeout or webhook body schema on an agent that already exists: re-run this
 script with `ELEVENLABS_PUB_PAL_AGENT_ID` set after changing those values.
-Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Live
-proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
+Each webhook body requires `conversation_id` populated from ElevenLabs
+`system__conversation_id`. The model does not supply that identifier. The
+[dynamically populated property](https://elevenlabs.io/docs/eleven-agents/api-reference/tools/create)
+uses `dynamic_variable` instead of `description`.
+
+Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Its
+answer comes from tool-authored hints, cards and proposals. If a completed agent
+reply has no correlated receipt, the existing grounded Ask registry recovers
+those results from the full question and recent turns. It never uses provider
+prose as a fallback. Durable-store registration failures still refuse the turn.
+
+`lib/palChatDeadline.ts` owns the 28-second total server response budget,
+the 5-second signed-URL fetch limit and the 32-second browser timeout.
+
+After an authorised provider update, run the live proof.
+`node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
+Deploying this source does not update an existing agent's webhook schema.
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
