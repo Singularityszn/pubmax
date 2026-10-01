@@ -61,3 +61,27 @@ test("L05: the composer's Your name is the public handle, never the email", asyn
   await expect(name).not.toHaveValue(emailLocalPart);
 });
 
+test("an empty host name explains why a ready plan cannot be locked", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "B");
+  await describeAPlan(page);
+
+  const name = page.getByLabel("Your name", { exact: true });
+  const lock = page.getByRole("button", { name: "Lock it in", exact: true });
+  const explanation = page.getByText("Add your name.", { exact: true });
+  // A ready action proves every other route, time and identity requirement
+  // is satisfied before the only changed input becomes empty.
+  await expect(lock).toBeEnabled({ timeout: HOST_ACTION_BUDGET_MS });
+  await expect(explanation).toHaveCount(0);
+  await name.fill("");
+  await expect(name).toHaveValue("");
+  await expect(lock).toBeDisabled();
+  await expect(explanation).toBeVisible();
+
+  await name.fill(ACCOUNTS.B.handle);
+  await expect(name).toHaveValue(ACCOUNTS.B.handle);
+  await expect(explanation).toHaveCount(0);
+  await expect(lock).toBeEnabled();
+});
