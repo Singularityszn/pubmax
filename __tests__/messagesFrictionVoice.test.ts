@@ -57,7 +57,8 @@ import MessageThread from "@/components/messages/MessageThread";
 //      non-ok or thrown request never reaches the warm empty card: with
 //      nothing loaded it shows the failure alone, and over a list that did
 //      load it reports beside that list rather than erasing it. Both carry
-//      the same retry, which stays focusable while it works.
+//      the same retry, which stays focusable while it works. A real empty
+//      inbox points to New message so people can find a recipient.
 
 const THREAD = "components/messages/MessageThread.tsx";
 const INBOX = "app/messages/MessagesInboxClient.tsx";
@@ -175,9 +176,12 @@ describe("messages friction voice", () => {
     expect(source).toContain('className="threadRetryBtn"');
     expect(source).toContain("Try again");
 
-    // The warm empty card only speaks for an inbox we know is empty.
+    // The warm empty card only speaks for an inbox we know is empty, and
+    // points directly to the recipient picker.
     const emptyFrame = source.slice(emptyAt, noticeAt);
-    expect(emptyFrame).toContain("Nobody in here yet.");
+    expect(emptyFrame).toContain("Your messages start here");
+    expect(emptyFrame).toContain("Tap New message to find a person or start a group");
+    expect(emptyFrame).not.toContain("Nobody in here yet.");
     expect(emptyFrame).not.toContain("failed");
   });
 
