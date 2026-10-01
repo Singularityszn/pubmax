@@ -653,15 +653,15 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 /* Below the desktop grid the picture sits between the lede and the one filled
-   action, so it is drawn from the screen's height rather than its width: the
+   action, so it is sized from the screen's height rather than its width: the
    primary stays above the fold on a short phone, and the figure stops short of
    the compose action's lane. */
 @media (max-width: 959px) {
-  .lpHero .lpMapFigure {
+  .lpHero .lpLondonFigure {
     width: min(
       calc(100% + var(--page-gutter) - var(--create-fab-lane)),
       34rem,
-      max(14rem, calc(24svh * 1200 / 851))
+      max(14rem, calc(24svh * 3 / 2))
     );
   }
 }
@@ -669,14 +669,14 @@ a.lpPubPint:hover { color: var(--ink); }
 /* On a phone the fixed tab bar owns the bottom of the screen, so the drawing's
    share is taken from the height above the bar, with no floor: at 320x568 the
    14rem floor pushed the primary under the bar and a tap landed on a tab. Only
-   the drawing narrows; the caption keeps the figure's width, or it wraps a
-   line deeper and hands back the height the drawing gave up. */
+   the photo narrows; the caption keeps the figure's width, or it wraps a
+   line deeper and hands back the height the photo gave up. */
 @media (max-width: 640px) {
-  .lpHero .lpMapFigure {
+  .lpHero .lpLondonFigure {
     width: min(calc(100% + var(--page-gutter) - var(--create-fab-lane)), 34rem);
   }
-  .lpHero .lpMapSnapshot {
-    width: min(100%, calc((100svh - var(--tabbar-h) - env(safe-area-inset-bottom, 0px)) * .22 * 1200 / 851));
+  .lpHero .lpLondonPhoto {
+    width: min(100%, calc((100svh - var(--tabbar-h) - env(safe-area-inset-bottom, 0px)) * .22 * 3 / 2));
   }
 }
 
@@ -695,62 +695,27 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 
-/* ── The picture: London, drawn once at build ───────────────────────────── */
+/* ── The London photograph ──────────────────────────────────────────────── */
 
-/* The hero's largest element, and it is inline vector geometry rather than an
-   image request (components/landing/LondonMapSnapshot.tsx). Every colour is a
-   token, so the drawing is right in both themes from one set of bytes, and the
-   aspect ratio is fixed so nothing shifts as the rest of the page arrives. */
-.lpMapFigure {
+.lpLondonFigure {
   margin: 0;
   display: grid;
   gap: var(--space-2);
   width: min(100%, 34rem);
 }
 
-.lpMapSnapshot {
+.lpLondonPhoto {
+  display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 1200 / 851;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
   border-radius: var(--radius-lg);
   background: var(--panel);
   border: 1px solid var(--line-soft);
 }
 
-.lpMapOutline {
-  fill: var(--panel-raised);
-  stroke: var(--line);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-}
-
-.lpMapDots { fill: var(--accent-price); opacity: .8; fill-rule: nonzero; }
-
-.lpMapPinDot {
-  fill: var(--brass-accessible);
-  stroke: var(--panel-raised);
-  stroke-width: 3;
-}
-
-.lpMapPinName {
-  fill: var(--ink);
-  font: 700 27px/1 var(--font-display);
-  paint-order: stroke;
-  stroke: var(--panel-raised);
-  stroke-width: 6;
-  stroke-linejoin: round;
-}
-
-.lpMapPinLabel {
-  fill: var(--muted);
-  font: 550 22px/1 var(--font-data);
-  paint-order: stroke;
-  stroke: var(--panel-raised);
-  stroke-width: 6;
-  stroke-linejoin: round;
-}
-
-.lpMapCaption {
+.lpLondonCaption {
   color: var(--muted);
   font-size: var(--text-xs);
   line-height: var(--leading-normal);

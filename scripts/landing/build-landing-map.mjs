@@ -21,11 +21,9 @@
 //     at most six of them. Re-run the script after the heritage data changes and
 //     the pins follow the data rather than somebody's taste.
 //
-// (3) IT SHIPS AS GEOMETRY, NOT AS AN IMAGE FILE. The output is a TypeScript
-//     module of path data that components/landing/LondonMapSnapshot.tsx paints
-//     inline, so the drawing takes the reader's own theme tokens, costs no
-//     request at all, and is sharp at every width. The size ceiling lives in
-//     __tests__/landingMapSnapshot.test.ts.
+// (3) THE GENERATED MODULE RETAINS THE HISTORIC PUB COUNT used by the landing
+//     and OG copy. The outline and pin data remain checked for source fidelity
+//     in __tests__/landingMapSnapshot.test.ts.
 //
 // Usage: node scripts/landing/build-landing-map.mjs
 
@@ -75,7 +73,7 @@ const PIN_MARK_RADIUS = 9.5;
  * Where a pin's writing may sit, tried in this order: beside the pin, then
  * just above it, then just below. `dx` is how far along the line the writing
  * starts from the pin and `dy` how far the two lines move up or down;
- * LondonMapSnapshot.tsx reads both from the generated pin.
+ * The generated pin retains both values for source-fidelity checks.
  */
 const PLACEMENTS = [
   { dx: 18, dy: 0 },

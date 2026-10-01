@@ -85,7 +85,7 @@ describe("landing hero rhythm", () => {
       '<p class="kicker">PUBMAXX</p>',
       '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
       '<p class="screenLede">',
-      'class="lpMapFigure"',
+      'class="lpLondonFigure"',
       'data-primary-action=""',
       'class="screenSecondary"',
       // The card carries its photograph class too (lib/landingImagery.ts), so
@@ -96,10 +96,13 @@ describe("landing hero rhythm", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("carries exactly one lede, and it describes the picture above it", () => {
+  it("shows the licensed London skyline beside the map promise", () => {
     const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero.match(/class="screenLede"/g)).toHaveLength(1);
     expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs marked/);
+    expect(hero).toContain('alt="Tower Bridge and the Thames in London from above"');
+    expect(hero).toContain('/landing/hero-thames-1600.avif');
+    expect(hero).not.toContain('class="lpMapSnapshot"');
     expect(hero.match(/<p class="kicker">/g)).toHaveLength(1);
   });
 
@@ -115,7 +118,7 @@ describe("landing hero rhythm", () => {
     expect(bare).not.toContain("lpPubCard");
     expect(bare).not.toContain("lpRail");
     // The picture is the document's own, so it stands with or without a pub.
-    expect(bare).toContain("lpMapFigure");
+    expect(bare).toContain("lpLondonFigure");
     expect(bare).toContain('<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>');
   });
 });

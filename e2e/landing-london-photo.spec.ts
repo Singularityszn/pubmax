@@ -40,6 +40,24 @@ test("the landing card stands on a photograph that really loaded", async ({ page
   await expect(credit).toContainText(/Photo: .+, (CC |Public domain|PDM)/);
 });
 
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 768, height: 1024 },
+  { width: 1440, height: 900 },
+]) {
+  test(`the London skyline paints without horizontal overflow at ${viewport.width}`, async ({ page }) => {
+    await open(page, "/", viewport);
+    const photo = page.getByRole("img", { name: "Tower Bridge and the Thames in London from above" });
+    await expect(photo).toBeVisible();
+    await expect.poll(() => photo.evaluate((image: HTMLImageElement) =>
+      image.complete && image.naturalWidth > 0)).toBe(true);
+    expect(await photo.evaluate((image: HTMLImageElement) => image.currentSrc)).toContain("/landing/hero-thames-");
+    await expect(page.locator("svg.lpMapSnapshot")).toHaveCount(0);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+}
+
 test("the card's scrim ships the alpha the contrast contract is proved at", async ({ page }) => {
   await open(page, "/", { width: 390, height: 844 });
   const alpha = await page.locator(".lpPubCard--photo .landingPhoto__scrim").evaluate((node) => {

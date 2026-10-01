@@ -190,7 +190,7 @@ describe("landing hierarchy: the price receipt door", () => {
     // No decoration behind the copy, no glass, no dot grid, no photo card.
     expect(landingCss).not.toMatch(/orbit|scanline|backdrop-filter|radial-gradient|thamesHero|cinema/i);
     // The picture holds its own box before it paints, so nothing under it moves.
-    expect(landingCss).toMatch(/\.lpMapSnapshot\s*{[^}]*aspect-ratio:\s*1200 \/ 851/);
+    expect(landingCss).toMatch(/\.lpLondonPhoto\s*{[^}]*aspect-ratio:\s*3 \/ 2/);
   });
 
   it("preserves Pint Drop eight-second fail-soft hang path (do not rework)", () => {
