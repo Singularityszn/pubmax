@@ -95,3 +95,15 @@ The interface is that call. `__tests__/contributorLeaderboardRoute.test.ts` call
 **Files changed:** none. This section is the record.
 
 **Fully resolved:** no. The filed question asked for a human wire-or-delete call. The page and the route already share one module, so this run settles the seam and leaves both adapters. A keep of that kind is not fully resolved.
+
+## 1709 Convex migration shadow comparison
+
+**Still true:** yes. `lib/convex/migration.ts` still exports `shadowRecordHash` and re-exports `canTransitionMigration` from `lib/convex/migrationTransitions.ts`. `recordShadowComparison` is still the internal mutation in `convex/migrations.ts` (line 70). Its handler inserts one row into `shadowReadComparisons`. A search for that name finds only the export: no app, script, or test calls the mutation. `shadowing` is still a batch status in `lib/convex/migrationTransitions.ts` (`running` may move to `shadowing`, and `shadowing` may move to `verified`) and in `convex/validators.ts`. `docs/architecture/convex-migration-runbook.md` (lines 14 to 18) says the frozen `planCompletions` scaffolding does not authorise import, shadow reads, cutover, dual-write, or a Plan runtime path. Lines 97 to 100 say this repository provides no deploy or import script, and any future migration needs a separately reviewed ticket plus explicit owner approval. The captain applies migrations.
+
+**Seam decision:** skip. Do not edit `convex/**` or `lib/convex/**`. Pub Pal is off limits for this run. Do not drop the `shadowing` state. Do not add a migration. The module is `shadowRecordHash` in `lib/convex/migration.ts`. `recordShadowComparison` is the unused write beside it, not a second copy of the hash. Depth is that hash and that insert, both frozen. There is no second adapter, so this skip adds no port. Wiring a caller would be the shadow read the runbook does not authorise.
+
+The interface is the hash and the transition the foundation test already calls. `__tests__/convexFoundation.test.ts` calls `shadowRecordHash` with two key orders and calls `canTransitionMigration("shadowing", "verified")`. `__tests__/convexContainment.test.ts` pins `shadowReadComparisons` on the grandfathered migration table list. Removing the table or the status would fail that fence, which is the deletion test this skip refuses.
+
+**Files changed:** none. This section is the record.
+
+**Fully resolved:** no. The filed question asked whether to deepen the shadow comparison or delete the scaffolding. The runbook keeps both, Pub Pal is fenced, and a skip is not fully resolved.
