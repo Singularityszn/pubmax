@@ -68,8 +68,18 @@ function addFinding(finding) {
 
 async function inspectPage(page, origin, viewport, route) {
   const result = await page.evaluate(() => {
+    const isClippedVisuallyHidden = (style) => {
+      if (style.overflow !== "hidden") return false;
+      const clipPath = style.clipPath;
+      if (clipPath === "inset(50%)" || clipPath.includes("inset(50%")) {
+        return true;
+      }
+      const clip = style.clip;
+      return clip.startsWith("rect(0") || clip === "rect(0px, 0px, 0px, 0px)";
+    };
     const visible = (element) => {
       const style = getComputedStyle(element);
+      if (isClippedVisuallyHidden(style)) return false;
       const rect = element.getBoundingClientRect();
       return (
         style.display !== "none" &&

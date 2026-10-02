@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
@@ -176,9 +177,9 @@ export default function PlanRouteMiniMap({
   return (
     <div className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
       {mapHref ? (
-        <a className="planRouteMiniMap--clickable" href={mapHref} aria-labelledby={labelledBy}>
+        <Link className="planRouteMiniMap--clickable" href={mapHref} prefetch={false} aria-labelledby={labelledBy}>
           {preview}
-        </a>
+        </Link>
       ) : (
         <div role="group" aria-labelledby={labelledBy}>
           {preview}
