@@ -20,7 +20,7 @@ import { isAccountVisibility } from "@/lib/accountVisibility";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxDisplayName } from "@/lib/pubmaxxIdentity";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { callerOwnedWithdrawnHandle, gateHandleAction } from "@/lib/profileOwnership";
 import { projectionCarriesSocialLinks } from "@/lib/profileVisibility";
 import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import {
@@ -179,9 +179,10 @@ export async function GET(
 
     // Auth-deletion stamp only. Legacy user_id-null rows stay fully live.
     // A banned or suspended handle answers the same body as a handle nobody
-    // owns. A distinct 404 is how a reader learns the account existed.
+    // owns, except to its verified owner. A distinct 404 is how a reader
+    // learns the account existed.
     const presence = await profilePublicPresence(profile);
-    if (presence === "withdrawn") {
+    if (presence === "withdrawn" && !(await callerOwnedWithdrawnHandle(request, handle))) {
       return jsonNoStore(
         {
           profile: null,
