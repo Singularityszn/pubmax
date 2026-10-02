@@ -3982,16 +3982,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-radius: inherit;
 }
 
-/* A stop whose pub left the map: named in its place, not a button. */
-.routeList li.routeStopRetired > div {
-  display: grid;
-  grid-template-columns: 30px 1fr;
-  gap: 11px;
-  padding: 11px;
+/* The crawl's stops whose pub left the map: named once, above the route. */
+.routeRetiredNote {
+  margin: 0 0 8px;
   color: var(--muted);
+  font-size: 0.85rem;
 }
 
-.routeList li:not(.routeStopRetired):hover {
+.routeList li:hover {
   border-color: var(--brass);
   transform: translateX(2px);
   box-shadow: 0 12px 26px color-mix(in srgb, var(--brass) 11%, transparent);

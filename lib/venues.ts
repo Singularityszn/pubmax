@@ -1391,9 +1391,7 @@ export function buildCrawlRoute(
   return candidates.sort((a, b) => b.routeScore - a.routeScore)[0]?.route ?? [];
 }
 
-export function crawlSummary(stops: Venue[]): { total: number; average: number; distance: number } {
-  // A stop naming a pub that left the map is neither priced nor walked to.
-  const route = stops.filter((venue) => !venue.retired);
+export function crawlSummary(route: Venue[]): { total: number; average: number; distance: number } {
   const prices = route
     .map((venue) => venue.cheapestPrice)
     .filter((price): price is number => typeof price === "number");

@@ -2,16 +2,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { builtRouteRetiredStops, builtRouteStops } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { builtRouteRetiredStops } from "@/components/map/pubmap/useMapPlanCoordinator";
 import RouteList from "@/components/map/route/RouteList";
-import RouteMetrics from "@/components/map/route/RouteMetrics";
-import { crawlShareMapHref } from "@/lib/curatedCrawls";
 import { buildRouteLegs } from "@/lib/routeLegs";
-import { crawlSummary, type Venue } from "@/lib/venues";
+import type { Venue } from "@/lib/venues";
 
 // A crawl link shared before the 2 October refresh can name a pub that has
-// since left OpenStreetMap. The link keeps that stop in its place: named, noted
-// as possibly closed, drawn as no pin and walked past.
+// since left OpenStreetMap. The route leaves that stop out entirely, so it can
+// never act as a live stop, and one line above the route names it.
 
 function venue(id: string, name: string, latitude: number, retired = false): Venue {
   return {
@@ -58,19 +56,11 @@ const B = venue("venue-bhm-b", "The Bell", 52.48);
 const DUCK = venue("venue-bhm-17j3xm7", "The Duck", 52.9, true);
 
 describe("a retired stop on a shared crawl link", () => {
-  it("keeps its place between the stops around it, named once as possibly closed", () => {
-    const builtIds = [A.id, DUCK.id, B.id];
-    const venueById = new Map([
-      [A.id, A],
-      [B.id, B],
-    ]);
-    const retiredById = new Map([[DUCK.id, DUCK]]);
-    const retiredStops = builtRouteRetiredStops(builtIds, venueById, retiredById);
-    expect(retiredStops).toEqual([{ id: DUCK.id, name: "The Duck", beforeRouteIndex: 1 }]);
+  it("is named once above the route and is never a route stop", () => {
+    const retiredStops = builtRouteRetiredStops([A.id, DUCK.id, B.id], new Map([[DUCK.id, DUCK]]));
+    expect(retiredStops).toEqual([{ id: DUCK.id, name: "The Duck" }]);
 
-    // The crawl itself keeps all three stops in order.
-    const route = builtRouteStops(builtIds, venueById, retiredById);
-    expect(route.map((venue) => venue.id)).toEqual(builtIds);
+    const route = [A, B];
     const html = renderToStaticMarkup(
       createElement(RouteList, {
         route,
@@ -82,47 +72,27 @@ describe("a retired stop on a shared crawl link", () => {
         onSelectVenue: () => {},
       }),
     );
-    const names = [...html.matchAll(/<strong>([^<]+)/g)].map((match) => match[1]);
-    expect(names).toEqual(["The Anchor", "The Duck (may have closed)", "The Bell"]);
-    const numbers = [...html.matchAll(/class="stopNumber">(\d+)</g)].map((match) => match[1]);
-    expect(numbers).toEqual(["1", "2", "3"]);
-    // The walk goes from The Anchor straight to The Bell: The Duck's last point
-    // (well north of both) adds no distance, and it offers no directions.
-    const legs = buildRouteLegs(route);
-    expect(legs.legs.map((leg) => [leg.from.id, leg.to.id])).toEqual([[A.id, B.id]]);
-    expect(crawlSummary(route).distance).toBeCloseTo(buildRouteLegs([A, B]).totalKm, 6);
-    expect(html.match(/class="routeStopDirections"/g)).toHaveLength(2);
-
-    const metrics = renderToStaticMarkup(
-      createElement(RouteMetrics, {
-        summaryTotal: crawlSummary(route).total,
-        summaryDistance: crawlSummary(route).distance,
-        legSummary: legs,
-        pace: "walk",
-        journeyTotalMinutes: null,
-        journeyLoading: false,
-        routeLength: route.length,
-        stopNoun: "pub",
-        routeHeritageCount: 0,
-        routeWaterCount: 0,
-        routeWriterCount: 0,
-      }),
+    expect(html).toContain(
+      '<p class="routeRetiredNote">1 stop on this crawl may have closed: The Duck</p>',
     );
-    expect(metrics.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")).toContain("2 pubs + 1 may have closed");
+    const names = [...html.matchAll(/<strong>([^<]+)/g)].map((match) => match[1]);
+    expect(names).toEqual(["The Anchor", "The Bell"]);
+    const numbers = [...html.matchAll(/class="stopNumber">(\d+)</g)].map((match) => match[1]);
+    expect(numbers).toEqual(["1", "2"]);
   });
 
-  it("keeps the retired stop in place when the crawl is shared again", () => {
-    const route = builtRouteStops(
-      [A.id, DUCK.id, B.id],
-      new Map([
-        [A.id, A],
-        [B.id, B],
-      ]),
-      new Map([[DUCK.id, DUCK]]),
+  it("prints no line for a crawl with every pub still on the map", () => {
+    const html = renderToStaticMarkup(
+      createElement(RouteList, {
+        route: [A, B],
+        retiredStops: builtRouteRetiredStops([A.id, B.id], new Map()),
+        activeVenueId: undefined,
+        venueSignals: new Map(),
+        legSummary: buildRouteLegs([A, B]),
+        onTheWayByLeg: new Map(),
+        onSelectVenue: () => {},
+      }),
     );
-    const href = crawlShareMapHref({ venueIds: route.map((venue) => venue.id), cityId: "birmingham" });
-    expect(new URL(href, "https://pubmaxxing.test").searchParams.get("pubs")).toBe(
-      `${A.id},${DUCK.id},${B.id}`,
-    );
+    expect(html).not.toContain("routeRetiredNote");
   });
 });

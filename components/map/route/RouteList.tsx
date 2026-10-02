@@ -1,10 +1,8 @@
 "use client";
 
-import { Fragment } from "react";
 import { Beer, Footprints, Navigation, TrainFront } from "lucide-react";
 
 import type { RetiredRouteStop } from "@/components/map/pubmap/useMapPlanCoordinator";
-import { storedVenueName } from "@/lib/storedVenueRef";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeLegs";
 import { journeyAddsTransit } from "@/lib/formatJourney";
@@ -18,7 +16,7 @@ type VenueSignals = Map<
 
 type RouteListProps = {
   route: Venue[];
-  /** Stops whose pub left the map: named in order, with no pin and no leg. */
+  /** Stops on this crawl whose pub left the map. Never route stops, only named. */
   retiredStops?: readonly RetiredRouteStop[];
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
@@ -28,21 +26,15 @@ type RouteListProps = {
   onSelectVenue: (id: string) => void;
 };
 
-function RetiredStopItem({ stop, number }: { stop: RetiredRouteStop; number: number }) {
-  return (
-    <li className="routeStopRetired">
-      <div>
-        <span className="stopNumber">{number}</span>
-        <div>
-          <strong>{storedVenueName({ name: stop.name, retired: true })}</strong>
-        </div>
-      </div>
-    </li>
-  );
+/** "1 stop on this crawl may have closed: The Duck" */
+function retiredStopsLine(stops: readonly RetiredRouteStop[]): string | null {
+  if (stops.length === 0) return null;
+  const count = stops.length === 1 ? "1 stop" : `${stops.length} stops`;
+  return `${count} on this crawl may have closed: ${stops.map((stop) => stop.name).join(", ")}`;
 }
 
 export default function RouteList({
-  route: stops,
+  route,
   retiredStops = [],
   activeVenueId,
   venueSignals,
@@ -51,9 +43,6 @@ export default function RouteList({
   journeyByToIndex,
   onSelectVenue,
 }: RouteListProps) {
-  // The walked stops. A stop naming a pub that left the map is named in its
-  // place from `retiredStops`, with no directions and no leg.
-  const route = stops.filter((venue) => !venue.retired);
   // A place line per stop, widened only where two stops share a name (see
   // lib/routeStops.ts). London has several Queens Heads.
   const placeLabels = routeStopPlaceLabels(
@@ -66,13 +55,13 @@ export default function RouteList({
     })),
   );
 
-  const trailingRetired = retiredStops.filter((stop) => stop.beforeRouteIndex >= route.length);
+  const retiredLine = retiredStopsLine(retiredStops);
 
   return (
+    <>
+    {retiredLine ? <p className="routeRetiredNote">{retiredLine}</p> : null}
     <ol className="routeList">
       {route.map((venue, index) => {
-        const retiredBefore = retiredStops.filter((stop) => stop.beforeRouteIndex < index).length;
-        const retiredHere = retiredStops.filter((stop) => stop.beforeRouteIndex === index);
         const signal = venueSignals.get(venue.id);
         const dropCount = signal?.dropCount ?? 0;
         const leg = legSummary.legs[index];
@@ -88,17 +77,13 @@ export default function RouteList({
         const journey = journeyByToIndex?.get(index + 1);
         const transitJourney = journey && journeyAddsTransit(journey.modes) ? journey : null;
         return (
-        <Fragment key={venue.id}>
-        {retiredHere.map((stop, offset) => (
-          <RetiredStopItem key={stop.id} stop={stop} number={index + retiredBefore + offset + 1} />
-        ))}
-        <li className={activeVenueId === venue.id ? "active" : ""}>
+        <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
           <button
             type="button"
             onClick={() => onSelectVenue(venue.id)}
             aria-current={activeVenueId === venue.id ? "true" : undefined}
           >
-            <span className="stopNumber">{index + retiredBefore + retiredHere.length + 1}</span>
+            <span className="stopNumber">{index + 1}</span>
             <div>
               <strong>
                 {venue.name}
@@ -147,16 +132,9 @@ export default function RouteList({
             </div>
           ) : null}
         </li>
-        </Fragment>
         );
       })}
-      {trailingRetired.map((stop, offset) => (
-        <RetiredStopItem
-          key={stop.id}
-          stop={stop}
-          number={route.length + retiredStops.length - trailingRetired.length + offset + 1}
-        />
-      ))}
     </ol>
+    </>
   );
 }

@@ -267,8 +267,10 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
 }
 
 /**
- * The retired pub a stored reference names, as an indexed venue. A READ answer
- * only: `lookupCanonicalVenue` never returns it, so no write can land on a pub
+ * The retired pub a stored reference names, as an indexed venue. A READ answer,
+ * with one write exception: saving a crawl (app/api/crawls/route.ts) may persist
+ * a retired stop id, so a saved crawl keeps the stops it was built with.
+ * `lookupCanonicalVenue` never returns it, so no other write can land on a pub
  * the map no longer lists.
  */
 export async function lookupRetiredIndexedVenue(id: string): Promise<IndexedVenue | null> {

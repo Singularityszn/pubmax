@@ -56,9 +56,9 @@ const ON_THE_WAY_CATEGORIES: ReadonlySet<Poi["category"]> = new Set([
 export const ON_THE_WAY_KM = 0.25;
 
 export type RouteLeg = {
-  /** Index into the walked stops (the route without retired pubs) of the leg's starting stop. */
+  /** Index into the route array of the leg's starting stop. */
   fromIndex: number;
-  /** Index into the walked stops of the leg's ending stop. */
+  /** Index into the route array of the leg's ending stop. */
   toIndex: number;
   from: Venue;
   to: Venue;
@@ -80,8 +80,6 @@ export type RouteLegsSummary = {
   /** How the total was measured. "routed" only when EVERY leg is routed;
    *  absent = straight-line (the default). */
   distanceBasis?: RouteDistanceBasis;
-  /** Stops naming a pub that left the map: kept in the crawl, never walked to. */
-  retiredStops?: number;
 };
 
 function paceKmh(pace: RoutePace): number {
@@ -98,15 +96,13 @@ export function legMinutes(km: number, pace: RoutePace = "walk"): number {
 }
 
 // Build the leg-by-leg breakdown for a route (an ordered stop list). Returns
-// one entry per adjacent pair of walked stops — N walked stops yield N-1 legs.
-// A stop naming a retired pub is walked past, its last point never counted.
-// An empty or single-stop route yields no legs and a zeroed summary, never throws.
+// one entry per adjacent pair — a route of N stops yields N-1 legs. An empty
+// or single-stop route yields no legs and a zeroed summary, never throws.
 export function buildRouteLegs(route: Venue[], pace: RoutePace = "walk"): RouteLegsSummary {
-  const walked = route.filter((venue) => !venue.retired);
   const legs: RouteLeg[] = [];
-  for (let i = 0; i < walked.length - 1; i += 1) {
-    const from = walked[i];
-    const to = walked[i + 1];
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const from = route[i];
+    const to = route[i + 1];
     const distanceKm = haversineKm([from.longitude, from.latitude], [to.longitude, to.latitude]);
     legs.push({
       fromIndex: i,
@@ -120,8 +116,7 @@ export function buildRouteLegs(route: Venue[], pace: RoutePace = "walk"): RouteL
   }
   const totalKm = legs.reduce((sum, leg) => sum + leg.distanceKm, 0);
   const totalMinutes = legs.reduce((sum, leg) => sum + leg.minutes, 0);
-  const retiredStops = route.length - walked.length;
-  return { legs, totalKm, totalMinutes, pace, ...(retiredStops > 0 ? { retiredStops } : {}) };
+  return { legs, totalKm, totalMinutes, pace };
 }
 
 /** The distance-basis label suffix: "walking route" for routed, else the honest
