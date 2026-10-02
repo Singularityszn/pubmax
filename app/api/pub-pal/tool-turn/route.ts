@@ -5,8 +5,10 @@ import { resolveAskCityId } from "@/lib/ask/tools";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   appendOwnedPubPalUserTurn,
+  PubPalToolTurnAccessError,
   touchPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
+import { verifyPubPalVoiceOwnerProof } from "@/lib/pubPalVoiceOwnerProof.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -50,29 +52,41 @@ export async function POST(request: Request): Promise<Response> {
   const cityId = resolveAskCityId(record.cityId);
   const unavailable = () =>
     publicApiError("That conversation is not available.", "NOT_FOUND", 404);
+  const voiceOwnerProof = Object.hasOwn(record, "voiceOwnerProof")
+    ? verifyPubPalVoiceOwnerProof(record.voiceOwnerProof, ownerId, conversationId)
+    : null;
+  if (Object.hasOwn(record, "voiceOwnerProof") && !voiceOwnerProof) return unavailable();
 
-  const threadTurn = record.threadTurn;
-  if (threadTurn && typeof threadTurn === "object" && !Array.isArray(threadTurn)) {
-    const turnRecord = threadTurn as Record<string, unknown>;
-    if (turnRecord.role !== "user") {
-      return publicApiError("Only your own line can be stored.", "MALFORMED_REQUEST", 400);
+  try {
+    const threadTurn = record.threadTurn;
+    if (threadTurn && typeof threadTurn === "object" && !Array.isArray(threadTurn)) {
+      const turnRecord = threadTurn as Record<string, unknown>;
+      if (turnRecord.role !== "user") {
+        return publicApiError("Only your own line can be stored.", "MALFORMED_REQUEST", 400);
+      }
+      const content =
+        typeof turnRecord.content === "string" ? turnRecord.content.trim().slice(0, 800) : "";
+      if (!content) {
+        return publicApiError("Say something first.", "MALFORMED_REQUEST", 400);
+      }
+      const stored = await appendOwnedPubPalUserTurn(
+        conversationId,
+        ownerId,
+        { role: "user", content },
+        cityId,
+        voiceOwnerProof !== null,
+      );
+      if (!stored) return unavailable();
+      return jsonNoStore({ ok: true });
     }
-    const content =
-      typeof turnRecord.content === "string" ? turnRecord.content.trim().slice(0, 800) : "";
-    if (!content) {
-      return publicApiError("Say something first.", "MALFORMED_REQUEST", 400);
-    }
-    const stored = await appendOwnedPubPalUserTurn(
-      conversationId,
-      ownerId,
-      { role: "user", content },
-      cityId,
-    );
-    if (!stored) return unavailable();
+
+    const touched = await touchPubPalToolTurn(conversationId, ownerId);
+    if (!touched) return unavailable();
     return jsonNoStore({ ok: true });
+  } catch (error) {
+    if (error instanceof PubPalToolTurnAccessError) return unavailable();
+    return publicApiError("Could not sync that line. Try again.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
   }
-
-  const touched = await touchPubPalToolTurn(conversationId, ownerId);
-  if (!touched) return unavailable();
-  return jsonNoStore({ ok: true });
 }
