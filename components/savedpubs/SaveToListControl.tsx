@@ -11,7 +11,7 @@ import {
 import type { VenueKind } from "@/lib/venues";
 
 import "./saveToList.css";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 
 // Save-a-venue-to-a-list control with CUSTOM LIST support (story 33). A small,
 // self-contained island: it shows the eligible built-in lists PLUS the viewer's
@@ -50,7 +50,11 @@ export default function SaveToListControl({
     const h = handle.trim();
     if (!h) return;
     try {
-      const res = await fetch(`/api/saved-pubs?handle=${encodeURIComponent(h)}&lists=1`);
+      const res = await authedFetch(
+        `/api/saved-pubs?handle=${encodeURIComponent(h)}&lists=1`,
+        {},
+        { requiresIdentity: true },
+      );
       if (!res.ok) {
         discardBody(res);
         return;

@@ -202,12 +202,21 @@ describe("handle claim parity", () => {
   });
 
   it.each(["suspendedbob", "bannedbob"])(
-    "refuses a stranger's claim on %s with the generic unavailable answer",
+    "refuses a stranger's write on %s exactly like a write on a live owned handle",
     async (handle) => {
-      expect(await answered(await claimAnonymously(handle))).toEqual({
-        status: 409,
-        body: { error: "That handle is not available.", code: "CONFLICT", retryable: false },
-      });
+      const live = await answered(await claimAnonymously("alice"));
+      expect(live.status).toBe(403);
+      expect(await answered(await claimAnonymously(handle))).toEqual(live);
+    },
+  );
+
+  it.each(["suspendedbob", "bannedbob"])(
+    "refuses another account's write on %s exactly like a write on a live owned handle",
+    async (handle) => {
+      authState.userId = "user-sam";
+      const live = await answered(await claimAnonymously("alice"));
+      expect(live.status).toBe(403);
+      expect(await answered(await claimAnonymously(handle))).toEqual(live);
     },
   );
 
@@ -223,6 +232,27 @@ describe("handle claim parity", () => {
 });
 
 describe("saved list parity", () => {
+  it("still shows a suspended owner their own saves and lists", async () => {
+    authState.userId = "user-suspended";
+    const saved = (await (await get(getSavedPubs, "/api/saved-pubs?handle=suspendedbob")).json()) as {
+      saved: unknown[];
+    };
+    expect(saved.saved).toHaveLength(1);
+    expect(await (await get(getSavedPubs, "/api/saved-pubs?handle=suspendedbob&lists=1")).json()).toEqual({
+      lists: [LIST],
+    });
+  });
+
+  it("hides a suspended owner's saves and lists from another account", async () => {
+    authState.userId = "user-sam";
+    expect(await answered(await get(getSavedPubs, "/api/saved-pubs?handle=suspendedbob"))).toEqual(
+      await answered(await get(getSavedPubs, `/api/saved-pubs?handle=${UNKNOWN}`)),
+    );
+    expect(await answered(await get(getSavedPubs, "/api/saved-pubs?handle=suspendedbob&lists=1"))).toEqual(
+      await answered(await get(getSavedPubs, `/api/saved-pubs?handle=${UNKNOWN}&lists=1`)),
+    );
+  });
+
   it("still serves a live account's saved list", async () => {
     const body = (await (await get(getSavedPubs, "/api/saved-pubs?handle=sam")).json()) as {
       saved: unknown[];
