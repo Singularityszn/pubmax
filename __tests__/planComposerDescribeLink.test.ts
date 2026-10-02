@@ -66,6 +66,8 @@ import { parsePlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { writePlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { reconcilePlanContext } from "@/lib/planGenerationContext";
 
 const URL_ASK = "Plan a crawl in Soho for 4";
 const DRAFT_ASK = "an older ask nobody asked for again";
@@ -645,6 +647,218 @@ describe("selected Swap route revalidation", () => {
       await act(async () => { releaseFirst(); });
       await settleComposerEffects();
     }
+  });
+});
+
+describe("selected route stop-count edits", () => {
+  const ask = "Three cheap recorded pints in Clapham";
+  const originalIds = ["venue-a", "venue-b", "venue-c"];
+  const venueNames: Record<string, string> = {
+    "venue-a": "Original Arms", "venue-b": "Second Arms", "venue-c": "Third Arms",
+  };
+
+  function currentStopNames(): string[] {
+    return Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]'))
+      .map((input) => input.value);
+  }
+
+  function currentLockControl(): HTMLButtonElement {
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Lock it in");
+    if (!button) throw new Error("real Lock it in control did not render");
+    return button;
+  }
+
+  function installCountRecheckServer() {
+    const attempts: Array<{ body: Record<string, unknown>; effectiveStopCount: number | null; status: number }> = [];
+    const creates: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith("/api/plans") && init?.method === "POST") {
+        creates.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return Response.json({ error: "Fixture create unavailable.", code: "PLAN_CREATE_UNAVAILABLE", retryable: true }, { status: 503 });
+      }
+      if (!url.includes("/api/plans/generate")) {
+        return Response.json(Object.entries(venueNames).map(([id, name]) => ({ id, name, kind: "pub" })));
+      }
+      if (init?.method !== "POST") return new Response(null, { status: 204 });
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      const now = new Date();
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+        method: "POST", headers: init.headers, body: String(init.body),
+      }), now);
+      if (!parsed.ok) {
+        attempts.push({ body, effectiveStopCount: null, status: parsed.status });
+        return Response.json({ error: parsed.message, code: parsed.code, retryable: false }, { status: parsed.status });
+      }
+      // Exercise the same public decode and count authority as generation.
+      // The response follows transmitted IDs only after that count agrees.
+      const { query, context, intake, routeVenueIds } = parsed.value;
+      const effectiveContext = reconcilePlanContext(query, context, intake, now).context;
+      const effectiveStopCount = effectiveContext.stopCount ?? 3;
+      if (routeVenueIds && routeVenueIds.length !== effectiveStopCount) {
+        attempts.push({ body, effectiveStopCount, status: 400 });
+        return Response.json({ error: "Selected stops must match the requested stop count.", code: "MALFORMED_REQUEST", retryable: false }, { status: 400 });
+      }
+      const ids = routeVenueIds ?? originalIds.slice(0, effectiveStopCount);
+      if (ids.length !== effectiveStopCount || !ids.every((id) => Object.hasOwn(venueNames, id))) {
+        attempts.push({ body, effectiveStopCount, status: 422 });
+        return Response.json({ error: "Selected fixture pubs are unavailable.", code: "GROUNDED_CONSTRAINTS_UNSATISFIED", retryable: false }, { status: 422 });
+      }
+      attempts.push({ body, effectiveStopCount, status: 200 });
+      return Response.json({
+        ...DEFAULT_GENERATE_BODY,
+        groundingProof: `count-fixture-proof-${attempts.length}`,
+        operationKey: `count-fixture-operation-${attempts.length}`,
+        inferredContext: effectiveContext,
+        stops: ids.map((venueId) => ({ venueId, venueName: venueNames[venueId], alternatives: [] })),
+      });
+    }));
+    return { attempts, creates };
+  }
+
+  async function generateThenRemoveThirdStop() {
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", ask);
+      clickButton("Sort it");
+    });
+    await settleComposerEffects();
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+    const remove = document.querySelector<HTMLButtonElement>('button[aria-label="Remove stop 3"]');
+    expect(remove?.disabled).toBe(false);
+    await act(async () => { remove!.click(); });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("2");
+    expect(currentLockControl().disabled).toBe(true);
+  }
+
+  it("rechecks a removed third stop as exactly two selected pubs on the first request", async () => {
+    const server = installCountRecheckServer();
+    await generateThenRemoveThirdStop();
+    expect(server.attempts).toHaveLength(1);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { routeVenueIds: originalIds.slice(0, 2), context: { stopCount: 2 }, intake: { stopCount: 2 } },
+      effectiveStopCount: 2, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("rechecks the added third pub with count three on the first request after a two-stop refresh", async () => {
+    const server = installCountRecheckServer();
+    await generateThenRemoveThirdStop();
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(currentLockControl().disabled).toBe(false);
+    await act(async () => { clickButton("Add another stop"); });
+    const added = Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]')).at(-1);
+    expect(added?.value).toBe("");
+    await act(async () => { typeInto(`#${added!.id}`, venueNames["venue-c"]!); });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { routeVenueIds: originalIds, context: { stopCount: 3 } },
+      effectiveStopCount: 3, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-3", createOperationKey: "count-fixture-operation-3", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("recovers the added third pub count for the first recheck after a People edit", async () => {
+    const server = installCountRecheckServer();
+    const twoPubAsk = "Two pubs in Clapham";
+    await mountComposer();
+    await act(async () => { typeInto("#plan-describe-first-query", twoPubAsk); });
+    await act(async () => { clickButton("Sort it"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+    // Setup uses the real count control, so this first Add refresh succeeds
+    // on the unchanged source without a retry or an internal draft seed.
+    const count = document.querySelector<HTMLSelectElement>("#plan-context-stops");
+    expect(count?.value).toBe("2");
+    await act(async () => {
+      count!.value = "3";
+      count!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => { clickButton("Add another stop"); });
+    const added = Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]')).at(-1);
+    expect(added?.value).toBe("");
+    await act(async () => { typeInto(`#${added!.id}`, venueNames["venue-c"]!); });
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { query: twoPubAsk, routeVenueIds: originalIds, context: { stopCount: 3 } },
+      effectiveStopCount: 3, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      hasSelectedRouteEdits: true, nightContext: { stopCount: 3 }, routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before recovery");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+    expect(server.attempts).toHaveLength(2);
+    expect(conciergeFieldValue()).toBe(twoPubAsk);
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(currentLockControl().disabled).toBe(false);
+    await act(async () => { typeInto("#plan-context-people", "7"); });
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: twoPubAsk, routeVenueIds: originalIds, context: { stopCount: 3, groupSize: 7 } },
+      effectiveStopCount: 3, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-3", createOperationKey: "count-fixture-operation-3", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+    expect(server.creates).toHaveLength(0);
   });
 });
 
