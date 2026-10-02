@@ -60,6 +60,11 @@ Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).
 
+The lint-and-types job runs `npx tsc --noEmit` (the TypeScript 6 alias Next
+uses at build time). The merge bar `npm run verify` runs
+[`npm run typecheck`](../package.json) (TypeScript 7 native); see
+[`next.config.mjs`](../next.config.mjs) for why both exist.
+
 ### Register or re-register the runner
 
 From [GitHub → repo → Settings → Actions → Runners](https://github.com/Singularityszn/pubmax/settings/actions/runners),
