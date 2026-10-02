@@ -669,8 +669,8 @@ function headingKind(line: string): "drinks" | "food" | null {
   if (content.length === 0) return null;
   const hasFood = content.some((word) => FOOD_LABEL.test(word));
   const hasDrinks = content.some((word) => DRINKS_LABEL.test(word));
-  if (hasFood && content.every((word) => FOOD_LABEL.test(word) || DRINKS_LABEL.test(word))) return "food";
-  if (hasDrinks && !hasFood) return "drinks";
+  if (hasDrinks && (!hasFood || content.every((word) => FOOD_LABEL.test(word) || DRINKS_LABEL.test(word)))) return "drinks";
+  if (hasFood && content.every((word) => FOOD_LABEL.test(word))) return "food";
   return null;
 }
 
@@ -685,8 +685,7 @@ function urlPath(url: string): string {
 
 function pathIsDrinksMenu(path: string): boolean {
   if (DRINKS_PATH.test(path)) return true;
-  const kind = menuKind(path);
-  return saysMenu(kind, "drinks") && !saysMenu(kind, "food");
+  return saysMenu(menuKind(path), "drinks");
 }
 
 function pathIsFoodOnly(path: string): boolean {
@@ -703,18 +702,15 @@ function pricesAllowed(
   boundSnippet = false,
 ): boolean {
   const path = urlPath(url);
-  if (pathIsFoodOnly(path) || section === "food") return false;
-  if (boundSnippet) return true;
   const pathKind = menuKind(path);
   const titleKind = title ? menuKind(title) : null;
-  const pathFood = saysMenu(pathKind, "food");
-  const pathDrinks = pathIsDrinksMenu(path) || saysMenu(pathKind, "drinks");
-  const titleFood = saysMenu(titleKind, "food");
-  const titleDrinks = saysMenu(titleKind, "drinks");
-  if (pathDrinks || section === "drinks") return true;
-  if (pathFood && !pathDrinks) return false;
-  if (titleFood && !titleDrinks) return false;
-  if (titleDrinks && !titleFood) return true;
+  const drinksPath = pathIsDrinksMenu(path) || saysMenu(pathKind, "drinks");
+  const drinksTitle = saysMenu(titleKind, "drinks");
+  const drinksHeading = section === "drinks";
+  const foodOnlyPath = pathIsFoodOnly(path);
+  const foodOnlyHeading = section === "food";
+  if ((boundSnippet || drinksPath || drinksTitle || drinksHeading) && !foodOnlyPath && !foodOnlyHeading) return true;
+  if (foodOnlyPath || foodOnlyHeading || saysMenu(pathKind, "food") || saysMenu(titleKind, "food")) return false;
   return false;
 }
 
@@ -1015,21 +1011,23 @@ export async function runNightlyPass(input: {
       if (ledger.exhausted) break;
       continue;
     }
-    const hits = pagesFromPayload(search, true).map((page) => ({
-      url: page.url,
-      title: page.title,
-      content: page.text,
-      description: page.title,
-    }));
+    const searched = pagesFromPayload(search, true);
+    const permittedUrls = input.robotsChecker
+      ? await robotsAllowedUrls(searched.map((page) => page.url), input.robotsChecker)
+      : searched.map((page) => page.url).filter((url) => isHarvestableOperatorUrl(url));
+    const permitted = new Set(permittedUrls);
+    const hits = searched
+      .filter((page) => permitted.has(page.url))
+      .map((page) => ({
+        url: page.url,
+        title: page.title,
+        content: page.text,
+        description: page.title,
+      }));
     const website = chooseOperatorUrl(hits, venue);
     const origin = website ? new URL(website).origin : "";
     const candidateUrls = website ? acceptedExtractUrls(hits.map((hit) => hit.url), origin) : [];
-    const asked = website ? [...new Set([website, ...candidateUrls])] : [];
-    const allowedUrls = input.robotsChecker
-      ? await robotsAllowedUrls(asked, input.robotsChecker)
-      : asked.filter((url) => isHarvestableOperatorUrl(url));
-    const allowed = new Set(allowedUrls);
-    const urls = candidateUrls.filter((url) => allowed.has(url));
+    const urls = candidateUrls.filter((url) => permitted.has(url));
     const pages: Array<{ url: string; title?: string; text: string; boundSnippet?: boolean }> = [];
     let useSnippets = true;
     if (urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
@@ -1057,7 +1055,7 @@ export async function runNightlyPass(input: {
         pushListedPage(pages, url, hit?.content, hit?.title);
       }
     }
-    if (website && allowed.has(website) && !pages.some((page) => sameListedUrl(page.url, website))) {
+    if (website && permitted.has(website) && !pages.some((page) => sameListedUrl(page.url, website))) {
       const hit = hits.find((row) => sameListedUrl(row.url, website));
       pushListedPage(pages, website, hit?.content, hit?.title, true);
     }

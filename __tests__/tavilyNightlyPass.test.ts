@@ -682,6 +682,43 @@ describe("a price stays in the lane the reader gave it", () => {
     expect(drinksPage.excerpts[0].excerpt).toBe(mixed);
   });
 
+  it("keeps a sized pint when the path or heading names food and drink", () => {
+    const line = "London Pride £5.50 /pint\nScotch egg £6.50";
+    const mixedPath = factsFromPage(line, {
+      sourceUrl: "https://pub.example/food-and-drink",
+      seenOn: "2026-10-01",
+      title: "Drinks",
+    });
+    expect(mixedPath.drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    expect(mixedPath.excerpts[0].excerpt).toContain("Scotch egg £6.50");
+    const headed = factsFromPage(`Food and Drink\n${line}`, {
+      sourceUrl: "https://pub.example/menu",
+      seenOn: "2026-10-01",
+      title: "Sunday lunch",
+    });
+    expect(headed.drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    const bound = factsFromPage(line, {
+      sourceUrl: "https://pub.example/bar-food",
+      seenOn: "2026-10-01",
+      title: "The Crown",
+      boundSnippet: true,
+    });
+    expect(bound.drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    const foodOnly = factsFromPage("Beer\nLondon Pride £5.50 /pint", {
+      sourceUrl: "https://pub.example/food-menu.pdf",
+      seenOn: "2026-10-01",
+      title: "Drinks",
+      boundSnippet: true,
+    });
+    expect(foodOnly.drinks).toEqual([]);
+    const foodHeading = factsFromPage("Food\nLondon Pride £5.50 /pint", {
+      sourceUrl: "https://pub.example/drinks",
+      seenOn: "2026-10-01",
+      title: "Drinks",
+    });
+    expect(foodHeading.drinks).toEqual([]);
+  });
+
   it("does not queue a dish on a drinks url when the line states no serving size", () => {
     const page = "Scotch egg £6.50\nRum baba £7";
     const facts = factsFromPage(page, pageFact);
@@ -783,7 +820,9 @@ describe("two pubs named The Crown", () => {
     ], hope)).toBe("https://thehope.co.uk/drinks");
   });
 
-  it("does not extract or read a snippet when robots refuses the url", async () => {
+  it("does not bind, extract, or store a url robots refuses, and keeps an allowed candidate", async () => {
+    const refused = "https://thecrown-bankside.co.uk/drinks";
+    const allowed = "https://thecrown.co.uk/drinks";
     const calls: string[] = [];
     const result = await runNightlyPass({
       venues: [bankside],
@@ -794,21 +833,27 @@ describe("two pubs named The Crown", () => {
       manualCap: 10,
       staleAfterDays: 30,
       queue: listedQueue,
-      robotsChecker: async () => ({ allowed: false, reason: "robots-unreadable", evidence: "refused" }),
+      robotsChecker: async (url) => ({
+        allowed: url !== refused,
+        reason: url === refused ? "robots-unreadable" : "allowed",
+        evidence: "refused",
+      }),
       fetchImpl: async (request) => {
         calls.push(request.kind);
         return {
-          results: [{
-            url: "https://thecrown-bankside.co.uk/drinks",
-            title: "The Crown",
-            content: "SE1 6AN. London Pride £5.50 /pint",
-          }],
+          results: [
+            { url: refused, title: "The Crown", content: "SE1 6AN. London Pride £5.50 /pint" },
+            { url: allowed, title: "The Crown", content: "A different pub." },
+          ],
           usage: { credits: 1 },
         };
       },
     });
     expect(calls).toEqual(["search"]);
     expect(result.queue.venues[0].drinks).toEqual([]);
+    expect(result.queue.venues[0].website).toBeNull();
+    expect(result.queue.venues[0].candidates).toEqual([allowed]);
+    expect(result.queue.venues[0].excerpts.some((row) => row.sourceUrl === refused)).toBe(false);
     expect(result.cursor.lastSeen["crown-se1"]).toBeUndefined();
   });
 
