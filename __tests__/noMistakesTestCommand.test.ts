@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-import { requireDataRevision } from "@/lib/dataRevision.mjs";
+import { packBuildEnv, requireDataRevision } from "@/lib/dataRevision.mjs";
 
 import { SERIAL_SHM_RUN } from "../scripts/rls/postgresSuites.mjs";
 import { coverageRuns } from "../scripts/run-coverage.mjs";
@@ -115,7 +115,7 @@ describe("the no-mistakes repository test command", () => {
       readFileSync(join(ROOT, "public/data/cities/bath/venues_slim.manifest.json"), "utf8"),
     ).revision;
     // A run worktree is a git checkout, so git always names a HEAD there.
-    const stamped = requireDataRevision(env, {
+    const stamped = requireDataRevision(packBuildEnv(env), {
       workingTreeSha: "0123456789abcdef0123456789abcdef01234567",
     });
 

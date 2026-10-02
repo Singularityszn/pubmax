@@ -45,7 +45,7 @@ export const SPATIAL_SHARD_VERSION = 2;
 // same rule, so a build and its data cannot disagree. prebuild runs before
 // `next build` sets NODE_ENV, so an unset NODE_ENV is that production data
 // build and the tree names the revision. `next dev` never imports this module;
-// it reads the revision back off the packs this module wrote.
+// it takes `local` and accepts whatever stamp these packs carry.
 export const DATA_REVISION = requireDataRevision(packBuildEnv(process.env), {
   workingTreeSha: readWorkingTreeCommitSha(),
 });
