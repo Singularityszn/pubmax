@@ -60,7 +60,7 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expectTapTarget(topbar.getByRole("button", { name: "Search the map" }), "map search action");
   await topbar.getByRole("button", { name: "Search the map" }).click();
   // The field suggests pubs as it is typed in, so it is a combobox.
-  const searchInput = page.getByRole("combobox", { name: "Search pubs" });
+  const searchInput = page.getByRole("combobox", { name: "Search places" });
   await expect(searchInput).toBeVisible();
   await expectTapTarget(searchInput.locator(".."), "map search field");
 

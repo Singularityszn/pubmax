@@ -29,7 +29,7 @@ for (const width of [641, 768, 897, 1440]) {
     expect((await page.goto("/map?drink=gin"))?.status()).toBe(200);
     await expectMapToolbarReady(page);
     const toolbar = mapToolbar(page);
-    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    const search = toolbar.getByRole("combobox", { name: "Search places" });
     await search.fill("Albion");
     const listbox = page.getByRole("listbox", { name: "Search suggestions" });
     const option = listbox.getByRole("group", { name: "Venues", exact: true })

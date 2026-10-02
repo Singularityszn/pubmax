@@ -35,15 +35,15 @@ test("area picks clear the text filter before priced pins paint", async ({ page 
 
   const searchToggle = page.getByRole("button", { name: "Search the map" });
   await expect(async () => {
-    if (!(await page.getByRole("combobox", { name: "Search pubs" }).count())) {
+    if (!(await page.getByRole("combobox", { name: "Search places" }).count())) {
       await searchToggle.click();
     }
-    await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible({
+    await expect(page.getByRole("combobox", { name: "Search places" })).toBeVisible({
       timeout: 1_000,
     });
   }).toPass({ timeout: 20_000 });
 
-  const search = page.getByRole("combobox", { name: "Search pubs" });
+  const search = page.getByRole("combobox", { name: "Search places" });
   await search.fill("White");
   const whitechapel = page.getByRole("option", { name: /Whitechapel/i }).first();
   await expect(whitechapel).toBeVisible({ timeout: 20_000 });

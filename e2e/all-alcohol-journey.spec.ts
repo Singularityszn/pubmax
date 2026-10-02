@@ -157,9 +157,9 @@ for (const journey of journeys) {
 
       await expect(async () => {
         await page.getByRole("button", { name: "Search the map", exact: true }).click();
-        await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible({ timeout: 1_000 });
+        await expect(page.getByRole("combobox", { name: "Search places" })).toBeVisible({ timeout: 1_000 });
       }).toPass({ timeout: 20_000 });
-      await page.getByRole("combobox", { name: "Search pubs" }).fill("Albion");
+      await page.getByRole("combobox", { name: "Search places" }).fill("Albion");
       const listbox = page.getByRole("listbox", { name: "Search suggestions" });
       const albion = listbox.getByRole("group", { name: "Venues", exact: true })
         .locator(`[role="option"][data-venue-id="${canonicalVenueId(journey.anchor)}"]`);

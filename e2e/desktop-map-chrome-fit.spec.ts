@@ -61,7 +61,7 @@ async function stubCityStatus(page: Page) {
 async function toolbarPubOption(page: Page, query: string, name: RegExp) {
   const search = page
     .locator(".mapToolbar")
-    .getByRole("combobox", { name: "Search pubs" });
+    .getByRole("combobox", { name: "Search places" });
   await search.fill(query);
   const option = page.getByRole("option", { name }).first();
   await expect(option).toBeVisible({ timeout: 20_000 });
@@ -80,7 +80,7 @@ async function indexedToolbarPubOption(
 ) {
   const search = page
     .locator(".mapToolbar")
-    .getByRole("combobox", { name: "Search pubs" });
+    .getByRole("combobox", { name: "Search places" });
   // Exact, because a role name matches by substring: "Venues across city
   // maps" leads the list, and its first "Soho" row is a Birmingham tavern
   // that opens another city's map.
@@ -260,7 +260,7 @@ for (const width of DESKTOP_WIDTHS) {
 
     const toolbar = page.locator(".mapToolbar");
     await expect(toolbar).toBeVisible({ timeout: 20_000 });
-    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    const search = toolbar.getByRole("combobox", { name: "Search places" });
     await search.fill("Shoreditch");
     await toolbar.getByRole("button", { name: "Plan an outing" }).click();
 

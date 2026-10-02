@@ -66,7 +66,7 @@ async function openMap(page: Page, path = "/map"): Promise<void> {
 }
 
 async function selectToolbarVenue(page: Page, query = "The French House"): Promise<void> {
-  const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
+  const search = mapToolbar(page).getByRole("combobox", { name: "Search places" });
   const option = page
     .getByRole("listbox", { name: "Search suggestions" })
     .getByRole("option", { name: new RegExp(query, "i") })
@@ -142,7 +142,7 @@ test.describe("one Map surface history owner", () => {
     await openMap(page, "/map?q=The+French+House&sel=venue-1kpe609");
 
     const toolbar = page.locator(".mapToolbar");
-    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    const search = toolbar.getByRole("combobox", { name: "Search places" });
     await expect(search).toHaveValue("The French House");
     await expectSoleDrawer(page, "venue", 120_000);
 

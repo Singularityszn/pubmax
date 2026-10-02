@@ -53,6 +53,6 @@ test("mobile Rounds index explains link-based joining and routes to the map", as
   await page.getByRole("button", { name: "Search the map" }).click();
   // The map search field suggests pubs, so it is a combobox, not a bare
   // searchbox (components/map/MapSearchSuggest.tsx).
-  await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Search places" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

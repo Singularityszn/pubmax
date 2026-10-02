@@ -78,7 +78,7 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await expect(page).toHaveURL(/\/map$/);
     await page.getByRole("button", { name: "Search the map" }).click();
-    await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Search places" })).toBeVisible();
   });
 
   test("Create logs a price in the city chosen from Places", async ({ page }) => {
