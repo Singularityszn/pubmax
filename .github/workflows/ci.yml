@@ -37,6 +37,9 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Check changed-file scope
         env:
           REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -52,6 +55,9 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
 
       - name: Setup Node
         timeout-minutes: 5
@@ -82,6 +88,9 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
 
       - name: Setup Node
         timeout-minutes: 5
@@ -114,6 +123,9 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
 
       - name: Setup Node
         timeout-minutes: 5
@@ -202,6 +214,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -273,6 +287,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

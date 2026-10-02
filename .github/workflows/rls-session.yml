@@ -34,6 +34,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

@@ -13,7 +13,9 @@
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
 //   4. a job holding a write token or a secret runs on its own runner label,
-//      and a pull request job never does.
+//      and a pull request job never does;
+//   5. every job refuses to run as the console user before it runs anything
+//      from the checkout.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -213,5 +215,30 @@ describe("runner labels", () => {
         expect(job["runs-on"], `${file} / ${jobId}`).not.toContain(PRIVILEGED_LABEL);
       }
     }
+  });
+});
+
+describe("the runner identity check", () => {
+  it("is the first thing every job runs after its checkout", () => {
+    for (const { file, parsed } of workflows) {
+      for (const [jobId, job] of Object.entries(parsed.jobs)) {
+        // A step before the checkout cannot run branch code, because there is
+        // no branch on disk yet (performance.yml records its start time there).
+        const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@"));
+        expect(checkout, `${file} / ${jobId} checks out`).toBeGreaterThanOrEqual(0);
+        expect(job.steps[checkout + 1], `${file} / ${jobId}`).toEqual({
+          name: "Refuse the console user",
+          run: "bash scripts/ci/assert-runner-identity.sh",
+        });
+      }
+    }
+  });
+
+  it("fails as the console user, as root, as an admin, and when the console home is readable", () => {
+    const check = readFileSync(join(ROOT, "scripts/ci/assert-runner-identity.sh"), "utf8");
+    expect(check).toContain('"$job_user" = "$console_user"');
+    expect(check).toContain('"$job_user" = "root"');
+    expect(check).toMatch(/grep -qx admin/);
+    expect(check).toMatch(/ls "\$console_home"/);
   });
 });

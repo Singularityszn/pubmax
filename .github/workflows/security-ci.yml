@@ -32,6 +32,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       # Online, so the audits that ask GitHub about each pinned action
       # (impostor commits, known-vulnerable actions, ref confusion) run too.
       # The job token is read-only and is passed to this step alone.
@@ -50,6 +53,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       # Recursive, so scripts/chatgpt-map, the iOS Package.resolved and any
       # lockfile added later are scanned without editing this line. It exits
       # non-zero when it finds no lockfile at all, so it cannot pass empty.
@@ -65,6 +71,9 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
 
       - name: Semgrep
         env:
