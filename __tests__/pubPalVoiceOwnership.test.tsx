@@ -118,8 +118,8 @@ function authValue(): AuthContextValue {
     handle: null,
     identityResolved: true,
     accountRevision: readProviderIdentityRevision(),
-    providerAuthState: "authenticated",
-    supabaseAuthState: "authenticated",
+    providerAuthState: session ? "authenticated" : "signed-out",
+    supabaseAuthState: session ? "authenticated" : "signed-out",
     rejectedContributionAuth: null,
     contributionAuth: captureAccountAuth(session?.user.id ?? null, session),
     invalidateContributionAuth: () => {},
@@ -377,4 +377,152 @@ describe("voice consumer resilience to superseded SDK callbacks", () => {
       ]);
     },
   );
+});
+
+describe("voice ownership without caller remounts", () => {
+  const stableKey = "unchanged-caller";
+
+  async function connectInPlace(callbacks: SessionCallbacks, conversationId: string): Promise<void> {
+    sdk.status = "connected";
+    await act(async () => callbacks.onConnect({ conversationId }));
+    await renderSession(stableKey);
+    await settle();
+  }
+
+  it("ends A once and keeps B's new conversation after an in-place account switch", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    await renderSession(stableKey);
+    const retired = await startSession();
+    await connectInPlace(retired, "conversation-a");
+    const oldSignal = readProviderAccountSignal();
+    now.mockReturnValue(1_012_000);
+    setAccount(OWNER_B, TOKEN_B);
+    expect(oldSignal.aborted).toBe(true);
+    sdk.status = "disconnected";
+    await renderSession(stableKey);
+    await settle();
+    const endCallsAtSwitch = sdk.endSession.mock.calls.length;
+    const releasesAtSwitch = releases();
+
+    const current = await startSession();
+    await connectInPlace(current, "conversation-b");
+    const beforeRetiredCallbacks = [...wire];
+    await act(async () => {
+      retired.onConnect({ conversationId: "conversation-a-late" });
+      retired.onMessage({ role: "user", message: "A's retired transcript" });
+      retired.onDisconnect();
+      retired.onError("Retired connection ended");
+    });
+    await settle();
+    expect(wire).toEqual(beforeRetiredCallbacks);
+    await act(async () => current.onMessage({ role: "user", message: "B's own request" }));
+    await settle();
+
+    expect(toolTurns()).toEqual([
+      expectedTurn(TOKEN_A, "conversation-a"),
+      expectedTurn(TOKEN_B, "conversation-b"),
+      expectedTurn(TOKEN_B, "conversation-b", { role: "user", content: "B's own request" }),
+    ]);
+    expect(endCallsAtSwitch).toBe(1);
+    expect(sdk.endSession).toHaveBeenCalledOnce();
+    expect(releasesAtSwitch).toEqual([{
+      url: "/api/pub-pal/voice-token", method: "POST", authorization: `Bearer ${TOKEN_A}`,
+      contentType: "application/json", body: { action: "release", durationSeconds: 12 },
+    }]);
+    expect(releases()).toEqual(releasesAtSwitch);
+    expect(sdk.startSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("ends A once and releases only A when the same caller signs out", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    await renderSession(stableKey);
+    const retired = await startSession();
+    await connectInPlace(retired, "conversation-a");
+    const oldSignal = readProviderAccountSignal();
+    now.mockReturnValue(1_012_000);
+    browserAuth.session = null;
+    setProviderIdentity("supabase", null);
+    publishAuthActionState({ status: "signed-out", identityResolved: true });
+    expect(oldSignal.aborted).toBe(true);
+    sdk.status = "disconnected";
+    await renderSession(stableKey);
+    await settle();
+    const beforeRetiredCallbacks = [...wire];
+    await act(async () => {
+      retired.onConnect({ conversationId: "conversation-a-late" });
+      retired.onMessage({ role: "user", message: "A's retired transcript" });
+      retired.onDisconnect();
+      retired.onError("Retired connection ended");
+    });
+    await settle();
+
+    expect(wire).toEqual(beforeRetiredCallbacks);
+    expect(toolTurns()).toEqual([expectedTurn(TOKEN_A, "conversation-a")]);
+    expect(releases()).toEqual([{
+      url: "/api/pub-pal/voice-token", method: "POST", authorization: `Bearer ${TOKEN_A}`,
+      contentType: "application/json", body: { action: "release", durationSeconds: 12 },
+    }]);
+    expect(sdk.endSession).toHaveBeenCalledOnce();
+    expect(sdk.startSession).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the connected session during a same-owner token refresh", async () => {
+    await renderSession(stableKey);
+    const current = await startSession();
+    await connectInPlace(current, "conversation-a");
+    const accountSignal = readProviderAccountSignal();
+    const refreshedToken = "test-owner-a-refreshed-token";
+    setAccount(OWNER_A, refreshedToken);
+    expect(readProviderAccountSignal()).toBe(accountSignal);
+    expect(accountSignal.aborted).toBe(false);
+    await renderSession(stableKey);
+    await settle();
+    await act(async () => current.onMessage({ role: "user", message: "A's current request" }));
+    await settle();
+
+    expect(toolTurns()).toEqual([
+      expectedTurn(TOKEN_A, "conversation-a"),
+      expectedTurn(refreshedToken, "conversation-a", { role: "user", content: "A's current request" }),
+    ]);
+    expect(sdk.startSession).toHaveBeenCalledOnce();
+    expect(sdk.endSession).not.toHaveBeenCalled();
+    expect(releases()).toEqual([]);
+    expect(stopProbe).toHaveBeenCalledOnce();
+  });
+
+  it("ends the session at a Clerk account boundary while Supabase A stays signed in", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    await renderSession(stableKey);
+    const retired = await startSession();
+    await connectInPlace(retired, "conversation-a");
+    const oldSignal = readProviderAccountSignal();
+    now.mockReturnValue(1_012_000);
+    try {
+      setProviderIdentity("clerk", "test-clerk-owner-b");
+      expect(oldSignal.aborted).toBe(true);
+      expect(browserAuth.session?.user.id).toBe(OWNER_A);
+      sdk.status = "disconnected";
+      await renderSession(stableKey);
+      await settle();
+      const beforeRetiredCallbacks = [...wire];
+      await act(async () => {
+        retired.onConnect({ conversationId: "conversation-a-late" });
+        retired.onMessage({ role: "user", message: "A's retired transcript" });
+        retired.onDisconnect();
+        retired.onError("Retired connection ended");
+      });
+      await settle();
+
+      expect(wire).toEqual(beforeRetiredCallbacks);
+      expect(toolTurns()).toEqual([expectedTurn(TOKEN_A, "conversation-a")]);
+      expect(releases()).toEqual([{
+        url: "/api/pub-pal/voice-token", method: "POST", authorization: `Bearer ${TOKEN_A}`,
+        contentType: "application/json", body: { action: "release", durationSeconds: 12 },
+      }]);
+      expect(sdk.endSession).toHaveBeenCalledOnce();
+      expect(sdk.startSession).toHaveBeenCalledOnce();
+    } finally {
+      setProviderIdentity("clerk", null);
+    }
+  });
 });
