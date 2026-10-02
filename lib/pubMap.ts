@@ -175,6 +175,15 @@ export function detailStatusFor(
   return detailStatusById.get(selectedVenueId) ?? "loading";
 }
 
+/** The name a selected retired pub's notice prints, or null when the selection is not one. */
+export function retiredSelectionNameFor(
+  selectedVenueId: string,
+  detailById: Map<string, Venue>,
+): string | null {
+  const detail = detailById.get(selectedVenueId);
+  return detail?.retired ? detail.name : null;
+}
+
 export type MapSelectionNotice = "unknown" | "lookup-failed" | "retired";
 
 export const MAP_SELECTION_NOTICE_PARAM = "mapNotice";

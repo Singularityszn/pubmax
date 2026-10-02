@@ -582,6 +582,7 @@ import {
   mapSelectionNotice,
   mapSelectionNoticeCopy,
   mapSelectionNoticeFromSearch,
+  retiredSelectionNameFor,
   MAP_SELECTION_NOTICE_PARAM,
   venueUpdateKey,
   normaliseTonightVenueLookup,
@@ -3114,13 +3115,18 @@ export default function PubMap({
     () => planStopsToRouteVenues(activePlanStops, venueById),
     [activePlanStops, venueById],
   );
-  const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
+  const retiredDetailById = useMemo(
+    () => new Map([...detailById].filter(([, venue]) => venue.retired)),
+    [detailById],
+  );
+  const { route, retiredStops, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
     mode,
     builtIds,
     routeMapped,
     suggestedRoute,
     activePlanRoute,
     venueById,
+    retiredById: retiredDetailById,
   });
   // A suggested route exists behind the clean map, but its TfL legs are only
   // useful once the planner is open or the viewer explicitly maps it.
@@ -3171,6 +3177,7 @@ export default function PubMap({
   const selectedVenueIsPub = mapSelection.isPub;
   const selectedVenueLabels = venueSheetLabels(selectedVenue);
   const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
+  const selectedRetiredName = retiredSelectionNameFor(selectedVenueId, detailById);
 
   const venueIdByNormalisedName = useMemo(() => {
     const map = new Map<string, string>();
@@ -5028,7 +5035,7 @@ export default function PubMap({
     });
     if (!notice) return;
     const unresolvedVenueId = selectedVenueId;
-    const retiredName = notice === "retired" ? (detailById.get(unresolvedVenueId)?.name ?? null) : null;
+    const retiredName = notice === "retired" ? selectedRetiredName : null;
     queueMicrotask(() => {
       setRetiredSelectionName(retiredName);
       setSelectionNotice(notice);
@@ -5037,10 +5044,10 @@ export default function PubMap({
       setSelectedVenueId((current) => (current === unresolvedVenueId ? "" : current));
     });
   }, [
-    detailById,
     loaded,
     rejectMapSelection,
     selectedDetailStatus,
+    selectedRetiredName,
     selectedVenueId,
     selectedVenueResolvable,
   ]);
@@ -5325,6 +5332,7 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
+        retiredStops={retiredStops}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
         activeVenueId={selectedVenueIdOrUndefined}

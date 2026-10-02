@@ -3982,7 +3982,16 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-radius: inherit;
 }
 
-.routeList li:hover {
+/* A stop whose pub left the map: named in its place, not a button. */
+.routeList li.routeStopRetired > div {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 11px;
+  padding: 11px;
+  color: var(--muted);
+}
+
+.routeList li:not(.routeStopRetired):hover {
   border-color: var(--brass);
   transform: translateX(2px);
   box-shadow: 0 12px 26px color-mix(in srgb, var(--brass) 11%, transparent);

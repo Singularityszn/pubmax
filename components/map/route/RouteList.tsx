@@ -1,7 +1,10 @@
 "use client";
 
+import { Fragment } from "react";
 import { Beer, Footprints, Navigation, TrainFront } from "lucide-react";
 
+import type { RetiredRouteStop } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { storedVenueName } from "@/lib/storedVenueRef";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeLegs";
 import { journeyAddsTransit } from "@/lib/formatJourney";
@@ -15,6 +18,8 @@ type VenueSignals = Map<
 
 type RouteListProps = {
   route: Venue[];
+  /** Stops whose pub left the map: named in order, with no pin and no leg. */
+  retiredStops?: readonly RetiredRouteStop[];
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
   legSummary: RouteLegsSummary;
@@ -23,8 +28,22 @@ type RouteListProps = {
   onSelectVenue: (id: string) => void;
 };
 
+function RetiredStopItem({ stop, number }: { stop: RetiredRouteStop; number: number }) {
+  return (
+    <li className="routeStopRetired">
+      <div>
+        <span className="stopNumber">{number}</span>
+        <div>
+          <strong>{storedVenueName({ name: stop.name, retired: true })}</strong>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export default function RouteList({
   route,
+  retiredStops = [],
   activeVenueId,
   venueSignals,
   legSummary,
@@ -44,9 +63,13 @@ export default function RouteList({
     })),
   );
 
+  const trailingRetired = retiredStops.filter((stop) => stop.beforeRouteIndex >= route.length);
+
   return (
     <ol className="routeList">
       {route.map((venue, index) => {
+        const retiredBefore = retiredStops.filter((stop) => stop.beforeRouteIndex < index).length;
+        const retiredHere = retiredStops.filter((stop) => stop.beforeRouteIndex === index);
         const signal = venueSignals.get(venue.id);
         const dropCount = signal?.dropCount ?? 0;
         const leg = legSummary.legs[index];
@@ -62,13 +85,17 @@ export default function RouteList({
         const journey = journeyByToIndex?.get(index + 1);
         const transitJourney = journey && journeyAddsTransit(journey.modes) ? journey : null;
         return (
-        <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
+        <Fragment key={venue.id}>
+        {retiredHere.map((stop, offset) => (
+          <RetiredStopItem key={stop.id} stop={stop} number={index + retiredBefore + offset + 1} />
+        ))}
+        <li className={activeVenueId === venue.id ? "active" : ""}>
           <button
             type="button"
             onClick={() => onSelectVenue(venue.id)}
             aria-current={activeVenueId === venue.id ? "true" : undefined}
           >
-            <span className="stopNumber">{index + 1}</span>
+            <span className="stopNumber">{index + retiredBefore + retiredHere.length + 1}</span>
             <div>
               <strong>
                 {venue.name}
@@ -117,8 +144,16 @@ export default function RouteList({
             </div>
           ) : null}
         </li>
+        </Fragment>
         );
       })}
+      {trailingRetired.map((stop, offset) => (
+        <RetiredStopItem
+          key={stop.id}
+          stop={stop}
+          number={route.length + retiredStops.length - trailingRetired.length + offset + 1}
+        />
+      ))}
     </ol>
   );
 }

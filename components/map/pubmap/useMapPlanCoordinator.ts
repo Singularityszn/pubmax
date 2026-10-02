@@ -46,6 +46,37 @@ export function useMapPlanCoordinator(initial: InitialPlanState) {
   };
 }
 
+/** A built stop whose pub left the map, named where it sat in the crawl. */
+export type RetiredRouteStop = {
+  id: string;
+  name: string;
+  /** The index in the drawn route of the stop it sits before (the route's length when last). */
+  beforeRouteIndex: number;
+};
+
+/**
+ * The built stops that name a retired pub, in the crawl's own order. They draw
+ * no pin and join no walking leg, but a shared crawl link never loses them.
+ */
+export function builtRouteRetiredStops(
+  builtIds: readonly string[],
+  venueById: ReadonlyMap<string, Venue>,
+  retiredById: ReadonlyMap<string, Venue>,
+): RetiredRouteStop[] {
+  const stops: RetiredRouteStop[] = [];
+  let routeIndex = 0;
+  for (const id of builtIds) {
+    const venue = venueById.get(id);
+    if (venue && isPubVenue(venue)) {
+      routeIndex += 1;
+      continue;
+    }
+    const retired = retiredById.get(id);
+    if (retired?.retired) stops.push({ id, name: retired.name, beforeRouteIndex: routeIndex });
+  }
+  return stops;
+}
+
 /** Resolves exactly one route presentation: explicit mapped route first, restored plan second. */
 export function useMapPlanPresentation({
   mode,
@@ -54,6 +85,7 @@ export function useMapPlanPresentation({
   suggestedRoute,
   activePlanRoute,
   venueById,
+  retiredById,
 }: {
   mode: CrawlMode;
   builtIds: string[];
@@ -61,6 +93,7 @@ export function useMapPlanPresentation({
   suggestedRoute: Venue[];
   activePlanRoute: Venue[];
   venueById: ReadonlyMap<string, Venue>;
+  retiredById: ReadonlyMap<string, Venue>;
 }) {
   // Crawl routes price stops as pints, so a bar/food id that sneaks into
   // builtIds (old URL, stale localStorage) must never resolve into the route.
@@ -72,6 +105,10 @@ export function useMapPlanPresentation({
     [builtIds, venueById],
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
+  const retiredStops = useMemo(
+    () => (mode === "suggest" ? [] : builtRouteRetiredStops(builtIds, venueById, retiredById)),
+    [builtIds, mode, retiredById, venueById],
+  );
   const routeMappedActive = routeMapped && route.length >= 2;
   const routeForMap = useMemo(
     () => (routeMappedActive ? route : activePlanRoute),
@@ -79,5 +116,5 @@ export function useMapPlanPresentation({
   );
   const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
 
-  return { route, routeMappedActive, routeForMap, routeForMapLegs };
+  return { route, retiredStops, routeMappedActive, routeForMap, routeForMapLegs };
 }
