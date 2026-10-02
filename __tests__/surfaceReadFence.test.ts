@@ -79,7 +79,6 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/pubpal/PubPalVoice.tsx", fetchCount: 1, reason: "voice availability is a per-deployment configuration probe, not a painted surface read" },
   { path: "components/profile/OutTonightCrewLine.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
   { path: "components/profile/OutTonightToggle.tsx", fetchCount: 1, reason: "presence read and toggle are live account actions" },
-  { path: "components/profile/SavedListDetail.tsx", fetchCount: 1, reason: "saved-list detail is private viewer context with mutation-sensitive state" },
   { path: "components/ratings/ratingsClient.ts", fetchCount: 1, reason: "rating client is an additive detail read" },
   { path: "components/social/CreatorListsLane.tsx", fetchCount: 1, reason: "Social creator-list discovery is no-store" },
   { path: "components/social/FindYourLot.tsx", fetchCount: 1, reason: "Social discovery is no-store" },
