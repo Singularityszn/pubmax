@@ -717,6 +717,68 @@ describe("a price stays in the lane the reader gave it", () => {
         text: "Peroni two-thirds £5.20",
         drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
       },
+      {
+        text: "Peroni 500ml £5.50",
+        drinks: [{ drink: "Peroni", size: "bottle", sizeDetail: "500ml", priceGbp: 5.5 }],
+      },
+      {
+        text: "Neck Oil 440ml £6.00",
+        drinks: [{ drink: "Neck Oil", size: "bottle", sizeDetail: "440ml", priceGbp: 6 }],
+      },
+      {
+        text: "Rekorderlig cider 500ml £5.80",
+        drinks: [{ drink: "Rekorderlig cider", size: "bottle", sizeDetail: "500ml", priceGbp: 5.8 }],
+      },
+      {
+        text: "Peroni 275ml £4.80",
+        drinks: [{ drink: "Peroni", size: "bottle", sizeDetail: "275ml", priceGbp: 4.8 }],
+      },
+      {
+        text: "Coca-Cola 440ml £1.80",
+        drinks: [{ drink: "Coca-Cola", size: "bottle", sizeDetail: "440ml", priceGbp: 1.8 }],
+      },
+      {
+        text: "Peroni two-thirds pint £5.20",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
+      {
+        text: "Peroni two-thirds of a pint £5.20",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
+      {
+        text: "Peroni schooner (2/3 pint) £5.40",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "schooner", priceGbp: 5.4 }],
+      },
+      {
+        text: "Coca-Cola 250ml can £2.00",
+        drinks: [{ drink: "Coca-Cola", size: "can", sizeDetail: "250ml", priceGbp: 2 }],
+      },
+      {
+        text: "Peroni 250ml bottle £5.00",
+        drinks: [{ drink: "Peroni", size: "bottle", sizeDetail: "250ml", priceGbp: 5 }],
+      },
+      {
+        text: "House Merlot 175ml £6.50 | 250ml £8.50",
+        drinks: [
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5 },
+        ],
+      },
+      {
+        text: "Sauvignon 125ml £6.50 | 175ml £7.50",
+        drinks: [
+          { drink: "Sauvignon", size: "unstated", sizeDetail: "125ml", priceGbp: 6.5 },
+          { drink: "Sauvignon", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 },
+        ],
+      },
+      {
+        text: "House wine 125ml £5.50 | 175ml £6.50 | 250ml £8.00",
+        drinks: [
+          { drink: "House wine", size: "unstated", sizeDetail: "125ml", priceGbp: 5.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "250ml", priceGbp: 8 },
+        ],
+      },
     ];
     for (const row of rows) {
       const drinks = factsFromPage(row.text, pageFact).drinks.map((drink) => ({

@@ -46,6 +46,7 @@ const FOOD_LABEL = /\b(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const HEADING_FILLER = new Set(["and", "menu", "list"]);
 const GLASS_ML = new Set(["125ml", "175ml", "250ml"]);
 const SPIRIT_ML = new Set(["25ml", "35ml", "50ml"]);
+const BOTTLE_ML = new Set(["275ml", "330ml", "440ml", "500ml"]);
 
 type DrinkSize = "pint" | "keg" | "bottle" | "can" | "unstated";
 
@@ -534,6 +535,8 @@ export function acceptedExtractUrls(urls: readonly string[], siteOrigin: string)
 
 function cleanName(label: string): string | null {
   const cleaned = label
+    .replace(/\bschooners?\b(?:\s*\([^)]*\))?/gi, " ")
+    .replace(/\btwo[\s-]thirds\b(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
     .replace(new RegExp(`\\b(${SERVING_WORD})\\b`, "gi"), " ")
     .replace(/[/|]+/g, " ")
@@ -545,17 +548,17 @@ function cleanName(label: string): string | null {
 }
 
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
-  if (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line)) return { size: "pint", sizeDetail: "pint" };
   if (/\bschooners?\b/i.test(line)) return { size: "unstated", sizeDetail: "schooner" };
   if (/\btwo[\s-]thirds\b/i.test(line)) return { size: "unstated", sizeDetail: "two-thirds" };
+  if (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line)) return { size: "pint", sizeDetail: "pint" };
   const ml = /\b(\d{2,4})\s*ml\b/i.exec(line);
   const detail = ml ? `${ml[1]}ml` : null;
   if (detail && SPIRIT_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
-  if (detail && GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
   if (/\bcans?\b/i.test(line)) return { size: "can", sizeDetail: detail ?? "can" };
   if (/\bkeg\b/i.test(line)) return { size: "keg", sizeDetail: detail };
   if (/\bbottles?\b/i.test(line)) return { size: "bottle", sizeDetail: detail ?? "bottle" };
-  if (detail === "330ml") return { size: "bottle", sizeDetail: detail };
+  if (detail && GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
+  if (detail && BOTTLE_ML.has(detail)) return { size: "bottle", sizeDetail: detail };
   return { size: "unstated", sizeDetail: null };
 }
 
@@ -608,18 +611,32 @@ function trailingMeasure(after: string): string {
   return measureTail(untilNext);
 }
 
+function isBareGlassMeasure(text: string): boolean {
+  const detail = text.replace(/^[/|\s]+/, "").trim().replace(/\s+/g, "").toLowerCase();
+  return GLASS_ML.has(detail);
+}
+
 function namedLabel(line: string, at: number, local: string): string {
   if (cleanName(local)) return local;
-  const before = line.slice(0, at);
-  const prior = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
-  if (!prior || prior.index === undefined) return local;
-  const between = before.slice(prior.index + prior[0].length);
-  if (/(?:\. |; | \| |\|\s)/.test(between)) return local;
-  const priorLabel = drinkLabelFromPriceContext(line, prior[0], prior.index) ?? "";
-  const priorName = cleanName(priorLabel);
-  if (!priorName) return local;
   const ownMeasure = local.replace(/^[/|\s]+/, "").trim();
-  return ownMeasure ? `${priorName} ${ownMeasure}` : priorName;
+  let cursor = at;
+  for (let hop = 0; hop < 4; hop += 1) {
+    const before = line.slice(0, cursor);
+    const prior = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
+    if (!prior || prior.index === undefined) return local;
+    const between = before.slice(prior.index + prior[0].length);
+    if (/(?:\. |; )/.test(between)) return local;
+    const crossedPipe = /(?: \| |\|\s)/.test(between);
+    if (crossedPipe && !isBareGlassMeasure(ownMeasure)) return local;
+    const priorLabel = drinkLabelFromPriceContext(line, prior[0], prior.index) ?? "";
+    const priorName = cleanName(priorLabel);
+    const priorMl = /\b(\d{2,4})\s*ml\b/i.exec(priorLabel);
+    if (crossedPipe && priorName && !(priorMl && GLASS_ML.has(`${priorMl[1]}ml`))) return local;
+    if (priorName) return ownMeasure ? `${priorName} ${ownMeasure}` : priorName;
+    if (!isBareGlassMeasure(priorLabel)) return local;
+    cursor = prior.index;
+  }
+  return local;
 }
 
 function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
