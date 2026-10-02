@@ -11,7 +11,7 @@
  *   importScripts("/sw-plan-cache.js?v=" + VERSION)
  *
  * Cache identity/eviction:
- *  - The cache name is owned by sw.js (PREFIX + "plan-" + VERSION) and passed
+ *  - The cache name is owned by sw.js (the trusted Plan privacy namespace + VERSION) and passed
  *    in, so it is versioned and eligible entries are migrated by sw.js during
  *    activate().
  *  - Keyed by pathname (like the shell cache) so a plan reopens regardless of

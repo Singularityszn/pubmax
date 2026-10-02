@@ -70,7 +70,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   });
 
   await page.goto("/offline.html");
-  const activeLegacyUrl = `/sw.js?v=legacy-active-${Date.now()}`;
+  const activeLegacyUrl = `/sw.js?v=legacy-active-${Date.now()}&cache-policy=write-safe-v1`;
   await page.evaluate(async (scriptUrl) => {
     await navigator.serviceWorker.register(scriptUrl, {
       updateViaCache: "none",
@@ -117,7 +117,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     () => navigator.serviceWorker.controller?.scriptURL ?? null,
   );
   expect(activeLegacyController).toContain("legacy-active-");
-  expect(activeLegacyController).not.toContain("cache-policy");
+  expect(activeLegacyController).toContain("cache-policy=write-safe-v1");
 
   const tileUrl = await page.evaluate(async () => {
     for (const name of await caches.keys()) {
@@ -133,7 +133,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   });
   expect(tileUrl).not.toBeNull();
 
-  const waitingLegacyUrl = `/sw.js?v=legacy-waiting-${Date.now()}`;
+  const waitingLegacyUrl = `/sw.js?v=legacy-waiting-${Date.now()}&cache-policy=write-safe-v1`;
   const waitingState = await page.evaluate(async (scriptUrl) => {
     const registration = await navigator.serviceWorker.register(scriptUrl);
     const candidate = registration.installing ?? registration.waiting;
@@ -168,6 +168,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       const cacheNames = {
         data: `pubmax-sw-data-${version}`,
         plan: `pubmax-sw-plan-${version}`,
+        trustedPlan: `pubmax-sw-preview-plan-v2-${version}`,
         shell: `pubmax-sw-shell-${version}`,
         swr: `pubmax-sw-swr-${version}`,
       };
@@ -194,8 +195,18 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
         }),
       );
       await (await caches.open(cacheNames.plan)).put(
-        "/plan/legacy-offline",
-        new Response("legacy plan"),
+        "/plan/legacy-private",
+        new Response(`<html><script>self.__next_f.push([1,'{"anchorVenueId":"venue-private-old-plan-cache"}'])</script></html>`, {
+          headers: { "Content-Type": "text/html" },
+        }),
+      );
+      // Seed a known-safe previous privacy generation independently from the
+      // old worker fixture. It must survive when destination writes fail.
+      await (await caches.open(cacheNames.trustedPlan)).put(
+        "/plan/trusted-offline",
+        new Response("Trusted public Plan preview", {
+          headers: { "Content-Type": "text/html" },
+        }),
       );
       return {
         all: (await caches.keys()).filter((name) =>
@@ -239,7 +250,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   await context.unroute(workerRoute);
   const targetWorkerUrl =
     `/sw.js?v=rollout-target-${Date.now()}` +
-    "&cache-policy=write-safe-v1";
+    "&cache-policy=plan-preview-safe-v2";
   const takeover = await page.evaluate(async (scriptUrl) => {
     const states: string[] = [];
     const controllerChanged = new Promise<void>((resolve) => {
@@ -308,7 +319,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       }
       return {
         data: await matchFamily("data", "/data/legacy-offline.json"),
-        plan: await matchFamily("plan", "/plan/legacy-offline"),
+        plan: await matchFamily("preview-plan-v2", "/plan/trusted-offline"),
         poisoned: await matchFamily("swr", poisonedTileUrl),
         shell: await matchFamily("shell", "/offline.html"),
         staticAsset: await matchFamily(
@@ -390,5 +401,19 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     await page.screenshot({
       path: "docs/evidence/map-blank-basemap/after-quota-update-390.png",
     });
+  }
+
+  // Real controller/CacheStorage navigation with synthetic HTML. Actual Plan
+  // serialization and authenticated account switching need separate proof.
+  await context.setOffline(true);
+  try {
+    const oldPlan = await page.goto("/plan/legacy-private?account=B");
+    expect(oldPlan).not.toBeNull();
+    expect(await oldPlan!.text()).not.toContain("venue-private-old-plan-cache");
+    const trustedPlan = await page.goto("/plan/trusted-offline?account=B");
+    expect(trustedPlan).not.toBeNull();
+    expect(await trustedPlan!.text()).toContain("Trusted public Plan preview");
+  } finally {
+    await context.setOffline(false);
   }
 });
