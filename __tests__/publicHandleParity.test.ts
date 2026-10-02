@@ -6,10 +6,28 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
-const authState = vi.hoisted(() => ({ userId: null as string | null }));
+const authState = vi.hoisted(() => ({ userId: null as string | null, lookups: 0 }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
-  return { ...actual, callerUserId: async () => authState.userId };
+  return {
+    ...actual,
+    callerUserId: async () => {
+      authState.lookups += 1;
+      return authState.userId;
+    },
+  };
+});
+
+const withdrawalRead = vi.hoisted(() => ({ fails: false }));
+vi.mock("@/lib/accountPublicAccess.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/accountPublicAccess.server")>();
+  return {
+    ...actual,
+    withdrawnHandles: async (handles: readonly string[]) => {
+      if (withdrawalRead.fails) throw new Error("withdrawal read unavailable");
+      return actual.withdrawnHandles(handles);
+    },
+  };
 });
 
 import { GET as getFollowers } from "@/app/api/profiles/[handle]/followers/route";
@@ -99,6 +117,8 @@ function claimSignedIn(handle: string): Promise<Response> {
 
 beforeEach(async () => {
   authState.userId = null;
+  authState.lookups = 0;
+  withdrawalRead.fails = false;
   __resetMemoryIdentityHandles();
   delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   delete process.env.SUPABASE_URL;
@@ -241,6 +261,28 @@ describe("saved list parity", () => {
     expect(await (await get(getSavedPubs, "/api/saved-pubs?handle=suspendedbob&lists=1")).json()).toEqual({
       lists: [LIST],
     });
+  });
+
+  it("asks who the caller is only when the handle is withdrawn", async () => {
+    authState.userId = "user-alice";
+    await get(getSavedPubs, "/api/saved-pubs?handle=sam");
+    await get(getSavedPubs, "/api/saved-pubs?handle=sam&lists=1");
+    expect(authState.lookups).toBe(0);
+    await get(getSavedPubs, "/api/saved-pubs?handle=suspendedbob");
+    expect(authState.lookups).toBe(1);
+  });
+
+  it("leaves list counts unknown when the withdrawal read fails", async () => {
+    withdrawalRead.fails = true;
+    const path = `/api/saved-pubs/list-follows?follower=alice&owner=sam&listType=${encodeURIComponent(LIST)}`;
+    expect(await answered(await get(getListFollows, path))).toEqual({
+      status: 200,
+      body: { status: "unavailable", following: null, counts: { followers: null, savedPubs: null } },
+    });
+    expect(
+      await answered(await get(getListFollows, "/api/saved-pubs/list-follows?follower=alice")),
+    ).toEqual({ status: 200, body: { status: "unavailable", followedLists: null } });
+    expect(JSON.stringify(await savedListMetadata(listParams("sam")))).not.toContain("0 followers");
   });
 
   it("hides a suspended owner's saves and lists from another account", async () => {

@@ -503,7 +503,7 @@ export function savedPubsStore(reader: SavedPubsReader = "public"): SavedPubsSto
 function withoutWithdrawnSaves(store: SavedPubsStore): SavedPubsStore {
   return {
     async listSaved(input) {
-      if (input.handle && (await isWithdrawnHandle(input.handle))) return [];
+      if (input.handle && (await isWithdrawnHandle(input.handle).catch(() => true))) return [];
       return store.listSaved(input);
     },
     readSavedByHandles: (input) => store.readSavedByHandles(input),
@@ -513,15 +513,11 @@ function withoutWithdrawnSaves(store: SavedPubsStore): SavedPubsStore {
   };
 }
 
-/** A banned or suspended handle reads as a handle nobody owns. Fails closed. */
+/** A banned or suspended handle reads as a handle nobody owns. Throws when the withdrawal read fails. */
 async function isWithdrawnHandle(handle: string): Promise<boolean> {
   const key = normalizeHandle(handle);
   if (!key) return false;
-  try {
-    return (await withdrawnHandles([key])).has(key);
-  } catch {
-    return true;
-  }
+  return (await withdrawnHandles([key])).has(key);
 }
 
 /** Test-only: clear the in-memory saved-pub partitions between cases. */
@@ -615,7 +611,7 @@ export function savedListsStore(reader: SavedPubsReader = "public"): SavedListsS
 function withoutWithdrawnLists(store: SavedListsStore): SavedListsStore {
   return {
     async listCustom(handle) {
-      if (await isWithdrawnHandle(handle)) return [];
+      if (await isWithdrawnHandle(handle).catch(() => true)) return [];
       return store.listCustom(handle);
     },
     createList: (handle, name) => store.createList(handle, name),
@@ -945,19 +941,19 @@ function withoutWithdrawnListFollows(store: SavedListFollowsStore): SavedListFol
       return store.isFollowingList(follower, owner, listType);
     },
     async counts(owner, listType) {
-      if (await isWithdrawnHandle(owner)) return { followers: 0, savedPubs: 0 };
+      try {
+        if (await isWithdrawnHandle(owner)) return { followers: 0, savedPubs: 0 };
+      } catch {
+        return { followers: null, savedPubs: 0 };
+      }
       return store.counts(owner, listType);
     },
     async listFollowedBy(follower) {
       if (await isWithdrawnHandle(follower)) return [];
       const lists = await store.listFollowedBy(follower);
       if (lists.length === 0) return lists;
-      try {
-        const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));
-        return lists.filter((list) => !hidden.has(normalizeHandle(list.ownerHandle)));
-      } catch {
-        return [];
-      }
+      const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));
+      return lists.filter((list) => !hidden.has(normalizeHandle(list.ownerHandle)));
     },
   };
 }
