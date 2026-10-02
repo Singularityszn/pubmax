@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   __resetPubPalToolTurnStore,
   appendOwnedPubPalUserTurn,
+  hasStoredPubPalToolTurnForTest,
   appendPubPalToolTurn,
   PUB_PAL_TOOL_TURN_TTL_MS,
   PubPalToolTurnAccessError,
@@ -17,12 +18,27 @@ const CONVERSATION_ID = "conv_storetest01";
 const OWNER_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_OWNER_ID = "22222222-2222-4222-8222-222222222222";
 
+const durable = vi.hoisted(() => ({
+  configured: false,
+  deletes: [] as Array<{ table: string; column: string; value: string }>,
+}));
+
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return {
     ...actual,
-    isSupabaseConfigured: () => false,
+    isSupabaseConfigured: () => durable.configured,
     requiresSupabaseStore: () => false,
+    requireSupabaseAdmin: () => ({
+      from: (table: string) => ({
+        delete: () => ({
+          lt: async (column: string, value: string) => {
+            durable.deletes.push({ table, column, value });
+            return { error: null };
+          },
+        }),
+      }),
+    }),
   };
 });
 
@@ -97,8 +113,30 @@ describe("pubPalToolTurnStore (memory backend)", () => {
       ownerId: OWNER_ID,
     });
     vi.setSystemTime(new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS + 1));
+    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(true);
     await purgeExpiredPubPalToolTurns();
-    expect(await readPubPalToolTurn(CONVERSATION_ID)).toBeNull();
+    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(false);
     expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
+  });
+});
+
+describe("pubPalToolTurnStore (durable backend purge)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    durable.configured = false;
+    durable.deletes = [];
+    __resetPubPalToolTurnStore();
+  });
+
+  it("deletes every row whose expires_at has passed", async () => {
+    durable.configured = true;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
+
+    await purgeExpiredPubPalToolTurns();
+
+    expect(durable.deletes).toEqual([
+      { table: "pub_pal_tool_turns", column: "expires_at", value: "2026-10-02T12:00:00.000Z" },
+    ]);
   });
 });

@@ -548,6 +548,11 @@ export async function purgeExpiredPubPalToolTurns(): Promise<void> {
   await pubPalToolTurnStore().purgeExpired();
 }
 
+/** Test-only observer. Unlike every read, it never prunes, so it shows what the purge left behind. */
+export function hasStoredPubPalToolTurnForTest(conversationId: string): boolean {
+  return memoryTurns.has(conversationId);
+}
+
 export function __resetPubPalToolTurnStore(): void {
   memoryTurns.clear();
   resetWarnings();

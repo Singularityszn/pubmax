@@ -14,8 +14,8 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 import { GET } from "@/app/api/cron/purge-pub-pal-turns/route";
 import {
   __resetPubPalToolTurnStore,
+  hasStoredPubPalToolTurnForTest,
   PUB_PAL_TOOL_TURN_TTL_MS,
-  readOwnedPubPalToolTurn,
   registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
@@ -54,13 +54,14 @@ describe("Pub Pal line purge cron", () => {
 
     const early = await GET(cronRequest({ Authorization: "Bearer cron-secret" }));
     expect(early.status).toBe(200);
-    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).not.toBeNull();
+    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(true);
 
     vi.setSystemTime(new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS + 1));
+    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(true);
     const late = await GET(cronRequest({ Authorization: "Bearer cron-secret" }));
     expect(late.status).toBe(200);
     await expect(late.json()).resolves.toEqual({ ok: true });
-    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
+    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(false);
   });
 
   it("runs every minute in production", () => {
