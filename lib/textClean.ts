@@ -109,7 +109,7 @@ export function cleanText(value: unknown, cap: number): string {
  * (callers treat that as "cleared"). Consolidates the profile route + store
  * avatar checks.
  */
-export function isHttpUrl(value: unknown, cap: number): string | undefined {
+export function cleanHttpUrl(value: unknown, cap: number): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   if (trimmed === "" || trimmed.length > cap) return undefined;
