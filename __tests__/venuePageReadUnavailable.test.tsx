@@ -12,7 +12,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,6 +21,15 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("next/og", () => ({
+  ImageResponse: class ImageResponse {
+    element: unknown;
+
+    constructor(element: unknown) {
+      this.element = element;
+    }
+  },
+}));
 
 const dataset = vi.hoisted(() => ({
   fail: false,
@@ -52,8 +61,10 @@ vi.mock("fs", async (importOriginal) => {
   return { ...actual, promises, default: { ...actual, promises } };
 });
 
+import BarTabCard from "@/app/bar-tab/[id]/opengraph-image";
 import BarTabPage, { generateMetadata as barTabMetadata } from "@/app/bar-tab/[id]/page";
 import LedgerPage, { generateMetadata as ledgerMetadata } from "@/app/ledger/[id]/page";
+import { clampOgText } from "@/lib/ogCardText";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resetVenueDetailCachesForTests } from "@/lib/venueDetailIndex";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -80,6 +91,29 @@ const mergedCanonical = groupVenuePrices(rows).find(
 async function render(page: (props: { params: Promise<{ id: string }> }) => Promise<unknown>, id: string) {
   const element = await page({ params: Promise.resolve({ id }) });
   return renderToStaticMarkup(createElement(() => element as React.ReactElement));
+}
+
+function visibleText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(visibleText).join("");
+  if (typeof node === "object" && "props" in node) {
+    return visibleText((node as { props?: { children?: ReactNode } }).props?.children);
+  }
+  return "";
+}
+
+async function renderCard(id: string): Promise<string> {
+  const response = (await BarTabCard({
+    params: Promise.resolve({ id }),
+  })) as unknown as { element: ReactNode };
+  return visibleText(response.element);
+}
+
+function titleVenueName(title: unknown): string {
+  const named = String(title).match(/^The Bar Tab: (.+)\. PUBMAXXING$/)?.[1];
+  if (!named) throw new Error(`Bar Tab title did not name a pub: ${String(title)}`);
+  return named;
 }
 
 beforeEach(() => {
@@ -182,5 +216,47 @@ describe.each([
     const resolved = await render(page, mergedId);
     expect(resolved).not.toContain("We could not load this pub");
     expect(resolved).toContain(mergedCanonical.name);
+  });
+});
+
+describe("the Bar Tab share card", () => {
+  it("names the same pub the page title names", async () => {
+    for (const id of [venue.id, mergedId, FAMOUS_BAR_ID]) {
+      const meta = await barTabMetadata({ params: Promise.resolve({ id }) });
+      const named = titleVenueName(meta.title);
+      const card = await renderCard(id);
+      const painted = clampOgText(named, 36, "A London pub", {
+        collapseWhitespace: true,
+        collapseBeforeFilter: true,
+      });
+      expect(painted, id).not.toBe("A London pub");
+      expect(card, id).toContain(painted);
+      if (id === FAMOUS_BAR_ID) expect(named).toBe(FAMOUS_BAR_NAME);
+    }
+  });
+
+  it("keeps the generic poster when the pub is missing", async () => {
+    const meta = await barTabMetadata({
+      params: Promise.resolve({ id: "venue-does-not-exist" }),
+    });
+    const card = await renderCard("venue-does-not-exist");
+    expect(meta.title).toBe("Bar Tab: PUBMAXXING");
+    expect(card).toContain("A London pub");
+    expect(card).not.toContain("the cheapest pint on the tab");
+  });
+
+  it("does not name a pub the page could not load", async () => {
+    aliases.fail = true;
+    for (const { id, name } of [
+      { id: venue.id, name: venue.name },
+      { id: mergedId, name: mergedCanonical.name },
+    ]) {
+      const meta = await barTabMetadata({ params: Promise.resolve({ id }) });
+      const card = await renderCard(id);
+      expect(String(meta.title), id).not.toContain(name);
+      expect(card, id).not.toContain(name);
+      expect(card, id).toContain("A London pub");
+      expect(card, id).not.toContain("the cheapest pint on the tab");
+    }
   });
 });
