@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LOCAL_DATA_REVISION, requireDataRevision } from "@/lib/dataRevision.mjs";
 
-// The revision next.config.mjs inlines as NEXT_PUBLIC_SW_VERSION is the one the
-// map client holds every pack to. These tests take it from the real rule and
+// The revision next.config.mjs inlines as NEXT_PUBLIC_SW_VERSION is the one a
+// production map client holds every pack to; outside production it holds none.
+// These tests take it from the real rule and
 // hand it to the real loader, over packs stamped the ways a checkout leaves
 // them: committed `local`, restamped with HEAD by a local pack build, or a mix
 // of the two after London or the cities were rebuilt alone.
@@ -45,6 +46,7 @@ async function loaderFor(
   env: Record<string, string | undefined>,
   bodies: Record<string, unknown>,
 ) {
+  vi.stubEnv("NODE_ENV", env.NODE_ENV);
   vi.stubEnv("NEXT_PUBLIC_SW_VERSION", requireDataRevision(env, { workingTreeSha: SHA }));
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
     const url = String(input).split("?")[0];
@@ -56,6 +58,16 @@ async function loaderFor(
   vi.resetModules();
   const { createSlimShardLoader } = await import("@/lib/slimShards");
   return createSlimShardLoader;
+}
+
+async function cityMonolithIds(
+  env: Record<string, string | undefined>,
+  bodies: Record<string, unknown>,
+): Promise<string[]> {
+  await loaderFor(env, bodies);
+  const { loadSlimVenuesForCityResult } = await import("@/lib/venuesSlim");
+  const result = await loadSlimVenuesForCityResult("bath");
+  return result.rows.map((venue) => venue.id);
 }
 
 async function loadedIds(
@@ -91,6 +103,7 @@ describe("which packs the map accepts", () => {
       it(`next dev (${JSON.stringify(env)}) loads ${name}`, async () => {
         const create = await loaderFor(env, packs(stamps));
         await expect(loadedIds(create)).resolves.toEqual(["b1", "c1", "g1"]);
+        await expect(cityMonolithIds(env, packs(stamps))).resolves.toEqual(["b1"]);
       });
     }
   }
@@ -106,5 +119,9 @@ describe("which packs the map accepts", () => {
 
     const mixed = await loaderFor({ NODE_ENV: "production" }, packs(STAMPS["mixed within one pack"]));
     await expect(loadedIds(mixed)).resolves.toEqual([]);
+
+    await expect(
+      cityMonolithIds({ NODE_ENV: "production" }, packs(STAMPS["committed local packs"])),
+    ).resolves.toEqual([]);
   });
 });

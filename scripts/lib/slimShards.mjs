@@ -22,11 +22,7 @@
 // and total budgets. Data drift that blows a budget fails CI rather than
 // silently regressing first paint.
 
-import {
-  packBuildEnv,
-  readWorkingTreeCommitSha,
-  requireDataRevision,
-} from "../../lib/dataRevision.mjs";
+import { readWorkingTreeCommitSha, requireDataRevision } from "../../lib/dataRevision.mjs";
 
 // A borough is a LAZY outer shard when it is dominated by unpriced presence
 // pins (low priced ratio) AND carries enough of them to be worth deferring.
@@ -42,11 +38,11 @@ export const SHARD_VERSION = 1;
 export const SPATIAL_SHARD_VERSION = 2;
 // WHICH deploy these shard payloads belong to. lib/dataRevision.mjs owns the
 // order and the refusal, and next.config.mjs stamps the service worker from the
-// same rule, so a build and its data cannot disagree. prebuild runs before
-// `next build` sets NODE_ENV, so an unset NODE_ENV is that production data
-// build and the tree names the revision. `next dev` never imports this module;
-// it takes `local` and accepts whatever stamp these packs carry.
-export const DATA_REVISION = requireDataRevision(packBuildEnv(process.env), {
+// same rule, so a build and its data cannot disagree. Where no release
+// environment names a revision the tree the build runs over names it, which is
+// what lets a production data build run from a clean worktree; the refusal is
+// kept for the one build that can name nothing at all.
+export const DATA_REVISION = requireDataRevision(process.env, {
   workingTreeSha: readWorkingTreeCommitSha(),
 });
 

@@ -8,7 +8,6 @@ import {
   LOCAL_DATA_REVISION,
   NO_DATA_REVISION_REFUSAL,
   environmentDataRevision,
-  packBuildEnv,
   requireDataRevision,
   resolveDataRevision,
   revisionFromCommitSha,
@@ -48,31 +47,15 @@ describe("a build names its own data revision", () => {
   });
 
   it("refuses a production build that can name nothing, and only that one", () => {
-    const sha = "949e0592b9ac6b8ee2b6b375fd5c686171791a30";
     expect(() => requireDataRevision({ NODE_ENV: "production" }, { workingTreeSha: null }))
       .toThrow(NO_DATA_REVISION_REFUSAL);
     expect(requireDataRevision({}, { workingTreeSha: null })).toBe(LOCAL_DATA_REVISION);
-    expect(requireDataRevision({ NODE_ENV: "development" }, { workingTreeSha: sha })).toBe(
-      LOCAL_DATA_REVISION,
-    );
-    expect(requireDataRevision({}, { workingTreeSha: sha })).toBe(LOCAL_DATA_REVISION);
     expect(
       requireDataRevision(
-        { NODE_ENV: "development", NEXT_PUBLIC_SW_VERSION: "stale-pin" },
-        { workingTreeSha: sha },
+        { NODE_ENV: "production" },
+        { workingTreeSha: "949e0592b9ac6b8ee2b6b375fd5c686171791a30" },
       ),
-    ).toBe(LOCAL_DATA_REVISION);
-    expect(requireDataRevision({ NODE_ENV: "production" }, { workingTreeSha: sha })).toBe(
-      "949e0592b9ac",
-    );
-  });
-
-  it("stamps a pack build from the working tree when NODE_ENV is still unset", () => {
-    const sha = "949e0592b9ac6b8ee2b6b375fd5c686171791a30";
-    expect(requireDataRevision(packBuildEnv({}), { workingTreeSha: sha })).toBe("949e0592b9ac");
-    expect(
-      requireDataRevision(packBuildEnv({ NODE_ENV: "development" }), { workingTreeSha: sha }),
-    ).toBe(LOCAL_DATA_REVISION);
+    ).toBe("949e0592b9ac");
   });
 
   it("is the ONE rule: the build and its shard payloads read the same module", () => {

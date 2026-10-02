@@ -19,10 +19,6 @@ export declare function resolveDataRevision(
   options?: { workingTreeSha?: string | null },
 ): string | null;
 
-export declare function packBuildEnv(
-  env?: Record<string, string | undefined>,
-): Record<string, string | undefined>;
-
 export declare function requireDataRevision(
   env?: Record<string, string | undefined>,
   options?: { workingTreeSha?: string | null },

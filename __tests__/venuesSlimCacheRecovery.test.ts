@@ -47,6 +47,7 @@ beforeEach(() => {
 
 describe("slim venue cache recovery", () => {
   it("rejects stale old-worker bytes from the revisioned London monolith without mirroring them", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SW_VERSION", "target");
     vi.resetModules();
     const staleResponse = {
@@ -70,6 +71,7 @@ describe("slim venue cache recovery", () => {
   });
 
   it("accepts and mirrors a matching revision from a direct city monolith", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SW_VERSION", "target");
     vi.resetModules();
     const fetchSpy = vi.fn().mockResolvedValue({
@@ -94,6 +96,7 @@ describe("slim venue cache recovery", () => {
   });
 
   it("restores a complete matching revision for a direct city monolith while offline", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SW_VERSION", "target");
     vi.resetModules();
     offlineGet.mockResolvedValueOnce({

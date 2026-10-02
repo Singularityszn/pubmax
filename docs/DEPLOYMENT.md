@@ -417,7 +417,7 @@ so this command works from a clean worktree:
 
 | Failure | Fix |
 |---|---|
-| `A deploy revision is required for production builds` from a pulled environment (`VERCEL_GIT_COMMIT_SHA=""`, no deployment id) | `lib/dataRevision.mjs`: a production build takes the working tree; `next dev` always takes `local`, which accepts any pack stamp; only a production build with no environment AND no git refuses. |
+| `A deploy revision is required for production builds` from a pulled environment (`VERCEL_GIT_COMMIT_SHA=""`, no deployment id) | `lib/dataRevision.mjs`: the working tree names the revision; only a build with no environment AND no git refuses. |
 | `--prebuilt` refusing a `--prod` output for a preview target | The build runs in the cloud, so there is one target and no `builds.json` to edit. |
 | Upload ENOENT on `docs/**` from a whole-project trace | `lib/venueIndexOsm.ts`: the dynamic path is marked, and the two functions that traced 10,044 and 10,034 files now trace 295 and 285. |
 | `Could not load the "sharp" module using the linux-arm64 runtime` | A cloud build installs the linux binaries; `--prebuilt` is refused. |
