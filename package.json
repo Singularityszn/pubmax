@@ -58,7 +58,7 @@
     "build:uk-base": "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
     "build:uk-pub-search": "node scripts/build_uk_pub_search_index.mjs",
     "fetch:wikidata-notable-pubs": "node scripts/fetch_wikidata_notable_pubs.mjs",
-    "prepare:maplibre-worker": "node scripts/copy_maplibre_worker.mjs",
+    "prepare:maplibre-worker": "node scripts/copy_maplibre_worker.mjs && node scripts/copy_elevenlabs_worklets.mjs",
     "build:heritage-listings": "node scripts/build_heritage_listings.mjs",
     "pubpal:agent": "node scripts/pubpal/create-elevenlabs-agent.mjs",
     "pubpal:design-voices": "node scripts/pubpal/design-pal-voices.mjs",
@@ -115,6 +115,7 @@
   },
   "dependencies": {
     "@ai-sdk/otel": "1.0.122",
+    "@alexanderolsen/libsamplerate-js": "2.1.2",
     "@arizeai/openinference-instrumentation-openai": "^4.2.6",
     "@arizeai/openinference-semantic-conventions": "^2.11.0",
     "@arizeai/openinference-vercel": "^3.2.0",
