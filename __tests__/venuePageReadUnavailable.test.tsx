@@ -17,9 +17,28 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+const headerReads = vi.hoisted(() => ({ count: 0 }));
+const venueLookup = vi.hoisted(() => ({ throwNext: false }));
+
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers(),
+  headers: async () => {
+    headerReads.count += 1;
+    return new Headers();
+  },
 }));
+vi.mock("@/lib/venueDetailIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueDetailIndex")>();
+  return {
+    ...actual,
+    lookupVenueDetail: (id: string) => {
+      if (venueLookup.throwNext) {
+        venueLookup.throwNext = false;
+        return Promise.reject(new Error("venue read threw"));
+      }
+      return actual.lookupVenueDetail(id);
+    },
+  };
+});
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("next/og", () => ({
   ImageResponse: class ImageResponse {
@@ -121,6 +140,8 @@ beforeEach(() => {
   dataset.reads = 0;
   aliases.fail = false;
   aliases.reads = 0;
+  headerReads.count = 0;
+  venueLookup.throwNext = false;
   resetVenueAliasesForTests();
   resetVenueDetailCachesForTests();
 });
@@ -233,6 +254,7 @@ describe("the Bar Tab share card", () => {
       expect(card, id).toContain(painted);
       if (id === FAMOUS_BAR_ID) expect(named).toBe(FAMOUS_BAR_NAME);
     }
+    expect(headerReads.count).toBe(0);
   });
 
   it("keeps the generic poster when the pub is missing", async () => {
@@ -243,6 +265,7 @@ describe("the Bar Tab share card", () => {
     expect(meta.title).toBe("Bar Tab: PUBMAXXING");
     expect(card).toContain("A London pub");
     expect(card).not.toContain("the cheapest pint on the tab");
+    expect(headerReads.count).toBe(0);
   });
 
   it("does not name a pub the page could not load", async () => {
@@ -257,6 +280,17 @@ describe("the Bar Tab share card", () => {
       expect(card, id).not.toContain(name);
       expect(card, id).toContain("A London pub");
       expect(card, id).not.toContain("the cheapest pint on the tab");
+      expect(headerReads.count, id).toBe(1);
+      headerReads.count = 0;
     }
+  });
+
+  it("keeps the generic poster off the route cache when the venue read throws", async () => {
+    venueLookup.throwNext = true;
+    const card = await renderCard(venue.id);
+    expect(card).toContain("A London pub");
+    expect(card).not.toContain(venue.name);
+    expect(card).not.toContain("the cheapest pint on the tab");
+    expect(headerReads.count).toBe(1);
   });
 });

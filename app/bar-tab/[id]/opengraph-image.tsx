@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { ImageResponse } from "next/og";
 
 import { buildBarTab, normalizePintDrop, type PintDropDTO } from "@/lib/feed";
@@ -40,10 +41,14 @@ export const contentType = "image/png";
 async function getVenue(id: string): Promise<Venue | null> {
   try {
     const read = await lookupVenueDetail(id);
-    return read.status === "found" ? read.venue : null;
+    if (read.status === "found") return read.venue;
+    if (read.status === "missing") return null;
   } catch {
+    await headers();
     return null;
   }
+  await headers();
+  return null;
 }
 
 // The same public read the page makes — anonymous surface, visibility applied.
