@@ -548,12 +548,20 @@ function cleanName(label: string): string | null {
   return cleaned;
 }
 
+function isMixedNumber(line: string): boolean {
+  return /\d\s*[½⅓⅔¼¾]/.test(line)
+    || /\d[ \t]+[1-9]\/[1-9]/.test(line)
+    || /\d[1-9]\/[1-9]/.test(line);
+}
+
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\bschooners?\b/i.test(line)) return { size: "unstated", sizeDetail: "schooner" };
-  if (/\btwo[\s-]thirds\b/i.test(line) || /⅔|\b2\/3\b/.test(line)) {
+  if (/\btwo[\s-]thirds\b/i.test(line) || /(?<!\d)⅔|(?<!\d)\b2\/3\b/.test(line)) {
     return { size: "unstated", sizeDetail: "two-thirds" };
   }
-  if (/½|\b1\/2\b/.test(line)) return { size: "unstated", sizeDetail: "half" };
+  if (/(?<!\d)(?:½|\b1\/2\b)/.test(line) && /\bpints?\b/i.test(line) && !/\bbottles?\b/i.test(line)) {
+    return { size: "unstated", sizeDetail: "half" };
+  }
   if (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line)) return { size: "pint", sizeDetail: "pint" };
   const ml = /\b(\d{2,4})\s*ml\b/i.exec(line);
   const detail = ml ? `${ml[1]}ml` : null;
@@ -562,11 +570,12 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\bkeg\b/i.test(line)) return { size: "keg", sizeDetail: detail };
   if (/\bbottles?\b/i.test(line)) return { size: "bottle", sizeDetail: detail ?? "bottle" };
   if (detail && GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
-  if (detail) return { size: "unstated", sizeDetail: `${detail} serving` };
+  if (detail) return { size: "unstated", sizeDetail: detail };
   return { size: "unstated", sizeDetail: null };
 }
 
 function measureAllowed(line: string, size: { size: DrinkSize; sizeDetail: string | null }): boolean {
+  if (isMixedNumber(line)) return false;
   if (size.size === "pint" || size.size === "keg" || size.size === "bottle" || size.size === "can") return true;
   if (size.sizeDetail === "half" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
   if (size.sizeDetail && (GLASS_ML.has(size.sizeDetail) || SPIRIT_ML.has(size.sizeDetail))) return true;
@@ -662,6 +671,9 @@ function drinkFromDrop(
     return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
   }
   if (drop === "half-measure-not-a-pint") {
+    if (/\bbottles?\b/i.test(line)) {
+      return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
+    }
     return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, {
       size: "unstated",
       sizeDetail: "half",
@@ -1132,7 +1144,17 @@ export async function runNightlyPass(input: {
     queue = mergeQueue(queue, [evidence]);
     const stored = Boolean(evidence.website) || evidence.excerpts.length > 0 || evidence.drinks.length > 0;
     const extractedText = pages.some((page) => !page.boundSnippet);
-    if ((extractedText || urls.length === 0) && stored) {
+    const returnedResults = Array.isArray((search as { results?: unknown }).results)
+      ? (search as { results: unknown[] }).results.length
+      : 0;
+    const refusedBinding = searched.some((page) => !permitted.has(page.url) && resultStatesVenue({
+      url: page.url,
+      title: page.title,
+      content: page.text,
+      description: page.title,
+    }, venue));
+    const unboundSearch = !website && returnedResults > 0 && !refusedBinding;
+    if (((extractedText || urls.length === 0) && stored) || unboundSearch) {
       cursor = advanceCursor(cursor, [venue.id], today);
     }
     if (input.persist) await input.persist({ queue, cursor });
