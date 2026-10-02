@@ -15,6 +15,7 @@
  *
  * Never applies migrations to a live Supabase project.
  */
+import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 type Session = {
@@ -184,7 +185,25 @@ const V1_PROTECTED_WRITE_PROBES = [
     delete: `delete from public.pub_pal_voice_usage
       where owner_id = '${OWNER}' and usage_month = '2099-01-01'`,
   },
+  {
+    table: "profiles",
+    insert: `insert into public.profiles (id, handle)
+      values ('ad000000-0000-4000-8000-000000000090', 'probeownerless')`,
+    update: `update public.profiles set bio = 'Probe bio'
+      where id = 'ad000000-0000-4000-8000-000000000090'`,
+    delete: `delete from public.profiles
+      where id = 'ad000000-0000-4000-8000-000000000090'`,
+  },
 ] as const;
+
+const PROFILES_DOOR = join(
+  process.cwd(),
+  "supabase/migrations/20261002210000_0170_profiles_table_door.sql",
+);
+const PROFILES_DOOR_ROLLBACK = join(
+  process.cwd(),
+  "supabase/migrations/rollback/20261002210000_0170_profiles_table_door_rollback.sql",
+);
 
 let session: Session | null = null;
 /** Set only when Postgres binaries are genuinely missing. Loud skip, not pass. */
@@ -301,6 +320,10 @@ beforeAll(async () => {
   if (!r.ok) {
     throw new Error(`seed failed: ${r.err}\n${r.out}`);
   }
+  // 0170 is later than the V1 boundary this session stops at. Apply it so the
+  // profiles write probe sees the closed door, and roll it back before the
+  // catalog comparison below.
+  session!.sqlFile(PROFILES_DOOR);
   // A cluster boot plus the migration chain shares the host with other
   // Postgres suites under `npm run verify`; 60s timed out there. Same 180s
   // ceiling as vitest.config.mts and every other Postgres-backed beforeAll.
@@ -1147,6 +1170,7 @@ describe("hidden rows through PostgREST", () => {
 describe("rollback path", () => {
   it("restores exact pre-0070 then pre-wave catalogs", () => {
     const s = requireSession();
+    expect(() => s.sqlFile(PROFILES_DOOR_ROLLBACK)).not.toThrow();
     expect(() => s.sqlFile(s.v1RollbackPath)).not.toThrow();
     expect(s.catalogSnapshot()).toBe(s.preV1CatalogSnapshot);
     expect(() => s.sqlFile(s.rollbackPath)).not.toThrow();

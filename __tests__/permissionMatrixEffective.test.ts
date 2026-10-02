@@ -1167,6 +1167,56 @@ describe("private profile card: read", () => {
     ).toBe(1);
   });
 
+  it("at the table: a user JWT cannot insert a profile or rewrite a server-owned column, and the route still can", async () => {
+    const stamp = `
+      select handle || '|' || coalesce(founding_member_number::text, '') || '|' ||
+        coalesce(avatar_moderation_state, '') || '|' || avatar_report_count::text || '|' ||
+        coalesce(avatar_moderator_note, '')
+      from public.profiles where id = '${ALICE_PROFILE}'
+    `;
+    const before = truth(stamp);
+    const writes = [
+      `update public.profiles set handle = 'support' where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set founding_member_number = 7 where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set avatar_moderation_state = 'approved' where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set avatar_report_count = 99 where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set avatar_moderator_note = 'cleared' where id = '${ALICE_PROFILE}'`,
+      `delete from public.profiles where id = '${ALICE_PROFILE}'`,
+    ];
+    for (const [role, sub] of [["anon", null], ["authenticated", DAVE], ["authenticated", ALICE]] as const) {
+      for (const statement of writes) {
+        const attempted = attemptAsRole(role, sub, statement);
+        expect(attempted.ok, attempted.err).toBe(false);
+        expect(attempted.err).toMatch(/permission denied/i);
+      }
+      const inserted = attemptAsRole(
+        role,
+        sub,
+        `insert into public.profiles (id, handle) values ('e5e5e5e5-e5e5-4e5e-8e5e-e5e5e5e5e5e5', 'burneddoor')`,
+      );
+      expect(inserted.ok, inserted.err).toBe(false);
+      expect(inserted.err).toMatch(/permission denied/i);
+    }
+    expect(truth(`select count(*) from public.profiles where handle = 'burneddoor'`)).toBe("0");
+    expect(truth(stamp)).toBe(before);
+
+    const server = requireSession().sql(
+      `update public.profiles set bio = bio where id = '${ALICE_PROFILE}'`,
+      { asRole: "service_role" },
+    );
+    expect(server.ok, server.err).toBe(true);
+
+    const routed = await handlers.writeProfile(
+      request(`/api/profiles/${PROFILE_HANDLE}`, {
+        bearer: BEARER_ALICE,
+        method: "PATCH",
+        body: { bio: "Alice-withheld-bio" },
+      }),
+      context({ handle: PROFILE_HANDLE }),
+    );
+    expect(routed.status).toBe(200);
+  });
+
   it("A can turn it back, and the card is whole again", async () => {
     const restored = await handlers.writeProfile(
       request(`/api/profiles/${PROFILE_HANDLE}`, {

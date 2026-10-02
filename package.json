@@ -6,7 +6,7 @@
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
-    "predev": "npm run prepare:maplibre-worker",
+    "predev": "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker",
     "dev": "next dev --webpack",
     "prebuild": "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board",
     "build": "next build",
@@ -16,7 +16,7 @@
     "deploy:preview:prod-env": "node scripts/deploy-preview-prod-env.mjs",
     "lint": "eslint .",
     "typecheck": "node node_modules/@typescript/native/lib/tsc.js --noEmit",
-    "test": "vitest run",
+    "test": "node scripts/check_node_modules_fresh.mjs && vitest run",
     "test:rls": "node scripts/rls/run-session-tests.mjs",
     "test:e2e": "playwright test",
     "e2e:cli": "playwright cli",

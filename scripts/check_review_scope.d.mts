@@ -1,3 +1,6 @@
+/** One stderr line per forbidden category, printed after the JSON report. */
+export const REVIEW_SCOPE_HINTS: Readonly<Record<"generated" | "skill-pack", string>>;
+
 export const MAX_REVIEW_FILES: number;
 export const MAX_RUNTIME_DOMAINS: number;
 
