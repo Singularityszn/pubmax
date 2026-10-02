@@ -596,3 +596,26 @@ describe("a page that writes its drink names as character references", () => {
     expect(categoryFor("Bosford Ros&#233; Pink 175ml &#163;7.00")).toBe("wine");
   });
 });
+
+describe("a long wine list", () => {
+  it("prices every glass in one pass", () => {
+    const count = 400;
+    const sections = Array.from({ length: count }, (_, index) => {
+      const pounds = (4 + (index % 10) + (index % 3) / 100).toFixed(2);
+      return `<section><h2>Wine</h2><p>House red ${index} 175ml £${pounds}</p></section>`;
+    });
+    const html = `<p>Madri pint £6.20</p>${sections.join("")}`;
+    const started = performance.now();
+    const reading = readVenueDrinkPrices(html);
+    const elapsed = performance.now() - started;
+    const wines = reading.kept.filter((row) => row.category === "wine");
+    expect(wines).toHaveLength(count);
+    expect(wines[0]).toMatchObject({ drinkLabel: expect.stringContaining("House red 0") });
+    expect(wines[count - 1]).toMatchObject({
+      drinkLabel: expect.stringContaining(`House red ${count - 1}`),
+    });
+    expect(reading.kept.some((row) => row.category === "beer" && row.priceGbp === 6.2)).toBe(true);
+    // The same list, recounting each prefix from byte 0, took about 2 seconds.
+    expect(elapsed).toBeLessThan(1000);
+  });
+});

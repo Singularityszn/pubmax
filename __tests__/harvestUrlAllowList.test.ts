@@ -65,6 +65,8 @@ describe("hosts we may not read", () => {
     expect(isHarvestableOperatorUrl(`https://${REFUSED_ESTATE}/menu`)).toBe(false);
     expect(isHarvestableOperatorUrl(`https://www.${REFUSED_ESTATE}/menu`)).toBe(false);
     expect(isHarvestableOperatorUrl(`https://${REFUSED_ESTATE.toUpperCase()}/menu`)).toBe(false);
+    expect(isHarvestableOperatorUrl(`https://www.${REFUSED_ESTATE}./menu`)).toBe(false);
+    expect(isHarvestableOperatorUrl(`https://${REFUSED_ESTATE.toUpperCase()}./menu`)).toBe(false);
   });
 
   it("refuses a SUBDOMAIN of a refused host, because a refusal is about an operator", () => {
@@ -100,6 +102,13 @@ describe("hosts that name our own network", () => {
       "172.31.255.255",
       "192.168.1.1",
       "169.254.169.254",
+      "100.64.0.0",
+      "100.100.100.200",
+      "100.127.255.255",
+      "198.18.0.1",
+      "198.19.255.255",
+      "240.0.0.1",
+      "255.255.255.255",
       "[::1]",
       "printer.local",
       "vault.internal",
@@ -110,7 +119,17 @@ describe("hosts that name our own network", () => {
   });
 
   it("still admits ordinary public addresses, so the rule is a fence and not a ban", () => {
-    for (const host of ["11.0.0.1", "172.32.0.1", "192.169.0.1", "8.8.8.8"]) {
+    for (const host of [
+      "11.0.0.1",
+      "172.32.0.1",
+      "192.169.0.1",
+      "8.8.8.8",
+      "100.63.255.255",
+      "100.128.0.1",
+      "198.17.255.255",
+      "198.20.0.1",
+      "239.255.255.255",
+    ]) {
       expect(isHarvestableOperatorUrl(`https://${host}/menu`), host).toBe(true);
     }
   });
@@ -138,6 +157,9 @@ describe("hosts that name our own network", () => {
       "::ffff:10.1.2.3",
       "::ffff:192.168.1.1",
       "::ffff:172.16.0.1",
+      "::ffff:100.64.0.1",
+      "::ffff:198.18.0.1",
+      "::ffff:240.0.0.1",
       // The deprecated IPv4-compatible form, NAT64 and 6to4, each of which a
       // gateway translates back to the v4 address it carries.
       "::169.254.169.254",
@@ -164,6 +186,14 @@ describe("hosts that name our own network", () => {
     for (const host of ["2001:4860:4860::8888", "2606:4700::1111"]) {
       expect(isHarvestableOperatorUrl(`https://[${host}]/menu`), host).toBe(true);
     }
+  });
+
+  it("treats one trailing dot as the same host and refuses a second", () => {
+    expect(isHarvestableOperatorUrl("http://localhost./admin")).toBe(false);
+    expect(isHarvestableOperatorUrl("http://metadata.google.internal./")).toBe(false);
+    expect(isHarvestableOperatorUrl("https://example.com./menu")).toBe(true);
+    expect(isHarvestableOperatorUrl("https://example.com../menu")).toBe(false);
+    expect(isHarvestableOperatorUrl("http://127.0.0.1./")).toBe(false);
   });
 
   it("judges a hostname that merely BEGINS fc or fd on its own permission", () => {
