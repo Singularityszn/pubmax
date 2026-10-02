@@ -90,7 +90,12 @@ vi.mock("@/lib/walkRouteStore", () => ({
 
 import { GET, POST } from "@/app/api/plans/generate/route";
 import { preparePlanGeneration } from "@/lib/planGeneration.server";
-import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+import { verifyAnchoredPlanGroundingProofV2, verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+import * as routeEvidence from "@/lib/planRouteEvidence.server";
+import * as anchorResolution from "@/lib/planningAnchor.server";
+import { buildPriceEvidence } from "@/lib/planRouteEvidence";
+import { validateNightSignalClaim, type NightSignalClaim } from "@/lib/nightSignalClaims";
+import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import {
   PAID_SPEND_BUDGET_WINDOW_MS,
@@ -1159,5 +1164,304 @@ describe("POST /api/plans/generate", () => {
     } finally {
       clock.mockRestore();
     }
+  });
+});
+
+describe("exact selected route revalidation", () => {
+  const baseIds = ["v1", "v2", "v3"];
+  const selectedIds = ["v4", "v2", "v3"];
+  let catalogue: ConciergeVenue[];
+  let pence: Map<string, number>;
+  let restore: Array<() => void>;
+  let previousCategoryRead: ReturnType<typeof categoryIndexMock.getMockImplementation>;
+  let previousCatalogueRead: ReturnType<typeof loadConciergeVenuesMock.getMockImplementation>;
+
+  beforeEach(() => {
+    catalogue = ["v1", "v2", "v3", "v4", "v5"].map((id) => generatedVenue(id));
+    pence = new Map(catalogue.map((venue) => [venue.id, 500]));
+    restore = [];
+    previousCategoryRead = categoryIndexMock.getMockImplementation();
+    previousCatalogueRead = loadConciergeVenuesMock.getMockImplementation();
+    isLimitedMock.mockClear();
+    isLimitedMock.mockResolvedValue(false);
+    loadConciergeVenuesMock.mockReset();
+    loadConciergeVenuesMock.mockImplementation(async () => catalogue);
+    categoryIndexMock.mockReset();
+    categoryIndexMock.mockResolvedValue({ prices: [], truncated: false, degraded: false });
+    fetchWalkLegRouteMock.mockReset();
+    fetchWalkLegRouteMock.mockResolvedValue(null);
+    orsApiKeyMock.mockReset();
+    orsApiKeyMock.mockReturnValue(null);
+    walkRouteStoreMock.getLeg.mockReset();
+    walkRouteStoreMock.getLeg.mockResolvedValue(null);
+    walkRouteStoreMock.putLeg.mockReset();
+    walkRouteStoreMock.putLeg.mockResolvedValue(undefined);
+    vi.stubEnv("PLAN_IDEMPOTENCY_SECRET", "exact-route-fixture-signing-key-never-production");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    restore.push(() => clock.mockRestore());
+    // Replace catalogue evidence reads, not eligibility, route evaluation or
+    // proof policy. Fixture prices have public publisher tuples and pass the
+    // real evidence builder before the real optimizer reads them.
+    const prices = vi.spyOn(routeEvidence, "planPriceEvidenceForVenues").mockImplementation(async (venues, now) =>
+      new Map(venues.map((venue) => [venue.id, buildPriceEvidence({
+        pence: pence.get(venue.id), label: `Fixture menu ${venue.id}`,
+        url: `https://pub.example/${venue.id}/menu`, observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString(), now,
+      })])),
+    );
+    restore.push(() => prices.mockRestore());
+  });
+
+  afterEach(() => {
+    for (const release of restore.reverse()) release();
+    categoryIndexMock.mockReset();
+    if (previousCategoryRead) categoryIndexMock.mockImplementation(previousCategoryRead);
+    loadConciergeVenuesMock.mockReset();
+    if (previousCatalogueRead) loadConciergeVenuesMock.mockImplementation(previousCatalogueRead);
+    listedBundleFixture.rows = null;
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.indexCoverage = null;
+    vi.unstubAllEnvs();
+  });
+
+  async function generateExact(routeVenueIds: unknown, extra: Record<string, unknown> = {}) {
+    return POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Clapham", intake: generationIntake(), routeVenueIds, ...extra }),
+    }));
+  }
+
+  async function expectRefusal(response: Response) {
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(422);
+    expect(body.code).toBe("GROUNDED_CONSTRAINTS_UNSATISFIED");
+    expect(body.groundingProof).toBeUndefined();
+    expect(body.stops).toBeUndefined();
+  }
+
+  it("returns selected replacements in exact order with fresh attributable evidence and proof", async () => {
+    for (const ids of [selectedIds, ["v3", "v4", "v2"]]) {
+      const response = await generateExact(ids);
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+      expect(body.grounded).toBe(true);
+      for (const stop of body.stops) {
+        expect(stop.priceEvidence).toMatchObject({ pence: 500, source: {
+          label: `Fixture menu ${stop.venueId}`, url: `https://pub.example/${stop.venueId}/menu`,
+          observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString(),
+        } });
+      }
+      expect(verifyPlanGroundingProof(body.groundingProof, ids, body.operationKey)).toBe(true);
+      expect(verifyPlanGroundingProof(body.groundingProof, ids, "different-operation")).toBe(false);
+    }
+  });
+
+  it("revalidates a feasible selected pub beyond the search shortlist", async () => {
+    catalogue = Array.from({ length: 16 }, (_, index) => generatedVenue(`v${index + 1}`, {
+      lat: 51.462 + index * 0.0002, lng: -0.138,
+    }));
+    pence = new Map(catalogue.map((venue) => [venue.id, 500]));
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "Clapham", intake: generationIntake() }),
+    }));
+    expect("prepared" in prepared).toBe(true);
+    if (!("prepared" in prepared)) throw new Error("public catalogue control did not prepare");
+    expect(prepared.prepared.candidates.findIndex(({ venue }) => venue.id === "v16")).toBeGreaterThanOrEqual(14);
+    const ids = ["v16", "v2", "v3"];
+    const response = await generateExact(ids);
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+    expect(verifyPlanGroundingProof(body.groundingProof, ids, body.operationKey)).toBe(true);
+  });
+
+  it("retains ordinary generation when no exact selection is requested", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "Clapham", intake: generationIntake() }),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops).toHaveLength(3);
+    expect(new Set(body.stops.map((stop: { venueId: string }) => stop.venueId)).size).toBe(3);
+    expect(verifyPlanGroundingProof(body.groundingProof, body.stops.map((stop: { venueId: string }) => stop.venueId), body.operationKey)).toBe(true);
+  });
+
+  it.each([
+    ["duplicate", ["v1", "v1", "v3"]],
+    ["oversized", Array.from({ length: 7 }, (_, index) => `v${index}`)],
+  ])("refuses %s before spending generation budget", async (_label, ids) => {
+    const response = await generateExact(ids);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "MALFORMED_REQUEST" });
+    expect(isLimitedMock).not.toHaveBeenCalled();
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a selection whose count differs from the reconciled request", async () => {
+    const response = await generateExact(["v1", "v2"], { context: { stopCount: 3 } });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "MALFORMED_REQUEST" });
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
+  it("uses answered intake count before explicit context count in exact mode", async () => {
+    const response = await generateExact(["v4"], {
+      context: { stopCount: 6 }, intake: generationIntake({ stopCount: 1 }),
+    });
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(["v4"]);
+    expect(body.inferredContext.stopCount).toBe(1);
+    expect(verifyPlanGroundingProof(body.groundingProof, ["v4"], body.operationKey)).toBe(true);
+  });
+
+  it.each(["unknown", "wrong-area", "promoted"] as const)("does not replace a selected %s venue with a better-ranked pub", async (kind) => {
+    if (kind === "wrong-area") catalogue.find((venue) => venue.id === "v4")!.lat = 52;
+    if (kind === "promoted") catalogue.find((venue) => venue.id === "v4")!.promoted = true;
+    await expectRefusal(await generateExact(kind === "unknown" ? ["unknown", "v2", "v3"] : selectedIds));
+  });
+
+  it("keeps a pending exclusion eligible but refuses the same approved reviewed avoid without replacement", async () => {
+    const originalSnapshot = { ...nightSignalSnapshot };
+    const observedAt = new Date(PLAN_GENERATION_TEST_NOW).toISOString();
+    const claim: NightSignalClaim = {
+      id: "fixture-v4-reviewed-avoid", kind: "opening", entity: { type: "venue", id: "v4" },
+      claim: "Fixture reviewed stop exclusion.", publisher: "Fixture pub",
+      sourceUrl: "https://pub.example/v4/status",
+      publishedAt: new Date(PLAN_GENERATION_TEST_NOW - 1_000).toISOString(),
+      observedAt, expiresAt: new Date(PLAN_GENERATION_TEST_NOW + 60 * 60 * 1_000).toISOString(),
+      confidence: 1, reviewState: "pending", verification: "manual_review", routeEffect: "avoid",
+      corroboratingSources: [], reviewedAt: observedAt, reviewAuthority: "operations",
+    };
+    try {
+      expect(validateNightSignalClaim(claim)).not.toBeNull();
+      Object.assign(nightSignalSnapshot, { version: 1, generatedAt: observedAt, claims: [claim] });
+      const pending = await generateExact(selectedIds);
+      const pendingBody = await pending.json();
+      expect(pending.status, JSON.stringify(pendingBody)).toBe(200);
+      expect(pendingBody.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(selectedIds);
+      expect(verifyPlanGroundingProof(pendingBody.groundingProof, selectedIds, pendingBody.operationKey)).toBe(true);
+      const approved = { ...claim, reviewState: "approved" as const };
+      expect(validateNightSignalClaim(approved)).not.toBeNull();
+      Object.assign(nightSignalSnapshot, { version: 1, generatedAt: observedAt, claims: [approved] });
+      await expectRefusal(await generateExact(selectedIds));
+    } finally {
+      Object.assign(nightSignalSnapshot, originalSnapshot);
+    }
+  });
+
+  it("rejects combined swaps that break a ceiling although each single swap fits", async () => {
+    pence.set("v4", 900);
+    pence.set("v5", 900);
+    const intake = generationIntake({ budget: { tier: "value", limitPence: 2_000 } });
+    for (const ids of [["v4", "v2", "v3"], ["v1", "v5", "v3"]]) {
+      const response = await generateExact(ids, { intake });
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+      expect(body.constraintReport.hardConstraints).toContainEqual(expect.objectContaining({ code: "budget_ceiling", status: "satisfied" }));
+    }
+    await expectRefusal(await generateExact(["v4", "v5", "v3"], { intake }));
+  });
+
+  it("refuses selected unknown accessibility instead of choosing accessible alternatives", async () => {
+    for (const venue of catalogue) {
+      if (venue.id !== "v4") venue.name = "The Ice Wharf - JD Wetherspoon";
+    }
+    const intake = generationIntake({ accessibilityNeeds: ["step-free"] });
+    const control = await generateExact(baseIds, { intake });
+    expect(control.status, await control.clone().text()).toBe(200);
+    await expectRefusal(await generateExact(selectedIds, { intake }));
+  });
+
+  it("refuses an exact route whose chosen order breaks the walking limit", async () => {
+    catalogue.find((venue) => venue.id === "v4")!.lat = 51.478;
+    catalogue.find((venue) => venue.id === "v5")!.lat = 51.446;
+    const control = await generateExact(baseIds);
+    expect(control.status, await control.clone().text()).toBe(200);
+    await expectRefusal(await generateExact(["v4", "v5", "v2"]));
+  });
+
+  it("refuses dated selected stops without opening evidence", async () => {
+    const futureStart = new Date(PLAN_GENERATION_TEST_NOW + 24 * 60 * 60 * 1_000);
+    futureStart.setUTCHours(16, 30, 0, 0); // 17:30 London, inside after-work.
+    const exactStartIso = futureStart.toISOString();
+    const intake = generationIntake({
+      timeWindow: { id: "after-work", start: "17:30", end: "20:30", exactStartIso }, skipped: [],
+    });
+    const opening = vi.spyOn(routeEvidence, "planOpeningSchedulesForVenues").mockImplementation(async (venues) =>
+      new Map(venues.map((venue) => [venue.id, baseIds.includes(venue.id) ? {
+        venueListedOpen: true,
+        ranges: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((weekday) => ({
+          weekday, startsAt: "17:00", endsAt: "23:00",
+        })),
+        source: { label: `Fixture hours ${venue.id}`, url: `https://pub.example/${venue.id}/hours`,
+          observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString() },
+      } : null])),
+    );
+    restore.push(() => opening.mockRestore());
+    const control = await generateExact(baseIds, { intake });
+    const controlBody = await control.json();
+    expect(control.status, JSON.stringify(controlBody)).toBe(200);
+    expect(controlBody.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(baseIds);
+    for (const stop of controlBody.stops) {
+      expect(stop.operationalEvidence).toMatchObject({ openingAtVisit: "listed_open", openingSource: {
+        label: `Fixture hours ${stop.venueId}`, url: `https://pub.example/${stop.venueId}/hours`,
+        observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString(),
+      } });
+    }
+    await expectRefusal(await generateExact(selectedIds, { intake }));
+  });
+
+  it("keeps unsupported transport fail-closed in exact mode", async () => {
+    await expectRefusal(await generateExact(selectedIds, { context: { transportConstraints: ["night-tube"] } }));
+  });
+
+  it("does not borrow pint evidence for a no-alcohol budget ceiling", async () => {
+    await expectRefusal(await generateExact(selectedIds, {
+      context: { zeroProof: true }, intake: generationIntake({ budget: { tier: "value", limitPence: 2_000 } }),
+    }));
+  });
+
+  it("keeps selected wine publisher tuples on their exact venues without pint fallback", async () => {
+    const observedAt = new Date(PLAN_GENERATION_TEST_NOW).toISOString();
+    listedBundleFixture.rows = catalogue.map((venue, index) => ({
+      venueId: venue.id, name: venue.name, category: "wine", priceGbp: 5 + index,
+      drinkLabel: `Named wine ${venue.id}`, servingSize: "125ml", lane: "site-harvest", standing: "listed",
+      sourceUrl: `https://pub.example/${venue.id}/wine`, observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null,
+    }));
+    const response = await generateExact(selectedIds, { query: "Wine in Clapham", context: { drinkCategory: "wine" } });
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(selectedIds);
+    for (const stop of body.stops) {
+      const row = listedBundleFixture.rows.find((candidate) => candidate.venueId === stop.venueId)!;
+      expect(stop).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null, selectedDrinkPriceEvidence: {
+        category: "wine", pence: Math.round(row.priceGbp * 100), serving: "125ml", source: "listed",
+        sourceUrl: row.sourceUrl, observedAt,
+      } });
+    }
+  });
+
+  it("rechecks matching held Stop 1 and binds the fresh V2 proof to exact companion order", async () => {
+    const resolution = vi.spyOn(anchorResolution, "resolvePlanningAnchor").mockResolvedValue({
+      status: "resolved", display: { venueId: "v1", venueName: "Venue v1", areaName: "Clapham", startLabel: null,
+        priceEvidence: null, routeWindowOk: true, budgetCompatible: true, accessibilityCompatible: true },
+      canonical: { cityId: "london", venueId: "v1", nightAreaSlug: "clapham", acceptedArea: { kind: "night-patch", id: "clapham" },
+        coordinates: { lat: 51.463, lng: -0.137 }, startsAt: null, priceObservedAt: null, priceFreshnessKind: "unknown" },
+    });
+    restore.push(() => resolution.mockRestore());
+    const anchor = { venueId: "v1", source: "pal", acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null };
+    const ids = ["v1", "v4", "v3"];
+    const response = await generateExact(ids, { anchor });
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+    expect(body).toMatchObject({ grounded: true, anchored: true, anchorVenueId: "v1", anchorSource: "pal", outcome: "route" });
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ids, body.operationKey)).toMatchObject({ ok: true, routeVenueIds: ids });
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ["v1", "v3", "v4"], body.operationKey)).toEqual({ ok: false, reason: "route-mismatch" });
+    const conflict = await generateExact(["v4", "v1", "v3"], { anchor });
+    expect(conflict.status).toBe(200);
+    expect(await conflict.json()).toMatchObject({ outcome: "anchor-conflict", grounded: false, routeReady: false, stops: [] });
   });
 });

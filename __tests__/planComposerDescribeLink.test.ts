@@ -235,6 +235,160 @@ beforeEach(() => {
   setSearch("");
 });
 
+describe("selected Swap route revalidation", () => {
+  const ask = "Three cheap recorded pints in Clapham";
+  const originalIds = ["venue-a", "venue-b", "venue-c"];
+  const selectedIds = ["venue-d", "venue-b", "venue-c"];
+  const venueNames: Record<string, string> = {
+    "venue-a": "Original Arms", "venue-b": "Second Arms", "venue-c": "Third Arms", "venue-d": "Chosen Arms",
+  };
+
+  function stopNames(): string[] {
+    return Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]')).map((input) => input.value);
+  }
+
+  function lockControl(): HTMLButtonElement {
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Lock it in");
+    if (!button) throw new Error("real Lock it in control did not render");
+    return button;
+  }
+
+  function installSelectionServer(options: { holdRecheck?: boolean; refuseRecheck?: boolean; substituteRecheck?: boolean } = {}) {
+    const generated: Record<string, unknown>[] = [];
+    const created: Array<{ body: Record<string, unknown>; headers: Headers }> = [];
+    let release: (() => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith("/api/plans") && init?.method === "POST") {
+        created.push({ body: JSON.parse(String(init.body)), headers: new Headers(init.headers) });
+        // This test proves the real component's create wire, not a fictitious
+        // successful shared write. The service refusal remains visible.
+        return Response.json({ error: "Fixture create unavailable.", code: "PLAN_CREATE_UNAVAILABLE", retryable: true }, { status: 503 });
+      }
+      if (!url.includes("/api/plans/generate")) {
+        return Response.json(Object.entries(venueNames).map(([id, name]) => ({ id, name, kind: "pub" })));
+      }
+      if (init?.method !== "POST") return new Response(null, { status: 204 });
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      generated.push(body);
+      const selection = body.routeVenueIds;
+      // Absent pin takes the ordinary ranked route. The double NEVER returns
+      // the desired choice unless the real component actually transmitted it.
+      const ids = selection === undefined ? originalIds : selection;
+      if (!Array.isArray(ids) || ids.length !== 3 || new Set(ids).size !== 3
+        || !ids.every((id) => typeof id === "string" && Object.hasOwn(venueNames, id))) {
+        return Response.json({ error: "Invalid selected fixture route.", code: "MALFORMED_REQUEST", retryable: false }, { status: 400 });
+      }
+      if (selection !== undefined && options.holdRecheck) {
+        await new Promise<void>((resolve) => { release = resolve; });
+      }
+      if (selection !== undefined && options.refuseRecheck) {
+        return Response.json({ error: "Chosen stops no longer fit this night.", code: "GROUNDED_CONSTRAINTS_UNSATISFIED", retryable: false }, { status: 422 });
+      }
+      const revision = generated.length;
+      return Response.json({
+        ...DEFAULT_GENERATE_BODY,
+        groundingProof: `fixture-proof-${revision}`,
+        operationKey: `fixture-operation-${revision}`,
+        inferredContext: inferNightContext(ask).context,
+        stops: (selection !== undefined && options.substituteRecheck ? originalIds : ids).map((venueId) => ({
+          venueId, venueName: venueNames[venueId],
+          alternatives: venueId === "venue-a" ? [{ venueId: "venue-d", venueName: venueNames["venue-d"] }] : [],
+        })),
+      });
+    }));
+    return { generated, created, releaseRecheck: () => {
+      if (!release) throw new Error("no exact recheck is held");
+      release();
+    } };
+  }
+
+  async function generateAndSwap() {
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()));
+    writePlanDraftEnvelope({
+      title: "Selected swap night", creatorName: "QA Loopback", startTime: "2030-07-24T20:00",
+      conciergeQuery: ask, stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId]! })),
+    }, "manual", sessionStorage);
+    await mountComposer();
+    await act(async () => { clickButton("Make a plan"); });
+    await settleComposerEffects();
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(false);
+    const swap = document.querySelector<HTMLButtonElement>('button[aria-label="Swap stop 1, currently Original Arms"]');
+    expect(swap?.disabled).toBe(false);
+    await act(async () => { swap!.click(); });
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+  }
+
+  it("rechecks the chosen order then sends the exact lock wire with fresh proof", async () => {
+    const server = installSelectionServer({ holdRecheck: true });
+    await generateAndSwap();
+    expect(server.generated).toHaveLength(1);
+    expect(server.generated[0]).not.toHaveProperty("routeVenueIds");
+    await act(async () => { clickButton("Regenerate route"); });
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { server.releaseRecheck(); });
+    await settleComposerEffects();
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    await act(async () => { lockControl().click(); });
+    await settleComposerEffects();
+    expect(server.created).toHaveLength(1);
+    const create = server.created[0]!;
+    expect((create.body.stops as Array<{ venueId: string }>).map((stop) => stop.venueId)).toEqual(selectedIds);
+    expect(create.body.groundingProof).toBe("fixture-proof-2");
+    expect(create.body).not.toHaveProperty("routeVenueIds");
+    expect(create.headers.get("content-type")).toBe("application/json");
+    expect(create.headers.get("idempotency-key")).toBe("fixture-operation-2");
+    expect(JSON.stringify(create.body)).not.toContain("fixture-proof-1");
+    expect(document.body.textContent).toContain("Fixture create unavailable.");
+  });
+
+  it("keeps chosen stops stale on exact recheck refusal and never attempts creation", async () => {
+    const server = installSelectionServer({ refuseRecheck: true });
+    await generateAndSwap();
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(document.body.textContent).toContain("Chosen stops no longer fit this night.");
+    expect(lockControl().disabled).toBe(true);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("does not adopt a recheck response that substituted a different order", async () => {
+    const server = installSelectionServer({ substituteRecheck: true });
+    await generateAndSwap();
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("lets an explicit fresh sort choose a new route without sending a selected-order pin", async () => {
+    const server = installSelectionServer();
+    await generateAndSwap();
+    await act(async () => { clickButton("Sort it again"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]).not.toHaveProperty("routeVenueIds");
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    expect(server.created).toHaveLength(0);
+  });
+});
+
 afterEach(async () => {
   if (root) {
     const current = root;

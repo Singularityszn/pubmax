@@ -101,3 +101,39 @@ describe("parsePlanGenerationRequest", () => {
     expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
   });
 });
+
+describe("exact selected route requests", () => {
+  it.each([1, 3, 6])("retains the exact chosen order for %i public venue IDs", async (stopCount) => {
+    const routeVenueIds = Array.from({ length: stopCount }, (_, index) => `venue-${stopCount - index}`);
+    const result = await parsePlanGenerationRequest(request({
+      query: "Clapham", context: { stopCount }, routeVenueIds,
+    }), NOW);
+    expect(result).toMatchObject({ ok: true, value: { routeVenueIds } });
+  });
+
+  it.each([
+    ["null", null],
+    ["empty", []],
+    ["too many", Array.from({ length: 7 }, (_, index) => `venue-${index}`)],
+    ["duplicate", ["venue-a", "venue-a", "venue-c"]],
+    ["non-string", ["venue-a", 2, "venue-c"]],
+    ["blank ID", ["venue-a", "", "venue-c"]],
+    ["whitespace ID", ["venue-a", " venue-b ", "venue-c"]],
+    ["oversized ID", ["venue-a", "x".repeat(129), "venue-c"]],
+    ["proof-unmintable ID", ["venue-a", "x".repeat(121), "venue-c"]],
+    ["URL in place of ID", ["venue-a", "https://pub.example/b", "venue-c"]],
+    ["private coordinate object", ["venue-a", { lat: 51, lng: 0 }, "venue-c"]],
+  ])("rejects %s selection without admitting another public request shape", async (_label, routeVenueIds) => {
+    const result = await parsePlanGenerationRequest(request({
+      query: "Clapham", context: { stopCount: 3 }, routeVenueIds,
+    }), NOW);
+    expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST", status: 400 });
+  });
+
+  it("keeps the request closed beside a valid selected route", async () => {
+    const result = await parsePlanGenerationRequest(request({
+      query: "Clapham", routeVenueIds: ["venue-c", "venue-a", "venue-b"], privateContext: "must not cross this seam",
+    }), NOW);
+    expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST", status: 400 });
+  });
+});
