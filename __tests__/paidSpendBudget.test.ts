@@ -48,8 +48,8 @@ const AUTH_MARK = /callerUserId\(|callerAuthIdentity\(|requireLinkedActor\(|reso
 
 /**
  * Anonymous paid routes that still skip the deployment ceiling.
- * This list may only shrink. The chat route is the known hole: fixing it
- * means editing app/api/pub-pal, which this change does not own.
+ * This list may only shrink. app/api/pub-pal/chat/route.ts is the known hole
+ * and belongs to the Pub Pal hardening task pubmax-sec-pubpal.
  */
 const KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES = ["app/api/pub-pal/chat/route.ts"];
 
