@@ -38,7 +38,7 @@ const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "
 const FOOD_LINE =
   /\b(burger|steak|pizza|fish and chips|chips|roast|breakfast|brunch|lunch|dinner|sandwich|curry|dessert|pie|salad|wings|nachos|sausage|halloumi|scampi|prawn)\b/i;
 const SERVES_FOOD = /\b(we serve food|food served|food menu|kitchen open|our kitchen|bar snacks)\b/i;
-const NO_FOOD = /\b(do not serve food|no food served|food is not served|kitchen closed|we do not serve food)\b/i;
+const NO_FOOD = /\b(do not serve food|no food served|food is not served|we do not serve food|kitchen(?:\s+(?:is|was)(?:\s+now)?|\s+now)?\s+closed)\b/i;
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
 
 const AMENITY_LINES: ReadonlyArray<{ kind: AmenityKind; pattern: RegExp }> = [
@@ -291,10 +291,21 @@ function wordHit(haystack: string, word: string): boolean {
   return new RegExp(`\\b${word}\\b`, "i").test(haystack);
 }
 
+function placeHaystack(venue: NightlyVenue): string {
+  const search = venue.areaText.toLowerCase();
+  const postcodeAt = search.search(postcodePattern("i"));
+  if (postcodeAt >= 0) return search.slice(0, postcodeAt);
+  const borough = venue.borough.trim().toLowerCase();
+  if (!borough) return search;
+  const boroughAt = search.lastIndexOf(borough);
+  if (boroughAt < 0) return search;
+  return search.slice(0, boroughAt + borough.length);
+}
+
 function isSeed(venue: NightlyVenue): boolean {
   const borough = venue.borough.toLowerCase();
-  const area = `${venue.areaText} ${venue.name}`.toLowerCase();
-  return SEED_PATCHES.some((seed) => borough === seed || wordHit(borough, seed) || wordHit(area, seed));
+  const place = `${placeHaystack(venue)} ${venue.name}`.toLowerCase();
+  return SEED_PATCHES.some((seed) => borough === seed || wordHit(borough, seed) || wordHit(place, seed));
 }
 
 function isThin(venue: NightlyVenue): boolean {
@@ -371,7 +382,7 @@ function hasRoadName(words: readonly string[]): boolean {
 function statesStreet(text: string, street: string): boolean {
   const words = phraseWords(street);
   if (words.length < 2 || !/^\d/.test(words[0]) || !hasRoadName(words)) return false;
-  const hay = phraseWords(text).join(" ");
+  const hay = phraseWords(text.replace(/£\s*\d+(?:\.\d+)?/g, " ")).join(" ");
   const body = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+");
   return new RegExp(`(?:^|\\s)${body}(?:\\s|$)`).test(hay);
 }
@@ -566,10 +577,16 @@ function recordAmenityMatches(amenities: AmenityFact[], line: string, fact: Sour
   }
 }
 
-function isFoodEvidence(line: string, outcome: PriceOutcome): boolean {
-  if (!FOOD_LINE.test(line)) return false;
-  if (outcome.drop === "food-word-nearby") return !/\bhalf\b/i.test(line);
-  return outcome.drop === "no-category-word-nearby";
+function isDishDrop(drop: PriceOutcome["drop"]): boolean {
+  return drop === "food-word-nearby" || drop === "no-category-word-nearby";
+}
+
+function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
+  const label = drinkLabelFromPriceContext(line, verbatim, at) ?? "";
+  const after = line.slice(at + verbatim.length);
+  const tail = /^(?:\s*\/\s*|\s+)(?:pints?|kegs?|bottles?|cans?|\d{2,4}\s*ml)\b/i.exec(after);
+  const prefix = label ? `${label} ` : "";
+  return { label, text: `${prefix}${verbatim}${tail ? tail[0] : ""}`, at: prefix.length };
 }
 
 function recordFoodDish(
@@ -625,23 +642,23 @@ function recordPriceLine(
 ): void {
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
-    const outcome = decideKeylessUkPriceCandidate(line, raw);
-    const label = drinkLabelFromPriceContext(line, raw.verbatim, raw.at) ?? "";
-    if (isFoodEvidence(line, outcome)) {
-      recordFoodDish(dishes, seenDishes, label, raw.priceGbp, fact);
+    const own = ownPrice(line, raw.verbatim, raw.at);
+    const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
+    if (FOOD_LINE.test(own.label) && isDishDrop(outcome.drop) && !/\bhalf\b/i.test(own.label)) {
+      recordFoodDish(dishes, seenDishes, own.label, raw.priceGbp, fact);
       continue;
     }
     const row = outcome.kept
       ? listedDrink(
-          outcome.kept.drinkLabel || label,
-          line,
+          outcome.kept.drinkLabel || own.label,
+          own.text,
           outcome.kept.priceGbp,
           fact.sourceUrl,
           fact.seenOn,
           undefined,
           CATEGORY_PRICE_BANDS[outcome.kept.category] ?? { minGbp: BEER_MIN_GBP, maxGbp: BEER_MAX_GBP },
         )
-      : drinkFromDrop(line, label, raw.priceGbp, outcome.drop, fact);
+      : drinkFromDrop(own.text, own.label, raw.priceGbp, outcome.drop, fact);
     rememberDrink(drinks, seenDrinks, row);
   }
 }
@@ -656,8 +673,8 @@ function assemblePageFacts(
 ): PageFacts {
   const text = rawLines.join("\n");
   let served: boolean | null = null;
-  if (NO_FOOD.test(text)) served = false;
   if (dishes.length > 0 || SERVES_FOOD.test(text)) served = true;
+  if (NO_FOOD.test(text)) served = false;
   const prices = dishes.map((dish) => dish.priceGbp);
   const hoursRead = parseStatedOpeningHours(markdown);
   const phoneMatch = PHONE_LINE.exec(text);
@@ -777,14 +794,15 @@ export function queueDocument(input: unknown): QueueDocument {
 function keepListedLines(previous: VenueEvidence | undefined, incoming: VenueEvidence): VenueEvidence {
   if (!previous) return incoming;
   const drinks = incoming.drinks.length > 0 ? incoming.drinks : previous.drinks;
-  const food = incoming.food.dishes.length > 0
-    ? incoming.food
-    : previous.food.dishes.length > 0
-      ? previous.food
-      : incoming.food;
+  const served = incoming.food.served !== null ? incoming.food.served : previous.food.served;
+  const food = incoming.food.dishes.length > 0 ? { ...incoming.food, served } : { ...previous.food, served };
   const candidates = incoming.candidates.length > 0 ? incoming.candidates : previous.candidates;
   const website = incoming.website ?? previous.website;
-  return { ...incoming, drinks, food, candidates, website };
+  const amenities = incoming.amenities.length > 0 ? incoming.amenities : previous.amenities;
+  const hours = incoming.hours ?? previous.hours;
+  const phone = incoming.phone ?? previous.phone;
+  const closure = incoming.closure ?? previous.closure;
+  return { ...incoming, drinks, food, candidates, website, amenities, hours, phone, closure };
 }
 
 export function mergeQueue(base: QueueDocument, incoming: readonly VenueEvidence[]): QueueDocument {
@@ -852,8 +870,8 @@ function evidenceFor(
       dishKeys.add(key);
       dishes.push(dish);
     }
-    if (facts.food.served === true) served = true;
-    else if (facts.food.served === false && served !== true) served = false;
+    if (facts.food.served === false) served = false;
+    else if (facts.food.served === true && served !== false) served = true;
     for (const amenity of facts.amenities) {
       if (!amenities.some((row) => row.kind === amenity.kind && row.quote === amenity.quote)) amenities.push(amenity);
     }
@@ -871,7 +889,7 @@ function evidenceFor(
     website: website ? { url: website, sourceUrl: website, seenOn } : null,
     drinks,
     food: {
-      served: dishes.length > 0 ? true : served,
+      served: served === null && dishes.length > 0 ? true : served,
       priceMinGbp: prices.length > 0 ? Math.min(...prices) : null,
       priceMaxGbp: prices.length > 0 ? Math.max(...prices) : null,
       dishes,

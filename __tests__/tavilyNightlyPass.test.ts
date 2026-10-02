@@ -218,6 +218,62 @@ describe("priority", () => {
     ]);
   });
 
+  it("matches a seed neighbourhood in the borough, the name, or the address, not in a pint name", () => {
+    const blue = toNightlyVenue({
+      id: "blue-boar",
+      name: "Blue Boar Pub",
+      borough: "Westminster",
+      cheapestPrice: 6,
+      filterHints: {
+        searchText: "blue boar pub tothill street, westminster, sw1h 9na westminster soho lager",
+      },
+    });
+    const saint = toNightlyVenue({
+      id: "lucky-saint",
+      name: "The Lucky Saint",
+      borough: "Westminster",
+      cheapestPrice: 6,
+      filterHints: {
+        searchText: "the lucky saint 58 devonshire street, marylebone, w1g 7nf westminster camden hells",
+      },
+    });
+    const named = toNightlyVenue({
+      id: "soho-name",
+      name: "The Soho Arms",
+      borough: "Westminster",
+      cheapestPrice: 6,
+      filterHints: { searchText: "the soho arms 1 greek street, w1d 5dh westminster lager" },
+    });
+    const addressed = toNightlyVenue({
+      id: "soho-street",
+      name: "French House",
+      borough: "Westminster",
+      cheapestPrice: 6,
+      filterHints: { searchText: "french house 49 dean street, soho, london, w1d 5dh westminster lager" },
+    });
+    const tail = venue({
+      id: "tail",
+      name: "Blue Boar Pub",
+      borough: "Westminster",
+      priced: true,
+      areaText: "blue boar pub tothill street westminster soho lager",
+    });
+    const thin = venue({
+      id: "thin",
+      name: "Eastbrook",
+      borough: "Barking and Dagenham",
+      postcode: "IG11 7AB",
+      priced: true,
+    });
+    expect(blue && saint && named && addressed).toBeTruthy();
+    const order = selectNightlyVenues(
+      [blue!, saint!, named!, addressed!, tail, thin],
+      { version: 1, lastSeen: {} },
+      { today: "2026-10-01", staleAfterDays: 30, limit: 10 },
+    ).map((row) => row.id);
+    expect(order).toEqual(["soho-name", "soho-street", "thin", "blue-boar", "lucky-saint", "tail"]);
+  });
+
   it("keeps two pubs that share a name apart by postcode", () => {
     const islington = venue({ id: "albion-n1", name: "The Albion", postcode: "N1 1AA", borough: "Islington" });
     const kingston = venue({
@@ -554,9 +610,38 @@ describe("a price stays in the lane the reader gave it", () => {
     expect(facts.drinks.find((row) => row.priceGbp === 3.55)).toBeUndefined();
   });
 
+  it("keeps a sized drink on the same line as a dish and does not file the drink as food", () => {
+    const facts = factsFromPage(
+      "London Pride £5.50 /pint. Burger £12.00\nBurger £12.00. Peroni £5.50 /pint\nHouse Merlot 175ml £14.50. Pie £9.00",
+      pageFact,
+    );
+    expect(facts.drinks.map((row) => `${row.drink}|${row.priceGbp}`).sort()).toEqual([
+      "House Merlot|14.5",
+      "London Pride|5.5",
+      "Peroni|5.5",
+    ]);
+    expect(facts.food.dishes.map((dish) => `${dish.name}|${dish.priceGbp}`).sort()).toEqual([
+      "Burger|12",
+      "Pie|9",
+    ]);
+  });
+
+  it("reads a closed kitchen as not served, including when the line also says our kitchen", () => {
+    const ours = factsFromPage("Our kitchen is closed.\nLondon Pride £5.50 /pint", pageFact);
+    expect(ours.food.served).toBe(false);
+    expect(ours.drinks.map((row) => row.drink)).toContain("London Pride");
+    expect(factsFromPage("The kitchen is closed.", pageFact).food.served).toBe(false);
+    expect(factsFromPage("The kitchen is closed.\nBurger £12.00", pageFact).food).toMatchObject({
+      served: false,
+      dishes: [expect.objectContaining({ name: "Burger", priceGbp: 12 })],
+    });
+    expect(factsFromPage("Our kitchen\nLondon Pride £5.50 /pint", pageFact).food.served).toBe(true);
+  });
+
   it("queues a permanent closure and leaves an open kitchen and a former name alone", () => {
     const open = factsFromPage("The kitchen is now closed.\nFormerly known as The Red Lion.\nLondon Pride £5.50 /pint", pageFact);
     expect(open.closure).toBeNull();
+    expect(open.food.served).toBe(false);
     expect(open.drinks.map((row) => row.drink)).toContain("London Pride");
     const shut = factsFromPage("This pub is permanently closed.\nThe bar is closed for good.", pageFact);
     expect(shut.closure?.quote).toMatch(/permanently closed/i);
@@ -696,6 +781,21 @@ describe("a street is a road name", () => {
       title: "The Lord Nelson",
       content: "9-11 Enfield Road. Pie £9.50",
     }], { ...nelson, street: "9 11 Enfield Road" })).toBe("https://lordnelsonpub.co.uk/menu");
+    expect(chooseOperatorUrl([{
+      url: "https://lordnelsonpub.co.uk/menu",
+      title: "The Lord Nelson",
+      content: "Pie £9.11. Enfield Road parking",
+    }], { ...nelson, street: "9 11 Enfield Road" })).toBeNull();
+    expect(chooseOperatorUrl([{
+      url: "https://lordnelsonpub.co.uk/menu",
+      title: "The Lord Nelson",
+      content: "Burger £12. High Street specials",
+    }], { ...nelson, street: "12 high street" })).toBeNull();
+    expect(chooseOperatorUrl([{
+      url: "https://lordnelsonpub.co.uk/menu",
+      title: "The Lord Nelson",
+      content: "12 High Street. Pie £8",
+    }], { ...nelson, street: "12 high street" })).toBe("https://lordnelsonpub.co.uk/menu");
   });
 });
 
@@ -891,6 +991,67 @@ describe("a night that fails part way", () => {
     });
     expect(later.queue.venues[0].website).toBeNull();
     expect(later.queue.venues[0].candidates).toEqual(["https://thecrown.co.uk/drinks"]);
+  });
+
+  it("keeps hours, phone, amenities and closure when a later page does not restate them", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const site = "https://thecrown-bankside.co.uk/drinks";
+    type Night = Awaited<ReturnType<typeof runNightlyPass>>;
+    const night = (now: Date, queue: Night["queue"], cursor: Night["cursor"], body: string) =>
+      runNightlyPass({
+        venues: [pub],
+        cursor,
+        queue,
+        now,
+        usage: researcher,
+        reserveCredits: 0,
+        manualCap: 10,
+        staleAfterDays: 30,
+        fetchImpl: async (request) => {
+          if (request.kind === "search") {
+            return {
+              results: [{ url: site, title: "The Crown", content: "The Crown, 1 Bankside, SE1 6AN." }],
+              usage: { credits: 1 },
+            };
+          }
+          return { results: [{ url: site, raw_content: body }], usage: { credits: 1 } };
+        },
+      });
+    const first = await night(
+      new Date("2026-09-01T12:00:00.000Z"),
+      listedQueue,
+      { version: 1, lastSeen: {} },
+      "Monday 12pm to 11pm\nCall 020 7946 0991\nBeer garden out the back.\nThis pub is permanently closed.\nBurger £12.00",
+    );
+    expect(first.queue.venues[0].food.dishes.map((dish) => dish.name)).toEqual(["Burger"]);
+    expect(first.queue.venues[0].food.served).toBe(true);
+    expect(first.queue.venues[0].hours?.statedDays).toContain("Monday");
+    expect(first.queue.venues[0].phone?.value).toBe("020 7946 0991");
+    expect(first.queue.venues[0].amenities.map((row) => row.kind)).toContain("beer-garden");
+    expect(first.queue.venues[0].closure?.quote).toMatch(/permanently closed/i);
+    const drinks = await night(oct1, first.queue, first.cursor, "London Pride £5.50 /pint");
+    expect(drinks.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    expect(drinks.queue.venues[0].food.dishes.map((dish) => dish.name)).toEqual(["Burger"]);
+    expect(drinks.queue.venues[0].food.served).toBe(true);
+    expect(drinks.queue.venues[0].hours?.statedDays).toContain("Monday");
+    expect(drinks.queue.venues[0].phone?.value).toBe("020 7946 0991");
+    expect(drinks.queue.venues[0].amenities.map((row) => row.kind)).toContain("beer-garden");
+    expect(drinks.queue.venues[0].closure?.quote).toMatch(/permanently closed/i);
+    const closed = await night(
+      new Date("2026-10-31T12:00:00.000Z"),
+      drinks.queue,
+      drinks.cursor,
+      "The kitchen closed tonight.\nGuinness £5.80 /pint",
+    );
+    expect(closed.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["Guinness"]);
+    expect(closed.queue.venues[0].food.dishes.map((dish) => dish.name)).toEqual(["Burger"]);
+    expect(closed.queue.venues[0].food.served).toBe(false);
+    expect(closed.queue.venues[0].hours?.statedDays).toContain("Monday");
   });
 
   it("saves a finished venue and carries on when a later call fails", async () => {
