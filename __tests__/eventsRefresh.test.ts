@@ -926,11 +926,9 @@ describe("CLI entry point", () => {
   // the Context.dev lane is invisible to every other test here while it kills
   // the CLI at module load. This is the fence for that.
   //
-  // It spawns with the SAME flags the shipped invocations carry, taken from the
-  // one place they are written down, because the lane statically imports a `.ts`
-  // module: under bare `node` it depended on unflagged type stripping (22.18+)
-  // while `engines` admits 22.12, so on 22.12 through 22.17 this fence and the
-  // nightly refresh both died with ERR_UNKNOWN_FILE_EXTENSION.
+  // It spawns with the SAME flags the shipped invocations carry, taken from
+  // EVENTS_REFRESH_NODE_ARGS. The lane statically imports a `.ts` module, so
+  // those flags are the loader contract rather than bare `node` type stripping.
   const packageJson = JSON.parse(
     readFileSync(join(process.cwd(), "package.json"), "utf8"),
   ) as { scripts: Record<string, string> };
