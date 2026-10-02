@@ -19,9 +19,12 @@ test.use({
   serviceWorkers: "block",
 });
 
+function siteNavigation(page: Page) {
+  return page.getByRole("navigation", { name: "Site navigation", exact: true });
+}
+
 function messagesLink(page: Page) {
-  return page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .locator('a[href="/messages"]');
+  return siteNavigation(page).locator('a[href="/messages"]');
 }
 
 function accountForBearer(header: string | undefined): AccountKey | null {
@@ -130,8 +133,8 @@ test("switching accounts clears A's unread badge before B's inbox answers", asyn
   await expect(messagesLink(page)).toHaveAttribute("aria-label", "Messages, 3 unread");
   await expect(messagesLink(page).locator(".siteNavBellBadge")).toHaveText("3");
   expect(messages.reads).toContain("A");
-  const originalLink = await messagesLink(page).elementHandle();
-  if (!originalLink) throw new Error("Mounted A messages link is missing.");
+  const originalNav = await siteNavigation(page).elementHandle();
+  if (!originalNav) throw new Error("Mounted A site navigation is missing.");
 
   messages.holdB();
   try {
@@ -148,20 +151,22 @@ test("switching accounts clears A's unread badge before B's inbox answers", asyn
     await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
     await expect.poll(messages.heldBRequests).toBeGreaterThan(0);
     await expect(page).toHaveURL(/\/today$/);
-    expect(await originalLink.evaluate((link) => link.isConnected)).toBe(true);
+    expect(await originalNav.evaluate((nav) => nav.isConnected)).toBe(true);
+    expect(await siteNavigation(page).evaluate((nav, original) => nav === original, originalNav)).toBe(true);
     await expect(messagesLink(page)).toHaveAttribute("aria-label", "Messages");
     await expect(messagesLink(page).locator(".siteNavBellBadge")).toHaveCount(0);
 
     messages.releaseB();
     // This count was absent while B's response was held, so it proves the
-    // released B body reached the mounted link rather than an old A poll.
+    // released B body reached the current link rather than an old A poll.
     await expect(messagesLink(page)).toHaveAttribute("aria-label", "Messages, 7 unread");
     await expect(messagesLink(page).locator(".siteNavBellBadge")).toHaveText("7");
-    expect(await originalLink.evaluate((link) => link.isConnected)).toBe(true);
+    expect(await originalNav.evaluate((nav) => nav.isConnected)).toBe(true);
+    expect(await siteNavigation(page).evaluate((nav, original) => nav === original, originalNav)).toBe(true);
     expect(messages.rejected).toEqual([]);
   } finally {
     messages.releaseB();
-    await originalLink.dispose();
+    await originalNav.dispose();
   }
 });
 
@@ -176,8 +181,8 @@ test("signing out clears A's unread badge in the existing navigation", async ({ 
   await expect(messagesLink(page)).toHaveAttribute("aria-label", "Messages, 3 unread");
   await expect(messagesLink(page).locator(".siteNavBellBadge")).toHaveText("3");
   expect(messages.reads).toContain("A");
-  const originalLink = await messagesLink(page).elementHandle();
-  if (!originalLink) throw new Error("Mounted A messages link is missing.");
+  const originalNav = await siteNavigation(page).elementHandle();
+  if (!originalNav) throw new Error("Mounted A site navigation is missing.");
 
   try {
     auth.serverSignedInAs(null);
@@ -186,15 +191,16 @@ test("signing out clears A's unread badge in the existing navigation", async ({ 
 
     await expectSdkAccount(page, null);
     await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBeNull();
-    await expect(page.getByRole("navigation", { name: "Site navigation", exact: true })
+    await expect(siteNavigation(page)
       .getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/today$/);
-    expect(await originalLink.evaluate((link) => link.isConnected)).toBe(true);
+    expect(await originalNav.evaluate((nav) => nav.isConnected)).toBe(true);
+    expect(await siteNavigation(page).evaluate((nav, original) => nav === original, originalNav)).toBe(true);
     await expect(messagesLink(page)).toHaveAttribute("aria-label", "Messages");
     await expect(messagesLink(page).locator(".siteNavBellBadge")).toHaveCount(0);
     expect(messages.rejected).toEqual([]);
   } finally {
     messages.releaseB();
-    await originalLink.dispose();
+    await originalNav.dispose();
   }
 });
