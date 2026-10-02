@@ -24,7 +24,7 @@
 import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
+import { profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
   | { allowed: true; reason: "unlinked" | "owner" }
@@ -147,10 +147,7 @@ export async function gateHandleAction(
     );
     // A deleted account keeps its rows and clears the owner. That row, and a
     // handle no account has ever owned, are not a demo inbox.
-    if (
-      options?.requireAccountOwner &&
-      (!callerOwnsHandle || (existing != null && isProfileTombstoned(existing)))
-    ) {
+    if (options?.requireAccountOwner && !callerOwnsHandle) {
       return {
         allowed: false,
         status: 403,
