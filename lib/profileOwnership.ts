@@ -21,7 +21,6 @@
 //     claimed by an account, it can't be hijacked by a self-asserted handle.
 //   • Concurrent creation of the same new handle returns 409.
 
-import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
@@ -155,13 +154,6 @@ export async function gateHandleAction(
     }
     const decision = decideProfileWrite(rowUserId, caller);
     if (!decision.allowed) {
-      if (await isProfileWithdrawnFromPublic(existing)) {
-        return {
-          allowed: false,
-          status: 409,
-          error: "That handle is not available.",
-        };
-      }
       return {
         allowed: false,
         status: decision.status,
@@ -202,5 +194,19 @@ export async function gateHandleAction(
       status: 503,
       error: "Profile storage is unavailable.",
     };
+  }
+}
+
+/** Whether the request's verified bearer owns `handle`. Fail-closed to false. */
+export async function callerOwnsHandle(request: Request, handle: string): Promise<boolean> {
+  const key = normalizeHandle(handle);
+  if (!key) return false;
+  try {
+    const caller = await callerUserId(request);
+    if (!caller) return false;
+    const row = await profileStore().getByHandle(key);
+    return Boolean(row?.userId && row.userId === caller);
+  } catch {
+    return false;
   }
 }
