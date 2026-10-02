@@ -229,9 +229,10 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // can be built per-request with the live nonce.
 //
 // This function is NOT the export Next.js runs - `proxy` at the bottom of this
-// file is. It sends Social APIs here directly and wraps other matched requests
-// with clerkMiddleware(). Keeping the security logic as its own named function
-// lets redirect and CSP tests drive it with no Clerk key or NextFetchEvent.
+// file is. Every `/api` caller comes here directly. Other matched requests go
+// through clerkMiddleware(), whose handler calls this function. Keeping the
+// security logic as its own named function lets redirect and CSP tests drive
+// it with no Clerk key or NextFetchEvent.
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (servesApiCaller(pathname)) {
@@ -543,10 +544,17 @@ export function securityProxy(request: NextRequest) {
 
 // THE SHIPPED ENTRY POINT. Clerk's quickstart says to create proxy.ts with
 // `export default clerkMiddleware()`; this file already existed, so Clerk is
-// COMPOSED with it via clerkMiddleware's handler form for matched non-Social
-// requests. Clerk establishes auth context, then calls securityProxy. Social
-// APIs use Supabase authority and go directly to securityProxy. Neither the
-// canonical-host redirect nor the CSP nonce is lost.
+// COMPOSED with it via clerkMiddleware's handler form. Clerk establishes auth
+// context for the requests that can use it, then calls securityProxy.
+//
+// AN /api CALLER NEVER ENTERS clerkMiddleware. Nothing under app/api reads
+// Clerk auth: ownership stays on the Supabase bearer (`lib/authServer.ts`).
+// `servesApiCaller` is the predicate. It sends every `/api` path, including a
+// document-shaped GET, straight to securityProxy, so a Clerk handshake cannot
+// answer before the trailing-slash redirect, the store refusal, or the route.
+// Documents, `/__clerk` and every other matched path (including `/ingest`,
+// which is not an API route and is not a Clerk consumer) still enter
+// clerkMiddleware. Revisit the predicate when a route first calls `auth()`.
 //
 // WHY A NAMED `proxy` EXPORT AND NOT `export default`:
 // Next.js resolves the userland handler as `mod.proxy || mod.default`
@@ -568,8 +576,7 @@ const clerkSecurityProxy = isClerkMiddlewareConfigured()
 
 export const proxy = clerkSecurityProxy
   ? (request: NextRequest, event: NextFetchEvent) =>
-      request.nextUrl.pathname === "/api/social" ||
-      request.nextUrl.pathname.startsWith("/api/social/")
+      servesApiCaller(request.nextUrl.pathname)
         ? securityProxy(request)
         : clerkSecurityProxy(request, event)
   : securityProxy;
