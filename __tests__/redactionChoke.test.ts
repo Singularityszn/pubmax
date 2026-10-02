@@ -43,12 +43,12 @@ async function publishStoryWithFriend() {
 
   await upsertStoryContributor("host", story!.id, { handle: "jordanx", role: "contributor" });
   await acceptStoryContribution("friend", story!.id);
-  const friendMoment = await addStoryMoment("friend", story!.id, {
+  const friendMoment = await addNightMoment("friend", memory!.id, {
     kind: "photo",
     caption: "My round at the second stop",
     // Photos need author-confirmed alt text to clear the 5.6 publish gate.
     altText: "A tray of drinks at the second bar.",
-  }, { mediaObjectKey: "night-media/friend/1.webp" });
+  }, { allowContributor: true, mediaObjectKey: "night-media/friend/1.webp" });
   await setMomentPublicationConsent("friend", story!.id, friendMoment!.id, "approved");
 
   const proposed = await proposeNightStoryPublication("host", story!.id, {

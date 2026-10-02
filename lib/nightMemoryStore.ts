@@ -1260,17 +1260,13 @@ export async function addStoryMoment(
   actorId: string,
   storyId: string,
   raw: unknown,
-  options: { mediaObjectKey?: string | null } = {},
 ): Promise<NightMoment | null> {
   const [story, members] = await Promise.all([getStoryRaw(storyId), getContributors(storyId)]);
   const accepted = members.some(
     (member) => member.profileId === actorId && member.status === "accepted",
   );
   if (!story || !accepted) return null;
-  return addNightMoment(actorId, story.memoryId, raw, {
-    allowContributor: true,
-    mediaObjectKey: options.mediaObjectKey,
-  });
+  return addNightMoment(actorId, story.memoryId, raw, { allowContributor: true });
 }
 
 export async function setMomentPublicationConsent(
