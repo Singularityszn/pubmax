@@ -53,6 +53,12 @@ vi.mock("@/lib/supabase", () => ({
   checkRateLimitDurableDetailed: async () => ({ verdict: false, reason: "counted" }),
 }));
 
+const voiceBind = vi.hoisted(() => vi.fn(async () => {}));
+
+vi.mock("@/lib/pubPalToolTurnStore", () => ({
+  bindPubPalToolTurn: voiceBind,
+}));
+
 import { POST } from "@/app/api/pub-pal/voice-token/route";
 
 const issueRequest = () => new Request("http://localhost/api/pub-pal/voice-token", { method: "POST" });
@@ -74,6 +80,8 @@ describe("Pub Pal voice token route", () => {
     voiceState.pal.hidden = false;
     voiceState.pal.proposalPreferences = { memories: false, routes: true };
     voiceState.rpc.mockReset();
+    voiceBind.mockReset();
+    voiceBind.mockResolvedValue(undefined);
     voiceState.userId = "11111111-1111-4111-8111-111111111111";
     vi.stubEnv("ELEVENLABS_API_KEY", "server-only-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "pub-pal-agent");
@@ -141,7 +149,7 @@ describe("Pub Pal voice token route", () => {
   it("keeps a directly opened hidden Pal eligible for voice", async () => {
     voiceState.pal.hidden = true;
     voiceState.rpc.mockResolvedValue({ data: true, error: null });
-    const providerFetch = vi.fn(async () => Response.json({ signed_url: "wss://voice.example/session" }));
+    const providerFetch = vi.fn(async () => Response.json({ signed_url: "wss://voice.example/session", conversation_id: "conv_voiceToken01" }));
     vi.stubGlobal("fetch", providerFetch);
 
     const response = await POST(issueRequest());
@@ -158,7 +166,7 @@ describe("Pub Pal voice token route", () => {
     });
     const providerFetch = vi.fn(async () => {
       voiceState.events.push("provider_allocation");
-      return Response.json({ signed_url: "wss://voice.example/session" });
+      return Response.json({ signed_url: "wss://voice.example/session", conversation_id: "conv_voiceToken01" });
     });
     vi.stubGlobal("fetch", providerFetch);
 
@@ -212,7 +220,7 @@ describe("Pub Pal voice token route", () => {
     });
     vi.stubGlobal("fetch", vi.fn(async () => {
       voiceState.events.push("provider_allocation");
-      return Response.json({ signed_url: "wss://voice.example/session" });
+      return Response.json({ signed_url: "wss://voice.example/session", conversation_id: "conv_voiceToken01" });
     }));
 
     const response = await POST(issueRequest());
@@ -226,7 +234,7 @@ describe("Pub Pal voice token route", () => {
 
   it("returns overrides, session cap, and pal-derived prompt fields", async () => {
     voiceState.rpc.mockResolvedValue({ data: true, error: null });
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: "wss://voice.example/session" })));
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: "wss://voice.example/session", conversation_id: "conv_voiceToken01" })));
 
     const response = await POST(issueRequest());
     const body = await response.json();
@@ -239,12 +247,15 @@ describe("Pub Pal voice token route", () => {
       mutationPolicy: "propose_then_confirm",
       retention: "provider_default",
     });
+    expect(body.conversationId).toBe("conv_voiceToken01");
     expect(body.overrides).toMatchObject({
       voiceId: "voice-fox-id",
       firstMessage: expect.stringContaining("Ripley"),
-      systemPrompt: expect.stringMatching(/Getting Home/i),
     });
-    expect(body.overrides.systemPrompt).toContain("propose a fact");
+    expect(body.overrides).not.toHaveProperty("systemPrompt");
+    expect(body.overrides).not.toHaveProperty("dynamicVariables");
+    expect(JSON.stringify(body)).not.toContain("Getting Home");
+    expect(voiceBind).toHaveBeenCalledWith("conv_voiceToken01", voiceState.userId, "london");
     expect(voiceState.rpc).toHaveBeenCalledWith("consume_pub_pal_voice_trial", {
       p_owner_id: voiceState.userId,
       p_month: expect.stringMatching(/^\d{4}-\d{2}-01$/),
@@ -358,7 +369,7 @@ describe("Pub Pal voice token route", () => {
     voiceState.userId = "55555555-5555-4555-8555-555555555555";
     vi.stubGlobal("fetch", vi.fn(async () => {
       voiceState.events.push("provider_allocation");
-      return Response.json({ signed_url: "wss://voice.example/session" });
+      return Response.json({ signed_url: "wss://voice.example/session", conversation_id: "conv_voiceToken01" });
     }));
 
     const response = await POST(issueRequest());
@@ -374,7 +385,7 @@ describe("Pub Pal voice token route", () => {
     const providerFetch = vi
       .fn()
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(Response.json({ signed_url: "wss://voice.example/session" }));
+      .mockResolvedValueOnce(Response.json({ signed_url: "wss://voice.example/session", conversation_id: "conv_voiceToken01" }));
     vi.stubGlobal("fetch", providerFetch);
 
     expect((await POST(issueRequest())).status).toBe(502);
@@ -383,5 +394,46 @@ describe("Pub Pal voice token route", () => {
     expect(recovered.status).toBe(200);
     expect(await recovered.json()).toMatchObject({ remainingMinutes: PAL_VOICE_MONTHLY_MINUTES });
     expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it("releases the reservation when the provider omits a conversation id", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      voiceState.events.push("provider_allocation");
+      return Response.json({ signed_url: "wss://voice.example/session" });
+    }));
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(502);
+    expect(voiceBind).not.toHaveBeenCalled();
+    expect(voiceState.events).toEqual([
+      "consume_pub_pal_voice_trial",
+      "provider_allocation",
+      "release_pub_pal_voice_trial",
+    ]);
+  });
+
+  it("releases the reservation when the conversation cannot be bound", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    voiceBind.mockRejectedValue(new Error("schema missing"));
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      voiceState.events.push("provider_allocation");
+      return Response.json({
+        signed_url: "wss://voice.example/session",
+        conversation_id: "conv_voiceToken01",
+      });
+    }));
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(503);
+    expect(voiceState.events).toContain("release_pub_pal_voice_trial");
   });
 });

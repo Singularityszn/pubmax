@@ -1,2 +1,3 @@
-export const VENUE_ALIASES_FILE: string;
-export const VENUE_ALIASES_TRACING_INCLUDE: string;
+export const CITY_VENUE_ALIASES_FILE: string;
+export const VENUE_ALIAS_FILES: string[];
+export const VENUE_ALIASES_TRACING_INCLUDES: string[];

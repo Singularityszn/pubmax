@@ -4,7 +4,6 @@
 // Pure + browser-safe. Community rows stay category-wide; only menu text and
 // attributed drink-price updates can name a subtype.
 
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import {
   drinkSubtypeFamilyParentId,
@@ -14,7 +13,7 @@ import {
   subtypesForCategory,
   type DrinkSubtype,
 } from "@/lib/drinkSubtypes";
-import { namedLegacyPintPriceSource } from "@/lib/drinks";
+import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/drinks";
 import type { PricedLandingPublisher } from "@/lib/pricedLanding";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
@@ -75,7 +74,7 @@ export function softDrinksWaterChipSelected(
 export type ObservedSubtypePrice = {
   drinkLabel: string;
   priceGbp: number;
-  /** ISO-8601 observation day or instant from the lane that produced the row. */
+  /** ISO-8601 observation day or instant from the lane that produced the row, empty when it states no read. */
   observedAt: string;
   publisher: PricedLandingPublisher | null;
   /** Which lane carried this row, for tests and debugging only. */
@@ -114,11 +113,10 @@ function observedFromVenuePrice(
     return null;
   }
   if (!drinkLabelMatchesSubtype(price.pint_name, subtype)) return null;
-  const observedAt = PINT_DATASET_OBSERVED_AT.toISOString();
   return {
     drinkLabel: price.pint_name,
     priceGbp: price.price_gbp,
-    observedAt,
+    observedAt: legacyPintPriceObservedAt(price) ?? "",
     publisher: namedLegacyPintPriceSource(price),
     lane: "venue-price",
   };

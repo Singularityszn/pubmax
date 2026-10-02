@@ -35,7 +35,7 @@ Variables → Production, Preview). All four are server-only.
 |---|---|
 | `ELEVENLABS_API_KEY` | Account key. Never reaches the browser: `/api/pub-pal/voice-token` mints a short-lived signed session URL instead |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
-| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/tools/{name}` (and the legacy `/api/pub-pal/llm` bridge if still wired). Generate with `openssl rand -hex 32` |
+| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/tools/{name}`. Generate with `openssl rand -hex 32` |
 | `ELEVENLABS_VOICE_ROBIN` … `_CORGI` | One voice id per species (`lib/palElevenLabsVoice.ts`). Create with `npm run pubpal:design-voices` |
 | `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The onboarding voice picks. When the slot for a Pal's pick is set it always wins; the species voice is used only when that slot is empty |
 
@@ -83,25 +83,25 @@ and PATCHes the agent plus workspace webhook tools. Each tool calls
 (stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`), waits up to
 28 seconds for a response (`response_timeout_secs` in the script; the route
 allows 30 seconds via `maxDuration`). Deploying the app alone does not change
-timeout or webhook body schema on an agent that already exists: re-run this
-script with `ELEVENLABS_PUB_PAL_AGENT_ID` set after changing those values.
-Each webhook body requires `conversation_id` populated from ElevenLabs
-`system__conversation_id`. The model does not supply that identifier. The
-[dynamically populated property](https://elevenlabs.io/docs/eleven-agents/api-reference/tools/create)
-uses `dynamic_variable` instead of `description`.
+the system prompt, override grants, webhook schema, or timeout on an existing
+agent. The captain re-runs
+`npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those changes.
+Do not run that command from an agent session. Each webhook body requires
+`conversation_id` populated from ElevenLabs `system__conversation_id`; the
+model does not supply that identifier.
 
 Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Its
 answer comes from tool-authored hints, cards and proposals. If a completed agent
-reply has no correlated receipt, the existing grounded Ask registry recovers
-those results from the full question and recent turns. It never uses provider
-prose as a fallback. Durable-store registration failures still refuse the turn.
+reply has no correlated receipt, the grounded Ask registry recovers those
+results from the full question and the signed-in owner's stored earlier asks.
+It never uses provider prose as a fallback. Durable-store registration failures
+still refuse the turn.
 
 `lib/palChatDeadline.ts` owns the 28-second total server response budget,
 the 5-second signed-URL fetch limit and the 32-second browser timeout.
 
-After an authorised provider update, run the live proof.
+After an authorised provider update, run the live proof:
 `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
-Deploying this source does not update an existing agent's webhook schema.
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).

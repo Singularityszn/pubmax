@@ -32,6 +32,8 @@ export type TonightCheapPint = {
   priceGbp: number;
   /** The chain that runs the pub, or null. The list holds one row per chain. */
   chain: TonightChainLaneKey | null;
+  /** When that cheapest pint was last read at its source. Absent or null when it records none. */
+  observedAt?: string | null;
 };
 
 export type TonightCheapPintCandidate = {
@@ -39,6 +41,7 @@ export type TonightCheapPintCandidate = {
   name: string;
   primaryBorough: string;
   cheapestPrice: number | null;
+  observedAt?: string | null;
   chain?: TonightChainLaneKey | null;
 };
 
@@ -156,6 +159,7 @@ export function tonightCheapPints(
       borough: venue.primaryBorough,
       priceGbp: venue.cheapestPrice,
       chain: venue.chain ?? null,
+      observedAt: venue.observedAt ?? null,
     });
   }
   rows.sort((left, right) => {

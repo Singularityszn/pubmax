@@ -163,7 +163,7 @@ export function builtStopsAskedAfter(
   return next;
 }
 
-export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable";
+export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable" | "retired";
 
 export function detailStatusFor(
   selectedVenueId: string,
@@ -171,11 +171,21 @@ export function detailStatusFor(
   detailStatusById: Map<string, VenueDetailStatus>,
 ): VenueDetailStatus {
   if (!selectedVenueId) return "idle";
-  if (detailById.has(selectedVenueId)) return "ready";
+  const detail = detailById.get(selectedVenueId);
+  if (detail) return detail.retired ? "retired" : "ready";
   return detailStatusById.get(selectedVenueId) ?? "loading";
 }
 
-export type MapSelectionNotice = "unknown" | "lookup-failed";
+/** The name a selected retired pub's notice prints, or null when the selection is not one. */
+export function retiredSelectionNameFor(
+  selectedVenueId: string,
+  detailById: Map<string, Venue>,
+): string | null {
+  const detail = detailById.get(selectedVenueId);
+  return detail?.retired ? detail.name : null;
+}
+
+export type MapSelectionNotice = "unknown" | "lookup-failed" | "retired";
 
 export const MAP_SELECTION_NOTICE_PARAM = "mapNotice";
 
@@ -194,12 +204,28 @@ export function mapSelectionNotice(input: {
   if (!input.loaded || !input.selectedVenueId || input.ukBase || input.resolvable) return null;
   if (input.detailStatus === "missing") return "unknown";
   if (input.detailStatus === "unavailable") return "lookup-failed";
+  if (input.detailStatus === "retired") return "retired";
   return null;
 }
 
 /** Visible copy for an unknown `?sel=` - empty-state voice, no plumbing. */
 export const UNKNOWN_MAP_SELECTION_NOTE = "That pub is not one we know.";
 export const MAP_SELECTION_LOOKUP_FAILED_NOTE = "We could not check that pub right now.";
+
+/**
+ * Visible copy for a `?sel=` naming a pub that left OpenStreetMap. A saved pub,
+ * a drop or a crawl stop links here, so the link lands on what we know.
+ */
+function retiredMapSelectionNote(name: string): string {
+  return `${name} is no longer on the map. It may have closed.`;
+}
+
+/** The copy a selection notice prints. */
+export function mapSelectionNoticeCopy(notice: MapSelectionNotice, retiredName: string | null): string {
+  if (notice === "unknown") return UNKNOWN_MAP_SELECTION_NOTE;
+  if (notice === "retired" && retiredName) return retiredMapSelectionNote(retiredName);
+  return MAP_SELECTION_LOOKUP_FAILED_NOTE;
+}
 
 export function venueUpdateKey(venue: Venue): string {
   const firstPrice = venue.prices[0];

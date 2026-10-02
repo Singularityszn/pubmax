@@ -576,6 +576,7 @@ function wineSectionPrices(html: string): Map<number, { text: string; raw: UkPri
   const prices = new Map<number, { text: string; raw: UkPriceRawCandidate }>();
   if (!/(?:\bmenubox\b|<section\b|<article\b)/i.test(html)) return prices;
   const document = parse(html, { sourceCodeLocationInfo: true });
+  const paragraphs: { start: number; end: number; text: string }[] = [];
 
   function visit(node: HtmlNode): void {
     if (isHtmlElement(node) && isMenuSection(node)) {
@@ -595,22 +596,59 @@ function wineSectionPrices(html: string): Map<number, { text: string; raw: UkPri
           );
         } else if (item.tagName === "p" && inWineSection) {
           const location = item.sourceCodeLocation;
-          if (!location?.endOffset) continue;
-          const first = findUkPriceCandidates(pageText(html.slice(0, location.startOffset))).length;
-          const text = pageText(html.slice(
-            location.startOffset,
-            location.endOffset,
-          ), true);
-          for (const [index, raw] of findUkPriceCandidates(text).entries()) {
-            prices.set(first + index, { text, raw });
-          }
+          if (location?.startOffset == null || !location.endOffset) continue;
+          paragraphs.push({
+            start: location.startOffset,
+            end: location.endOffset,
+            text: pageText(html.slice(location.startOffset, location.endOffset), true),
+          });
         }
       }
     }
     for (const child of htmlChildren(node)) visit(child);
   }
   visit(document);
+
+  // One left-to-right pass. Recounting page text from byte 0 at every wine
+  // paragraph was quadratic: a 152 KB list spent seconds before it priced.
+  paragraphs.sort((left, right) => left.start - right.start);
+  let cursor = 0;
+  let carry = "";
+  let prefixCount = 0;
+  for (const paragraph of paragraphs) {
+    if (paragraph.start < cursor) continue;
+    const counted = countStablePrefixPrices(carry + html.slice(cursor, paragraph.start));
+    prefixCount += counted.count;
+    carry = counted.carry;
+    for (const [index, raw] of findUkPriceCandidates(paragraph.text).entries()) {
+      prices.set(prefixCount + index, { text: paragraph.text, raw });
+    }
+    cursor = paragraph.start;
+  }
   return prices;
+}
+
+/**
+ * How many complete £ figures sit in `raw`, and the unfinished tail.
+ *
+ * A prefix that ends on `£` has not stated a price yet. Carrying that tail
+ * into the next gap keeps a figure whose pound sign and digits straddle a
+ * cut in the count, without rereading the bytes already passed.
+ */
+function countStablePrefixPrices(raw: string): { count: number; carry: string } {
+  const text = pageText(raw);
+  const incomplete = /£\s?$/.exec(text);
+  const stable = incomplete ? text.slice(0, incomplete.index ?? text.length) : text;
+  const count = findUkPriceCandidates(stable).length;
+  if (!incomplete) return { count, carry: "" };
+  const lower = raw.toLowerCase();
+  const poundAt = Math.max(
+    raw.lastIndexOf("£"),
+    lower.lastIndexOf("&pound;"),
+    lower.lastIndexOf("&#163;"),
+    lower.lastIndexOf("&#xa3;"),
+  );
+  return { count, carry: poundAt >= 0 ? raw.slice(poundAt) : "" };
 }
 
 /**

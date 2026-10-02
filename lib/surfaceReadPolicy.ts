@@ -87,6 +87,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/adminSessionClient.ts", fetchCount: 1, reason: "admin session transport must confirm the browser kept the secure session cookie" },
   { path: "lib/authedFetch.ts", fetchCount: 5, reason: "shared graceful and strict bearer transports serve auth-gated actions and public reads" },
   { path: "lib/savedPubs.ts", fetchCount: 2, reason: "saved-list reads are private viewer context with their own mutation-sensitive state" },
+  { path: "lib/venueAliasMap.ts", fetchCount: 1, reason: "the static venue-id alias artifacts are read once per page to resolve ids the browser stored itself, never a painted reload read" },
   { path: "lib/heritage.ts", fetchCount: 1, reason: "heritage question is a user-submitted request, not a painted reload surface" },
   { path: "lib/posthogServer.ts", fetchCount: 2, reason: "server-side PostHog capture, fire-and-forget telemetry reached through lib/heritage.ts's model-call tracing, never painted data" },
   { path: "lib/pois.ts", fetchCount: 1, reason: "map POI pack is static viewport data with map-owned lifecycle" },

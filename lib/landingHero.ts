@@ -17,7 +17,7 @@
 // `?locate=1` is the geolocation ask and it rides a deliberate tap alone.
 
 import { namedLegacyPintPriceSource } from "@/lib/legacyPintPriceSource";
-import type { LegacyPintPrice } from "@/lib/drinks";
+import { legacyPintPriceObservedAt, legacyPintPriceObservedOn, type LegacyPintPrice } from "@/lib/drinks";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceStandingFor, type PriceStanding } from "@/lib/priceTier";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -179,34 +179,43 @@ export type AnswerPublisher = { label: string; url: string };
 
 /**
  * THE ONE place the card's publisher and standing are read off a pub's price
- * rows: the first row naming a public page is the publisher, and the standing
- * is what `priceStandingFor` says about that page and the collection day. The
+ * rows: the row naming a public page is the publisher, preferring the one that
+ * carries the printed figure, and the standing is what `priceStandingFor` says
+ * about that page and the day THAT ROW was last read at its source. The
  * prerendered anchor and a near-you swap both come through here, so a pub
  * cannot read one way at build and another after a tap.
+ *
+ * The day is the row's own, never the dataset's collection day: a
+ * re-collection re-reads only the rows its source still states, and a row it
+ * did not read keeps the day it was read. A row that records no read cannot
+ * claim a listing.
  */
 export function answerEvidenceFor(
-  input: { priceGbp: number; prices: readonly LegacyPintPrice[]; collectedOn: string },
+  input: { priceGbp: number; prices: readonly LegacyPintPrice[] },
   now: number = Date.now(),
-): { publisher: AnswerPublisher | null; standing: PriceStanding } {
-  let publisher: AnswerPublisher | null = null;
+): { publisher: AnswerPublisher | null; standing: PriceStanding; observedOn: string | null } {
+  let evidence: { row: LegacyPintPrice; publisher: AnswerPublisher } | null = null;
   for (const row of input.prices) {
     const named = namedLegacyPintPriceSource(row);
-    if (named) {
-      publisher = { label: named.label, url: named.url };
-      break;
+    if (!named) continue;
+    const carriesFigure =
+      typeof row.price_gbp === "number" && Math.abs(row.price_gbp - input.priceGbp) < 0.005;
+    if (!evidence || carriesFigure) {
+      evidence = { row, publisher: { label: named.label, url: named.url } };
     }
+    if (carriesFigure) break;
   }
+  const publisher = evidence?.publisher ?? null;
+  const observedAt = evidence ? legacyPintPriceObservedAt(evidence.row) : null;
+  const observedOn = evidence ? legacyPintPriceObservedOn(evidence.row) : null;
   const { standing } = priceStandingFor(
     {
-      listed: publisher
-        ? {
-            priceGbp: input.priceGbp,
-            sourceUrl: publisher.url,
-            observedAt: `${input.collectedOn}T12:00:00.000Z`,
-          }
-        : null,
+      listed:
+        publisher && observedAt
+          ? { priceGbp: input.priceGbp, sourceUrl: publisher.url, observedAt }
+          : null,
     },
     now,
   );
-  return { publisher, standing };
+  return { publisher, standing, observedOn };
 }

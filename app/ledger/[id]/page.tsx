@@ -213,7 +213,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // answered BEFORE the not-found card, or the card swallows it.
   const read = await lookupVenueDetail(id, { includeHarvestOverlay: false });
   if (read.status === "unavailable") return <LedgerReadUnavailable id={id} />;
-  if (read.status === "missing") return <NotInTheLedger />;
+  if (read.status !== "found") return <NotInTheLedger />;
   const { venue } = read;
   // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
   const nonce = (await headers()).get("x-nonce") ?? undefined;

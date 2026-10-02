@@ -10,17 +10,22 @@ import {
   type PalCard,
 } from "@/lib/palChat";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
+import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { answerFromBody } from "@/lib/conciergeAskClient";
 import { PAL_CHAT_CLIENT_TIMEOUT_MS } from "@/lib/palChatDeadline";
+import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 
 export type PalChatResult =
   | (PalAnswer & { proposals: AskProposal[] })
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; needsSignIn?: boolean };
 
 type SessionOptions = {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 };
+
+const signedInFetch: typeof fetch = (input, init) =>
+  authedActionFetch(input, init ?? {}, { requiresIdentity: true });
 
 function askBodyToPal(body: unknown): PalChatResult {
   // Prefer the Ask agent shape when present.
@@ -89,9 +94,10 @@ function askBodyToPal(body: unknown): PalChatResult {
  */
 export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_CLIENT_TIMEOUT_MS;
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = options.fetchImpl ?? signedInFetch;
   let currentId = 0;
   const turns: AskTurn[] = [];
+  let threadId = "";
 
   return async function ask(
     query: string,
@@ -111,6 +117,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
             query,
             cityId,
             turns: turns.slice(-6),
+            ...(threadId ? { threadId } : {}),
           }),
           signal: controller.signal,
         });
@@ -128,18 +135,29 @@ export function createPalChatSession(options: SessionOptions = {}) {
           status: "error",
           message:
             typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
+          ...(response.status === 401 ? { needsSignIn: true } : {}),
         };
       }
       const result = askBodyToPal(body);
+      const conversationId =
+        body && typeof body === "object" && !Array.isArray(body)
+          ? (body as Record<string, unknown>).conversationId
+          : undefined;
+      if (typeof conversationId === "string" && isPubPalConversationId(conversationId)) {
+        threadId = conversationId;
+      }
       if (result.status !== "error") {
         turns.push({ role: "user", content: query });
         turns.push({ role: "assistant", content: result.message });
         while (turns.length > 6) turns.shift();
       }
       return result;
-    } catch {
+    } catch (error) {
       if (requestId !== currentId) return null;
-      return { status: "error", message: PAL_ERROR_FALLBACK };
+      return {
+        status: "error",
+        message: error instanceof AuthActionSessionError ? error.message : PAL_ERROR_FALLBACK,
+      };
     }
   };
 }

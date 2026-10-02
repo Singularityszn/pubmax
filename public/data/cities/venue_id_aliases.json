@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "generatedBy": "scripts/fetch_city_osm_pubs.mjs",
+  "note": "supersededVenueId -> currentVenueId. A city venue id is derived from the pub's name, address and point, so an OpenStreetMap edit to any of them gives the same pub a new id. Every pack refresh records the id it superseded here, keyed by the same OSM object or, when OSM redrew the pub as a new object, the same name within 30 m. A pub that left OpenStreetMap with no successor is kept under `retired` with its name, area and last point, so a stored reference to it still names that pub, noted as possibly closed, while it stays off the map. A stored reference resolves via lib/venueAliases.ts; no id is ever deleted silently.",
+  "aliasCount": 29,
+  "aliases": {
+    "venue-bhm-15qgr2h": "venue-bhm-14c7pn",
+    "venue-bhm-16cn0hu": "venue-bhm-1nz8z23",
+    "venue-bhm-1bgl6up": "venue-bhm-1u568cx",
+    "venue-bhm-1dcnn9g": "venue-bhm-1v05xeq",
+    "venue-bhm-1g1yqcn": "venue-bhm-1xdarz3",
+    "venue-bhm-1hr0cry": "venue-bhm-15g96tv",
+    "venue-bhm-1lido3k": "venue-bhm-1rqys6a",
+    "venue-bhm-1pdx0s3": "venue-bhm-1rwtpds",
+    "venue-bhm-1prkxup": "venue-bhm-ze3n6i",
+    "venue-bhm-1psgclk": "venue-bhm-qh0b0s",
+    "venue-bhm-1re8mvd": "venue-bhm-ykdddh",
+    "venue-bhm-1rydym1": "venue-bhm-f3qqc",
+    "venue-bhm-1ywoqmo": "venue-bhm-61ho2r",
+    "venue-bhm-275a21": "venue-bhm-1whwlul",
+    "venue-bhm-3jmhdr": "venue-bhm-qvyo46",
+    "venue-bhm-7950ml": "venue-bhm-1k52xvp",
+    "venue-bhm-b4vszt": "venue-bhm-auw7au",
+    "venue-bhm-bxna3r": "venue-bhm-gjhb9x",
+    "venue-bhm-fnmdfb": "venue-bhm-1mr0dun",
+    "venue-bhm-h2s4qa": "venue-bhm-16z2lco",
+    "venue-bhm-j0ow0r": "venue-bhm-sxd3co",
+    "venue-bhm-kxunff": "venue-bhm-1rflr6e",
+    "venue-bhm-nbpf4m": "venue-bhm-1bpxhpv",
+    "venue-bhm-patwgk": "venue-bhm-1kdlna2",
+    "venue-bhm-vfngfb": "venue-bhm-5uirrm",
+    "venue-bhm-wd9lbo": "venue-bhm-z9eytm",
+    "venue-bhm-xatdod": "venue-bhm-l9vmy5",
+    "venue-lds-2cikxm": "venue-lds-lujzy1",
+    "venue-lds-rpafnw": "venue-lds-tn7nip"
+  },
+  "retired": {
+    "venue-bhm-17j3xm7": {
+      "name": "The Duck",
+      "area": "Birmingham",
+      "lat": 52.471534,
+      "lng": -1.9396181
+    },
+    "venue-bhm-18ifo1q": {
+      "name": "Thurston",
+      "area": "Birmingham",
+      "lat": 52.5034911,
+      "lng": -1.8721211
+    },
+    "venue-bhm-1blfszl": {
+      "name": "The Puffing Billy",
+      "area": "Birmingham",
+      "lat": 52.4889682,
+      "lng": -1.9542979
+    },
+    "venue-bhm-sqd3gk": {
+      "name": "Fox and Chance",
+      "area": "Birmingham",
+      "lat": 52.4790615,
+      "lng": -1.9016428
+    },
+    "venue-bhm-wqgwlk": {
+      "name": "The Village Inn",
+      "area": "Birmingham",
+      "lat": 52.4724444,
+      "lng": -1.8945414
+    },
+    "venue-bhm-y7p3wr": {
+      "name": "Henman & Cooper",
+      "area": "Birmingham",
+      "lat": 52.4805733,
+      "lng": -1.9013195
+    }
+  }
+}

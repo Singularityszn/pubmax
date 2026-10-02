@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
@@ -132,6 +133,7 @@ export default async function TonightPage() {
           name: venue.name,
           primaryBorough: venue.primaryBorough,
           cheapestPrice: venue.cheapestPrice,
+          observedAt: venueCheapestPintObservedAt(venue),
           chain: tonightCheapPintChain(venue, wetherspoonVenueIds),
         })),
       )}

@@ -151,6 +151,65 @@ function generatedVenue(
   };
 }
 
+async function prepareWineValueSearch(now: number) {
+  // Price validation uses the real quote reader and its own clock. Keep that
+  // clock at daytime so the injected night clock remains independently tested.
+  const daytime = new Date(now);
+  daytime.setUTCHours(12, 0, 0, 0);
+  const clockNow = daytime.getTime();
+  const clock = vi.spyOn(Date, "now").mockReturnValue(clockNow);
+  const observedAt = new Date(Math.min(now, clockNow) - 1_000).toISOString();
+  const previousRows = listedBundleFixture.rows;
+  const previousStatus = listedBundleFixture.status;
+  const previousCoverage = listedBundleFixture.indexCoverage;
+  const resolution = vi.spyOn(anchorResolution, "resolvePlanningAnchor").mockResolvedValue({
+    status: "resolved",
+    display: { venueId: "v1", venueName: "Venue v1", areaName: "Clapham", startLabel: null,
+      priceEvidence: null, routeWindowOk: true, budgetCompatible: true, accessibilityCompatible: true },
+    canonical: { cityId: "london", venueId: "v1", nightAreaSlug: "clapham",
+      acceptedArea: { kind: "night-patch", id: "clapham" }, coordinates: { lat: 51.463, lng: -0.137 },
+      startsAt: null, priceObservedAt: null, priceFreshnessKind: "unknown" },
+  });
+  try {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1", { cheapestPrice: 4 }),
+      generatedVenue("v2", { cheapestPrice: 6 }),
+      generatedVenue("v3", { cheapestPrice: 3 }),
+    ]);
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+    listedBundleFixture.rows = [["v1", 9], ["v2", 7]].map(([venueId, priceGbp]) => ({
+      venueId: String(venueId), name: `Venue ${venueId}`, category: "wine", priceGbp: Number(priceGbp),
+      drinkLabel: `Named wine ${venueId}`, servingSize: "125ml", lane: "site-harvest", standing: "listed",
+      sourceUrl: `https://pub.example/${venueId}/wine`, observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null,
+    }));
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.indexCoverage = null;
+    return await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "cheap 125ml wine in Clapham for 2",
+        anchor: { venueId: "v1", source: "pal", acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null,
+          selectedDrinkPriceEvidence: { category: "wine", pence: 900, serving: "125ml", source: "listed",
+            sourceUrl: "https://pub.example/v1/wine", observedAt } },
+      }),
+    }), now);
+  } finally {
+    listedBundleFixture.rows = previousRows;
+    listedBundleFixture.status = previousStatus;
+    listedBundleFixture.indexCoverage = previousCoverage;
+    resolution.mockRestore();
+    clock.mockRestore();
+  }
+}
+
 describe("POST /api/plans/generate", () => {
   beforeEach(() => {
     isLimitedMock.mockClear();
@@ -341,6 +400,48 @@ describe("POST /api/plans/generate", () => {
       listedBundleFixture.rows = previousListedRows;
       clock.mockRestore();
     }
+  });
+
+  it("joins trusted wine prices into value ranking without using pint prices", async () => {
+    // The dataset stamp is 13:00 London, so the distance weight is two and
+    // the cheaper comparable glass leads.
+    const result = await prepareWineValueSearch(PLAN_GENERATION_TEST_NOW);
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context.daypart).toBe("daytime");
+    expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £7.00");
+    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+  });
+
+  it("ranks the nearer dearer wine first after 23:00 London", async () => {
+    // 23:30 London is get_home. The distance weight is three, so v1's shorter
+    // walk outranks v2's cheaper glass. v3 still has only one corroboration.
+    const lateNight = Date.parse("2026-07-16T22:30:00.000Z");
+    const result = await prepareWineValueSearch(lateNight);
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context.daypart).toBe("get_home");
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v1", "v2", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £9.00");
+    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+  });
+
+  it("ranks the nearer dearer wine first in the London small hours", async () => {
+    // 02:30 London is still last night's late_night, with the same distance weight.
+    const smallHours = Date.parse("2026-07-17T01:30:00.000Z");
+    const result = await prepareWineValueSearch(smallHours);
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context.daypart).toBe("late_night");
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v1", "v2", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £9.00");
   });
 
   it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {
