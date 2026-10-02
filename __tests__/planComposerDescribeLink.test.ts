@@ -903,4 +903,53 @@ describe("accepted Stop 1 description generation", () => {
     expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
     expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
   });
+
+  it.each(["anchor conflict", "zero matches"])("ends the refreshing status after %s and permits a retry", async (outcome) => {
+    const message = outcome === "anchor conflict"
+      ? "We could not build a route from that pub right now. Try a different pub."
+      : "No venues matched that ask. Try a nearby area or a broader mood.";
+    let finishRequest: ((response: Response) => void) | undefined;
+    let requests = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([swissCottage]);
+      requests += 1;
+      if (requests === 1) {
+        return new Promise<Response>((resolve) => { finishRequest = resolve; });
+      }
+      return Response.json({ ...DEFAULT_GENERATE_BODY, stops: generatedStops });
+    }));
+    expect(writePlanningIntent({
+      source: "pal", cityId: "london", acceptedVenueId: swissCottage.id,
+      acceptedArea: { kind: "night-patch", id: "camden" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, { storage: sessionStorage })).not.toBeNull();
+    await mountComposer();
+    const validationMessage = document.querySelector(".planComposer__error")?.textContent;
+    await act(async () => {
+      typeInto("#plan-concierge-query", ask);
+      clickButton("Make a plan");
+    });
+    expect(requests).toBe(1);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Refreshing the route");
+    expect(finishRequest).toBeTypeOf("function");
+    await act(async () => {
+      finishRequest!(Response.json(outcome === "anchor conflict"
+        ? { outcome: "anchor-conflict", stops: [], message }
+        : { stops: [] }));
+    });
+    await settleComposerEffects();
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(1);
+    expect(document.querySelector<HTMLInputElement>("#venue-name-1")?.value).toBe(swissCottage.name);
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe(`The previous route is still here. ${message}`);
+    expect(document.querySelector("#plan-route-status")?.textContent).not.toContain("Refreshing");
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(document.querySelector(".planComposer__error")?.textContent).toBe(validationMessage);
+    await act(async () => { clickButton("Make a plan"); });
+    await settleComposerEffects();
+    expect(requests).toBe(2);
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+  });
 });

@@ -1839,13 +1839,18 @@ function PlanComposerForm({
         // Answered 200 with no Stops on purpose: the kept pub is what is in the
         // way, and only the server knows which check refused it.
         setConciergeNote(anchorConflict);
+        setRouteStale(true);
+        setRouteStatus(planGenerationFailureStatus(anchorConflict, stops.length > 0));
         return;
       }
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) {
         // Zero matches is guidance, not failure (friction sweep follow-up 9):
         // the polite status slot, never the red error banner.
-        setConciergeNote("No venues matched that ask. Try a nearby area or a broader mood.");
+        const guidance = "No venues matched that ask. Try a nearby area or a broader mood.";
+        setConciergeNote(guidance);
+        setRouteStale(true);
+        setRouteStatus(planGenerationFailureStatus(guidance, stops.length > 0));
         return;
       }
       setStops(suggested);
