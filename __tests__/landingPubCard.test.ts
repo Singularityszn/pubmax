@@ -10,7 +10,13 @@ import type { Venue } from "@/lib/venues";
 
 const NOW = Date.UTC(2026, 8, 3, 12);
 
-function venue(id: string, name: string, price: number | null, pubUrl = "https://www.pint-prices.com/pub/x"): Venue {
+function venue(
+  id: string,
+  name: string,
+  price: number | null,
+  pubUrl = "https://www.pint-prices.com/pub/x",
+  readAt = "2026-07-03T23:10:47+00:00",
+): Venue {
   return {
     id,
     name,
@@ -36,6 +42,7 @@ function venue(id: string, name: string, price: number | null, pubUrl = "https:/
         rank_visible_borough: "",
         estimated_average_price_text: "",
         pub_url: pubUrl,
+        scraped_at_values: readAt,
         constructed_pub_url: "",
         borough_urls: "",
         phone_number: "",
@@ -117,6 +124,8 @@ describe("landing pub card", () => {
       // The house publisher label for that host (lib/drinks.ts), never the URL.
       publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
       collectedOn: "2026-07-03",
+      // The day the publisher's own row was read, which the card prints.
+      observedOn: "2026-07-03",
       // lib/priceTier.ts: a published price with a public page inside its window.
       standing: "listed",
       then: {
@@ -162,10 +171,12 @@ describe("landing pub card", () => {
   });
 
   it("lets a listed price expire: past a year the standing is none, the figure still prints", () => {
+    // The dataset was collected this summer, but this row was last read in
+    // 2024: its own day decides, not the collection day.
     const card = buildLandingPubCard(
-      [venue("venue-a", "Old Menu", 5)],
+      [venue("venue-a", "Old Menu", 5, "https://www.pint-prices.com/pub/x", "2024-01-01T12:00:00Z")],
       history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),
-      { collectedOn: "2024-01-01", now: NOW },
+      { collectedOn: "2026-07-03", now: NOW },
     );
     expect(card?.standing).toBe("none");
     expect(card?.priceGbp).toBe(5);

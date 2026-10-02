@@ -224,10 +224,13 @@ async function enrich(stored: StoredStory): Promise<DurableStory> {
       .sort((a, b) => a.position - b.position)
       .map(async (stop) => {
         const ref = await resolveVenue(stop.venueId);
+        // A stop stored under a merged or superseded id links the id the
+        // venue carries now, which is the one the map can open.
+        const venueId = ref?.id ?? stop.venueId;
         return {
-          venueId: stop.venueId,
+          venueId,
           venueName: ref?.name ?? "A London pub",
-          venueMapUrl: venueMapUrl(stop.venueId),
+          venueMapUrl: venueMapUrl(venueId),
           priceGbp: stop.priceGbp ?? null,
           ...(stop.note ? { note: stop.note } : {}),
           position: stop.position,

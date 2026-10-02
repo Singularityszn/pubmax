@@ -63,6 +63,8 @@ export type LandingPubCardData = {
   publisher: { label: string; url: string } | null;
   /** ISO day the bundled dataset was collected. */
   collectedOn: string;
+  /** ISO day the publisher's own row was last read at its source, or null when no row records one. */
+  observedOn: string | null;
   /**
    * How far to trust the figure, decided by lib/priceTier.ts and never here:
    * a listed price with a public page inside its window reads `listed`; a
@@ -122,8 +124,8 @@ export function buildLandingPubCard(
   const arc = venuePriceArc(history.get(chosen.id) ?? [], chosen.cheapestPrice, now);
   if (!arc || arc.nowGbp === null || arc.deltaGbp === null) return null;
 
-  const { publisher, standing } = answerEvidenceFor(
-    { priceGbp: arc.nowGbp, prices: chosen.prices, collectedOn: opts.collectedOn },
+  const { publisher, standing, observedOn } = answerEvidenceFor(
+    { priceGbp: arc.nowGbp, prices: chosen.prices },
     now,
   );
 
@@ -136,6 +138,7 @@ export function buildLandingPubCard(
     drinkHref: drinkHrefFor(chosen, venues),
     publisher,
     collectedOn: opts.collectedOn,
+    observedOn,
     standing,
     then: {
       priceGbp: arc.then.priceGbp,

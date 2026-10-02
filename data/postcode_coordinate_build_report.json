@@ -336,7 +336,7 @@
   ],
   "output": {
     "path": "data/pint_prices_app_dataset.csv",
-    "sha256": "ba28535423f468f285cb97d7bfc7ce6f834c50523cffe49fa91572b6bbf48c16",
+    "sha256": "9beff33ce357748df7ac3d78cbb726f3cb5f34fb118d554943746260c8bafc83",
     "rows": 3084
   }
 }

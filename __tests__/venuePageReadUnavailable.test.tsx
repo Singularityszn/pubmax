@@ -16,6 +16,8 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
+
 vi.mock("server-only", () => ({}));
 const venueLookup = vi.hoisted(() => ({ throwNext: false }));
 
@@ -176,12 +178,12 @@ describe.each([
     expect(failed.robots).toEqual({ index: false, follow: false });
     expect(aliases.reads).toBe(2);
 
-    // The failure was not cached: the file is readable again, and this request
-    // opens it and finds the pub.
+    // The failure was not cached: the files are readable again, and this
+    // request opens every alias file and finds the pub.
     aliases.fail = false;
     const found = await metadata({ params: Promise.resolve({ id: venue.id }) });
     expect(String(found.title)).toContain(venue.name);
-    expect(aliases.reads).toBe(3);
+    expect(aliases.reads).toBe(2 + VENUE_ALIAS_FILES.length);
   });
 
   it("answers a missing id with the not-found card", async () => {

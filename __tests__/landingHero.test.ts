@@ -108,27 +108,122 @@ describe("landing hero policy", () => {
         priceGbp: 6.5,
         prices: [
           { app_price_id: "p1", pint_name: "X", price_gbp: 6.5 },
-          { app_price_id: "p2", pint_name: "PRAVHA", price_gbp: 6.5, pub_url: "https://www.pint-prices.com/pub/x" },
+          {
+            app_price_id: "p2",
+            pint_name: "PRAVHA",
+            price_gbp: 6.5,
+            pub_url: "https://www.pint-prices.com/pub/x",
+            scraped_at_values: "2026-07-03T23:10:47+00:00",
+          },
         ],
-        collectedOn: "2026-07-03",
       },
       NOW,
     );
     expect(named).toEqual({
       publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
       standing: "listed",
+      observedOn: "2026-07-03",
     });
     const unnamed = answerEvidenceFor(
-      { priceGbp: 6.5, prices: [{ app_price_id: "p1", pint_name: "X", price_gbp: 6.5 }], collectedOn: "2026-07-03" },
+      { priceGbp: 6.5, prices: [{ app_price_id: "p1", pint_name: "X", price_gbp: 6.5 }] },
       NOW,
     );
-    expect(unnamed).toEqual({ publisher: null, standing: "none" });
+    expect(unnamed).toEqual({ publisher: null, standing: "none", observedOn: null });
     // A listing past its window falls to none, however good its page.
     const stale = answerEvidenceFor(
-      { priceGbp: 6.5, prices: [{ app_price_id: "p1", pint_name: "X", price_gbp: 6.5, pub_url: "https://www.pint-prices.com/pub/x" }], collectedOn: "2024-07-03" },
+      {
+        priceGbp: 6.5,
+        prices: [
+          {
+            app_price_id: "p1",
+            pint_name: "X",
+            price_gbp: 6.5,
+            pub_url: "https://www.pint-prices.com/pub/x",
+            scraped_at_values: "2024-07-03T12:00:00Z",
+          },
+        ],
+      },
       NOW,
     );
     expect(stale.standing).toBe("none");
+  });
+
+  it("dates a listing by the day its own row was read, never by a later re-collection", () => {
+    // Two pubs in one bundle: one the latest re-read restated, one it did not.
+    // Each keeps the day its own row was read at the source.
+    const restated = answerEvidenceFor(
+      {
+        priceGbp: 6,
+        prices: [
+          {
+            app_price_id: "p1",
+            pint_name: "MAHOU",
+            price_gbp: 6,
+            pub_url: "https://www.pint-prices.com/pub/bradleys",
+            scraped_at_values: "2026-07-03T23:10:47+00:00|2026-10-02T11:48:33+00:00",
+          },
+        ],
+      },
+      NOW,
+    );
+    const unread = answerEvidenceFor(
+      {
+        priceGbp: 6,
+        prices: [
+          {
+            app_price_id: "p2",
+            pint_name: "ASPALL DRAUGHT CYDER",
+            price_gbp: 6,
+            pub_url: "https://tattoo-bar.co.uk/menu",
+            scraped_at_values: "2026-08-21T15:44:29.901Z",
+          },
+        ],
+      },
+      NOW,
+    );
+    expect(restated.observedOn).toBe("2026-10-02");
+    expect(unread.observedOn).toBe("2026-08-21");
+    // A published row that records no read cannot claim a listing.
+    const undated = answerEvidenceFor(
+      {
+        priceGbp: 6,
+        prices: [
+          { app_price_id: "p3", pint_name: "X", price_gbp: 6, pub_url: "https://www.pint-prices.com/pub/x" },
+        ],
+      },
+      NOW,
+    );
+    expect(undated).toEqual({
+      publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
+      standing: "none",
+      observedOn: null,
+    });
+  });
+
+  it("dates the row that carries the printed figure", () => {
+    const evidence = answerEvidenceFor(
+      {
+        priceGbp: 5.9,
+        prices: [
+          {
+            app_price_id: "p1",
+            pint_name: "AMSTEL",
+            price_gbp: 6.35,
+            pub_url: "https://www.pint-prices.com/pub/cheese",
+            scraped_at_values: "2026-07-03T23:10:47+00:00",
+          },
+          {
+            app_price_id: "p2",
+            pint_name: "LONDON PRIDE",
+            price_gbp: 5.9,
+            pub_url: "https://www.pint-prices.com/pub/cheese",
+            scraped_at_values: "2026-10-02T11:48:33+00:00",
+          },
+        ],
+      },
+      NOW,
+    );
+    expect(evidence.observedOn).toBe("2026-10-02");
   });
 });
 

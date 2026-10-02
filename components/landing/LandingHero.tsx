@@ -103,7 +103,7 @@ function trackLandingCta(target: LandingCtaTarget) {
 type Evidence =
   | "loading"
   | "unavailable"
-  | { publisher: AnswerPublisher | null; standing: PriceStanding };
+  | { publisher: AnswerPublisher | null; standing: PriceStanding; observedOn: string | null };
 
 /** What the card prints, whichever lane it came from. */
 type Answer = {
@@ -142,7 +142,7 @@ function anchorAnswer(
     pintName: card.pintName,
     drinkHref: card.drinkHref,
     scope: "anchor",
-    evidence: { publisher: card.publisher, standing: card.standing },
+    evidence: { publisher: card.publisher, standing: card.standing, observedOn: card.observedOn },
     collectedOn: card.collectedOn,
     // The index holds the anchor's own then row with its printed labels.
     then: archive[card.id] ?? null,
@@ -188,7 +188,6 @@ function nearAnswer(
 async function readEvidence(
   venueId: string,
   priceGbp: number,
-  collectedOn: string,
   signal: AbortSignal,
 ): Promise<Evidence> {
   try {
@@ -200,7 +199,7 @@ async function readEvidence(
     const payload = (await response.json()) as { venue?: { prices?: LegacyPintPrice[] } };
     const prices = Array.isArray(payload.venue?.prices) ? payload.venue.prices : null;
     if (!prices) return "unavailable";
-    return answerEvidenceFor({ priceGbp, prices, collectedOn });
+    return answerEvidenceFor({ priceGbp, prices });
   } catch {
     return "unavailable";
   }
@@ -257,12 +256,7 @@ export default function LandingHero({
             setAnswer(nearAnswer(first, rest, ranked.scope, archive, collectedOn));
             setNear({ kind: "answered" });
             const controller = new AbortController();
-            const evidence = await readEvidence(
-              first.id,
-              first.cheapestPrice,
-              collectedOn,
-              controller.signal,
-            );
+            const evidence = await readEvidence(first.id, first.cheapestPrice, controller.signal);
             if (mine !== generation.current) return;
             setAnswer((current) =>
               current && current.id === first.id ? { ...current, evidence } : current,
@@ -420,6 +414,10 @@ function AnswerCard({
   const evidence = answer.evidence;
   const publisher = typeof evidence === "object" ? evidence.publisher : null;
   const standing = typeof evidence === "object" ? evidence.standing : null;
+  // The day THIS pub's row was read, once the evidence names one; until then,
+  // and for a row that records no read, the day the dataset was collected.
+  const collectedOn =
+    (typeof evidence === "object" ? evidence.observedOn : null) ?? answer.collectedOn;
   return (
     <article
       className="lpPubCard lpAnswerCard lpPubCard--photo"
@@ -473,7 +471,7 @@ function AnswerCard({
         ) : (
           sourceLine(evidence)
         )}
-        , collected {collectedDay(answer.collectedOn)}.
+        , collected {collectedDay(collectedOn)}.
       </p>
       {standing ? (
         <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>

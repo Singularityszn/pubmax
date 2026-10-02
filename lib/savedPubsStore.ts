@@ -26,6 +26,7 @@ import { isBuiltInListType } from "@/lib/savedListPolicy";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
+import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 // The list a pub is filed under is now free text (story 33): the seven built-ins
@@ -135,13 +136,19 @@ export type SavedPubsStore = {
 
 // ── DTO enrichment (server-side venue-name resolution) ───────────────────────
 // Fold raw rows into DTOs, resolving each venue id to its real pub name + map url
-// through the bundled index. An id the dataset no longer carries falls back to a
-// friendly label — never the raw "venue-…" id. Newest save first.
-function dtoFromRow(row: SavedRow, index: Awaited<ReturnType<typeof getVenueIndex>>): SavedPubDTO {
+// through the bundled index. A save stored under a merged or superseded venue id
+// is named and linked as the venue that id now resolves to, and keeps its stored
+// id, which is the identity a toggle removes it by. An id the dataset no longer
+// carries falls back to a friendly label — never the raw "venue-…" id. Newest
+// save first.
+type VenueIndexMap = Awaited<ReturnType<typeof getVenueIndex>>;
+
+function dtoFromRow(row: SavedRow, index: VenueIndexMap, aliases: VenueAliasResolver): SavedPubDTO {
+  const currentId = aliases.canonical(row.venueId);
   return {
     venueId: row.venueId,
-    venueName: index.get(row.venueId)?.name ?? "A London venue",
-    venueMapUrl: venueMapUrl(row.venueId),
+    venueName: index.get(currentId)?.name ?? "A London venue",
+    venueMapUrl: venueMapUrl(currentId),
     listType: row.listType,
     ...(row.note ? { note: row.note } : {}),
     savedAt: row.savedAt,
@@ -150,16 +157,17 @@ function dtoFromRow(row: SavedRow, index: Awaited<ReturnType<typeof getVenueInde
 
 function enrichRows(
   rows: SavedRow[],
-  index: Awaited<ReturnType<typeof getVenueIndex>>,
+  index: VenueIndexMap,
+  aliases: VenueAliasResolver,
 ): SavedPubDTO[] {
   return rows
-    .map((row) => dtoFromRow(row, index))
+    .map((row) => dtoFromRow(row, index, aliases))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
 async function enrich(rows: SavedRow[]): Promise<SavedPubDTO[]> {
-  const index = await getVenueIndex();
-  return enrichRows(rows, index);
+  const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
+  return enrichRows(rows, index, aliases);
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -259,11 +267,11 @@ const supabaseSavedPubsStore: SavedPubsStore = {
         rowsByHandle.set(handle, rows);
       }
 
-      const index = await getVenueIndex();
+      const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
       for (const handle of keys) {
         result.set(handle, {
           status: "ready",
-          rows: enrichRows(rowsByHandle.get(handle) ?? [], index),
+          rows: enrichRows(rowsByHandle.get(handle) ?? [], index, aliases),
         });
       }
       return result;
@@ -396,13 +404,13 @@ export const memorySavedPubsStore: SavedPubsStore = {
   async readSavedByHandles({ handles }) {
     const keys = normalizedHandleKeys(handles);
     if (keys.length === 0) return new Map();
-    const index = await getVenueIndex();
+    const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
     const result = readyBatch(keys);
     for (const handle of keys) {
       const partition = memoryRows.get(ownerKey(handle));
       result.set(handle, {
         status: "ready",
-        rows: enrichRows(partition ? [...partition.values()] : [], index),
+        rows: enrichRows(partition ? [...partition.values()] : [], index, aliases),
       });
     }
     return result;

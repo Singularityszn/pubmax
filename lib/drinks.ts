@@ -216,7 +216,24 @@ export type LegacyPintPrice = {
   pint_name: string;
   price_gbp: number | null;
   pub_url?: string;
+  /** The instants this row's figure was read at its source, `|`-joined. */
+  scraped_at_values?: string;
 };
+
+/**
+ * The ISO day this row's figure was last read at its source, or null when the
+ * row records no read. A price is dated by its own row and never by the day
+ * the dataset as a whole was last collected, because a re-collection only
+ * re-reads the rows its source still states.
+ */
+export function legacyPintPriceObservedOn(price: LegacyPintPrice): string | null {
+  let latest = Number.NEGATIVE_INFINITY;
+  for (const value of String(price.scraped_at_values ?? "").split("|")) {
+    const ms = Date.parse(value.trim());
+    if (Number.isFinite(ms) && ms > latest) latest = ms;
+  }
+  return Number.isFinite(latest) ? new Date(latest).toISOString().slice(0, 10) : null;
+}
 
 type NamedPriceSource = {
   label: string;

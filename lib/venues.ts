@@ -107,6 +107,11 @@ export type VenuePrice = {
   is_clean_canonical_app_row: boolean;
   data_quality_notes: string;
   /**
+   * The instants this row's figure was read at its source, `|`-joined. Absent
+   * or empty on a row nobody read a price for.
+   */
+  scraped_at_values?: string;
+  /**
    * Present when the operator that published this price has left the pub. The
    * row is dated history and no reader may read it as a price
    * (lib/priceRowEligibility.mjs).

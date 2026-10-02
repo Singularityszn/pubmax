@@ -27,6 +27,8 @@ import {
   sortOsmPubs,
 } from "./lib/osmPubNormalizer.mjs";
 import { buildGrid, chunkFileName } from "./lib/ukOsmSeed.mjs";
+import { recordCityVenueIdAliases } from "./lib/cityVenueIdAliases.mjs";
+import { CITY_VENUE_ALIASES_FILE } from "../lib/venueAliasesFile.mjs";
 import {
   haversineMeters,
   namesLikelySamePub,
@@ -561,10 +563,38 @@ async function fetchLondonBoroughs(boundaries, { targets, fromRaw }) {
   return seed;
 }
 
+async function readPackPubs(packPath) {
+  if (!(await fileExists(packPath))) return [];
+  const pack = JSON.parse(await readFile(packPath, "utf8"));
+  return Array.isArray(pack?.pubs) ? pack.pubs : [];
+}
+
+/**
+ * Replace one city's pack, and record every venue id the replacement
+ * superseded so an id a reader stored keeps resolving to the same pub.
+ *
+ * @returns {Promise<"fetched" | "from-raw" | "skipped" | "promoted">}
+ */
+async function fetchCity(city, options = {}) {
+  const normPath = path.join(ROOT, "data", "cities", city.id, "osm_pubs.json");
+  const previousPubs = await readPackPubs(normPath);
+  const result = await writeCityPack(city, options);
+  const superseded = await recordCityVenueIdAliases(
+    ROOT,
+    city.id,
+    previousPubs,
+    await readPackPubs(normPath),
+  );
+  if (superseded.length > 0) {
+    console.log(`  recorded ${superseded.length} superseded venue id(s) in ${CITY_VENUE_ALIASES_FILE}`);
+  }
+  return result;
+}
+
 /**
  * @returns {Promise<"fetched" | "from-raw" | "skipped" | "promoted">}
  */
-async function fetchCity(city, { fromRaw = false, skipIfPresent = false } = {}) {
+async function writeCityPack(city, { fromRaw = false, skipIfPresent = false } = {}) {
   const outDir = path.join(ROOT, "data", "cities", city.id);
   await mkdir(outDir, { recursive: true });
   const rawPath = path.join(outDir, "osm_pubs_raw.json");
