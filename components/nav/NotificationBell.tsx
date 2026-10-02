@@ -9,14 +9,14 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 60_000;
 
 function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+  return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
 export default function NotificationBell(): React.JSX.Element {
