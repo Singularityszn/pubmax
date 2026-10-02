@@ -53,12 +53,16 @@ import {
 type VoiceTokenResponse = {
   signedUrl?: string;
   conversationId?: string;
+  voiceOwnerProof?: unknown;
   overrides?: PalVoiceOverrides;
   maxSessionSeconds?: number;
   error?: string;
 };
 
-type VoiceGrant = Omit<VoiceTokenResponse, "signedUrl"> & { signedUrl: string };
+type VoiceGrant = Omit<VoiceTokenResponse, "signedUrl" | "voiceOwnerProof"> & {
+  signedUrl: string;
+  voiceOwnerProof: string;
+};
 
 type VoiceSessionAttempt = {
   auth: AccountAuthSnapshot;
@@ -67,31 +71,12 @@ type VoiceSessionAttempt = {
   releaseRequired: boolean;
   released: boolean;
   sdkSessionStarted: boolean;
+  voiceOwnerProof: string | null;
   connectedAt: number | null;
   capTimer: number | null;
   voiceEndReported: boolean;
   voiceEndReason: VoiceEndReason | null;
 };
-
-async function syncVoiceToolTurn(input: {
-  conversationId: string;
-  threadTurn?: { role: "user"; content: string };
-}): Promise<void> {
-  try {
-    const response = await authedActionFetch("/api/pub-pal/tool-turn", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        conversationId: input.conversationId,
-        cityId: DEFAULT_CITY_ID,
-        ...(input.threadTurn ? { threadTurn: input.threadTurn } : {}),
-      }),
-    }, { requiresIdentity: true });
-    discardBody(response);
-  } catch {
-    // Best effort: fencing still runs on the tool query alone when sync fails.
-  }
-}
 
 async function releaseVoiceSession(auth: AccountAuthSnapshot, durationSeconds: number): Promise<void> {
   try {
@@ -127,6 +112,33 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     !disposedRef.current
   ), []);
 
+  const syncVoiceToolTurn = useCallback(async (attempt: VoiceSessionAttempt, input: {
+    conversationId: string;
+    threadTurn?: { role: "user"; content: string };
+  }): Promise<void> => {
+    if (!ownsAttempt(attempt) || attempt.voiceOwnerProof === null) return;
+    let synced = false;
+    try {
+      const response = await authedActionFetch("/api/pub-pal/tool-turn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: input.conversationId,
+          cityId: DEFAULT_CITY_ID,
+          voiceOwnerProof: attempt.voiceOwnerProof,
+          ...(input.threadTurn ? { threadTurn: input.threadTurn } : {}),
+        }),
+      }, { requiresIdentity: true });
+      discardBody(response);
+      synced = response.ok;
+    } catch {
+      // Transport failures use the same current-attempt error as refused writes.
+    }
+    if (!ownsAttempt(attempt) || synced) return;
+    setError("Voice context could not be saved. Try writing.");
+    onStateChange?.("error");
+  }, [onStateChange, ownsAttempt]);
+
   const clearCapTimer = useCallback((attempt: VoiceSessionAttempt): void => {
     if (attempt.capTimer !== null) {
       window.clearTimeout(attempt.capTimer);
@@ -135,6 +147,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   }, []);
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
+    attempt.voiceOwnerProof = null;
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
       attempt.voiceEndReported = true;
       trackEvent("voice_ended", { reason: attempt.voiceEndReason ?? "disconnect" });
@@ -214,6 +227,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       releaseRequired: false,
       released: false,
       sdkSessionStarted: false,
+      voiceOwnerProof: null,
       connectedAt: null,
       capTimer: null,
       voiceEndReported: false,
@@ -241,7 +255,10 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             errorMessageFrom(body, "Voice is unavailable. Use text instead."),
           );
         }
-        return { ...body, signedUrl: body.signedUrl };
+        if (typeof body.voiceOwnerProof !== "string" || !body.voiceOwnerProof.trim() || body.voiceOwnerProof.length > 1_000) {
+          throw new PubPalVoiceStartError(PAL_VOICE_START_ERROR);
+        }
+        return { ...body, signedUrl: body.signedUrl, voiceOwnerProof: body.voiceOwnerProof };
       },
       connect: (grant) => {
         if (!ownsAttempt(attempt)) {
@@ -250,6 +267,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
+        attempt.voiceOwnerProof = grant.voiceOwnerProof;
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         startSession({
@@ -262,7 +280,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             const conversationId = conversationIdRef.current;
             const content = message.trim();
             if (!conversationId || !content || role !== "user") return;
-            void syncVoiceToolTurn({
+            void syncVoiceToolTurn(attempt, {
               conversationId,
               threadTurn: { role: "user", content },
             });
@@ -282,7 +300,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             const conversationId = conversationIdRef.current ?? meta?.conversationId;
             if (conversationId) {
               conversationIdRef.current = conversationId;
-              void syncVoiceToolTurn({ conversationId });
+              void syncVoiceToolTurn(attempt, { conversationId });
             }
             startController.settle();
             setIsStarting(false);
@@ -363,7 +381,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     onStateChange?.("thinking");
     const conversationId = conversationIdRef.current;
     if (conversationId) {
-      void syncVoiceToolTurn({
+      void syncVoiceToolTurn(attempt, {
         conversationId,
         threadTurn: { role: "user", content: value },
       });
