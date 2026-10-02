@@ -392,6 +392,175 @@ function assertMeasured(
   );
 }
 
+function assertMapStackBoundary(
+  assertions: SurfaceAssertion[],
+  surface: string,
+  viewportWidth: number,
+  names: string[],
+  panels: PanelMeasurement[],
+): void {
+  const stack = names
+    .map((name) => panels.find((candidate) => candidate.name === name))
+    .filter((candidate): candidate is PanelMeasurement => Boolean(candidate));
+  assertMeasured(
+    assertions,
+    surface,
+    viewportWidth,
+    "floating map stack shares one horizontal boundary",
+    stack.length === names.length &&
+      Math.max(...stack.map((candidate) => candidate.left)) -
+        Math.min(...stack.map((candidate) => candidate.left)) <= 0.5 &&
+      Math.max(...stack.map((candidate) => candidate.right)) -
+        Math.min(...stack.map((candidate) => candidate.right)) <= 0.5,
+    stack
+      .map(
+        (candidate) =>
+          `${candidate.name} ${candidate.left}-${candidate.right}px`,
+      )
+      .join("; "),
+  );
+}
+
+async function verifyPhoneOutingPill(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  assertions: SurfaceAssertion[],
+  stage: "before consent" | "after consent dismissal",
+): Promise<void> {
+  const pill = page.locator(".mobilePlanActivation");
+  await expect(pill).toHaveCount(1);
+  await expect(pill).toBeVisible();
+  await expect(pill).toBeEnabled();
+  const topbar = await panel(page, "mobile map topbar", ".mobileMapTopbar");
+  const outing = await panel(page, "Describe the outing", ".mobilePlanActivation");
+  assertMapStackBoundary(
+    assertions,
+    `map-first-visit ${stage}`,
+    viewport.width,
+    ["mobile map topbar", "Describe the outing"],
+    [topbar, outing].filter(
+      (candidate): candidate is PanelMeasurement => candidate !== null,
+    ),
+  );
+  const control = await pill.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    );
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+      ownsCentre: hit !== null && (hit === element || element.contains(hit)),
+    };
+  });
+  assertMeasured(
+    assertions,
+    "map-first-visit",
+    viewport.width,
+    `outing pill is reachable ${stage}`,
+    control.width >= 43.9 &&
+      control.height >= 43.9 &&
+      control.left >= 0 &&
+      control.right <= viewport.width &&
+      control.top >= 0 &&
+      control.bottom <= viewport.height &&
+      control.ownsCentre,
+    JSON.stringify(control),
+  );
+  const credit = await panel(page, "map credit", ".maplibregl-ctrl-bottom-right");
+  assertMeasured(
+    assertions,
+    "map-first-visit",
+    viewport.width,
+    `map credit clears the outing pill ${stage}`,
+    credit !== null && outing !== null && credit.bottom <= outing.top,
+    `credit ${credit?.top}-${credit?.bottom}px; outing ${outing?.top}-${outing?.bottom}px`,
+  );
+}
+
+async function verifyPhoneConsentControls(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  surface: string,
+  notice: PanelMeasurement | undefined,
+  assertions: SurfaceAssertion[],
+): Promise<void> {
+  const consent = page.getByLabel("Anonymous analytics choice", { exact: true });
+  const controls = [
+    {
+      name: "Near me",
+      locator: page.locator(".mobileMapLocateFab"),
+      utility: true,
+    },
+    {
+      name: "TfL",
+      locator: page.locator(".mobileMapTflButton"),
+      utility: true,
+    },
+    {
+      name: "Allow",
+      locator: consent.getByRole("button", { name: "Allow", exact: true }),
+      utility: false,
+    },
+    {
+      name: "No thanks",
+      locator: consent.getByRole("button", { name: "No thanks", exact: true }),
+      utility: false,
+    },
+  ];
+  for (const control of controls) {
+    await expect(control.locator).toHaveCount(1);
+    await expect(control.locator).toBeVisible();
+    await expect(control.locator).toBeEnabled();
+    const rect = await control.locator.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      );
+      return {
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        bottom: box.bottom,
+        width: box.width,
+        height: box.height,
+        ownsCentre: hit !== null && (hit === element || element.contains(hit)),
+      };
+    });
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      `${control.name} stays thumb-sized and reachable with consent`,
+      rect.width >= 43.9 &&
+        rect.height >= 43.9 &&
+        rect.left >= 0 &&
+        rect.right <= viewport.width &&
+        rect.top >= 0 &&
+        rect.bottom <= viewport.height &&
+        rect.ownsCentre,
+      JSON.stringify(rect),
+    );
+    if (control.utility) {
+      assertMeasured(
+        assertions,
+        surface,
+        viewport.width,
+        `analytics notice leaves ${control.name} clear`,
+        notice !== undefined &&
+          (rect.bottom <= notice.top || rect.top >= notice.bottom),
+        `notice ${notice?.top}-${notice?.bottom}px; ${control.name} ${rect.top}-${rect.bottom}px`,
+      );
+    }
+  }
+}
+
 async function measureSurfaceAssertions(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
@@ -437,36 +606,14 @@ async function measureSurfaceAssertions(
   }
 
   if (surface === "map-first-visit") {
+    // Consent owns the phone foot. The outing pill's shared boundary is
+    // measured before consent and again after dismissal instead. Above 640px,
+    // venue types belong inside opened Filters, not a third floating band.
     const names =
       viewport.width <= 640
-        ? ["mobile map topbar", "Describe the outing"]
-        : [
-            "desktop map navigation",
-            "Tonight Arc panel",
-            "desktop map toolbar",
-          ];
-    const stack = names
-      .map((name) => panels.find((candidate) => candidate.name === name))
-      .filter((candidate): candidate is PanelMeasurement => Boolean(candidate));
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "floating map stack shares one horizontal boundary",
-      stack.length === names.length &&
-        Math.max(...stack.map((candidate) => candidate.left)) -
-          Math.min(...stack.map((candidate) => candidate.left)) <=
-          0.5 &&
-        Math.max(...stack.map((candidate) => candidate.right)) -
-          Math.min(...stack.map((candidate) => candidate.right)) <=
-          0.5,
-      stack
-        .map(
-          (candidate) =>
-            `${candidate.name} ${candidate.left}-${candidate.right}px`,
-        )
-        .join("; "),
-    );
+        ? ["mobile map topbar"]
+        : ["desktop map navigation", "desktop map toolbar"];
+    assertMapStackBoundary(assertions, surface, viewport.width, names, panels);
   }
 
   if (surface === "map-first-visit" && viewport.width === 390) {
@@ -475,9 +622,6 @@ async function measureSurfaceAssertions(
     );
     const notice = panels.find(
       (candidate) => candidate.name === "analytics notice",
-    );
-    const planAction = panels.find(
-      (candidate) => candidate.name === "Describe the outing",
     );
     const credit = panels.find(
       (candidate) => candidate.name === "map credit",
@@ -525,24 +669,16 @@ async function measureSurfaceAssertions(
       Number.isFinite(overlap) && overlap === 0,
       `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
     );
-    const planOverlap =
-      notice && planAction
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, planAction.bottom) -
-                Math.max(notice.top, planAction.top),
-            ),
-          )
-        : Number.NaN;
+    await expect(page.locator(".mobilePlanActivation")).toBeHidden();
     assertMeasured(
       assertions,
       surface,
       viewport.width,
-      "analytics notice leaves primary map action clear",
-      Number.isFinite(planOverlap) && planOverlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
+      "analytics notice owns the phone foot while the outing pill stands down",
+      !panels.some((candidate) => candidate.name === "Describe the outing"),
+      "outing pill is hidden while earned consent is visible",
     );
+    await verifyPhoneConsentControls(page, viewport, surface, notice, assertions);
     const noticeShare = notice
       ? round((notice.height / viewport.height) * 100)
       : Number.NaN;
@@ -598,11 +734,56 @@ async function verifyPostCaptureInteractions(
   firstVisitPromptLocator: Locator,
   assertions: SurfaceAssertion[],
 ): Promise<void> {
-  if (
-    !ASSERT_LAYOUT ||
-    surface !== "map-first-visit" ||
-    viewport.width !== 390
-  ) {
+  if (!ASSERT_LAYOUT || surface !== "map-first-visit") {
+    return;
+  }
+  if (viewport.width > 640) {
+    // Venue types are still measured, in the surface the reader opens. A
+    // closed Filters control may not be treated as a missing floating panel.
+    const filters = page.locator(".mapToolbar").getByRole("button", {
+      name: /^Filters/,
+    });
+    const filterPanel = page.getByRole("dialog", {
+      name: "Filters", exact: true,
+    });
+    const kinds = filterPanel.getByRole("group", {
+      name: "Venue types", exact: true,
+    });
+    await expect(filters).toHaveCount(1);
+    await expect(filters).toBeVisible();
+    await expect(filters).toHaveAttribute("aria-expanded", "false");
+    await expect(filterPanel).toHaveCount(0);
+    await expect(async () => {
+      if (!await filterPanel.isVisible()) await filters.click({ timeout: 1_000 });
+      await expect(kinds).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
+    await expect(kinds.getByRole("button")).toHaveCount(4);
+    for (const name of ["Pints", "Bars", "Food", "Restaurants"]) {
+      const kind = kinds.getByRole("button", { name, exact: true });
+      await expect(kind).toBeVisible();
+      await expect(kind).toBeEnabled();
+      await expect(kind).toHaveAttribute("aria-pressed", "true");
+    }
+    const kindRow = await row(
+      page,
+      "Tonight Arc controls",
+      ".mapVenueKindFilterPanel .tonightArcRow > button",
+    );
+    expect(kindRow.controls).toHaveLength(4);
+    assertions.push(
+      ...(await measureSurfaceAssertions(
+        page,
+        viewport,
+        "map-first-visit opened Filters",
+        [kindRow, { ...kindRow, rule: "tap-floor" }],
+        [],
+      )),
+    );
+    await page.keyboard.press("Escape");
+    await expect(filterPanel).toHaveCount(0);
+    await expect(filters).toHaveAttribute("aria-expanded", "false");
+    await expect(filters).toBeFocused();
     return;
   }
   const creditButton = page.locator(".maplibregl-ctrl-attrib-button").first();
@@ -618,8 +799,11 @@ async function verifyPostCaptureInteractions(
       .isVisible(),
     "expanded attribution is visible",
   );
-  if (firstVisitPrompt?.kind !== "analytics consent") return;
-  await page.getByRole("button", { name: "No thanks" }).click();
+  expect(firstVisitPrompt?.kind).toBe("analytics consent");
+  await firstVisitPromptLocator
+    .getByRole("button", { name: "No thanks", exact: true })
+    .click();
+  await expect(firstVisitPromptLocator).toBeHidden();
   assertMeasured(
     assertions,
     surface,
@@ -627,6 +811,13 @@ async function verifyPostCaptureInteractions(
     "analytics notice is dismissible",
     await firstVisitPromptLocator.isHidden(),
     "No thanks removes the notice",
+  );
+  await settle(page);
+  await verifyPhoneOutingPill(
+    page,
+    viewport,
+    assertions,
+    "after consent dismissal",
   );
 }
 
@@ -638,6 +829,7 @@ async function captureSurface(
   readySelector: string,
   options: { firstVisit?: boolean; signedIn?: boolean } = {},
 ): Promise<SurfaceMeasurement> {
+  const beforeConsentAssertions: SurfaceAssertion[] = [];
   await page.setViewportSize(viewport);
   await preparePage(page, options);
   const response = await page.goto(pathname, { waitUntil: "domcontentloaded" });
@@ -684,6 +876,14 @@ async function captureSurface(
     expect(await page.evaluate(() =>
       sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
     )).toBeNull();
+    if (ASSERT_LAYOUT && viewport.width === 390) {
+      await verifyPhoneOutingPill(
+        page,
+        viewport,
+        beforeConsentAssertions,
+        "before consent",
+      );
+    }
     if (CAPTURE_EVIDENCE) {
       await page.screenshot({
         path: path.join(EVIDENCE_ROOT, `map-first-visit-unanswered-${viewport.width}.png`),
@@ -801,13 +1001,10 @@ async function captureSurface(
   const panels = panelCandidates.filter(
     (measurement): measurement is PanelMeasurement => measurement !== null,
   );
-  const assertions = await measureSurfaceAssertions(
-    page,
-    viewport,
-    surface,
-    rows,
-    panels,
-  );
+  const assertions = [
+    ...beforeConsentAssertions,
+    ...(await measureSurfaceAssertions(page, viewport, surface, rows, panels)),
+  ];
 
   const screenshot = `${surface}-${viewport.width}.png`;
   if (CAPTURE_EVIDENCE) {
