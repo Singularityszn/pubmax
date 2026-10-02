@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { nightMomentObjectPrefix } from "@/lib/accountOwnedObjects";
+import { nightMomentKeyBelongsToOwner, nightMomentObjectPrefix } from "@/lib/accountOwnedObjects";
 import { MOMENT_MAX_PHOTO_BYTES } from "@/lib/momentPhotoEditor";
 import { deletePhotos, uploadPhoto } from "@/lib/pintDropsStore";
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
@@ -27,7 +27,8 @@ export async function uploadNightMomentPhoto(
   );
 }
 
-export async function removeNightMomentPhoto(key: string): Promise<void> {
+export async function removeNightMomentPhoto(key: string, ownerId: string): Promise<void> {
+  if (!nightMomentKeyBelongsToOwner(ownerId, key)) return;
   await deletePhotos([key]);
 }
 
@@ -45,9 +46,10 @@ export const PUBLIC_RECAP_PHOTO_TTL_SECONDS = 180;
 
 export async function signedNightMomentPhotoUrl(
   key: string | null,
+  ownerId: string,
   ttlSeconds: number = NIGHT_MOMENT_PHOTO_TTL_SECONDS,
 ): Promise<string | null> {
-  if (!key || !isSupabaseConfigured()) return null;
+  if (!key || !nightMomentKeyBelongsToOwner(ownerId, key) || !isSupabaseConfigured()) return null;
   const { data, error } = await requireSupabaseAdmin()
     .storage
     .from(STORAGE_BUCKET)

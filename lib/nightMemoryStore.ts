@@ -294,10 +294,10 @@ export async function addNightMoment(
   ownerId: string,
   memoryId: string,
   raw: unknown,
-  options: { allowContributor?: boolean } = {},
+  options: { allowContributor?: boolean; mediaObjectKey?: string | null } = {},
 ): Promise<NightMoment | null> {
   const memory = await getMemory(memoryId);
-  const draft = cleanNightMomentDraft(raw);
+  const draft = cleanNightMomentDraft(raw, options.mediaObjectKey ?? null);
   if (!memory || !draft || (!options.allowContributor && memory.ownerId !== ownerId)) return null;
   const createdAt = now();
   // Author-confirmed at creation: alt text supplied here came straight from the
@@ -1260,13 +1260,17 @@ export async function addStoryMoment(
   actorId: string,
   storyId: string,
   raw: unknown,
+  options: { mediaObjectKey?: string | null } = {},
 ): Promise<NightMoment | null> {
   const [story, members] = await Promise.all([getStoryRaw(storyId), getContributors(storyId)]);
   const accepted = members.some(
     (member) => member.profileId === actorId && member.status === "accepted",
   );
   if (!story || !accepted) return null;
-  return addNightMoment(actorId, story.memoryId, raw, { allowContributor: true });
+  return addNightMoment(actorId, story.memoryId, raw, {
+    allowContributor: true,
+    mediaObjectKey: options.mediaObjectKey,
+  });
 }
 
 export async function setMomentPublicationConsent(

@@ -35,20 +35,29 @@ describe("Night Memory domain policy", () => {
   });
 
   it("carries author alt text through the trust boundary and caps its length", () => {
+    const serverKey = "night-moments/host/mem/photo.webp";
     const draft = cleanNightMomentDraft({
       kind: "photo",
       caption: "The crew",
-      mediaObjectKey: "night-media/host/photo.webp",
+      mediaObjectKey: "avatars/someone/photo.jpg",
       altText: "  Four friends toasting pints at a candlelit table.  ",
-    });
+    }, serverKey);
     expect(draft?.altText).toBe("Four friends toasting pints at a candlelit table.");
+    expect(draft?.mediaObjectKey).toBe(serverKey);
 
     const capped = cleanNightMomentDraft({
       kind: "photo",
-      mediaObjectKey: "night-media/host/photo.webp",
+      mediaObjectKey: "messages/conversation/photo.jpg",
       altText: "a".repeat(NIGHT_MOMENT_ALT_TEXT_MAX + 50),
-    });
+    }, serverKey);
     expect(capped?.altText?.length).toBe(NIGHT_MOMENT_ALT_TEXT_MAX);
+    expect(capped?.mediaObjectKey).toBe(serverKey);
+
+    expect(cleanNightMomentDraft({
+      kind: "photo",
+      caption: "No server upload",
+      mediaObjectKey: "venue-1/drop-1/receipt.jpg",
+    })?.mediaObjectKey).toBeNull();
 
     // Alt text alone never rescues an otherwise-empty Moment.
     expect(cleanNightMomentDraft({ kind: "photo", altText: "orphan description" })).toBeNull();
