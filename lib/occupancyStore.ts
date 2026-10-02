@@ -9,7 +9,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
-import { trimVenueId as cleanVenueId } from "@/lib/cleanVenueId";
+import { trimVenueId } from "@/lib/cleanVenueId";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
 import {
   admin,
@@ -70,7 +70,7 @@ function stamp(
 ): OccupancyStoredReport {
   return {
     id,
-    venueId: cleanVenueId(input.venueId),
+    venueId: trimVenueId(input.venueId),
     level: input.level,
     reportedAt: new Date(nowMs).toISOString(),
     reporterUserId: cleanUserId(input.reporterUserId),
@@ -103,7 +103,7 @@ function flagActor(actorHash: string | undefined): string {
 
 export const memoryOccupancyStore: OccupancyStore = {
   async report(input) {
-    const venueId = cleanVenueId(input.venueId);
+    const venueId = trimVenueId(input.venueId);
     const reporterUserId = cleanUserId(input.reporterUserId);
     if (!venueId) throw new Error("A venue is required.");
     if (!reporterUserId) throw new Error("A signed-in account is required.");
@@ -128,7 +128,7 @@ export const memoryOccupancyStore: OccupancyStore = {
   },
 
   async readNow(venueId, now) {
-    const id = cleanVenueId(venueId);
+    const id = trimVenueId(venueId);
     return occupancyNowFromReports(
       memoryReports.filter((row) => row.venueId === id),
       now ?? Date.now(),
@@ -234,7 +234,7 @@ function missingOccupancyModeration(error: unknown): boolean {
 
 function fromRow(row: OccupancyRow): OccupancyStoredReport | null {
   const id = typeof row.id === "string" ? row.id : "";
-  const venueId = cleanVenueId(row.venue_id);
+  const venueId = trimVenueId(row.venue_id);
   const level = occupancyLevelFromSql(row.level);
   const reportedAt =
     typeof row.reported_at === "string" ? row.reported_at : "";
@@ -270,7 +270,7 @@ function fromRow(row: OccupancyRow): OccupancyStoredReport | null {
 
 export const supabaseOccupancyStore: OccupancyStore = {
   async report(input) {
-    const venueId = cleanVenueId(input.venueId);
+    const venueId = trimVenueId(input.venueId);
     const reporterUserId = cleanUserId(input.reporterUserId);
     if (!venueId) throw new Error("A venue is required.");
     if (!reporterUserId) throw new Error("A signed-in account is required.");
@@ -341,7 +341,7 @@ export const supabaseOccupancyStore: OccupancyStore = {
   },
 
   async readNow(venueId, now) {
-    const id = cleanVenueId(venueId);
+    const id = trimVenueId(venueId);
     if (!id) {
       return occupancyNowFromReports([], now ?? Date.now());
     }
