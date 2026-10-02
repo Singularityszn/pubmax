@@ -40,6 +40,10 @@ import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
+  ELEVENLABS_LIBSAMPLERATE_PATH,
+  ELEVENLABS_WORKLET_PATHS,
+} from "@/lib/elevenlabsWorkletAssets";
+import {
   createPubPalVoiceStartController,
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
@@ -249,6 +253,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
+          workletPaths: ELEVENLABS_WORKLET_PATHS,
+          libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onMessage: ({ role, message }) => {
             if (!ownsAttempt(attempt)) return;
             const conversationId = conversationIdRef.current;

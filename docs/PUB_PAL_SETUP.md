@@ -121,9 +121,11 @@ was created before session voice overrides were enabled. Re-run
 `true` on that agent.
 
 If the UI shows **Failed to load the rawAudioProcessor worklet module** (or the
-session never reaches "Pal is listening" after metadata), the page CSP is
-blocking ElevenLabs AudioWorklet scripts. Production CSP must include `blob:`
-and `data:` in `script-src` (see `proxy.ts`).
+session never reaches "Pal is listening" after metadata), the same-origin
+AudioWorklet files were not copied. `npm run prepare:maplibre-worker` (predev
+and prebuild) writes them to `public/vendor/elevenlabs/`, and the voice session
+passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
+`blob:` or `data:` back into `script-src`.
 
 ---
 

@@ -204,10 +204,12 @@ describe("planMutationOutbox", () => {
         optimisticCursor: 1,
       });
       await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      vi.useFakeTimers();
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(fetch).toHaveBeenCalledTimes(1);
       expect(hasPendingPlanMutation("plan-1")).toBe(true);
     } finally {
+      vi.useRealTimers();
       unsub();
     }
   });

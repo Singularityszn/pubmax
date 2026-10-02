@@ -12,7 +12,7 @@ import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl"
 
 export { seedCrawlState };
 
-const DEBOUNCE_MS = 300;
+export const CRAWL_URL_DEBOUNCE_MS = 300;
 
 // Owned Map params that encodeCrawl does not model but must survive a URL sync:
 // the Drop-intent flag, planner deep link, Map-owner selection, accepted-handoff markers,
@@ -148,7 +148,7 @@ export function useCrawlUrlSync(
     if (!holdSeededCrawlParam) crawlHold.current = null;
     latestWrite.current = { encoded, preserveCrawlParam };
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam), DEBOUNCE_MS);
+    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam), CRAWL_URL_DEBOUNCE_MS);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);

@@ -113,6 +113,11 @@ const BUILD_WRITTEN_FIXED_URLS = [
     reason: "prebuild overwrites fixed MapLibre worker module URLs",
   },
   {
+    prefix: "/vendor/elevenlabs/",
+    probe: "/vendor/elevenlabs/raw-audio-processor.js",
+    reason: "prebuild overwrites fixed ElevenLabs AudioWorklet URLs",
+  },
+  {
     prefix: "/store-assets/png/",
     probe: "/store-assets/png/ios/AppIcon-1024.png",
     reason: "store export generation overwrites fixed PNG URLs",
