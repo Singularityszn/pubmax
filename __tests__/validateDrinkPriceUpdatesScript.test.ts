@@ -1077,3 +1077,162 @@ describe("validate-data.mjs venue detail row validation", () => {
     expect(stdout).toContain("id is not present in rebuilt full-dataset index");
   });
 });
+
+describe("validate-data.mjs slim shard preservation", () => {
+  it("uses the expected body when a shipped manifest URL is forged", () => {
+    const scriptsDir = setupScratch({});
+    const dataDir = join(scriptsDir, "..", "public", "data");
+    const manifestPath = join(dataDir, "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ id: string; core: boolean; url: string }>;
+    };
+    const shard = manifest.shards.find((entry) => !entry.core);
+    if (!shard) throw new Error("fixture has no spatial shard");
+    const expectedUrl = shard.url;
+    const forgedUrl = `/data/forged-${shard.id}.json`;
+    shard.url = forgedUrl;
+    writeScratchFile(manifestPath, JSON.stringify(manifest), "utf8");
+
+    const expectedBodyPath = join(
+      dataDir,
+      expectedUrl.replace(/^\/data\//, ""),
+    );
+    expect(existsSync(expectedBodyPath)).toBe(true);
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain(
+      `shard "${shard.id}": url "${forgedUrl}" !== expected "${expectedUrl}"`,
+    );
+    expect(stdout).toMatch(
+      /FAIL public\/data\/venues_slim shards: .*1 error\(s\)/,
+    );
+    expect(stdout).not.toContain(`shard "${shard.id}": could not read body`);
+    expect(stdout).not.toContain("shard union has ");
+    expect(stdout).not.toContain("is in venues_slim.json but no shard");
+  });
+
+  it("keeps invalid-field diagnostics ordered and the valid row id in the union", () => {
+    const scriptsDir = setupScratch({});
+    const dataDir = join(scriptsDir, "..", "public", "data");
+    const manifestPath = join(dataDir, "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ id: string; core: boolean; url: string }>;
+    };
+    const shard = manifest.shards.find((entry) => !entry.core);
+    if (!shard) throw new Error("fixture has no spatial shard");
+    const shardPath = join(dataDir, shard.url.replace(/^\/data\//, ""));
+    const payload = JSON.parse(readFileSync(shardPath, "utf8")) as {
+      rows: Array<Record<string, unknown>>;
+    };
+    const firstRow = payload.rows[0];
+    if (typeof firstRow?.id !== "string") {
+      throw new Error("fixture spatial shard has no valid first row id");
+    }
+    payload.rows[0] = {
+      ...firstRow,
+      name: "",
+      lat: "north",
+      lng: null,
+      borough: null,
+      cheapestPrice: -1,
+      zone: 0,
+    };
+    writeScratchFile(shardPath, JSON.stringify(payload), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    const diagnostics = [
+      `row "${firstRow.id}" is missing a name`,
+      `row "${firstRow.id}" has invalid coordinates`,
+      `row "${firstRow.id}" has invalid borough`,
+      `row "${firstRow.id}" has invalid cheapestPrice`,
+      `row "${firstRow.id}" has invalid zone`,
+      `row "${firstRow.id}" differs from monolith`,
+    ];
+    const positions = diagnostics.map((diagnostic) =>
+      stdout.indexOf(diagnostic),
+    );
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((left, right) => left - right));
+    expect(stdout).not.toContain("shard union has ");
+    expect(stdout).not.toContain(
+      `id "${firstRow.id}" is in venues_slim.json but no shard`,
+    );
+  });
+
+  it("skips row validation and union folding when a shard body count is wrong", () => {
+    const scriptsDir = setupScratch({});
+    const dataDir = join(scriptsDir, "..", "public", "data");
+    const manifestPath = join(dataDir, "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ id: string; core: boolean; url: string; count: number }>;
+    };
+    const shard = manifest.shards.find((entry) => !entry.core);
+    if (!shard) throw new Error("fixture has no spatial shard");
+    const shardPath = join(dataDir, shard.url.replace(/^\/data\//, ""));
+    const payload = JSON.parse(readFileSync(shardPath, "utf8")) as {
+      rows: Array<Record<string, unknown>>;
+    };
+    payload.rows = Array.from({ length: shard.count + 1 }, () => ({}));
+    writeScratchFile(shardPath, JSON.stringify(payload), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain(
+      `shard "${shard.id}": body has ${shard.count + 1} rows, manifest says ${shard.count}`,
+    );
+    expect(stdout).not.toContain(`shard "${shard.id}": a row is missing an id`);
+    expect(stdout).toContain("shard union has ");
+    expect(stdout).toContain("is in venues_slim.json but no shard");
+  });
+
+  it.each([
+    ["one byte below", 150 * 1024 - 1, 0],
+    ["exactly at the limit", 150 * 1024, 1],
+  ] as const)(
+    "measures the UTF-8 shard budget in bytes %s",
+    (_label, targetBytes, expectedExitCode) => {
+      const scriptsDir = setupScratch({});
+      const dataDir = join(scriptsDir, "..", "public", "data");
+      const manifest = JSON.parse(
+        readFileSync(join(dataDir, "venues_slim.manifest.json"), "utf8"),
+      ) as {
+        shards: Array<{ id: string; core: boolean; url: string }>;
+      };
+      const shard = manifest.shards.find(
+        (entry) =>
+          !entry.core &&
+          entry.url === "/data/venues_slim.cell.51.350_-0.200.json",
+      );
+      if (!shard) throw new Error("fixture has no UTF-8 outer spatial shard");
+      const shardPath = join(dataDir, shard.url.replace(/^\/data\//, ""));
+      const raw = readFileSync(shardPath, "utf8");
+      expect(Buffer.byteLength(raw)).toBeGreaterThan(raw.length);
+      const paddingBytes = targetBytes - Buffer.byteLength(raw);
+      if (paddingBytes <= 0) {
+        throw new Error("UTF-8 outer shard is too large for the budget fixture");
+      }
+      const paddedRaw = `${raw}${" ".repeat(paddingBytes)}`;
+      expect(Buffer.byteLength(paddedRaw)).toBe(targetBytes);
+      writeScratchFile(shardPath, paddedRaw, "utf8");
+
+      const { code, stdout } = runValidate(scriptsDir);
+
+      expect(code).toBe(expectedExitCode);
+      expect(stdout).not.toContain("eager first-paint");
+      expect(stdout).not.toContain("total shard payload");
+      const budgetFailure =
+        `shard "${shard.id}" exceeds 150.0 KB spatial shard budget`;
+      if (expectedExitCode === 0) {
+        expect(stdout).toContain("PASS public/data/venues_slim shards:");
+        expect(stdout).not.toContain(budgetFailure);
+      } else {
+        expect(stdout).toContain("FAIL public/data/venues_slim shards:");
+        expect(stdout).toContain(budgetFailure);
+      }
+    },
+  );
+});

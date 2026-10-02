@@ -1625,6 +1625,249 @@ function validateCityVenuePacks() {
   return { ok, count: venues };
 }
 
+function buildExpectedSlimShardPlan(full, manifest) {
+  const expectedRowsByShard = new Map();
+  let expectedCore;
+  let expectedManifest;
+  if (manifest?.grid) {
+    const grid = manifest.grid;
+    const cells = classifySpatialShards(full, grid);
+    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
+    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
+    expectedCore = cells.get(coreId)?.venues ?? [];
+    expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
+    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
+  } else {
+    const { core, outer } = classifySlimShards(full);
+    expectedCore = core;
+    expectedManifest = buildShardManifest({ core, outer });
+    expectedRowsByShard.set("core", core);
+    for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
+  }
+  return { expectedCore, expectedManifest, expectedRowsByShard };
+}
+
+function addSlimShardManifestErrors(manifest, fullRevision, expectedManifest, errs) {
+  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
+    errs.add("manifest must use the spatial shard schema");
+  }
+  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
+    errs.add("manifest must carry a non-empty revision");
+  }
+  if (manifest?.revision !== fullRevision) {
+    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
+  }
+
+  if (manifest.version !== expectedManifest.version) {
+    errs.add(
+      `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
+    );
+  }
+  const shipShards = Array.isArray(manifest.shards) ? manifest.shards : [];
+  if (shipShards.length !== expectedManifest.shards.length) {
+    errs.add(
+      `manifest lists ${shipShards.length} shard(s), expected ${expectedManifest.shards.length}`,
+    );
+  }
+  return { shipShards, shipById: new Map(shipShards.map((shard) => [shard.id, shard])) };
+}
+
+function addSlimShardEntryErrors(got, exp, errs) {
+  if (got.url !== exp.url)
+    errs.add(`shard "${exp.id}": url "${got.url}" !== expected "${exp.url}"`);
+  if (got.count !== exp.count) {
+    errs.add(
+      `shard "${exp.id}": count ${got.count} !== expected ${exp.count}`,
+    );
+  }
+  if (got.core !== exp.core)
+    errs.add(`shard "${exp.id}": core flag mismatch`);
+  if (
+    !Array.isArray(got.bbox) ||
+    got.bbox.length !== 4 ||
+    got.bbox.some((n, i) => n !== exp.bbox[i])
+  ) {
+    errs.add(
+      `shard "${exp.id}": bbox ${JSON.stringify(got.bbox)} !== expected ${JSON.stringify(exp.bbox)}`,
+    );
+  }
+}
+
+function readSlimShardBody({
+  exp,
+  manifestRevision,
+  readRaw,
+  fileFromUrl,
+  shardRawById,
+  byteTotals,
+  errs,
+}) {
+  let rows;
+  try {
+    const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
+    shardRawById.set(exp.id, raw);
+    const payload = JSON.parse(raw);
+    if (
+      !payload ||
+      Array.isArray(payload) ||
+      typeof payload.revision !== "string" ||
+      payload.revision !== manifestRevision ||
+      !Array.isArray(payload.rows)
+    ) {
+      errs.add(`shard "${exp.id}": body has invalid spatial payload revision`);
+      rows = [];
+    } else {
+      rows = payload.rows;
+    }
+    const bytes = Buffer.byteLength(raw);
+    byteTotals.totalBytes += bytes;
+    if (exp.core) byteTotals.eagerBytes += bytes;
+  } catch (e) {
+    errs.add(`shard "${exp.id}": could not read body (${e.message})`);
+    return null;
+  }
+  return { rows };
+}
+
+function addSlimShardRowErrors({ exp, rows, expectedRows, allIds, errs }) {
+  const expectedIds = new Set(expectedRows.map((row) => row?.id));
+  const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
+  const shardIds = new Set();
+  for (const row of rows) {
+    if (!row || typeof row !== "object") {
+      errs.add(`shard "${exp.id}": a row is not an object`);
+      continue;
+    }
+    if (typeof row.id !== "string" || row.id.length === 0) {
+      errs.add(`shard "${exp.id}": a row is missing an id`);
+      continue;
+    }
+    if (typeof row.name !== "string" || row.name.length === 0) {
+      errs.add(`shard "${exp.id}": row "${row.id}" is missing a name`);
+    }
+    if (!isFiniteNumber(row.lat) || !isFiniteNumber(row.lng)) {
+      errs.add(`shard "${exp.id}": row "${row.id}" has invalid coordinates`);
+    }
+    if (typeof row.borough !== "string") {
+      errs.add(`shard "${exp.id}": row "${row.id}" has invalid borough`);
+    }
+    if (
+      row.cheapestPrice !== null &&
+      (!isFiniteNumber(row.cheapestPrice) || row.cheapestPrice < 0)
+    ) {
+      errs.add(`shard "${exp.id}": row "${row.id}" has invalid cheapestPrice`);
+    }
+    if (
+      row.zone !== undefined &&
+      (!Number.isInteger(row.zone) || row.zone < 1 || row.zone > 9)
+    ) {
+      errs.add(`shard "${exp.id}": row "${row.id}" has invalid zone`);
+    }
+    if (!expectedIds.has(row.id)) {
+      errs.add(`shard "${exp.id}": row "${row.id}" belongs to another cell`);
+    }
+    const expectedRow = expectedById.get(row.id);
+    if (expectedRow && !isDeepStrictEqual(row, expectedRow)) {
+      errs.add(`shard "${exp.id}": row "${row.id}" differs from monolith`);
+    }
+    shardIds.add(row.id);
+    if (allIds.has(row.id))
+      errs.add(`shard "${exp.id}": duplicate id "${row.id}" across shards`);
+    allIds.add(row.id);
+  }
+  for (const id of expectedIds) {
+    if (!shardIds.has(id)) {
+      errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
+    }
+  }
+}
+
+function validateSlimShardBodies({
+  expectedManifest,
+  expectedRowsByShard,
+  shipById,
+  manifestRevision,
+  readRaw,
+  fileFromUrl,
+  shardRawById,
+  byteTotals,
+  allIds,
+  errs,
+}) {
+  for (const exp of expectedManifest.shards) {
+    const got = shipById.get(exp.id);
+    if (!got) {
+      errs.add(`manifest is missing shard "${exp.id}"`);
+      continue;
+    }
+    addSlimShardEntryErrors(got, exp, errs);
+    const body = readSlimShardBody({
+      exp,
+      manifestRevision,
+      readRaw,
+      fileFromUrl,
+      shardRawById,
+      byteTotals,
+      errs,
+    });
+    if (!body) continue;
+    const { rows } = body;
+    if (!Array.isArray(rows) || rows.length !== exp.count) {
+      errs.add(
+        `shard "${exp.id}": body has ${rows?.length} rows, manifest says ${exp.count}`,
+      );
+      continue;
+    }
+    addSlimShardRowErrors({
+      exp,
+      rows,
+      expectedRows: expectedRowsByShard.get(exp.id) ?? [],
+      allIds,
+      errs,
+    });
+  }
+}
+
+function addSlimShardUnionErrors(full, allIds, coreRows, expectedCore, errs) {
+  const fullIds = new Set(full.map((venue) => venue && venue.id).filter(Boolean));
+  if (allIds.size !== fullIds.size) {
+    errs.add(
+      `shard union has ${allIds.size} ids, monolith has ${fullIds.size}`,
+    );
+  }
+  for (const id of fullIds) {
+    if (!allIds.has(id)) {
+      errs.add(`id "${id}" is in venues_slim.json but no shard`);
+      break;
+    }
+  }
+  if (coreRows.length !== expectedCore.length) {
+    errs.add(
+      `core shard has ${coreRows.length} venues, expected ${expectedCore.length}`,
+    );
+  }
+}
+
+function addSlimShardBudgetErrors(expectedManifest, shardRawById, byteTotals, errs) {
+  if (byteTotals.eagerBytes >= SLIM_EAGER_BUDGET_BYTES) {
+    errs.add(
+      `eager first-paint ${(byteTotals.eagerBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+  for (const exp of expectedManifest.shards) {
+    const raw = shardRawById.get(exp.id);
+    if (raw === undefined) continue;
+    if (Buffer.byteLength(raw) >= 150 * 1024) {
+      errs.add(`shard "${exp.id}" exceeds 150.0 KB spatial shard budget`);
+    }
+  }
+  if (byteTotals.totalBytes >= SLIM_TOTAL_BUDGET_BYTES) {
+    errs.add(
+      `total shard payload ${(byteTotals.totalBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+}
+
 // venues_slim shards - the map's first-paint payload is split into a manifest
 // plus geographic cells, with the central cell also exposed as the compatibility
 // core. This validator recomputes the expected split from the canonical
@@ -1673,207 +1916,39 @@ function validateSlimShards() {
     return { ok: false, count: 0 };
   }
 
-  // Rebuild the expected plan from the monolith and compare structurally.
-  // Version 2 is location-first: every row is in a geographic cell, with one
-  // central compatibility core file. Version 1 remains accepted for city and
-  // older fixtures that still use borough shards.
-  let expectedCore;
-  let expectedManifest;
-  const expectedRowsByShard = new Map();
-  if (manifest?.grid) {
-    const grid = manifest.grid;
-    const cells = classifySpatialShards(full, grid);
-    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
-    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
-    expectedCore = cells.get(coreId)?.venues ?? [];
-    expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
-    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
-  } else {
-    const { core, outer } = classifySlimShards(full);
-    expectedCore = core;
-    expectedManifest = buildShardManifest({ core, outer });
-    expectedRowsByShard.set("core", core);
-    for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
-  }
-
-  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
-    errs.add("manifest must use the spatial shard schema");
-  }
-  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
-    errs.add("manifest must carry a non-empty revision");
-  }
-  if (manifest?.revision !== fullRevision) {
-    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
-  }
-
-  if (manifest.version !== expectedManifest.version) {
-    errs.add(
-      `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
-    );
-  }
-  const shipShards = Array.isArray(manifest.shards) ? manifest.shards : [];
-  if (shipShards.length !== expectedManifest.shards.length) {
-    errs.add(
-      `manifest lists ${shipShards.length} shard(s), expected ${expectedManifest.shards.length}`,
-    );
-  }
-  const shipById = new Map(shipShards.map((s) => [s.id, s]));
+  const { expectedCore, expectedManifest, expectedRowsByShard } =
+    buildExpectedSlimShardPlan(full, manifest);
+  const { shipShards, shipById } = addSlimShardManifestErrors(
+    manifest,
+    fullRevision,
+    expectedManifest,
+    errs,
+  );
   const allIds = new Set();
   const shardRawById = new Map();
-  let eagerBytes = Buffer.byteLength(readRaw(MANIFEST_FILE));
-  let totalBytes = eagerBytes;
-
-  for (const exp of expectedManifest.shards) {
-    const got = shipById.get(exp.id);
-    if (!got) {
-      errs.add(`manifest is missing shard "${exp.id}"`);
-      continue;
-    }
-    if (got.url !== exp.url)
-      errs.add(`shard "${exp.id}": url "${got.url}" !== expected "${exp.url}"`);
-    if (got.count !== exp.count) {
-      errs.add(
-        `shard "${exp.id}": count ${got.count} !== expected ${exp.count}`,
-      );
-    }
-    if (got.core !== exp.core)
-      errs.add(`shard "${exp.id}": core flag mismatch`);
-    if (
-      !Array.isArray(got.bbox) ||
-      got.bbox.length !== 4 ||
-      got.bbox.some((n, i) => n !== exp.bbox[i])
-    ) {
-      errs.add(
-        `shard "${exp.id}": bbox ${JSON.stringify(got.bbox)} !== expected ${JSON.stringify(exp.bbox)}`,
-      );
-    }
-
-    // Read the shard body, count its bytes, and fold its ids into the union.
-    let rows;
-    try {
-      const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
-      shardRawById.set(exp.id, raw);
-      const payload = JSON.parse(raw);
-      if (
-        !payload ||
-        Array.isArray(payload) ||
-        typeof payload.revision !== "string" ||
-        payload.revision !== manifest.revision ||
-        !Array.isArray(payload.rows)
-      ) {
-        errs.add(`shard "${exp.id}": body has invalid spatial payload revision`);
-        rows = [];
-      } else {
-        rows = payload.rows;
-      }
-      const bytes = Buffer.byteLength(raw);
-      totalBytes += bytes;
-      if (exp.core) eagerBytes += bytes;
-    } catch (e) {
-      errs.add(`shard "${exp.id}": could not read body (${e.message})`);
-      continue;
-    }
-    if (!Array.isArray(rows) || rows.length !== exp.count) {
-      errs.add(
-        `shard "${exp.id}": body has ${rows?.length} rows, manifest says ${exp.count}`,
-      );
-      continue;
-    }
-    const expectedRows = expectedRowsByShard.get(exp.id) ?? [];
-    const expectedIds = new Set(expectedRows.map((row) => row?.id));
-    const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
-    const shardIds = new Set();
-    for (const r of rows) {
-      if (!r || typeof r !== "object") {
-        errs.add(`shard "${exp.id}": a row is not an object`);
-        continue;
-      }
-      if (typeof r.id !== "string" || r.id.length === 0) {
-        errs.add(`shard "${exp.id}": a row is missing an id`);
-        continue;
-      }
-      if (typeof r.name !== "string" || r.name.length === 0) {
-        errs.add(`shard "${exp.id}": row "${r.id}" is missing a name`);
-      }
-      if (!isFiniteNumber(r.lat) || !isFiniteNumber(r.lng)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid coordinates`);
-      }
-      if (typeof r.borough !== "string") {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid borough`);
-      }
-      if (
-        r.cheapestPrice !== null &&
-        (!isFiniteNumber(r.cheapestPrice) || r.cheapestPrice < 0)
-      ) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid cheapestPrice`);
-      }
-      if (
-        r.zone !== undefined &&
-        (!Number.isInteger(r.zone) || r.zone < 1 || r.zone > 9)
-      ) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid zone`);
-      }
-      if (!expectedIds.has(r.id)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
-      }
-      const expectedRow = expectedById.get(r.id);
-      if (expectedRow && !isDeepStrictEqual(r, expectedRow)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" differs from monolith`);
-      }
-      shardIds.add(r.id);
-      if (allIds.has(r.id))
-        errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
-      allIds.add(r.id);
-    }
-    for (const id of expectedIds) {
-      if (!shardIds.has(id)) {
-        errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
-      }
-    }
-  }
-
-  // The union of all shards must be exactly the monolith — no venue lost or
-  // duplicated by the split.
-  const fullIds = new Set(full.map((v) => v && v.id).filter(Boolean));
-  if (allIds.size !== fullIds.size) {
-    errs.add(
-      `shard union has ${allIds.size} ids, monolith has ${fullIds.size}`,
-    );
-  }
-  for (const id of fullIds) {
-    if (!allIds.has(id)) {
-      errs.add(`id "${id}" is in venues_slim.json but no shard`);
-      break;
-    }
-  }
-  if (coreRows.length !== expectedCore.length) {
-    errs.add(
-      `core shard has ${coreRows.length} venues, expected ${expectedCore.length}`,
-    );
-  }
-
-  // Budgets — the whole point of this cycle.
-  if (eagerBytes >= SLIM_EAGER_BUDGET_BYTES) {
-    errs.add(
-      `eager first-paint ${(eagerBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
-    );
-  }
-  for (const exp of expectedManifest.shards) {
-    const raw = shardRawById.get(exp.id);
-    if (raw === undefined) continue;
-    if (Buffer.byteLength(raw) >= 150 * 1024) {
-      errs.add(`shard "${exp.id}" exceeds 150.0 KB spatial shard budget`);
-    }
-  }
-  if (totalBytes >= SLIM_TOTAL_BUDGET_BYTES) {
-    errs.add(
-      `total shard payload ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
-    );
-  }
+  const byteTotals = {
+    eagerBytes: Buffer.byteLength(readRaw(MANIFEST_FILE)),
+    totalBytes: 0,
+  };
+  byteTotals.totalBytes = byteTotals.eagerBytes;
+  validateSlimShardBodies({
+    expectedManifest,
+    expectedRowsByShard,
+    shipById,
+    manifestRevision: manifest.revision,
+    readRaw,
+    fileFromUrl,
+    shardRawById,
+    byteTotals,
+    allIds,
+    errs,
+  });
+  addSlimShardUnionErrors(full, allIds, coreRows, expectedCore, errs);
+  addSlimShardBudgetErrors(expectedManifest, shardRawById, byteTotals, errs);
 
   const ok = errs.count === 0;
   console.log(
-    `${ok ? "PASS" : "FAIL"} ${name}: ${shipShards.length} shard(s), eager ${(eagerBytes / 1024).toFixed(1)} KB / ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB, total ${(totalBytes / 1024).toFixed(1)} KB / ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB, ${errs.count} error(s)`,
+    `${ok ? "PASS" : "FAIL"} ${name}: ${shipShards.length} shard(s), eager ${(byteTotals.eagerBytes / 1024).toFixed(1)} KB / ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB, total ${(byteTotals.totalBytes / 1024).toFixed(1)} KB / ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB, ${errs.count} error(s)`,
   );
   if (!ok) errs.report();
   return { ok, count: shipShards.length };
