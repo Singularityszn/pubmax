@@ -392,3 +392,228 @@ test("a fresh national overview stays below the UK base gate and fetches no data
     ),
   ).toEqual([]);
 });
+
+// Native controls, unchanged publisher data and the real painted-pin probe.
+// Close overlays before counting pins: an obscured base pin is not suspension.
+async function expectBasePainted(page: Page): Promise<void> {
+  const wrap = page.locator(".mapCanvasWrap");
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", { timeout: 45_000 });
+  await expect.poll(async () => Number(await wrap.getAttribute("data-uk-base-count")))
+    .toBeGreaterThan(0);
+  await expect.poll(async () => (await paintedMarks(page))
+    .filter((mark) => mark.kind === "pin" && mark.id.startsWith("venue-uk-")).length,
+  { timeout: 30_000 }).toBeGreaterThan(0);
+}
+
+async function openDrinkChoices(page: Page): Promise<void> {
+  const choices = page.getByRole("group", { name: "Drink prices shown on the map" });
+  await expect(async () => {
+    if (!(await choices.isVisible())) {
+      await page.locator(".mapToolbar").getByRole("button", { name: /^Drink: / }).click();
+    }
+    await expect(choices).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
+async function closeDrinkChoices(page: Page): Promise<void> {
+  await page.locator(".mapToolbar").getByRole("button", { name: /^Drink: / }).click();
+  await expect(page.getByRole("group", { name: "Drink prices shown on the map" })).toHaveCount(0);
+}
+
+async function expectBaseSuspended(page: Page): Promise<void> {
+  const wrap = page.locator(".mapCanvasWrap");
+  // Soft assertions retain the Pints restoration evidence even on the RED
+  // producer. Any failed assertion still fails the complete test.
+  await expect.soft(wrap).toHaveAttribute("data-uk-base-status", "suspended");
+  await expect.soft(wrap).toHaveAttribute("data-uk-base-count", "0");
+  await expect.configure({ soft: true }).poll(async () => (await paintedMarks(page))
+    .filter((mark) => mark.kind === "pin" && mark.id.startsWith("venue-uk-")).length)
+    .toBe(0);
+}
+
+for (const drink of [
+  { label: "Wine", category: "wine", quote: 7.2, drinkLabel: "Organic Pinot Grigio, Riff, Italy" },
+  { label: "Cocktails", category: "cocktail", quote: 10.5, drinkLabel: "Margarita" },
+] as const) {
+  test(`price lens suspension: Pints to ${drink.label} retains published venues and restores base`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    expect((await page.goto("/map"))?.status()).toBe(200);
+    await expectBasePainted(page);
+    const wrap = page.locator(".mapCanvasWrap");
+    const curatedBefore = Number(await wrap.getAttribute("data-venue-count"));
+    expect(curatedBefore).toBeGreaterThan(0);
+
+    await openDrinkChoices(page);
+    const choices = page.getByRole("group", { name: "Drink prices shown on the map" });
+    await expect(choices.getByRole("button", { name: "Pints", exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    const indexRead = page.waitForResponse((response) => response.request().method() === "GET"
+      && new URL(response.url()).pathname === "/api/price-submit"
+      && new URL(response.url()).searchParams.get("drinkCategory") === drink.category);
+    await choices.getByRole("button", { name: drink.label, exact: true }).click();
+    await expect(choices.getByRole("button", { name: drink.label, exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    const index = await indexRead;
+    expect(index.status()).toBe(200);
+    // This is the page's actual read, not a replacement response. Its published
+    // menu tuple must survive the neutral base disappearing.
+    const published = await index.json() as { listedPrices: unknown[] };
+    expect(published.listedPrices).toEqual(expect.arrayContaining([expect.objectContaining({
+      venueId: "venue-15i2wst", category: drink.category, priceGbp: drink.quote,
+      drinkLabel: drink.drinkLabel, source: "listed",
+      sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/golden-lion-st-james-s/menu",
+      observedAt: "2026-07-11T13:06:21.340Z", servingSize: null,
+    })]));
+    await closeDrinkChoices(page);
+
+    const search = page.locator(".mapToolbar").getByRole("combobox", { name: "Search places" });
+    await search.fill("Golden Lion");
+    const suggestion = page.getByRole("listbox", { name: "Search suggestions" })
+      .getByRole("group", { name: "Venues", exact: true })
+      .locator('[role="option"][data-venue-id="venue-15i2wst"]');
+    await expect(suggestion).toBeVisible({ timeout: 30_000 });
+    await expect(suggestion.locator(".mapSearchSuggestPrice"))
+      .toHaveText(`${drink.label} · £${drink.quote.toFixed(2)} · Serving not recorded`);
+    await search.fill("");
+    await search.press("Escape");
+    await expect(page.getByRole("listbox", { name: "Search suggestions" })).toHaveCount(0);
+    expect(Number(await wrap.getAttribute("data-venue-count"))).toBeGreaterThan(0);
+    await expect.poll(async () => (await paintedMarks(page))
+      .filter((mark) => mark.kind === "pin" && mark.id.startsWith("venue-")
+        && !mark.id.startsWith("venue-uk-")).length, { timeout: 30_000 })
+      .toBeGreaterThan(0);
+    await expectBaseSuspended(page);
+
+    await openDrinkChoices(page);
+    await choices.getByRole("button", { name: "Pints", exact: true }).click();
+    await expect(choices.getByRole("button", { name: "Pints", exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    await closeDrinkChoices(page);
+    await expectBasePainted(page);
+  });
+}
+
+test("price lens suspension: Food keeps its existing suspension and All restores base", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect((await page.goto("/map"))?.status()).toBe(200);
+  await expectBasePainted(page);
+  const opener = page.locator(".mapToolbar").getByRole("button", { name: /^Filters/ });
+  const dialog = page.getByRole("dialog", { name: "Filters", exact: true });
+  await expect(async () => {
+    if (!(await dialog.isVisible())) await opener.click();
+    await expect(dialog).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const views = dialog.getByRole("group", { name: "Map view" });
+  await views.getByRole("button", { name: "Food", exact: true }).click();
+  await expect(views.getByRole("button", { name: "Food", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await opener.click();
+  await expect(dialog).toHaveCount(0);
+  await expectBaseSuspended(page);
+  await opener.click();
+  await expect(dialog).toBeVisible();
+  await views.getByRole("button", { name: "All", exact: true }).click();
+  await expect(views.getByRole("button", { name: "All", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await opener.click();
+  await expect(dialog).toHaveCount(0);
+  await expectBasePainted(page);
+});
+
+test("price lens suspension: Spoons value remains an explicit base-layer exception", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect((await page.goto("/map"))?.status()).toBe(200);
+  await expectBasePainted(page);
+  await openDrinkChoices(page);
+  const toggle = page.locator(".spoonsValueLensToggle").first();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".spoonsValueLensLegend")).toContainText("12.8");
+  await closeDrinkChoices(page);
+  await expectBasePainted(page);
+  await openDrinkChoices(page);
+  const choices = page.getByRole("group", { name: "Drink prices shown on the map" });
+  await choices.getByRole("button", { name: "Wine", exact: true }).click();
+  await expect(choices.getByRole("button", { name: "Wine", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".spoonsValueLensLegend")).toContainText("12.8");
+  await closeDrinkChoices(page);
+  await expectBasePainted(page);
+  await openDrinkChoices(page);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(choices.getByRole("button", { name: "Wine", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".spoonsValueLensLegend")).toHaveCount(0);
+  await closeDrinkChoices(page);
+  await expectBaseSuspended(page);
+  await openDrinkChoices(page);
+  await choices.getByRole("button", { name: "Pints", exact: true }).click();
+  await expect(choices.getByRole("button", { name: "Pints", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await closeDrinkChoices(page);
+  await expectBasePainted(page);
+});
+
+for (const view of ["Food", "No alcohol"] as const) {
+  test(`price lens suspension: retained Spoons with ${view} still suspends base`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    expect((await page.goto("/map"))?.status()).toBe(200);
+    await expectBasePainted(page);
+    await openDrinkChoices(page);
+    const toggle = page.locator(".spoonsValueLensToggle").first();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".spoonsValueLensLegend")).toContainText("12.8");
+    await closeDrinkChoices(page);
+    await expectBasePainted(page);
+
+    const opener = page.locator(".mapToolbar").getByRole("button", { name: /^Filters/ });
+    const dialog = page.getByRole("dialog", { name: "Filters", exact: true });
+    await expect(async () => {
+      if (!(await dialog.isVisible())) await opener.click();
+      await expect(dialog).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    const views = dialog.getByRole("group", { name: "Map view" });
+    const noAlcoholRead = view === "No alcohol"
+      ? page.waitForResponse((response) => response.request().method() === "GET"
+        && new URL(response.url()).pathname === "/api/price-submit"
+        && new URL(response.url()).searchParams.get("lens") === "no-alcohol")
+      : null;
+    await views.getByRole("button", { name: view, exact: true }).click();
+    await expect(views.getByRole("button", { name: view, exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    if (noAlcoholRead) expect((await noAlcoholRead).status()).toBe(200);
+    await opener.click();
+    await expect(dialog).toHaveCount(0);
+
+    // Experience views hide drink controls. Verify retained Spoons after
+    // returning to All, rather than opening a panel this view does not offer.
+    await expect(page.locator(".mapToolbar").getByRole("button", { name: /^Drink: / }))
+      .toHaveCount(0);
+    await expectBaseSuspended(page);
+
+    await opener.click();
+    await expect(dialog).toBeVisible();
+    await views.getByRole("button", { name: "All", exact: true }).click();
+    await expect(views.getByRole("button", { name: "All", exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    await opener.click();
+    await expect(dialog).toHaveCount(0);
+    await expectBasePainted(page);
+    await openDrinkChoices(page);
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".spoonsValueLensLegend")).toContainText("12.8");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await closeDrinkChoices(page);
+    await expectBasePainted(page);
+  });
+}

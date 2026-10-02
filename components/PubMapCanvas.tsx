@@ -3461,9 +3461,9 @@ export default function PubMapCanvas({
     // base pins rather than curated venues, so it is passed through rather
     // than suspending the layer the way an experience view does.
     spoonsValue,
-    // Experience views suspend the neutral base layer; a selected drink does
-    // not. Base identity and source remain neutral while its list can carry a quote.
-    suspended: lensPrices !== null && drinkCategory === null,
+    // Price lenses suspend neutral base pubs. Only selected drink lenses
+    // share this layer with Spoons; food and no-alcohol views still suspend it.
+    suspended: lensPrices !== null && (drinkCategory === null || !spoonsValue),
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.
