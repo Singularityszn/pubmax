@@ -596,16 +596,23 @@ function ownPrice(line: string, verbatim: string, at: number): { text: string; a
   return { label, text: `${prefix}${verbatim}${tail || pair}`, at: prefix.length };
 }
 
-function pairedPint(after: string): number | null {
+function pairedFigureGbp(after: string): number | null {
   const match = /^\s*[|/]\s*£\s?(\d{1,2}(?:\.\d{2})?)\b/.exec(after);
   return match ? Number(match[1]) : null;
 }
 
-function foodWordBeforeFigure(line: string, at: number, verbatim: string): boolean {
-  const through = line.slice(0, at + verbatim.length);
-  const raw = findUkPriceCandidates(through).at(-1);
-  if (!raw) return false;
-  return decideKeylessUkPriceCandidate(through, raw).drop === "food-word-nearby";
+function secondFigureSize(line: string): { size: DrinkSize; sizeDetail: string | null } {
+  const ml = /\b(\d{2,4})\s*ml\b/i.exec(line);
+  const detail = ml ? `${ml[1]}ml` : null;
+  const pintMl = detail === "568ml";
+  if (/\bcans?\b/i.test(line)) return { size: "can", sizeDetail: detail && !pintMl ? detail : "can" };
+  if (/\bkeg\b/i.test(line)) return { size: "keg", sizeDetail: detail && !pintMl ? detail : null };
+  if (/\bbottles?\b/i.test(line)) return { size: "bottle", sizeDetail: detail && !pintMl ? detail : "bottle" };
+  if (detail && !pintMl) {
+    if (GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
+    return { size: "bottle", sizeDetail: detail };
+  }
+  return { size: "pint", sizeDetail: "pint" };
 }
 
 function drinkFromDrop(
@@ -656,7 +663,6 @@ function recordPriceLine(
     if (!sized && !pairedHalf) continue;
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
     if (!sized && outcome.drop !== "half-measure-not-a-pint") continue;
-    if (outcome.drop === "half-measure-not-a-pint" && foodWordBeforeFigure(line, raw.at, raw.verbatim)) continue;
     const row = outcome.kept
       ? listedDrink(
           outcome.kept.drinkLabel || own.label,
@@ -670,15 +676,15 @@ function recordPriceLine(
       : drinkFromDrop(own.text, own.label, raw.priceGbp, outcome.drop, fact);
     rememberDrink(drinks, seenDrinks, row);
     if (row && outcome.drop === "half-measure-not-a-pint") {
-      const pintGbp = pairedPint(line.slice(raw.at + raw.verbatim.length));
-      if (pintGbp !== null) {
+      const nextGbp = pairedFigureGbp(line.slice(raw.at + raw.verbatim.length));
+      if (nextGbp !== null) {
         rememberDrink(drinks, seenDrinks, listedDrink(
           row.drink,
-          `${row.drink} pint`,
-          pintGbp,
+          line,
+          nextGbp,
           fact.sourceUrl,
           fact.seenOn,
-          { size: "pint", sizeDetail: "pint" },
+          secondFigureSize(line),
         ));
       }
     }
@@ -1069,9 +1075,9 @@ export async function runNightlyPass(input: {
     const candidateUrls = website ? acceptedExtractUrls(hits.map((hit) => hit.url), origin) : [];
     const urls = candidateUrls.filter((url) => permitted.has(url));
     const pages: Array<{ url: string; title?: string; text: string; boundSnippet?: boolean }> = [];
-    let useSnippets = true;
-    let extractRead = false;
+    let extractAttempted = false;
     if (urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
+      extractAttempted = true;
       const extracted = await takePayload(ledger, EXTRACT_CREDIT_COST, () =>
         input.fetchImpl({ kind: "extract", venueId: venue.id, urls }),
       );
@@ -1081,23 +1087,23 @@ export async function runNightlyPass(input: {
         continue;
       }
       if (!responseFailed(extracted)) {
-        useSnippets = false;
         const extractedPages = pagesFromPayload(extracted);
-        extractRead = extractedPages.length > 0;
         for (const url of urls) {
           const extractedPage = extractedPages.find((page) => sameListedUrl(page.url, url));
+          if (!extractedPage?.text.trim()) continue;
           const hit = hits.find((row) => sameListedUrl(row.url, url));
-          pushListedPage(pages, url, extractedPage?.text || hit?.content, extractedPage?.title ?? hit?.title);
+          pushListedPage(pages, url, extractedPage.text, extractedPage.title ?? hit?.title);
         }
       }
     }
-    if (useSnippets) {
-      for (const url of urls) {
-        const hit = hits.find((row) => sameListedUrl(row.url, url));
-        pushListedPage(pages, url, hit?.content, hit?.title);
-      }
-    }
-    if (website && permitted.has(website) && !pages.some((page) => sameListedUrl(page.url, website))) {
+    const websiteIsExtractUrl = Boolean(website && urls.some((url) => sameListedUrl(url, website)));
+    if (
+      website
+      && permitted.has(website)
+      && !websiteIsExtractUrl
+      && (urls.length === 0 || extractAttempted)
+      && !pages.some((page) => sameListedUrl(page.url, website))
+    ) {
       const hit = hits.find((row) => sameListedUrl(row.url, website));
       pushListedPage(pages, website, hit?.content, hit?.title, true);
     }
@@ -1106,8 +1112,8 @@ export async function runNightlyPass(input: {
       : [...new Set(hits.filter((hit) => isOperatorHost(hit.url)).map((hit) => hit.url))];
     const evidence = evidenceFor(venue, today, website, pages, candidates);
     queue = mergeQueue(queue, [evidence]);
-    const pageWasRead = urls.length === 0 || extractRead;
-    if (pageWasRead && (evidence.website || evidence.excerpts.length > 0 || evidence.drinks.length > 0)) {
+    const stored = Boolean(evidence.website) || evidence.excerpts.length > 0 || evidence.drinks.length > 0;
+    if ((urls.length === 0 || extractAttempted) && stored) {
       cursor = advanceCursor(cursor, [venue.id], today);
     }
     if (input.persist) await input.persist({ queue, cursor });

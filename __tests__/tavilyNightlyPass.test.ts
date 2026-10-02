@@ -578,47 +578,120 @@ const listedQueue = { version: 1 as const, standingRule: "listed" as const, venu
 const pageFact = { sourceUrl: "https://eastbrookpub.co.uk/drink-menu.html", seenOn: "2026-10-01" };
 
 describe("a price stays in the lane the reader gave it", () => {
-  it("keeps a soft drink, a wine and a cocktail, and still drops a beer outside the beer band", () => {
-    const facts = factsFromPage(
-      "Coca-Cola can £1.50\nHouse Merlot 175ml £14.50\nEspresso Martini glass £13.00\nNameless 330ml £1.50\nPeroni 330ml £6.55",
-      pageFact,
-    );
-    const prices = Object.fromEntries(facts.drinks.map((row) => [row.drink, row.priceGbp]));
-    expect(prices["Coca-Cola"]).toBe(1.5);
-    expect(prices["House Merlot"]).toBe(14.5);
-    expect(prices["Espresso Martini"]).toBe(13);
-    expect(prices["Peroni"]).toBe(6.55);
-    expect(facts.drinks.find((row) => row.drink === "Nameless")).toBeUndefined();
+  it("keeps the priced lines this pass already decided", () => {
+    const rows: Array<{
+      text: string;
+      drinks: Array<{ drink: string; size: string; sizeDetail: string | null; priceGbp: number }>;
+    }> = [
+      {
+        text: "Pie of the day. Guinness £6.20 pint",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2 }],
+      },
+      {
+        text: "Peroni £3.55/£7.10 pint",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
+          { drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 },
+        ],
+      },
+      {
+        text: "Pie of the day. Peroni Half £3.10",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.1 }],
+      },
+      {
+        text: "Pie of the day. Peroni £3.55|£7.10",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
+          { drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 },
+        ],
+      },
+      {
+        text: "Peroni £5.20/£5.80 bottle",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 5.2 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "bottle", priceGbp: 5.8 },
+        ],
+      },
+      {
+        text: "Peroni 330ml £4.50/£5.50",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 4.5 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 5.5 },
+        ],
+      },
+      {
+        text: "Peroni £3.55|£7.10",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
+          { drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 },
+        ],
+      },
+      { text: "Scotch egg £6.50\nRum baba £7", drinks: [] },
+      { text: "Burger Peroni Half £3.55", drinks: [] },
+      {
+        text: "Guinness pint £6.20 | Peroni 330ml bottle £5.50",
+        drinks: [
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 5.5 },
+        ],
+      },
+      {
+        text: "Peroni Half £3.55",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }],
+      },
+      {
+        text: "Burger. Peroni Half £3.55",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }],
+      },
+      {
+        text: "Coca-Cola can £1.50\nHouse Merlot 175ml £14.50\nEspresso Martini glass £13.00\nNameless 330ml £1.50\nPeroni 330ml £6.55",
+        drinks: [
+          { drink: "Coca-Cola", size: "can", sizeDetail: "can", priceGbp: 1.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 14.5 },
+          { drink: "Espresso Martini", size: "unstated", sizeDetail: null, priceGbp: 13 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 6.55 },
+        ],
+      },
+      {
+        text: "Sauvignon 125ml £6.50\nHouse Merlot 175ml £14.50\nPinot 250ml £8.00\nAsahi 500ml keg £6.70\nPeroni 330ml bottle £6.55\nCoca-Cola 330ml can £1.50",
+        drinks: [
+          { drink: "Sauvignon", size: "unstated", sizeDetail: "125ml", priceGbp: 6.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 14.5 },
+          { drink: "Pinot", size: "unstated", sizeDetail: "250ml", priceGbp: 8 },
+          { drink: "Asahi", size: "keg", sizeDetail: "500ml", priceGbp: 6.7 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 6.55 },
+          { drink: "Coca-Cola", size: "can", sizeDetail: "330ml", priceGbp: 1.5 },
+        ],
+      },
+      {
+        text: "London Pride £5.50 /pint. Burger £12.00\nBurger £12.00. Peroni £5.50 /pint\nHouse Merlot 175ml £14.50. Pie £9.00",
+        drinks: [
+          { drink: "London Pride", size: "pint", sizeDetail: "pint", priceGbp: 5.5 },
+          { drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 5.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 14.5 },
+        ],
+      },
+      { text: "Burger from £12.00", drinks: [] },
+      { text: "Fish and chips £14.50", drinks: [] },
+      { text: "Burger. House wine £40.00", drinks: [] },
+    ];
+    for (const row of rows) {
+      const drinks = factsFromPage(row.text, pageFact).drinks.map((drink) => ({
+        drink: drink.drink,
+        size: drink.size,
+        sizeDetail: drink.sizeDetail,
+        priceGbp: drink.priceGbp,
+      }));
+      expect(drinks, row.text).toEqual(row.drinks);
+    }
   });
 
   it("leaves an offer, a half and a food price out of the drink list and keeps the lines verbatim", () => {
-    const page = "Burger from £12.00\nBurger. Peroni Half £3.55\nBurger. House wine £40.00\nFish and chips £14.50\nBurger £12.00";
+    const page = "Burger from £12.00\nBurger Peroni Half £3.55\nBurger. House wine £40.00\nFish and chips £14.50\nBurger £12.00";
     const facts = factsFromPage(page, pageFact);
     expect(facts.drinks).toEqual([]);
     expect(facts.excerpts[0].excerpt).toBe(page);
     expect(facts.excerpts[0].sourceUrl).toBe(pageFact.sourceUrl);
-  });
-
-  it("records a stated half and both figures of a half and pint pair", () => {
-    const stated = factsFromPage("Peroni Half £3.55", pageFact);
-    expect(stated.drinks).toEqual([
-      expect.objectContaining({ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }),
-    ]);
-    const paired = factsFromPage("Peroni £3.55/£7.10 pint", pageFact);
-    expect(paired.drinks).toEqual([
-      expect.objectContaining({ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }),
-      expect.objectContaining({ drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 }),
-    ]);
-    const piped = factsFromPage("Peroni £3.55|£7.10", pageFact);
-    expect(piped.drinks).toEqual([
-      expect.objectContaining({ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }),
-      expect.objectContaining({ drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 }),
-    ]);
-    const afterFood = factsFromPage("Pie of the day. Guinness £6.20 pint", pageFact);
-    expect(afterFood.drinks).toEqual([
-      expect.objectContaining({ drink: "Guinness", size: "pint", priceGbp: 6.2 }),
-    ]);
-    expect(factsFromPage("Burger. Peroni Half £3.55", pageFact).drinks).toEqual([]);
   });
 
   it("keeps a sized drink on the same line as a dish and leaves the dish in the excerpt", () => {
@@ -642,27 +715,6 @@ describe("a price stays in the lane the reader gave it", () => {
     expect(qualified.excerpts[0].excerpt).toContain("The kitchen is closed on Mondays.");
     expect(qualified.excerpts[0].excerpt).toContain("The kitchen was closed for refurbishment.");
     expect(qualified.drinks).toEqual([]);
-  });
-
-  it("leaves a wine glass unstated and reads a keg or bottle word ahead of the millilitres", () => {
-    const facts = factsFromPage(
-      "Sauvignon 125ml £6.50\nHouse Merlot 175ml £14.50\nPinot 250ml £8.00\nAsahi 500ml keg £6.70\nPeroni 330ml bottle £6.55\nCoca-Cola 330ml can £1.50",
-      pageFact,
-    );
-    const byDrink = Object.fromEntries(facts.drinks.map((row) => [row.drink, row]));
-    expect(byDrink.Sauvignon).toMatchObject({ size: "unstated", sizeDetail: "125ml", priceGbp: 6.5 });
-    expect(byDrink["House Merlot"]).toMatchObject({ size: "unstated", sizeDetail: "175ml", priceGbp: 14.5 });
-    expect(byDrink.Pinot).toMatchObject({ size: "unstated", sizeDetail: "250ml", priceGbp: 8 });
-    expect(byDrink.Asahi).toMatchObject({ size: "keg", sizeDetail: "500ml", priceGbp: 6.7 });
-    expect(byDrink.Peroni).toMatchObject({ size: "bottle", sizeDetail: "330ml", priceGbp: 6.55 });
-    expect(byDrink["Coca-Cola"]).toMatchObject({ size: "can", sizeDetail: "330ml", priceGbp: 1.5 });
-  });
-
-  it("reads the size on each price of one line", () => {
-    const facts = factsFromPage("Guinness pint £6.20 | Peroni 330ml bottle £5.50", pageFact);
-    const byDrink = Object.fromEntries(facts.drinks.map((row) => [row.drink, row]));
-    expect(byDrink.Guinness).toMatchObject({ size: "pint", priceGbp: 6.2 });
-    expect(byDrink.Peroni).toMatchObject({ size: "bottle", sizeDetail: "330ml", priceGbp: 5.5 });
   });
 
   it("does not price a bare menu, and a drinks heading still beats a food title", () => {
@@ -1199,6 +1251,7 @@ describe("a night that fails part way", () => {
     });
     expect(calls).toEqual(["search"]);
     expect(skipped.cursor.lastSeen["crown-se1"]).toBeUndefined();
+    expect(skipped.queue.venues.flatMap((row) => row.drinks)).toEqual([]);
     const laterCalls: string[] = [];
     const later = await runNightlyPass({
       venues: [pub],
@@ -1212,12 +1265,62 @@ describe("a night that fails part way", () => {
       fetchImpl: async (request) => {
         laterCalls.push(request.kind);
         if (request.kind === "search") return search;
-        return { results: [{ url: drinks, raw_content: "London Pride £5.50 /pint" }], usage: { credits: 1 } };
+        return { results: [{ url: drinks, raw_content: "London Pride £6.20 /pint" }], usage: { credits: 1 } };
       },
     });
     expect(laterCalls).toEqual(["search", "extract"]);
     expect(later.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
-    expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toContain(5.5);
+    expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([6.2]);
+  });
+
+  it("does not keep a snippet price when extract returns nothing", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const drinks = "https://thecrown-bankside.co.uk/drinks";
+    const search = {
+      results: [{
+        url: drinks,
+        title: "The Crown",
+        content: "The Crown, 1 Bankside, SE1 6AN. London Pride £5.50 /pint",
+      }],
+      usage: { credits: 1 },
+    };
+    const empty = await runNightlyPass({
+      venues: [pub],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 2,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async (request) => {
+        if (request.kind === "search") return search;
+        return { results: [], usage: { credits: 1 } };
+      },
+    });
+    expect(empty.queue.venues.flatMap((row) => row.drinks)).toEqual([]);
+    expect(empty.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
+    const failed = await runNightlyPass({
+      venues: [pub],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 2,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async (request) => {
+        if (request.kind === "search") return search;
+        return { error: "extract failed", usage: { credits: 1 } };
+      },
+    });
+    expect(failed.queue.venues.flatMap((row) => row.drinks)).toEqual([]);
+    expect(failed.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
   });
 
   it("marks a bound homepage seen when there is no extract url", async () => {
