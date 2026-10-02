@@ -3,6 +3,8 @@ import "server-only";
 import { composeAnswer } from "@/lib/ask/runAsk";
 import type { AskCard, AskProposal, AskTurn } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
+import { palVoiceChatDynamicVariables } from "@/lib/palVoiceOverrides";
+import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
@@ -45,14 +47,6 @@ type AgentResponseEvent = {
   };
 };
 
-function recentTurnsSummary(turns: AskTurn[]): string {
-  if (turns.length === 0) return "";
-  return turns
-    .slice(-6)
-    .map((turn) => `${turn.role === "user" ? "User" : "Pal"}: ${turn.content}`)
-    .join("\n");
-}
-
 async function fetchSignedConversationUrl(apiKey: string, agentId: string): Promise<string> {
   const url = new URL("https://api.elevenlabs.io/v1/convai/conversation/get-signed-url");
   url.searchParams.set("agent_id", agentId);
@@ -73,6 +67,7 @@ export type PalElevenLabsChatInput = {
   query: string;
   cityId?: unknown;
   turns?: AskTurn[];
+  ownerId: string;
 };
 
 export type PalElevenLabsChatOutcome =
@@ -155,10 +150,7 @@ export async function runPalElevenLabsChatTurn(
               client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
             },
           },
-          dynamic_variables: {
-            pubmax_city_id: cityId,
-            pubmax_recent_turns: recentTurnsSummary(turns),
-          },
+          dynamic_variables: palVoiceChatDynamicVariables(cityId),
         }),
       );
     });
@@ -186,16 +178,21 @@ export async function runPalElevenLabsChatTurn(
           payload.conversation_initiation_metadata_event?.conversation_id?.trim() ?? "";
         void (async () => {
           try {
-            if (conversationId) {
-              await registerPubPalToolTurn(conversationId, {
-                query,
-                cityId,
-                turns: turns.map((turn) => ({
+            if (!isPubPalConversationId(conversationId)) {
+              finish({ ok: false, code: "UNAVAILABLE" });
+              return;
+            }
+            await registerPubPalToolTurn(conversationId, {
+              query,
+              cityId,
+              ownerId: input.ownerId,
+              turns: turns
+                .filter((turn) => turn.role === "user")
+                .map((turn) => ({
                   role: turn.role,
                   content: turn.content,
                 })),
-              });
-            }
+            });
             userMessageSent = true;
             ws.send(JSON.stringify({ type: "user_message", text: query }));
           } catch {

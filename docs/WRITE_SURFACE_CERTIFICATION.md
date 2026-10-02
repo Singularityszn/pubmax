@@ -134,7 +134,6 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/profiles/[handle]/covers/[coverId]/report`
 - `POST app/api/pub-pal`
 - `POST app/api/pub-pal/chat`
-- `POST app/api/pub-pal/llm`
 - `POST app/api/pub-pal/memories`
 - `POST app/api/pub-pal/tool-turn`
 - `POST app/api/pub-pal/tools/[toolName]`

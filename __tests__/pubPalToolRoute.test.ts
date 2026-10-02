@@ -77,6 +77,19 @@ describe("POST /api/pub-pal/tools/[toolName]", () => {
     expect(runAskTool).not.toHaveBeenCalled();
   });
 
+  it("returns 401 for an unknown tool before it admits the name is missing", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/tools/not_a_tool", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+      { params: Promise.resolve({ toolName: "not_a_tool" }) },
+    );
+    expect(response.status).toBe(401);
+    expect(runAskTool).not.toHaveBeenCalled();
+  });
+
   it("returns 404 for a tool outside the allowlist", async () => {
     const response = await POST(
       request("not_a_tool", {}, { authorization: "Bearer test-llm-secret" }),
