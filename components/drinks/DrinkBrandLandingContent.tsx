@@ -70,8 +70,10 @@ export default function DrinkBrandLandingContent({
         secondary={<Link href={contribution.href}>{contribution.label}</Link>}
       >
         <p className="drinkBrandDirectory__summary">
-          {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints. Collected{" "}
-          {formatPricedLandingCollectedDate(landing.collectedAt)}.
+          {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints.
+          {landing.collectedAt
+            ? ` Collected ${formatPricedLandingCollectedDate(landing.collectedAt)}.`
+            : null}
         </p>
 
         <section

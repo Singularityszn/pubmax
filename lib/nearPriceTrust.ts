@@ -1,5 +1,6 @@
 import { PINT_DATASET_OBSERVED_AT, formatObservedDate } from "@/lib/dataFreshness";
 import {
+  legacyPintPriceObservedAt,
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
@@ -14,6 +15,8 @@ export type NearPriceTrustItem = {
   venueId: string;
   price: number;
   publisher: string | null;
+  /** When this price's own row was last read at its source, or null when it records none. */
+  observedAt: string | null;
 };
 
 export type NearPriceTrustResponse = {
@@ -54,7 +57,16 @@ export function resolveNearPriceTrust(
     venueId: venue.id,
     price: expectedPrice,
     publisher: namedLegacyPintPriceSource(row)?.label ?? null,
+    observedAt: legacyPintPriceObservedAt(row),
   };
+}
+
+/** The read behind a near-you venue's price, from its trust answer, or null when none says. */
+export function nearPriceTrustObservedAt(
+  results: readonly NearPriceTrustItem[],
+  venueId: string,
+): string | null {
+  return results.find((item) => item.venueId === venueId)?.observedAt ?? null;
 }
 
 export function nearPriceTrustLabel(

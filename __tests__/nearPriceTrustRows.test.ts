@@ -58,8 +58,8 @@ describe("/near price trust rows", () => {
       status: "ready",
       collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
-        { venueId: "venue-a", price: 3.25, publisher: "Pint Prices" },
-        { venueId: "venue-b", price: 4.5, publisher: null },
+        { venueId: "venue-a", price: 3.25, publisher: "Pint Prices", observedAt: null },
+        { venueId: "venue-b", price: 4.5, publisher: null, observedAt: null },
       ],
     });
 
@@ -73,8 +73,8 @@ describe("/near price trust rows", () => {
       status: "ready",
       collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
-        { venueId: "venue-a", price: 9.99, publisher: "Wrong price publisher" },
-        { venueId: "venue-b", price: 4.5, publisher: null },
+        { venueId: "venue-a", price: 9.99, publisher: "Wrong price publisher", observedAt: null },
+        { venueId: "venue-b", price: 4.5, publisher: null, observedAt: null },
       ],
     });
 
@@ -99,7 +99,7 @@ describe("/near price trust rows", () => {
       status: "degraded",
       collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
-        { venueId: "venue-a", price: 3.25, publisher: "Pint Prices" },
+        { venueId: "venue-a", price: 3.25, publisher: "Pint Prices", observedAt: null },
       ],
     });
 
@@ -111,7 +111,7 @@ describe("/near price trust rows", () => {
     const markup = render({
       status: "ready",
       collectedAt: "2026-07-04",
-      results: [{ venueId: "venue-a", price: 3.25, publisher: "Pint Prices" }],
+      results: [{ venueId: "venue-a", price: 3.25, publisher: "Pint Prices", observedAt: null }],
     });
 
     expect(markup).toContain(`Prices last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`);

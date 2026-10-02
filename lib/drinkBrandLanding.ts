@@ -1,7 +1,6 @@
 import { BEERS } from "@/lib/beers";
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { DRINK_BRANDS, haystackMatchesBrand, type DrinkBrand } from "@/lib/drinkBrands";
-import { namedLegacyPintPriceSource } from "@/lib/drinks";
+import { legacyPintPriceObservedAt, namedLegacyPintPriceSource, oldestPintRead } from "@/lib/drinks";
 import {
   PRICED_LANDING_PUBLICATION_FLOORS,
   publishablePricedRows,
@@ -36,7 +35,8 @@ export function findDrinkBrandLandingBrand(slug: string): DrinkBrand | null {
 export type DrinkBrandLanding = {
   slug: string;
   brandLabel: string;
-  collectedAt: string;
+  /** The oldest read among the rows the page prints; null when any of them records none. */
+  collectedAt: string | null;
   totalPricedVenues: number;
   rows: [PricedLandingRow, ...PricedLandingRow[]];
 };
@@ -84,6 +84,7 @@ export function drinkBrandCandidateForVenue(
     pintName: selected.pint_name,
     priceGbp: selected.price_gbp,
     publisher: namedLegacyPintPriceSource(selected),
+    observedAt: legacyPintPriceObservedAt(selected),
   };
 }
 
@@ -105,7 +106,7 @@ export function buildDrinkBrandLanding(
   return {
     slug: brand.id,
     brandLabel: brand.label,
-    collectedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+    collectedAt: oldestPintRead(published.rows.map((row) => row.observedAt)),
     totalPricedVenues: published.totalPricedVenues,
     rows: published.rows,
   };

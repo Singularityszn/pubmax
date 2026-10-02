@@ -9,6 +9,7 @@
 // Fail-soft throughout: an area with no verified prices yields no module (never
 // an empty box). Pure and node-testable — no fs, no serverEnv, no DOM.
 
+import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { areaUnderCentre, cheapestDrinksInArea } from "@/lib/areaButton";
 import {
   CENTRAL_PATCH,
@@ -43,6 +44,8 @@ type TodayPintRow = {
    * in Soho.
    */
   areaRelation: VenueAreaRelation;
+  /** When this pint was last read at its source. Absent or null when it records none. */
+  observedAt?: string | null;
 };
 
 export type TodayPintsModule = {
@@ -96,6 +99,9 @@ export function buildTodayPintsForPatch(
         priceLabel: row.priceLabel,
         mapHref: venueMapUrl(row.id),
         areaRelation: venue ? venueAreaClaim(venue, [area]).relation : "unplaced",
+        observedAt: venue
+          ? venueCheapestPintObservedAt({ cheapestPrice: row.price, prices: venue.prices })
+          : null,
       };
     }),
   };

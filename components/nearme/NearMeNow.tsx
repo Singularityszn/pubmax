@@ -10,10 +10,10 @@ import { trackEvent } from "@/lib/analytics";
 import type { NearAnswerSource } from "@/lib/analyticsEvents";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import {
   NEAR_PRICE_TRUST_COLLECTED_AT,
   nearPriceTrustLabel,
+  nearPriceTrustObservedAt,
 } from "@/lib/nearPriceTrust";
 import { formatPrice } from "@/lib/venues";
 import {
@@ -606,7 +606,10 @@ export default function NearMeNow({
         area: rawAcceptArea(patch, borough),
         // Near answers "right now"; no explicit future date is chosen.
         startsAt: null,
-        observedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+        observedAt:
+          priceTrust && priceTrust !== "loading"
+            ? nearPriceTrustObservedAt(priceTrust.results, id)
+            : null,
         fallbackCityId: resolveFallbackCityId(cityId),
       });
       if (!result.accepted || !result.telemetry) {
@@ -617,7 +620,7 @@ export default function NearMeNow({
       trackEvent("venue_accepted", result.telemetry);
       router.push(result.href);
     },
-    [patch, borough, cityId, router],
+    [patch, borough, cityId, priceTrust, router],
   );
 
   const areaLabel = resolveAreaLabel(borough, patch);

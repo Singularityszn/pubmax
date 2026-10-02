@@ -37,6 +37,7 @@ describe("near price trust", () => {
       venueId: "venue-abc123",
       price: 4.5,
       publisher: "Pint Prices",
+      observedAt: null,
     });
     expect(result).not.toHaveProperty("sourceUrl");
   });
@@ -58,6 +59,7 @@ describe("near price trust", () => {
       venueId: "venue-abc123",
       price: 4.5,
       publisher: null,
+      observedAt: null,
     });
   });
 

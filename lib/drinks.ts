@@ -236,6 +236,39 @@ export function legacyPintPriceObservedAt(price: LegacyPintPrice): string | null
   return Number.isFinite(latest) ? new Date(latest).toISOString() : null;
 }
 
+/**
+ * The read a set of printed prices can all stand behind: the oldest of their
+ * own reads. Null when there are none, or when any of them records no read, so
+ * a caption over several prices never dates them by the dataset's collection
+ * day.
+ */
+export function oldestPintRead(reads: readonly (string | null | undefined)[]): string | null {
+  let oldest: string | null = null;
+  for (const read of reads) {
+    if (!read) return null;
+    if (oldest === null || read < oldest) oldest = read;
+  }
+  return oldest;
+}
+
+/** The row behind a venue's printed cheapest pint, or null when it has none. */
+function venueCheapestPintRow<T extends LegacyPintPrice>(venue: {
+  cheapestPrice: number | null;
+  prices: readonly T[];
+}): T | null {
+  if (typeof venue.cheapestPrice !== "number") return null;
+  return venue.prices.find((row) => row.price_gbp === venue.cheapestPrice) ?? null;
+}
+
+/** When a venue's printed cheapest pint was last read at its source, or null. */
+export function venueCheapestPintObservedAt(venue: {
+  cheapestPrice: number | null;
+  prices: readonly LegacyPintPrice[];
+}): string | null {
+  const row = venueCheapestPintRow(venue);
+  return row ? legacyPintPriceObservedAt(row) : null;
+}
+
 const LONDON_ISO_DAY = new Intl.DateTimeFormat("en-CA", {
   year: "numeric",
   month: "2-digit",
