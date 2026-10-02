@@ -41,6 +41,7 @@
     "canonicalize:venues": "node scripts/canonicalize_venue_dataset.mjs",
     "prebuild:slim": "npm run canonicalize:venues",
     "build:slim": "node scripts/build_slim_index.mjs",
+    "refresh:slim": "npm run build:slim -- --refresh",
     "fetch:city-pubs": "node scripts/fetch_city_osm_pubs.mjs",
     "fetch:city-places": "node scripts/fetch_city_place_nodes.mjs",
     "build:city-night-areas": "node scripts/build_city_night_areas.mjs",

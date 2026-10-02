@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
 import { PERF_AB_JOB_WALL_MS } from "@/lib/performanceAbEvidence";
 
@@ -64,26 +65,18 @@ function parseSteps(yaml: string): WorkflowStep[] {
   return steps;
 }
 
-/** Each job's `needs` list, as GitHub reads it. A job with no needs starts on its own. */
+/**
+ * Each job's `needs` list, as GitHub reads it. A job with no needs starts on
+ * its own. The scalar, flow and block forms all parse to the same list.
+ */
 function parseJobNeeds(yaml: string): Record<string, string[]> {
-  const needs: Record<string, string[]> = {};
-  let job = "";
-  for (const line of yaml.split("\n")) {
-    const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
-    if (jobHeader) {
-      job = jobHeader[1];
-      needs[job] = [];
-      continue;
-    }
-    const need = /^ {4}needs: \[(.*)\]$/.exec(line);
-    if (need && job) {
-      needs[job] = need[1]
-        .split(",")
-        .map((name) => name.trim())
-        .filter((name) => name.length > 0);
-    }
-  }
-  return needs;
+  const { jobs } = parse(yaml) as { jobs: Record<string, { needs?: string | string[] }> };
+  return Object.fromEntries(
+    Object.entries(jobs).map(([job, { needs }]) => [
+      job,
+      needs === undefined ? [] : Array.isArray(needs) ? needs : [needs],
+    ]),
+  );
 }
 
 function jobAncestors(job: string, needs: Record<string, string[]>): Set<string> {

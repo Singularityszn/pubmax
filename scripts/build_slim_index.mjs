@@ -53,6 +53,12 @@ const FAMOUS_VENUE_PATHS = [
   path.join(ROOT, "data", "famous_venues", "late_food.json"),
   path.join(ROOT, "data", "famous_venues", "restaurants.json"),
 ];
+const FAMOUS_VENUE_REMOVED_PATH = path.join(
+  ROOT,
+  "data",
+  "famous_venues",
+  "removed.json",
+);
 
 // A region is loaded from the manifest plus the viewport and one grid ring.
 // Keep individual cells small enough that a phone never pays for London-wide
@@ -172,31 +178,46 @@ function shippedFamousVenueIds(payload) {
 }
 
 /**
- * Rows the rebuild may write. A non-empty seed that is entirely lapsed, or any
- * shipped id missing from the current set, fails the build before a shorter
- * index is written.
+ * Rows the rebuild may write. A build-time rebuild (refreshAt null) keeps the
+ * clock the last slim was stamped with, so the calendar alone never changes it;
+ * only an explicit refresh moves the clock. A non-empty seed that is entirely
+ * lapsed, or any shipped id missing from the current set and not named in
+ * data/famous_venues/removed.json, fails before a shorter index is written.
  */
-function famousRowsForRebuild(seedRows, shippedIds, now) {
-  const builtAt = famousVenueClock(seedRows, now);
+function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
+  let at = refreshAt;
+  if (!at) {
+    const stampedAt = Date.parse(lastSlim?.generatedAt);
+    if (!Number.isFinite(stampedAt)) {
+      throw new Error(
+        "build:slim rebuilds at the committed venues_slim.json generatedAt and found none; run npm run refresh:slim",
+      );
+    }
+    at = new Date(stampedAt);
+  }
+  const builtAt = famousVenueClock(seedRows, at);
   const kept = assertCurrentFamousVenueRows(seedRows, builtAt);
   const keptIds = new Set(kept.map((row) => row.id));
   const seedIds = new Set(seedRows.map((row) => row.id));
+  const allowedRemovals = new Set(removedIds);
   const lapsed = [];
   const removed = [];
-  for (const id of shippedIds) {
+  for (const id of shippedFamousVenueIds(lastSlim)) {
     if (keptIds.has(id)) continue;
     if (seedIds.has(id)) lapsed.push(id);
-    else removed.push(id);
+    else if (!allowedRemovals.has(id)) removed.push(id);
   }
   if (lapsed.length > 0 || removed.length > 0) {
     const parts = [];
     if (lapsed.length > 0) {
       parts.push(
-        `verification lapsed for ${lapsed.length}: ${lapsed.join(", ")}`,
+        `not current at ${builtAt.toISOString()} for ${lapsed.length}: ${lapsed.join(", ")}`,
       );
     }
     if (removed.length > 0) {
-      parts.push(`no longer in the seed: ${removed.join(", ")}`);
+      parts.push(
+        `no longer in the seed and not in data/famous_venues/removed.json: ${removed.join(", ")}`,
+      );
     }
     throw new Error(
       `slim rebuild would drop famous venue(s); ${parts.join("; ")}`,
@@ -789,20 +810,19 @@ async function main() {
   ).flat();
   // One clock for the filter and the stamp. The famous-venue tests read
   // generatedAt back, so a later day cannot disagree with the rows this build kept.
+  // build:slim reuses the committed stamp; only --refresh reads the wall clock.
   // A clock that would drop a shipped famous venue fails before any write.
-  let shippedIds = [];
+  let lastSlim = null;
   try {
-    shippedIds = shippedFamousVenueIds(
-      JSON.parse(await readFile(SLIM_PATH, "utf8")),
-    );
+    lastSlim = JSON.parse(await readFile(SLIM_PATH, "utf8"));
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
-  const { builtAt, rows: famousRows } = famousRowsForRebuild(
-    famousSeedRows,
-    shippedIds,
-    new Date(),
-  );
+  const { builtAt, rows: famousRows } = famousRowsForRebuild(famousSeedRows, {
+    lastSlim,
+    removedIds: JSON.parse(await readFile(FAMOUS_VENUE_REMOVED_PATH, "utf8")),
+    refreshAt: process.argv.includes("--refresh") ? new Date() : null,
+  });
   const famousPriceBands = typeRelativePriceBands(famousRows);
 
   const slim = [];
@@ -1030,7 +1050,6 @@ async function main() {
 export {
   assertCurrentFamousVenueRows,
   famousRowsForRebuild,
-  shippedFamousVenueIds,
   buildDrinkHints,
   buildCurationHints,
   typeRelativePriceBands,
