@@ -263,7 +263,7 @@ export async function resolveCommandScope(project = {}) {
     const user = identity?.user ?? identity ?? {};
     const userId = user.id ?? identity?.id ?? null;
     const username = user.username ?? identity?.username ?? null;
-    if ((!userId || userId === orgId) && username) {
+    if (userId === orgId && username) {
       return {
         ok: true,
         cliScope: username,

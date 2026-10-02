@@ -159,9 +159,7 @@ The three options below map to these two approaches: PMTiles is file-based and s
 
 ### Serverless (PMTiles)
 
-[PMTiles](https://docs.protomaps.com/pmtiles/) is an open single-file tile format that supports vector or raster tiles — MapLibre fetches only the byte ranges it needs via HTTP range requests, with no tile server. Extract only the geographic scale you need, and host a `.pmtiles` file on static storage (S3, R2, GitHub Pages).
-
-See [maplibre-pmtiles-patterns](../maplibre-pmtiles-patterns/SKILL.md) for setup.
+[PMTiles](https://docs.protomaps.com/pmtiles/) is an open single-file tile format that supports vector or raster tiles — MapLibre fetches only the byte ranges it needs via HTTP range requests, with no tile server. Extract only the geographic scale you need, and host a `.pmtiles` file on static storage (S3, R2, GitHub Pages). Setup is that same PMTiles document. This repo does not host PMTiles and does not vendor a PMTiles skill.
 
 ### Hosted tile services
 
@@ -271,9 +269,7 @@ Hosted providers handle CORS for you. For self-hosted servers or static storage,
 ## Related Skills
 
 - [**maplibre-fonts-glyphs**](../maplibre-fonts-glyphs/SKILL.md) — Setting up the `glyphs` URL, self-hosting or generating font PBFs, and non-Latin script support.
-- [**maplibre-pmtiles-patterns**](../maplibre-pmtiles-patterns/SKILL.md) — Serverless PMTiles hosting and MapLibre integration.
 - **maplibre-style-patterns** — Layer and source configuration for common use cases. (Not yet in repo.)
-- [**maplibre-mapbox-migration**](../maplibre-mapbox-migration/SKILL.md) — Replacing Mapbox tiles with MapLibre-compatible sources.
 
 ## References
 

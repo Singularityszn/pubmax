@@ -84,7 +84,7 @@ The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. 
 
 Kept from that pack: `icon-set-audit`, `icon-set-extend`, `icon-set-generator`, `launch-shadcn-registry`, `tailwind-to-stylex`.
 
-The refresh adds a Chinese companion for `launch-shadcn-registry` and `tailwind-to-stylex`, and a link from the English launch skill to that companion. `launch-shadcn-registry/SKILL.md` otherwise gained that link only.
+Chinese companions for `launch-shadcn-registry` and `tailwind-to-stylex` are not kept. The English skills stay.
 
 Dropped, because they sit outside that UI scope or duplicate the machine-wide set: `docs-i18n-zh`, `mastra-file-agents`, `skill-creator`, `unslop`, `writing-great-skills`. The 2 Oct 2026 upstream also added Chinese companions for `mastra-file-agents`. That skill stays dropped.
 
@@ -101,7 +101,7 @@ Refreshed: `maplibre-source-wiring`, `maplibre-terrain-rendering`, `maplibre-til
 
 Added, because the refreshed source-wiring skill points at them and this app styles a MapLibre map: `maplibre-cartography`, `maplibre-fonts-glyphs`.
 
-Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `maplibre-mapbox-migration`, `maplibre-running-evals`, `maplibre-skill-authoring`.
+Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `maplibre-mapbox-migration`, `maplibre-running-evals`, `maplibre-skill-authoring`. Vendored copies do not link to `maplibre-pmtiles-patterns` or `maplibre-mapbox-migration`. Those relative links are removed. PMTiles setup stays on the Protomaps docs already cited in `maplibre-tile-sources`.
 
 ### Cap-go/capgo-skills
 
@@ -165,6 +165,8 @@ Same commit as the Capacitor refresh above.
 `capacitor-security` includes a fake `sk_live_abc123xyz` string inside a "do not hardcode keys" example. It is not a credential.
 
 Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this app is already on Capacitor 8), plugin-authoring skills, Ionic and Konsta UI skills.
+
+`capacitor-best-practices` is edited locally so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest`. Do not leave that major unless someone asks.
 
 ### maplibre/maplibre-agent-skills (added)
 

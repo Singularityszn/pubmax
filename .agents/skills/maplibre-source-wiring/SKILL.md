@@ -58,7 +58,7 @@ When no TileJSON endpoint exists — for example, a raw raster tile service that
 }
 ```
 
-The cost of hand-wiring `tiles` is that MapLibre has no zoom range unless you supply one, and will assume `maxzoom: 22` — requesting zoom levels the tileset doesn't contain, which come back empty. This is why `url` is the default advice wherever a TileJSON endpoint exists. (For PMTiles specifically the same rule applies and the consequence is sharper — see [maplibre-pmtiles-patterns](../maplibre-pmtiles-patterns/SKILL.md).)
+The cost of hand-wiring `tiles` is that MapLibre has no zoom range unless you supply one, and will assume `maxzoom: 22` — requesting zoom levels the tileset doesn't contain, which come back empty. This is why `url` is the default advice wherever a TileJSON endpoint exists. For a PMTiles archive the same rule applies: without an explicit zoom range, MapLibre requests levels the archive does not contain.
 
 ## Nothing renders: `source-layer` and the tile schema
 
@@ -174,7 +174,6 @@ Work down this list — the symptoms overlap heavily:
 ## Related Skills
 
 - [**maplibre-tile-sources**](../maplibre-tile-sources/SKILL.md) — Choosing between GeoJSON and tiles for a dataset.
-- [**maplibre-pmtiles-patterns**](../maplibre-pmtiles-patterns/SKILL.md) — Registering the `pmtiles://` protocol and PMTiles-specific source setup.
 - [**maplibre-fonts-glyphs**](../maplibre-fonts-glyphs/SKILL.md) — Font stacks, glyph endpoints, and script coverage.
 - [**maplibre-cartography**](../maplibre-cartography/SKILL.md) — The layer-injection pattern in full, and canonical layer order for a custom style.
 

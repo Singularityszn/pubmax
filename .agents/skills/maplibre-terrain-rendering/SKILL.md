@@ -185,7 +185,6 @@ need.
 ## Related Skills
 
 - [**maplibre-cartography**](../maplibre-cartography/SKILL.md) — Where a hillshade layer belongs in the layer order, and palettes that survive over relief.
-- [**maplibre-pmtiles-patterns**](../maplibre-pmtiles-patterns/SKILL.md) — Serving DEM and imagery tiles from a single PMTiles file.
 
 ## References
 

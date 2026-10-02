@@ -69,15 +69,17 @@ export default config;
 
 ## Plugin Usage
 
-### CRITICAL: Always Use Latest Capacitor
+### Stay on Capacitor 8
 
-Keep Capacitor core packages in sync:
+This app pins Capacitor 8. Keep the core packages on that major:
 
 ```bash
-npm install @capacitor/core@latest @capacitor/cli@latest
-npm install @capacitor/ios@latest @capacitor/android@latest
+npm install @capacitor/core@8 @capacitor/cli@8
+npm install @capacitor/ios@8 @capacitor/android@8
 npx cap sync
 ```
+
+Do not install `@latest` or leave Capacitor 8 unless someone asks.
 
 ### Plugin Installation Pattern
 
