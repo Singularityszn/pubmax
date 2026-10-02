@@ -12,6 +12,7 @@ import {
   resolveBuildCommit,
   resolveBuildStamp,
 } from "@/lib/buildInfo.mjs";
+import { fetchCurrentDeploymentId } from "@/lib/deploymentSkewRecovery";
 
 const STAMP_KEYS = [
   "PUBMAX_BUILD_COMMIT_SHA",
@@ -175,6 +176,43 @@ describe("deployment version route", () => {
     expect(body.builtAt).toBeNull();
   });
 
+  // Stale tabs call this route with no credential and compare deploymentId.
+  // The commit, its source and the build time stay behind the cron check.
+  it("gives the stale-tab reload a non-empty deployment id when Vercel set one", async () => {
+    const deploymentKeys = [
+      "NEXT_DEPLOYMENT_ID",
+      "VERCEL_DEPLOYMENT_ID",
+      "NEXT_PUBLIC_SW_VERSION",
+    ] as const;
+    const prior = Object.fromEntries(
+      deploymentKeys.map((key) => [key, process.env[key]]),
+    ) as Record<(typeof deploymentKeys)[number], string | undefined>;
+
+    try {
+      for (const key of deploymentKeys) delete process.env[key];
+      process.env.VERCEL_DEPLOYMENT_ID = "dpl_public_skew";
+      process.env.CRON_SECRET = "version-route-test-secret";
+      process.env.PUBMAX_BUILD_COMMIT_SHA = SHA;
+      process.env.PUBMAX_BUILD_COMMIT_SHA_SOURCE = "working-tree";
+      process.env.PUBMAX_BUILD_TIME = "2026-09-05T07:30:00.000Z";
+
+      const seen = await fetchCurrentDeploymentId(async () => GET());
+      const body = await GET().json();
+
+      expect(seen).toBe("dpl_public_skew");
+      expect(body.deploymentId).toBe("dpl_public_skew");
+      expect(body.deploymentId.length).toBeGreaterThan(0);
+      expect(body).not.toHaveProperty("gitCommitSha");
+      expect(body).not.toHaveProperty("gitCommitShaSource");
+      expect(body).not.toHaveProperty("builtAt");
+    } finally {
+      for (const key of deploymentKeys) {
+        if (prior[key] === undefined) delete process.env[key];
+        else process.env[key] = prior[key];
+      }
+    }
+  });
+
   // The defect this route is answering for: the sha was read at REQUEST time
   // from a variable Vercel sets only on a build its Git integration owns, so a
   // CLI deploy served null for ever. The build decides; the request only reports.
@@ -183,7 +221,10 @@ describe("deployment version route", () => {
     process.env.PUBMAX_BUILD_COMMIT_SHA = SHA;
 
     const body = await GET().json();
-    expect(body).toEqual({ ok: true });
+    expect(body.ok).toBe(true);
+    expect(body).not.toHaveProperty("gitCommitSha");
+    expect(body).not.toHaveProperty("gitCommitShaSource");
+    expect(body).not.toHaveProperty("builtAt");
   });
 
   it("reads no platform git variable and runs no git at request time", () => {
