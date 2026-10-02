@@ -21,6 +21,7 @@
 //     claimed by an account, it can't be hijacked by a self-asserted handle.
 //   • Concurrent creation of the same new handle returns 409.
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
@@ -197,16 +198,24 @@ export async function gateHandleAction(
   }
 }
 
-/** Whether the request's verified bearer owns `handle`. Fail-closed to false. */
-export async function callerOwnsHandle(request: Request, handle: string): Promise<boolean> {
+/**
+ * `handle` when moderation withdrew it from public view and the request's
+ * verified bearer owns it, otherwise undefined. A live handle never pays the
+ * bearer check. Fail-closed to undefined.
+ */
+export async function callerOwnedWithdrawnHandle(
+  request: Request,
+  handle: string,
+): Promise<string | undefined> {
   const key = normalizeHandle(handle);
-  if (!key) return false;
+  if (!key) return undefined;
   try {
+    if (!(await withdrawnHandles([key])).has(key)) return undefined;
     const caller = await callerUserId(request);
-    if (!caller) return false;
+    if (!caller) return undefined;
     const row = await profileStore().getByHandle(key);
-    return Boolean(row?.userId && row.userId === caller);
+    return row?.userId && row.userId === caller ? key : undefined;
   } catch {
-    return false;
+    return undefined;
   }
 }

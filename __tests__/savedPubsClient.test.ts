@@ -42,7 +42,7 @@ describe("fetchFollowedListsForHandle", () => {
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/saved-pubs/list-follows?follower=%40Ken",
-      { signal: undefined },
+      expect.objectContaining({ headers: expect.any(Headers) }),
     );
   });
 
