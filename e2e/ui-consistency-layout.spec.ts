@@ -855,7 +855,7 @@ async function auditRoute(
     .waitFor({ state: "hidden", timeout: 45_000 })
     .catch(() => undefined);
   await settle(page);
-  const main = page.locator("main, .cityChooserInner").first();
+  const main = page.locator("main").first();
   const box = (await main.isVisible().catch(() => false))
     ? await main.boundingBox().catch(() => null)
     : null;
