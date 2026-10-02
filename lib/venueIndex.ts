@@ -292,6 +292,18 @@ export async function lookupRetiredIndexedVenue(id: string): Promise<IndexedVenu
 export async function resolveVenue(id: string): Promise<VenueRef | null> {
   if (!id) return null;
   const lookup = await lookupCanonicalVenue(id);
+  return lookup.status === "found" ? lookup.venue : null;
+}
+
+/**
+ * The venue a STORED reference names: the live venue its id resolves to, or the
+ * retired pub it names. Only a renderer of stored references (pint drops,
+ * crawl stories) opts in here, and prints the retired pub through
+ * `storedVenueName`; every other reader uses `resolveVenue`.
+ */
+export async function resolveStoredVenue(id: string): Promise<VenueRef | null> {
+  if (!id) return null;
+  const lookup = await lookupCanonicalVenue(id);
   if (lookup.status === "found") return lookup.venue;
   if (lookup.status !== "unknown") return null;
   return (await lookupRetiredIndexedVenue(lookup.canonicalId))?.venue ?? null;

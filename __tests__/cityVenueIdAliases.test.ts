@@ -16,7 +16,7 @@ import { spoonsValueRowFor } from "@/lib/spoonsValue.server";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { resetVenueAliasesForTests, setVenueAliasesPathForTests } from "@/lib/venueAliases";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
-import { lookupCanonicalVenue, resolveVenue } from "@/lib/venueIndex";
+import { lookupCanonicalVenue, resolveStoredVenue, resolveVenue } from "@/lib/venueIndex";
 import {
   mergeCityVenueIdAliases,
   mergeRetiredCityVenues,
@@ -254,7 +254,10 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
   });
 
   it("resolves a tombstoned id to its own pub, in its own city, flagged as no longer listed", async () => {
-    const venue = await resolveVenue(HENMAN_AND_COOPER);
+    // Only a renderer of stored references opts in: drink-wall, heritage and
+    // every other live reader get no venue for it.
+    expect(await resolveVenue(HENMAN_AND_COOPER)).toBeNull();
+    const venue = await resolveStoredVenue(HENMAN_AND_COOPER);
     expect(venue).toMatchObject({
       id: HENMAN_AND_COOPER,
       name: "Henman & Cooper",
