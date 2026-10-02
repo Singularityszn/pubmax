@@ -549,9 +549,8 @@ function cleanName(label: string): string | null {
 }
 
 function isMixedNumber(line: string): boolean {
-  return /\d\s*[½⅓⅔¼¾]/.test(line)
-    || /\d[ \t]+[1-9]\/[1-9]/.test(line)
-    || /\d[1-9]\/[1-9]/.test(line);
+  return /\d\s*[½⅓⅔¼¾]\s*pints?\b/i.test(line)
+    || /\d[ \t]+1\/2\s*pints?\b/i.test(line);
 }
 
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
@@ -559,7 +558,10 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\btwo[\s-]thirds\b/i.test(line) || /(?<!\d)⅔|(?<!\d)\b2\/3\b/.test(line)) {
     return { size: "unstated", sizeDetail: "two-thirds" };
   }
-  if (/(?<!\d)(?:½|\b1\/2\b)/.test(line) && /\bpints?\b/i.test(line) && !/\bbottles?\b/i.test(line)) {
+  if (/(?<!\d)(?:½|\b1\/2\b|\bhalf\b)\s+bottles?\b/i.test(line)) {
+    return { size: "unstated", sizeDetail: "half bottle" };
+  }
+  if (/(?<!\d)(?:½|\b1\/2\b)|\bhalf\b/i.test(line)) {
     return { size: "unstated", sizeDetail: "half" };
   }
   if (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line)) return { size: "pint", sizeDetail: "pint" };
@@ -577,7 +579,7 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
 function measureAllowed(line: string, size: { size: DrinkSize; sizeDetail: string | null }): boolean {
   if (isMixedNumber(line)) return false;
   if (size.size === "pint" || size.size === "keg" || size.size === "bottle" || size.size === "can") return true;
-  if (size.sizeDetail === "half" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
+  if (size.sizeDetail === "half" || size.sizeDetail === "half bottle" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
   if (size.sizeDetail && (GLASS_ML.has(size.sizeDetail) || SPIRIT_ML.has(size.sizeDetail))) return true;
   if (/\b\d{2,4}\s*ml\b/i.test(line)) return true;
   return /\b(?:glasses|glass)\b/i.test(line);
@@ -620,8 +622,9 @@ function measureTail(after: string): string {
 function trailingMeasure(after: string): string {
   const next = /£/.exec(after);
   const untilNext = next ? after.slice(0, next.index) : after;
-  if (next && /^\s*(?:[|/]\s*)?\d{2,4}\s*ml\s*$/i.test(untilNext)) return "";
-  return measureTail(untilNext);
+  const tail = measureTail(untilNext);
+  if (next && untilNext.trim() === tail.trim()) return "";
+  return tail;
 }
 
 function isBareGlassMeasure(text: string): boolean {
@@ -667,17 +670,8 @@ function drinkFromDrop(
   drop: PriceOutcome["drop"],
   fact: SourcedFact,
 ): ListedDrinkLine | null {
-  if (drop === "bottled-measure-not-a-pint") {
+  if (drop === "bottled-measure-not-a-pint" || drop === "half-measure-not-a-pint") {
     return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
-  }
-  if (drop === "half-measure-not-a-pint") {
-    if (/\bbottles?\b/i.test(line)) {
-      return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
-    }
-    return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, {
-      size: "unstated",
-      sizeDetail: "half",
-    });
   }
   if (drop !== "no-category-word-nearby") return null;
   const size = sizeOf(line);

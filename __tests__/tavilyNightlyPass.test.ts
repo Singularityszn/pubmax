@@ -812,14 +812,42 @@ describe("a price stays in the lane the reader gave it", () => {
       { text: "Peroni 1/2 £3.55", drinks: [] },
       {
         text: "House Merlot 1/2 bottle £12.00",
-        drinks: [{ drink: "House Merlot", size: "bottle", sizeDetail: "bottle", priceGbp: 12 }],
+        drinks: [{ drink: "House Merlot", size: "unstated", sizeDetail: "half bottle", priceGbp: 12 }],
+      },
+      {
+        text: "House Merlot ½ bottle £12.00",
+        drinks: [{ drink: "House Merlot", size: "unstated", sizeDetail: "half bottle", priceGbp: 12 }],
       },
       {
         text: "House Merlot half bottle £12.00",
-        drinks: [{ drink: "House Merlot", size: "bottle", sizeDetail: "bottle", priceGbp: 12 }],
+        drinks: [{ drink: "House Merlot", size: "unstated", sizeDetail: "half bottle", priceGbp: 12 }],
+      },
+      {
+        text: "Peroni half £3.55 / bottle £5.20",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "bottle", priceGbp: 5.2 },
+        ],
       },
       { text: "Guinness 1½ pint £8.50", drinks: [] },
       { text: "Guinness 2 1/2 pint £8.50", drinks: [] },
+      { text: "Guinness 2 1/2 pint £9.00", drinks: [] },
+      {
+        text: "Rioja 2018/19 175ml £7.50",
+        drinks: [{ drink: "Rioja 2018 19", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 }],
+      },
+      {
+        text: "Malbec 2021/22 175ml £8.50",
+        drinks: [{ drink: "Malbec 2021 22", size: "unstated", sizeDetail: "175ml", priceGbp: 8.5 }],
+      },
+      {
+        text: "House Merlot 175/250ml £7.50",
+        drinks: [{ drink: "House Merlot 175", size: "unstated", sizeDetail: "250ml", priceGbp: 7.5 }],
+      },
+      {
+        text: "Rioja 175ml £7.50",
+        drinks: [{ drink: "Rioja", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 }],
+      },
       {
         text: "Landlord pint £4.80 / 1/2 £2.40",
         drinks: [{ drink: "Landlord", size: "pint", sizeDetail: "pint", priceGbp: 4.8 }],
