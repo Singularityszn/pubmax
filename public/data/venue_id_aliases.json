@@ -5,8 +5,8 @@
   "aliasCount": 91,
   "aliases": {
     "venue-11h1ycl": "venue-1g0tt6c",
-    "venue-ob350x": "venue-d7vcn6",
     "venue-130gm9m": "venue-13nqwf3",
+    "venue-ob350x": "venue-d7vcn6",
     "venue-lqsslz": "venue-2k9hok",
     "venue-1rca8ry": "venue-16ze6b1",
     "venue-8u51dx": "venue-17hwv2n",
@@ -109,122 +109,12 @@
       ]
     },
     {
-      "canonicalId": "venue-d7vcn6",
-      "canonicalName": "The Coronation Hall",
-      "mergedFrom": [
-        {
-          "id": "venue-ob350x",
-          "name": "The Coronation Hall - JD Wetherspoon",
-          "rows": 10
-        }
-      ]
-    },
-    {
       "canonicalId": "venue-13nqwf3",
       "canonicalName": "The Overdraft Tavern",
       "mergedFrom": [
         {
           "id": "venue-130gm9m",
           "name": "The Overdraft Tavern",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-2k9hok",
-      "canonicalName": "Canonbury Tavern",
-      "mergedFrom": [
-        {
-          "id": "venue-lqsslz",
-          "name": "The Canonbury",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-16ze6b1",
-      "canonicalName": "George (Southwark)",
-      "mergedFrom": [
-        {
-          "id": "venue-1rca8ry",
-          "name": "The George Inn",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-17hwv2n",
-      "canonicalName": "Seething Lane Tap: A BrewDog Pub",
-      "mergedFrom": [
-        {
-          "id": "venue-8u51dx",
-          "name": "Seething Lane Tap",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-1dydno",
-      "canonicalName": "The Old Hat Ealing",
-      "mergedFrom": [
-        {
-          "id": "venue-1x5xdqq",
-          "name": "The Old Hat",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-15hi94a",
-      "canonicalName": "The Blue Boat, Fulham Reach",
-      "mergedFrom": [
-        {
-          "id": "venue-1oofxdb",
-          "name": "The Blue Boat",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-gk759w",
-      "canonicalName": "Hand & Racquet (Wimbledon)",
-      "mergedFrom": [
-        {
-          "id": "venue-1ads6jm",
-          "name": "Hand and Racquet, Wimbledon",
-          "rows": 3
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-djy3xd",
-      "canonicalName": "Salt Quay",
-      "mergedFrom": [
-        {
-          "id": "venue-lrknik",
-          "name": "Salt quay rotherhithe",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-snbr0l",
-      "canonicalName": "The Orange Tree",
-      "mergedFrom": [
-        {
-          "id": "venue-vm2x07",
-          "name": "The Orange Tree Totteridge",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-t3ii33",
-      "canonicalName": "The Owl & The Pussycat",
-      "mergedFrom": [
-        {
-          "id": "venue-18bj60",
-          "name": "Owl and Pussycat",
           "rows": 1
         }
       ]

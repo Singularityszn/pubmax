@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:26:40Z",
+    "timestamp_osm_base": "2026-10-02T10:17:06Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -125,8 +125,8 @@
     {
       "type": "node",
       "id": 241473415,
-      "lat": 51.4093122,
-      "lon": -0.3064476,
+      "lat": 51.4092055,
+      "lon": -0.3064444,
       "tags": {
         "addr:city": "Kingston upon Thames",
         "addr:country": "GB",
@@ -383,8 +383,8 @@
     {
       "type": "node",
       "id": 327426281,
-      "lat": 51.4103079,
-      "lon": -0.308042,
+      "lat": 51.410329,
+      "lon": -0.3081543,
       "tags": {
         "addr:city": "Kingston upon Thames",
         "addr:country": "GB",
@@ -394,12 +394,17 @@
         "addr:street": "Bishop's Hall",
         "alt_name": "The Bishop out of Residence",
         "amenity": "pub",
+        "check_date": "2026-09-05",
         "contact:phone": "+44 20 8546 4965",
         "contact:website": "http://thebishopkingston.co.uk",
         "fhrs:id": "1386055",
         "live_sport": "yes",
         "name": "The Bishop",
+        "opening_hours": "Mo-Sa 11:00-23:00; Su 12:00-22:30",
         "outdoor_seating": "yes",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
         "real_ale": "yes",
         "source:addr": "FHRS Open Data",
         "wheelchair": "yes"
@@ -541,9 +546,15 @@
         "addr:postcode": "KT2 5EN",
         "addr:street": "Richmond Road",
         "amenity": "pub",
-        "fhrs:id": "1386664",
+        "check_date": "2026-09-28",
+        "fhrs:id": "1963616",
         "name": "The Oak",
-        "source:addr": "FHRS Open Data"
+        "outdoor_seating": "yes",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "source:addr": "FHRS Open Data",
+        "wheelchair": "yes"
       }
     },
     {
@@ -573,8 +584,8 @@
     {
       "type": "node",
       "id": 867528389,
-      "lat": 51.4106074,
-      "lon": -0.3016953,
+      "lat": 51.4106514,
+      "lon": -0.3016389,
       "tags": {
         "addr:city": "Kingston upon Thames",
         "addr:country": "GB",
@@ -614,15 +625,6 @@
         "payment:visa": "yes",
         "source:addr": "FHRS Open Data",
         "website": "https://www.oneills.co.uk/national-search/south-east/kingston-upon-thames"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1030867315,
-      "lat": 51.4091783,
-      "lon": -0.3073967,
-      "tags": {
-        "amenity": "bar"
       }
     },
     {
@@ -678,6 +680,7 @@
         "brand": "Wetherspoon",
         "brand:wikidata": "Q6109362",
         "brand:wikipedia": "en:Wetherspoons",
+        "dog": "no",
         "fhrs:id": "1386022",
         "name": "The Watchman",
         "source:addr": "FHRS Open Data",
@@ -691,8 +694,8 @@
     {
       "type": "node",
       "id": 1795493240,
-      "lat": 51.4043231,
-      "lon": -0.2572003,
+      "lat": 51.4043134,
+      "lon": -0.2572916,
       "tags": {
         "addr:city": "New Malden",
         "addr:housenumber": "14",
@@ -707,8 +710,8 @@
     {
       "type": "node",
       "id": 2056003265,
-      "lat": 51.4034925,
-      "lon": -0.2570078,
+      "lat": 51.4034942,
+      "lon": -0.2570433,
       "tags": {
         "addr:city": "New Malden",
         "addr:housenumber": "1",
@@ -740,26 +743,35 @@
     {
       "type": "node",
       "id": 2789274129,
-      "lat": 51.4100223,
-      "lon": -0.3082897,
+      "lat": 51.4100067,
+      "lon": -0.3082225,
       "tags": {
         "addr:city": "Kingston upon Thames",
         "addr:country": "GB",
         "addr:postcode": "KT1 1QN",
         "addr:street": "Riverside Walk",
         "amenity": "pub",
+        "brand": "Samuel Smith",
+        "brand:wikidata": "Q7412675",
+        "brewery": "Samuel Smith",
+        "check_date": "2026-09-06",
         "fhrs:id": "1385981",
         "name": "The Gazebo",
+        "opening_hours": "Mo-Sa 12:00-23:00; Su 12:00-22:30",
         "operator": "Samuel Smith",
+        "operator:wikidata": "Q7412675",
         "outdoor_seating": "yes",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
         "source:addr": "FHRS Open Data"
       }
     },
     {
       "type": "node",
       "id": 3282498381,
-      "lat": 51.4113298,
-      "lon": -0.3006922,
+      "lat": 51.4113611,
+      "lon": -0.3006219,
       "tags": {
         "addr:city": "Kingston upon Thames",
         "addr:country": "GB",
@@ -874,15 +886,20 @@
         "addr:street": "Richmond Road",
         "amenity": "pub",
         "brewery": "various",
+        "check_date": "2026-09-28",
         "cuisine": "burger",
         "fhrs:id": "1385481",
         "name": "The Grey Horse",
         "opening_hours": "Su-Th 12:00-23:00; Fr-Sa 12:00-01:00",
         "outdoor_seating": "yes",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
         "phone": "+44 20 8617 9860",
         "smoking": "outside",
         "source:addr": "FHRS Open Data",
-        "website": "https://www.grey-horse.co.uk"
+        "website": "https://www.grey-horse.co.uk",
+        "wheelchair": "limited"
       }
     },
     {
@@ -913,8 +930,8 @@
     {
       "type": "node",
       "id": 11100986305,
-      "lat": 51.4089514,
-      "lon": -0.3070214,
+      "lat": 51.4089308,
+      "lon": -0.3069276,
       "tags": {
         "addr:city": "Kingston upon Thames",
         "addr:country": "GB",
@@ -923,48 +940,8 @@
         "addr:street": "Market Place",
         "addr:unit": "7",
         "amenity": "bar",
-        "fhrs:id": "1403675",
-        "source:addr": "FHRS Open Data"
-      }
-    },
-    {
-      "type": "node",
-      "id": 11163284605,
-      "lat": 51.4089249,
-      "lon": -0.3067821,
-      "tags": {
-        "addr:city": "Kingston upon Thames",
-        "addr:country": "GB",
-        "addr:housename": "The Griffin Centre",
-        "addr:postcode": "KT1 1JT",
-        "addr:street": "Market Place",
-        "addr:unit": "7",
-        "amenity": "bar",
-        "fhrs:id": "1403675",
-        "source:addr": "FHRS Open Data",
-        "wheelchair": "no"
-      }
-    },
-    {
-      "type": "node",
-      "id": 11952231689,
-      "lat": 51.4130392,
-      "lon": -0.3004908,
-      "tags": {
-        "addr:city": "Kingston upon Thames",
-        "addr:country": "GB",
-        "addr:housenumber": "20",
-        "addr:postcode": "KT2 5EB",
-        "addr:street": "Richmond Road",
-        "amenity": "pub",
-        "check_date": "2024-06-02",
-        "fhrs:id": "1659086",
-        "live_sport": "yes",
-        "name": "Whelans",
-        "phone": "+44 20 8549 9845",
-        "source:addr": "FHRS Open Data",
-        "theme": "irish",
-        "website": "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/"
+        "fhrs:id": "1745985",
+        "name": "Gather Friends"
       }
     },
     {
@@ -1032,9 +1009,12 @@
       "lat": 51.4092162,
       "lon": -0.3061009,
       "tags": {
+        "addr:housenumber": "38",
+        "addr:street": "Market Place",
         "amenity": "bar",
         "check_date": "2025-08-02",
-        "name": "Ex Cellar Wine Café"
+        "name": "Ex Cellar",
+        "website": "https://www.excellar.co.uk/claygate"
       }
     },
     {
@@ -1067,8 +1047,15 @@
       "lat": 51.4116178,
       "lon": -0.3002209,
       "tags": {
+        "addr:city": "Kingston upon Thames",
+        "addr:country": "GB",
+        "addr:housenumber": "154 - 166",
+        "addr:postcode": "KT1 1QP",
+        "addr:street": "Clarence Street",
         "amenity": "pub",
-        "name": "Bonnie Rogues"
+        "fhrs:id": "1849034",
+        "name": "Bonnie Rogues",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -1086,17 +1073,72 @@
       }
     },
     {
-      "type": "way",
-      "id": 28016335,
-      "center": {
-        "lat": 51.3737576,
-        "lon": -0.2608122
-      },
+      "type": "node",
+      "id": 14054873138,
+      "lat": 51.3800762,
+      "lon": -0.2444316,
       "tags": {
+        "addr:city": "Worcester Park",
+        "addr:country": "GB",
+        "addr:housenumber": "181",
+        "addr:postcode": "KT4 8DR",
+        "addr:street": "Central Road",
         "amenity": "pub",
-        "brewery": "yes;various",
-        "building": "yes",
-        "ref:GB:uprn": "100062371910"
+        "name": "The Brook"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14054873203,
+      "lat": 51.377162,
+      "lon": -0.2390937,
+      "tags": {
+        "addr:city": "Worcester Park",
+        "addr:housenumber": "25",
+        "addr:postcode": "KT4 8EG",
+        "addr:street": "Central Road",
+        "amenity": "bar",
+        "name": "Rumours Bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14063927401,
+      "lat": 51.4107253,
+      "lon": -0.3079265,
+      "tags": {
+        "amenity": "bar",
+        "level": "1",
+        "name": "Sonnys Riverside"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14070263101,
+      "lat": 51.4098135,
+      "lon": -0.3054921,
+      "tags": {
+        "addr:housenumber": "1",
+        "addr:street": "Crown Passage",
+        "amenity": "bar",
+        "email": "contact@7000jarsofbeer.co.uk",
+        "website": "https://www.7000jarsofbeer.co.uk/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14107622060,
+      "lat": 51.4089838,
+      "lon": -0.3068048,
+      "tags": {
+        "addr:city": "Kingston upon Thames",
+        "addr:housename": "The Griffin Centre",
+        "addr:postcode": "KT1 1JT",
+        "addr:street": "Market Place",
+        "addr:unit": "1",
+        "amenity": "bar",
+        "fhrs:id": "1385546",
+        "name": "Mimosa"
       }
     },
     {
@@ -1121,8 +1163,8 @@
       "type": "way",
       "id": 87524436,
       "center": {
-        "lat": 51.4106816,
-        "lon": -0.2982041
+        "lat": 51.4106728,
+        "lon": -0.2981862
       },
       "tags": {
         "addr:city": "Kingston upon Thames",
@@ -1302,8 +1344,8 @@
         "addr:postcode": "KT2 6LQ",
         "addr:street": "Canbury Park Road",
         "amenity": "pub",
-        "building": "yes",
-        "fhrs:id": "1386668",
+        "building": "retail",
+        "fhrs:id": "1980871",
         "name": "The Canbury Arms",
         "outdoor_seating": "yes",
         "source:addr": "FHRS Open Data",
@@ -1389,9 +1431,9 @@
         "addr:postcode": "KT5 8LS",
         "addr:street": "Chiltern Drive",
         "amenity": "pub",
-        "building": "yes",
-        "check_date": "2023-09-24",
-        "fhrs:id": "361192",
+        "building": "retail",
+        "check_date": "2026-10-01",
+        "fhrs:id": "1386103",
         "name": "Berrylands",
         "opening_hours": "Mo-Th 12:00-23:00; Fr-Sa 12:00-24:00; Su 12:00-22:30",
         "source:addr": "FHRS Open Data",
@@ -1472,8 +1514,8 @@
       "type": "way",
       "id": 298834128,
       "center": {
-        "lat": 51.4274308,
-        "lon": -0.3305859
+        "lat": 51.4274159,
+        "lon": -0.3305529
       },
       "tags": {
         "addr:city": "Teddington",
@@ -1494,8 +1536,8 @@
       "type": "way",
       "id": 298834131,
       "center": {
-        "lat": 51.4275552,
-        "lon": -0.328532
+        "lat": 51.4275452,
+        "lon": -0.3284946
       },
       "tags": {
         "addr:city": "Teddington",
@@ -1504,6 +1546,7 @@
         "addr:street": "High Street",
         "amenity": "pub",
         "building": "yes",
+        "check_date": "2026-07-25",
         "fhrs:id": "1574782",
         "name": "The King's Head",
         "operator": "The White Brasserie Company",
@@ -1531,8 +1574,8 @@
       "type": "way",
       "id": 311571963,
       "center": {
-        "lat": 51.4259993,
-        "lon": -0.3304516
+        "lat": 51.425994,
+        "lon": -0.3304972
       },
       "tags": {
         "addr:housenumber": "38",
@@ -1734,8 +1777,7 @@
         "addr:street": "Victoria Road",
         "amenity": "pub",
         "building": "retail",
-        "building:levels": "3",
-        "check_date": "2026-06-17",
+        "check_date": "2026-08-10",
         "contact:website": "https://www.thevictoriasurbiton.co.uk/",
         "email": "victoria@youngs.co.uk",
         "fhrs:id": "1385958",
@@ -1743,6 +1785,10 @@
         "name": "The Victoria",
         "opening_hours": "Mo-Th 11:00-23:00; Fr-Sa 11:00-24:00; Su 12:00-23:00",
         "operator": "Young's",
+        "outdoor_seating": "yes",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
         "phone": "+44 20 8399 3007",
         "source:addr": "FHRS Open Data",
         "toilets": "yes",
@@ -1983,7 +2029,7 @@
         "amenity": "pub",
         "building": "retail",
         "building:material": "brick",
-        "fhrs:id": "1533729",
+        "fhrs:id": "1963618;1977287",
         "name": "The Black Horse",
         "old_name": "The Kingston Gate",
         "outdoor_seating": "yes",
@@ -2107,32 +2153,10 @@
     },
     {
       "type": "way",
-      "id": 707077026,
-      "center": {
-        "lat": 51.4272134,
-        "lon": -0.3282199
-      },
-      "tags": {
-        "addr:city": "Teddington",
-        "addr:housenumber": "114-116",
-        "addr:postcode": "TW11 8JB",
-        "addr:street": "High Street",
-        "amenity": "bar",
-        "building": "retail",
-        "building:levels": "3",
-        "fhrs:id": "1575097",
-        "name": "One One Four",
-        "outdoor_seating": "yes",
-        "roof:levels": "1",
-        "source:addr": "FHRS Open Data"
-      }
-    },
-    {
-      "type": "way",
       "id": 707994822,
       "center": {
-        "lat": 51.4270175,
-        "lon": -0.3318387
+        "lat": 51.4270104,
+        "lon": -0.3318083
       },
       "tags": {
         "addr:city": "Teddington",
@@ -2168,7 +2192,7 @@
         "addr:suburb": "Ham",
         "amenity": "pub",
         "building": "yes",
-        "check_date": "2026-07-17",
+        "check_date": "2026-09-16",
         "fhrs:id": "1704039",
         "food": "yes",
         "indoor_seating": "yes",
@@ -2184,6 +2208,7 @@
         "toilets": "yes",
         "toilets:access": "customers",
         "website:menu": "https://www.thenewinnham.co.uk/#menu",
+        "wheelchair": "limited",
         "wikidata": "Q26355850"
       }
     },
@@ -2191,8 +2216,8 @@
       "type": "way",
       "id": 723739293,
       "center": {
-        "lat": 51.4178558,
-        "lon": -0.3182988
+        "lat": 51.4178457,
+        "lon": -0.3182688
       },
       "tags": {
         "addr:city": "Teddington",
@@ -2264,8 +2289,8 @@
       "type": "way",
       "id": 813133873,
       "center": {
-        "lat": 51.4236852,
-        "lon": -0.3345952
+        "lat": 51.4236737,
+        "lon": -0.3345596
       },
       "tags": {
         "addr:city": "Teddington",
@@ -2328,25 +2353,6 @@
     },
     {
       "type": "way",
-      "id": 901272257,
-      "center": {
-        "lat": 51.3800772,
-        "lon": -0.2444446
-      },
-      "tags": {
-        "addr:city": "Worcester Park",
-        "addr:country": "GB",
-        "addr:housenumber": "181",
-        "addr:postcode": "KT4 8DR",
-        "addr:street": "Central Road",
-        "amenity": "pub",
-        "building": "commercial",
-        "name": "The Brook",
-        "ref:GB:uprn": "5870007530;5870120922"
-      }
-    },
-    {
-      "type": "way",
       "id": 904726457,
       "center": {
         "lat": 51.4075233,
@@ -2366,23 +2372,6 @@
         "ref:GB:uprn": "100023060447;100021774826",
         "source:addr": "FHRS Open Data",
         "wikidata": "Q26670434"
-      }
-    },
-    {
-      "type": "way",
-      "id": 907797527,
-      "center": {
-        "lat": 51.3771123,
-        "lon": -0.2391622
-      },
-      "tags": {
-        "addr:city": "Worcester Park",
-        "addr:housenumber": "25",
-        "addr:postcode": "KT4 8EG",
-        "addr:street": "Central Road",
-        "amenity": "bar",
-        "building": "yes",
-        "name": "Rumours Bar"
       }
     },
     {
@@ -2409,8 +2398,8 @@
       "type": "way",
       "id": 950051568,
       "center": {
-        "lat": 51.4239847,
-        "lon": -0.3326444
+        "lat": 51.4239783,
+        "lon": -0.3326173
       },
       "tags": {
         "addr:city": "Teddington",
@@ -2419,8 +2408,9 @@
         "addr:postcode": "TW11 0BB",
         "addr:street": "Victoria Road",
         "amenity": "pub",
-        "building": "yes",
-        "fhrs:id": "1575010",
+        "building": "retail",
+        "check_date": "2026-07-24",
+        "fhrs:id": "1704089",
         "name": "The Railway",
         "source:addr": "FHRS Open Data"
       }
@@ -2481,11 +2471,11 @@
         "addr:postcode": "KT2 6PW",
         "addr:street": "Clifton Road",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
         "building:colour": "#42636C",
         "building:levels": "2",
         "email": "norbiton@frontierpubs.co.uk",
-        "fhrs:id": "1385845",
+        "fhrs:id": "1896006",
         "live_sport": "yes",
         "name": "The Norbiton",
         "opening_hours": "Mo-Th 12:00-23:00; Fr 12:00-00:00; Sa 11:30-00:00; Su 12:00-22:30",
@@ -2654,6 +2644,37 @@
         "fhrs:local_authority_id": "FR/201100204",
         "name": "The Angel Inn",
         "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1545736312,
+      "center": {
+        "lat": 51.4130073,
+        "lon": -0.3003753
+      },
+      "tags": {
+        "addr:city": "Kingston upon Thames",
+        "addr:country": "GB",
+        "addr:housenumber": "20",
+        "addr:postcode": "KT2 5EB",
+        "addr:street": "Richmond Road",
+        "amenity": "pub",
+        "building": "yes",
+        "check_date": "2026-09-28",
+        "fhrs:id": "1385377",
+        "live_sport": "yes",
+        "name": "Whelans",
+        "opening_hours": "Mo-Tu 12:00-23:00; We-Th 12:00-01:30; Fr 12:00-03:00; Sa 11:00-03:00; Su 12:00-24:00",
+        "outdoor_seating": "yes",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "phone": "+44 20 8549 9845",
+        "source:addr": "FHRS Open Data",
+        "theme": "irish",
+        "toilets": "yes",
+        "website": "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/"
       }
     }
   ]

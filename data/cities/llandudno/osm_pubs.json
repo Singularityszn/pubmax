@@ -3,7 +3,7 @@
   "source": "OpenStreetMap Overpass",
   "license": "ODbL",
   "attribution": "© OpenStreetMap contributors",
-  "fetchedAt": "2026-07-26T01:07:30.481Z",
+  "fetchedAt": "2026-10-02T10:12:37.575Z",
   "promotedFrom": "data/osm/uk/uk_osm_pubs.json",
   "bbox": [
     53.25,
@@ -854,7 +854,7 @@
       "name": "King's Arms",
       "amenity": "pub",
       "lat": 53.3226965,
-      "lng": -3.8253133,
+      "lng": -3.8253087,
       "address": "17, Mostyn Street, Llandudno, LL30 2NL",
       "locality": "Llandudno",
       "postcode": "LL30 2NL",

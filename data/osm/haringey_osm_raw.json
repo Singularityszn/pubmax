@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:40:59Z",
+    "timestamp_osm_base": "2026-05-31T22:37:44Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -22,7 +22,6 @@
         "amenity": "pub",
         "check_date": "2024-04-26",
         "live_music": "no",
-        "live_sport": "yes",
         "microbrewery": "no",
         "name": "The Old Ale Emporium",
         "opening_hours": "Mo-Th 11:00-00:00; Fr-Sa 11:00-01:00; Su 12:00-23:00",
@@ -94,12 +93,10 @@
       "tags": {
         "addr:city": "London",
         "addr:housenumber": "125-127",
-        "addr:postcode": "N4 3PX",
         "addr:street": "Stroud Green Road",
         "amenity": "pub",
         "fhrs:id": "939857",
-        "name": "The White Lion of Mortimer",
-        "source:addr": "FHRS Open Data"
+        "name": "The White Lion of Mortimer"
       }
     },
     {
@@ -110,7 +107,6 @@
       "tags": {
         "amenity": "pub",
         "check_date": "2024-10-14",
-        "live_sport": "yes",
         "name": "No.8 Seven Sisters",
         "toilets": "yes",
         "toilets:access": "customers"
@@ -124,7 +120,6 @@
       "tags": {
         "amenity": "pub",
         "description": "formely 'The Pink Chameleon'",
-        "live_sport": "yes",
         "name": "North Nineteen",
         "opening_hours": "Mo-Th 16:00-12:00, Fr 16:00-01:00",
         "toilets": "yes",
@@ -178,7 +173,6 @@
         "description:floor": "Rough wood",
         "fhrs:id": "422058",
         "food": "yes",
-        "live_sport": "yes",
         "microbrewery": "no",
         "name": "King's Head",
         "note:beer": "May vary",
@@ -310,7 +304,6 @@
         "addr:street": "Northwold Road",
         "amenity": "pub",
         "fhrs:id": "470513",
-        "live_sport": "yes",
         "name": "The Royal Sovereign"
       }
     },
@@ -366,7 +359,6 @@
         "addr:postcode": "N7 7PT",
         "addr:street": "Seven Sisters Road",
         "amenity": "pub",
-        "live_sport": "yes",
         "name": "Bedford Tavern",
         "outdoor_seating": "yes",
         "toilets": "yes",
@@ -428,7 +420,6 @@
         "addr:street": "Priory Road",
         "amenity": "pub",
         "fhrs:id": "422091",
-        "live_sport": "yes",
         "microbrewery": "no",
         "name": "The Priory",
         "opening_hours": "Mo-Su 11:00-24:00; Fr,Sa 11:00-23:00",
@@ -489,7 +480,6 @@
         "addr:postcode": "N4 2DR",
         "addr:street": "Blackstock Road",
         "amenity": "pub",
-        "live_sport": "yes",
         "name": "Kings Head",
         "opening_hours": "Su-Th 11:00-24:00; Fr-Sa 11:00-01:00"
       }
@@ -514,6 +504,18 @@
     },
     {
       "type": "node",
+      "id": 459819389,
+      "lat": 51.6056848,
+      "lon": -0.0616534,
+      "tags": {
+        "amenity": "pub",
+        "name": "The Bill Nicholson",
+        "toilets": "yes",
+        "toilets:access": "customers"
+      }
+    },
+    {
+      "type": "node",
       "id": 460531077,
       "lat": 51.5982203,
       "lon": -0.1109739,
@@ -522,7 +524,6 @@
         "addr:housenumber": "239",
         "addr:street": "High Road",
         "amenity": "pub",
-        "live_sport": "yes",
         "name": "P.J. O'Connor's",
         "theme": "irish"
       }
@@ -541,7 +542,6 @@
         "amenity": "pub",
         "fhrs:id": "422259",
         "fixme:place": "Tottenham",
-        "live_sport": "yes",
         "name": "Mannions Prince Arthur",
         "source:addr": "FHRS Open Data"
       }
@@ -619,7 +619,6 @@
         "addr:suburb": "Tottenham",
         "amenity": "pub",
         "fhrs:id": "1255480",
-        "live_sport": "yes",
         "name": "The Olive Branch",
         "toilets": "yes",
         "toilets:access": "customers"
@@ -628,8 +627,8 @@
     {
       "type": "node",
       "id": 520913454,
-      "lat": 51.6018436,
-      "lon": -0.0748273,
+      "lat": 51.6018786,
+      "lon": -0.0747509,
       "tags": {
         "addr:city": "London",
         "addr:housenumber": "168-170",
@@ -637,7 +636,6 @@
         "addr:street": "Church Road",
         "amenity": "pub",
         "brewery": "redemption",
-        "live_sport": "yes",
         "name": "The Antwerp Arms",
         "opening_hours": "Tu-Th 16:00-23:00; Fr 14:00-00:00; Sa 12:00-00:00; Su 12:00-22:30",
         "phone": "+44 20 8216 9289",
@@ -657,7 +655,6 @@
         "addr:suburb": "Tottenham",
         "amenity": "pub",
         "fhrs:id": "422719",
-        "live_sport": "yes",
         "name": "The Elbow Room",
         "operator": "Stonegate",
         "operator:wikidata": "Q7619176",
@@ -690,14 +687,13 @@
       "tags": {
         "air_conditioning": "yes",
         "amenity": "pub",
-        "check_date": "2026-06-15",
+        "check_date": "2024-11-03",
         "check_date:diet:vegan": "2024-11-03",
         "check_date:diet:vegetarian": "2024-11-03",
         "diet:vegan": "yes",
         "diet:vegetarian": "yes",
         "food": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Ranelagh",
         "outdoor_seating": "yes",
         "payment:credit_cards": "yes",
@@ -750,7 +746,6 @@
         "addr:street": "Colney Hatch Lane",
         "amenity": "pub",
         "fhrs:id": "1390266",
-        "live_sport": "yes",
         "name": "Furlong",
         "opening_hours:covid19": "closed",
         "opening_hours:signed": "no",
@@ -771,7 +766,6 @@
         "amenity": "pub",
         "brand": "Greene King",
         "brand:wikidata": "Q5564162",
-        "live_sport": "yes",
         "name": "Five Bells",
         "website": "https://www.greeneking-pubs.co.uk/pubs/greater-london/five-bells/",
         "wheelchair": "limited"
@@ -809,7 +803,6 @@
         "addr:postcode": "N15 5DE",
         "addr:street": "West Green Road",
         "amenity": "pub",
-        "live_sport": "yes",
         "name": "The Fountain",
         "outdoor_seating": "yes",
         "phone": "+44 20 8802 0433"
@@ -848,7 +841,6 @@
         "addr:street": "High Road",
         "addr:suburb": "Tottenham",
         "amenity": "pub",
-        "live_sport": "yes",
         "name": "Bricklayers Arms",
         "source": "Local Knowledge",
         "survey:date": "2022-08-15"
@@ -909,7 +901,6 @@
         "addr:suburb": "Turnpike Lane",
         "amenity": "pub",
         "contact:website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/london/the-toll-gate-harringay",
-        "live_sport": "yes",
         "name": "The Toll Gate",
         "wikidata": "Q88916783"
       }
@@ -983,7 +974,6 @@
         "amenity": "pub",
         "check_date": "2026-05-18",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Highgate Inn",
         "outdoor_seating": "yes"
       }
@@ -1035,7 +1025,6 @@
         "addr:street": "Windus Road",
         "amenity": "pub",
         "fhrs:id": "470257",
-        "live_sport": "yes",
         "name": "The Wheatsheaf"
       }
     },
@@ -1285,7 +1274,6 @@
         "addr:street": "Seven Sisters Road",
         "amenity": "pub",
         "fhrs:id": "422219",
-        "live_sport": "yes",
         "name": "The Twelve Pins",
         "note": "Irish (style) pub",
         "opening_hours": "Mo-Th 12:00-24:00; Fr 11:00-24:00; Sa 00:00-01:00,11:00-24:00; Su 00:00-01:00,11:00-24:00",
@@ -1315,6 +1303,27 @@
     },
     {
       "type": "node",
+      "id": 10261263865,
+      "lat": 51.6022547,
+      "lon": -0.0674075,
+      "tags": {
+        "addr:city": "London",
+        "addr:housenumber": "732",
+        "addr:postcode": "N17 0AG",
+        "addr:street": "High Road",
+        "addr:suburb": "Tottenham",
+        "amenity": "pub",
+        "check_date": "2022-12-13",
+        "contact:website": "https://beavertownbrewery.co.uk/pages/corner-pin",
+        "fhrs:id": "1383352",
+        "name": "Beavertown Corner Pin",
+        "opening_hours": "Mo-We 12:00-22:00; Th-Fr 12:00-23:00; Sa 11:00-23:00; Su 11:00-21:00",
+        "operator": "Beavertown Brewery",
+        "outdoor_seating": "no"
+      }
+    },
+    {
+      "type": "node",
       "id": 10263469468,
       "lat": 51.6020531,
       "lon": -0.0674609,
@@ -1326,7 +1335,6 @@
         "addr:suburb": "Tottenham",
         "amenity": "pub",
         "fhrs:id": "422188",
-        "live_sport": "yes",
         "name": "No.8 Tottenham",
         "old_name": "Bell & Hare"
       }
@@ -1376,14 +1384,11 @@
       "lon": -0.0615623,
       "tags": {
         "addr:city": "London",
-        "addr:housename": "Rosa Luxemburg Apartments",
         "addr:housenumber": "16",
         "addr:postcode": "N17 9ST",
         "addr:street": "Ashley Road",
-        "addr:unit": "Unit 1",
         "amenity": "bar",
         "email": "localsn17@motherkellys.co.uk",
-        "fhrs:id": "1639058",
         "food": "snacks",
         "name": "Mother Kelly's",
         "opening_hours": "Tu-We 16:00-23:00; Th 12:00-23:00; Fr-Sa 12:00-00:00; Su 12:00-22:30",
@@ -1437,7 +1442,6 @@
         "amenity": "pub",
         "email": "manager@threecompassespub.com",
         "level": "0",
-        "live_sport": "yes",
         "microbrewery": "no",
         "name": "Three Compasses",
         "opening_hours": "Mo-Th 15:00-23:00; Fr 15:00-00:00; Sa 12:00-00:00; Su 12:00-23:00",
@@ -1561,7 +1565,6 @@
         "email": "info@maynardarmsn8.co.uk",
         "food": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "Maynard Arms",
         "opening_hours": "Mo-Th 12:00-23:00; Fr-Sa 12:00-24:00; Su 12:00-22:30",
         "outdoor_seating": "yes",
@@ -1646,18 +1649,6 @@
       }
     },
     {
-      "type": "node",
-      "id": 13997136521,
-      "lat": 51.5625058,
-      "lon": -0.0792644,
-      "tags": {
-        "amenity": "pub",
-        "check_date": "2026-07-08",
-        "name": "Macintosh Ales",
-        "opening_hours": "Mo-Tu off; We 16:00-22:00; Th 16:00-23:00; Fr-Sa 13:00-23:00; Su 13:00-21:00"
-      }
-    },
-    {
       "type": "way",
       "id": 23376385,
       "center": {
@@ -1709,7 +1700,6 @@
         "fhrs:id": "1315135",
         "food": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "Big Penny Social",
         "opening_hours": "Mo-We 12:00-23:00; Th 12:00-00:00; Fr,Sa 12:00-01:00; Su 12:00-22:00",
         "outdoor_seating": "yes",
@@ -1872,12 +1862,12 @@
         "amenity": "pub",
         "brand": "Young's",
         "brand:wikidata": "Q8057802",
-        "building": "retail",
-        "building:levels": "2",
-        "check_date": "2026-06-13",
+        "brand:wikipedia": "en:Young's",
+        "building": "yes",
+        "check_date": "2025-11-08",
         "diet:vegan": "yes",
         "diet:vegetarian": "yes",
-        "dog": "leashed",
+        "dog": "yes",
         "email": "princessofwales@youngs.co.uk",
         "fhrs:id": "470275",
         "food": "yes",
@@ -1885,7 +1875,6 @@
         "indoor_seating": "yes",
         "internet_access": "wlan",
         "internet_access:fee": "no",
-        "live_sport": "yes",
         "name": "Princess of Wales",
         "opening_hours": "Mo-Sa 11:00-23:00; Su 11:00-22:30",
         "operator": "Young's",
@@ -1893,12 +1882,9 @@
         "payment:credit_cards": "yes",
         "payment:debit_cards": "yes",
         "phone": "+44 20 8533 5463",
-        "roof:levels": "1",
-        "smoking": "outside",
         "toilets": "yes",
         "toilets:wheelchair": "yes",
-        "website": "https://www.princessofwalesclapton.co.uk",
-        "wheelchair": "limited"
+        "website": "https://www.princessofwalesclapton.co.uk"
       }
     },
     {
@@ -1971,7 +1957,6 @@
         "amenity": "pub",
         "building": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Starting Gate",
         "opening_hours": "Mo-Th 12:00-23:00; Fr 12:00-24:00; Sa 11:00-24:00; Su 11:00-22:30; PH 12:00-23:00",
         "operator": "Castle Pubs",
@@ -1987,7 +1972,7 @@
       "id": 142313535,
       "center": {
         "lat": 51.5622017,
-        "lon": -0.05726
+        "lon": -0.0572595
       },
       "tags": {
         "addr:city": "London",
@@ -1996,7 +1981,7 @@
         "addr:street": "Upper Clapton Road",
         "amenity": "pub",
         "building": "yes",
-        "check_date": "2026-06-23",
+        "check_date": "2023-07-22",
         "cuisine": "pizza",
         "diet:vegan": "yes",
         "diet:vegetarian": "yes",
@@ -2004,7 +1989,6 @@
         "fhrs:id": "470591",
         "food": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Crooked Billet",
         "opening_hours": "Mo 16:00-23:00; Tu-We,Su 12:00-23:00; Th-Sa 12:00-24:00",
         "outdoor_seating": "yes",
@@ -2023,17 +2007,12 @@
       "type": "way",
       "id": 151161058,
       "center": {
-        "lat": 51.5903108,
-        "lon": -0.0645793
+        "lat": 51.5903031,
+        "lon": -0.0646004
       },
       "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "131",
-        "addr:postcode": "N17 9EU",
-        "addr:street": "Chesnut Road",
         "amenity": "pub",
         "building": "yes",
-        "fhrs:id": "422466",
         "name": "The Volunteer"
       }
     },
@@ -2097,7 +2076,6 @@
         "addr:street": "Lordship Lane",
         "amenity": "pub",
         "building": "yes",
-        "live_sport": "yes",
         "name": "The New Moon"
       }
     },
@@ -2137,7 +2115,6 @@
         "email": "stapleton@anticlondon.com",
         "fhrs:id": "417629",
         "fhrs:local_authority_id": "PI/000151793",
-        "live_sport": "yes",
         "name": "Stapleton Tavern",
         "old_name": "The Larrik",
         "opening_hours": "Mo-Th 16:00-23:00; Fr 14:00-00:00; Sa 12:00-00:00; Su 12:00-22:00",
@@ -2193,7 +2170,6 @@
         "flickr": "http://www.flickr.com/photos/55935853@N00/6774709754/",
         "food": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Shaftesbury Tavern",
         "opening_hours": "Mo-Th 17:00-23:00; Fr 15:00-00:30; Sa 12:00-00:30; Su 12:00-22:00",
         "operator": "Remarkable Pubs",
@@ -2216,8 +2192,8 @@
       "type": "way",
       "id": 222077186,
       "center": {
-        "lat": 51.6075741,
-        "lon": -0.0677933
+        "lat": 51.6075632,
+        "lon": -0.0678042
       },
       "tags": {
         "addr:city": "London",
@@ -2226,7 +2202,6 @@
         "addr:street": "High Road",
         "amenity": "pub",
         "building": "yes",
-        "live_sport": "yes",
         "name": "The Coach and Horses"
       }
     },
@@ -2346,7 +2321,6 @@
       "tags": {
         "amenity": "pub",
         "building": "yes",
-        "live_sport": "yes",
         "name": "Park Tavern",
         "outdoor_seating": "yes"
       }
@@ -2419,7 +2393,6 @@
         "amenity": "pub",
         "building": "yes",
         "description:floor": "rough wood and stone",
-        "live_sport": "yes",
         "name": "The World's End",
         "real_ale": "3 beers, may vary"
       }
@@ -2452,7 +2425,6 @@
       "tags": {
         "amenity": "pub",
         "building": "yes",
-        "live_sport": "yes",
         "name": "The Crown",
         "toilets": "yes",
         "toilets:access": "customers"
@@ -2515,16 +2487,14 @@
         "addr:postcode": "N4 4AP",
         "addr:street": "Crouch Hill",
         "amenity": "pub",
-        "building": "retail",
+        "building": "yes",
         "contact:twitter": "therobinlondon",
-        "fhrs:id": "1645524",
         "food": "yes",
         "name": "The Robin Ale & Cider House",
         "opening_hours": "Mo-Th 12:00-23:00; Fr-Sa 12:00-00:00; Su 12:00-22:30",
         "operator": "Four Acres Taverns Ltd",
         "outdoor_seating": "yes",
         "phone": "+44 20 7018 3830",
-        "source:addr": "FHRS Open Data",
         "website": "https://www.therobinlondon.com/",
         "wheelchair": "no"
       }
@@ -2544,7 +2514,6 @@
         "amenity": "pub",
         "building": "yes",
         "fhrs:id": "422419",
-        "live_sport": "yes",
         "name": "The Famous Royal Oak",
         "opening_hours": "Mo-We 12:00-23:00; Th-Sa 12:00-24:00; Su 12:00-22:30",
         "outdoor_seating": "yes",
@@ -2572,7 +2541,6 @@
         "diet:vegan": "yes",
         "diet:vegetarian": "yes",
         "food": "yes",
-        "live_sport": "yes",
         "name": "The Prince",
         "toilets": "yes",
         "website": "https://www.theprincen22.co.uk/"
@@ -2627,30 +2595,6 @@
     },
     {
       "type": "way",
-      "id": 406033702,
-      "center": {
-        "lat": 51.6022494,
-        "lon": -0.0673443
-      },
-      "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "732",
-        "addr:postcode": "N17 0AG",
-        "addr:street": "High Road",
-        "addr:suburb": "Tottenham",
-        "amenity": "pub",
-        "building": "retail",
-        "check_date": "2022-12-13",
-        "contact:website": "https://beavertownbrewery.co.uk/pages/corner-pin",
-        "fhrs:id": "1383352",
-        "name": "Beavertown Corner Pin",
-        "opening_hours": "Mo-We 12:00-22:00; Th-Fr 12:00-23:00; Sa 11:00-23:00; Su 11:00-21:00",
-        "operator": "Beavertown Brewery",
-        "outdoor_seating": "no"
-      }
-    },
-    {
-      "type": "way",
       "id": 412076101,
       "center": {
         "lat": 51.5954164,
@@ -2697,27 +2641,6 @@
         "toilets:access": "customers",
         "website": "https://thegatehousen6.com/",
         "wikidata": "Q96868505"
-      }
-    },
-    {
-      "type": "way",
-      "id": 436595961,
-      "center": {
-        "lat": 51.5610844,
-        "lon": -0.0829256
-      },
-      "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "181",
-        "addr:postcode": "N16 0UL",
-        "addr:street": "Stoke Newington Church Street",
-        "amenity": "pub",
-        "building": "yes",
-        "building:colour": "brown",
-        "building:levels": "3",
-        "disused:amenity": "pub",
-        "name": "The Mary Wollstencroft",
-        "roof:colour": "black"
       }
     },
     {
@@ -2792,8 +2715,8 @@
       "type": "way",
       "id": 445566137,
       "center": {
-        "lat": 51.5663664,
-        "lon": -0.1115743
+        "lat": 51.5663644,
+        "lon": -0.1115727
       },
       "tags": {
         "addr:city": "London",
@@ -2804,7 +2727,6 @@
         "building": "yes",
         "description:floor": "rough wood",
         "internet_access": "wlan",
-        "live_sport": "yes",
         "name": "The W. B. Yeats",
         "outdoor_seating": "yes",
         "real_ale": "At least 2",
@@ -2828,7 +2750,6 @@
         "building": "retail",
         "fhrs:id": "416801",
         "food": "yes",
-        "live_sport": "yes",
         "name": "Whittington Stone",
         "phone": "+44 20 7281 0905",
         "source": "bing",
@@ -2930,7 +2851,6 @@
         "building:levels": "2",
         "fhrs:id": "422449",
         "food": "yes",
-        "live_sport": "yes",
         "name": "The Maid of Muswell",
         "opening_hours": "Mo-Su 12:00-23:00",
         "roof:shape": "many",
@@ -2958,7 +2878,6 @@
         "description:floor": "Rough wood",
         "fhrs:id": "1416801",
         "food": "yes",
-        "live_sport": "yes",
         "name": "The Village Green",
         "old_name": "The John Baird",
         "opening_hours:signed": "no",
@@ -2984,7 +2903,6 @@
         "amenity": "pub",
         "building": "yes",
         "fhrs:id": "422525",
-        "live_sport": "yes",
         "name": "Victoria Stakes",
         "opening_hours": "Mo 16:00-23:00; Tu-We 12:00-23:00; Tu-Sa 12:00-00:00; Su 12:00-22:30",
         "outdoor_seating": "yes",
@@ -3033,7 +2951,6 @@
         "email": "greatnorthernrailway.office@fullers.co.uk",
         "food": "yes",
         "listed_status": "Grade II",
-        "live_sport": "yes",
         "name": "The Great Northern Railway Tavern",
         "opening_hours": "Mo-Th 12:00-23:00; Fr-Sa 12:00-00:00; Su 12:00-22:30",
         "outdoor_seating": "yes",
@@ -3140,7 +3057,7 @@
         "amenity": "pub",
         "building": "yes",
         "building:levels": "2",
-        "check_date": "2026-07-16",
+        "check_date": "2024-06-08",
         "dog": "yes",
         "fhrs:id": "1125636",
         "food": "yes",
@@ -3167,7 +3084,6 @@
         "amenity": "pub",
         "building": "pub",
         "fhrs:id": "469091",
-        "live_sport": "yes",
         "name": "The Lion",
         "source:addr": "FHRS Open Data",
         "website": "http://www.thelionn16.co.uk/"
@@ -3247,16 +3163,14 @@
         "building": "yes",
         "building:levels": "2",
         "dog": "yes",
-        "drink:coffee": "yes",
         "fhrs:id": "514209",
         "fhrs:local_authority_id": "165",
-        "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Coppermill",
         "opening_hours": "Su-Th 11:00-23:00; Fr-Sa 11:00-00:00",
         "outdoor_seating": "yes",
         "roof:levels": "0",
-        "source:addr": "FHRS Open Data"
+        "source:addr": "FHRS Open Data",
+        "website": "https://coppermillpub.wordpress.com/"
       }
     },
     {
@@ -3388,7 +3302,6 @@
         "amenity": "pub",
         "building": "yes",
         "building:levels": "2",
-        "live_sport": "yes",
         "name": "The Occasional Half",
         "website": "http://www.occasionalhalf.co.uk/"
       }
@@ -3419,7 +3332,6 @@
         "fhrs:id": "468804",
         "food": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Anchor & Hope",
         "opening_hours:kitchen": "Mo-We off; Th-Fr 18:00-21:00; Sa-Su 13:00-21:00",
         "opening_hours:signed": "no",
@@ -3474,7 +3386,6 @@
         "addr:street": "Highgate High Street",
         "amenity": "pub",
         "building": "yes",
-        "live_sport": "yes",
         "name": "The Angel Inn"
       }
     },
@@ -3560,7 +3471,6 @@
         "fhrs:id": "422556",
         "food": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Beehive",
         "opening_hours": "Mo-Th 15:00-23:00; Fr-Sa 12:00-01:00; Su 12:00-22:30",
         "opening_hours:kitchen": "Mo-Th 15:00-22:00; Fr-Sa 12:00-22:00; Su 12:00-21:00",
@@ -3597,7 +3507,6 @@
         "fhrs:id": "756794",
         "fhrs:local_authority_id": "CP/04220",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Old White Lion",
         "outdoor_seating": "yes"
       }
@@ -3644,24 +3553,6 @@
     },
     {
       "type": "way",
-      "id": 1233009537,
-      "center": {
-        "lat": 51.6056073,
-        "lon": -0.06169
-      },
-      "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "102",
-        "addr:street": "Northumberland Park",
-        "amenity": "pub",
-        "building": "yes",
-        "name": "The Bill Nicholson",
-        "toilets": "yes",
-        "toilets:access": "customers"
-      }
-    },
-    {
-      "type": "way",
       "id": 1288548017,
       "center": {
         "lat": 51.5967792,
@@ -3677,7 +3568,6 @@
         "building": "yes",
         "email": "info@thevictoriatottenham.com",
         "fhrs:id": "422548",
-        "live_sport": "yes",
         "name": "The Victoria",
         "opening_hours": "Mo-Th 16:00-23:00; Fr-Sa 12:00-01:00; Su 12:00-23:00",
         "source": "survey;website",
@@ -3701,7 +3591,6 @@
         "amenity": "pub",
         "building": "yes",
         "indoor_seating": "yes",
-        "live_sport": "yes",
         "name": "The Nag's Head",
         "opening_hours": "Mo-Th 10:00-23:00; Fr-Sa 10:00-24:00",
         "outdoor_seating": "yes",

@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-06-12T12:14:17Z",
+    "timestamp_osm_base": "2026-07-24T11:04:51Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -101,7 +101,7 @@
         "brand:wikidata": "Q6109362",
         "brand:wikipedia": "en:Wetherspoons",
         "contact:website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/london/the-millers-well-east-ham",
-        "fhrs:id": "640847",
+        "fhrs:id": "1683510",
         "internet_access": "wlan",
         "name": "The Miller's Well",
         "outdoor_seating": "yes",
@@ -841,7 +841,7 @@
         "contact:instagram": "thedialldn",
         "email": "info@thedialldn.com",
         "food": "yes",
-        "live_sports": "yes",
+        "live_sport": "yes",
         "microbrewery": "yes",
         "name": "The Dial",
         "opening_hours": "Mo-We 12:00-23:00; Th 12:00-24:00; Fr 12:00-25:00; Sa 10:00-25:00; Su 10:00-24:00",
@@ -1012,7 +1012,7 @@
         "addr:suburb": "Stratford",
         "amenity": "pub",
         "branch": "Stratford/E20",
-        "check_date": "2025-01-16",
+        "check_date": "2026-07-15",
         "contact:facebook": "https://www.facebook.com/motherkellyse20/",
         "contact:website": "http://motherkellys.co.uk/",
         "fhrs:id": "1130134",
@@ -1020,6 +1020,8 @@
         "level": "0",
         "name": "Mother Kelly's E20",
         "outdoor_seating": "pedestrian_zone",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
         "real_ale": "yes",
         "smoking": "outside",
         "source:addr": "FHRS Open Data",
@@ -1635,10 +1637,11 @@
     {
       "type": "node",
       "id": 12496273774,
-      "lat": 51.5185132,
-      "lon": -0.0023777,
+      "lat": 51.5185435,
+      "lon": -0.0023649,
       "tags": {
         "amenity": "bar",
+        "check_date": "2026-06-20",
         "name": "The Cody Dock Bar",
         "opening_hours": "Fr 17:00-22:00; Sa-Su 13:00-18:00"
       }
@@ -1774,6 +1777,74 @@
       }
     },
     {
+      "type": "node",
+      "id": 13957205983,
+      "lat": 51.5184955,
+      "lon": -0.002348,
+      "tags": {
+        "amenity": "bar",
+        "check_date": "2026-06-20",
+        "cuisine": "latin_american",
+        "name": "The Cody Dock Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13962013613,
+      "lat": 51.5030671,
+      "lon": -0.011191,
+      "tags": {
+        "amenity": "bar",
+        "branch": "Canary Wharf",
+        "name": "Lockdown",
+        "website": "https://www.thelockdownroom.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13993595609,
+      "lat": 51.5398576,
+      "lon": -0.0213188,
+      "tags": {
+        "addr:city": "London",
+        "addr:housenumber": "10",
+        "addr:postcode": "E3 2NT",
+        "addr:street": "Stour Road",
+        "addr:unit": "Unit 19a",
+        "amenity": "bar",
+        "check_date": "2026-07-06",
+        "fhrs:id": "1675209",
+        "name": "The Pirate's Hub",
+        "website": "https://thepirateshub.co.uk/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14021854263,
+      "lat": 51.5464354,
+      "lon": -0.00787,
+      "tags": {
+        "addr:city": "London",
+        "addr:housename": "The Gantry",
+        "addr:housenumber": "40",
+        "addr:postcode": "E20 1DB",
+        "addr:street": "Celebration Avenue",
+        "amenity": "bar",
+        "check_date": "2026-07-16",
+        "name": "Union Social"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14022330896,
+      "lat": 51.4920332,
+      "lon": 0.0739243,
+      "tags": {
+        "amenity": "bar",
+        "name": "The Yard"
+      }
+    },
+    {
       "type": "way",
       "id": 28836414,
       "center": {
@@ -1857,20 +1928,6 @@
         "roof:colour": "brown",
         "roof:shape": "flat",
         "source:addr": "FHRS Open Data"
-      }
-    },
-    {
-      "type": "way",
-      "id": 96584368,
-      "center": {
-        "lat": 51.4981915,
-        "lon": 0.0893583
-      },
-      "tags": {
-        "amenity": "pub",
-        "building": "pub",
-        "name": "The Princess Alice",
-        "source": "Bing"
       }
     },
     {
@@ -2059,7 +2116,8 @@
         "amenity": "bar",
         "building": "yes",
         "changing_table": "yes",
-        "check_date": "2024-08-04",
+        "check_date": "2026-06-22",
+        "check_date:opening_hours": "2026-06-22",
         "contact:instagram": "two_moreyears",
         "cuisine": "burger",
         "diet:vegan": "yes",
@@ -2070,7 +2128,7 @@
         "internet_access": "wlan",
         "internet_access:fee": "customers",
         "name": "Two More Years",
-        "opening_hours": "Mo-Th,Su 09:00-23:00; Fr 09:00-24:00; Sa 09:00-01:00",
+        "opening_hours": "Su-Th 09:00-23:00, Fr 09:00-24:00, Sa 09:00-01:00",
         "outdoor_seating": "yes",
         "payment:credit_cards": "yes",
         "payment:debit_cards": "yes",
@@ -2388,33 +2446,6 @@
     },
     {
       "type": "way",
-      "id": 230406331,
-      "center": {
-        "lat": 51.5571053,
-        "lon": 0.0060407
-      },
-      "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "419",
-        "addr:postcode": "E11 4JU",
-        "addr:street": "High Road Leytonstone",
-        "amenity": "pub",
-        "building": "yes",
-        "building:colour": "white",
-        "building:levels": "2",
-        "building:material": "timber_framing",
-        "check_date": "2023-06-28",
-        "fhrs:id": "514156",
-        "indoor_seating": "yes",
-        "name": "Plough and Harrow",
-        "outdoor_seating": "yes",
-        "roof:material": "slate",
-        "source:addr": "Food Hygiene Rating Scheme open data",
-        "wheelchair": "yes"
-      }
-    },
-    {
-      "type": "way",
       "id": 241713664,
       "center": {
         "lat": 51.5406296,
@@ -2530,15 +2561,21 @@
         "lon": 0.081714
       },
       "tags": {
+        "addr:city": "Barking",
+        "addr:housenumber": "15a",
+        "addr:postcode": "IG11 8TN",
+        "addr:street": "Longbridge Road",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
         "building:levels": "2",
         "building:material": "brick",
         "check_date": "2025-12-06",
+        "fhrs:id": "1761963",
         "food": "yes",
         "live_sport": "yes",
         "name": "The Spotted Dog",
         "phone": "+44 20 8594 0228",
+        "source:addr": "FHRS Open Data",
         "toilets": "yes",
         "toilets:access": "customers"
       }
@@ -2655,7 +2692,7 @@
       "id": 436146455,
       "center": {
         "lat": 51.5305097,
-        "lon": 0.0381221
+        "lon": 0.0381223
       },
       "tags": {
         "addr:city": "London",
@@ -2814,7 +2851,7 @@
         "building:levels": "2",
         "building:levels:underground": "1",
         "building:material": "brick",
-        "fhrs:id": "1513166",
+        "fhrs:id": "1833697",
         "indoor_seating": "yes",
         "live_music": "yes",
         "name": "Cart and Horses",
@@ -3380,6 +3417,56 @@
     },
     {
       "type": "way",
+      "id": 835762994,
+      "center": {
+        "lat": 51.5471381,
+        "lon": -0.0115562
+      },
+      "tags": {
+        "addr:city": "London",
+        "addr:housename": "Victory Parade",
+        "addr:housenumber": "10 - 11",
+        "addr:postcode": "E20 1FS",
+        "addr:street": "Victory Parade",
+        "amenity": "bar",
+        "check_date": "2026-06-25",
+        "disused:amenity": "cafe",
+        "fhrs:id": "1942332",
+        "indoor_seating": "yes",
+        "level": "0",
+        "name": "Bado",
+        "outdoor_seating": "yes",
+        "source:addr": "FHRS Open Data",
+        "was:name": "Hand Cafe"
+      }
+    },
+    {
+      "type": "way",
+      "id": 855859172,
+      "center": {
+        "lat": 51.5341365,
+        "lon": 0.0127475
+      },
+      "tags": {
+        "addr:city": "London",
+        "addr:housenumber": "2",
+        "addr:postcode": "E15 3ER",
+        "addr:street": "Plaistow Grove",
+        "addr:suburb": "Stratford",
+        "amenity": "pub",
+        "building": "pub",
+        "check_date": "2026-07-12",
+        "fhrs:id": "1846989",
+        "name": "The Buccaneer",
+        "old_fhrs:id": "1127638",
+        "old_name": "The Britannia Free House",
+        "source:addr": "FHRS Open Data",
+        "toilets": "yes",
+        "toilets:access": "customers"
+      }
+    },
+    {
+      "type": "way",
       "id": 875103908,
       "center": {
         "lat": 51.5500244,
@@ -3813,7 +3900,7 @@
         "amenity": "pub",
         "check_date": "2025-12-14",
         "contact:phone": "+44 20 7534 2322",
-        "fhrs:id": "817860",
+        "fhrs:id": "1877264",
         "fhrs:local_authority_id": "63790/0157/2/000",
         "indoor_seating": "yes",
         "live_sport": "yes",

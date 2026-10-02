@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:26:40Z",
+    "timestamp_osm_base": "2026-10-02T10:16:05Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -578,12 +578,14 @@
         "addr:postcode": "RM13 9YW",
         "addr:street": "Broadway",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
+        "fhrs:id": "1222977",
         "live_sport": "yes",
         "name": "The Phoenix",
         "operator": "Stonegate",
         "operator:wikidata": "Q7619176",
         "ref:GB:uprn": "100023215221;100021348083",
+        "source:addr": "FHRS Open Data",
         "website": "https://www.craftunionpubs.com/phoenix-rainham"
       }
     },
@@ -695,15 +697,21 @@
         "lon": 0.081714
       },
       "tags": {
+        "addr:city": "Barking",
+        "addr:housenumber": "15a",
+        "addr:postcode": "IG11 8TN",
+        "addr:street": "Longbridge Road",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
         "building:levels": "2",
         "building:material": "brick",
         "check_date": "2025-12-06",
+        "fhrs:id": "1761963",
         "food": "yes",
         "live_sport": "yes",
         "name": "The Spotted Dog",
         "phone": "+44 20 8594 0228",
+        "source:addr": "FHRS Open Data",
         "toilets": "yes",
         "toilets:access": "customers"
       }
@@ -824,32 +832,6 @@
         "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/london/the-moon-and-stars-romford",
         "website:menu": "https://order.jdwetherspoon.com/venue/jdw/79/menus",
         "wikidata": "Q88917004"
-      }
-    },
-    {
-      "type": "way",
-      "id": 676486617,
-      "center": {
-        "lat": 51.5312203,
-        "lon": 0.1481414
-      },
-      "tags": {
-        "addr:city": "Dagenham",
-        "addr:postcode": "RM9 6YS",
-        "addr:street": "Chequers Lane",
-        "amenity": "pub",
-        "brand": "Brewers Fayre",
-        "brand:wikidata": "Q4962678",
-        "brand:wikipedia": "en:Brewers Fayre",
-        "building": "commercial",
-        "building:levels": "2",
-        "check_date": "2026-02-08",
-        "cuisine": "british",
-        "indoor_seating": "yes",
-        "name": "Brewers Fayre",
-        "outdoor_seating": "yes",
-        "roof:levels": "0",
-        "source:addr": "FHRS Open Data"
       }
     },
     {
