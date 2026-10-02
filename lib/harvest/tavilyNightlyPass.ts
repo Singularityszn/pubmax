@@ -7,7 +7,6 @@
 
 import {
   isOperatorHost,
-  parseStatedOpeningHours,
   pickOperatorUrl,
   type OperatorSearchResult,
 } from "@/lib/harvest/pubFacts";
@@ -18,11 +17,8 @@ import {
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   isLikelyMenuUrl,
-  MIN_PRICED_LINES_FOR_LIST,
-  pageStatesADrinksList,
   pageText,
   drinkLabelFromPriceContext,
-  readVenueDrinkPrices,
 } from "@/lib/harvest/ukPriceCrawl";
 
 export const SEARCH_CREDIT_COST = 1;
@@ -39,8 +35,7 @@ const SEED_PATCHES = ["soho", "clapham", "shoreditch", "islington", "camden"] as
 const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "hounslow"]);
 
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
-const POSTCODE_TOKEN = "\\b([A-Z]{1,2}\\d[A-Z\\d]?)\\s*(\\d[A-Z]{2})\\b";
-const PHONE_LINE = /\b(0\d{2,4}\s\d{3,4}\s\d{3,4}|\+44\s?\d{2,4}\s\d{3,4}\s\d{3,4})\b/;
+const SERVING_SIZE = /\b(?:pints?|halves|half|kegs?|bottles?|cans?|glasses|glass|measures|measure|\d{2,4}\s*ml)\b/i;
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
 const DRINKS_PATH =
@@ -94,15 +89,18 @@ type SourcedFact = {
   sourceUrl: string;
   seenOn: string;
   title?: string;
+  boundSnippet?: boolean;
 };
 
-type CuratorExcerpt = SourcedFact & { excerpt: string };
+type CuratorExcerpt = {
+  sourceUrl: string;
+  seenOn: string;
+  excerpt: string;
+};
 
 type PageFacts = {
   drinks: ListedDrinkLine[];
   excerpts: CuratorExcerpt[];
-  hours: ({ statedDays: string[] } & SourcedFact) | null;
-  phone: ({ value: string } & SourcedFact) | null;
 };
 
 type VenueEvidence = {
@@ -114,8 +112,6 @@ type VenueEvidence = {
   website: ({ url: string } & SourcedFact) | null;
   drinks: ListedDrinkLine[];
   excerpts: CuratorExcerpt[];
-  hours: PageFacts["hours"];
-  phone: PageFacts["phone"];
   candidates: string[];
 };
 
@@ -264,7 +260,7 @@ function wordHit(haystack: string, word: string): boolean {
 
 function placeHaystack(venue: NightlyVenue): string {
   const search = venue.areaText.toLowerCase();
-  const postcodeAt = search.search(postcodePattern("i"));
+  const postcodeAt = postcodeHits(search)[0]?.index ?? -1;
   if (postcodeAt >= 0) return search.slice(0, postcodeAt);
   const borough = venue.borough.trim().toLowerCase();
   if (!borough) return search;
@@ -319,21 +315,38 @@ function formatPostcode(value: string): string {
   return `${match[1]} ${match[2]}`;
 }
 
-function postcodePattern(flags: string): RegExp {
-  return new RegExp(POSTCODE_TOKEN, flags);
-}
-
 function compactPostcode(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-function compactPostcodesIn(text: string): string[] {
-  const found: string[] = [];
-  for (const match of text.matchAll(postcodePattern("gi"))) {
-    const compact = compactPostcode(`${match[1]}${match[2]}`);
-    if (compact) found.push(compact);
+function unspacedPostcode(compact: string): string | null {
+  if (compact.length < 5 || compact.length > 7) return null;
+  const inward = compact.slice(-3);
+  const outward = compact.slice(0, -3);
+  if (!/^\d[A-Z]{2}$/.test(inward) || !/^[A-Z]{1,2}\d[A-Z\d]?$/.test(outward)) return null;
+  if (/^[A-Z]{1,2}\d$/.test(outward)) return null;
+  return outward + inward;
+}
+
+function postcodeHits(text: string): Array<{ compact: string; index: number }> {
+  const hits: Array<{ compact: string; index: number }> = [];
+  for (const match of text.matchAll(/\b([A-Z]{1,2}\d[A-Z\d]?)\s+(\d[A-Z]{2})\b/gi)) {
+    const outward = match[1].toUpperCase();
+    const inward = match[2].toUpperCase();
+    if (!/^[A-Z]{1,2}\d[A-Z\d]?$/.test(outward) || !/^\d[A-Z]{2}$/.test(inward)) continue;
+    hits.push({ compact: outward + inward, index: match.index ?? 0 });
   }
-  return found;
+  for (const match of text.matchAll(/\b[A-Z0-9]{5,7}\b/gi)) {
+    const compact = unspacedPostcode(match[0].toUpperCase());
+    if (!compact) continue;
+    hits.push({ compact, index: match.index ?? 0 });
+  }
+  hits.sort((a, b) => a.index - b.index);
+  return hits;
+}
+
+function compactPostcodesIn(text: string): string[] {
+  return postcodeHits(text).map((hit) => hit.compact);
 }
 
 function statesPostcode(text: string, postcode: string): boolean {
@@ -388,7 +401,7 @@ function streetFromSearchText(name: string, searchText: string): string {
     }
   }
   if (!stripped) return "";
-  const at = rest.search(postcodePattern("i"));
+  const at = postcodeHits(rest)[0]?.index ?? -1;
   const beforePostcode = (at >= 0 ? rest.slice(0, at) : rest).replace(/[,\s]+$/g, "");
   const fields = beforePostcode.split(",").map((field) => phraseWords(field).join(" ")).filter(Boolean);
   for (let index = 0; index < fields.length; index += 1) {
@@ -419,12 +432,12 @@ export function toNightlyVenue(row: unknown): NightlyVenue | null {
     ? (record.filterHints as Record<string, unknown>)
     : null;
   const searchText = hints && typeof hints.searchText === "string" ? hints.searchText : "";
-  const found = postcodePattern("i").exec(searchText);
+  const found = postcodeHits(searchText)[0];
   const price = record.cheapestPrice;
   return {
     id: record.id,
     name: record.name,
-    postcode: found ? formatPostcode(`${found[1]}${found[2]}`) : "",
+    postcode: found ? formatPostcode(found.compact) : "",
     street: streetFromSearchText(record.name, searchText),
     borough: typeof record.borough === "string" ? record.borough : "",
     areaText: searchText,
@@ -447,7 +460,7 @@ export function chooseOperatorUrl(
   const eligible = results.filter((result) => isOperatorHost(result.url) && isHarvestableOperatorUrl(result.url));
   const narrowed = eligible.filter((result) => resultStatesVenue(result, venue));
   if (narrowed.length === 0) return null;
-  return pickOperatorUrl(narrowed, venue.name);
+  return pickOperatorUrl(narrowed, venue.name) ?? narrowed[0].url;
 }
 
 function sameListedUrl(left: string, right: string): boolean {
@@ -460,14 +473,15 @@ function sameListedUrl(left: string, right: string): boolean {
 }
 
 function pushListedPage(
-  pages: Array<{ url: string; title?: string; text: string }>,
+  pages: Array<{ url: string; title?: string; text: string; boundSnippet?: boolean }>,
   url: string,
   text: string | undefined,
   title?: string,
+  boundSnippet = false,
 ): void {
   if (!text?.trim()) return;
   if (pages.some((page) => sameListedUrl(page.url, url))) return;
-  pages.push({ url, title, text });
+  pages.push({ url, title, text, boundSnippet });
 }
 
 function sameSite(candidate: string, siteOrigin: string): boolean {
@@ -519,7 +533,7 @@ export function acceptedExtractUrls(urls: readonly string[], siteOrigin: string)
 function cleanName(label: string): string | null {
   const cleaned = label
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
-    .replace(/\b(keg|pints?|bottles?|cans?)\b/gi, " ")
+    .replace(/\b(kegs?|pints?|bottles?|cans?|glasses|glass|halves|half|measures|measure)\b/gi, " ")
     .replace(/[/|]+/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^[\s,;:.\-]+|[\s,;:.\-]+$/g, "")
@@ -572,7 +586,7 @@ type PriceOutcome = ReturnType<typeof decideKeylessUkPriceCandidate>;
 function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
   const label = drinkLabelFromPriceContext(line, verbatim, at) ?? "";
   const after = line.slice(at + verbatim.length);
-  const tail = /^(?:\s*\/\s*|\s+)(?:pints?|kegs?|bottles?|cans?|\d{2,4}\s*ml)\b/i.exec(after);
+  const tail = /^(?:\s*\/\s*|\s+)(?:pints?|halves|half|kegs?|bottles?|cans?|glasses|glass|measures|measure|\d{2,4}\s*ml)\b/i.exec(after);
   const prefix = label ? `${label} ` : "";
   return { label, text: `${prefix}${verbatim}${tail ? tail[0] : ""}`, at: prefix.length };
 }
@@ -614,6 +628,7 @@ function recordPriceLine(
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
+    if (!SERVING_SIZE.test(own.text)) continue;
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
     const row = outcome.kept
       ? listedDrink(
@@ -681,34 +696,26 @@ function pathIsFoodOnly(path: string): boolean {
   return saysMenu(kind, "food") && !saysMenu(kind, "drinks");
 }
 
-function pricesAllowed(url: string, title: string | undefined, section: "drinks" | "food" | null): boolean {
+function pricesAllowed(
+  url: string,
+  title: string | undefined,
+  section: "drinks" | "food" | null,
+  boundSnippet = false,
+): boolean {
   const path = urlPath(url);
+  if (pathIsFoodOnly(path) || section === "food") return false;
+  if (boundSnippet) return true;
   const pathKind = menuKind(path);
   const titleKind = title ? menuKind(title) : null;
   const pathFood = saysMenu(pathKind, "food");
   const pathDrinks = pathIsDrinksMenu(path) || saysMenu(pathKind, "drinks");
   const titleFood = saysMenu(titleKind, "food");
   const titleDrinks = saysMenu(titleKind, "drinks");
-  if (pathIsFoodOnly(path)) return false;
-  if (section === "food") return false;
   if (pathDrinks || section === "drinks") return true;
   if (pathFood && !pathDrinks) return false;
   if (titleFood && !titleDrinks) return false;
   if (titleDrinks && !titleFood) return true;
   return false;
-}
-
-function mayRecordPrices(
-  url: string,
-  title: string | undefined,
-  section: "drinks" | "food" | null,
-  reading: ReturnType<typeof readVenueDrinkPrices>,
-): boolean {
-  if (section === "food" || pathIsFoodOnly(url)) return false;
-  if (!pricesAllowed(url, title, section)) return false;
-  if (section === "drinks" || pathIsDrinksMenu(urlPath(url))) return true;
-  if (reading.kept.length < MIN_PRICED_LINES_FOR_LIST) return true;
-  return pageStatesADrinksList(reading);
 }
 
 function pageExcerpt(markdown: string): string {
@@ -721,7 +728,6 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
   const drinks: ListedDrinkLine[] = [];
   const seenDrinks = new Set<string>();
   const rawLines = String(markdown ?? "").split(/\r?\n/);
-  const reading = readVenueDrinkPrices(markdown);
   let section: "drinks" | "food" | null = null;
 
   for (const rawLine of rawLines) {
@@ -732,23 +738,15 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
       section = headed;
       continue;
     }
-    if (mayRecordPrices(fact.sourceUrl, fact.title, section, reading)) {
+    if (pricesAllowed(fact.sourceUrl, fact.title, section, fact.boundSnippet)) {
       recordPriceLine(line, fact, drinks, seenDrinks);
     }
   }
 
-  const text = rawLines.join("\n");
   const excerpt = pageExcerpt(markdown);
-  const hoursRead = parseStatedOpeningHours(markdown);
-  const phoneMatch = PHONE_LINE.exec(text);
   return {
     drinks,
     excerpts: excerpt ? [{ sourceUrl: fact.sourceUrl, excerpt, seenOn: fact.seenOn }] : [],
-    hours:
-      hoursRead.statedDays.length > 0
-        ? { statedDays: [...hoursRead.statedDays], sourceUrl: fact.sourceUrl, seenOn: fact.seenOn }
-        : null,
-    phone: phoneMatch ? { value: phoneMatch[1], sourceUrl: fact.sourceUrl, seenOn: fact.seenOn } : null,
   };
 }
 
@@ -820,22 +818,10 @@ export function queueDocument(input: unknown): QueueDocument {
       website: venue.website && typeof venue.website === "object" ? (venue.website as VenueEvidence["website"]) : null,
       drinks,
       excerpts,
-      hours: (venue.hours as VenueEvidence["hours"]) ?? null,
-      phone: (venue.phone as VenueEvidence["phone"]) ?? null,
       candidates: Array.isArray(venue.candidates) ? venue.candidates.filter((url): url is string => isHttpUrl(url)) : [],
     };
   });
   return { version: 1, standingRule: "listed", venues };
-}
-
-function unionHours(previous: PageFacts["hours"], incoming: PageFacts["hours"]): PageFacts["hours"] {
-  if (!incoming) return previous;
-  if (!previous) return incoming;
-  const statedDays = [...previous.statedDays];
-  for (const day of incoming.statedDays) {
-    if (!statedDays.includes(day)) statedDays.push(day);
-  }
-  return { statedDays, sourceUrl: incoming.sourceUrl, seenOn: incoming.seenOn };
 }
 
 function unionBy<T>(previous: readonly T[], incoming: readonly T[], keyOf: (row: T) => string): T[] {
@@ -864,9 +850,7 @@ function keepListedLines(previous: VenueEvidence | undefined, incoming: VenueEvi
     : incoming.candidates.length > 0
       ? incoming.candidates
       : previous.candidates;
-  const hours = unionHours(previous.hours, incoming.hours);
-  const phone = incoming.phone ?? previous.phone;
-  return { ...incoming, drinks, excerpts, candidates, website, hours, phone };
+  return { ...incoming, drinks, excerpts, candidates, website };
 }
 
 export function mergeQueue(base: QueueDocument, incoming: readonly VenueEvidence[]): QueueDocument {
@@ -917,17 +901,20 @@ function evidenceFor(
   venue: NightlyVenue,
   seenOn: string,
   website: string | null,
-  pages: Array<{ url: string; title?: string; text: string }>,
+  pages: Array<{ url: string; title?: string; text: string; boundSnippet?: boolean }>,
   candidates: readonly string[],
 ): VenueEvidence {
   const drinks: ListedDrinkLine[] = [];
   const excerpts: CuratorExcerpt[] = [];
-  let hours: VenueEvidence["hours"] = null;
-  let phone: VenueEvidence["phone"] = null;
   const drinkKeys = new Set<string>();
   const excerptKeys = new Set<string>();
   for (const page of pages) {
-    const facts = factsFromPage(page.text, { sourceUrl: page.url, seenOn, title: page.title });
+    const facts = factsFromPage(page.text, {
+      sourceUrl: page.url,
+      seenOn,
+      title: page.title,
+      boundSnippet: page.boundSnippet,
+    });
     for (const drink of facts.drinks) {
       const key = `${drink.drink.toLowerCase()}|${drink.size}|${drink.priceGbp}`;
       if (drinkKeys.has(key)) continue;
@@ -940,8 +927,6 @@ function evidenceFor(
       excerptKeys.add(key);
       excerpts.push(excerpt);
     }
-    hours = unionHours(hours, facts.hours);
-    if (!phone && facts.phone) phone = facts.phone;
   }
   return {
     venueId: venue.id,
@@ -952,8 +937,6 @@ function evidenceFor(
     website: website ? { url: website, sourceUrl: website, seenOn } : null,
     drinks,
     excerpts,
-    hours,
-    phone,
     candidates: [...candidates],
   };
 }
@@ -1041,15 +1024,15 @@ export async function runNightlyPass(input: {
     const website = chooseOperatorUrl(hits, venue);
     const origin = website ? new URL(website).origin : "";
     const candidateUrls = website ? acceptedExtractUrls(hits.map((hit) => hit.url), origin) : [];
-    const urls =
-      website && candidateUrls.length > 0
-        ? input.robotsChecker
-          ? await robotsAllowedUrls(candidateUrls, input.robotsChecker)
-          : candidateUrls
-        : [];
-    const pages: Array<{ url: string; title?: string; text: string }> = [];
+    const asked = website ? [...new Set([website, ...candidateUrls])] : [];
+    const allowedUrls = input.robotsChecker
+      ? await robotsAllowedUrls(asked, input.robotsChecker)
+      : asked.filter((url) => isHarvestableOperatorUrl(url));
+    const allowed = new Set(allowedUrls);
+    const urls = candidateUrls.filter((url) => allowed.has(url));
+    const pages: Array<{ url: string; title?: string; text: string; boundSnippet?: boolean }> = [];
     let useSnippets = true;
-    if (website && urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
+    if (urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
       const extracted = await takePayload(ledger, EXTRACT_CREDIT_COST, () =>
         input.fetchImpl({ kind: "extract", venueId: venue.id, urls }),
       );
@@ -1068,16 +1051,15 @@ export async function runNightlyPass(input: {
         }
       }
     }
-    if (website && useSnippets) {
-      const snippetUrls = urls.length > 0 ? urls : candidateUrls;
-      for (const url of snippetUrls) {
+    if (useSnippets) {
+      for (const url of urls) {
         const hit = hits.find((row) => sameListedUrl(row.url, url));
         pushListedPage(pages, url, hit?.content, hit?.title);
       }
     }
-    if (website) {
+    if (website && allowed.has(website) && !pages.some((page) => sameListedUrl(page.url, website))) {
       const hit = hits.find((row) => sameListedUrl(row.url, website));
-      pushListedPage(pages, website, hit?.content, hit?.title);
+      pushListedPage(pages, website, hit?.content, hit?.title, true);
     }
     const candidates = website
       ? []
