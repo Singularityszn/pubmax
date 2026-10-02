@@ -15,7 +15,7 @@ Outcomes for the seven architecture seams on `fm/pubmax-arch-gnhf`. One section 
 
 `scripts/build_city_night_areas.mjs` and `scripts/lib/ukPlaceIndex.mjs` stay thin adapters. The night-areas comment still says the formula has one owner in `scripts/lib/geo.mjs` and that the local function only names `{ lat, lng }` arguments. That shape was left.
 
-**Files changed:** `lib/greatCircle.mjs`, `lib/greatCircle.d.mts`, `lib/haversine.ts`, `scripts/lib/geo.mjs`, `lib/samePubIdentity.ts`, `__tests__/haversine.test.ts`.
+**Files changed:** `__tests__/haversine.test.ts`. The modules were already one master on main (`6bf8ac3a5`). This branch pins the shared London to Edinburgh result through the master and both adapters.
 
 **Fully resolved:** yes. One master remains, and the callers compile through the shared cases.
 
