@@ -1,4 +1,4 @@
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { oldestPintRead } from "@/lib/drinks";
 import {
   buildDrinkBrandLanding,
   drinkBrandCandidateForVenue,
@@ -25,7 +25,8 @@ export type DrinkBrandAreaLanding = {
   areaName: string;
   brandSlug: string;
   brandLabel: string;
-  collectedAt: string;
+  /** The oldest read among the rows the page prints; null when any of them records none. */
+  collectedAt: string | null;
   totalPricedVenues: number;
   rows: [PricedLandingRow, ...PricedLandingRow[]];
 };
@@ -70,7 +71,7 @@ function publishedBrandAreaLanding(
     areaName: area.name,
     brandSlug: brand.id,
     brandLabel: brand.label,
-    collectedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+    collectedAt: oldestPintRead(published.rows.map((row) => row.observedAt)),
     totalPricedVenues: published.totalPricedVenues,
     rows: published.rows,
   };

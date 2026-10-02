@@ -47,6 +47,8 @@ import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -87,17 +89,24 @@ const DAILY_PRICE_CAP_REFUSAL =
 // `venueMapUrl`, resolved server-side from the bundled venue index, so no public
 // feed/profile/permalink card ever surfaces the raw content-hashed `venue-…` id.
 // Batched over the whole page against the one memoized index (a single Map read
-// per drop). Never throws: an unreadable index yields the friendly fallback for
-// every id, and the drops still render.
+// per drop). A drop stored under a merged or superseded venue id is answered
+// under the id that venue carries now, so its name, its map link and every
+// client join on `venueId` find the pub. Never throws: an unreadable index
+// yields the friendly fallback for every id, and the drops still render.
 async function withVenueNames<T extends { venueId: string }>(
   drops: T[],
 ): Promise<(T & { venueName: string; venueMapUrl: string })[]> {
-  const index = await getVenueIndex();
-  return drops.map((drop) => ({
-    ...drop,
-    venueName: index.get(drop.venueId)?.name ?? VENUE_FALLBACK_LABEL,
-    venueMapUrl: venueMapUrl(drop.venueId),
-  }));
+  const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
+  return drops.map((drop) => {
+    const venueId = aliases.canonical(drop.venueId);
+    const venue = storedVenueRef(index, aliases, venueId);
+    return {
+      ...drop,
+      venueId,
+      venueName: venue ? storedVenueName(venue) : VENUE_FALLBACK_LABEL,
+      venueMapUrl: venueMapUrl(venueId),
+    };
+  });
 }
 
 // Resolve the requester's verified viewer identity for friends-gated reads

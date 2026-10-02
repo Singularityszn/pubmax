@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-10T08:43:37.191Z",
+  "generatedAt": "2026-10-02T07:14:11.189Z",
   "region": "greater-london",
   "notes": "Website and opening hours read off each venue's OWN page, and only where the page states them. A day the page never mentions is absent rather than assumed; an explicitly closed day is an empty window list. `statedDays` says how much of the week the page actually spoke about. Records accumulate across runs and are replaced only by a fresher reading of the same venue.",
   "venues": [
@@ -150,7 +150,7 @@
         "label": "The Bohemia - official site",
         "url": "https://www.thebohemia.co.uk/"
       },
-      "observedAt": "2026-08-10T08:43:37.191Z"
+      "observedAt": "2026-10-02T07:14:11.189Z"
     },
     {
       "venueId": "venue-1pf9vt5",
@@ -162,7 +162,7 @@
         "label": "The Furze Wren - JD Wetherspoon - official site",
         "url": "https://www.jdwetherspoon.com/pubs/the-furze-wren-bexleyheath/"
       },
-      "observedAt": "2026-08-10T08:43:37.191Z"
+      "observedAt": "2026-10-02T07:14:11.189Z"
     },
     {
       "venueId": "venue-1pfnt71",
@@ -190,7 +190,7 @@
         "label": "Blues Kitchen - official site",
         "url": "https://theblueskitchen.com/camden/"
       },
-      "observedAt": "2026-08-10T08:43:37.191Z"
+      "observedAt": "2026-10-02T07:14:11.189Z"
     },
     {
       "venueId": "venue-1r447i7",
@@ -286,7 +286,7 @@
         "label": "The Elephant Inn - official site",
         "url": "https://www.elephantinnfinchley.co.uk/"
       },
-      "observedAt": "2026-08-10T08:43:37.191Z"
+      "observedAt": "2026-10-02T07:14:11.189Z"
     },
     {
       "venueId": "venue-59ibpp",

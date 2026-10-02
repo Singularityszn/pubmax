@@ -16,6 +16,8 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
+
 vi.mock("server-only", () => ({}));
 const venueLookup = vi.hoisted(() => ({ throwNext: false }));
 
@@ -176,18 +178,27 @@ describe.each([
     expect(failed.robots).toEqual({ index: false, follow: false });
     expect(aliases.reads).toBe(2);
 
-    // The failure was not cached: the file is readable again, and this request
-    // opens it and finds the pub.
+    // The failure was not cached: the files are readable again, and this
+    // request opens every alias file and finds the pub.
     aliases.fail = false;
     const found = await metadata({ params: Promise.resolve({ id: venue.id }) });
     expect(String(found.title)).toContain(venue.name);
-    expect(aliases.reads).toBe(3);
+    expect(aliases.reads).toBe(2 + VENUE_ALIAS_FILES.length);
   });
 
   it("answers a missing id with the not-found card", async () => {
     const markup = await render(page, "venue-does-not-exist");
     expect(markup).toContain(notFoundLine);
     expect(markup).not.toContain("We could not load this pub");
+  });
+
+  it("answers a pub that left the map with the not-found card, never a live page", async () => {
+    // Henman & Cooper, Birmingham: retired in public/data/cities/venue_id_aliases.json.
+    const markup = await render(page, "venue-bhm-y7p3wr");
+    expect(markup).toContain(notFoundLine);
+    expect(markup).not.toContain("Henman");
+    const meta = await metadata({ params: Promise.resolve({ id: "venue-bhm-y7p3wr" }) });
+    expect(JSON.stringify(meta)).not.toContain("Henman");
   });
 
   it("opens a famous-venue seed the dataset index does not hold", async () => {

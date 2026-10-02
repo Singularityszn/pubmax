@@ -1,4 +1,3 @@
-import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { DAY_MS } from "@/lib/dayMs";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import type { PriceStanding } from "@/lib/priceTier";
@@ -67,8 +66,8 @@ function hasPrice(venue: Venue): venue is PricedVenue {
  *
  * The reading is `answerEvidenceFor`, the SAME one the landing answer card
  * makes, so the word beside a price here and the word beside the same price on
- * the landing cannot differ: the venue's own rows name the publisher, the
- * bundled dataset's collection day dates it, and `lib/priceTier.ts` decides.
+ * the landing cannot differ: the venue's own rows name the publisher and the
+ * day that row was read, and `lib/priceTier.ts` decides.
  * There is no second opinion about a price.
  */
 export function leaderboardStandingFor(
@@ -76,11 +75,7 @@ export function leaderboardStandingFor(
   now: number = Date.now(),
 ): PriceStanding {
   return answerEvidenceFor(
-    {
-      priceGbp: venue.cheapestPrice,
-      prices: venue.prices ?? [],
-      collectedOn: isoDate(PINT_DATASET_OBSERVED_AT),
-    },
+    { priceGbp: venue.cheapestPrice, prices: venue.prices ?? [] },
     now,
   ).standing;
 }

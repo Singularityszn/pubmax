@@ -54,8 +54,8 @@ describe("GET /api/near-price-trust", () => {
       status: "ready",
       collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
-        { venueId: "venue-a", price: 4.5, publisher: "Pint Prices" },
-        { venueId: "venue-b", price: 4.5, publisher: "Pint Prices" },
+        { venueId: "venue-a", price: 4.5, publisher: "Pint Prices", observedAt: null },
+        { venueId: "venue-b", price: 4.5, publisher: "Pint Prices", observedAt: null },
       ],
     });
     expect(lookupVenueDetail).toHaveBeenCalledTimes(2);
@@ -72,7 +72,7 @@ describe("GET /api/near-price-trust", () => {
     expect(await response.json()).toEqual({
       status: "degraded",
       collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
-      results: [{ venueId: "venue-a", price: 4.5, publisher: "Pint Prices" }],
+      results: [{ venueId: "venue-a", price: 4.5, publisher: "Pint Prices", observedAt: null }],
     });
   });
 

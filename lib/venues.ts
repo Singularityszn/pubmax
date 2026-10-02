@@ -107,6 +107,11 @@ export type VenuePrice = {
   is_clean_canonical_app_row: boolean;
   data_quality_notes: string;
   /**
+   * The instants this row's figure was read at its source, `|`-joined. Absent
+   * or empty on a row nobody read a price for.
+   */
+  scraped_at_values?: string;
+  /**
    * Present when the operator that published this price has left the pub. The
    * row is dated history and no reader may read it as a price
    * (lib/priceRowEligibility.mjs).
@@ -233,6 +238,8 @@ export type Venue = {
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
   storySourceUrl?: string;
+  /** A pub that left OpenStreetMap: answered by id so a stored reference names it, never listed. */
+  retired?: true;
   // Publicly-documented accessible-venue facts (PRD issue #28). Present ONLY for
   // the small curated seed of pubs whose access is documented (see
   // lib/venueAccessibilitySeeds.ts); for every other venue this is undefined —

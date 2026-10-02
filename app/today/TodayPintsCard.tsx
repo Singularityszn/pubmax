@@ -17,7 +17,8 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { useEffect, useState } from "react";
 import { ArrowRight, Beer } from "lucide-react";
 
-import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
+import { formatSnapshotFrom } from "@/lib/dataFreshness";
+import { oldestPintRead } from "@/lib/drinks";
 import { readRememberedArea } from "@/lib/nightPatches";
 import { AREA_NEARBY_ROW_TAG } from "@/lib/venueTruth";
 
@@ -51,13 +52,13 @@ function viewFor(
   };
 }
 
-function eyebrow(hasRememberedLocality: boolean): string {
+function eyebrow(hasRememberedLocality: boolean, observedAt: string | null): string {
   const scope = hasRememberedLocality
     ? "Lowest listed prices near you"
     : "Lowest listed prices in central London";
   // The bundle is named as a snapshot, never dressed up as tonight's reading:
   // "Last collected" invited a reader to take a months-old figure as current.
-  return `${scope}. ${formatPintDatasetSnapshot()}.`;
+  return observedAt ? `${scope}. ${formatSnapshotFrom(new Date(observedAt))}.` : `${scope}.`;
 }
 
 export default function TodayPintsCard({ index }: Props) {
@@ -88,7 +89,7 @@ export default function TodayPintsCard({ index }: Props) {
         </span>
         <div>
           <p className="todayCardEyebrow">
-            {eyebrow(hasRememberedLocality)}
+            {eyebrow(hasRememberedLocality, oldestPintRead(pints.rows.map((row) => row.observedAt)))}
           </p>
           <h2 className="todayCardTitle" id="today-pints-title">
             {todayPintsHeading(pints)}

@@ -132,14 +132,14 @@ describe("every pint the landing card can name has a drink page or no link", () 
       const shouted = beer.label.toUpperCase();
 
       const one = [pub("venue-one", shouted, 5.5)];
-      const lonely = buildLandingPubCard(one, history("venue-one"), { collectedOn: "2026-07-03", now: NOW });
+      const lonely = buildLandingPubCard(one, history("venue-one"), { now: NOW });
       expect(lonely?.pintName).toBe(`a pint of ${beer.label.charAt(0)}${beer.label.slice(1).toLowerCase()}`);
       expect(lonely?.drinkHref, `${beer.id} below the floor must not link`).toBeNull();
 
       const crowd = Array.from({ length: DRINK_BRAND_LANDING_PUBLICATION_FLOOR }, (_, i) =>
         pub(`venue-${i}`, shouted, 5.5),
       );
-      const linked = buildLandingPubCard(crowd, history("venue-0"), { collectedOn: "2026-07-03", now: NOW });
+      const linked = buildLandingPubCard(crowd, history("venue-0"), { now: NOW });
       expect(linked?.drinkHref, `${beer.id} at the floor must link its page`).toBe(
         `/drink/${encodeURIComponent(beer.id)}`,
       );
@@ -158,7 +158,7 @@ describe("every pint the landing card can name has a drink page or no link", () 
       "venue-pale",
     );
 
-    const card = buildLandingPubCard(venues, history("venue-pale"), { collectedOn: "2026-07-03", now: NOW });
+    const card = buildLandingPubCard(venues, history("venue-pale"), { now: NOW });
     expect(card?.pintName).toBe("a pint of Camden pale ale");
     expect(card?.drinkHref).toBeNull();
   });
@@ -181,7 +181,7 @@ describe("every pint the landing card can name has a drink page or no link", () 
       if (landing) continue;
       const crowd = venues.filter((venue) => venue.cheapestPint?.toLowerCase().includes(beer.label.toLowerCase()));
       for (const venue of crowd.slice(0, 3)) {
-        const card = buildLandingPubCard([venue], history(venue.id), { collectedOn: "2026-07-03", now: NOW });
+        const card = buildLandingPubCard([venue], history(venue.id), { now: NOW });
         expect(card?.drinkHref ?? null).toBeNull();
       }
     }
