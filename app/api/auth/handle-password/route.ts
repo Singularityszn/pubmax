@@ -4,7 +4,6 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import {
   encodeAuthResumeCookie,
   AUTH_RESUME_COOKIE,
@@ -97,10 +96,9 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const session = await signInWithEmailPassword(email, password);
-  if (session === "banned") {
-    return publicApiError(AUTH_ACCOUNT_BANNED_MESSAGE, "ACCOUNT_BANNED", 403);
-  }
-  if (!session) {
+  // GoTrue names a ban before it checks the password, so a ban is not proof
+  // the password was right. Say the same thing we say for a wrong password.
+  if (session === "banned" || !session) {
     return publicApiError(HANDLE_PASSWORD_GENERIC_ERROR, "INVALID_CREDENTIALS", 401);
   }
 

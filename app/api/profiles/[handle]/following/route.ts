@@ -11,6 +11,7 @@
 // handle or a backend hiccup degrades to an empty list so the feed still renders
 // (the Friends lane just falls through to its "follow people" empty state).
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
@@ -39,6 +40,9 @@ export async function GET(
   if (!handle) return jsonNoStore({ following: [] }, { status: 200 });
 
   try {
+    if ((await withdrawnHandles([handle])).has(handle)) {
+      return jsonNoStore({ following: [] }, { status: 200 });
+    }
     const handles = await followStore().listFollowing(handle);
     const following = await followListEntries(handles);
     return jsonNoStore({ following }, { status: 200 });
