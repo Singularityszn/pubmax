@@ -46,6 +46,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { cleanVenueId } from "@/lib/cleanVenueId";
 import {
   agreesWithinTolerance,
   bestCorroboratedRow,
@@ -308,7 +309,6 @@ function durableModerationKind(row: unknown): ModerationObservationKind {
 // in migration 0054 - defence in depth, three layers agreeing.
 const MIN_PENNIES = 100;
 const MAX_PENNIES = 3_000;
-const MAX_VENUE_ID = 64;
 // Bound process memory in a long-lived server - evict the least-recently-
 // written venue past this many distinct venues.
 const MAX_VENUES = 5_000;
@@ -374,14 +374,6 @@ function cleanReason(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const cleaned = value.replace(/[\x00-\x1F\x7F]/g, " ").trim().slice(0, MAX_REASON);
   return cleaned === "" ? undefined : cleaned;
-}
-
-function cleanVenueId(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/[\x00-\x1F\x7F]/g, "")
-    .trim()
-    .slice(0, MAX_VENUE_ID);
 }
 
 /** Normalise an input to storable parts, or null when out of envelope. */

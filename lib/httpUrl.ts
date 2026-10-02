@@ -1,9 +1,23 @@
-/** True when `value` parses as an absolute http(s) URL (no trim — callers trim first). */
-export function isHttpUrl(value: string): boolean {
-  if (!value || /\s/.test(value)) return false;
+/**
+ * True when `value` parses as an absolute http(s) URL.
+ * Non-strings are false. The default rejects whitespace and an empty hostname
+ * (callers trim first). `allowWhitespace` is the price-update, editorial,
+ * hyped-pub and digest copies: they accept a string the URL constructor
+ * rewrites, including a space it percent-encodes, and they do not require a
+ * hostname.
+ */
+export function isHttpUrl(
+  value: unknown,
+  options?: { allowWhitespace?: boolean },
+): value is string {
+  if (typeof value !== "string" || value.length === 0) return false;
+  const allowWhitespace = options?.allowWhitespace === true;
+  if (!allowWhitespace && /\s/.test(value)) return false;
   try {
     const url = new URL(value);
-    return Boolean(url.hostname) && (url.protocol === "http:" || url.protocol === "https:");
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    if (!allowWhitespace && !url.hostname) return false;
+    return true;
   } catch {
     return false;
   }

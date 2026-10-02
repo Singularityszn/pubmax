@@ -9,6 +9,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
+import { trimVenueId as cleanVenueId } from "@/lib/cleanVenueId";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
 import {
   admin,
@@ -55,11 +56,6 @@ export type OccupancyStore = {
   flag(id: string, reason?: string, actorHash?: string): Promise<boolean>;
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
 };
-
-function cleanVenueId(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, 64);
-}
 
 function cleanUserId(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";

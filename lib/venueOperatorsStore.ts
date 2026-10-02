@@ -21,6 +21,7 @@ import { randomUUID } from "crypto";
 import {
   admin,
   createFailSoftGuard,
+  isUniqueViolation,
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
@@ -162,10 +163,6 @@ function fromRow(row: Record<string, unknown>): OperatorClaim {
     reviewedAt: row.reviewed_at ? String(row.reviewed_at) : undefined,
     reviewerNote: row.reviewer_note ? String(row.reviewer_note) : undefined,
   };
-}
-
-function isUniqueViolation(error: { code?: string } | null | undefined): boolean {
-  return error?.code === "23505";
 }
 
 async function selectByPair(accountId: string, venueId: string): Promise<OperatorClaim | null> {
