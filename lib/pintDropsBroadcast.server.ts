@@ -93,7 +93,7 @@ export function signalPintDropLanded(): void {
  * already stored, so a reader must never wait on the signal. Outside a
  * request scope `after` throws, and the promise started here still runs.
  */
-export function deferPintDropsSignal(run: () => Promise<unknown>): void {
+function deferPintDropsSignal(run: () => Promise<unknown>): void {
   const started = (async () => {
     try {
       await run();

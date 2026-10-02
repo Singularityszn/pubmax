@@ -159,6 +159,8 @@ const PRICE_VENUE = "venue-xjf3n0";
 const SECOND_PRICE_VENUE = "venue-1f5ygjb";
 /** A third pub only A reports at, so the drop the moderator cell confirms is unconfirmed by construction. */
 const MODERATOR_VENUE = "venue-3h52h";
+/** The table-door rows live alone, so no price lane counts the seeded anonymous drop as a second reporter. */
+const DOOR_VENUE = "venue-door-0170";
 
 type Session = {
   sqlFile(path: string): void;
@@ -531,18 +533,18 @@ beforeAll(async () => {
     insert into public.pint_drops (
       id, venue_id, handle, price_gbp, status, visibility, moderator_note, report_reason, receipt_photo_key
     ) values (
-      '${ANON_DROP}', '${PRICE_VENUE}', 'secret_author', 4.20, 'visible', 'anonymous',
+      '${ANON_DROP}', '${DOOR_VENUE}', 'secret_author', 4.20, 'visible', 'anonymous',
       'staff-only-note', 'reported-in-private', 'receipts/secret_author/bill.jpg'
     );
     insert into public.community_prices (
       id, venue_id, drink_category, price_pennies, actor, contributor_handle
     ) values (
-      '${VISIBLE_PRICE}', '${PRICE_VENUE}', 'wine', 450, 'profile:${BOB_PROFILE}', 'secret_author'
+      '${VISIBLE_PRICE}', '${DOOR_VENUE}', 'wine', 450, 'profile:${BOB_PROFILE}', 'secret_author'
     );
     insert into public.structured_visit_reports (
       id, venue_id, handle, visited_at, note, status, moderator_note
     ) values (
-      '${VISIT_REPORT}', '${PRICE_VENUE}', 'secret_author', '2026-09-01', 'how the night felt', 'visible', 'staff-only-note'
+      '${VISIT_REPORT}', '${DOOR_VENUE}', 'secret_author', '2026-09-01', 'how the night felt', 'visible', 'staff-only-note'
     );
   `);
   if (!seeded.ok) throw new Error(`Could not seed the permission matrix: ${seeded.err}`);
@@ -1337,7 +1339,7 @@ describe("price observation and its confirmation", () => {
     expect(JSON.stringify(contributor.body)).not.toContain("secret_author");
 
     const prices = await requireSession().rest(
-      `/community_prices?select=id,price_pennies&venue_id=eq.${PRICE_VENUE}`,
+      `/community_prices?select=id,price_pennies&venue_id=in.(${PRICE_VENUE},${DOOR_VENUE})`,
       { sub: BOB },
     );
     expect(prices.status).toBe(200);
