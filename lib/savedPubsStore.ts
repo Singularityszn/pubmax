@@ -491,8 +491,13 @@ export const memorySavedPubsStore: SavedPubsStore = {
 // The single seam: Supabase when configured, process-memory otherwise. Note the
 // memory store uses the in-memory profile store implicitly (no profile id needed),
 // so dev/demo/test never touch the network.
-export function savedPubsStore(): SavedPubsStore {
-  return selectStore(publicMemorySavedPubsStore, publicSupabaseSavedPubsStore);
+/** "owner" is for the verified owner of the handle: withdrawal hides data from the public only. */
+export type SavedPubsReader = "public" | "owner";
+
+export function savedPubsStore(reader: SavedPubsReader = "public"): SavedPubsStore {
+  return reader === "owner"
+    ? selectStore(memorySavedPubsStore, supabaseSavedPubsStore)
+    : selectStore(publicMemorySavedPubsStore, publicSupabaseSavedPubsStore);
 }
 
 function withoutWithdrawnSaves(store: SavedPubsStore): SavedPubsStore {
@@ -601,8 +606,10 @@ export const memorySavedListsStore: SavedListsStore = {
   },
 };
 
-export function savedListsStore(): SavedListsStore {
-  return selectStore(publicMemorySavedListsStore, publicSupabaseSavedListsStore);
+export function savedListsStore(reader: SavedPubsReader = "public"): SavedListsStore {
+  return reader === "owner"
+    ? selectStore(memorySavedListsStore, supabaseSavedListsStore)
+    : selectStore(publicMemorySavedListsStore, publicSupabaseSavedListsStore);
 }
 
 function withoutWithdrawnLists(store: SavedListsStore): SavedListsStore {

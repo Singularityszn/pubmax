@@ -18,7 +18,7 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { callerOwnsHandle, gateHandleAction } from "@/lib/profileOwnership";
 import { isLimited } from "@/lib/pintDrops";
 import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -45,8 +45,9 @@ export async function GET(request: Request): Promise<Response> {
 
   // ?lists=1 → the handle's custom list menu (story 33). Built-ins are known to
   // the client; this returns only the handle's OWN custom lists. Fail-soft → [].
+  const reader = handle && (await callerOwnsHandle(request, handle)) ? "owner" : "public";
   if (params.get("lists")) {
-    const lists = handle ? await savedListsStore().listCustom(handle) : [];
+    const lists = handle ? await savedListsStore(reader).listCustom(handle) : [];
     return jsonNoStore({ lists }, { status: 200 });
   }
 
@@ -55,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
 
   // listSaved is fail-soft (returns [] on any store error), so a saved-pubs
   // outage can never surface as a 500 that breaks the profile page.
-  const saved = await savedPubsStore().listSaved({
+  const saved = await savedPubsStore(reader).listSaved({
     handle: handle || undefined,
     actorHash: actor ? hashActor(actor) : undefined,
   });
