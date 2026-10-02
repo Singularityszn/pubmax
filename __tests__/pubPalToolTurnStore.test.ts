@@ -11,6 +11,7 @@ import {
   purgeExpiredPubPalToolTurns,
   readOwnedPubPalToolTurn,
   readPubPalToolTurn,
+  readPubPalToolInvocationTurn,
   registerPubPalToolTurn,
   touchPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
@@ -24,6 +25,7 @@ type DurableTestRow = {
   owner_id: string | null;
   payload: Record<string, unknown>;
   expires_at: string;
+  created_at: string;
 };
 
 type DurableFilter = {
@@ -39,7 +41,7 @@ type DurableStatement = {
 };
 
 type DurableResult = {
-  data: DurableTestRow | DurableTestRow[] | null;
+  data: Partial<DurableTestRow> | Partial<DurableTestRow>[] | null;
   error: { code?: string; message: string } | null;
 };
 
@@ -60,14 +62,19 @@ class DurableQuery implements PromiseLike<DurableResult> {
   private body: DurableStatement["body"] = null;
   private filters: DurableFilter[] = [];
   private returning = false;
+  private columns: Array<keyof DurableTestRow> | null = null;
   private singular = false;
   private execution: Promise<DurableResult> | undefined;
 
-  select() { this.returning = true; return this; }
+  select(columns = "*") {
+    this.returning = true;
+    this.columns = columns === "*" ? null : columns.split(",").map((column) => column.trim() as keyof DurableTestRow);
+    return this;
+  }
   delete() { this.action = "delete"; return this; }
-  insert(row: DurableTestRow) { this.action = "insert"; this.body = structuredClone(row); return this; }
+  insert(row: Omit<DurableTestRow, "created_at"> & { created_at?: string }) { this.action = "insert"; this.body = structuredClone(row); return this; }
   update(row: Partial<DurableTestRow>) { this.action = "update"; this.body = structuredClone(row); return this; }
-  upsert(row: DurableTestRow) { this.action = "upsert"; this.body = structuredClone(row); return this; }
+  upsert(row: Omit<DurableTestRow, "created_at"> & { created_at?: string }) { this.action = "upsert"; this.body = structuredClone(row); return this; }
   eq(column: string, value: string | number) { this.filters.push({ column, operator: "eq", value }); return this; }
   gt(column: string, value: string) { this.filters.push({ column, operator: "gt", value }); return this; }
   lt(column: string, value: string) { this.filters.push({ column, operator: "lt", value }); return this; }
@@ -128,14 +135,25 @@ class DurableQuery implements PromiseLike<DurableResult> {
       for (const row of affected) durable.rows.set(row.conversation_id, row);
     }
     if (this.action === "insert" || this.action === "upsert") {
-      const row = structuredClone(this.body) as DurableTestRow;
-      if (this.action === "insert" && durable.rows.has(row.conversation_id)) {
+      const input = structuredClone(this.body) as Omit<DurableTestRow, "created_at"> & { created_at?: string };
+      const existing = durable.rows.get(input.conversation_id);
+      if (this.action === "insert" && existing) {
         return { data: null, error: { code: "23505", message: "duplicate conversation_id" } };
       }
+      // 0160 supplies created_at on INSERT. An UPDATE without it keeps the birth.
+      const row = {
+        ...input,
+        created_at: input.created_at ?? existing?.created_at ?? new Date().toISOString(),
+      };
       durable.rows.set(row.conversation_id, row);
       affected = [row];
     }
-    const data = !this.returning ? null : this.singular ? affected[0] ?? null : affected;
+    const columns = this.columns;
+    const projected = columns ? affected.map((row) => Object.fromEntries(columns.map((column) => {
+      if (!Object.hasOwn(row, column)) throw new Error(`Unsupported durable projection: ${column}`);
+      return [column, row[column]];
+    })) as Partial<DurableTestRow>) : affected;
+    const data = !this.returning ? null : this.singular ? projected[0] ?? null : projected;
     return { data: structuredClone(data), error: null };
   }
 }
@@ -155,6 +173,12 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
+async function receiptOrigin() {
+  const invocation = await readPubPalToolInvocationTurn(CONVERSATION_ID);
+  if (!invocation) throw new Error("Receipt requires its live owned context before computation.");
+  return invocation.origin;
+}
+
 describe("pubPalToolTurnStore (memory backend)", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -168,6 +192,7 @@ describe("pubPalToolTurnStore (memory backend)", () => {
       ownerId: OWNER_ID,
     });
 
+    const origin = await receiptOrigin();
     const card = {
       key: "venue-test",
       venueId: "london-test",
@@ -179,7 +204,7 @@ describe("pubPalToolTurnStore (memory backend)", () => {
     await appendPubPalToolTurn(CONVERSATION_ID, {
       cards: [card],
       toolsUsed: ["search_venues"],
-    });
+    }, origin);
 
     const mid = await readPubPalToolTurn(CONVERSATION_ID);
     expect(mid?.cards).toEqual([card]);
@@ -230,6 +255,30 @@ describe("pubPalToolTurnStore (memory backend)", () => {
     await purgeExpiredPubPalToolTurns();
     expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(false);
     expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
+  });
+
+  it("keeps a pending receipt through a live same-owner register without exposing its origin", async () => {
+    vi.useFakeTimers();
+    const started = Date.parse("2026-10-02T12:00:00.000Z");
+    vi.setSystemTime(started);
+    await registerPubPalToolTurn(CONVERSATION_ID, {
+      query: "Quiet pubs in Soho.", cityId: "london", ownerId: OWNER_ID,
+    });
+    const origin = await receiptOrigin();
+    vi.setSystemTime(started + 10_000);
+    await registerPubPalToolTurn(CONVERSATION_ID, {
+      query: "Food in Clapham.", cityId: "london", ownerId: OWNER_ID,
+      turns: [{ role: "user", content: "Food in Clapham." }],
+    });
+    await appendPubPalToolTurn(CONVERSATION_ID, {
+      hints: ["Sourced result."], toolsUsed: ["search_venues"],
+    }, origin);
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toEqual({
+      query: "Food in Clapham.", cityId: "london",
+      turns: [{ role: "user", content: "Food in Clapham." }],
+      expiresAt: started + 10_000 + PUB_PAL_TOOL_TURN_TTL_MS,
+      cards: [], proposals: [], hints: ["Sourced result."], toolsUsed: ["search_venues"],
+    });
   });
 });
 
@@ -407,12 +456,13 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
     "preserves a genuine new line and a sourced receipt with %s commit order",
     async (order) => {
       await registerFirstLine();
+      const origin = await receiptOrigin();
       vi.setSystemTime(STARTED + 90_000);
       const held = holdWrites(2);
       const user = appendOwnedPubPalUserTurn(
         CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london",
       );
-      const result = appendPubPalToolTurn(CONVERSATION_ID, receipt("A"));
+      const result = appendPubPalToolTurn(CONVERSATION_ID, receipt("A"), origin);
       await held.allPending;
       const userWrite = (statement: DurableStatement) => statement.body?.payload?.query === NEXT_QUERY;
       const resultWrite = (statement: DurableStatement) => {
@@ -445,10 +495,11 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
 
   it("merges two distinct tool receipts without replacing history or renewing its clock", async () => {
     await registerFirstLine();
+    const origin = await receiptOrigin();
     vi.setSystemTime(STARTED + 20_000);
     const held = holdWrites(2);
-    const first = appendPubPalToolTurn(CONVERSATION_ID, receipt("A"));
-    const second = appendPubPalToolTurn(CONVERSATION_ID, receipt("B", "venue_prices"));
+    const first = appendPubPalToolTurn(CONVERSATION_ID, receipt("A"), origin);
+    const second = appendPubPalToolTurn(CONVERSATION_ID, receipt("B", "venue_prices"), origin);
     await held.allPending;
     const hasHint = (hint: string) => (statement: DurableStatement) => {
       const hints = statement.body?.payload?.hints;
@@ -502,9 +553,10 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
 
   it("a receipt read before expiry cannot recreate a row deleted by the purge", async () => {
     await registerFirstLine();
+    const origin = await receiptOrigin();
     vi.setSystemTime(STARTED + PUB_PAL_TOOL_TURN_TTL_MS - 1);
     const held = holdWrites(1);
-    const result = appendPubPalToolTurn(CONVERSATION_ID, receipt("late"));
+    const result = appendPubPalToolTurn(CONVERSATION_ID, receipt("late"), origin);
     await held.allPending;
     vi.setSystemTime(STARTED + PUB_PAL_TOOL_TURN_TTL_MS + 1);
     await purgeExpiredPubPalToolTurns();
@@ -517,12 +569,13 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
 
   it("refuses a user line and receipt whose initial read is already expired", async () => {
     await registerFirstLine();
+    const origin = await receiptOrigin();
     vi.setSystemTime(STARTED + PUB_PAL_TOOL_TURN_TTL_MS + 1);
     durable.statements = [];
     expect(await appendOwnedPubPalUserTurn(
       CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london",
     )).toBe(false);
-    await appendPubPalToolTurn(CONVERSATION_ID, receipt("late"));
+    await appendPubPalToolTurn(CONVERSATION_ID, receipt("late"), origin);
     expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
     expect(durable.statements.some((statement) => ["insert", "upsert", "update"].includes(statement.action)))
       .toBe(false);
@@ -540,11 +593,12 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
 
   it("merges a legacy unversioned row when two real receipt writes overlap", async () => {
     await registerFirstLine();
+    const origin = await receiptOrigin();
     const row = durable.rows.get(CONVERSATION_ID)!;
     delete row.payload.revision;
     const held = holdWrites(2);
-    const first = appendPubPalToolTurn(CONVERSATION_ID, receipt("A"));
-    const second = appendPubPalToolTurn(CONVERSATION_ID, receipt("B"));
+    const first = appendPubPalToolTurn(CONVERSATION_ID, receipt("A"), origin);
+    const second = appendPubPalToolTurn(CONVERSATION_ID, receipt("B"), origin);
     await held.allPending;
     const hasHint = (hint: string) => (statement: DurableStatement) => {
       const hints = statement.body?.payload?.hints;
@@ -566,6 +620,7 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
     "surfaces bounded conflict exhaustion for %s without a success or partial write",
     async (operation) => {
       await registerFirstLine();
+      const origin = await receiptOrigin();
       const before = structuredClone(durable.rows.get(CONVERSATION_ID));
       durable.zeroWriteRows = true;
       let attempts = 0;
@@ -576,7 +631,7 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
         ? registerPubPalToolTurn(CONVERSATION_ID, { query: NEXT_QUERY, cityId: "london", ownerId: OWNER_ID })
         : operation === "user"
           ? appendOwnedPubPalUserTurn(CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london")
-          : appendPubPalToolTurn(CONVERSATION_ID, receipt("A"));
+          : appendPubPalToolTurn(CONVERSATION_ID, receipt("A"), origin);
       await expect(pending).rejects.toThrow("conversation changed while saving");
       expect(attempts).toBeGreaterThan(1);
       expect(attempts).toBeLessThanOrEqual(10);
@@ -586,10 +641,11 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
 
   it.each([null, "1", -1, 1.5])("refuses malformed stored revision %s instead of resetting it", async (revision) => {
     await registerFirstLine();
+    const origin = await receiptOrigin();
     const row = durable.rows.get(CONVERSATION_ID)!;
     row.payload.revision = revision;
     const before = structuredClone(row);
-    await expect(appendPubPalToolTurn(CONVERSATION_ID, receipt("A")))
+    await expect(appendPubPalToolTurn(CONVERSATION_ID, receipt("A"), origin))
       .rejects.toThrow("Invalid Pub Pal conversation revision");
     expect(durable.rows.get(CONVERSATION_ID)).toEqual(before);
   });
@@ -626,5 +682,142 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
       FIRST_QUERY, "Older line.", NEXT_QUERY,
     ].sort());
     expect(stored?.expiresAt).toBe(STARTED + 95_000 + PUB_PAL_TOOL_TURN_TTL_MS);
+  });
+
+  async function establishFreshContext() {
+    // Explicit future B1 same-CID reset fixture, not evidence of provider ID reuse.
+    vi.setSystemTime(STARTED + 125_000);
+    await purgeExpiredPubPalToolTurns();
+    expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
+    await bindPubPalToolTurn(CONVERSATION_ID, OWNER_ID, "london");
+    expect(await appendOwnedPubPalUserTurn(
+      CONVERSATION_ID, OWNER_ID, { role: "user", content: "Fresh context line." }, "london",
+    )).toBe(true);
+    const origin = await receiptOrigin();
+    await appendPubPalToolTurn(CONVERSATION_ID, receipt("fresh", "venue_prices"), origin);
+    expect(durable.rows.get(CONVERSATION_ID)?.created_at)
+      .toBe(new Date(STARTED + 125_000).toISOString());
+  }
+
+  async function expectFreshContextOnly() {
+    const stored = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID);
+    expect(stored?.query).toBe("Fresh context line.");
+    expect(stored?.turns).toEqual([{ role: "user", content: "Fresh context line." }]);
+    expect(stored?.cards).toEqual(receipt("fresh").cards);
+    expect(stored?.proposals).toEqual(receipt("fresh").proposals);
+    expect(stored?.hints).toEqual(["fresh"]);
+    expect(stored?.toolsUsed).toEqual(["venue_prices"]);
+    expect(stored?.expiresAt).toBe(STARTED + 125_000 + PUB_PAL_TOOL_TURN_TTL_MS);
+    expect(stored).not.toHaveProperty("created_at");
+    expect(stored).not.toHaveProperty("createdAt");
+    expect(stored).not.toHaveProperty("revision");
+  }
+
+  it("refuses a receipt captured before replacement even when append starts after the fresh context", async () => {
+    await registerFirstLine();
+    const origin = await receiptOrigin();
+    await establishFreshContext();
+    const freshBefore = structuredClone(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID));
+    await appendPubPalToolTurn(CONVERSATION_ID, receipt("old-computation", "venue_heritage"), origin);
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toEqual(freshBefore);
+    await expectFreshContextOnly();
+  });
+
+  it("a late old-context receipt cannot retry into a fresh same-owner conversation row", async () => {
+    await registerFirstLine();
+    const origin = await receiptOrigin();
+    expect(durable.rows.get(CONVERSATION_ID)?.created_at).toBe(new Date(STARTED).toISOString());
+    vi.setSystemTime(STARTED + 119_000);
+    const held = holdWrites(1);
+    const late = appendPubPalToolTurn(CONVERSATION_ID, receipt("expired", "venue_heritage"), origin);
+    const settled = late.then(() => null, (error: unknown) => error);
+    await held.allPending;
+    await establishFreshContext();
+    held.resumeWhere(() => true);
+    const error = await settled;
+    expect(error === null || error instanceof PubPalToolTurnAccessError).toBe(true);
+    await expectFreshContextOnly();
+  });
+
+  it.each(["user", "register"] as const)(
+    "an old owned %s mutation cannot overwrite a fresh context after its held write conflicts",
+    async (operation) => {
+      await registerFirstLine();
+      vi.setSystemTime(STARTED + 119_000);
+      const held = holdWrites(1);
+      const pending = operation === "user"
+        ? appendOwnedPubPalUserTurn(
+          CONVERSATION_ID, OWNER_ID, { role: "user", content: "Expired context line." }, "london",
+        )
+        : registerPubPalToolTurn(CONVERSATION_ID, {
+          query: "Expired context line.", cityId: "london", ownerId: OWNER_ID,
+          turns: [{ role: "user", content: "Expired context line." }],
+        });
+      const settled = pending.then(() => null, (error: unknown) => error);
+      await held.allPending;
+      await establishFreshContext();
+      held.resumeWhere(() => true);
+      const error = await settled;
+      expect(error === null || error instanceof PubPalToolTurnAccessError).toBe(true);
+      await expectFreshContextOnly();
+    },
+  );
+
+  it("keeps raw microsecond birth in live CAS guards without exposing it", async () => {
+    await registerFirstLine();
+    const birth = "2026-10-02T12:00:00.123456+00:00";
+    durable.rows.get(CONVERSATION_ID)!.created_at = birth;
+    const origin = await receiptOrigin();
+    durable.statements = [];
+    vi.setSystemTime(STARTED + 90_000);
+    expect(await appendOwnedPubPalUserTurn(
+      CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london",
+    )).toBe(true);
+    await appendPubPalToolTurn(CONVERSATION_ID, receipt("A"), origin);
+    const updates = durable.statements.filter((statement) => statement.action === "update");
+    expect(updates).toHaveLength(2);
+    for (const update of updates) {
+      expect(update.filters).toContainEqual({ column: "created_at", operator: "eq", value: birth });
+      expect(update.body).not.toHaveProperty("created_at");
+    }
+    const stored = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID);
+    expect(stored?.query).toBe(NEXT_QUERY);
+    expect(stored?.cards).toEqual(receipt("A").cards);
+    expect(stored?.expiresAt).toBe(STARTED + 90_000 + PUB_PAL_TOOL_TURN_TTL_MS);
+    expect(stored).not.toHaveProperty("createdAt");
+    expect(stored).not.toHaveProperty("created_at");
+    expect(stored).not.toHaveProperty("revision");
+    const row = durable.rows.get(CONVERSATION_ID)!;
+    expect(row.created_at).toBe(birth);
+    expect(row.payload).not.toHaveProperty("createdAt");
+    expect(row.payload).not.toHaveProperty("created_at");
+  });
+
+  it.each(["", "not-a-timestamp"])("refuses malformed birth %s instead of losing generation identity", async (birth) => {
+    await registerFirstLine();
+    const origin = await receiptOrigin();
+    const row = durable.rows.get(CONVERSATION_ID)!;
+    row.created_at = birth;
+    const before = structuredClone(row);
+    await expect(appendPubPalToolTurn(CONVERSATION_ID, receipt("A"), origin))
+      .rejects.toThrow("Invalid Pub Pal conversation creation time");
+    expect(durable.rows.get(CONVERSATION_ID)).toEqual(before);
+  });
+
+  it("an old observed register cannot insert again after its context vanishes", async () => {
+    await registerFirstLine();
+    vi.setSystemTime(STARTED + 119_000);
+    const held = holdWrites(1);
+    const pending = registerPubPalToolTurn(CONVERSATION_ID, {
+      query: "Expired context line.", cityId: "london", ownerId: OWNER_ID,
+    }).then(() => null, (error: unknown) => error);
+    await held.allPending;
+    vi.setSystemTime(STARTED + 125_000);
+    await purgeExpiredPubPalToolTurns();
+    expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
+    held.resumeWhere(() => true);
+    expect(await pending).toBeInstanceOf(PubPalToolTurnAccessError);
+    expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
   });
 });

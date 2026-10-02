@@ -15,7 +15,7 @@ import {
 import { routeAskDeterministically } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
-  readPubPalToolTurn,
+  readPubPalToolInvocationTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 function isEmptyArg(value: unknown): boolean {
@@ -99,9 +99,10 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const turn = input.conversationId
-    ? await readPubPalToolTurn(input.conversationId)
+  const invocation = input.conversationId
+    ? await readPubPalToolInvocationTurn(input.conversationId)
     : null;
+  const turn = invocation?.turn ?? null;
   const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args });
   const cityId = resolveAskCityId(
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
@@ -129,13 +130,13 @@ export async function invokePubPalAskTool(input: {
     skipModel: true,
   });
 
-  if (input.conversationId) {
+  if (input.conversationId && invocation) {
     await appendPubPalToolTurn(input.conversationId, {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
       toolsUsed: [input.toolName],
-    });
+    }, invocation.origin);
   }
 
   const spokenHint =
