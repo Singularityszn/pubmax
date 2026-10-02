@@ -590,7 +590,6 @@ describe("a price stays in the lane the reader gave it", () => {
       {
         text: "Peroni £3.55/£7.10 pint",
         drinks: [
-          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
           { drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 },
         ],
       },
@@ -600,30 +599,35 @@ describe("a price stays in the lane the reader gave it", () => {
       },
       {
         text: "Pie of the day. Peroni £3.55|£7.10",
-        drinks: [
-          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
-          { drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 },
-        ],
+        drinks: [],
       },
       {
         text: "Peroni £5.20/£5.80 bottle",
         drinks: [
-          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 5.2 },
           { drink: "Peroni", size: "bottle", sizeDetail: "bottle", priceGbp: 5.8 },
         ],
       },
       {
         text: "Peroni 330ml £4.50/£5.50",
         drinks: [
-          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 4.5 },
-          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 5.5 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 4.5 },
         ],
       },
       {
         text: "Peroni £3.55|£7.10",
+        drinks: [],
+      },
+      {
+        text: "House Merlot 175ml £6.50 / 250ml £8.50",
         drinks: [
-          { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
-          { drink: "Peroni", size: "pint", sizeDetail: "pint", priceGbp: 7.1 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5 },
+        ],
+      },
+      {
+        text: "The Crown, 1 Bankside, SE1 6AN. London Pride £5.50 /pint",
+        drinks: [
+          { drink: "London Pride", size: "pint", sizeDetail: "pint", priceGbp: 5.5 },
         ],
       },
       { text: "Scotch egg £6.50\nRum baba £7", drinks: [] },
@@ -1273,7 +1277,7 @@ describe("a night that fails part way", () => {
     expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([6.2]);
   });
 
-  it("does not keep a snippet price when extract returns nothing", async () => {
+  it("keeps a measured snippet price when extract returns nothing and leaves the venue unseen", async () => {
     const pub = venue({
       id: "crown-se1",
       name: "The Crown",
@@ -1303,8 +1307,12 @@ describe("a night that fails part way", () => {
         return { results: [], usage: { credits: 1 } };
       },
     });
-    expect(empty.queue.venues.flatMap((row) => row.drinks)).toEqual([]);
-    expect(empty.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
+    expect(empty.queue.venues[0].drinks.map((row) => ({
+      drink: row.drink,
+      size: row.size,
+      priceGbp: row.priceGbp,
+    }))).toEqual([{ drink: "London Pride", size: "pint", priceGbp: 5.5 }]);
+    expect(empty.cursor.lastSeen["crown-se1"]).toBeUndefined();
     const failed = await runNightlyPass({
       venues: [pub],
       cursor: { version: 1, lastSeen: {} },
@@ -1319,8 +1327,12 @@ describe("a night that fails part way", () => {
         return { error: "extract failed", usage: { credits: 1 } };
       },
     });
-    expect(failed.queue.venues.flatMap((row) => row.drinks)).toEqual([]);
-    expect(failed.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
+    expect(failed.queue.venues[0].drinks.map((row) => ({
+      drink: row.drink,
+      size: row.size,
+      priceGbp: row.priceGbp,
+    }))).toEqual([{ drink: "London Pride", size: "pint", priceGbp: 5.5 }]);
+    expect(failed.cursor.lastSeen["crown-se1"]).toBeUndefined();
   });
 
   it("marks a bound homepage seen when there is no extract url", async () => {
