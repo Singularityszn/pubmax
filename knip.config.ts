@@ -62,6 +62,10 @@ const config: KnipConfig = {
     // Headed foreground-location proof runs through its checked-in Playwright
     // config under docs/proof; trace the spec's real helper imports and exports.
     "docs/proof/friend-location-browser.spec.ts",
+    // Next's Turbopack and client webpack rules load this CommonJS loader by path.
+    "scripts/loaders/elevenlabs-output-resampler.cjs",
+    // The output-resampler test runs this ESM probe in a separate Node process.
+    "__tests__/fixtures/elevenlabs/output-resampler-probe.mjs",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
