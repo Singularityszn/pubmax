@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { isFoodCategory } from "@/lib/food";
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
 import { famousRowsForRebuild } from "@/scripts/build_slim_index.mjs";
+import { applyVerification } from "@/scripts/verify_famous_venues.mjs";
 import { famousSeedLapsedAt } from "./helpers/currentFamousVenues";
 import { normalizeVenueName } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
 
@@ -223,6 +224,35 @@ describe("famous venue seeds", () => {
           refreshAt: lapsedAt,
         }),
       ).toThrow(/slim rebuild would keep 0 famous venues/);
+    });
+
+    it("points a build after a seed re-verification at refresh:slim, and the refresh keeps every venue", () => {
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const verifiedDay = "2026-10-05";
+      const reverified = [
+        ...applyVerification(
+          new Map(PACKS.map(([file]) => [file, loadSeed(file)])),
+          shippedFamousIds(lastSlim).map((id) => ({ id, outcome: "confirmed" as const })),
+          verifiedDay,
+        ).values(),
+      ].flat() as FamousVenueRow[];
+      expect(() =>
+        famousRowsForRebuild(reverified, { lastSlim, removedIds: [], refreshAt: null }),
+      ).toThrow(/re-verified after the committed stamp; run npm run refresh:slim/);
+      const refreshed = famousRowsForRebuild(reverified, {
+        lastSlim,
+        removedIds: [],
+        refreshAt: new Date(`${verifiedDay}T12:00:00.000Z`),
+      });
+      expect(keptIds(refreshed)).toEqual(shippedFamousIds(lastSlim));
+      expect(() =>
+        famousRowsForRebuild(seedRows(), {
+          lastSlim,
+          removedIds: [],
+          refreshAt: famousSeedLapsedAt(),
+        }),
+      ).not.toThrow(/refresh:slim/);
     });
 
     it("refuses a build-time rebuild with no committed stamp to rebuild at", () => {

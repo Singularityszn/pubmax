@@ -198,13 +198,13 @@ function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   const builtAt = famousVenueClock(seedRows, at);
   const kept = assertCurrentFamousVenueRows(seedRows, builtAt);
   const keptIds = new Set(kept.map((row) => row.id));
-  const seedIds = new Set(seedRows.map((row) => row.id));
+  const seedById = new Map(seedRows.map((row) => [row.id, row]));
   const allowedRemovals = new Set(removedIds);
   const lapsed = [];
   const removed = [];
   for (const id of shippedFamousVenueIds(lastSlim)) {
     if (keptIds.has(id)) continue;
-    if (seedIds.has(id)) lapsed.push(id);
+    if (seedById.has(id)) lapsed.push(id);
     else if (!allowedRemovals.has(id)) removed.push(id);
   }
   if (lapsed.length > 0 || removed.length > 0) {
@@ -213,6 +213,14 @@ function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
       parts.push(
         `not current at ${builtAt.toISOString()} for ${lapsed.length}: ${lapsed.join(", ")}`,
       );
+      const reverified = lapsed.some(
+        (id) => Date.parse(seedById.get(id).observedAt) > builtAt.getTime(),
+      );
+      if (!refreshAt && reverified) {
+        parts.push(
+          "the seed was re-verified after the committed stamp; run npm run refresh:slim, then commit the slim",
+        );
+      }
     }
     if (removed.length > 0) {
       parts.push(
