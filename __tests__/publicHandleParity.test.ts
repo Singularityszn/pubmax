@@ -181,6 +181,21 @@ describe("public handle parity", () => {
     expect(subject.body).toMatchObject({ profile: null, projection: "full" });
   });
 
+  it("still shows a suspended owner their own profile", async () => {
+    authState.userId = "user-suspended";
+    const body = (await (await profile("suspendedbob")).json()) as {
+      profile: { handle: string } | null;
+      projection: string;
+    };
+    expect(body.profile?.handle).toBe("suspendedbob");
+    expect(body.projection).toBe("full");
+  });
+
+  it("answers another account's profile read for a suspended handle like an unknown handle", async () => {
+    authState.userId = "user-sam";
+    expect(await answered(await profile("suspendedbob"))).toEqual(await answered(await profile(UNKNOWN)));
+  });
+
   it.each(subjects)("$kind lot answers like an unknown handle", async ({ handle }) => {
     expect(await answered(await lot(handle))).toEqual(await answered(await lot(UNKNOWN)));
   });
