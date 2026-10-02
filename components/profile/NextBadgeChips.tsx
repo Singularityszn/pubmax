@@ -15,6 +15,7 @@ import {
   type BadgeProgress,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./nextBadgeChips.css";
@@ -51,8 +52,7 @@ export default function NextBadgeChips({
 
     async function load() {
       const resolved = normalizeHandle(
-        handle ??
-          (typeof window === "undefined" ? "" : (window.localStorage.getItem(HANDLE_KEY) ?? "")),
+        handle ?? safeLocalStorage()?.getItem(HANDLE_KEY) ?? "",
       );
       if (!resolved) return;
       await loadSurfaceJson<unknown>(
