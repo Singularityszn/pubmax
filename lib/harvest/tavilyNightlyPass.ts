@@ -341,22 +341,36 @@ function postcodePattern(flags: string): RegExp {
   return new RegExp(POSTCODE_TOKEN, flags);
 }
 
+function compactPostcode(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function compactPostcodesIn(text: string): string[] {
+  const found: string[] = [];
+  for (const match of text.matchAll(postcodePattern("gi"))) {
+    const compact = compactPostcode(`${match[1]}${match[2]}`);
+    if (compact) found.push(compact);
+  }
+  return found;
+}
+
 function statesPostcode(text: string, postcode: string): boolean {
   const wanted = compactPostcode(postcode);
   if (!wanted) return false;
-  for (const match of text.matchAll(postcodePattern("gi"))) {
-    if (compactPostcode(`${match[1]}${match[2]}`) === wanted) return true;
-  }
-  return false;
+  return compactPostcodesIn(text).includes(wanted);
 }
 
 function phraseWords(value: string): string[] {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
 }
 
+function hasRoadName(words: readonly string[]): boolean {
+  return words.some((word) => /[a-z]/.test(word));
+}
+
 function statesStreet(text: string, street: string): boolean {
   const words = phraseWords(street);
-  if (words.length < 2 || !/^\d/.test(words[0])) return false;
+  if (words.length < 2 || !/^\d/.test(words[0]) || !hasRoadName(words)) return false;
   const hay = phraseWords(text).join(" ");
   const body = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+");
   return new RegExp(`(?:^|\\s)${body}(?:\\s|$)`).test(hay);
@@ -378,13 +392,20 @@ function streetFromSearchText(name: string, searchText: string): string {
   if (!stripped) return "";
   const at = rest.search(postcodePattern("i"));
   const beforePostcode = (at >= 0 ? rest.slice(0, at) : rest).replace(/[,\s]+$/g, "");
-  const line = phraseWords(beforePostcode.split(",")[0] ?? "").join(" ");
-  if (!/^\d/.test(line) || line.length < 4) return "";
-  return line;
-}
-
-function compactPostcode(value: string): string {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const fields = beforePostcode.split(",").map((field) => phraseWords(field).join(" ")).filter(Boolean);
+  for (let index = 0; index < fields.length; index += 1) {
+    const words = fields[index].split(" ");
+    if (!/^\d/.test(words[0] ?? "")) continue;
+    let line = fields[index];
+    if (!hasRoadName(words)) {
+      const next = fields[index + 1] ?? "";
+      if (!hasRoadName(phraseWords(next))) continue;
+      line = `${line} ${next}`;
+    }
+    if (line.length < 4) continue;
+    return line;
+  }
+  return "";
 }
 
 export function venueKey(venue: { id?: string; venueId?: string; postcode: string }): string {
@@ -415,7 +436,10 @@ export function toNightlyVenue(row: unknown): NightlyVenue | null {
 
 function resultStatesVenue(result: SearchHit, venue: { postcode: string; street?: string }): boolean {
   const text = `${result.title ?? ""} ${result.description ?? ""} ${result.content ?? ""}`;
-  return statesPostcode(text, venue.postcode) || statesStreet(text, venue.street ?? "");
+  if (statesPostcode(text, venue.postcode)) return true;
+  const wanted = compactPostcode(venue.postcode);
+  if (compactPostcodesIn(text).some((code) => code !== wanted)) return false;
+  return statesStreet(text, venue.street ?? "");
 }
 
 export function chooseOperatorUrl(
@@ -753,21 +777,14 @@ export function queueDocument(input: unknown): QueueDocument {
 function keepListedLines(previous: VenueEvidence | undefined, incoming: VenueEvidence): VenueEvidence {
   if (!previous) return incoming;
   const drinks = incoming.drinks.length > 0 ? incoming.drinks : previous.drinks;
-  const keepDishes = incoming.food.dishes.length === 0 && incoming.food.served === null && previous.food.dishes.length > 0;
-  if (!keepDishes && drinks === incoming.drinks) return incoming;
-  const dishes = keepDishes ? previous.food.dishes : incoming.food.dishes;
-  const prices = dishes.map((dish) => dish.priceGbp);
-  const food = keepDishes
-    ? {
-        served: true,
-        priceMinGbp: Math.min(...prices),
-        priceMaxGbp: Math.max(...prices),
-        dishes,
-        sourceUrl: previous.food.sourceUrl,
-        seenOn: previous.food.seenOn,
-      }
-    : incoming.food;
-  return { ...incoming, drinks, food };
+  const food = incoming.food.dishes.length > 0
+    ? incoming.food
+    : previous.food.dishes.length > 0
+      ? previous.food
+      : incoming.food;
+  const candidates = incoming.candidates.length > 0 ? incoming.candidates : previous.candidates;
+  const website = incoming.website ?? previous.website;
+  return { ...incoming, drinks, food, candidates, website };
 }
 
 export function mergeQueue(base: QueueDocument, incoming: readonly VenueEvidence[]): QueueDocument {

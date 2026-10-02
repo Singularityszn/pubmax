@@ -502,6 +502,27 @@ describe("arguments and redaction", () => {
       street: "338 bowes road",
     });
   });
+
+  it("keeps a house number with its road and drops a bare number range", () => {
+    expect(toNightlyVenue({
+      id: "lion",
+      name: "The Black Lion",
+      borough: "Newham",
+      filterHints: { searchText: "the black lion 59-61, high street, london, e13 0ad newham" },
+    })?.street).toBe("59 61 high street");
+    expect(toNightlyVenue({
+      id: "nelson",
+      name: "The Lord Nelson",
+      borough: "Hounslow",
+      filterHints: { searchText: "the lord nelson 9-11 enfield road, brentford, tw8 0aa hounslow" },
+    })?.street).toBe("9 11 enfield road");
+    expect(toNightlyVenue({
+      id: "ebb",
+      name: "Ebb & Flow",
+      borough: "Sutton",
+      filterHints: { searchText: "ebb & flow 59-61, sm1 1dt sutton" },
+    })?.street).toBe("");
+  });
 });
 
 const listedQueue = { version: 1 as const, standingRule: "listed" as const, venues: [] };
@@ -648,6 +669,36 @@ describe("two pubs named The Crown", () => {
   });
 });
 
+describe("a street is a road name", () => {
+  const nelson = venue({
+    id: "nelson-tw8",
+    name: "The Lord Nelson",
+    postcode: "TW8 0AA",
+    street: "9 11",
+    borough: "Hounslow",
+  });
+  const hit = {
+    url: "https://lordnelsonpub.co.uk/menu",
+    title: "The Lord Nelson",
+    content: "12 High Street, SE1 1AA. Pie £9.11",
+  };
+
+  it("does not bind a bare number range or a page that states another postcode", () => {
+    expect(chooseOperatorUrl([hit], nelson)).toBeNull();
+    expect(chooseOperatorUrl([hit], { ...nelson, street: "9 11 Enfield Road" })).toBeNull();
+    expect(chooseOperatorUrl([{
+      url: "https://lordnelsonpub.co.uk/menu",
+      title: "The Lord Nelson",
+      content: "9-11 Enfield Road, SE1 1AA. Pie £9.50",
+    }], { ...nelson, street: "9 11 Enfield Road" })).toBeNull();
+    expect(chooseOperatorUrl([{
+      url: "https://lordnelsonpub.co.uk/menu",
+      title: "The Lord Nelson",
+      content: "9-11 Enfield Road. Pie £9.50",
+    }], { ...nelson, street: "9 11 Enfield Road" })).toBe("https://lordnelsonpub.co.uk/menu");
+  });
+});
+
 describe("a night that fails part way", () => {
   it("extracts a same-site menu listed without a snippet", async () => {
     const pub = venue({ id: "east", name: "The Eastbrook", postcode: "IG11 7AB", street: "1 Dagenham Road" });
@@ -745,6 +796,101 @@ describe("a night that fails part way", () => {
     expect(later.queue.venues).toHaveLength(1);
     expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
     expect(later.queue.venues[0].food.dishes.map((dish) => dish.priceGbp)).toEqual([12]);
+    expect(later.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
+  });
+
+  it("keeps a queued dish when a later page states the kitchen but prices no dish", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const site = "https://thecrown-bankside.co.uk/drinks";
+    type Night = Awaited<ReturnType<typeof runNightlyPass>>;
+    const night = (now: Date, queue: Night["queue"], cursor: Night["cursor"], body: string) =>
+      runNightlyPass({
+        venues: [pub],
+        cursor,
+        queue,
+        now,
+        usage: researcher,
+        reserveCredits: 0,
+        manualCap: 10,
+        staleAfterDays: 30,
+        fetchImpl: async (request) => {
+          if (request.kind === "search") {
+            return {
+              results: [{ url: site, title: "The Crown", content: "The Crown, 1 Bankside, SE1 6AN." }],
+              usage: { credits: 1 },
+            };
+          }
+          return { results: [{ url: site, raw_content: body }], usage: { credits: 1 } };
+        },
+      });
+    const first = await night(
+      new Date("2026-09-01T12:00:00.000Z"),
+      listedQueue,
+      { version: 1, lastSeen: {} },
+      "Burger £12.00",
+    );
+    expect(first.queue.venues[0].food.dishes.map((dish) => dish.name)).toEqual(["Burger"]);
+    const kitchen = await night(oct1, first.queue, first.cursor, "Our kitchen\nLondon Pride £5.50 /pint");
+    expect(kitchen.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    expect(kitchen.queue.venues[0].food.dishes.map((dish) => dish.name)).toEqual(["Burger"]);
+    const closed = await night(
+      new Date("2026-10-31T12:00:00.000Z"),
+      kitchen.queue,
+      kitchen.cursor,
+      "The kitchen closed tonight.\nGuinness £5.80 /pint",
+    );
+    expect(closed.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["Guinness"]);
+    expect(closed.queue.venues[0].food.dishes.map((dish) => dish.name)).toEqual(["Burger"]);
+    const replaced = await night(
+      new Date("2026-11-30T12:00:00.000Z"),
+      closed.queue,
+      closed.cursor,
+      "Pie £9.00",
+    );
+    expect(replaced.queue.venues[0].food.dishes.map((dish) => `${dish.name}|${dish.priceGbp}`)).toEqual(["Pie|9"]);
+  });
+
+  it("keeps curator urls when a later search returns nothing", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const first = await runNightlyPass({
+      venues: [pub],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: new Date("2026-09-01T12:00:00.000Z"),
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async () => ({
+        results: [{ url: "https://thecrown.co.uk/drinks", title: "The Crown", content: "London Pride £5.50 /pint. Open 11am." }],
+        usage: { credits: 1 },
+      }),
+    });
+    expect(first.queue.venues[0].website).toBeNull();
+    expect(first.queue.venues[0].candidates).toEqual(["https://thecrown.co.uk/drinks"]);
+    const later = await runNightlyPass({
+      venues: [pub],
+      cursor: first.cursor,
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: first.queue,
+      fetchImpl: async () => ({ results: [], usage: { credits: 1 } }),
+    });
+    expect(later.queue.venues[0].website).toBeNull();
+    expect(later.queue.venues[0].candidates).toEqual(["https://thecrown.co.uk/drinks"]);
   });
 
   it("saves a finished venue and carries on when a later call fails", async () => {
