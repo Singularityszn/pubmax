@@ -3,7 +3,9 @@
 //
 // Every route under app/api is imported, and a route whose import loads a paid
 // client must carry a probe below: a real request, sent with no session, that
-// has to be refused before any paid call. Every paid client reaches its
+// has to get its expected answer without any paid call. Most answers are a
+// refusal; a route open to anonymous callers by design, such as an image
+// report on a seeded profile, answers for real. Every paid client reaches its
 // provider through the global fetch, so that fetch records the calls: a call to
 // a provider domain is a paid call, however its host is spelled in the source.
 // Every provider key is set, every paid-spend ceiling is closed and every
