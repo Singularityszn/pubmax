@@ -8,6 +8,8 @@ description: >-
 compatibility: Needs network access, curl, gh, and git. The user must be logged in through gh before creating pull requests.
 ---
 
+> 中文版: [SKILL.zh-CN.md](SKILL.zh-CN.md)
+
 # Launch a shadcn registry
 
 Prepare directory submissions for a custom shadcn/ui registry, then write posts that fit each platform.
