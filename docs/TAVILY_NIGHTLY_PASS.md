@@ -1,6 +1,6 @@
 # Nightly Tavily pass
 
-The nightly pass reads each London pub's own site for drink lines, food, and a few house facts. It writes Listed evidence for a curator. It does not write a Confirmed price, a community price, or the UK price bundle.
+The nightly pass reads each London pub's own site for drink lines and a few house facts. A drink line is kept only when that same line states the drink and a pound price. Food, a served flag, a closure, an amenity and a dish are the page URL and a short verbatim excerpt for a curator. A later read keeps evidence it does not restate. A site is bound only when a result states that pub's postcode or its exact street address. Otherwise the venue stays unbound, the candidate URLs are kept for a curator, and no extract credit is spent. It does not write a Confirmed price, a community price, or the UK price bundle.
 
 ## Run
 

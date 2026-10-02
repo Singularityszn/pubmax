@@ -28,34 +28,19 @@ const DEFAULT_RESERVE_CREDITS = 50;
 const DEFAULT_STALE_DAYS = 30;
 const BEER_MIN_GBP = 2;
 const BEER_MAX_GBP = 12;
-const FOOD_MIN_GBP = 2;
-const FOOD_MAX_GBP = 40;
 const DAY_MS = 86_400_000;
+const EXCERPT_MAX = 500;
 
 const SEED_PATCHES = ["soho", "clapham", "shoreditch", "islington", "camden"] as const;
 const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "hounslow"]);
 
-const FOOD_LINE =
-  /\b(burger|steak|pizza|fish and chips|chips|roast|breakfast|brunch|lunch|dinner|sandwich|curry|dessert|pie|salad|wings|nachos|sausage|halloumi|scampi|prawn)\b/i;
-const SERVES_FOOD = /\b(we serve food|food served|food menu|kitchen open|our kitchen|bar snacks)\b/i;
-const NO_FOOD = /\b(do not serve food|no food served|food is not served|we do not serve food|kitchen(?:\s+(?:is|was)(?:\s+now)?|\s+now)?\s+closed)\b/i;
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
-
-const AMENITY_LINES: ReadonlyArray<{ kind: AmenityKind; pattern: RegExp }> = [
-  { kind: "beer-garden", pattern: /\b(beer garden|pub garden|beer-garden)\b/i },
-  { kind: "live-sport", pattern: /\b(live sport|sky sports|tnt sports|bt sport)\b/i },
-  { kind: "quiz", pattern: /\b(pub quiz|quiz night|quiz)\b/i },
-  { kind: "music", pattern: /\b(live music|music night|\bdj\b)\b/i },
-];
-
-const CLOSURE_LINE = /\b(permanently closed|closed permanently|closed for good|ceased trading|no longer trading)\b/i;
 const POSTCODE_TOKEN = "\\b([A-Z]{1,2}\\d[A-Z\\d]?)\\s*(\\d[A-Z]{2})\\b";
 const PHONE_LINE = /\b(0\d{2,4}\s\d{3,4}\s\d{3,4}|\+44\s?\d{2,4}\s\d{3,4}\s\d{3,4})\b/;
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
 
 type DrinkSize = "pint" | "keg" | "bottle" | "can" | "unstated";
-type AmenityKind = "beer-garden" | "live-sport" | "quiz" | "music";
 
 type TavilyUsage = {
   key: { usage: number; limit: number | null };
@@ -95,41 +80,18 @@ type ListedDrinkLine = {
   seenOn: string;
 };
 
-type FoodDish = {
-  name: string;
-  priceGbp: number;
-  sourceUrl: string;
-  seenOn: string;
-};
-
-type FoodFacts = {
-  served: boolean | null;
-  priceMinGbp: number | null;
-  priceMaxGbp: number | null;
-  dishes: FoodDish[];
-  sourceUrl: string | null;
-  seenOn: string | null;
-};
-
-type AmenityFact = {
-  kind: AmenityKind;
-  quote: string;
-  sourceUrl: string;
-  seenOn: string;
-};
-
 type SourcedFact = {
   sourceUrl: string;
   seenOn: string;
 };
 
+type CuratorExcerpt = SourcedFact & { excerpt: string };
+
 type PageFacts = {
   drinks: ListedDrinkLine[];
-  food: FoodFacts;
-  amenities: AmenityFact[];
+  excerpts: CuratorExcerpt[];
   hours: ({ statedDays: string[] } & SourcedFact) | null;
   phone: ({ value: string } & SourcedFact) | null;
-  closure: ({ quote: string } & SourcedFact) | null;
 };
 
 type VenueEvidence = {
@@ -140,11 +102,9 @@ type VenueEvidence = {
   seenOn: string;
   website: ({ url: string } & SourcedFact) | null;
   drinks: ListedDrinkLine[];
-  food: FoodFacts;
-  amenities: AmenityFact[];
+  excerpts: CuratorExcerpt[];
   hours: PageFacts["hours"];
   phone: PageFacts["phone"];
-  closure: PageFacts["closure"];
   candidates: string[];
 };
 
@@ -382,9 +342,12 @@ function hasRoadName(words: readonly string[]): boolean {
 function statesStreet(text: string, street: string): boolean {
   const words = phraseWords(street);
   if (words.length < 2 || !/^\d/.test(words[0]) || !hasRoadName(words)) return false;
-  const hay = phraseWords(text.replace(/£\s*\d+(?:\.\d+)?/g, " ")).join(" ");
   const body = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+");
-  return new RegExp(`(?:^|\\s)${body}(?:\\s|$)`).test(hay);
+  const pattern = new RegExp(`(?:^|\\s)${body}(?:\\s|$)`);
+  return text.split(/[.!?]+/).some((sentence) => {
+    const hay = phraseWords(sentence.replace(/£\s*\d+(?:\.\d+)?/g, " ")).join(" ");
+    return pattern.test(hay);
+  });
 }
 
 function streetFromSearchText(name: string, searchText: string): string {
@@ -559,27 +522,7 @@ function listedDrink(
   };
 }
 
-function emptyFood(): FoodFacts {
-  return { served: null, priceMinGbp: null, priceMaxGbp: null, dishes: [], sourceUrl: null, seenOn: null };
-}
-
 type PriceOutcome = ReturnType<typeof decideKeylessUkPriceCandidate>;
-
-function recordAmenityMatches(amenities: AmenityFact[], line: string, fact: SourcedFact): void {
-  for (const amenity of AMENITY_LINES) {
-    if (!amenity.pattern.test(line)) continue;
-    amenities.push({
-      kind: amenity.kind,
-      quote: line.slice(0, 180),
-      sourceUrl: fact.sourceUrl,
-      seenOn: fact.seenOn,
-    });
-  }
-}
-
-function isDishDrop(drop: PriceOutcome["drop"]): boolean {
-  return drop === "food-word-nearby" || drop === "no-category-word-nearby";
-}
 
 function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
   const label = drinkLabelFromPriceContext(line, verbatim, at) ?? "";
@@ -587,21 +530,6 @@ function ownPrice(line: string, verbatim: string, at: number): { text: string; a
   const tail = /^(?:\s*\/\s*|\s+)(?:pints?|kegs?|bottles?|cans?|\d{2,4}\s*ml)\b/i.exec(after);
   const prefix = label ? `${label} ` : "";
   return { label, text: `${prefix}${verbatim}${tail ? tail[0] : ""}`, at: prefix.length };
-}
-
-function recordFoodDish(
-  dishes: FoodDish[],
-  seenDishes: Set<string>,
-  label: string,
-  priceGbp: number,
-  fact: SourcedFact,
-): void {
-  const name = cleanName(label);
-  if (!name || !inBand(priceGbp, FOOD_MIN_GBP, FOOD_MAX_GBP)) return;
-  const key = `${name.toLowerCase()}|${priceGbp}`;
-  if (seenDishes.has(key)) return;
-  seenDishes.add(key);
-  dishes.push({ name, priceGbp, sourceUrl: fact.sourceUrl, seenOn: fact.seenOn });
 }
 
 function drinkFromDrop(
@@ -637,17 +565,11 @@ function recordPriceLine(
   fact: SourcedFact,
   drinks: ListedDrinkLine[],
   seenDrinks: Set<string>,
-  dishes: FoodDish[],
-  seenDishes: Set<string>,
 ): void {
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
-    if (FOOD_LINE.test(own.label) && isDishDrop(outcome.drop) && !/\bhalf\b/i.test(own.label)) {
-      recordFoodDish(dishes, seenDishes, own.label, raw.priceGbp, fact);
-      continue;
-    }
     const row = outcome.kept
       ? listedDrink(
           outcome.kept.drinkLabel || own.label,
@@ -663,60 +585,36 @@ function recordPriceLine(
   }
 }
 
-function assemblePageFacts(
-  markdown: string,
-  rawLines: string[],
-  fact: SourcedFact,
-  drinks: ListedDrinkLine[],
-  dishes: FoodDish[],
-  amenities: AmenityFact[],
-): PageFacts {
-  const text = rawLines.join("\n");
-  let served: boolean | null = null;
-  if (dishes.length > 0 || SERVES_FOOD.test(text)) served = true;
-  if (NO_FOOD.test(text)) served = false;
-  const prices = dishes.map((dish) => dish.priceGbp);
-  const hoursRead = parseStatedOpeningHours(markdown);
-  const phoneMatch = PHONE_LINE.exec(text);
-  const closureLine = rawLines.map((row) => row.trim()).find((row) => CLOSURE_LINE.test(row));
-  return {
-    drinks,
-    food: {
-      served,
-      priceMinGbp: prices.length > 0 ? Math.min(...prices) : null,
-      priceMaxGbp: prices.length > 0 ? Math.max(...prices) : null,
-      dishes,
-      sourceUrl: dishes[0]?.sourceUrl ?? (served === null ? null : fact.sourceUrl),
-      seenOn: served === null && dishes.length === 0 ? null : fact.seenOn,
-    },
-    amenities,
-    hours:
-      hoursRead.statedDays.length > 0
-        ? { statedDays: [...hoursRead.statedDays], sourceUrl: fact.sourceUrl, seenOn: fact.seenOn }
-        : null,
-    phone: phoneMatch ? { value: phoneMatch[1], sourceUrl: fact.sourceUrl, seenOn: fact.seenOn } : null,
-    closure: closureLine
-      ? { quote: closureLine.slice(0, 180), sourceUrl: fact.sourceUrl, seenOn: fact.seenOn }
-      : null,
-  };
+function pageExcerpt(markdown: string): string {
+  const text = String(markdown ?? "").trim();
+  if (!text) return "";
+  return text.length <= EXCERPT_MAX ? text : text.slice(0, EXCERPT_MAX).trimEnd();
 }
 
 export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
   const drinks: ListedDrinkLine[] = [];
-  const dishes: FoodDish[] = [];
-  const amenities: AmenityFact[] = [];
   const seenDrinks = new Set<string>();
-  const seenDishes = new Set<string>();
   const rawLines = String(markdown ?? "").split(/\r?\n/);
 
   for (const rawLine of rawLines) {
     const line = pageText(rawLine).replace(/\s+/g, " ").trim();
     if (!line) continue;
-    recordAmenityMatches(amenities, line, fact);
-    recordPriceLine(line, fact, drinks, seenDrinks, dishes, seenDishes);
+    recordPriceLine(line, fact, drinks, seenDrinks);
   }
 
-  return assemblePageFacts(markdown, rawLines, fact, drinks, dishes, amenities);
+  const text = rawLines.join("\n");
+  const excerpt = pageExcerpt(markdown);
+  const hoursRead = parseStatedOpeningHours(markdown);
+  const phoneMatch = PHONE_LINE.exec(text);
+  return {
+    drinks,
+    excerpts: excerpt ? [{ sourceUrl: fact.sourceUrl, excerpt, seenOn: fact.seenOn }] : [],
+    hours:
+      hoursRead.statedDays.length > 0
+        ? { statedDays: [...hoursRead.statedDays], sourceUrl: fact.sourceUrl, seenOn: fact.seenOn }
+        : null,
+    phone: phoneMatch ? { value: phoneMatch[1], sourceUrl: fact.sourceUrl, seenOn: fact.seenOn } : null,
+  };
 }
 
 const FORBIDDEN_VENUE_KEYS = ["cheapestPrice", "contributorId", "contributor", "communityPrice", "confirmed"];
@@ -764,7 +662,20 @@ export function queueDocument(input: unknown): QueueDocument {
         seenOn: String(price.seenOn ?? ""),
       };
     });
-    const food = (typeof venue.food === "object" && venue.food !== null ? venue.food : emptyFood()) as FoodFacts;
+    const excerptsIn = Array.isArray(venue.excerpts) ? venue.excerpts : [];
+    const excerpts: CuratorExcerpt[] = [];
+    for (const row of excerptsIn) {
+      if (typeof row !== "object" || row === null) continue;
+      const item = row as Record<string, unknown>;
+      if (!isHttpUrl(item.sourceUrl) || typeof item.excerpt !== "string") continue;
+      const excerpt = item.excerpt.trim().slice(0, EXCERPT_MAX);
+      if (!excerpt) continue;
+      excerpts.push({
+        sourceUrl: item.sourceUrl,
+        excerpt,
+        seenOn: typeof item.seenOn === "string" ? item.seenOn : "",
+      });
+    }
     return {
       venueId: String(venue.venueId ?? ""),
       name: String(venue.name ?? ""),
@@ -773,36 +684,44 @@ export function queueDocument(input: unknown): QueueDocument {
       seenOn: String(venue.seenOn ?? ""),
       website: venue.website && typeof venue.website === "object" ? (venue.website as VenueEvidence["website"]) : null,
       drinks,
-      food: {
-        served: food.served ?? null,
-        priceMinGbp: food.priceMinGbp ?? null,
-        priceMaxGbp: food.priceMaxGbp ?? null,
-        dishes: Array.isArray(food.dishes) ? food.dishes : [],
-        sourceUrl: food.sourceUrl ?? null,
-        seenOn: food.seenOn ?? null,
-      },
-      amenities: Array.isArray(venue.amenities) ? (venue.amenities as AmenityFact[]) : [],
+      excerpts,
       hours: (venue.hours as VenueEvidence["hours"]) ?? null,
       phone: (venue.phone as VenueEvidence["phone"]) ?? null,
-      closure: (venue.closure as VenueEvidence["closure"]) ?? null,
       candidates: Array.isArray(venue.candidates) ? venue.candidates.filter((url): url is string => isHttpUrl(url)) : [],
     };
   });
   return { version: 1, standingRule: "listed", venues };
 }
 
+function unionBy<T>(previous: readonly T[], incoming: readonly T[], keyOf: (row: T) => string): T[] {
+  const seen = new Set(previous.map(keyOf));
+  const out = [...previous];
+  for (const row of incoming) {
+    const key = keyOf(row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
 function keepListedLines(previous: VenueEvidence | undefined, incoming: VenueEvidence): VenueEvidence {
   if (!previous) return incoming;
-  const drinks = incoming.drinks.length > 0 ? incoming.drinks : previous.drinks;
-  const served = incoming.food.served !== null ? incoming.food.served : previous.food.served;
-  const food = incoming.food.dishes.length > 0 ? { ...incoming.food, served } : { ...previous.food, served };
-  const candidates = incoming.candidates.length > 0 ? incoming.candidates : previous.candidates;
+  const drinks = unionBy(
+    previous.drinks,
+    incoming.drinks,
+    (row) => `${row.drink.toLowerCase()}|${row.size}|${row.priceGbp}`,
+  );
+  const excerpts = unionBy(previous.excerpts, incoming.excerpts, (row) => `${row.sourceUrl}|${row.excerpt}`);
   const website = incoming.website ?? previous.website;
-  const amenities = incoming.amenities.length > 0 ? incoming.amenities : previous.amenities;
+  const candidates = website
+    ? []
+    : incoming.candidates.length > 0
+      ? incoming.candidates
+      : previous.candidates;
   const hours = incoming.hours ?? previous.hours;
   const phone = incoming.phone ?? previous.phone;
-  const closure = incoming.closure ?? previous.closure;
-  return { ...incoming, drinks, food, candidates, website, amenities, hours, phone, closure };
+  return { ...incoming, drinks, excerpts, candidates, website, hours, phone };
 }
 
 export function mergeQueue(base: QueueDocument, incoming: readonly VenueEvidence[]): QueueDocument {
@@ -848,14 +767,11 @@ function evidenceFor(
   candidates: readonly string[],
 ): VenueEvidence {
   const drinks: ListedDrinkLine[] = [];
-  const dishes: FoodDish[] = [];
-  const amenities: AmenityFact[] = [];
-  let served: boolean | null = null;
+  const excerpts: CuratorExcerpt[] = [];
   let hours: VenueEvidence["hours"] = null;
   let phone: VenueEvidence["phone"] = null;
-  let closure: VenueEvidence["closure"] = null;
   const drinkKeys = new Set<string>();
-  const dishKeys = new Set<string>();
+  const excerptKeys = new Set<string>();
   for (const page of pages) {
     const facts = factsFromPage(page.text, { sourceUrl: page.url, seenOn });
     for (const drink of facts.drinks) {
@@ -864,22 +780,15 @@ function evidenceFor(
       drinkKeys.add(key);
       drinks.push(drink);
     }
-    for (const dish of facts.food.dishes) {
-      const key = `${dish.name.toLowerCase()}|${dish.priceGbp}`;
-      if (dishKeys.has(key)) continue;
-      dishKeys.add(key);
-      dishes.push(dish);
-    }
-    if (facts.food.served === false) served = false;
-    else if (facts.food.served === true && served !== false) served = true;
-    for (const amenity of facts.amenities) {
-      if (!amenities.some((row) => row.kind === amenity.kind && row.quote === amenity.quote)) amenities.push(amenity);
+    for (const excerpt of facts.excerpts) {
+      const key = `${excerpt.sourceUrl}|${excerpt.excerpt}`;
+      if (excerptKeys.has(key)) continue;
+      excerptKeys.add(key);
+      excerpts.push(excerpt);
     }
     if (!hours && facts.hours) hours = facts.hours;
     if (!phone && facts.phone) phone = facts.phone;
-    if (!closure && facts.closure) closure = facts.closure;
   }
-  const prices = dishes.map((dish) => dish.priceGbp);
   return {
     venueId: venue.id,
     name: venue.name,
@@ -888,18 +797,9 @@ function evidenceFor(
     seenOn,
     website: website ? { url: website, sourceUrl: website, seenOn } : null,
     drinks,
-    food: {
-      served: served === null && dishes.length > 0 ? true : served,
-      priceMinGbp: prices.length > 0 ? Math.min(...prices) : null,
-      priceMaxGbp: prices.length > 0 ? Math.max(...prices) : null,
-      dishes,
-      sourceUrl: dishes[0]?.sourceUrl ?? null,
-      seenOn: dishes.length > 0 || served !== null ? seenOn : null,
-    },
-    amenities,
+    excerpts,
     hours,
     phone,
-    closure,
     candidates: [...candidates],
   };
 }
