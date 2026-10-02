@@ -897,6 +897,61 @@ describe("a price stays in the lane the reader gave it", () => {
         ],
       },
       {
+        text: "Guinness pint £5.80. House Merlot 175/250ml £7.50",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 }],
+        excerpt: true,
+      },
+      {
+        text: "Guinness pint £5.80 | House Merlot 175/250ml £7.50",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 }],
+        excerpt: true,
+      },
+      {
+        text: "Guinness pint £5.80 House Merlot 175/250ml £7.50",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 }],
+        excerpt: true,
+      },
+      {
+        text: "House wine 125/175ml £5.50/£6.50. House Merlot 175/250ml £7.50",
+        drinks: [
+          { drink: "House wine", size: "unstated", sizeDetail: "125ml", priceGbp: 5.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+        ],
+        excerpt: true,
+      },
+      {
+        text: "House wine 125/175ml £5.50/£6.50 | House Merlot 175/250ml £7.50",
+        drinks: [
+          { drink: "House wine", size: "unstated", sizeDetail: "125ml", priceGbp: 5.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+        ],
+        excerpt: true,
+      },
+      {
+        text: "House wine 125/175ml £5.50/£6.50 House Merlot 175/250ml £7.50",
+        drinks: [
+          { drink: "House wine", size: "unstated", sizeDetail: "125ml", priceGbp: 5.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+        ],
+        excerpt: true,
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 / bottle £6.00",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Peroni", size: "bottle", sizeDetail: "bottle", priceGbp: 6 },
+        ],
+      },
+      {
+        text: "House Merlot 175/250ml £6.50/£8.50 / bottle £16.00",
+        drinks: [
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5 },
+          { drink: "House Merlot", size: "bottle", sizeDetail: "bottle", priceGbp: 16 },
+        ],
+      },
+      {
         text: "Rioja 175ml £7.50",
         drinks: [{ drink: "Rioja", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 }],
       },

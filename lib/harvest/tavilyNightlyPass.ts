@@ -699,9 +699,53 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
 
 const JOINED_SIZE_LIST = /(?<![\d/.£])\d{2,4}(?:\s*ml)?(?:\s*\/\s*\d{2,4}(?:\s*ml)?)+(?!\s*\/\s*\d)/gi;
 const JOINED_PRICE_LIST = /^\s*((?:£\s?\d{1,2}(?:\.\d{2})?)(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*)/;
+const ITEM_MEASURE = new RegExp(
+  `^(?:${SERVING_WORD}|\\d{1,2}\\s*/\\s*\\d{1,2}|\\d{2,4}(?:\\s*ml)?(?:\\s*/\\s*\\d{2,4}(?:\\s*ml)?)+)\\b`,
+  "i",
+);
+
+function isNewDrinkName(text: string): boolean {
+  const body = text.replace(/^[/|\s]+/, "");
+  if (!body || /^£/.test(body) || ITEM_MEASURE.test(body)) return false;
+  return Boolean(cleanName((body.split("£")[0] ?? "").trim()));
+}
+
+function splitPriceItems(line: string): string[] {
+  const splits: Array<{ sepStart: number; nextStart: number }> = [];
+  const consider = (sepStart: number, nextStart: number) => {
+    if (nextStart > sepStart && isNewDrinkName(line.slice(nextStart))) splits.push({ sepStart, nextStart });
+  };
+  for (const match of line.matchAll(/(?<=\d)[.!?]\s+|(?<=[a-z]{3})[.!?]\s+|;\s+/gi)) {
+    consider(match.index ?? 0, (match.index ?? 0) + match[0].length);
+  }
+  for (const match of line.matchAll(/\s*\|\s*/g)) {
+    consider(match.index ?? 0, (match.index ?? 0) + match[0].length);
+  }
+  for (const match of line.matchAll(/£\s?\d{1,2}(?:\.\d{2})?(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*/g)) {
+    const after = (match.index ?? 0) + match[0].length;
+    const lead = /^,?\s+/.exec(line.slice(after));
+    if (!lead) continue;
+    const nextStart = after + lead[0].length;
+    if (/^[.!?;|]/.test(line.slice(nextStart))) continue;
+    consider(after, nextStart);
+  }
+  splits.sort((a, b) => a.sepStart - b.sepStart || a.nextStart - b.nextStart);
+  const items: string[] = [];
+  let cursor = 0;
+  for (const split of splits) {
+    if (split.sepStart < cursor) continue;
+    const item = line.slice(cursor, split.sepStart).trim();
+    if (item) items.push(item);
+    cursor = split.nextStart;
+  }
+  const rest = line.slice(cursor).trim();
+  if (rest) items.push(rest);
+  return items.length > 0 ? items : [line];
+}
 
 function pairedMeasureLines(line: string): string[] | null {
   const parts: string[] = [];
+  let carried = "";
   let saw = false;
   let cursor = 0;
   for (const match of line.matchAll(JOINED_SIZE_LIST)) {
@@ -711,9 +755,16 @@ function pairedMeasureLines(line: string): string[] | null {
     const prices = priceMatch
       ? [...priceMatch[1].matchAll(/£\s?\d{1,2}(?:\.\d{2})?/g)].map((token) => token[0].replace(/\s+/g, ""))
       : [];
-    if (!priceMatch || prices.length !== sizes.length) return [];
+    if (!priceMatch || prices.length !== sizes.length) {
+      const before = line.slice(cursor, match.index).trim();
+      if (before.includes("£")) parts.push(before);
+      saw = true;
+      cursor = line.length;
+      break;
+    }
     saw = true;
     const name = line.slice(cursor, match.index).replace(/\s+/g, " ").trim();
+    carried = name;
     for (let i = 0; i < sizes.length; i += 1) {
       parts.push(`${name} ${sizes[i]} ${prices[i]}`.replace(/\s+/g, " ").trim());
     }
@@ -721,7 +772,10 @@ function pairedMeasureLines(line: string): string[] | null {
   }
   if (!saw) return null;
   const tail = line.slice(cursor).trim();
-  if (tail) parts.push(tail);
+  if (tail) {
+    const named = isNewDrinkName(tail) ? tail : `${carried} ${tail}`;
+    parts.push(named.replace(/\s+/g, " ").trim());
+  }
   return parts;
 }
 
@@ -731,6 +785,11 @@ function recordPriceLine(
   drinks: ListedDrinkLine[],
   seenDrinks: Set<string>,
 ): void {
+  const items = splitPriceItems(line);
+  if (items.length > 1) {
+    for (const item of items) recordPriceLine(item, fact, drinks, seenDrinks);
+    return;
+  }
   const paired = pairedMeasureLines(line);
   if (paired) {
     for (const part of paired) recordPriceLine(part, fact, drinks, seenDrinks);
