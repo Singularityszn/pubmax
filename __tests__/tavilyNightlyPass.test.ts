@@ -319,14 +319,14 @@ describe("price lines from a recorded page", () => {
   const page = extractFixture.results[0].raw_content as string;
   const sourceUrl = "https://eastbrookpub.co.uk/drink-menu.html";
 
-  it("keeps a stated pint, a keg line, and a bottle, and does not call a keg a pint", () => {
+  it("keeps a stated pint, a keg line, and a millilitre serving, and does not call a keg a pint", () => {
     const facts = factsFromPage(page, { sourceUrl, seenOn: "2026-10-01" });
     const byDrink = Object.fromEntries(facts.drinks.map((row) => [row.drink, row]));
     expect(byDrink["London Pride"]).toMatchObject({ size: "pint", priceGbp: 5.5, standing: "listed", sourceUrl, seenOn: "2026-10-01" });
     expect(byDrink["Somerset Cider"]).toMatchObject({ size: "pint", priceGbp: 4.8, standing: "listed" });
     expect(byDrink["Asahi Super Dry Draught Lager"]).toMatchObject({ size: "keg", priceGbp: 6.7, standing: "listed" });
     expect(facts.drinks.find((row) => row.drink === "Madri Lager")).toBeUndefined();
-    expect(byDrink["Peroni Nastro Azzurro"]).toMatchObject({ size: "bottle", priceGbp: 6.55, sizeDetail: "330ml", standing: "listed" });
+    expect(byDrink["Peroni Nastro Azzurro"]).toMatchObject({ size: "unstated", priceGbp: 6.55, sizeDetail: "330ml serving", standing: "listed" });
     expect(byDrink.Peroni).toMatchObject({ size: "unstated", sizeDetail: "half", priceGbp: 3.55, standing: "listed" });
     expect(facts.drinks.find((row) => row.priceGbp === 6)).toBeUndefined();
     expect(facts.drinks.find((row) => row.priceGbp === 50)).toBeUndefined();
@@ -610,7 +610,7 @@ describe("a price stays in the lane the reader gave it", () => {
       {
         text: "Peroni 330ml £4.50/£5.50",
         drinks: [
-          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml serving", priceGbp: 4.5 },
         ],
       },
       {
@@ -653,7 +653,7 @@ describe("a price stays in the lane the reader gave it", () => {
           { drink: "Coca-Cola", size: "can", sizeDetail: "can", priceGbp: 1.5 },
           { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 14.5 },
           { drink: "Espresso Martini", size: "unstated", sizeDetail: null, priceGbp: 13 },
-          { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 6.55 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml serving", priceGbp: 6.55 },
         ],
       },
       {
@@ -719,27 +719,55 @@ describe("a price stays in the lane the reader gave it", () => {
       },
       {
         text: "Peroni 500ml £5.50",
-        drinks: [{ drink: "Peroni", size: "bottle", sizeDetail: "500ml", priceGbp: 5.5 }],
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "500ml serving", priceGbp: 5.5 }],
       },
       {
         text: "Neck Oil 440ml £6.00",
-        drinks: [{ drink: "Neck Oil", size: "bottle", sizeDetail: "440ml", priceGbp: 6 }],
+        drinks: [{ drink: "Neck Oil", size: "unstated", sizeDetail: "440ml serving", priceGbp: 6 }],
       },
       {
         text: "Rekorderlig cider 500ml £5.80",
-        drinks: [{ drink: "Rekorderlig cider", size: "bottle", sizeDetail: "500ml", priceGbp: 5.8 }],
+        drinks: [{ drink: "Rekorderlig cider", size: "unstated", sizeDetail: "500ml serving", priceGbp: 5.8 }],
       },
       {
         text: "Peroni 275ml £4.80",
-        drinks: [{ drink: "Peroni", size: "bottle", sizeDetail: "275ml", priceGbp: 4.8 }],
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "275ml serving", priceGbp: 4.8 }],
       },
       {
         text: "Coca-Cola 440ml £1.80",
-        drinks: [{ drink: "Coca-Cola", size: "bottle", sizeDetail: "440ml", priceGbp: 1.8 }],
+        drinks: [{ drink: "Coca-Cola", size: "unstated", sizeDetail: "440ml serving", priceGbp: 1.8 }],
+      },
+      {
+        text: "Punk IPA 500ml £6.50",
+        drinks: [{ drink: "Punk IPA", size: "unstated", sizeDetail: "500ml serving", priceGbp: 6.5 }],
+      },
+      {
+        text: "Peroni 330ml £4.50",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "330ml serving", priceGbp: 4.5 }],
       },
       {
         text: "Peroni two-thirds pint £5.20",
         drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
+      {
+        text: "Peroni half pint £3.55",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }],
+      },
+      {
+        text: "Peroni 2/3 pint £5.20",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
+      {
+        text: "Peroni ⅔ pint £5.20",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
+      {
+        text: "Peroni 1/2 pint £3.55",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }],
+      },
+      {
+        text: "Peroni ½ pint £3.55",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }],
       },
       {
         text: "Peroni two-thirds of a pint £5.20",

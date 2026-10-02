@@ -46,7 +46,6 @@ const FOOD_LABEL = /\b(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const HEADING_FILLER = new Set(["and", "menu", "list"]);
 const GLASS_ML = new Set(["125ml", "175ml", "250ml"]);
 const SPIRIT_ML = new Set(["25ml", "35ml", "50ml"]);
-const BOTTLE_ML = new Set(["275ml", "330ml", "440ml", "500ml"]);
 
 type DrinkSize = "pint" | "keg" | "bottle" | "can" | "unstated";
 
@@ -537,6 +536,8 @@ function cleanName(label: string): string | null {
   const cleaned = label
     .replace(/\bschooners?\b(?:\s*\([^)]*\))?/gi, " ")
     .replace(/\btwo[\s-]thirds\b(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
+    .replace(/(?:⅔|\b2\/3\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
+    .replace(/(?:½|\b1\/2\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
     .replace(new RegExp(`\\b(${SERVING_WORD})\\b`, "gi"), " ")
     .replace(/[/|]+/g, " ")
@@ -549,7 +550,10 @@ function cleanName(label: string): string | null {
 
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\bschooners?\b/i.test(line)) return { size: "unstated", sizeDetail: "schooner" };
-  if (/\btwo[\s-]thirds\b/i.test(line)) return { size: "unstated", sizeDetail: "two-thirds" };
+  if (/\btwo[\s-]thirds\b/i.test(line) || /⅔|\b2\/3\b/.test(line)) {
+    return { size: "unstated", sizeDetail: "two-thirds" };
+  }
+  if (/½|\b1\/2\b/.test(line)) return { size: "unstated", sizeDetail: "half" };
   if (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line)) return { size: "pint", sizeDetail: "pint" };
   const ml = /\b(\d{2,4})\s*ml\b/i.exec(line);
   const detail = ml ? `${ml[1]}ml` : null;
@@ -558,7 +562,7 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\bkeg\b/i.test(line)) return { size: "keg", sizeDetail: detail };
   if (/\bbottles?\b/i.test(line)) return { size: "bottle", sizeDetail: detail ?? "bottle" };
   if (detail && GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
-  if (detail && BOTTLE_ML.has(detail)) return { size: "bottle", sizeDetail: detail };
+  if (detail) return { size: "unstated", sizeDetail: `${detail} serving` };
   return { size: "unstated", sizeDetail: null };
 }
 
@@ -566,7 +570,7 @@ function measureAllowed(line: string, size: { size: DrinkSize; sizeDetail: strin
   if (size.size === "pint" || size.size === "keg" || size.size === "bottle" || size.size === "can") return true;
   if (size.sizeDetail === "half" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
   if (size.sizeDetail && (GLASS_ML.has(size.sizeDetail) || SPIRIT_ML.has(size.sizeDetail))) return true;
-  if (/\b\d{2,4}\s*ml\b/i.test(line)) return false;
+  if (/\b\d{2,4}\s*ml\b/i.test(line)) return true;
   return /\b(?:glasses|glass)\b/i.test(line);
 }
 
