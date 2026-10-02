@@ -59,8 +59,8 @@ test.describe("locked plan route map", () => {
     await expect(mapPreview).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-canvas")).toBeVisible();
     // Attribution remains a separate control above the full-card route link.
-    const attributionButton = page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-button");
-    const attributionCredit = page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-inner");
+    const attributionButton = page.locator(".planRouteMiniMap__attrib .maplibregl-ctrl-attrib-button");
+    const attributionCredit = page.locator(".planRouteMiniMap__attrib .maplibregl-ctrl-attrib-inner");
     await expect(attributionButton).toBeVisible();
     await expect(attributionCredit).toBeHidden();
     await attributionButton.click();

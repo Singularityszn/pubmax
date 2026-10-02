@@ -275,13 +275,13 @@ describe("POST /api/plans/generate", () => {
       generatedVenue("v2", { cheapestPrice: 6 }),
       generatedVenue("v3", { cheapestPrice: 3 }),
     ];
-    const now = Date.now();
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     const previousListedRows = listedBundleFixture.rows;
     listedBundleFixture.rows = [];
     const request = () => new Request("http://localhost/api/plans/generate", {
       method: "POST",
-      body: JSON.stringify({ query: "cheap wine in Clapham for 2 after work" }),
+      body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
     });
     const seedReads = (firstAmount: number, secondAmount: number) => {
       loadConciergeVenuesMock.mockResolvedValueOnce(venues);

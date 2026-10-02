@@ -952,6 +952,13 @@ async function captureSurface(
         })
       : null;
 
+  if (surface === "map-first-visit" && viewport.width > 640) {
+    const filters = page.locator(".mapVenueKindFilterBtn");
+    await expect(filters).toBeVisible({ timeout: 15_000 });
+    await filters.click();
+    await expect(page.locator(".tonightArcRow > button").first()).toBeVisible();
+  }
+
   const rows = [
     await row(page, "mobile map topbar", ".mobileMapTopbar > a, .mobileMapTopbar > button"),
     await row(
@@ -1012,6 +1019,19 @@ async function captureSurface(
       path: path.join(EVIDENCE_ROOT, screenshot),
       fullPage: false,
     });
+  }
+
+  if (surface === "map-first-visit" && viewport.width > 640) {
+    // The capture measured opened Filters; restore its closed state before
+    // the separate postcapture open/measure/close interaction proof.
+    const filters = page.locator(".mapToolbar").getByRole("button", { name: /^Filters/ });
+    const filterPanel = page.getByRole("dialog", { name: "Filters", exact: true });
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
+    await expect(filterPanel).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(filters).toHaveAttribute("aria-expanded", "false");
+    await expect(filterPanel).toHaveCount(0);
+    await expect(filters).toBeFocused();
   }
 
   await verifyPostCaptureInteractions(

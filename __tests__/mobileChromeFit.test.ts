@@ -425,8 +425,8 @@ describe("mobile tap-target floors", () => {
   });
 
   it("floors the landing footer links to 44px", () => {
-    expect(landingCss).toMatch(/\.lpFooterCol a\s*{\s*min-height:\s*44px/);
-    expect(landingCss).toMatch(/\.lpFooterSmallPrint a\s*{\s*min-height:\s*44px/);
+    expect(landingCss).toMatch(/\.lpFooterCol a\s*{[^}]*min-height:\s*44px/);
+    expect(landingCss).toMatch(/\.lpFooterSmallPrint a\s*{[^}]*min-height:\s*44px/);
   });
 
   it("keeps every community signal choice thumb-sized", () => {

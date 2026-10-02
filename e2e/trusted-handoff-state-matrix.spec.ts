@@ -111,7 +111,7 @@ for (const viewport of [
       await applySeed(page, state.seed);
       await page.goto("/plan");
 
-      // The composer always resolves — the arbitration/parsers absorb every
+      // The composer always resolves. The arbitration/parsers absorb every
       // enumerated storage state instead of throwing.
       if (state.restoresIntent) {
         await expect(page.getByRole("region", { name: "Accepted plan context" })).toBeVisible();

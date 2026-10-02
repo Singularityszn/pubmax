@@ -149,13 +149,21 @@ test.describe("phone controls on the launch surfaces", () => {
             // focused geometry.
             const isInvisible = (element: Element): boolean => {
               const style = getComputedStyle(element);
+              const clipPath = style.clipPath;
+              const clip = style.clip;
+              const clippedVisuallyHidden =
+                style.overflow === "hidden" &&
+                (clipPath === "inset(50%)" ||
+                  clipPath.includes("inset(50%") ||
+                  clip.startsWith("rect(0") ||
+                  clip === "rect(0px, 0px, 0px, 0px)");
               return (
                 style.display === "none" ||
                 style.visibility === "hidden" ||
                 style.visibility === "collapse" ||
                 style.contentVisibility === "hidden" ||
                 Number(style.opacity) === 0 ||
-                style.clipPath === "inset(50%)"
+                clippedVisuallyHidden
               );
             };
 

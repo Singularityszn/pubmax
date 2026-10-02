@@ -8,6 +8,19 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+    "aria-labelledby"?: string;
+  }) => createElement("a", { href, "data-next-link": "true", ...rest }, children),
+}));
+
 vi.mock("@/components/map/canvas/PlanCrawlRouteMapCanvas", async () => {
   const React = await import("react");
   return {
@@ -134,6 +147,26 @@ describe("PlanRouteMiniMap request identity", () => {
 
     expect(host.querySelector('[data-testid="plan-crawl-route-map"]')).not.toBeNull();
     expect(host.querySelector(".planRouteMiniMap__title")?.textContent).toContain("Route map:");
+  });
+
+  it("opens the route from a link, not a button wrapped around the map", async () => {
+    await act(async () => {
+      root.render(
+        createElement(PlanRouteMiniMap, {
+          stops: PLAN_A,
+          mapHref: "/map?mode=build&pubs=venue-a",
+        }),
+      );
+    });
+    await settleVenueLookups([
+      { id: "venue-a", latitude: 51.51, longitude: -0.14 },
+      { id: "venue-b", latitude: 51.52, longitude: -0.13 },
+    ]);
+
+    const link = host.querySelector(".planRouteMiniMap--clickable");
+    expect(link?.tagName).toBe("A");
+    expect(link?.getAttribute("href")).toBe("/map?mode=build&pubs=venue-a");
+    expect(host.querySelector("[role='button']")).toBeNull();
   });
 
   it("renders no card and fetches nothing when the browser has no WebGL2", async () => {

@@ -276,7 +276,18 @@ a.lpPubPint:hover { color: var(--ink); }
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
 }
-.lpPubSource a, .lpPubThenSource a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; vertical-align: middle; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.lpPubSource a, .lpPubThenSource a, a.lpPubPint, .lpPhotoCredit a, .landingPhotoCredit a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  vertical-align: middle;
+}
+.lpPubSource a, .lpPubThenSource a, .lpPhotoCredit a, .landingPhotoCredit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .lpPubSource a:hover, .lpPubThenSource a:hover { color: var(--ink); }
 
 /* The standing chip: the word lib/priceTier.ts gives the row, and the word

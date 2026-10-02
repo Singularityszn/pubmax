@@ -212,8 +212,12 @@ for (const width of PHONE_WIDTHS) {
 
     // The last nearby row is reachable by scrolling the sheet body alone, and
     // nothing (planning pill, create action, tab bar) covers it.
+    // Distances arrive after the first paint and the list replaces its
+    // buttons, so a scroll grabbed in that gap hits a detached node.
     const lastRow = portal.locator(".landmarkStoryPubs button").last();
-    await lastRow.scrollIntoViewIfNeeded();
+    await expect(async () => {
+      await lastRow.scrollIntoViewIfNeeded({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(lastRow).toBeVisible();
     const portalBox = await boxOf(page, '.mobileSheetPortal[data-sheet-kind="landmark"]');
     const lastBox = await boxOf(page, '.mobileSheetPortal[data-sheet-kind="landmark"] .landmarkStoryPubs li:last-child button');

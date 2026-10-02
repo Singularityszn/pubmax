@@ -366,8 +366,23 @@ test("the page foot clears the tab bar and the painted consent card at default a
   expect(ordinary.padding).toBeGreaterThanOrEqual(ordinary.dock + ordinary.card - 0.5);
 
   await page.evaluate(() => document.documentElement.setAttribute("data-text-scale", "large"));
-  await expect.poll(async () => (await foot()).card).toBeGreaterThan(CONSENT_ROW_HEIGHT);
+  // The card's grid rule applies in the layout the attribute write forces.
+  // The body lane is a :has() rule, and Chromium commits that used padding on
+  // the next frame. A read in the gap still sees the 120px row (64px dock +
+  // the 56px card) under a card that has already grown, which is the flake.
+  await page.waitForFunction(
+    (rowHeight) => {
+      const el = document.querySelector('[aria-label="Anonymous analytics choice"]');
+      if (!(el instanceof HTMLElement)) return false;
+      const card = el.getBoundingClientRect().height;
+      const padding = Number.parseFloat(getComputedStyle(document.body).paddingBottom);
+      const dock = window.innerHeight - el.getBoundingClientRect().bottom;
+      return card > rowHeight && padding >= dock + card - 0.5;
+    },
+    CONSENT_ROW_HEIGHT,
+  );
   const large = await foot();
+  expect(large.card).toBeGreaterThan(CONSENT_ROW_HEIGHT);
   expect(large.padding).toBeGreaterThanOrEqual(large.dock + large.card - 0.5);
 });
 

@@ -414,10 +414,13 @@
   font-size: 0.88rem;
 }
 
+/* Inline in a sentence, so the line box was the whole target (19px on /out).
+   Same 44px row the source credit already uses. */
 .outPlansFootLink {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  min-width: 44px;
   color: var(--ink-soft);
   font-weight: 600;
   text-decoration: underline;

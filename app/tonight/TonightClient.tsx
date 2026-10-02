@@ -552,7 +552,7 @@ export default function TonightClient({
         titleId="tonight-title"
         lede={listingLede}
         primary={
-          <Link prefetch={false} href="/map">
+          <Link prefetch={false} href="/map" className="tonightFootLink">
             See them on the map
           </Link>
         }

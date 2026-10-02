@@ -535,8 +535,18 @@ test.describe("UI UX battle-test guardrails", () => {
       }).toPass({ timeout: 20_000 });
 
       const result = await page.evaluate(() => {
+        const isClippedVisuallyHidden = (style: CSSStyleDeclaration) => {
+          if (style.overflow !== "hidden") return false;
+          const clipPath = style.clipPath;
+          if (clipPath === "inset(50%)" || clipPath.includes("inset(50%")) {
+            return true;
+          }
+          const clip = style.clip;
+          return clip.startsWith("rect(0") || clip === "rect(0px, 0px, 0px, 0px)";
+        };
         const visible = (element: Element) => {
           const style = getComputedStyle(element);
+          if (isClippedVisuallyHidden(style)) return false;
           const rect = element.getBoundingClientRect();
           const clippedSkipLink = element.matches(".skipLink:not(:focus)")
             && style.clipPath === "inset(50%)";

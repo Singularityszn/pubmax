@@ -19,6 +19,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   acquireClusterSlot,
   findPostgresBinary,
+  HARNESS_CLUSTER_SETTINGS,
   missingPostgresReason,
 } from "./postgresHost.mjs";
 import {
@@ -129,6 +130,7 @@ export async function startRlsSession() {
       "fsync = off",
       "full_page_writes = off",
       "synchronous_commit = off",
+      ...HARNESS_CLUSTER_SETTINGS,
     ].join("\n") + "\n",
   );
 

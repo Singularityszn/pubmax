@@ -91,15 +91,28 @@ async function expectLockedCoralContrast(control: Locator): Promise<void> {
  * never `rgb()`, so a bare digit scrape reads 0.99 as a channel of 1 and calls
  * a near-white panel black. The sticky bar's secondary sits on such a mix.
  */
-function cssColourChannels(cssColour: string): [number, number, number] {
-  const channels = cssColour.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
-  if (!channels || channels.length < 3) {
+function cssColourChannels(cssColour: string): { rgb: [number, number, number]; alpha: number } {
+  const raw = cssColour.trim();
+  if (raw === "transparent") return { rgb: [0, 0, 0], alpha: 0 };
+  const nums = raw.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
+  if (!nums || nums.length < 3) {
     throw new Error(`Could not parse computed colour: ${cssColour}`);
   }
-  const [red, green, blue] = channels;
-  return cssColour.startsWith("color(")
-    ? [red * 255, green * 255, blue * 255]
-    : [red, green, blue];
+  let [red, green, blue] = nums;
+  let alpha = 1;
+  if (raw.includes("/")) {
+    const after = raw.split("/").pop() ?? "";
+    const parsed = after.match(/-?\d+(?:\.\d+)?/);
+    if (parsed) alpha = Number(parsed[0]);
+  } else if ((raw.startsWith("rgba") || raw.startsWith("hsla")) && nums.length >= 4) {
+    alpha = nums[3];
+  }
+  if (raw.startsWith("color(")) {
+    red *= 255;
+    green *= 255;
+    blue *= 255;
+  }
+  return { rgb: [red, green, blue], alpha };
 }
 
 /**
@@ -111,21 +124,34 @@ function cssColourChannels(cssColour: string): [number, number, number] {
  */
 async function expectReadableGhostContrast(control: Locator): Promise<void> {
   const computed = await control.evaluate((node) => {
-    const style = getComputedStyle(node);
-    let background = style.backgroundColor;
-    let cursor: HTMLElement | null = node.parentElement;
-    while (cursor && /^(transparent|rgba\(0, 0, 0, 0\))$/.test(background)) {
-      background = getComputedStyle(cursor).backgroundColor;
+    // A clear fill is `transparent`, `rgba(0, 0, 0, 0)`, or the modern
+    // `color(srgb 0 0 0 / 0)`. The last of those used to be read as black,
+    // which put dark ink on "black" at about 1.2:1 and failed the floor.
+    const clear = (value: string) => {
+      const raw = value.trim();
+      if (raw === "transparent") return true;
+      if (!raw.includes("/") && !raw.startsWith("rgba") && !raw.startsWith("hsla")) return false;
+      if (raw.includes("/")) {
+        const after = raw.split("/").pop() ?? "";
+        const parsed = after.match(/-?\d+(?:\.\d+)?/);
+        return parsed ? Number(parsed[0]) === 0 : false;
+      }
+      const nums = raw.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+      return nums.length >= 4 && nums[3] === 0;
+    };
+    let cursor: HTMLElement | null = node;
+    let background = getComputedStyle(node).backgroundColor;
+    while (cursor && clear(background)) {
       cursor = cursor.parentElement;
+      if (!cursor) break;
+      background = getComputedStyle(cursor).backgroundColor;
     }
-    return { colour: style.color, background };
+    return { colour: getComputedStyle(node).color, background };
   });
-  expect(
-    contrastRatio(
-      cssColourChannels(computed.colour),
-      cssColourChannels(computed.background),
-    ),
-  ).toBeGreaterThanOrEqual(4.5);
+  const foreground = cssColourChannels(computed.colour);
+  const background = cssColourChannels(computed.background);
+  expect(background.alpha).toBeGreaterThan(0);
+  expect(contrastRatio(foreground.rgb, background.rgb)).toBeGreaterThanOrEqual(4.5);
 }
 
 function dismissFirstRunChrome(page: Page): Promise<void> {

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   lineCoordsFromFeatureCollection,
@@ -78,6 +78,7 @@ export default function PlanRouteMiniMap({
   stops: PlanCrawlRouteStop[];
   mapHref?: string | null;
 }) {
+  const attributionSlotRef = useRef<HTMLDivElement | null>(null);
   const [resolved, setResolved] = useState<ResolvedPlanCrawlRoute | null>(null);
   const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [drawn, setDrawn] = useState<DrawnRoute | null>(null);
@@ -156,7 +157,7 @@ export default function PlanRouteMiniMap({
 
   return (
     <figure
-      className={`planRouteMiniMap planRouteMiniMap--in${mapHref ? " planRouteMiniMap--clickable" : ""}`}
+      className="planRouteMiniMap planRouteMiniMap--in"
       data-source={activeDrawn.source}
       role="group"
       aria-labelledby={`${titleId} ${descId}`}
@@ -165,7 +166,7 @@ export default function PlanRouteMiniMap({
         <Link
           href={mapHref}
           prefetch={false}
-          className="planRouteMiniMap__routeLink"
+          className="planRouteMiniMap__routeLink planRouteMiniMap--clickable"
           aria-labelledby={`${titleId} ${descId}`}
         />
       ) : null}
@@ -180,7 +181,10 @@ export default function PlanRouteMiniMap({
         routeLine={geo.routeLine}
         routeStops={geo.routeStops}
         lineCoords={activeDrawn.line}
+        attributionSlotRef={attributionSlotRef}
       />
+      {/* Keep the attribution control outside the decorative canvas and route link. */}
+      <div ref={attributionSlotRef} className="planRouteMiniMap__attrib" />
     </figure>
   );
 }

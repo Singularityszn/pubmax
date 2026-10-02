@@ -244,6 +244,8 @@ for (const viewport of VIEWPORTS) {
     expect(landingMaterial.backgroundImage).toBe("none");
     expect(landingMaterial.backdropFilter).toBe("none");
 
+    await expectNoHorizontalOverflow(page);
+
     // The city search lives on Places now. Reach it through the phone's real
     // navigation, keeping the placeholder contrast check on the current input.
     const cityInput = page.getByRole("searchbox", { name: "Find a city", exact: true });
