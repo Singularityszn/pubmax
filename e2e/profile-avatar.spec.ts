@@ -252,6 +252,7 @@ test("repaints a cached profile fallback when the network answer adds an avatar"
 test("retries a failed avatar after the browser reconnects", async ({ page }) => {
   const avatarUrl = `/api/avatar/${REPAINT_PROFILE_ID}/${REPAINT_GENERATION}`;
   let avatarRequests = 0;
+  let allowSuccessfulAvatar = false;
 
   await page.route("**/api/pint-drops**", async (route) => {
     await route.fulfill({
@@ -278,7 +279,7 @@ test("retries a failed avatar after the browser reconnects", async ({ page }) =>
   });
   await page.route(`**${avatarUrl}**`, async (route) => {
     avatarRequests += 1;
-    if (avatarRequests === 1) {
+    if (!allowSuccessfulAvatar) {
       await route.fulfill({ status: 503, body: "temporary failure" });
       return;
     }
@@ -290,22 +291,27 @@ test("retries a failed avatar after the browser reconnects", async ({ page }) =>
   });
 
   await page.goto(`/u/${REPAINT_HANDLE}`);
-  // Wait for the FAILED load, not for the profile read. The initials show
-  // before the profile lands as well, and a reconnect that arrives before the
-  // image has failed has nothing to retry.
-  await expect.poll(() => avatarRequests).toBe(1);
+  // Next/Image and an auth-settled profile read may retry during mount. Keep
+  // every initial read failed so none can paint a successful avatar early.
+  await expect.poll(() => avatarRequests).toBeGreaterThanOrEqual(1);
+  await expect(page.locator(".profileHeader h1")).toHaveText("Avatar recovery");
   await expect(page.locator(".profileAvatarFallback")).toBeVisible();
+  await expect(page.locator("img.profileAvatar")).toHaveCount(0);
+  const requestsBeforeReconnect = avatarRequests;
 
   // The retry listener attaches in an effect after the fallback paints, so
   // repeat the reconnect until the image answers, as a dropped tap is retried.
   const avatar = page.locator("img.profileAvatar");
   await expect(async () => {
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    allowSuccessfulAvatar = true;
     await expect(avatar).toHaveAttribute("src", new RegExp(avatarUrl), { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   await expect
     .poll(() => avatar.evaluate((image) => image.naturalWidth))
     .toBeGreaterThan(0);
+  expect(avatarRequests).toBeGreaterThan(requestsBeforeReconnect);
+  await expect(page.locator(".profileAvatarFallback")).toHaveCount(0);
   expect(avatarRequests).toBeGreaterThanOrEqual(2);
 });
 

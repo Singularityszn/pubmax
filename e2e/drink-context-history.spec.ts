@@ -133,7 +133,7 @@ test("canonical city pathname wins over obsolete city query during a drink edit"
   expect(new URL(page.url()).pathname).toBe("/map/bristol");
   await page.reload();
   await expect(page.locator("#mapSearchInput")).toHaveAttribute("placeholder", /Bristol/);
-  await expect(page.getByRole("button", { name: "Drink: Cocktails", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drink: Cocktails · all servings", exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("canonical-bristol-reload.png") });
 });
 

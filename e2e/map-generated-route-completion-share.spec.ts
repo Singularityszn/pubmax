@@ -227,7 +227,15 @@ for (const kind of ["vodka", "zero-proof"] as const) {
     expect(href).not.toBeNull();
     const openedHref = new URL(href!, page.url()).href;
     await open.click();
-    await expect(page).toHaveURL(openedHref);
+    await expect(page).toHaveURL((url) => {
+      const normalized = new URL(url);
+      // Same-map navigation may retain the matching Vodka price lens. Every
+      // other URL field and the actual link's ordered route remain exact.
+      if (edited && kind === "vodka" && !new URL(openedHref).searchParams.has("drink")
+        && normalized.searchParams.getAll("drink").length === 1
+        && normalized.searchParams.get("drink") === "vodka") normalized.searchParams.delete("drink");
+      return normalized.href === openedHref;
+    });
     const openedUrl = page.url();
     expect(new URL(openedUrl).searchParams.get("pubs")?.split(",")).toEqual(authority.stops.map((stop) => stop.venueId));
     await info.attach(`${kind}-actual-completion-share-links`, {
