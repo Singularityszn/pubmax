@@ -159,6 +159,7 @@ type PubPalToolTurnStore = {
     ownerId: string,
     turn: PubPalFenceTurn,
     cityId: CityId,
+    allowFreshContext: boolean,
   ): Promise<boolean>;
   append(
     conversationId: string,
@@ -247,12 +248,22 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     return true;
   },
 
-  async appendOwnedUserTurn(conversationId, ownerId, turn, cityId) {
+  async appendOwnedUserTurn(conversationId, ownerId, turn, cityId, allowFreshContext) {
     assertConversationId(conversationId);
     const now = Date.now();
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId);
-    if (!existing || existing.ownerId !== ownerId) return false;
+    if (!existing) {
+      if (!allowFreshContext) return false;
+      memoryTurns.set(conversationId, {
+        ...mergeOwned(null, {
+          query: turn.content.trim(), cityId, ownerId, turns: [turn],
+        }, now),
+        generation: Symbol(),
+      });
+      return true;
+    }
+    if (existing.ownerId !== ownerId) return false;
     existing.turns = [...existing.turns, turn].slice(-6);
     if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
     existing.cityId = cityId;
@@ -299,7 +310,7 @@ async function purgeExpiredRows(): Promise<void> {
   const { error } = await requireSupabaseAdmin()
     .from("pub_pal_tool_turns")
     .delete()
-    .lt("expires_at", new Date().toISOString());
+    .lte("expires_at", new Date().toISOString());
   if (error) throw new Error(error.message);
 }
 
@@ -543,9 +554,10 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     });
   },
 
-  async appendOwnedUserTurn(conversationId, ownerId, turn, cityId) {
+  async appendOwnedUserTurn(conversationId, ownerId, turn, cityId, allowFreshContext) {
     assertConversationId(conversationId);
-    const expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
+    const userLineAt = Date.now();
+    const expiresAt = userLineAt + PUB_PAL_TOOL_TURN_TTL_MS;
     return guard<boolean>({
       context: "append-owned",
       onSchemaMiss: () =>
@@ -553,7 +565,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           storeTag: "pub-pal-tool-turn",
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
           fallback: () =>
-            memoryPubPalToolTurnStore.appendOwnedUserTurn(conversationId, ownerId, turn, cityId),
+            memoryPubPalToolTurnStore.appendOwnedUserTurn(conversationId, ownerId, turn, cityId, allowFreshContext),
           onProduction: async () => false,
         }),
       run: async () => {
@@ -561,6 +573,16 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         let createdAt: string | undefined;
         for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
           const lookup = await lookupStoredRow(conversationId);
+          if (lookup.status === "missing") {
+            // Only a newly verified user's line may start empty context. Once
+            // this call saw a generation, its disappearance is a refusal.
+            if (!allowFreshContext || createdAt !== undefined || expiresAt <= Date.now()) return false;
+            const fresh = mergeOwned(null, {
+              query: turn.content.trim(), cityId, ownerId, turns: [turn],
+            }, userLineAt);
+            if (await insertStoredRow(conversationId, fresh)) return true;
+            continue;
+          }
           if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
           const existing = lookup.turn;
           if (createdAt !== undefined && existing.createdAt !== createdAt) return false;
@@ -674,14 +696,16 @@ export async function touchPubPalToolTurn(
   return pubPalToolTurnStore().touch(conversationId, ownerId);
 }
 
+/** Fresh context requires a server-verified ownership proof at the route. */
 export async function appendOwnedPubPalUserTurn(
   conversationId: string,
   ownerId: string,
   turn: PubPalFenceTurn,
   cityId: CityId,
+  allowFreshContext = false,
 ): Promise<boolean> {
   if (turn.role !== "user" || !turn.content.trim()) return false;
-  return pubPalToolTurnStore().appendOwnedUserTurn(conversationId, ownerId, turn, cityId);
+  return pubPalToolTurnStore().appendOwnedUserTurn(conversationId, ownerId, turn, cityId, allowFreshContext);
 }
 
 export async function appendPubPalToolTurn(

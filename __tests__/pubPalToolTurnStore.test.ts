@@ -30,7 +30,7 @@ type DurableTestRow = {
 
 type DurableFilter = {
   column: string;
-  operator: "eq" | "gt" | "lt" | "is";
+  operator: "eq" | "gt" | "lt" | "lte" | "is";
   value: string | number | null;
 };
 
@@ -78,6 +78,7 @@ class DurableQuery implements PromiseLike<DurableResult> {
   eq(column: string, value: string | number) { this.filters.push({ column, operator: "eq", value }); return this; }
   gt(column: string, value: string) { this.filters.push({ column, operator: "gt", value }); return this; }
   lt(column: string, value: string) { this.filters.push({ column, operator: "lt", value }); return this; }
+  lte(column: string, value: string) { this.filters.push({ column, operator: "lte", value }); return this; }
   is(column: string, value: null) { this.filters.push({ column, operator: "is", value }); return this; }
   maybeSingle() { this.singular = true; return this.execute(); }
   single() { this.singular = true; return this.execute(); }
@@ -104,7 +105,7 @@ class DurableQuery implements PromiseLike<DurableResult> {
       if (operator === "is") return actual === null;
       if (operator === "eq") return actual === value;
       if (typeof actual !== "string" || typeof value !== "string") return false;
-      return operator === "gt" ? actual > value : actual < value;
+      return operator === "gt" ? actual > value : operator === "lte" ? actual <= value : actual < value;
     });
   }
 
@@ -126,7 +127,7 @@ class DurableQuery implements PromiseLike<DurableResult> {
     let affected: DurableTestRow[] = [];
     if (this.action === "select") affected = matching;
     if (this.action === "delete") {
-      const cutoff = this.filters.find((filter) => filter.column === "expires_at" && filter.operator === "lt");
+      const cutoff = this.filters.find((filter) => filter.column === "expires_at" && (filter.operator === "lt" || filter.operator === "lte"));
       if (cutoff) durable.deletes.push({ table: "pub_pal_tool_turns", column: cutoff.column, value: String(cutoff.value) });
       for (const row of matching) durable.rows.delete(row.conversation_id);
     }
@@ -451,6 +452,65 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
       turns: [{ role: "user", content: FIRST_QUERY }],
     });
   }
+
+  it.each([120_000, 125_000, 175_000])(
+    "fresh voice recovery at %sms stores only the new line and its own retention window",
+    async (elapsedMs) => {
+      await registerFirstLine();
+      const oldOrigin = await receiptOrigin();
+      await appendPubPalToolTurn(CONVERSATION_ID, receipt("old"), oldOrigin);
+      vi.setSystemTime(STARTED + elapsedMs);
+      expect(await appendOwnedPubPalUserTurn(
+        CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london", true,
+      )).toBe(true);
+      expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toEqual({
+        query: NEXT_QUERY,
+        cityId: "london",
+        turns: [{ role: "user", content: NEXT_QUERY }],
+        expiresAt: STARTED + elapsedMs + PUB_PAL_TOOL_TURN_TTL_MS,
+        cards: [], proposals: [], hints: [], toolsUsed: [],
+      });
+      await appendPubPalToolTurn(CONVERSATION_ID, receipt("late-old"), oldOrigin);
+      expect((await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID))?.hints).toEqual([]);
+      expect(durable.statements.some((statement) => statement.action === "upsert")).toBe(false);
+    },
+  );
+
+  it("fresh voice permission cannot recreate a context observed before a held write expires", async () => {
+    await registerFirstLine();
+    vi.setSystemTime(STARTED + PUB_PAL_TOOL_TURN_TTL_MS - 1);
+    const held = holdWrites(1);
+    const pending = appendOwnedPubPalUserTurn(
+      CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london", true,
+    );
+    await held.allPending;
+    vi.setSystemTime(STARTED + PUB_PAL_TOOL_TURN_TTL_MS + 5_000);
+    await purgeExpiredPubPalToolTurns();
+    held.resumeWhere(() => true);
+    expect(await pending).toBe(false);
+    expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
+  });
+
+  it("fresh voice insert conflict preserves the other owner and never claims their context", async () => {
+    const held = holdWrites(2);
+    const line = appendOwnedPubPalUserTurn(
+      CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london", true,
+    );
+    const other = bindPubPalToolTurn(CONVERSATION_ID, OTHER_OWNER_ID, "london");
+    await Promise.race([
+      held.allPending,
+      line.then((stored) => {
+        expect(stored, "Fresh recovery must reach its insert before the owner race").toBe(true);
+      }),
+    ]);
+    held.resumeWhere((statement) => statement.body?.owner_id === OTHER_OWNER_ID);
+    await other;
+    held.resumeWhere((statement) => statement.body?.owner_id === OWNER_ID);
+    expect(await line).toBe(false);
+    expect(durable.rows.get(CONVERSATION_ID)?.owner_id).toBe(OTHER_OWNER_ID);
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
+    expect((await readOwnedPubPalToolTurn(CONVERSATION_ID, OTHER_OWNER_ID))?.turns).toEqual([]);
+  });
 
   it.each(["user-first", "receipt-first"] as const)(
     "preserves a genuine new line and a sourced receipt with %s commit order",
