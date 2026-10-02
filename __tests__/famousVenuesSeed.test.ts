@@ -239,7 +239,7 @@ describe("famous venue seeds", () => {
       ].flat() as FamousVenueRow[];
       expect(() =>
         famousRowsForRebuild(reverified, { lastSlim, removedIds: [], refreshAt: null }),
-      ).toThrow(/re-verified after the committed stamp; run npm run refresh:slim/);
+      ).toThrow(/re-verified or added after the committed stamp; run npm run refresh:slim/);
       const refreshed = famousRowsForRebuild(reverified, {
         lastSlim,
         removedIds: [],
@@ -253,6 +253,31 @@ describe("famous venue seeds", () => {
           refreshAt: famousSeedLapsedAt(),
         }),
       ).not.toThrow(/refresh:slim/);
+    });
+
+    it("fails a build after a famous seed row is added, naming refresh:slim instead of withholding it", () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const [template] = seedRows();
+      const added = {
+        ...template,
+        id: `${template.id}-added`,
+        observedAt: "2026-10-02",
+        expiresAt: "2026-11-01",
+      };
+      const seed = [...seedRows(), added];
+      expect(() =>
+        famousRowsForRebuild(seed, { lastSlim, removedIds: [], refreshAt: null }),
+      ).toThrow(
+        new RegExp(`${added.id}; the seed was re-verified or added after the committed stamp; run npm run refresh:slim, then commit the slim`),
+      );
+      expect(log).not.toHaveBeenCalled();
+      const refreshed = famousRowsForRebuild(seed, {
+        lastSlim,
+        removedIds: [],
+        refreshAt: new Date("2026-10-02T12:00:00.000Z"),
+      });
+      expect(keptIds(refreshed)).toContain(added.id);
     });
 
     it("refuses a build-time rebuild with no committed stamp to rebuild at", () => {
