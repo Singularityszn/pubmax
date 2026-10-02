@@ -83,7 +83,7 @@ type Entry =
       /** In-thread recall only (lib/palRecall). Never a durable memory. */
       recall: PalRecall | null;
     }
-  | { kind: "error"; id: string; message: string };
+  | { kind: "error"; id: string; message: string; needsSignIn?: boolean };
 
 function VenueLink({
   card,
@@ -314,7 +314,12 @@ export default function PalChat() {
       if (result.status === "error") {
         setEntries((prev) => [
           ...prev,
-          { kind: "error", id: nextId(), message: result.message },
+          {
+            kind: "error",
+            id: nextId(),
+            message: result.message,
+            needsSignIn: result.needsSignIn,
+          },
         ]);
         return;
       }
@@ -525,6 +530,18 @@ export default function PalChat() {
                     role="alert"
                   >
                     {entry.message}
+                    {entry.needsSignIn ? (
+                      <>
+                        {" "}
+                        <Link
+                          prefetch={false}
+                          className="palGlanceExit"
+                          href="/login?mode=signin&from=/pal/chat"
+                        >
+                          Sign in
+                        </Link>
+                      </>
+                    ) : null}
                   </p>
                 </div>
               );

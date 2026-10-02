@@ -1,18 +1,19 @@
 import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
-import type { AskCard, AskProposal, AskTurn } from "@/lib/ask/types";
+import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
-import { palVoiceChatDynamicVariables } from "@/lib/palVoiceOverrides";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
+  type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
 import {
-  consumePubPalToolTurn,
+  readOwnedPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
+  type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 const CHAT_TIMEOUT_MS = 28_000;
@@ -23,7 +24,7 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForPubPalToolTurn(conversationId: string): Promise<Awaited<ReturnType<typeof consumePubPalToolTurn>>> {
+async function waitForPubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
   const deadline = Date.now() + TOOL_TURN_WAIT_MS;
   while (Date.now() < deadline) {
     const peek = await readPubPalToolTurn(conversationId);
@@ -31,11 +32,30 @@ async function waitForPubPalToolTurn(conversationId: string): Promise<Awaited<Re
       peek &&
       (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0)
     ) {
-      break;
+      return peek;
     }
     await sleep(TOOL_TURN_POLL_MS);
   }
-  return consumePubPalToolTurn(conversationId);
+  return readPubPalToolTurn(conversationId);
+}
+
+/** The signed-in owner's earlier asks, read from their own stored turn and never from the request. */
+async function priorOwnedAsks(threadId: unknown, ownerId: string): Promise<PubPalFenceTurn[]> {
+  if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return [];
+  const prior = await readOwnedPubPalToolTurn(threadId, ownerId);
+  if (!prior) return [];
+  return [...prior.turns, { role: "user" as const, content: prior.query }]
+    .filter((turn) => turn.role === "user" && turn.content.trim())
+    .slice(-6);
+}
+
+function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
+  if (priorAsks.length === 0) return query;
+  return [
+    "My earlier asks in this chat, oldest first:",
+    ...priorAsks.map((turn) => `- ${turn.content}`),
+    `Now: ${query}`,
+  ].join("\n");
 }
 
 type AgentResponseEvent = {
@@ -66,7 +86,8 @@ async function fetchSignedConversationUrl(apiKey: string, agentId: string): Prom
 export type PalElevenLabsChatInput = {
   query: string;
   cityId?: unknown;
-  turns?: AskTurn[];
+  /** The previous answer's conversation id. Only the owner's own stored row is read. */
+  threadId?: unknown;
   ownerId: string;
 };
 
@@ -92,7 +113,12 @@ export async function runPalElevenLabsChatTurn(
   if (!query) return { ok: false, code: "UNAVAILABLE" };
 
   const cityId = resolveAskCityId(input.cityId);
-  const turns = Array.isArray(input.turns) ? input.turns : [];
+  let turns: PubPalFenceTurn[];
+  try {
+    turns = await priorOwnedAsks(input.threadId, input.ownerId);
+  } catch {
+    return { ok: false, code: "UNAVAILABLE" };
+  }
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, turns);
   if (fenced) {
     return {
@@ -150,7 +176,6 @@ export async function runPalElevenLabsChatTurn(
               client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
             },
           },
-          dynamic_variables: palVoiceChatDynamicVariables(cityId),
         }),
       );
     });
@@ -186,15 +211,12 @@ export async function runPalElevenLabsChatTurn(
               query,
               cityId,
               ownerId: input.ownerId,
-              turns: turns
-                .filter((turn) => turn.role === "user")
-                .map((turn) => ({
-                  role: turn.role,
-                  content: turn.content,
-                })),
+              turns,
             });
             userMessageSent = true;
-            ws.send(JSON.stringify({ type: "user_message", text: query }));
+            ws.send(
+              JSON.stringify({ type: "user_message", text: userMessageText(query, turns) }),
+            );
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });
           }

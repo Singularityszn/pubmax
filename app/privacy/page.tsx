@@ -728,7 +728,7 @@ export default function PrivacyPage() {
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
               configured). Nothing else about you goes with it. We do not keep
               the audio. Recent lines are stored against your account and
-              deleted within two minutes.
+              deleted within three minutes of your last line.
             </dd>
           </div>
           <div className="legalRow">
@@ -801,8 +801,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Pub Pal lines:</strong>{" "}recent lines from typed chat and
-            voice are stored against your account and deleted within two
-            minutes. We do not keep the audio.
+            voice are stored against your account and deleted within three
+            minutes of your last line. We do not keep the audio.
           </li>
           <li>
             <strong>After you delete your account:</strong>{" "}the prices and

@@ -88,7 +88,7 @@ export async function POST(request: Request): Promise<Response> {
   const outcome = await runPalElevenLabsChatTurn({
     query,
     cityId: record.cityId,
-    turns: normaliseTurns(record.turns).filter((turn) => turn.role === "user"),
+    threadId: record.threadId,
     ownerId,
   });
 

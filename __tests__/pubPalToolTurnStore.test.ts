@@ -4,9 +4,10 @@ import {
   __resetPubPalToolTurnStore,
   appendOwnedPubPalUserTurn,
   appendPubPalToolTurn,
-  consumePubPalToolTurn,
   PUB_PAL_TOOL_TURN_TTL_MS,
   PubPalToolTurnAccessError,
+  purgeExpiredPubPalToolTurns,
+  readOwnedPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
   touchPubPalToolTurn,
@@ -31,7 +32,7 @@ describe("pubPalToolTurnStore (memory backend)", () => {
     __resetPubPalToolTurnStore();
   });
 
-  it("register, append, and consume round-trip cards for one conversation", async () => {
+  it("register, append, and read round-trip cards for one conversation", async () => {
     await registerPubPalToolTurn(CONVERSATION_ID, {
       query: "quiet pubs in Clapham",
       cityId: "london",
@@ -55,10 +56,9 @@ describe("pubPalToolTurnStore (memory backend)", () => {
     expect(mid?.cards).toEqual([card]);
     expect(mid?.toolsUsed).toEqual(["search_venues"]);
 
-    const consumed = await consumePubPalToolTurn(CONVERSATION_ID);
-    expect(consumed?.cards).toEqual([card]);
-    expect(consumed?.toolsUsed).toEqual(["search_venues"]);
-    expect(await readPubPalToolTurn(CONVERSATION_ID)).toBeNull();
+    const owned = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID);
+    expect(owned?.query).toBe("quiet pubs in Clapham");
+    expect(owned?.cards).toEqual([card]);
   });
 
   it("refuses another account the same conversation", async () => {
@@ -84,6 +84,7 @@ describe("pubPalToolTurnStore (memory backend)", () => {
         "london",
       ),
     ).toBe(false);
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OTHER_OWNER_ID)).toBeNull();
     expect((await readPubPalToolTurn(CONVERSATION_ID))?.query).toBe("quiet pubs in Clapham");
   });
 
@@ -96,6 +97,8 @@ describe("pubPalToolTurnStore (memory backend)", () => {
       ownerId: OWNER_ID,
     });
     vi.setSystemTime(new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS + 1));
+    await purgeExpiredPubPalToolTurns();
     expect(await readPubPalToolTurn(CONVERSATION_ID)).toBeNull();
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
   });
 });

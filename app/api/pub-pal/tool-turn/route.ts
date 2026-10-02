@@ -60,7 +60,7 @@ export async function POST(request: Request): Promise<Response> {
     const content =
       typeof turnRecord.content === "string" ? turnRecord.content.trim().slice(0, 800) : "";
     if (!content) {
-      return publicApiError("Conversation id required.", "MALFORMED_REQUEST", 400);
+      return publicApiError("Say something first.", "MALFORMED_REQUEST", 400);
     }
     const stored = await appendOwnedPubPalUserTurn(
       conversationId,

@@ -250,15 +250,9 @@ describe("Pub Pal voice token route", () => {
     expect(body.overrides).toMatchObject({
       voiceId: "voice-fox-id",
       firstMessage: expect.stringContaining("Ripley"),
-      dynamicVariables: {
-        pubmax_species: "fox",
-        pubmax_relationship: "sidekick",
-        pubmax_playfulness: "mid",
-        pubmax_energy: "mid",
-        pubmax_storytelling: "mid",
-      },
     });
     expect(body.overrides).not.toHaveProperty("systemPrompt");
+    expect(body.overrides).not.toHaveProperty("dynamicVariables");
     expect(JSON.stringify(body)).not.toContain("Getting Home");
     expect(voiceBind).toHaveBeenCalledWith("conv_voiceToken01", voiceState.userId, "london");
     expect(voiceState.rpc).toHaveBeenCalledWith("consume_pub_pal_voice_trial", {

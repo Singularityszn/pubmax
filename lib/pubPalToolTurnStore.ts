@@ -11,7 +11,7 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-/** Two minutes. The privacy page names this window. */
+/** Two minutes after the last write. The purge cron deletes expired rows every minute. */
 export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
@@ -130,6 +130,7 @@ type PubPalToolTurnStore = {
   bind(conversationId: string, ownerId: string, cityId: CityId): Promise<void>;
   register(conversationId: string, input: OwnedWrite): Promise<void>;
   read(conversationId: string): Promise<PubPalToolTurn | null>;
+  readOwned(conversationId: string, ownerId: string): Promise<PubPalToolTurn | null>;
   touch(conversationId: string, ownerId: string): Promise<boolean>;
   appendOwnedUserTurn(
     conversationId: string,
@@ -146,7 +147,7 @@ type PubPalToolTurnStore = {
       toolsUsed?: string[];
     },
   ): Promise<void>;
-  consume(conversationId: string): Promise<PubPalToolTurn | null>;
+  purgeExpired(): Promise<void>;
 };
 
 const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
@@ -190,6 +191,14 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     return publicTurn(turn);
   },
 
+  async readOwned(conversationId, ownerId) {
+    assertConversationId(conversationId);
+    pruneMemory(Date.now());
+    const turn = memoryTurns.get(conversationId);
+    if (!turn || turn.ownerId !== ownerId) return null;
+    return publicTurn(turn);
+  },
+
   async touch(conversationId, ownerId) {
     assertConversationId(conversationId);
     const now = Date.now();
@@ -226,14 +235,8 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     }
   },
 
-  async consume(conversationId) {
-    const turn = memoryTurns.get(conversationId);
-    if (!turn || turn.expiresAt <= Date.now()) {
-      memoryTurns.delete(conversationId);
-      return null;
-    }
-    memoryTurns.delete(conversationId);
-    return publicTurn(turn);
+  async purgeExpired() {
+    pruneMemory(Date.now());
   },
 };
 
@@ -373,6 +376,25 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     });
   },
 
+  async readOwned(conversationId, ownerId) {
+    assertConversationId(conversationId);
+    return guard<PubPalToolTurn | null>({
+      context: "read-owned",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.readOwned(conversationId, ownerId),
+          onProduction: async () => null,
+        }),
+      run: async () => {
+        const lookup = await lookupStoredRow(conversationId);
+        if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return null;
+        return publicTurn(lookup.turn);
+      },
+    });
+  },
+
   async touch(conversationId, ownerId) {
     assertConversationId(conversationId);
     return guard<boolean>({
@@ -450,26 +472,16 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     });
   },
 
-  async consume(conversationId) {
-    return guard<PubPalToolTurn | null>({
-      context: "consume",
+  async purgeExpired() {
+    await guard<void>({
+      context: "purge",
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: "pub-pal-tool-turn",
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
-          fallback: () => memoryPubPalToolTurnStore.consume(conversationId),
-          onProduction: async () => null,
+          fallback: () => memoryPubPalToolTurnStore.purgeExpired(),
         }),
-      run: async () => {
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned") return null;
-        const { error } = await requireSupabaseAdmin()
-          .from("pub_pal_tool_turns")
-          .delete()
-          .eq("conversation_id", conversationId);
-        if (error) throw new Error(error.message);
-        return publicTurn(lookup.turn);
-      },
+      run: purgeExpiredRows,
     });
   },
 };
@@ -496,6 +508,13 @@ export async function registerPubPalToolTurn(
 
 export async function readPubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
   return pubPalToolTurnStore().read(conversationId);
+}
+
+export async function readOwnedPubPalToolTurn(
+  conversationId: string,
+  ownerId: string,
+): Promise<PubPalToolTurn | null> {
+  return pubPalToolTurnStore().readOwned(conversationId, ownerId);
 }
 
 export async function touchPubPalToolTurn(
@@ -526,10 +545,8 @@ export async function appendPubPalToolTurn(
   await pubPalToolTurnStore().append(conversationId, patch);
 }
 
-export async function consumePubPalToolTurn(
-  conversationId: string,
-): Promise<PubPalToolTurn | null> {
-  return pubPalToolTurnStore().consume(conversationId);
+export async function purgeExpiredPubPalToolTurns(): Promise<void> {
+  await pubPalToolTurnStore().purgeExpired();
 }
 
 export function __resetPubPalToolTurnStore(): void {

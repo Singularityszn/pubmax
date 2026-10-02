@@ -94,7 +94,7 @@ describe("pubpal:agent dry run", () => {
     expect(body.conversation_config.agent.prompt.prompt).toContain(
       "Never invent a pub, a price, an opening hour, or an event.",
     );
-    expect(body.conversation_config.agent.prompt.prompt).not.toContain("pubmax_recent_turns");
+    expect(body.conversation_config.agent.prompt.prompt).not.toContain("{{");
     expect(body.platform_settings.privacy.retention_days).toBe(-1);
     expect(body.platform_settings.privacy.zero_retention_mode).toBe(true);
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({

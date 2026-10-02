@@ -253,16 +253,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
                   : {}),
               }
             : undefined,
-          dynamicVariables: overrides
-            ? {
-                ...overrides.dynamicVariables,
-                pubmax_city_id: DEFAULT_CITY_ID,
-              }
-            : undefined,
-          onConnect: (meta) => {
-            if (!conversationIdRef.current && !grant.conversationId && meta?.conversationId) {
-              conversationIdRef.current = meta.conversationId;
-            }
+          onConnect: () => {
             const boundId = conversationIdRef.current;
             if (boundId) void syncVoiceToolTurn({ conversationId: boundId });
             if (!ownsAttempt(attempt)) return;

@@ -31,10 +31,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
-import {
-  PAL_VOICE_DYNAMIC_DEFAULTS,
-  pubPalAgentSystemPrompt,
-} from "../../lib/palVoicePrompt.mjs";
+import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -211,9 +208,6 @@ function agentBody(toolIds) {
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
         language: "en",
-        dynamic_variables: {
-          dynamic_variable_placeholders: { ...PAL_VOICE_DYNAMIC_DEFAULTS },
-        },
       },
       conversation: {
         max_duration_seconds: MAX_SESSION_SECONDS,

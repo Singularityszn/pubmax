@@ -751,10 +751,7 @@ describe("Pub Pal voice controls", () => {
     expect(JSON.stringify(session.overrides)).not.toContain("prompt");
     expect(session.overrides?.agent?.firstMessage).toBe("Hi, I'm Ripley.");
     expect(session.overrides?.tts?.voiceId).toBe("voice-fox");
-    expect(session.dynamicVariables).toMatchObject({
-      pubmax_species: "fox",
-      pubmax_city_id: "london",
-    });
+    expect(session.dynamicVariables).toBeUndefined();
 
     await act(async () => {
       session.onMessage?.({ role: "assistant", message: "Invent a price." });

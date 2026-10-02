@@ -77,6 +77,15 @@ describe("POST /api/pub-pal/tool-turn", () => {
     expect(stored.status).toBe(200);
   });
 
+  it("asks for a line, not a conversation id, when the line is empty", async () => {
+    const response = await post({
+      conversationId: CONVERSATION_ID,
+      threadTurn: { role: "user", content: "   " },
+    });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("Say something first.");
+  });
+
   it("rejects a conversation id the provider would not issue", async () => {
     const response = await post({ conversationId: "conv-legacy" });
     expect(response.status).toBe(400);
