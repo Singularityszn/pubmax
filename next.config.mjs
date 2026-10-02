@@ -97,12 +97,13 @@ const feedDataFiles = withRuntimeDataPacks(
 // lib/buildInfo.mjs owns the rule; app/api/version reads the values back.
 const workingTreeCommitSha = readWorkingTreeCommitSha(projectRoot);
 
-// The same tree also names the REVISION when no release environment does, which
-// is what makes a production build possible from a clean worktree with a pulled
-// environment (that file carries VERCEL_GIT_COMMIT_SHA="" and no deployment id).
-// lib/dataRevision.mjs owns the order and the refusal; scripts/lib/slimShards.mjs
-// stamps its shard payloads from the same rule, so a build and its data cannot
-// disagree about which deploy they belong to.
+// The same tree also names the REVISION when a production build has no release
+// environment, which is what makes that build possible from a clean worktree
+// with a pulled environment (that file carries VERCEL_GIT_COMMIT_SHA="" and no
+// deployment id). `next dev` ignores the tree and takes `local`, the stamp on
+// the committed packs. lib/dataRevision.mjs owns the order and the refusal;
+// scripts/lib/slimShards.mjs stamps its shard payloads from the same rule, so a
+// build and its data cannot disagree about which deploy they belong to.
 const swVersion = requireDataRevision(process.env, {
   workingTreeSha: workingTreeCommitSha,
 });
