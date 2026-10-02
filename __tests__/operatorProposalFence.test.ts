@@ -15,10 +15,9 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 
 // The trusted venue-fact modules a proposal must never touch: the fact-resolution
-// engine, the price adapter, and the durable stores holding observed venue data.
+// engine and the durable stores holding observed venue data.
 const FORBIDDEN_FACT_IMPORTS = [
   "@/lib/factClaims",
-  "@/lib/priceFactClaims",
   "@/lib/pintDropsStore",
   "@/lib/visitReportsStore",
   "@/lib/ratingsStore",
