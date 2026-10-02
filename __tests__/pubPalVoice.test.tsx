@@ -51,6 +51,10 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
 
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import {
+  ELEVENLABS_LIBSAMPLERATE_PATH,
+  ELEVENLABS_WORKLET_PATHS,
+} from "@/lib/elevenlabsWorkletAssets";
+import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
 } from "@/lib/pubPalVoiceSession";
@@ -675,5 +679,32 @@ describe("Pub Pal voice controls", () => {
     expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
     expect(stopTrack).toHaveBeenCalledOnce();
+  });
+
+  it("starts the session against the same-origin worklets", async () => {
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: vi.fn() }],
+    });
+    requests.authedActionFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      signedUrl: "wss://voice.example/session",
+      maxSessionSeconds: 10,
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+
+    await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    expect(voice.startSession.mock.calls[0][0]).toEqual(expect.objectContaining({
+      workletPaths: ELEVENLABS_WORKLET_PATHS,
+      libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
+    }));
   });
 });
