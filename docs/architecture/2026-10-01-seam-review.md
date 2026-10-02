@@ -147,3 +147,5 @@ This is not a path that serves an API body without `securityProxy`. No change fo
 **Files changed:** none.
 
 **Fully resolved:** the recommendation is recorded. Leave the composition unchanged.
+
+**Follow-up, 2 Oct 2026.** The Fable review of PR 1893 recommended the opposite for `/api`: nothing there reads Clerk, so a handshake must not sit in front of `securityProxy`. `servesApiCaller` now sends every `/api` caller straight to `securityProxy`. Documents, `/__clerk` and every other matched path, including `/ingest`, still enter `clerkMiddleware`. `__tests__/clerkProxyCsp.test.ts` pins both sides.

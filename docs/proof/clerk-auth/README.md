@@ -44,4 +44,6 @@ files; Zen cannot be driven.
 `proxy.ts` only wraps `clerkMiddleware` when **both**
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` are set
 (`isClerkMiddlewareConfigured` in `lib/clerkIdentity.ts`). A missing secret
-leaves the plain security proxy in place so the site still boots.
+leaves the plain security proxy in place so the site still boots. With both
+keys set, `/api` still skips `clerkMiddleware` and goes straight to
+`securityProxy`. Documents and `/__clerk` are what the middleware wraps.
