@@ -582,6 +582,7 @@ describe("a price stays in the lane the reader gave it", () => {
     const rows: Array<{
       text: string;
       drinks: Array<{ drink: string; size: string; sizeDetail: string | null; priceGbp: number }>;
+      excerpt?: boolean;
     }> = [
       {
         text: "Pie of the day. Guinness £6.20 pint",
@@ -846,13 +847,53 @@ describe("a price stays in the lane the reader gave it", () => {
       },
       {
         text: "House Merlot 175/250ml £7.50",
-        drinks: [{ drink: "House Merlot 175", size: "unstated", sizeDetail: "250ml", priceGbp: 7.5 }],
+        drinks: [],
+        excerpt: true,
       },
       {
         text: "House Merlot 175/250ml £6.50/£8.50",
         drinks: [
           { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
           { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5 },
+        ],
+      },
+      {
+        text: "House Merlot 175ml/250ml £6.50/£8.50",
+        drinks: [
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5 },
+        ],
+      },
+      {
+        text: "House Merlot 175ml / 250ml £6.50 / £8.50",
+        drinks: [
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5 },
+        ],
+      },
+      {
+        text: "House wine 125/175/250ml £5.50/£6.50/£8.00",
+        drinks: [
+          { drink: "House wine", size: "unstated", sizeDetail: "125ml", priceGbp: 5.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "250ml", priceGbp: 8 },
+        ],
+      },
+      {
+        text: "House wine 125ml/175ml/250ml £5.50/£6.50/£8.00",
+        drinks: [
+          { drink: "House wine", size: "unstated", sizeDetail: "125ml", priceGbp: 5.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House wine", size: "unstated", sizeDetail: "250ml", priceGbp: 8 },
+        ],
+      },
+      {
+        text: "Lager 275/330/440/500ml £4.00/£4.50/£5.50/£6.00",
+        drinks: [
+          { drink: "Lager", size: "unstated", sizeDetail: "275ml", priceGbp: 4 },
+          { drink: "Lager", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Lager", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Lager", size: "unstated", sizeDetail: "500ml", priceGbp: 6 },
         ],
       },
       {
@@ -872,13 +913,19 @@ describe("a price stays in the lane the reader gave it", () => {
       },
     ];
     for (const row of rows) {
-      const drinks = factsFromPage(row.text, pageFact).drinks.map((drink) => ({
+      const facts = factsFromPage(row.text, pageFact);
+      const drinks = facts.drinks.map((drink) => ({
         drink: drink.drink,
         size: drink.size,
         sizeDetail: drink.sizeDetail,
         priceGbp: drink.priceGbp,
       }));
       expect(drinks, row.text).toEqual(row.drinks);
+      if (row.excerpt) {
+        expect(facts.excerpts, row.text).toEqual([
+          { sourceUrl: pageFact.sourceUrl, excerpt: row.text, seenOn: pageFact.seenOn },
+        ]);
+      }
     }
   });
 

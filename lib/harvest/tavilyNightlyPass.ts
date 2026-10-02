@@ -697,11 +697,32 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
   drinks.push(row);
 }
 
-function splitJoinedMeasures(line: string): string {
-  return line.replace(
-    /\b(\d{2,4})\s*\/\s*(\d{2,4})\s*ml\b(\s*)£\s?(\d{1,2}(?:\.\d{2})?)\s*\/\s*£\s?(\d{1,2}(?:\.\d{2})?)\b/gi,
-    "$1ml$3£$4 / $2ml £$5",
-  );
+const JOINED_SIZE_LIST = /(?<![\d/.£])\d{2,4}(?:\s*ml)?(?:\s*\/\s*\d{2,4}(?:\s*ml)?)+(?!\s*\/\s*\d)/gi;
+const JOINED_PRICE_LIST = /^\s*((?:£\s?\d{1,2}(?:\.\d{2})?)(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*)/;
+
+function pairedMeasureLines(line: string): string[] | null {
+  const parts: string[] = [];
+  let saw = false;
+  let cursor = 0;
+  for (const match of line.matchAll(JOINED_SIZE_LIST)) {
+    if (match.index === undefined || !/ml/i.test(match[0])) continue;
+    const sizes = [...match[0].matchAll(/\d{2,4}/g)].map((token) => `${token[0]}ml`);
+    const priceMatch = JOINED_PRICE_LIST.exec(line.slice(match.index + match[0].length));
+    const prices = priceMatch
+      ? [...priceMatch[1].matchAll(/£\s?\d{1,2}(?:\.\d{2})?/g)].map((token) => token[0].replace(/\s+/g, ""))
+      : [];
+    if (!priceMatch || prices.length !== sizes.length) return [];
+    saw = true;
+    const name = line.slice(cursor, match.index).replace(/\s+/g, " ").trim();
+    for (let i = 0; i < sizes.length; i += 1) {
+      parts.push(`${name} ${sizes[i]} ${prices[i]}`.replace(/\s+/g, " ").trim());
+    }
+    cursor = match.index + match[0].length + priceMatch[0].length;
+  }
+  if (!saw) return null;
+  const tail = line.slice(cursor).trim();
+  if (tail) parts.push(tail);
+  return parts;
 }
 
 function recordPriceLine(
@@ -710,7 +731,11 @@ function recordPriceLine(
   drinks: ListedDrinkLine[],
   seenDrinks: Set<string>,
 ): void {
-  line = splitJoinedMeasures(line);
+  const paired = pairedMeasureLines(line);
+  if (paired) {
+    for (const part of paired) recordPriceLine(part, fact, drinks, seenDrinks);
+    return;
+  }
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
