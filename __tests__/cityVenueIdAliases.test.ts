@@ -264,8 +264,9 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
     expect(venue?.lat).toBeCloseTo(52.48057, 4);
     expect(venue?.lng).toBeCloseTo(-1.90132, 4);
 
+    // A distinct status every reader treats as missing unless it opts in.
     const detail = await lookupVenueDetail(HENMAN_AND_COOPER);
-    expect(detail.status === "found" ? [detail.venue.name, detail.venue.retired] : null).toEqual([
+    expect(detail.status === "retired" ? [detail.venue.name, detail.venue.retired] : null).toEqual([
       "Henman & Cooper",
       true,
     ]);

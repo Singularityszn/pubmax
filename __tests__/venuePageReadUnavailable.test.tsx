@@ -192,6 +192,15 @@ describe.each([
     expect(markup).not.toContain("We could not load this pub");
   });
 
+  it("answers a pub that left the map with the not-found card, never a live page", async () => {
+    // Henman & Cooper, Birmingham: retired in public/data/cities/venue_id_aliases.json.
+    const markup = await render(page, "venue-bhm-y7p3wr");
+    expect(markup).toContain(notFoundLine);
+    expect(markup).not.toContain("Henman");
+    const meta = await metadata({ params: Promise.resolve({ id: "venue-bhm-y7p3wr" }) });
+    expect(JSON.stringify(meta)).not.toContain("Henman");
+  });
+
   it("opens a famous-venue seed the dataset index does not hold", async () => {
     const markup = await render(page, FAMOUS_BAR_ID);
     expect(markup).toContain(FAMOUS_BAR_NAME);
