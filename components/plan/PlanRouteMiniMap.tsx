@@ -177,7 +177,7 @@ export default function PlanRouteMiniMap({
   return (
     <div className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
       {mapHref ? (
-        <Link className="planRouteMiniMap--clickable" href={mapHref} aria-labelledby={labelledBy}>
+        <Link className="planRouteMiniMap--clickable" href={mapHref} prefetch={false} aria-labelledby={labelledBy}>
           {preview}
         </Link>
       ) : (
