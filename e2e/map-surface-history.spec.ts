@@ -117,10 +117,14 @@ test.describe("one Map surface history owner", () => {
       await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
 
-    const planOuting = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
+    // The plan button toggles and renames itself "Close plan" once pressed, so
+    // retry only a click that did not land. Retrying on the drawer outcome
+    // instead re-clicked a button that no longer matched and hung the loop.
+    const planButton = page.locator(".mapToolbar .planBtn");
+    await expect(planButton).toHaveAccessibleName("Plan an outing");
     await expect(async () => {
-      await planOuting.click();
-      await expectSoleDrawer(page, "planner", 2_000);
+      if ((await planButton.getAttribute("aria-pressed")) !== "true") await planButton.click();
+      await expect(planButton).toHaveAttribute("aria-pressed", "true", { timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
     await expectSoleDrawer(page, "planner");
   });
