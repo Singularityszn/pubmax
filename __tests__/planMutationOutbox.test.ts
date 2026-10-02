@@ -207,9 +207,9 @@ describe("planMutationOutbox", () => {
       vi.useFakeTimers();
       await vi.advanceTimersByTimeAsync(60_000);
       expect(fetch).toHaveBeenCalledTimes(1);
-      vi.useRealTimers();
       expect(hasPendingPlanMutation("plan-1")).toBe(true);
     } finally {
+      vi.useRealTimers();
       unsub();
     }
   });

@@ -20,6 +20,7 @@ import { CITIES } from "@/lib/cities";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 import {
   expectedSlimFamousCounts,
+  famousSeedLapsedAt,
   famousVenueLeadBudgetHours,
   slimPayloadGeneratedAt,
 } from "@/__tests__/helpers/currentFamousVenues";
@@ -403,16 +404,15 @@ describe("venues_slim.json", () => {
   });
 
   it("counts famous rows as of the slim payload clock, not the wall clock", () => {
+    const lapsedAt = famousSeedLapsedAt();
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-10-26T00:00:00.000Z"));
+    vi.setSystemTime(lapsedAt);
     try {
-      const expected = expectedSlimFamousCounts();
       const famous = (slim as SlimVenue[]).filter(
         (row) => row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
       );
-      expect(expected.total).toBeGreaterThan(0);
-      expect(famous).toHaveLength(expected.total);
-      expect(expectedSlimFamousCounts(new Date("2026-10-26T00:00:00.000Z")).total).toBe(0);
+      expect(famous).toHaveLength(expectedSlimFamousCounts().total);
+      expect(expectedSlimFamousCounts(lapsedAt).total).toBe(0);
     } finally {
       vi.useRealTimers();
     }

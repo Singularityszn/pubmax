@@ -161,6 +161,17 @@ function assertCurrentFamousVenueRows(rows, now) {
   return current;
 }
 
+// A valid row's window is at most NIGHT_OUT_PLACE_MAX_AGE_MS, so which rows are
+// current only changes at some row's observedAt or expiresAt. The latest of those
+// at or before now keeps exactly the rows now would, and a rebuild between two of
+// them writes the same bytes.
+function famousVenueClock(rows, now) {
+  const boundaries = rows
+    .flatMap((row) => [Date.parse(row.observedAt), Date.parse(row.expiresAt)])
+    .filter((ms) => Number.isFinite(ms) && ms <= now.getTime());
+  return new Date(Math.max(0, ...boundaries));
+}
+
 // --- mirror of lib/venues.ts grouping + id logic (keep in lockstep) ----------
 
 function normaliseVenueKeyPart(value) {
@@ -720,19 +731,17 @@ async function main() {
   // stamped with the zone of its nearest station — an honest approximation,
   // labelled as such in the UI. See scripts/lib/stationZones.mjs.
   const stationZones = await loadStationZones();
+  const famousSeedRows = (
+    await Promise.all(
+      FAMOUS_VENUE_PATHS.map(async (file) =>
+        JSON.parse(await readFile(file, "utf8")),
+      ),
+    )
+  ).flat();
   // One clock for the filter and the stamp. The famous-venue tests read
   // generatedAt back, so a later day cannot disagree with the rows this build kept.
-  const builtAt = new Date();
-  const famousRows = assertCurrentFamousVenueRows(
-    (
-      await Promise.all(
-        FAMOUS_VENUE_PATHS.map(async (file) =>
-          JSON.parse(await readFile(file, "utf8")),
-        ),
-      )
-    ).flat(),
-    builtAt,
-  );
+  const builtAt = famousVenueClock(famousSeedRows, new Date());
+  const famousRows = assertCurrentFamousVenueRows(famousSeedRows, builtAt);
   const famousPriceBands = typeRelativePriceBands(famousRows);
 
   const slim = [];

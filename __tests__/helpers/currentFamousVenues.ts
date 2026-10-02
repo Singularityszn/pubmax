@@ -38,6 +38,11 @@ function loadFamousSeedRows(): FamousSeedRow[] {
   );
 }
 
+/** The first instant at which no seed row is current, whatever clock a build used. */
+export function famousSeedLapsedAt(): Date {
+  return new Date(Math.max(...loadFamousSeedRows().map((row) => Date.parse(row.expiresAt))));
+}
+
 function currentFamousVenueRows(asOf: Date = slimPayloadGeneratedAt()) {
   return assertCurrentFamousVenueRows(loadFamousSeedRows(), asOf);
 }

@@ -5,12 +5,15 @@
 // limiter can never refuse because each value is its own bucket, and which the
 // deployment ceiling refuses the moment it is spent.
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
+vi.mock("@/lib/serverEnv", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/serverEnv")>()),
+  assertProductionSecrets: () => {},
+}));
 
 vi.mock("@/lib/ask/runAsk", () => ({
   runAsk: vi.fn(async () => ({ answer: "A quiet one.", citations: [], tools: [] })),
@@ -42,109 +45,186 @@ const LANE_OWNERS: Record<PaidSpendLane, string> = {
   typesafe: "lib/ai/typesafe.server.ts",
 };
 
-const PAID_PROVIDER_MARK = /https:\/\/openrouter\.ai\/|https:\/\/api\.elevenlabs\.io\/|https:\/\/api\.typesafe\.ai\//;
-const CEILING_MARK = "paidSpendBudgetRefusal(";
-const AUTH_MARK = /callerUserId\(|callerAuthIdentity\(|requireLinkedActor\(|resolveContributionIdentity\(|verifyCallerAuth\(|gateHandleAction\(|assertPubPalLlmAuth\(/;
+const PAID_HOSTS = new Set(["openrouter.ai", "api.elevenlabs.io", "api.typesafe.ai"]);
+
+type PaidRouteCase = {
+  route: string;
+  call: () => Promise<Response>;
+  refusal: { status: number; body: Record<string, unknown> };
+};
+
+function jsonPost(url: string, body: unknown): Request {
+  return new Request(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.7" },
+    body: JSON.stringify(body),
+  });
+}
+
+function photoPost(url: string): Request {
+  const form = new FormData();
+  form.set("photo", new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "pint.png", { type: "image/png" }));
+  return new Request(url, {
+    method: "POST",
+    headers: { "x-forwarded-for": "203.0.113.7" },
+    body: form,
+  });
+}
+
+const params = <T,>(value: T) => ({ params: Promise.resolve(value) });
+
+const UNAUTHENTICATED = { status: 401, body: { code: "UNAUTHENTICATED" } };
+const CEILING_SPENT = { status: 429, body: { code: PAID_SPEND_REFUSAL_CODE } };
+const SIGN_IN_TO_CONTRIBUTE = { status: 401, body: { status: "sign_in_required" } };
+const SIGN_IN_AS_OWNER = { status: 403, body: { code: "FORBIDDEN" } };
+
+/** Every route handler that can reach a paid provider, called with no session. */
+const PAID_ROUTES: PaidRouteCase[] = [
+  {
+    route: "app/api/ask/route.ts",
+    call: async () =>
+      (await import("@/app/api/ask/route")).POST(
+        jsonPost("http://localhost/api/ask", { query: "Where is a quiet pint" }),
+      ),
+    refusal: CEILING_SPENT,
+  },
+  {
+    route: "app/api/heritage/route.ts",
+    call: async () =>
+      (await import("@/app/api/heritage/route")).POST(
+        jsonPost("http://localhost/api/heritage", {
+          venueName: "The Lamb",
+          question: "How old is this pub?",
+        }),
+      ),
+    refusal: CEILING_SPENT,
+  },
+  {
+    route: "app/api/plans/generate/route.ts",
+    call: async () =>
+      (await import("@/app/api/plans/generate/route")).POST(
+        jsonPost("http://localhost/api/plans/generate", { query: "A quiet crawl in Soho" }),
+      ),
+    refusal: CEILING_SPENT,
+  },
+  {
+    route: "app/api/pub-pal/llm/route.ts",
+    call: async () =>
+      (await import("@/app/api/pub-pal/llm/route")).POST(
+        jsonPost("http://localhost/api/pub-pal/llm", {
+          messages: [{ role: "user", content: "Where is a quiet pint" }],
+        }),
+      ),
+    refusal: UNAUTHENTICATED,
+  },
+  {
+    route: "app/api/pub-pal/tools/[toolName]/route.ts",
+    call: async () =>
+      (await import("@/app/api/pub-pal/tools/[toolName]/route")).POST(
+        jsonPost("http://localhost/api/pub-pal/tools/venue_heritage", {
+          args: { venueName: "The Lamb" },
+        }),
+        params({ toolName: "venue_heritage" }),
+      ),
+    refusal: UNAUTHENTICATED,
+  },
+  {
+    route: "app/api/pub-pal/tool-turn/route.ts",
+    call: async () =>
+      (await import("@/app/api/pub-pal/tool-turn/route")).POST(
+        jsonPost("http://localhost/api/pub-pal/tool-turn", {
+          conversationId: "conversation-1",
+          query: "Where is a quiet pint",
+        }),
+      ),
+    refusal: UNAUTHENTICATED,
+  },
+  {
+    route: "app/api/pub-pal/voice-token/route.ts",
+    call: async () =>
+      (await import("@/app/api/pub-pal/voice-token/route")).POST(
+        jsonPost("http://localhost/api/pub-pal/voice-token", {}),
+      ),
+    refusal: UNAUTHENTICATED,
+  },
+  {
+    route: "app/api/drink-wall/route.ts",
+    call: async () =>
+      (await import("@/app/api/drink-wall/route")).POST(photoPost("http://localhost/api/drink-wall")),
+    refusal: SIGN_IN_TO_CONTRIBUTE,
+  },
+  {
+    route: "app/api/venue-photos/route.ts",
+    call: async () =>
+      (await import("@/app/api/venue-photos/route")).POST(photoPost("http://localhost/api/venue-photos")),
+    refusal: SIGN_IN_TO_CONTRIBUTE,
+  },
+  {
+    route: "app/api/profiles/[handle]/avatar/route.ts",
+    call: async () =>
+      (await import("@/app/api/profiles/[handle]/avatar/route")).POST(
+        photoPost("http://localhost/api/profiles/someone/avatar"),
+        params({ handle: "someone" }),
+      ),
+    refusal: SIGN_IN_AS_OWNER,
+  },
+  {
+    route: "app/api/profiles/[handle]/cover/route.ts",
+    call: async () =>
+      (await import("@/app/api/profiles/[handle]/cover/route")).POST(
+        photoPost("http://localhost/api/profiles/someone/cover"),
+        params({ handle: "someone" }),
+      ),
+    refusal: SIGN_IN_AS_OWNER,
+  },
+  {
+    route: "app/api/profiles/[handle]/covers/route.ts",
+    call: async () =>
+      (await import("@/app/api/profiles/[handle]/covers/route")).POST(
+        photoPost("http://localhost/api/profiles/someone/covers"),
+        params({ handle: "someone" }),
+      ),
+    refusal: SIGN_IN_AS_OWNER,
+  },
+  {
+    route: "app/api/messages/[id]/route.ts",
+    call: async () =>
+      (await import("@/app/api/messages/[id]/route")).POST(
+        jsonPost("http://localhost/api/messages/thread-1", {
+          action: "send",
+          handle: "someone",
+          body: "A pint?",
+        }),
+        params({ id: "thread-1" }),
+      ),
+    refusal: UNAUTHENTICATED,
+  },
+];
 
 /**
- * Anonymous paid routes that still skip the deployment ceiling.
- * This list may only shrink. app/api/pub-pal/chat/route.ts is the known hole
- * and belongs to the Pub Pal hardening task pubmax-sec-pubpal.
+ * Anonymous paid routes that still skip the deployment ceiling, each with the
+ * task that owns closing it. This list may only shrink: an entry that stops
+ * spending without a session must be deleted.
  */
-const KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES = ["app/api/pub-pal/chat/route.ts"];
+const KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES: Array<{
+  route: string;
+  owner: string;
+  call: () => Promise<Response>;
+}> = [
+  {
+    route: "app/api/pub-pal/chat/route.ts",
+    owner: "pubmax-sec-pubpal",
+    call: async () =>
+      (await import("@/app/api/pub-pal/chat/route")).POST(
+        jsonPost("http://localhost/api/pub-pal/chat", { query: "Where is a quiet pint" }),
+      ),
+  },
+];
 
-function walkSources(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === "node_modules" || entry.startsWith(".")) continue;
-    const full = path.join(dir, entry);
-    if (statSync(full).isDirectory()) walkSources(full, acc);
-    else if (/\.(ts|tsx|mjs)$/.test(entry) && !entry.endsWith(".d.ts")) acc.push(full);
-  }
-  return acc;
-}
-
-function resolveImport(fromFile: string, spec: string): string | null {
-  let base: string;
-  if (spec.startsWith("@/")) base = path.join(ROOT, spec.slice(2));
-  else if (spec.startsWith(".")) base = path.resolve(path.dirname(fromFile), spec);
-  else return null;
-  const candidates = [
-    base,
-    `${base}.ts`,
-    `${base}.tsx`,
-    `${base}.mjs`,
-    `${base}.js`,
-    path.join(base, "index.ts"),
-    path.join(base, "index.tsx"),
-    path.join(base, "index.mjs"),
-  ];
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
-}
-
-function importedSpecs(source: string): string[] {
-  const specs: string[] = [];
-  const statement = /(?:^|\n)\s*(?:import|export)\s+([\s\S]*?)\sfrom\s+["']([^"']+)["']/g;
-  for (const match of source.matchAll(statement)) {
-    const clause = match[1] ?? "";
-    if (/^type\b/.test(clause.trim())) continue;
-    const spec = match[2];
-    if (spec) specs.push(spec);
-  }
-  const dynamic = /import\s*\(\s*["']([^"']+)["']\s*\)/g;
-  for (const match of source.matchAll(dynamic)) {
-    if (match[1]) specs.push(match[1]);
-  }
-  const sideEffect = /^\s*import\s+["']([^"']+)["']/gm;
-  for (const match of source.matchAll(sideEffect)) {
-    if (match[1]) specs.push(match[1]);
-  }
-  return specs;
-}
-
-function anonymousPaidRoutesMissingCeiling(): string[] {
-  const files = [
-    ...walkSources(path.join(ROOT, "app")),
-    ...walkSources(path.join(ROOT, "lib")),
-  ];
-  const sourceByFile = new Map(files.map((file) => [file, readFileSync(file, "utf8")]));
-  const imports = new Map<string, string[]>();
-  const guards = new Set<string>();
-  const paidLeaves = new Set<string>();
-  for (const [file, source] of sourceByFile) {
-    if (source.includes(CEILING_MARK)) guards.add(file);
-    if (PAID_PROVIDER_MARK.test(source)) paidLeaves.add(file);
-    imports.set(
-      file,
-      importedSpecs(source)
-        .map((spec) => resolveImport(file, spec))
-        .filter((resolved): resolved is string => resolved !== null && sourceByFile.has(resolved)),
-    );
-  }
-
-  const offenders: string[] = [];
-  for (const [file, source] of sourceByFile) {
-    if (!file.includes(`${path.sep}app${path.sep}api${path.sep}`) || !file.endsWith(`${path.sep}route.ts`)) {
-      continue;
-    }
-    if (AUTH_MARK.test(source)) continue;
-    const seen = new Set<string>();
-    const reaches = (current: string, guarded: boolean, authed: boolean): boolean => {
-      if (authed) return false;
-      const key = `${guarded ? "1" : "0"}:${current}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      const currentSource = sourceByFile.get(current) ?? "";
-      const nextAuthed = AUTH_MARK.test(currentSource);
-      const nextGuarded = guarded || guards.has(current);
-      if (paidLeaves.has(current) && !nextGuarded && !nextAuthed) return true;
-      for (const dep of imports.get(current) ?? []) {
-        if (reaches(dep, nextGuarded, nextAuthed)) return true;
-      }
-      return false;
-    };
-    if (reaches(file, false, false)) offenders.push(path.relative(ROOT, file));
-  }
-  return offenders.sort();
+function paidHostsCalled(fetchMock: ReturnType<typeof vi.fn>): string[] {
+  return fetchMock.mock.calls
+    .map(([input]) => new URL(input instanceof Request ? input.url : String(input)).hostname)
+    .filter((host) => PAID_HOSTS.has(host));
 }
 
 afterEach(() => {
@@ -204,9 +284,45 @@ describe("lane coverage", () => {
     }
   });
 
-  it("refuses an anonymous route that can reach a paid provider without the ceiling", () => {
-    expect(anonymousPaidRoutesMissingCeiling()).toEqual(KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES);
+});
+
+describe("a paid route called without a session", () => {
+  let paidFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    __resetPintDrops();
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    for (const lane of PAID_SPEND_LANES) vi.stubEnv(paidSpendBudgetEnvName(lane), "0");
+    vi.stubEnv("OPENROUTER_API_KEY", "test-openrouter-key");
+    vi.stubEnv("TYPESAFE_API_KEY", "test-typesafe-key");
+    vi.stubEnv("ELEVENLABS_API_KEY", "test-elevenlabs-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "test-agent");
+    vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "test-shared-secret");
+    paidFetch = vi.fn(async () => new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", paidFetch);
   });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each(PAID_ROUTES)("$route refuses before any paid call", async ({ call, refusal }) => {
+    const response = await call();
+
+    expect(response.status).toBe(refusal.status);
+    expect(await response.json()).toMatchObject(refusal.body);
+    expect(paidHostsCalled(paidFetch)).toEqual([]);
+  });
+
+  it.each(KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES)(
+    "$route still reaches a paid host until $owner closes it",
+    async ({ call }) => {
+      await call();
+
+      expect(paidHostsCalled(paidFetch)).not.toEqual([]);
+    },
+  );
 });
 
 describe("POST /api/ask under a spent deployment ceiling", () => {
