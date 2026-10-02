@@ -491,19 +491,20 @@ export const memorySavedPubsStore: SavedPubsStore = {
 // The single seam: Supabase when configured, process-memory otherwise. Note the
 // memory store uses the in-memory profile store implicitly (no profile id needed),
 // so dev/demo/test never touch the network.
-/** "owner" is for the verified owner of the handle: withdrawal hides data from the public only. */
-export type SavedPubsReader = "public" | "owner";
-
-export function savedPubsStore(reader: SavedPubsReader = "public"): SavedPubsStore {
-  return reader === "owner"
-    ? selectStore(memorySavedPubsStore, supabaseSavedPubsStore)
+/**
+ * `ownHandle` is the handle the verified caller owns. Withdrawal hides a handle
+ * from everybody but its owner, so that one handle is read as live.
+ */
+export function savedPubsStore(ownHandle?: string): SavedPubsStore {
+  return ownHandle
+    ? withoutWithdrawnSaves(selectStore(memorySavedPubsStore, supabaseSavedPubsStore), ownHandle)
     : selectStore(publicMemorySavedPubsStore, publicSupabaseSavedPubsStore);
 }
 
-function withoutWithdrawnSaves(store: SavedPubsStore): SavedPubsStore {
+function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): SavedPubsStore {
   return {
     async listSaved(input) {
-      if (input.handle && (await isWithdrawnHandle(input.handle).catch(() => true))) return [];
+      if (input.handle && (await isWithdrawnHandle(input.handle, ownHandle).catch(() => true))) return [];
       return store.listSaved(input);
     },
     readSavedByHandles: (input) => store.readSavedByHandles(input),
@@ -514,9 +515,9 @@ function withoutWithdrawnSaves(store: SavedPubsStore): SavedPubsStore {
 }
 
 /** A banned or suspended handle reads as a handle nobody owns. Throws when the withdrawal read fails. */
-async function isWithdrawnHandle(handle: string): Promise<boolean> {
+async function isWithdrawnHandle(handle: string, ownHandle?: string): Promise<boolean> {
   const key = normalizeHandle(handle);
-  if (!key) return false;
+  if (!key || key === ownHandle) return false;
   return (await withdrawnHandles([key])).has(key);
 }
 
@@ -602,16 +603,16 @@ export const memorySavedListsStore: SavedListsStore = {
   },
 };
 
-export function savedListsStore(reader: SavedPubsReader = "public"): SavedListsStore {
-  return reader === "owner"
-    ? selectStore(memorySavedListsStore, supabaseSavedListsStore)
+export function savedListsStore(ownHandle?: string): SavedListsStore {
+  return ownHandle
+    ? withoutWithdrawnLists(selectStore(memorySavedListsStore, supabaseSavedListsStore), ownHandle)
     : selectStore(publicMemorySavedListsStore, publicSupabaseSavedListsStore);
 }
 
-function withoutWithdrawnLists(store: SavedListsStore): SavedListsStore {
+function withoutWithdrawnLists(store: SavedListsStore, ownHandle?: string): SavedListsStore {
   return {
     async listCustom(handle) {
-      if (await isWithdrawnHandle(handle).catch(() => true)) return [];
+      if (await isWithdrawnHandle(handle, ownHandle).catch(() => true)) return [];
       return store.listCustom(handle);
     },
     createList: (handle, name) => store.createList(handle, name),
@@ -928,28 +929,41 @@ const memorySavedListFollowsStore: SavedListFollowsStore = {
   },
 };
 
-export function savedListFollowsStore(): SavedListFollowsStore {
-  return selectStore(publicMemorySavedListFollowsStore, publicSupabaseSavedListFollowsStore);
+export function savedListFollowsStore(ownHandle?: string): SavedListFollowsStore {
+  return ownHandle
+    ? withoutWithdrawnListFollows(
+        selectStore(memorySavedListFollowsStore, supabaseSavedListFollowsStore),
+        ownHandle,
+      )
+    : selectStore(publicMemorySavedListFollowsStore, publicSupabaseSavedListFollowsStore);
 }
 
-function withoutWithdrawnListFollows(store: SavedListFollowsStore): SavedListFollowsStore {
+function withoutWithdrawnListFollows(
+  store: SavedListFollowsStore,
+  ownHandle?: string,
+): SavedListFollowsStore {
   return {
     followList: (follower, owner, listType) => store.followList(follower, owner, listType),
     unfollowList: (follower, owner, listType) => store.unfollowList(follower, owner, listType),
     async isFollowingList(follower, owner, listType) {
-      if ((await isWithdrawnHandle(follower)) || (await isWithdrawnHandle(owner))) return false;
+      if (
+        (await isWithdrawnHandle(follower, ownHandle)) ||
+        (await isWithdrawnHandle(owner, ownHandle))
+      ) {
+        return false;
+      }
       return store.isFollowingList(follower, owner, listType);
     },
     async counts(owner, listType) {
       try {
-        if (await isWithdrawnHandle(owner)) return { followers: 0, savedPubs: 0 };
+        if (await isWithdrawnHandle(owner, ownHandle)) return { followers: 0, savedPubs: 0 };
       } catch {
         return { followers: null, savedPubs: 0 };
       }
       return store.counts(owner, listType);
     },
     async listFollowedBy(follower) {
-      if (await isWithdrawnHandle(follower)) return [];
+      if (await isWithdrawnHandle(follower, ownHandle)) return [];
       const lists = await store.listFollowedBy(follower);
       if (lists.length === 0) return lists;
       const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));

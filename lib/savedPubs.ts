@@ -374,9 +374,11 @@ export async function fetchFollowedListsForHandle(
   const h = handle.trim();
   if (!h) return [];
   try {
-    const res = await fetch(`/api/saved-pubs/list-follows?follower=${encodeURIComponent(h)}`, {
-      signal,
-    });
+    const res = await authedFetch(
+      `/api/saved-pubs/list-follows?follower=${encodeURIComponent(h)}`,
+      { signal },
+      { requiresIdentity: true },
+    );
     if (!res.ok) {
       discardBody(res);
       return [];
