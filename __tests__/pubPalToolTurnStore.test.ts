@@ -55,8 +55,8 @@ const durable = vi.hoisted(() => ({
   zeroWriteRows: false,
 }));
 
-// Transport double only. Predicates are evaluated when a held statement commits;
-// this models the store's request contract, not PostgreSQL/PostgREST execution.
+// Transport double only. "now" is resolved after a held request is forwarded,
+// matching the real PostgREST dispatch proof, not a PostgreSQL row-lock wait.
 class DurableQuery implements PromiseLike<DurableResult> {
   private action: DurableStatement["action"] = "select";
   private body: DurableStatement["body"] = null;
@@ -105,7 +105,8 @@ class DurableQuery implements PromiseLike<DurableResult> {
       if (operator === "is") return actual === null;
       if (operator === "eq") return actual === value;
       if (typeof actual !== "string" || typeof value !== "string") return false;
-      return operator === "gt" ? actual > value : operator === "lte" ? actual <= value : actual < value;
+      const cutoff = column === "expires_at" && value === "now" ? new Date().toISOString() : value;
+      return operator === "gt" ? actual > cutoff : operator === "lte" ? actual <= cutoff : actual < cutoff;
     });
   }
 
@@ -378,7 +379,7 @@ describe("pubPalToolTurnStore (durable backend purge)", () => {
     await purgeExpiredPubPalToolTurns();
 
     expect(durable.deletes).toEqual([
-      { table: "pub_pal_tool_turns", column: "expires_at", value: "2026-10-02T12:00:00.000Z" },
+      { table: "pub_pal_tool_turns", column: "expires_at", value: "now" },
     ]);
   });
 });
@@ -626,6 +627,27 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
     expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
     expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
   });
+
+  it.each(["receipt", "user"] as const)(
+    "a held %s write forwarded after expiry leaves the retained row unchanged without purge",
+    async (operation) => {
+      await registerFirstLine();
+      const origin = await receiptOrigin();
+      const before = structuredClone(durable.rows.get(CONVERSATION_ID));
+      vi.setSystemTime(STARTED + PUB_PAL_TOOL_TURN_TTL_MS - 1);
+      const held = holdWrites(1);
+      const pending = operation === "receipt"
+        ? appendPubPalToolTurn(CONVERSATION_ID, receipt("late"), origin)
+        : appendOwnedPubPalUserTurn(CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london");
+      await held.allPending;
+      vi.setSystemTime(STARTED + PUB_PAL_TOOL_TURN_TTL_MS + 1);
+      held.resumeWhere(() => true);
+      const returned = await pending;
+      expect(returned).toBe(operation === "receipt" ? undefined : false);
+      expect(durable.rows.get(CONVERSATION_ID)).toEqual(before);
+      expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
+    },
+  );
 
   it("refuses a user line and receipt whose initial read is already expired", async () => {
     await registerFirstLine();
