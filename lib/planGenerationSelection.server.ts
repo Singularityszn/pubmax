@@ -64,7 +64,7 @@ export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
       anchorValue: T;
       accessibilityEnforced: boolean;
     }
-  | { ok: false; reason: "ANCHOR_MISSING" };
+  | { ok: false; reason: "ANCHOR_MISSING" | "ANCHOR_ROUTE_CONFLICT" };
 
 /** Join canonical price, access, and opening evidence onto scored candidates. */
 async function groundedRouteCandidates<T extends ScoredPlanCandidate>(
@@ -142,6 +142,7 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   context: NightContext,
   intake: ParsedPlanGenerationIntake | null,
   now: number,
+  routeVenueIds?: readonly string[],
 ): Promise<PlanGenerationSelection<T>> {
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const requestedDrinkVenueIds = requestedDrinkOfferIds(candidates, context);
@@ -149,7 +150,7 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
     || context.budgetLimitPence !== null
     || context.transportConstraints.length > 0
     || normalizePlanStopCount(context.stopCount) !== DEFAULT_PLAN_STOP_COUNT;
-  const legacy = !intake && !hasContextHardConstraint;
+  const legacy = !routeVenueIds && !intake && !hasContextHardConstraint;
   const legacyChosen = candidates.slice(0, normalizePlanStopCount(context.stopCount));
   if (legacy && (requestedDrinkVenueIds.length === 0
     || legacyChosen.some((candidate) => requestedDrinkVenueIds.includes(candidate.venue.id)))) {
@@ -158,6 +159,7 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   const selection = selectGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
     groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),
+    routeVenueIds,
   );
   return selection.ok
     ? {
@@ -183,9 +185,24 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
   intake: ParsedPlanGenerationIntake | null,
   now: number,
   anchorVenueId: string,
+  routeVenueIds?: readonly string[],
 ): Promise<AnchoredPlanGenerationSelection<T>> {
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const requestedDrinkVenueIds = requestedDrinkOfferIds(candidates, context);
+  if (routeVenueIds) {
+    if (routeVenueIds[0] !== anchorVenueId) return { ok: false, reason: "ANCHOR_ROUTE_CONFLICT" };
+    const exact = selectGroundedPlanRoute(
+      await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
+      groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),
+      routeVenueIds,
+    );
+    if (!exact.ok) return { ok: false, reason: "ANCHOR_ROUTE_CONFLICT" };
+    return {
+      ok: true, outcome: "route", chosen: exact.stops.map((stop) => stop.value),
+      selection: { ...exact, outcome: "route", alternatives: exact.alternatives.map((row, index) => index === 0 ? [] : row) },
+      accessibilityEnforced: accessibilityNeeds.length > 0,
+    };
+  }
   const selection = selectAnchoredGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
     groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { normalizePlanStopCount } from "@/lib/planStopCount";
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
@@ -97,8 +98,9 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	operationKey: string;
 	area: NightArea;
 	coverage: ReturnType<typeof publicNightAreaCoverage>;
+	routeVenueIds?: readonly string[];
 }): Promise<{ done: Response } | { route: AnchoredRouteData<T> }> {
-	const { cityId, anchor, candidates, context, intake, requestNow, operationKey, area, coverage } = params;
+	const { cityId, anchor, candidates, context, intake, requestNow, operationKey, area, coverage, routeVenueIds } = params;
 	const nightArea = { id: area.slug, ...coverage };
 	const anchorConflict = (reason: string, message: string): { done: Response } => ({
 		done: jsonNoStore({
@@ -125,13 +127,21 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 		return anchorConflict(anchorResolution.code, anchorResolution.message);
 	}
 	const anchorVenueId = anchorResolution.canonical.venueId;
+	if (routeVenueIds && routeVenueIds[0] !== anchorVenueId) {
+		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "The accepted pub must stay as Stop 1. Keep it there or release it before changing the route.");
+	}
 	const selection = await selectAnchoredPlanGenerationCandidates(
 		candidates,
 		context,
 		intake,
 		requestNow,
 		anchorVenueId,
+		routeVenueIds,
 	);
+	if (routeVenueIds && (!selection.ok || selection.outcome !== "route")) {
+		return { done: publicApiError("The selected stops no longer meet every must-have need. Keep this preview and change the stops or details.",
+			"GROUNDED_CONSTRAINTS_UNSATISFIED", 422) };
+	}
 	if (!selection.ok && isNationalBaseVenueId(anchorVenueId)) {
 		return baseAnchorOnlyResponse(anchorResolution, params);
 	}
@@ -230,6 +240,7 @@ type PlanGenerationPreparation = {
 	drinkPriceCoverageNote: string | null;
 	candidates: PlanGenerationCandidate[];
 	anchor: PlanGenerationAnchor | null;
+	routeVenueIds?: string[];
 };
 
 export async function preparePlanGeneration(
@@ -240,7 +251,7 @@ export async function preparePlanGeneration(
 	if (!parsedRequest.ok) {
 		return { response: publicApiError(parsedRequest.message, parsedRequest.code, parsedRequest.status) };
 	}
-	const { query, context: contextPatch, intake } = parsedRequest.value;
+	const { query, context: contextPatch, intake, routeVenueIds } = parsedRequest.value;
 	const signingUnavailable = planSigningPreflightResponse();
 	if (signingUnavailable) return { response: signingUnavailable };
 	const operationKey = parsedRequest.value.operationKey ?? `create-${randomUUID()}`;
@@ -271,6 +282,9 @@ export async function preparePlanGeneration(
 	}
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
+	if (routeVenueIds && routeVenueIds.length !== normalizePlanStopCount(context.stopCount)) {
+		return { response: publicApiError("Selected stops must match the requested stop count.", "MALFORMED_REQUEST", 400) };
+	}
 	if (!context.nightArea) {
 		return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
 	}
@@ -426,6 +440,7 @@ export async function preparePlanGeneration(
 		drinkPriceCoverageNote,
 		candidates,
 		anchor: parsedRequest.value.anchor,
+		...(routeVenueIds ? { routeVenueIds } : {}),
 	} };
 }
 

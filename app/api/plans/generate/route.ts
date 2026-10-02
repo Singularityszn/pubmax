@@ -69,6 +69,7 @@ export async function POST(request: Request): Promise<Response> {
 		drinkPriceCoverageNote,
 		candidates,
 		anchor: anchorRequest,
+		routeVenueIds,
 	} = preparation.prepared;
 	type Candidate = (typeof candidates)[number];
 	let groundedStops: readonly SelectedGroundedPlanStop<Candidate>[] | null = null;
@@ -82,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
 	// without one retain the generic, unanchored selection path.
 	if (anchorRequest) {
 		const anchored = await runAnchoredGeneration({
-			cityId, anchor: anchorRequest, candidates, context, intake, requestNow, operationKey, area, coverage,
+			cityId, anchor: anchorRequest, candidates, context, intake, requestNow, operationKey, area, coverage, routeVenueIds,
 		});
 		if ("done" in anchored) return anchored.done;
 		chosen = anchored.route.chosen;
@@ -93,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
 		accessibilityEnforced = anchored.route.accessibilityEnforced;
 		anchorContext = anchored.route.anchorContext;
 	} else {
-		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
+		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow, routeVenueIds);
 		if (!generatedSelection.ok) {
 			return publicApiError(
 				`No ${normalizePlanStopCount(context.stopCount)}-stop route in ${area.name} meets every must-have need with the information available.`,

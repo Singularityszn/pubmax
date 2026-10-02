@@ -128,6 +128,7 @@ export type DraftStop = {
 
 export type ComposerRouteMutation = {
   accepted: boolean;
+  identityChanged: boolean;
   stops: DraftStop[];
   groundingProof: string | null;
   createOperationKey: string | null;
@@ -148,6 +149,7 @@ export function composerRouteMutation(input: {
   if (heldVenueId && input.nextStops[0]?.venueId !== heldVenueId) {
     return {
       accepted: false,
+      identityChanged: false,
       stops: input.currentStops,
       groundingProof: input.groundingProof,
       createOperationKey: input.createOperationKey,
@@ -159,6 +161,7 @@ export function composerRouteMutation(input: {
     || input.currentStops.some((stop, index) => stop.venueId !== input.nextStops[index]?.venueId);
   return {
     accepted: true,
+    identityChanged,
     stops: input.nextStops,
     groundingProof: identityChanged ? null : input.groundingProof,
     createOperationKey: identityChanged ? null : input.createOperationKey,
@@ -201,6 +204,7 @@ export type StoredRouteDraft = {
   groundingProof: string | null;
   createOperationKey: string | null;
   planAnchor: GeneratedPlanAnchor | null;
+  hasSelectedRouteEdits?: boolean;
 };
 
 export type ServerPlanCreationAttribution = {
@@ -524,6 +528,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
         ? value.createOperationKey
         : null,
       planAnchor: cleanGeneratedPlanAnchor(value.planAnchor),
+      ...(value.hasSelectedRouteEdits === true ? { hasSelectedRouteEdits: true } : {}),
     };
   } catch {
     return null;
@@ -1201,6 +1206,8 @@ function PlanComposerForm({
   // flips `heldVenueId` - and a second application would overwrite whatever
   // the drinker has typed since with the line the URL opened on.
   const appliedUrlAskRef = useRef<string | null>(null);
+  const generationRequestRef = useRef(0);
+  const generationDraftRevisionRef = useRef(0);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -1225,7 +1232,10 @@ function PlanComposerForm({
     void Promise.resolve().then(() => {
       setAskDraftQuery(ask);
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
-      if (askNeedsConciergeSurface) setConciergeQuery(ask);
+      if (askNeedsConciergeSurface) {
+        generationDraftRevisionRef.current += 1;
+        setConciergeQuery(ask);
+      }
     });
   }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
   useEffect(() => {
@@ -1287,30 +1297,6 @@ function PlanComposerForm({
       return seeded || current;
     });
   }, [identityResolved, user, viewerHandle]);
-  useEffect(() => {
-    if (!canPersist) return;
-    if (palHandoffAutoGenerateStartedRef.current) return;
-    // A client-side Pal Open in Plan still sees the previous route during the
-    // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
-    // address the same way the prefill layout effect does after the router
-    // commits it; gating on the stale read skipped the deferred generate.
-    const liveHandoff = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
-    if (!shouldAutoGeneratePalHandoffPlan(liveHandoff)) return;
-    palHandoffAutoGenerateStartedRef.current = true;
-    // Defer until the URL ask prefill lands in describe-first or the concierge field.
-    void Promise.resolve().then(() => {
-      const handoffAsk = describeAskFromLocation().handoffAsk ?? liveHandoff;
-      if (!handoffAsk?.trim()) return;
-      submitFromEntry(
-        handoffAsk.trim(),
-        undefined,
-        skipRemainingPlanIntake(createPlanIntakeDraft()),
-      );
-    });
-    // submitFromEntry is intentionally excluded: it is recreated on render,
-    // while this effect must run only when the URL handoff changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canPersist, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
@@ -1322,6 +1308,11 @@ function PlanComposerForm({
   );
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
+  // Recovery staleness can mean an expired proof or a partial held anchor.
+  // Only explicit identity-edit intent, including our own saved hint, selects
+  // exact recheck; legacy drafts have no such hint and keep ordinary recovery.
+  const [hasSelectedRouteEdits, setHasSelectedRouteEdits] = useState(recoveredRouteDraft?.hasSelectedRouteEdits === true);
+  useEffect(() => () => { generationRequestRef.current += 1; }, []);
   // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
   // painted primary becomes `Lock it in` and the concierge control above steps
   // back. It is NOT "a Stop names a pub": a held acceptance seeds Stop 1 and
@@ -1481,7 +1472,7 @@ function PlanComposerForm({
 
   useEffect(() => {
     if (!canPersist) return;
-    if (!nightContext && routeRevision === null && !stops.some((stop) => stop.alternatives.length > 0)) return;
+    if (!nightContext && routeRevision === null && !hasSelectedRouteEdits && !stops.some((stop) => stop.alternatives.length > 0)) return;
     try {
       safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
         stops,
@@ -1491,11 +1482,12 @@ function PlanComposerForm({
         groundingProof,
         createOperationKey,
         planAnchor,
+        ...(hasSelectedRouteEdits ? { hasSelectedRouteEdits: true } : {}),
       } satisfies StoredRouteDraft));
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeRevision, routeStale, stops]);
+  }, [canPersist, createOperationKey, groundingProof, hasSelectedRouteEdits, nightContext, planAnchor, routeRevision, routeStale, stops]);
 
   useEffect(() => {
     if (planIntake === initialPlanIntakeRef.current) return;
@@ -1564,6 +1556,7 @@ function PlanComposerForm({
       : applyPlanStopCount(next, nightContext, next.answers.stopCount);
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(reconciled.draft));
+    if (answersChanged) generationDraftRevisionRef.current += 1;
     if (answersChanged && nightContext) {
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after those planning details changed.");
@@ -1581,6 +1574,11 @@ function PlanComposerForm({
       setNightContext(reconciled.context);
     }
     setPlanIntake(reconciled.draft);
+  }
+
+  function updateConciergeQuery(value: string) {
+    if (value !== conciergeQuery) generationDraftRevisionRef.current += 1;
+    setConciergeQuery(value);
   }
 
   function adoptDescribePrefillQuery(value: string) {
@@ -1610,7 +1608,7 @@ function PlanComposerForm({
         ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
       },
     });
-    setConciergeQuery(query);
+    updateConciergeQuery(query);
     updatePlanIntake(skippedIntake);
     sortWithConcierge(
       query,
@@ -1620,6 +1618,7 @@ function PlanComposerForm({
   }
 
   function updatePlanStartTime(value: string) {
+    if (value !== startTime) generationDraftRevisionRef.current += 1;
     setStartTime(value);
     const exactStartIso = londonDateTimeInputToIso(value, new Date());
     if (planIntake.answers.timeWindow) {
@@ -1654,6 +1653,8 @@ function PlanComposerForm({
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
       return false;
     }
+    generationDraftRevisionRef.current += 1;
+    if (mutation.identityChanged) setHasSelectedRouteEdits(true);
     setStops(mutation.stops);
     setGroundingProof(mutation.groundingProof);
     setCreateOperationKey(mutation.createOperationKey);
@@ -1680,6 +1681,7 @@ function PlanComposerForm({
     });
     setPlanAnchor(null);
     setGroundingProof(null);
+    generationDraftRevisionRef.current += 1;
     setAcceptanceReleased(true);
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,
@@ -1702,6 +1704,7 @@ function PlanComposerForm({
     if (!nightContext) return;
     const next = { ...nightContext, ...patch };
     if (nightContextChanged(nightContext, next)) {
+      generationDraftRevisionRef.current += 1;
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after that context change.");
     }
@@ -1733,6 +1736,7 @@ function PlanComposerForm({
     queryOverride?: string,
     intakeOverride?: PlanIntakeDraft,
     explicitContextOverride?: Partial<NightContext>,
+    preserveSelectedRoute = false,
   ) {
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
@@ -1794,6 +1798,17 @@ function PlanComposerForm({
       queryArea,
     );
     const hasPreviousRoute = routeSorted && stops.length > 0;
+    const routeVenueIds = preserveSelectedRoute && hasSelectedRouteEdits
+      ? stops.map((stop) => stop.venueId)
+      : undefined;
+    if (routeVenueIds && (completeStops.length !== stops.length || new Set(routeVenueIds).size !== stops.length)) {
+      setError("Choose a distinct pub for every stop before refreshing this route.");
+      return;
+    }
+    const requestId = ++generationRequestRef.current;
+    const draftRevision = generationDraftRevisionRef.current;
+    const ownsRequest = () => requestId === generationRequestRef.current;
+    const ownsDraft = () => ownsRequest() && draftRevision === generationDraftRevisionRef.current;
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
@@ -1805,6 +1820,7 @@ function PlanComposerForm({
         nightContext,
         submittedContext,
         handoff?.acceptedAnchor,
+        routeVenueIds,
       );
       if (supersedesDrinkChoice) {
         // Earlier context and an accepted quote can both carry the old drink.
@@ -1833,6 +1849,7 @@ function PlanComposerForm({
         message?: unknown;
         error?: unknown;
       } | null;
+      if (!ownsDraft()) return;
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
       if (!body) throw new Error("PUBMAXX could not sort this one.");
       const anchorConflict = anchorConflictMessage(body);
@@ -1854,11 +1871,24 @@ function PlanComposerForm({
         setRouteStatus(planGenerationFailureStatus(guidance, hasPreviousRoute));
         return;
       }
+      const grounded = isGroundedGeneratedRoute(body, suggested);
+      if (routeVenueIds && (
+        !grounded
+        || body.outcome === "anchor-only"
+        || typeof body.operationKey !== "string" || !body.operationKey.trim()
+        || suggested.length !== routeVenueIds.length
+        || suggested.some((stop, index) => stop.venueId !== routeVenueIds[index])
+      )) {
+        throw new Error("Those chosen stops could not be rechecked in the same order. Your preview is still here.");
+      }
+      if (heldVenueId && suggested[0]?.venueId !== heldVenueId) {
+        throw new Error("The accepted pub must stay as Stop 1. Your preview is still here.");
+      }
       setStops(suggested);
+      if (!routeVenueIds) setHasSelectedRouteEdits(false);
       lastGeneratedQueryRef.current = query.trim();
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
-      const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
         const reconciled = reconcileGeneratedNightContext(
@@ -1884,6 +1914,7 @@ function PlanComposerForm({
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
     } catch (caught) {
+      if (!ownsDraft()) return;
       const message = caught instanceof Error ? caught.message : "The concierge could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
@@ -1894,9 +1925,40 @@ function PlanComposerForm({
       setRouteStale(hasPreviousRoute);
       setRouteStatus(failureStatus);
     } finally {
-      setSorting(false);
+      if (ownsRequest()) {
+        if (!ownsDraft()) {
+          setRouteStale((current) => current || hasPreviousRoute);
+          setRouteStatus("The preview changed while this route was being checked. Refresh it again before locking.");
+        }
+        setSorting(false);
+      }
     }
   }
+
+  useEffect(() => {
+    if (!canPersist) return;
+    if (palHandoffAutoGenerateStartedRef.current) return;
+    // A client-side Pal Open in Plan still sees the previous route during the
+    // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
+    // address the same way the prefill layout effect does after the router
+    // commits it; gating on the stale read skipped the deferred generate.
+    const liveHandoff = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
+    if (!shouldAutoGeneratePalHandoffPlan(liveHandoff)) return;
+    palHandoffAutoGenerateStartedRef.current = true;
+    // Defer until the URL ask prefill lands in describe-first or the concierge field.
+    void Promise.resolve().then(() => {
+      const handoffAsk = describeAskFromLocation().handoffAsk ?? liveHandoff;
+      if (!handoffAsk?.trim()) return;
+      submitFromEntry(
+        handoffAsk.trim(),
+        undefined,
+        skipRemainingPlanIntake(createPlanIntakeDraft()),
+      );
+    });
+    // submitFromEntry is intentionally excluded: it is recreated on render,
+    // while this effect must run only when the URL handoff changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPersist, urlPrefill.handoffAsk]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2044,7 +2106,7 @@ function PlanComposerForm({
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
-          onQueryChange={setConciergeQuery}
+          onQueryChange={updateConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
@@ -2067,7 +2129,7 @@ function PlanComposerForm({
         </div>
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
-          <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+          <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => updateConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
           {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
               `Lock it in` is the thing to do next, and two coral fills on one
               screen is the reader choosing between them. This control keeps
@@ -2096,7 +2158,7 @@ function PlanComposerForm({
             <button
               type="button"
               className="planComposer__regenerate"
-              onClick={() => sortWithConcierge()}
+              onClick={() => sortWithConcierge(undefined, undefined, undefined, true)}
               disabled={sorting || !canSortWithCurrentGenerator}
               aria-busy={sorting}
             >
@@ -2191,7 +2253,7 @@ function PlanComposerForm({
                   ),
                 });
                 setTitle(merged.title);
-                setConciergeQuery(merged.conciergeQuery);
+                updateConciergeQuery(merged.conciergeQuery);
                 setConciergeNote(merged.conciergeNote);
               }}
             >

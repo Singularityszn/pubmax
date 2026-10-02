@@ -663,6 +663,7 @@ export type PlanGenerationIntakeBody = {
   cityId?: CityId;
   intake: PlanIntakeHandoff;
   anchor?: PlanGenerationWireAnchor;
+  routeVenueIds?: string[];
 };
 
 export type PlanGenerationAnchorInput = PlanGenerationWireAnchor & {
@@ -697,6 +698,7 @@ export function buildPlanGenerationIntakeBody(
   currentContext: NightContext | null,
   explicitContext: Partial<NightContext> = {},
   anchor?: PlanGenerationAnchorInput | null,
+  routeVenueIds?: readonly string[],
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
   const selected = cleanSelectedDrinkPriceEvidence(anchor?.selectedDrinkPriceEvidence);
@@ -714,6 +716,7 @@ export function buildPlanGenerationIntakeBody(
     ...(Object.keys(context).length > 0 ? { context } : {}),
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
     intake: planIntakeHandoff(draft),
+    ...(routeVenueIds ? { routeVenueIds: [...routeVenueIds] } : {}),
     ...(anchor ? {
       anchor: {
         venueId: anchor.venueId,

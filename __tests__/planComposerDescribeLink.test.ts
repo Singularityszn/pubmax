@@ -375,6 +375,112 @@ describe("selected Swap route revalidation", () => {
     expect(server.created).toHaveLength(0);
   });
 
+  it("stands down a rejected refresh after the drinker edits the query while it is pending", async () => {
+    const server = installSelectionServer();
+    const selectionFetch = globalThis.fetch;
+    const requests: Record<string, unknown>[] = [];
+    let rejectPending: ((reason: Error) => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/plans/generate") && init?.method === "POST") {
+        requests.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        // Hold the real second request regardless of whether current production
+        // implements the selected-order field, so baseline reaches the owner
+        // transition rather than stopping on an unrelated missing pin.
+        if (requests.length === 2) {
+          return await new Promise<Response>((_, reject) => { rejectPending = reject; });
+        }
+      }
+      return selectionFetch(input, init);
+    }));
+    await generateAndSwap();
+    await act(async () => { clickButton("Regenerate route"); });
+    expect(requests).toHaveLength(2);
+    expect(requests[1]?.query).toBe(ask);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Refreshing the route");
+    const updatedAsk = "Three cheap recorded pints in Clapham after work";
+    await act(async () => { typeInto("#plan-concierge-query", updatedAsk); });
+    expect(conciergeFieldValue()).toBe(updatedAsk);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(true);
+    const rejectRefresh = () => {
+      if (!rejectPending) throw new Error("real refresh request was not held");
+      rejectPending(new Error("Fixture network disconnected."));
+    };
+    await act(async () => { rejectRefresh(); });
+    await settleComposerEffects();
+    expect(conciergeFieldValue()).toBe(updatedAsk);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    const status = document.querySelector("#plan-route-status")?.textContent ?? "";
+    expect(status).not.toContain("Refreshing the route");
+    expect(status).toBe("The preview changed while this route was being checked. Refresh it again before locking.");
+    const retry = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Regenerate route");
+    expect(retry?.disabled).toBe(false);
+    expect(requests).toHaveLength(2);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("keeps a newer manual stop edit stale when the first generation finishes late", async () => {
+    const server = installSelectionServer();
+    const selectionFetch = globalThis.fetch;
+    const requests: Record<string, unknown>[] = [];
+    let finishPending: (() => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/plans/generate") && init?.method === "POST") {
+        requests.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        if (requests.length === 1) {
+          await new Promise<void>((resolve) => { finishPending = resolve; });
+        }
+      }
+      return selectionFetch(input, init);
+    }));
+    await mountComposer();
+    expect(document.querySelector("#plan-title")).toBeNull();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", ask);
+      clickButton("Sort it");
+    });
+    await settleComposerEffects();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.query).toBe(ask);
+    expect(stopNames()).toEqual([]);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Refreshing the route");
+    // Skipped intake has exposed the actual composer while the first request
+    // is still pending. These real controls own newer work, not its response.
+    for (const [index, id] of selectedIds.entries()) {
+      await act(async () => { clickButton("Add another stop"); });
+      await act(async () => { typeInto(`#venue-name-${index + 1}`, venueNames[id]!); });
+    }
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    const finishFirstGeneration = () => {
+      if (!finishPending) throw new Error("first real generation request was not held");
+      finishPending();
+    };
+    await act(async () => { finishFirstGeneration(); });
+    await settleComposerEffects();
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("QA Loopback");
+    expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2030-07-24T20:00");
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    expect(document.querySelector("#plan-route-status")?.textContent)
+      .toBe("The preview changed while this route was being checked. Refresh it again before locking.");
+    expect(requests).toHaveLength(1);
+    expect(server.created).toHaveLength(0);
+  });
+
   it("lets an explicit fresh sort choose a new route without sending a selected-order pin", async () => {
     const server = installSelectionServer();
     await generateAndSwap();
@@ -386,6 +492,159 @@ describe("selected Swap route revalidation", () => {
     expect(document.querySelector(".planComposer__routeStale")).toBeNull();
     expect(lockControl().disabled).toBe(false);
     expect(server.created).toHaveLength(0);
+  });
+
+  async function recoverComposerFromCurrentStores(): Promise<void> {
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before recovery");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+  }
+
+  it("recovers actual chosen stops and keeps their order through a refreshed proof and another recovery", async () => {
+    const server = installSelectionServer();
+    await generateAndSwap();
+    await settleComposerEffects();
+    const stored = JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null") as {
+      stops: Array<{ venueId: string }>;
+    } | null;
+    expect(stored?.stops.map((stop) => stop.venueId)).toEqual(selectedIds);
+
+    // Recover only what the real edit persisted; never seed a selection hint.
+    await recoverComposerFromCurrentStores();
+    expect(server.generated).toHaveLength(1);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+
+    // A renewed proof does not discard the drinker's choice on the next visit.
+    await recoverComposerFromCurrentStores();
+    expect(server.generated).toHaveLength(2);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    await act(async () => { typeInto("#plan-context-people", "6"); });
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(3);
+    expect(server.generated[2]?.routeVenueIds).toEqual(selectedIds);
+    expect(server.generated[2]?.context).toMatchObject({ groupSize: 6 });
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("recovers a successful fresh sort without carrying the earlier chosen-order intent", async () => {
+    const server = installSelectionServer();
+    await generateAndSwap();
+    await act(async () => { clickButton("Sort it again"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]).not.toHaveProperty("routeVenueIds");
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    const stored = JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null") as Record<string, unknown> | null;
+    expect(stored).not.toBeNull();
+    expect(stored).not.toHaveProperty("hasSelectedRouteEdits");
+
+    await recoverComposerFromCurrentStores();
+    expect(server.generated).toHaveLength(2);
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    await act(async () => { typeInto("#plan-context-people", "6"); });
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(3);
+    expect(server.generated[2]).not.toHaveProperty("routeVenueIds");
+    expect(server.generated[2]?.context).toMatchObject({ groupSize: 6 });
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("recovers real manual choices made before the first generation has supplied any context", async () => {
+    const server = installSelectionServer();
+    const selectionFetch = globalThis.fetch;
+    const requests: Record<string, unknown>[] = [];
+    let finishPending: (() => void) | undefined;
+    const releaseFirst = () => { finishPending?.(); };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/plans/generate") && init?.method === "POST") {
+        requests.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        if (requests.length === 1) {
+          await new Promise<void>((resolve) => { finishPending = resolve; });
+        }
+      }
+      return selectionFetch(input, init);
+    }));
+    try {
+      await mountComposer();
+      await act(async () => {
+        typeInto("#plan-describe-first-query", ask);
+        clickButton("Sort it");
+      });
+      await settleComposerEffects();
+      expect(requests).toHaveLength(1);
+      expect(server.generated).toHaveLength(0);
+      expect(finishPending).toBeTypeOf("function");
+      for (const [index, id] of selectedIds.entries()) {
+        await act(async () => { clickButton("Add another stop"); });
+        await act(async () => { typeInto(`#venue-name-${index + 1}`, venueNames[id]!); });
+      }
+      await act(async () => {
+        typeInto("#plan-name", "QA Loopback");
+        typeInto("#plan-time", "2030-07-24T20:00");
+      });
+      await settleComposerEffects();
+      const stored = JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null") as {
+        stops: Array<{ venueId: string; alternatives: unknown[] }>;
+        nightContext: unknown;
+        routeRevision: unknown;
+      } | null;
+      expect(stored?.stops.map((stop) => stop.venueId)).toEqual(selectedIds);
+      expect(stored?.nightContext).toBeNull();
+      expect(stored?.routeRevision).toBeNull();
+      expect(stored?.stops.map((stop) => stop.alternatives.length)).toEqual([0, 0, 0]);
+
+      await recoverComposerFromCurrentStores();
+      expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+      expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("QA Loopback");
+      expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2030-07-24T20:00");
+      expect(lockControl().disabled).toBe(true);
+      await act(async () => { clickButton("Regenerate route"); });
+      await settleComposerEffects();
+      expect(requests).toHaveLength(2);
+      expect(requests[1]?.routeVenueIds).toEqual(selectedIds);
+      expect(server.generated).toHaveLength(1);
+      expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+      expect(lockControl().disabled).toBe(false);
+
+      await act(async () => { releaseFirst(); });
+      await settleComposerEffects();
+      expect(server.generated).toHaveLength(2);
+      expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+      expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+      expect(lockControl().disabled).toBe(false);
+      expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+        groundingProof: "fixture-proof-1", createOperationKey: "fixture-operation-1", routeStale: false,
+      });
+      expect(server.created).toHaveLength(0);
+    } finally {
+      await act(async () => { releaseFirst(); });
+      await settleComposerEffects();
+    }
   });
 });
 

@@ -26,7 +26,7 @@ import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
 
-const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor"] as const;
+const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor", "routeVenueIds"] as const;
 const ANCHOR_KEYS = ["venueId", "source", "acceptedArea", "startsAt"] as const;
 const NIGHT_PATCH_AREA_KEYS = ["kind", "id"] as const;
 const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
@@ -64,6 +64,7 @@ type PlanGenerationRequest = {
   hasIntake: boolean;
   operationKey: string | null;
   anchor: PlanGenerationAnchor | null;
+  routeVenueIds?: string[];
 };
 
 type PlanGenerationRequestFailure = {
@@ -145,6 +146,13 @@ function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
     startsAt,
     ...(selected ? { selectedDrinkPriceEvidence: selected } : {}),
   };
+}
+
+/** A selected route is an exact public identity list, never a normalized hint. */
+function parseRouteVenueIds(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || !isPlanStopCount(value.length)) return undefined;
+  if (!value.every((id) => typeof id === "string" && /^[A-Za-z0-9:_-]{1,120}$/.test(id))) return undefined;
+  return new Set(value).size === value.length ? [...value] : undefined;
 }
 
 function strictList(value: unknown): string[] | null {
@@ -286,6 +294,8 @@ export async function parsePlanGenerationRequest(
     if (!parsed.ok) return { ...parsed, status: 400 };
     intake = parsed.value;
   }
+  const routeVenueIds = Object.hasOwn(raw, "routeVenueIds") ? parseRouteVenueIds(raw.routeVenueIds) : undefined;
+  if (Object.hasOwn(raw, "routeVenueIds") && !routeVenueIds) return failure("Selected route is invalid.");
   const anchor = parseAnchor(raw.anchor);
   if (anchor === undefined) return failure("Acceptance anchor is invalid.");
   return {
@@ -300,6 +310,7 @@ export async function parsePlanGenerationRequest(
       // Anything that is not a well-formed key is ignored so the route mints one.
       operationKey: isPlanIdempotencyKey(raw.operationKey) ? raw.operationKey.trim() : null,
       anchor,
+      ...(routeVenueIds ? { routeVenueIds } : {}),
     },
   };
 }

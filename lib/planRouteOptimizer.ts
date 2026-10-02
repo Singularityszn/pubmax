@@ -518,6 +518,7 @@ function routeEligibleCandidates<T>(
 export function selectGroundedPlanRoute<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
+  routeVenueIds?: readonly string[],
 ): GroundedPlanRouteSelection<T> {
   const target = planStopCount(constraints.stopCount);
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
@@ -529,9 +530,26 @@ export function selectGroundedPlanRoute<T>(
     return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
   }
 
-  const strongest = findBestRoute(routeEligible, constraints);
+  let strongest: EvaluatedRoute<T> | null;
+  if (routeVenueIds) {
+    // Exact revalidation uses the full eligible pool and the requested order.
+    // Search and preferred-drink replacement may never substitute a chosen pub.
+    if (routeVenueIds.length !== target || new Set(routeVenueIds).size !== target) {
+      return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
+    }
+    const byId = new Map(routeEligible.map((candidate) => [candidate.venueId, candidate]));
+    const route: GroundedPlanRouteCandidate<T>[] = [];
+    for (const id of routeVenueIds) {
+      const candidate = byId.get(id);
+      if (!candidate) return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
+      route.push(candidate);
+    }
+    strongest = evaluateRoute(route, constraints);
+  } else {
+    strongest = findBestRoute(routeEligible, constraints);
+  }
   if (!strongest) return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
-  const best = withRequestedDrinkOffer(strongest, routeEligible, constraints, 0);
+  const best = routeVenueIds ? strongest : withRequestedDrinkOffer(strongest, routeEligible, constraints, 0);
 
   const stops = selectedStops(best);
   const selectedIds = new Set(best.route.map((candidate) => candidate.venueId));
