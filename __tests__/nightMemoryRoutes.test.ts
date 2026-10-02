@@ -23,7 +23,7 @@ import { POST as PROPOSE } from "@/app/api/night-stories/[id]/publish-proposals/
 import { POST as CONFIRM } from "@/app/api/night-stories/[id]/publish-confirmations/route";
 import { PATCH as SET_ALT } from "@/app/api/night-moments/[id]/alt-text/route";
 import { keepServerMemoryAfterRefusal, NIGHT_MEMORY_REFUSED_CODE } from "@/lib/momentPhotoIntake";
-import { __resetNightMemoryStore } from "@/lib/nightMemoryStore";
+import { __resetNightMemoryStore, addNightMoment } from "@/lib/nightMemoryStore";
 import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
 
 const auth = (path: string, body?: unknown, token = "host") => new Request(`http://localhost${path}`, {
@@ -128,9 +128,14 @@ describe("Night Memory HTTP contract", () => {
     const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Rooftop" }));
     const { memory } = await memoryResponse.json();
     // A private photo save with no description succeeds (gate is publication-only).
-    const momentResponse = await ADD_MEMORY_MOMENT(auth(`/api/night-memories/${memory.id}/moments`, { kind: "photo", caption: "The rooftop at midnight", mediaObjectKey: "night-media/host/r.webp" }), ctx(memory.id));
-    expect(momentResponse.status).toBe(201);
-    const { moment } = await momentResponse.json();
+    // The storage key is the server's, from the upload, never a JSON field.
+    const moment = await addNightMoment("host", memory.id, {
+      kind: "photo",
+      caption: "The rooftop at midnight",
+    }, { mediaObjectKey: `night-moments/host/${memory.id}/r.webp` });
+    expect(moment).not.toBeNull();
+    if (!moment) return;
+    expect(moment.mediaObjectKey).toBe(`night-moments/host/${memory.id}/r.webp`);
     const storyResponse = await CREATE_STORY(auth("/api/night-stories", { memoryId: memory.id, title: "Rooftop" }));
     const { story } = await storyResponse.json();
 
