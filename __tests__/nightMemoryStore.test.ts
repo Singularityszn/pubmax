@@ -38,8 +38,7 @@ describe("collaborative Night Story storage", () => {
     const moment = await addNightMoment("host", memory!.id, {
       kind: "photo",
       caption: "The crew at the first stop",
-      mediaObjectKey: "night-media/host/photo.webp",
-    });
+    }, { mediaObjectKey: "night-media/host/photo.webp" });
     const story = await createNightStory("host", { memoryId: memory!.id, title: "Friday orbit" });
 
     expect(memory).toMatchObject({ ownerId: "host", visibility: "private" });
@@ -128,8 +127,7 @@ describe("collaborative Night Story storage", () => {
     const photo = await addNightMoment("host", memory!.id, {
       kind: "photo",
       caption: "The rooftop at midnight",
-      mediaObjectKey: "night-media/host/rooftop.webp",
-    });
+    }, { mediaObjectKey: "night-media/host/rooftop.webp" });
     expect(photo).toMatchObject({ visibility: "private", altText: null, altTextConfirmedAt: null });
     const story = await createNightStory("host", { memoryId: memory!.id, title: "Rooftop night" });
 
@@ -155,7 +153,7 @@ describe("collaborative Night Story storage", () => {
 
   it("only the photo owner may set its alt text, and non-photo Moments never carry one", async () => {
     const memory = await createNightMemory("host", { title: "Owner check" });
-    const photo = await addNightMoment("host", memory!.id, { kind: "photo", caption: "A photo", mediaObjectKey: "night-media/host/p.webp" });
+    const photo = await addNightMoment("host", memory!.id, { kind: "photo", caption: "A photo" }, { mediaObjectKey: "night-media/host/p.webp" });
     const quote = await addNightMoment("host", memory!.id, { kind: "quote", caption: "A line" });
     expect(await setMomentAltText("intruder", photo!.id, "Sneaky")).toBeNull();
     expect(await setMomentAltText("host", quote!.id, "Quotes have no photo")).toBeNull();
@@ -167,9 +165,8 @@ describe("collaborative Night Story storage", () => {
     const photo = await addNightMoment("host", memory!.id, {
       kind: "photo",
       caption: "Neon over the canal",
-      mediaObjectKey: "night-media/host/canal.webp",
       altText: "Pink neon reflected in a still canal.",
-    });
+    }, { mediaObjectKey: "night-media/host/canal.webp" });
     expect(photo!.altTextConfirmedAt).toBeTruthy();
     const story = await createNightStory("host", { memoryId: memory!.id, title: "Kept night" });
     const proposed = await proposeNightStoryPublication("host", story!.id, { momentIds: [photo!.id], visibility: "public" });
@@ -190,7 +187,7 @@ describe("collaborative Night Story storage", () => {
 
   it("surfaces alt-text state to the owner in the Story workspace review", async () => {
     const memory = await createNightMemory("host", { title: "Review night" });
-    const photo = await addNightMoment("host", memory!.id, { kind: "photo", caption: "Needs a description", mediaObjectKey: "night-media/host/x.webp" });
+    const photo = await addNightMoment("host", memory!.id, { kind: "photo", caption: "Needs a description" }, { mediaObjectKey: "night-media/host/x.webp" });
     const story = await createNightStory("host", { memoryId: memory!.id, title: "Review night" });
     const workspace = await getNightStoryWorkspace("host", story!.id);
     expect(workspace?.moments[0]).toMatchObject({ id: photo!.id, hasPhoto: true, altText: null, altTextConfirmed: false });
@@ -208,15 +205,13 @@ describe("collaborative Night Story storage", () => {
     const hostPhoto = await addNightMoment("host", memory!.id, {
       kind: "photo",
       caption: "Host rooftop",
-      mediaObjectKey: "night-media/host/rooftop.webp",
       altText: "A rooftop bar lit by string lights.",
-    });
+    }, { mediaObjectKey: "night-media/host/rooftop.webp" });
     const friendPhoto = await addNightMoment("friend-user", memory!.id, {
       kind: "photo",
       caption: "Friend's neon shot",
-      mediaObjectKey: "night-media/friend/neon.webp",
       altText: "Pink neon over a wet street.",
-    }, { allowContributor: true });
+    }, { allowContributor: true, mediaObjectKey: "night-media/friend/neon.webp" });
     const story = await createNightStory("host", { memoryId: memory!.id, title: "Two-photo night" });
     await upsertStoryContributor("host", story!.id, { handle: "friend", role: "contributor" });
     await acceptStoryContribution("friend-user", story!.id);
