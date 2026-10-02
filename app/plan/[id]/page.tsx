@@ -41,17 +41,23 @@ function previewShareText(preview: PlanPrivacyPreviewDTO): string {
 
 /**
  * §4.10: client components receive no route. NightCrawlMode still takes a
- * PlanState shape, so hand it a redacted one — safe title, no stops, no crew,
- * no context — and let its own capability-gated mount fetch upgrade a member.
+ * PlanState shape, so explicitly project the public fields instead of
+ * spreading PlanDTO; future optional route fields must stay private. Its own
+ * capability-gated mount fetch still upgrades a member.
  */
 function redactedInitialState(state: PlanState, safeTitle: string): PlanState {
   return {
-    plan: { ...state.plan, title: safeTitle },
+    plan: {
+      id: state.plan.id,
+      title: safeTitle,
+      startTime: state.plan.startTime,
+      createdAt: state.plan.createdAt,
+    },
     stops: [],
     crew: [],
     context: null,
     actions: [],
-    ending: state.ending ?? null,
+    ending: null,
   };
 }
 
