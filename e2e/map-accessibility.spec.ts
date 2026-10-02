@@ -370,12 +370,24 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const closeButton = drawer.getByRole("button", { name: /Close/ });
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("role", "dialog");
+    await expect(drawer).toHaveAttribute("aria-modal", "true");
     await expect
       .poll(
         async () => closeButton.evaluate((node) => node === document.activeElement),
         { timeout: 30_000 },
       )
       .toBe(true);
+
+    const focusables = drawer.locator(
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+    );
+    const firstFocusable = focusables.first();
+    const lastFocusable = focusables.last();
+    await lastFocusable.focus();
+    await page.keyboard.press("Tab");
+    await expect(firstFocusable).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastFocusable).toBeFocused();
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();

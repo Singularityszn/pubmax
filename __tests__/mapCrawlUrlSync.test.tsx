@@ -4,7 +4,7 @@ import { act, createElement, useLayoutEffect, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import { CRAWL_URL_DEBOUNCE_MS, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 import { curatedCrawlHydrationFromSeed } from "@/lib/mapSeedCrawl";
@@ -495,20 +495,15 @@ describe("crawl URL after Map history traversal", () => {
     act(() => openHistorySurface({
       id: "venue", title: "Venue", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "v1" },
     }));
-    vi.useRealTimers();
     await act(async () => {
       root.render(createElement(HistoryHarness, {
         query: "", drinkCategory: "wine", selectedVenueId: "v1",
       }));
     });
-    const landed = new Promise<void>((resolve) =>
-      window.addEventListener("popstate", () => resolve(), { once: true }),
-    );
     await act(async () => {
       window.history.back();
-      await landed;
+      await vi.advanceTimersByTimeAsync(CRAWL_URL_DEBOUNCE_MS);
     });
-    await new Promise((resolve) => setTimeout(resolve, 350));
 
     expect(window.location.search).toBe("?drink=wine");
   });

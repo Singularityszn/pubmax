@@ -29,13 +29,13 @@ async function dismissVenueIndexRetryIfPresent(page: Page): Promise<void> {
     .filter({ hasText: /pub list/i })
     .getByRole("button", { name: "Retry" });
   if (!(await retry.isVisible().catch(() => false))) return;
-  await retry.evaluate((node) => (node as HTMLElement).click());
+  await retry.click();
   await expect(page.getByText(/pub list (hasn't|still hasn't) loaded/i)).toHaveCount(0, {
     timeout: 60_000,
   });
 }
 
-async function waitForVenueIndexReady(page: Page, timeout = 120_000): Promise<void> {
+async function waitForVenueIndexReady(page: Page, timeout = 60_000): Promise<void> {
   await expect(async () => {
     await dismissVenueIndexRetryIfPresent(page);
     const pending = page.getByText("Fetching the pub list…");
@@ -65,13 +65,13 @@ async function focusAreaForQuery(page: Page, query: string): Promise<void> {
     .getByRole("option", { name: new RegExp(query, "i") })
     .first();
   if (!(await areaOption.isVisible().catch(() => false))) return;
-  await areaOption.evaluate((node) => (node as HTMLElement).click());
+  await areaOption.click();
 }
 
 export async function selectFirstToolbarVenue(
   page: Page,
   query: string,
-  timeout = 120_000,
+  timeout = 60_000,
 ): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
   // Exact group names only: "Venues across city maps" is a different lane whose
@@ -93,7 +93,7 @@ export async function selectFirstToolbarVenue(
   }).toPass({ timeout });
   await expect(async () => {
     const option = mapVenueSuggestionGroup(page).getByRole("option").first();
-    await option.evaluate((node) => (node as HTMLElement).click());
+    await option.click();
     await expect(page).toHaveURL(/sel=/, { timeout: 2_000 });
   }).toPass({ timeout: 60_000 });
 }
