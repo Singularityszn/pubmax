@@ -823,6 +823,10 @@ describe("a price stays in the lane the reader gave it", () => {
         drinks: [{ drink: "House Merlot", size: "unstated", sizeDetail: "half bottle", priceGbp: 12 }],
       },
       {
+        text: "House Merlot half-bottle £12.00",
+        drinks: [{ drink: "House Merlot", size: "unstated", sizeDetail: "half bottle", priceGbp: 12 }],
+      },
+      {
         text: "Peroni half £3.55 / bottle £5.20",
         drinks: [
           { drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 },
@@ -834,15 +838,22 @@ describe("a price stays in the lane the reader gave it", () => {
       { text: "Guinness 2 1/2 pint £9.00", drinks: [] },
       {
         text: "Rioja 2018/19 175ml £7.50",
-        drinks: [{ drink: "Rioja 2018 19", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 }],
+        drinks: [{ drink: "Rioja 2018/19", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 }],
       },
       {
         text: "Malbec 2021/22 175ml £8.50",
-        drinks: [{ drink: "Malbec 2021 22", size: "unstated", sizeDetail: "175ml", priceGbp: 8.5 }],
+        drinks: [{ drink: "Malbec 2021/22", size: "unstated", sizeDetail: "175ml", priceGbp: 8.5 }],
       },
       {
         text: "House Merlot 175/250ml £7.50",
         drinks: [{ drink: "House Merlot 175", size: "unstated", sizeDetail: "250ml", priceGbp: 7.5 }],
+      },
+      {
+        text: "House Merlot 175/250ml £6.50/£8.50",
+        drinks: [
+          { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+          { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5 },
+        ],
       },
       {
         text: "Rioja 175ml £7.50",

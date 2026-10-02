@@ -540,7 +540,13 @@ function cleanName(label: string): string | null {
     .replace(/(?:½|\b1\/2\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
     .replace(new RegExp(`\\b(${SERVING_WORD})\\b`, "gi"), " ")
-    .replace(/[/|]+/g, " ")
+    .replace(/[/|]+/g, (mark, offset, source) => (
+      mark === "/"
+      && /(?:19|20)\d{2}$/.test(source.slice(Math.max(0, offset - 4), offset))
+      && /^\d{2}(?!\d)/.test(source.slice(offset + 1))
+        ? "/"
+        : " "
+    ))
     .replace(/\s+/g, " ")
     .replace(/^[\s,;:.\-]+|[\s,;:.\-]+$/g, "")
     .trim();
@@ -558,7 +564,7 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\btwo[\s-]thirds\b/i.test(line) || /(?<!\d)⅔|(?<!\d)\b2\/3\b/.test(line)) {
     return { size: "unstated", sizeDetail: "two-thirds" };
   }
-  if (/(?<!\d)(?:½|\b1\/2\b|\bhalf\b)\s+bottles?\b/i.test(line)) {
+  if (/(?<!\d)(?:½|\b1\/2\b|\bhalf)[\s-]+bottles?\b/i.test(line)) {
     return { size: "unstated", sizeDetail: "half bottle" };
   }
   if (/(?<!\d)(?:½|\b1\/2\b)|\bhalf\b/i.test(line)) {
@@ -691,12 +697,20 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
   drinks.push(row);
 }
 
+function splitJoinedMeasures(line: string): string {
+  return line.replace(
+    /\b(\d{2,4})\s*\/\s*(\d{2,4})\s*ml\b(\s*)£\s?(\d{1,2}(?:\.\d{2})?)\s*\/\s*£\s?(\d{1,2}(?:\.\d{2})?)\b/gi,
+    "$1ml$3£$4 / $2ml £$5",
+  );
+}
+
 function recordPriceLine(
   line: string,
   fact: SourcedFact,
   drinks: ListedDrinkLine[],
   seenDrinks: Set<string>,
 ): void {
+  line = splitJoinedMeasures(line);
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
