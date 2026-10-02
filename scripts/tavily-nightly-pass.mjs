@@ -14,6 +14,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSyn
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import {
   parseNightlyArgs,
   readTavilyUsage,
@@ -224,6 +225,7 @@ async function main() {
     manualCap: args.manualCap,
     staleAfterDays: args.staleAfterDays,
     queue: loadQueue(),
+    robotsChecker: createRobotsChecker(),
     fetchImpl: (request) => liveFetch(request, key),
     persist: (state) =>
       saveNightlyProgress(state, {

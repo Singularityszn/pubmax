@@ -12,13 +12,16 @@ import {
   type OperatorSearchResult,
 } from "@/lib/harvest/pubFacts";
 import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
+import type { RobotsChecker } from "@/lib/harvest/robots";
 import {
   CATEGORY_PRICE_BANDS,
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   isLikelyMenuUrl,
+  pageStatesADrinksList,
   pageText,
   drinkLabelFromPriceContext,
+  readVenueDrinkPrices,
 } from "@/lib/harvest/ukPriceCrawl";
 
 export const SEARCH_CREDIT_COST = 1;
@@ -39,7 +42,9 @@ const POSTCODE_TOKEN = "\\b([A-Z]{1,2}\\d[A-Z\\d]?)\\s*(\\d[A-Z]{2})\\b";
 const PHONE_LINE = /\b(0\d{2,4}\s\d{3,4}\s\d{3,4}|\+44\s?\d{2,4}\s\d{3,4}\s\d{3,4})\b/;
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
-const DRINKS_LABEL = /\b(drinks?|bars?|beers?|wines?|cocktails?)\b/i;
+const DRINKS_PATH =
+  /(?:^|[/?])(?:drinks?|bars?|tap-list|on-tap|cellar|price-list|tariff|beer|wine|cocktail)(?:\/|$|[?#])/i;
+const DRINKS_LABEL = /\b(drinks?|bars?|beers?|wines?|cocktails?|ale|lager|stout|porter|cider|spirit|whisky|whiskey|gin|rum|vodka)\b/i;
 const FOOD_LABEL = /\b(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const HEADING_FILLER = new Set(["and", "menu", "list"]);
 const GLASS_ML = new Set(["125ml", "175ml", "250ml"]);
@@ -344,13 +349,26 @@ function hasRoadName(words: readonly string[]): boolean {
   return words.some((word) => /[a-z]/.test(word));
 }
 
+function stripAddressNoise(text: string): string {
+  return text.replace(/£\s*\d+(?:\.\d+)?/g, " ").replace(/\d+\.\d+/g, " ");
+}
+
+function sentenceChunks(text: string): string[] {
+  const cleaned = stripAddressNoise(text);
+  return cleaned
+    .split(/(?<![a-z]{1,2})\./gi)
+    .flatMap((chunk) => chunk.split(/[!?]+/))
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+}
+
 function statesStreet(text: string, street: string): boolean {
   const words = phraseWords(street);
   if (words.length < 2 || !/^\d/.test(words[0]) || !hasRoadName(words)) return false;
   const body = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+");
   const pattern = new RegExp(`(?:^|\\s)${body}(?:\\s|$)`);
-  return text.split(/[.!?]+/).some((sentence) => {
-    const hay = phraseWords(sentence.replace(/£\s*\d+(?:\.\d+)?/g, " ")).join(" ");
+  return sentenceChunks(text).some((sentence) => {
+    const hay = phraseWords(sentence).join(" ");
     return pattern.test(hay);
   });
 }
@@ -632,29 +650,62 @@ function headingKind(line: string): "drinks" | "food" | null {
   const words = phraseWords(text);
   if (words.length === 0 || words.length > 4) return null;
   const content = words.filter((word) => !HEADING_FILLER.has(word));
-  if (content.length === 0 || !content.every((word) => FOOD_LABEL.test(word) || DRINKS_LABEL.test(word))) return null;
-  if (content.some((word) => FOOD_LABEL.test(word))) return "food";
-  return "drinks";
+  if (content.length === 0) return null;
+  const hasFood = content.some((word) => FOOD_LABEL.test(word));
+  const hasDrinks = content.some((word) => DRINKS_LABEL.test(word));
+  if (hasFood && content.every((word) => FOOD_LABEL.test(word) || DRINKS_LABEL.test(word))) return "food";
+  if (hasDrinks && !hasFood) return "drinks";
+  return null;
+}
+
+function urlPath(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
+}
+
+function pathIsDrinksMenu(path: string): boolean {
+  if (DRINKS_PATH.test(path)) return true;
+  const kind = menuKind(path);
+  return saysMenu(kind, "drinks") && !saysMenu(kind, "food");
+}
+
+function pathIsFoodOnly(path: string): boolean {
+  if (FOOD_PATH_EXCLUDE.test(path)) return false;
+  if (FOOD_PATH.test(path) && !pathIsDrinksMenu(path)) return true;
+  const kind = menuKind(path);
+  return saysMenu(kind, "food") && !saysMenu(kind, "drinks");
 }
 
 function pricesAllowed(url: string, title: string | undefined, section: "drinks" | "food" | null): boolean {
-  let path = url;
-  try {
-    const parsed = new URL(url);
-    path = `${parsed.pathname} ${parsed.search}`;
-  } catch {
-    path = url;
-  }
+  const path = urlPath(url);
   const pathKind = menuKind(path);
   const titleKind = title ? menuKind(title) : null;
   const pathFood = saysMenu(pathKind, "food");
-  const pathDrinks = saysMenu(pathKind, "drinks");
+  const pathDrinks = pathIsDrinksMenu(path) || saysMenu(pathKind, "drinks");
   const titleFood = saysMenu(titleKind, "food");
   const titleDrinks = saysMenu(titleKind, "drinks");
-  if ((pathFood && !pathDrinks) || (titleFood && !titleDrinks)) return false;
+  if (pathIsFoodOnly(path)) return false;
   if (section === "food") return false;
-  if ((pathDrinks || titleDrinks) && !(pathFood || titleFood)) return true;
+  if (pathDrinks) return true;
+  if (pathFood && !pathDrinks) return false;
+  if (titleFood && !titleDrinks) return false;
+  if (titleDrinks && !titleFood) return true;
   return section === "drinks";
+}
+
+function mayRecordPrices(
+  url: string,
+  title: string | undefined,
+  section: "drinks" | "food" | null,
+  reading: ReturnType<typeof readVenueDrinkPrices>,
+): boolean {
+  if (section === "food" || pathIsFoodOnly(url)) return false;
+  if (pricesAllowed(url, title, section)) return true;
+  return pageStatesADrinksList(reading);
 }
 
 function pageExcerpt(markdown: string): string {
@@ -667,6 +718,7 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
   const drinks: ListedDrinkLine[] = [];
   const seenDrinks = new Set<string>();
   const rawLines = String(markdown ?? "").split(/\r?\n/);
+  const reading = readVenueDrinkPrices(markdown);
   let section: "drinks" | "food" | null = null;
 
   for (const rawLine of rawLines) {
@@ -677,7 +729,9 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
       section = headed;
       continue;
     }
-    if (pricesAllowed(fact.sourceUrl, fact.title, section)) recordPriceLine(line, fact, drinks, seenDrinks);
+    if (mayRecordPrices(fact.sourceUrl, fact.title, section, reading)) {
+      recordPriceLine(line, fact, drinks, seenDrinks);
+    }
   }
 
   const text = rawLines.join("\n");
@@ -908,6 +962,21 @@ async function takePayload(
   return payload;
 }
 
+async function robotsAllowedUrls(urls: readonly string[], robots: RobotsChecker): Promise<string[]> {
+  const out: string[] = [];
+  for (const url of urls) {
+    if (!isHarvestableOperatorUrl(url)) continue;
+    let decision;
+    try {
+      decision = await robots(url);
+    } catch {
+      continue;
+    }
+    if (decision.allowed) out.push(url);
+  }
+  return out;
+}
+
 export async function runNightlyPass(input: {
   venues: readonly NightlyVenue[];
   cursor: NightlyCursor;
@@ -918,6 +987,7 @@ export async function runNightlyPass(input: {
   staleAfterDays?: number;
   fetchImpl: (request: NightlyRequest) => Promise<unknown>;
   queue: QueueDocument;
+  robotsChecker?: RobotsChecker;
   persist?: (state: { queue: QueueDocument; cursor: NightlyCursor }) => void | Promise<void>;
 }): Promise<{ cursor: NightlyCursor; queue: QueueDocument; spent: number; stopped: "allowance" | "complete" }> {
   const today = isoDay(input.now);
@@ -958,7 +1028,13 @@ export async function runNightlyPass(input: {
     }));
     const website = chooseOperatorUrl(hits, venue);
     const origin = website ? new URL(website).origin : "";
-    const urls = website ? acceptedExtractUrls(hits.map((hit) => hit.url), origin) : [];
+    const candidateUrls = website ? acceptedExtractUrls(hits.map((hit) => hit.url), origin) : [];
+    const urls =
+      website && candidateUrls.length > 0
+        ? input.robotsChecker
+          ? await robotsAllowedUrls(candidateUrls, input.robotsChecker)
+          : candidateUrls
+        : [];
     const pages: Array<{ url: string; title?: string; text: string }> = [];
     if (website && urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
       const extracted = await takePayload(ledger, EXTRACT_CREDIT_COST, () =>
@@ -976,7 +1052,8 @@ export async function runNightlyPass(input: {
         pushListedPage(pages, url, extractedPage?.text || hit?.content, extractedPage?.title ?? hit?.title);
       }
     } else if (website) {
-      for (const url of urls) {
+      const snippetUrls = urls.length > 0 ? urls : candidateUrls;
+      for (const url of snippetUrls) {
         const hit = hits.find((row) => sameListedUrl(row.url, url));
         pushListedPage(pages, url, hit?.content, hit?.title);
       }
