@@ -32,8 +32,8 @@ artifacts/
 /coverage/
 e2e/screenshots/
 .e2e/
-# public/vendor/ is BUILD-WRITTEN (lib/staticAssetPrefixes.mjs): predev and
-# prebuild copy the MapLibre workers and the ElevenLabs AudioWorklets out of
+# public/vendor/ is BUILD-WRITTEN (lib/staticAssetPrefixes.mjs): `npm run dev`
+# and `npm run build` copy the MapLibre workers and the ElevenLabs AudioWorklets out of
 # node_modules. The fence proves the prefix by that generator, so nothing
 # under these directories may be committed.
 public/vendor/maplibre/

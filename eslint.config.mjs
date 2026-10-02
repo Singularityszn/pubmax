@@ -17,7 +17,7 @@ const eslintConfig = [
       "node_modules/**",
       "coverage/**",
       "public/data/**",
-      // Copied from the pinned MapLibre and ElevenLabs packages by predev/prebuild.
+      // Copied from the pinned MapLibre and ElevenLabs packages by `npm run dev` and `npm run build`.
       "public/vendor/maplibre/**",
       "public/vendor/elevenlabs/**",
       "data/**",

@@ -4,25 +4,113 @@ GitHub Actions workflows live under `.github/workflows/`. The merge bar for
 application code is still `npm run verify` locally; Actions is the PR status
 check layer.
 
-## Self-hosted runner (`pubmax-mac`)
+## Self-hosted runners
 
-While GitHub-hosted minutes are billing-locked, PR and scheduled jobs run on
-self-hosted repo runners that share one Mac (among them **`karan-mac-pubmax`**),
-each with labels `self-hosted`, `macOS`, `ARM64`, and **`pubmax-mac`**.
-Workflows use:
+While GitHub-hosted minutes are billing-locked, every job runs on self-hosted
+repo runners on one Mac. There are two labels, and a job's label decides which
+macOS user runs it:
+
+| Label | Runners | macOS user | Jobs |
+| --- | --- | --- | --- |
+| `pubmax-mac` | `karan-mac-pubmax`, `-2`, `-3` | `ghrunner` | Pull request, push, nightly and dispatch jobs that hold no write token and no secret |
+| `pubmax-mac-refresh` | `karan-mac-pubmax-refresh` | `ghrefresh` | The jobs with `contents: write` or a repo secret: `drink-price-refresh.yml`, `events-refresh.yml`, `weather-refresh.yml`, `weekly-digest.yml` |
 
 ```yaml
-runs-on: [self-hosted, pubmax-mac]
+runs-on: [self-hosted, pubmax-mac]          # everything else
+runs-on: [self-hosted, pubmax-mac-refresh]  # write token or secret
 ```
+
+`__tests__/ciRunnerIsolation.test.ts` holds that split to the workflows: a job
+with a write permission or a secret other than `GITHUB_TOKEN` must use
+`pubmax-mac-refresh`, every other job must use `pubmax-mac`, and no workflow a
+pull request triggers may use `pubmax-mac-refresh`.
+
+### Dedicated runner users
+
+Each runner job executes code the repository does not fully trust: an
+agent-written branch, or any of the roughly 900 packages in the lockfiles. The
+week security review (H1) found the three runners running as the Mac's login
+user, so that code could read `~/.ssh`, the `gh` token and every key file in
+the home directory, and could overwrite the Homebrew binaries later jobs reuse.
+The runners now run as two dedicated users instead:
+
+- **`ghrunner`** and **`ghrefresh`** are standard users: not admins, no
+  password (`*`), no login shell, hidden from the login window. Nobody signs in
+  as them, so they have no login keychain, and they hold no SSH or `gh` state.
+- Each user has its own group and a `700` home, and the console user's home is
+  `700` too, so no runner user can read the founder's files or the other
+  runner's.
+- Each runner is a fresh install of the checksum-pinned runner package,
+  registered from scratch and started by a LaunchDaemon in
+  `/Library/LaunchDaemons/` with `UserName` set. None is a copy of the old
+  install, whose binaries the old user could have changed.
+- Homebrew stays in `/opt/homebrew`, owned by the console user. The runner
+  users can run it and cannot write it.
+
+**Every job's first step after checkout is `Refuse the console user`**
+(`scripts/ci/assert-runner-identity.sh`). It fails the job when the job user is
+the console user, is an admin, or can list the console user's home. A runner
+that drifts back to the login user therefore goes red on its first job.
+
+#### Set up or repair the users
+
+Run as the console (admin) user from a checkout of this repository, never with
+`sudo` in front. The script asks for `sudo` itself and uses your own `gh` login
+for runner tokens.
+
+```sh
+scripts/ci/setup-dedicated-runner-user.sh           # dry run: prints every change
+scripts/ci/setup-dedicated-runner-user.sh --apply   # makes them
+```
+
+The script is idempotent; a second `--apply` reports each step as done. It
+refuses to start while a runner is busy (add `--force` to cancel those jobs).
+In order, it:
+
+1. creates `ghrunner` and `ghrefresh` with their groups and homes;
+2. runs `chmod 700` on the console user's home;
+3. stops each `~/actions-runner-pubmax*` LaunchAgent, unregisters the runner and
+   renames its directory with a `.retired-<date>` suffix;
+4. downloads `actions-runner-osx-arm64-2.337.0.tar.gz` to
+   `/var/tmp/pubmax-runner-2.337.0/` and checks its SHA-256;
+5. installs and registers `karan-mac-pubmax`, `-2` and `-3` as `ghrunner`
+   (label `pubmax-mac`, `PW_PORT` 3200, 3210 and 3220 unless the old runner set
+   one) and `karan-mac-pubmax-refresh` as `ghrefresh` (label
+   `pubmax-mac-refresh`);
+6. writes one LaunchDaemon per runner and starts it;
+7. proves the result: the identity check passes as both users, neither can read
+   `~/.ssh`, `~/.config/gh` or `~/.gitconfig` or the other user's home, no
+   `Runner.Listener` runs as the console user, and GitHub lists all four
+   runners.
+
+Then rerun the checks on any open pull request.
+
+#### Roll back
+
+1. `sudo launchctl bootout system /Library/LaunchDaemons/actions.runner.Singularityszn-pubmax.<name>.plist`
+   and delete the plist, for each of the four runners.
+2. Remove the four runners in GitHub (Settings, Actions, Runners) or with
+   `./config.sh remove --token <token>` as their user.
+3. Only if CI must run before the new users are fixed: register a fresh runner
+   as the console user with `./config.sh` and `./svc.sh install` in a retired
+   directory. That brings H1 back, and every job's identity check fails until
+   it is undone. The retired directories hold no valid credential after step 3
+   of the setup.
+4. The users can stay. `sudo dscl . -delete /Users/ghrunner` and
+   `sudo dseditgroup -o delete ghrunner` remove one.
+
+Delete the `.retired-*` directories once the new runners have run for a week.
 
 ### Machine prerequisites (Homebrew)
 
-Install once on the runner Mac:
+Install once on the runner Mac, as the console user:
 
 ```sh
 brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # or another Node 22 install
-npx playwright install chromium   # or let CI cache under ~/Library/Caches/ms-playwright
 ```
+
+Each runner user downloads its own Playwright Chromium into its own
+`~/Library/Caches/ms-playwright` on first use.
 
 `security-ci.yml` invokes Homebrew `zizmor`, `osv-scanner`, and `semgrep` directly.
 Semgrep uses `/etc/ssl/cert.pem` on macOS when Homebrew certifi paths are missing.
@@ -32,14 +120,42 @@ PostgreSQL clusters for RLS proofs use the serial harness in
 `scripts/rls/postgresHost.mjs` (unique ports/data dirs per job, SysV slot
 budget on macOS). Do not use GitHub `services:` Postgres on this runner.
 
+### Install scripts and credentials
 
-### Serial execution on one Mac
+- **No dependency runs an install script by default.** `.npmrc` (and
+  `scripts/chatgpt-map/.npmrc`) set `ignore-scripts=true`. The `allowScripts`
+  field of each `package.json` lists every lockfile package that declares one:
+  `true` runs it, `false` skips it, and `scripts/ci/install-script-allowlist.mjs`
+  records why. Every job runs `npm run deps:install-scripts` straight after
+  `npm ci` to rebuild the `true` rows (today only `esbuild`), and `npm run
+  verify` fails when a new package with an install script has no row.
+- **`ignore-scripts` also skips npm's `pre` and `post` hooks**, so
+  `package.json` has none. `build`, `dev`, `start`, `validate-data`,
+  `build:slim` and `export:data` name their own first or last steps.
+- **No checkout keeps the job token.** Every `actions/checkout` sets
+  `persist-credentials: false`. The refresh jobs push their review branch
+  through `scripts/ci/with-git-token.sh`, which hands `GH_TOKEN` to git through
+  the environment of that one step and writes it nowhere.
+- **Every remote action is pinned** to a commit SHA with its tag in a comment.
+  Dependabot's `github-actions` updater moves the pins, with a seven-day
+  cooldown like the npm updater.
 
-GitHub may schedule several jobs at once; this runner uses one shared
-`_work/{repo}/{repo}` checkout. Parallel jobs caused `validate-data` temp-dir
+### Security CI is advisory
+
+`security-ci.yml` runs zizmor online over all of `.github/`, osv-scanner
+recursively over every lockfile in the tree, and Semgrep, on every pull
+request, every push to `main` and every Monday. No branch protection requires
+these checks, so a red Security CI job blocks nothing by itself: read it before
+merging.
+
+### Parallel jobs on one Mac
+
+Each runner has its own `_work` directory, so three pull request jobs can run
+at once. Parallel jobs in one checkout once caused `validate-data` temp-dir
 collisions, flaky `venueRoute` reads, and Playwright's
 `run-with-restored-next-env` guard (`PUBMAX_TRACKED_OUTPUTS=public/data` for
-`NEXT_PUBLIC_SW_VERSION=local` pack stamps). CI, browser tests and RLS therefore use:
+`NEXT_PUBLIC_SW_VERSION=local` pack stamps). CI, browser tests and RLS still
+use:
 
 ```yaml
 concurrency:
@@ -49,44 +165,46 @@ concurrency:
 
 The group is **per git ref**, not repo-wide. A repo-wide group once queued ancient runs from other branches and blocked every pull request for hours.
 
-Each workflow has its own group so CI, Security CI, browser tests, and RLS do not cancel each other on the same push. A newer pull request head supersedes that pull request's older runs on the shared runner, so rerun the latest workflow run for the current head rather than an older one: a rerun of a superseded run can cancel the current run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
+Each workflow has its own group so CI, Security CI, browser tests, and RLS do not cancel each other on the same push. A newer pull request head supersedes that pull request's older runs on the shared runner, so rerun the latest workflow run for the current head rather than an older one: a rerun of a superseded run can cancel the current run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. Within one CI run, `ci.yml` chains jobs so writers do not run in parallel.
 
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` are set to about **2× the p95** duration observed on the last ~50 self-hosted runs (measured with `gh run list` and `gh api …/jobs`), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Raise a ceiling only when measured p95 under shared-runner load justifies it; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
 Playwright jobs take `PW_PORT` from `.github/actions/pubmax-playwright-port`. The action uses `PW_PORT` from the runner's `.env` when set; otherwise it hashes `RUNNER_NAME` into one of 90 ports (3100-3990, step 10). Two runner names can still land on the same port, so set an explicit, distinct `PW_PORT` in each runner's `.env` on a shared Mac.
 
-Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node_modules` on `pubmax-mac` jobs. Restoring those caches from GitHub's cache service can stall ~20 minutes and fail authentication on self-hosted runners; each Mac already keeps npm tarballs under `~/.npm`. Setup Node steps use `timeout-minutes: 5` so a stuck restore fails fast.
+Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node_modules` on `pubmax-mac` jobs. Restoring those caches from GitHub's cache service can stall ~20 minutes and fail authentication on self-hosted runners; each runner user already keeps npm tarballs under its own `~/.npm`. Setup Node steps use `timeout-minutes: 5` so a stuck restore fails fast.
 
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).
 
-### Register or re-register the runner
+### Register a runner by hand
 
-From [GitHub → repo → Settings → Actions → Runners](https://github.com/Singularityszn/pubmax/settings/actions/runners),
-add a new self-hosted runner and follow the `config.sh` instructions. On this
-Mac the service runs under **launchd** (runner name `karan-mac-pubmax`).
+Prefer the setup script. To add one more runner of either kind by hand, as its
+user (`sudo -u ghrunner -H bash`), in a new directory under that user's home:
 
-To reinstall:
-
-1. Stop the service (`./svc.sh stop` in the runner install directory).
-2. `./config.sh remove` (or remove the runner in GitHub UI).
-3. Download a fresh runner package, `./config.sh --url https://github.com/Singularityszn/pubmax --token <token> --labels self-hosted,macOS,ARM64,pubmax-mac --name karan-mac-pubmax`
-4. `./svc.sh install` and `./svc.sh start`.
+1. Get a token: `gh api -X POST repos/Singularityszn/pubmax/actions/runners/registration-token --jq .token`
+   (as the console user).
+2. Unpack the pinned runner package from `/var/tmp/pubmax-runner-2.337.0/`.
+3. `./config.sh --unattended --url https://github.com/Singularityszn/pubmax --token <token> --name <name> --labels pubmax-mac --work _work`
+   (`pubmax-mac-refresh` for a refresh runner).
+4. Write a LaunchDaemon with `UserName` set, like the ones the script writes.
+   Never use `./svc.sh install`: it installs a LaunchAgent for whoever runs it.
 
 Secrets and `pull_request_target` / fork triggers are unchanged: only this
 repo's branches run workflows.
 
 ### Prove the runner
 
-`self-hosted-probe.yml` runs on every PR (one step: `node --version`). Confirm
-with:
+`self-hosted-probe.yml` is `workflow_dispatch` only. It runs the identity check
+and `node --version` on a `pubmax-mac` runner:
 
 ```sh
+gh workflow run self-hosted-probe.yml
 gh run list --workflow self-hosted-probe.yml --limit 1
 gh api repos/Singularityszn/pubmax/actions/jobs/<job-id> --jq .runner_name
 ```
 
-Expect one of the `pubmax-mac` runners on the shared Mac, such as `karan-mac-pubmax`.
+Expect one of `karan-mac-pubmax`, `-2` or `-3`, and a passing `Refuse the
+console user` step.
 
 ## Scheduled work split
 
@@ -94,8 +212,8 @@ Expect one of the `pubmax-mac` runners on the shared Mac, such as `karan-mac-pub
 | --- | --- |
 | What's-On bounded + official events refresh | Vercel `GET /api/cron/refresh-whats-on` (primary) |
 | What's-On GitHub recovery | `events-refresh.yml` (`workflow_dispatch` only; schedule disabled as duplicate) |
-| Weather cache PR | `weather-refresh.yml` on `pubmax-mac` |
-| Drink price PR | `drink-price-refresh.yml` on `pubmax-mac` |
+| Weather cache PR | `weather-refresh.yml` on `pubmax-mac-refresh` |
+| Drink price PR | `drink-price-refresh.yml` on `pubmax-mac-refresh` |
 | Performance budgets | `performance.yml` on `pubmax-mac` |
 | Browser law pins + nightly suite | `e2e.yml` on `pubmax-mac` |
 

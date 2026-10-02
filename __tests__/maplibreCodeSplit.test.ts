@@ -69,8 +69,8 @@ describe("maplibre cold-open code split", () => {
 
   it("configures the MapLibre 6 module worker for webpack", () => {
     expect(MAPLIBRE_WORKER_URL).toBe("/vendor/maplibre/maplibre-gl-worker.mjs");
-    expect(packageJson.scripts.predev).toBe("npm run prepare:maplibre-worker");
-    expect(packageJson.scripts.prebuild).toContain("npm run prepare:maplibre-worker");
+    expect(packageJson.scripts.dev).toMatch(/^npm run prepare:maplibre-worker && /);
+    expect(packageJson.scripts.build).toMatch(/^npm run prepare:maplibre-worker && /);
     expect(workerCopy).toContain('"maplibre-gl-worker.mjs"');
     expect(workerCopy).toContain('"maplibre-gl-shared.mjs"');
   });

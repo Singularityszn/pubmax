@@ -1,16 +1,11 @@
 # zizmor policy for pubmax workflows.
 #
-# Existing workflows keep @v4 ref pins (see docs/CI_RUNBOOK.md); a repo-wide
-# hash-pin migration is out of scope for security-ci. security-ci.yml itself
-# uses hash-pinned actions only.
+# Every remote action is pinned to a full commit SHA with its tag in a comment
+# (zizmor's default hash-pin policy), and Dependabot's github-actions updater
+# moves the pins. Every checkout sets `persist-credentials: false`.
 rules:
-  unpinned-uses:
-    config:
-      policies:
-        "*": ref-pin
+  # GitHub's `$/` self-repository syntax is newer than the runners this repo
+  # has proved it on. Keep `./` until a run on pubmax-mac shows `$/` resolves.
   self-repository:
     remap:
-      severity: low
-  artipacked:
-    remap:
-      severity: low
+      severity: informational

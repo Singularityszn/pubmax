@@ -103,7 +103,7 @@ Useful scripts:
 | `npm run shots` | Generates required 390/1440 light/dark Gate-Z screenshots; map captures fail unless MapLibre paints a pub mark |
 | `npm run shots:extended` | Runs the same gate with the 430/1280 breakpoint audit |
 | `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
-| `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs on `prebuild` |
+| `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs in `npm run build` |
 | `npm run build:city-slim` | Regenerates enabled city slim packs, compatibility cores, and manifests |
 
 ### Venue detail index
@@ -118,7 +118,7 @@ For London, the map loads the manifest and only the cells around its opening
 viewport, then loads neighbouring cells as the camera settles. Other city packs
 use one compatibility core. The generated detail files are gitignored (large).
 Local/dev falls back to the raw pint dataset and curated venue packs when they
-are missing; production should run `prebuild` / `build:slim` so the index exists.
+are missing; production should run `npm run build` / `build:slim` so the index exists.
 See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and the [map speed evidence](docs/perf/map-speed-caching-2026-08-28.md).
 
 ### Map data attribution

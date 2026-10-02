@@ -1,4 +1,6 @@
-# Keep npm dependencies patched. Security hardening plan Phase 6.3.
+# Keep npm dependencies and pinned actions patched. Security hardening plan
+# Phase 6.3. A release waits seven days before Dependabot proposes it, so a
+# compromised version is more likely to be pulled before it reaches a branch.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -6,6 +8,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - dependencies
@@ -21,3 +25,14 @@ updates:
         update-types:
           - minor
           - patch
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - security

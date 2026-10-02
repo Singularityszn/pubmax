@@ -2,11 +2,16 @@ name: Security CI
 
 # zizmor (workflow lint), osv-scanner (lockfile CVEs), Semgrep CE (SAST).
 # Self-hosted pubmax-mac only; tools installed via Homebrew (docs/CI_RUNBOOK.md).
+# These checks are advisory: no branch protection requires them, so a red job
+# here blocks nothing on its own. The weekly run catches a new advisory against
+# a lockfile or a pinned action when no pull request is open.
 
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "23 6 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -18,30 +23,38 @@ concurrency:
 
 jobs:
   zizmor:
-    name: zizmor (workflows)
+    name: zizmor (.github)
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
+      # Online, so the audits that ask GitHub about each pinned action
+      # (impostor commits, known-vulnerable actions, ref confusion) run too.
+      # The job token is read-only and is passed to this step alone.
       - name: zizmor
-        run: zizmor --offline --min-severity high .github/workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: zizmor --min-severity low .github
 
   osv-scanner:
-    name: osv-scanner (lockfile)
+    name: osv-scanner (lockfiles)
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
+      # Recursive, so scripts/chatgpt-map, the iOS Package.resolved and any
+      # lockfile added later are scanned without editing this line. It exits
+      # non-zero when it finds no lockfile at all, so it cannot pass empty.
       - name: osv-scanner
-        run: osv-scanner scan --lockfile package-lock.json
+        run: osv-scanner scan source --recursive .
 
   semgrep:
     name: Semgrep CE (SAST)
@@ -49,7 +62,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 

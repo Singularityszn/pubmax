@@ -3,8 +3,8 @@
 // @elevenlabs/client loads its processors from blob: or data: URLs unless a
 // session is given paths. scripts/copy_elevenlabs_worklets.mjs copies those
 // processors, and the libsamplerate worklet the SDK uses when the device
-// sample rate does not match, into public/vendor/elevenlabs. predev and
-// prebuild run that copy through prepare:maplibre-worker. The voice session
+// sample rate does not match, into public/vendor/elevenlabs. `npm run dev`
+// and `npm run build` run that copy through prepare:maplibre-worker. The voice session
 // passes these paths into startSession, so script-src never admits data: or
 // blob:.
 
