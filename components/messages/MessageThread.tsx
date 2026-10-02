@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, ChevronLeft, ImageIcon, MapPin, Plus } from "lucide-react";
+import { Send, ChevronLeft, ImageIcon, MapPin, Plus } from "lucide-react";
 import Link from "next/link";
 import {
   useCallback,
@@ -1108,11 +1108,10 @@ export default function MessageThread({
                 {/* The box the 75% width limit lives on. */}
                 <div className="messageLine">
                   <div
-                    className={
-                      mine
-                        ? "messageBubble messageBubbleMine"
-                        : "messageBubble messageBubbleTheirs"
-                    }
+                    className={[
+                      mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
+                      (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
+                    ].filter(Boolean).join(" ")}
                     onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
                   >
                     {renderAttachment(m, sendingRow)}
@@ -1315,7 +1314,7 @@ export default function MessageThread({
             disabled={!canSend}
             onClick={() => void send()}
           >
-            <ArrowUp size={22} aria-hidden="true" />
+            <Send size={20} aria-hidden="true" />
           </button>
         </div>
       </div>
