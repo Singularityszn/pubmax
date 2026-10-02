@@ -198,9 +198,10 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("joins trusted wine prices into value ranking without using pint prices", async () => {
-    // From 23:00 to 04:00 London the distance weight is three, and the nearer
-    // dearer wine outranks the cheaper one. The dataset stamp is daytime, so
-    // the order below is the wine price.
+    // The dataset stamp is 13:00 London, so the clock alone is daytime. The
+    // query declares after work, and that daypart keeps the daytime distance
+    // weight. From 23:00 to 04:00 the weight is three and the nearer dearer
+    // wine outranks the cheaper one.
     const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
     try {
       loadConciergeVenuesMock.mockResolvedValueOnce([
@@ -225,6 +226,7 @@ describe("POST /api/plans/generate", () => {
 
       expect("prepared" in result).toBe(true);
       if (!("prepared" in result)) return;
+      expect(result.prepared.context).toMatchObject({ daypart: "after_work", drinkCategory: "wine" });
       expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
       expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
       expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
