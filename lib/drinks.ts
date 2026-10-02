@@ -222,24 +222,31 @@ export type LegacyPintPrice = {
 };
 
 /**
- * The ISO day this row's figure was last read at its source, or null when the
+ * The instant this row's figure was last read at its source, or null when the
  * row records no read. A price is dated by its own row and never by the day
  * the dataset as a whole was last collected, because a re-collection only
  * re-reads the rows its source still states.
  */
-export function legacyPintPriceObservedOn(price: LegacyPintPrice): string | null {
+export function legacyPintPriceObservedAt(price: LegacyPintPrice): string | null {
   let latest = Number.NEGATIVE_INFINITY;
   for (const value of String(price.scraped_at_values ?? "").split("|")) {
     const ms = Date.parse(value.trim());
     if (Number.isFinite(ms) && ms > latest) latest = ms;
   }
-  return Number.isFinite(latest) ? new Date(latest).toISOString().slice(0, 10) : null;
+  return Number.isFinite(latest) ? new Date(latest).toISOString() : null;
 }
 
-/** The row's own read day as an instant at noon UTC, or null when it records no read. */
-export function legacyPintPriceObservedAt(price: LegacyPintPrice): string | null {
-  const day = legacyPintPriceObservedOn(price);
-  return day ? `${day}T12:00:00.000Z` : null;
+const LONDON_ISO_DAY = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "Europe/London",
+});
+
+/** The `YYYY-MM-DD` London day of that read, the day every caption prints, or null. */
+export function legacyPintPriceObservedOn(price: LegacyPintPrice): string | null {
+  const observedAt = legacyPintPriceObservedAt(price);
+  return observedAt ? LONDON_ISO_DAY.format(new Date(observedAt)) : null;
 }
 
 type NamedPriceSource = {

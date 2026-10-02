@@ -5,7 +5,7 @@ import { composeRecapFromPublishedStory } from "@/lib/recapView";
 import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
 import type { RecapCardStats } from "@/lib/recapCard";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
-import { storedVenueRef } from "@/lib/storedVenueRef";
+import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, type VenueRef } from "@/lib/venueIndex";
 import type { NightMoment } from "@/lib/nightMemory";
 import type { PintDrop } from "@/lib/pintDropShared";
@@ -178,7 +178,8 @@ export async function recapCardStats(storyId: string): Promise<RecapCardStats | 
   ]);
   const venueNames = new Map<string, string>();
   for (const venueId of uniqueVenueIds(source.moments)) {
-    const name = nonEmpty(venueIndex.get(venueId)?.name);
+    const venue = venueIndex.get(venueId);
+    const name = venue ? nonEmpty(storedVenueName(venue)) : null;
     if (name) venueNames.set(venueId, name);
   }
 

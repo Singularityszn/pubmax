@@ -219,7 +219,7 @@ describe("legacyPricesToDrinks", () => {
     expect(drinks[0].provenance).toEqual({
       source: "app-dataset",
       licence: "first-party",
-      observedAt: "2026-07-03T12:00:00.000Z",
+      observedAt: "2026-07-03T23:10:47.000Z",
       lane: "dataset",
     });
   });
@@ -235,7 +235,7 @@ describe("legacyPricesToDrinks", () => {
       { app_price_id: "harrow", pint_name: "Lager", price_gbp: 4.6, scraped_at_values: "" },
     ]);
     expect(drinks.map((drink) => drink.provenance.observedAt)).toEqual([
-      "2026-08-21T12:00:00.000Z",
+      "2026-08-21T15:44:29.901Z",
       null,
     ]);
   });

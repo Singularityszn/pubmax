@@ -170,7 +170,8 @@ export function detailStatusFor(
   detailStatusById: Map<string, VenueDetailStatus>,
 ): VenueDetailStatus {
   if (!selectedVenueId) return "idle";
-  if (detailById.has(selectedVenueId)) return "ready";
+  const detail = detailById.get(selectedVenueId);
+  if (detail) return detail.retired ? "retired" : "ready";
   return detailStatusById.get(selectedVenueId) ?? "loading";
 }
 
@@ -206,7 +207,7 @@ export const MAP_SELECTION_LOOKUP_FAILED_NOTE = "We could not check that pub rig
  * a drop or a crawl stop links here, so the link lands on what we know.
  */
 function retiredMapSelectionNote(name: string): string {
-  return `${name} is no longer on the map.`;
+  return `${name} is no longer on the map. It may have closed.`;
 }
 
 /** The copy a selection notice prints. */

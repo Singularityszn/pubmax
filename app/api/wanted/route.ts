@@ -84,7 +84,7 @@ async function handlePromotion(
   }
 
   const venue = await resolveVenue(wanted.venueId);
-  if (!venue || !isPubVenueKind(venue.kind)) {
+  if (!venue || venue.retired || !isPubVenueKind(venue.kind)) {
     return publicApiError(
       "Match this Wanted place to a current pub first.",
       "WANTED_NOT_PROMOTABLE",

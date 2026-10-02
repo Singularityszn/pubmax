@@ -133,7 +133,7 @@ describe("selectObservedSubtypePriceForVenue", () => {
     const zero = selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero");
     expect(zero?.priceGbp).toBe(3.2);
     // Dated by the day its own row was read, never the dataset's collection day.
-    expect(zero?.observedAt).toBe("2026-07-03T12:00:00.000Z");
+    expect(zero?.observedAt).toBe("2026-07-03T23:10:47.000Z");
     const undated = selectObservedSubtypePriceForVenue(
       makeVenue([makePrice("Coke Zero", 3.2)]),
       "soft-drink-coke-zero",

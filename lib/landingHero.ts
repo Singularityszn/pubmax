@@ -17,6 +17,7 @@
 // `?locate=1` is the geolocation ask and it rides a deliberate tap alone.
 
 import {
+  legacyPintPriceObservedAt,
   legacyPintPriceObservedOn,
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
@@ -209,16 +210,13 @@ export function answerEvidenceFor(
     if (carriesFigure) break;
   }
   const publisher = evidence?.publisher ?? null;
+  const observedAt = evidence ? legacyPintPriceObservedAt(evidence.row) : null;
   const observedOn = evidence ? legacyPintPriceObservedOn(evidence.row) : null;
   const { standing } = priceStandingFor(
     {
       listed:
-        publisher && observedOn
-          ? {
-              priceGbp: input.priceGbp,
-              sourceUrl: publisher.url,
-              observedAt: `${observedOn}T12:00:00.000Z`,
-            }
+        publisher && observedAt
+          ? { priceGbp: input.priceGbp, sourceUrl: publisher.url, observedAt }
           : null,
     },
     now,

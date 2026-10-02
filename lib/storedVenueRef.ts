@@ -13,18 +13,26 @@ import type { VenueRef } from "@/lib/venueIndex";
 const RETIRED_VENUE_NOTE = "may have closed";
 
 /**
- * A retired pub as a reader answers for it: its own name with the note, its
- * own area and its last point, flagged so no listing surface draws it.
+ * A retired pub as a reader answers for it: its own name, its own area and its
+ * last point, flagged so no listing surface draws it.
  */
 export function retiredVenueRef(retired: RetiredVenue): VenueRef {
   return {
     id: retired.id,
-    name: `${retired.name} (${RETIRED_VENUE_NOTE})`,
+    name: retired.name,
     borough: retired.area,
     lat: retired.lat,
     lng: retired.lng,
     retired: true,
   };
+}
+
+/**
+ * The name a stored reference prints: the venue's own, with the note once when
+ * the pub left the map.
+ */
+export function storedVenueName(venue: Pick<VenueRef, "name" | "retired">): string {
+  return venue.retired ? `${venue.name} (${RETIRED_VENUE_NOTE})` : venue.name;
 }
 
 /**

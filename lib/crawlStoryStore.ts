@@ -24,6 +24,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
 import { admin } from "@/lib/storeBackend";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { storedVenueName } from "@/lib/storedVenueRef";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -229,7 +230,7 @@ async function enrich(stored: StoredStory): Promise<DurableStory> {
         const venueId = ref?.id ?? stop.venueId;
         return {
           venueId,
-          venueName: ref?.name ?? "A London pub",
+          venueName: ref ? storedVenueName(ref) : "A London pub",
           venueMapUrl: venueMapUrl(venueId),
           priceGbp: stop.priceGbp ?? null,
           ...(stop.note ? { note: stop.note } : {}),

@@ -48,7 +48,7 @@ import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
-import { storedVenueRef } from "@/lib/storedVenueRef";
+import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -99,10 +99,11 @@ async function withVenueNames<T extends { venueId: string }>(
   const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
   return drops.map((drop) => {
     const venueId = aliases.canonical(drop.venueId);
+    const venue = storedVenueRef(index, aliases, venueId);
     return {
       ...drop,
       venueId,
-      venueName: storedVenueRef(index, aliases, venueId)?.name ?? VENUE_FALLBACK_LABEL,
+      venueName: venue ? storedVenueName(venue) : VENUE_FALLBACK_LABEL,
       venueMapUrl: venueMapUrl(venueId),
     };
   });

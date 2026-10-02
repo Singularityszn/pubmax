@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -18,6 +18,7 @@ import { lookupCanonicalVenue, resolveVenue } from "@/lib/venueIndex";
 import {
   mergeCityVenueIdAliases,
   mergeRetiredCityVenues,
+  recordCityVenueIdAliases,
   retiredCityVenues,
   supersededCityVenueIds,
 } from "../scripts/lib/cityVenueIdAliases.mjs";
@@ -96,6 +97,39 @@ describe("retiredCityVenues", () => {
   it("lets a retired pub that comes back to OSM leave the records", () => {
     const record = { name: "The Duck", area: "Birmingham", lat: 52.47, lng: -1.94 };
     expect(mergeRetiredCityVenues({ "venue-bhm-a": record }, [], new Set(["venue-bhm-a"]))).toEqual({});
+  });
+});
+
+describe("recordCityVenueIdAliases", () => {
+  const BIRMINGHAM = { id: "birmingham", displayName: "Birmingham" };
+  const duck = pub({ osmId: "node/307020647", name: "The Duck", lat: 52.471534, lng: -1.9396181 });
+  const crown = pub({ osmId: "node/2", name: "The Crown", lat: 52.49, lng: -1.88 });
+
+  function aliasRoot(): string {
+    const root = mkdtempSync(path.join(tmpdir(), "city-aliases-"));
+    const dir = path.join(root, "public", "data", "cities");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "venue_id_aliases.json"), JSON.stringify({ version: 1, aliases: {} }));
+    return root;
+  }
+
+  function retiredIn(root: string): Record<string, unknown> {
+    return JSON.parse(
+      readFileSync(path.join(root, "public", "data", "cities", "venue_id_aliases.json"), "utf8"),
+    ).retired;
+  }
+
+  it("tombstones a pub that leaves OSM, and drops the tombstone when the same id returns", async () => {
+    const root = aliasRoot();
+    const duckId = String(cityVenueIdForPub("birmingham", duck));
+
+    await recordCityVenueIdAliases(root, BIRMINGHAM, [duck, crown], [crown]);
+    expect(retiredIn(root)).toEqual({
+      [duckId]: { name: "The Duck", area: "Birmingham", lat: 52.471534, lng: -1.9396181 },
+    });
+
+    await recordCityVenueIdAliases(root, BIRMINGHAM, [crown], [duck, crown]);
+    expect(retiredIn(root)).toEqual({});
   });
 });
 
@@ -221,7 +255,7 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
     const venue = await resolveVenue(HENMAN_AND_COOPER);
     expect(venue).toMatchObject({
       id: HENMAN_AND_COOPER,
-      name: "Henman & Cooper (may have closed)",
+      name: "Henman & Cooper",
       borough: "Birmingham",
       retired: true,
     });
@@ -230,7 +264,7 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
 
     const detail = await lookupVenueDetail(HENMAN_AND_COOPER);
     expect(detail.status === "found" ? [detail.venue.name, detail.venue.retired] : null).toEqual([
-      "Henman & Cooper (may have closed)",
+      "Henman & Cooper",
       true,
     ]);
   });
@@ -239,7 +273,7 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
     expect((await lookupCanonicalVenue(HENMAN_AND_COOPER)).status).toBe("unknown");
   });
 
-  it("names a save stored against it as that pub, never a London fallback", async () => {
+  it("names a save stored against it as that pub, noted once, never a London fallback", async () => {
     await memorySavedPubsStore.toggleSaved({
       handle: "brummie",
       venueId: HENMAN_AND_COOPER,

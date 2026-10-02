@@ -18,8 +18,9 @@ That stamp is the day the DATASET was last collected. It is not the date a pub
 shows. Every row carries its own `scraped_at_values`, the instant that row was
 last read at its source, and the venue sheet and its Menu tab, the peek, the
 landing answer card, the cheap pint board, the drink-type pages and plan stops
-date a price by that row's own day (`legacyPintPriceObservedOn` in
-`lib/drinks.ts`). A re-collection re-dates only the
+date a price by that row's own read (`legacyPintPriceObservedAt` in
+`lib/drinks.ts`): a price's standing ages from that real instant, and each
+caption prints its London day. A re-collection re-dates only the
 rows its source still states. A row it did not read keeps the day it was read,
 and a row that records no read (the outer-London gazetteer seed, for one) claims
 no listing and prints no collection day. A shared stamp is never applied to an
@@ -68,8 +69,10 @@ outer-London gazetteer rows, which record no read and print no collection day
 (The Harrow Inn among them); 4 outer-London rows priced from the pub's own site
 (Boom Battle Bar, Small Beer and Langham Working Mens Club on 18 July 2026,
 Tattoo Bar on 21 August 2026); and 95 Pint Prices rows whose pub or pint the run
-could not match to a figure the source states today, which keep 3 July 2026
-(the Cheshire Cheese's HEINEKEN row, read from a second page, is one).
+could not match to a figure the source states today, which keep the first full
+extract's instant, `2026-07-03T23:10:47+00:00` (10 past midnight on 4 July in
+London, which is the day their captions print). The Cheshire Cheese's HEINEKEN
+row, read from a second page, is one of them.
 The same run found 55 CSV records holding a figure the source does not state:
 the 2026-09-04 run had written its moved prices into the CSV by the bundle's
 `app_price_id`, onto the wrong records. Each now holds the figure its own pub

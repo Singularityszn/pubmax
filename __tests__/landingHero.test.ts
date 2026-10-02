@@ -119,10 +119,11 @@ describe("landing hero policy", () => {
       },
       NOW,
     );
+    // Read at 23:10 UTC on 3 July, which London calls 4 July: the day a caption prints.
     expect(named).toEqual({
       publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
       standing: "listed",
-      observedOn: "2026-07-03",
+      observedOn: "2026-07-04",
     });
     const unnamed = answerEvidenceFor(
       { priceGbp: 6.5, prices: [{ app_price_id: "p1", pint_name: "X", price_gbp: 6.5 }] },
@@ -198,6 +199,26 @@ describe("landing hero policy", () => {
       standing: "none",
       observedOn: null,
     });
+  });
+
+  it("takes a row re-read this morning as evidence this morning", () => {
+    const readAt = Date.parse("2026-10-02T07:09:42Z");
+    const evidence = answerEvidenceFor(
+      {
+        priceGbp: 6,
+        prices: [
+          {
+            app_price_id: "p1",
+            pint_name: "MAHOU",
+            price_gbp: 6,
+            pub_url: "https://www.pint-prices.com/pub/bradleys",
+            scraped_at_values: "2026-10-02T07:09:42Z",
+          },
+        ],
+      },
+      readAt + 60 * 60 * 1000,
+    );
+    expect(evidence).toMatchObject({ standing: "listed", observedOn: "2026-10-02" });
   });
 
   it("dates the row that carries the printed figure", () => {

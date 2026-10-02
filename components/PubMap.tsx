@@ -1640,6 +1640,7 @@ export default function PubMap({
   // A save this device stored under a venue id that has since been merged or
   // superseded is rewritten under the id the map serves now, once per page.
   useEffect(() => {
+    if (getSaved().length === 0) return;
     let cancelled = false;
     void loadVenueAliasMap().then((aliases) => {
       if (cancelled || aliases.size === 0) return;
@@ -4989,8 +4990,7 @@ export default function PubMap({
         return;
       }
       if (result.venue.retired) {
-        setRetiredSelectionName(result.venue.name);
-        setDetailStatusById((current) => new Map(current).set(requestedVenueId, "retired"));
+        setDetailById((current) => new Map(current).set(requestedVenueId, result.venue));
         return;
       }
       const canonicalVenueId = result.venue.id;
@@ -5028,13 +5028,16 @@ export default function PubMap({
     });
     if (!notice) return;
     const unresolvedVenueId = selectedVenueId;
+    const retiredName = notice === "retired" ? (detailById.get(unresolvedVenueId)?.name ?? null) : null;
     queueMicrotask(() => {
+      setRetiredSelectionName(retiredName);
       setSelectionNotice(notice);
       if (notice === "lookup-failed") return;
       rejectMapSelection(unresolvedVenueId);
       setSelectedVenueId((current) => (current === unresolvedVenueId ? "" : current));
     });
   }, [
+    detailById,
     loaded,
     rejectMapSelection,
     selectedDetailStatus,

@@ -15,7 +15,7 @@ function venue(
   name: string,
   price: number | null,
   pubUrl = "https://www.pint-prices.com/pub/x",
-  readAt = "2026-07-03T23:10:47+00:00",
+  readAt = "2026-07-03T11:15:56+00:00",
 ): Venue {
   return {
     id,

@@ -27,7 +27,7 @@ import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
-import { storedVenueRef } from "@/lib/storedVenueRef";
+import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 // The list a pub is filed under is now free text (story 33): the seven built-ins
@@ -146,9 +146,10 @@ type VenueIndexMap = Awaited<ReturnType<typeof getVenueIndex>>;
 
 function dtoFromRow(row: SavedRow, index: VenueIndexMap, aliases: VenueAliasResolver): SavedPubDTO {
   const venueId = aliases.canonical(row.venueId);
+  const venue = storedVenueRef(index, aliases, venueId);
   return {
     venueId,
-    venueName: storedVenueRef(index, aliases, venueId)?.name ?? "A London venue",
+    venueName: venue ? storedVenueName(venue) : "A London venue",
     venueMapUrl: venueMapUrl(venueId),
     listType: row.listType,
     ...(row.note ? { note: row.note } : {}),

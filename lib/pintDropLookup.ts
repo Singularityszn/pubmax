@@ -21,6 +21,7 @@ import {
 } from "@/lib/retiredContributor";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { normalizeHandle } from "@/lib/profiles";
+import { storedVenueName } from "@/lib/storedVenueRef";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // Standalone Pint Drop permalink lookup (PRD §8). ONE public read: turn a drop
@@ -212,7 +213,7 @@ async function enrich(
   return {
     ...fields,
     handle,
-    venueName: venue?.name ?? "A London pub",
+    venueName: venue ? storedVenueName(venue) : "A London pub",
     venueMapUrl: venueMapUrl(fields.venueId),
     ...(avatarUrl ? { avatarUrl } : {}),
   };
