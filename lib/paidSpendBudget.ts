@@ -18,8 +18,8 @@
  *
  * (1) THE LANES ARE A CLOSED SET. `PAID_SPEND_LANES` is every route that may
  *     spend, so a fifth paid route is a row here rather than a fifth opinion,
- *     and `__tests__/paidSpendBudget.test.ts` sweeps the tree for a paid route
- *     that consumes no budget.
+ *     and `__tests__/anonymousPaidRoutes.test.ts` calls every API route without
+ *     a session and fails on any that reaches a paid provider anyway.
  *
  * (2) IT RIDES THE LIMITER THAT IS ALREADY DEPLOYED. The budget is spent through
  *     the durable `check_rate_limit` RPC of migration 0003, with an IP-free key
