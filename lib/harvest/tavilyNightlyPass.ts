@@ -39,6 +39,10 @@ const POSTCODE_TOKEN = "\\b([A-Z]{1,2}\\d[A-Z\\d]?)\\s*(\\d[A-Z]{2})\\b";
 const PHONE_LINE = /\b(0\d{2,4}\s\d{3,4}\s\d{3,4}|\+44\s?\d{2,4}\s\d{3,4}\s\d{3,4})\b/;
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
+const DRINKS_LABEL = /\b(drinks?|bars?|beers?|wines?|cocktails?)\b/i;
+const FOOD_LABEL = /\b(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
+const HEADING_FILLER = new Set(["and", "menu", "list"]);
+const GLASS_ML = new Set(["125ml", "175ml", "250ml"]);
 
 type DrinkSize = "pint" | "keg" | "bottle" | "can" | "unstated";
 
@@ -83,6 +87,7 @@ type ListedDrinkLine = {
 type SourcedFact = {
   sourceUrl: string;
   seenOn: string;
+  title?: string;
 };
 
 type CuratorExcerpt = SourcedFact & { excerpt: string };
@@ -426,6 +431,26 @@ export function chooseOperatorUrl(
   return pickOperatorUrl(narrowed, venue.name);
 }
 
+function sameListedUrl(left: string, right: string): boolean {
+  if (left === right) return true;
+  try {
+    return new URL(left).href === new URL(right).href;
+  } catch {
+    return false;
+  }
+}
+
+function pushListedPage(
+  pages: Array<{ url: string; title?: string; text: string }>,
+  url: string,
+  text: string | undefined,
+  title?: string,
+): void {
+  if (!text?.trim()) return;
+  if (pages.some((page) => sameListedUrl(page.url, url))) return;
+  pages.push({ url, title, text });
+}
+
 function sameSite(candidate: string, siteOrigin: string): boolean {
   try {
     const url = new URL(candidate, siteOrigin);
@@ -489,9 +514,10 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   const ml = /\b(\d{2,4})\s*ml\b/i.exec(line);
   const detail = ml ? `${ml[1]}ml` : null;
   if (/\bcans?\b/i.test(line)) return { size: "can", sizeDetail: detail ?? "can" };
+  if (/\bkeg\b/i.test(line)) return { size: "keg", sizeDetail: detail };
+  if (/\bbottles?\b/i.test(line)) return { size: "bottle", sizeDetail: detail ?? "bottle" };
+  if (detail && GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
   if (detail && detail !== "568ml") return { size: "bottle", sizeDetail: detail };
-  if (/\bbottles?\b/i.test(line)) return { size: "bottle", sizeDetail: "bottle" };
-  if (/\bkeg\b/i.test(line)) return { size: "keg", sizeDetail: null };
   return { size: "unstated", sizeDetail: null };
 }
 
@@ -585,6 +611,52 @@ function recordPriceLine(
   }
 }
 
+type MenuKind = "drinks" | "food" | "both";
+
+function menuKind(value: string): MenuKind | null {
+  const food = FOOD_LABEL.test(value);
+  const drinks = DRINKS_LABEL.test(value);
+  if (food && drinks) return "both";
+  if (food) return "food";
+  if (drinks) return "drinks";
+  return null;
+}
+
+function saysMenu(kind: MenuKind | null, want: "food" | "drinks"): boolean {
+  return kind === want || kind === "both";
+}
+
+function headingKind(line: string): "drinks" | "food" | null {
+  const text = line.replace(/^#{1,6}\s+/, "").replace(/[*_`]+/g, "").trim();
+  if (!text || /[£\d.!?]/.test(text)) return null;
+  const words = phraseWords(text);
+  if (words.length === 0 || words.length > 4) return null;
+  const content = words.filter((word) => !HEADING_FILLER.has(word));
+  if (content.length === 0 || !content.every((word) => FOOD_LABEL.test(word) || DRINKS_LABEL.test(word))) return null;
+  if (content.some((word) => FOOD_LABEL.test(word))) return "food";
+  return "drinks";
+}
+
+function pricesAllowed(url: string, title: string | undefined, section: "drinks" | "food" | null): boolean {
+  let path = url;
+  try {
+    const parsed = new URL(url);
+    path = `${parsed.pathname} ${parsed.search}`;
+  } catch {
+    path = url;
+  }
+  const pathKind = menuKind(path);
+  const titleKind = title ? menuKind(title) : null;
+  const pathFood = saysMenu(pathKind, "food");
+  const pathDrinks = saysMenu(pathKind, "drinks");
+  const titleFood = saysMenu(titleKind, "food");
+  const titleDrinks = saysMenu(titleKind, "drinks");
+  if ((pathFood && !pathDrinks) || (titleFood && !titleDrinks)) return false;
+  if (section === "food") return false;
+  if ((pathDrinks || titleDrinks) && !(pathFood || titleFood)) return true;
+  return section === "drinks";
+}
+
 function pageExcerpt(markdown: string): string {
   const text = String(markdown ?? "").trim();
   if (!text) return "";
@@ -595,11 +667,17 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
   const drinks: ListedDrinkLine[] = [];
   const seenDrinks = new Set<string>();
   const rawLines = String(markdown ?? "").split(/\r?\n/);
+  let section: "drinks" | "food" | null = null;
 
   for (const rawLine of rawLines) {
     const line = pageText(rawLine).replace(/\s+/g, " ").trim();
     if (!line) continue;
-    recordPriceLine(line, fact, drinks, seenDrinks);
+    const headed = headingKind(line);
+    if (headed) {
+      section = headed;
+      continue;
+    }
+    if (pricesAllowed(fact.sourceUrl, fact.title, section)) recordPriceLine(line, fact, drinks, seenDrinks);
   }
 
   const text = rawLines.join("\n");
@@ -693,6 +771,16 @@ export function queueDocument(input: unknown): QueueDocument {
   return { version: 1, standingRule: "listed", venues };
 }
 
+function unionHours(previous: PageFacts["hours"], incoming: PageFacts["hours"]): PageFacts["hours"] {
+  if (!incoming) return previous;
+  if (!previous) return incoming;
+  const statedDays = [...previous.statedDays];
+  for (const day of incoming.statedDays) {
+    if (!statedDays.includes(day)) statedDays.push(day);
+  }
+  return { statedDays, sourceUrl: incoming.sourceUrl, seenOn: incoming.seenOn };
+}
+
 function unionBy<T>(previous: readonly T[], incoming: readonly T[], keyOf: (row: T) => string): T[] {
   const seen = new Set(previous.map(keyOf));
   const out = [...previous];
@@ -719,7 +807,7 @@ function keepListedLines(previous: VenueEvidence | undefined, incoming: VenueEvi
     : incoming.candidates.length > 0
       ? incoming.candidates
       : previous.candidates;
-  const hours = incoming.hours ?? previous.hours;
+  const hours = unionHours(previous.hours, incoming.hours);
   const phone = incoming.phone ?? previous.phone;
   return { ...incoming, drinks, excerpts, candidates, website, hours, phone };
 }
@@ -763,7 +851,7 @@ function evidenceFor(
   venue: NightlyVenue,
   seenOn: string,
   website: string | null,
-  pages: Array<{ url: string; text: string }>,
+  pages: Array<{ url: string; title?: string; text: string }>,
   candidates: readonly string[],
 ): VenueEvidence {
   const drinks: ListedDrinkLine[] = [];
@@ -773,7 +861,7 @@ function evidenceFor(
   const drinkKeys = new Set<string>();
   const excerptKeys = new Set<string>();
   for (const page of pages) {
-    const facts = factsFromPage(page.text, { sourceUrl: page.url, seenOn });
+    const facts = factsFromPage(page.text, { sourceUrl: page.url, seenOn, title: page.title });
     for (const drink of facts.drinks) {
       const key = `${drink.drink.toLowerCase()}|${drink.size}|${drink.priceGbp}`;
       if (drinkKeys.has(key)) continue;
@@ -786,7 +874,7 @@ function evidenceFor(
       excerptKeys.add(key);
       excerpts.push(excerpt);
     }
-    if (!hours && facts.hours) hours = facts.hours;
+    hours = unionHours(hours, facts.hours);
     if (!phone && facts.phone) phone = facts.phone;
   }
   return {
@@ -871,7 +959,7 @@ export async function runNightlyPass(input: {
     const website = chooseOperatorUrl(hits, venue);
     const origin = website ? new URL(website).origin : "";
     const urls = website ? acceptedExtractUrls(hits.map((hit) => hit.url), origin) : [];
-    const pages: Array<{ url: string; text: string }> = [];
+    const pages: Array<{ url: string; title?: string; text: string }> = [];
     if (website && urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
       const extracted = await takePayload(ledger, EXTRACT_CREDIT_COST, () =>
         input.fetchImpl({ kind: "extract", venueId: venue.id, urls }),
@@ -881,16 +969,21 @@ export async function runNightlyPass(input: {
         if (ledger.exhausted) break;
         continue;
       }
-      const byUrl = new Map(pagesFromPayload(extracted).map((page) => [page.url, page.text]));
+      const extractedPages = pagesFromPayload(extracted);
       for (const url of urls) {
-        const text = byUrl.get(url) || hits.find((hit) => hit.url === url)?.content;
-        if (text?.trim()) pages.push({ url, text });
+        const extractedPage = extractedPages.find((page) => sameListedUrl(page.url, url));
+        const hit = hits.find((row) => sameListedUrl(row.url, url));
+        pushListedPage(pages, url, extractedPage?.text || hit?.content, extractedPage?.title ?? hit?.title);
       }
     } else if (website) {
       for (const url of urls) {
-        const text = hits.find((hit) => hit.url === url)?.content;
-        if (text?.trim()) pages.push({ url, text });
+        const hit = hits.find((row) => sameListedUrl(row.url, url));
+        pushListedPage(pages, url, hit?.content, hit?.title);
       }
+    }
+    if (website) {
+      const hit = hits.find((row) => sameListedUrl(row.url, website));
+      pushListedPage(pages, website, hit?.content, hit?.title);
     }
     const candidates = website
       ? []

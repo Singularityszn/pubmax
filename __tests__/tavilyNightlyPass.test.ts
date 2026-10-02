@@ -627,6 +627,35 @@ describe("a price stays in the lane the reader gave it", () => {
     expect(qualified.drinks).toEqual([]);
   });
 
+  it("leaves a wine glass unstated and reads a keg or bottle word ahead of the millilitres", () => {
+    const facts = factsFromPage(
+      "Sauvignon 125ml £6.50\nHouse Merlot 175ml £14.50\nPinot 250ml £8.00\nAsahi 500ml keg £6.70\nPeroni 330ml bottle £6.55\nCoca-Cola 330ml can £1.50",
+      pageFact,
+    );
+    const byDrink = Object.fromEntries(facts.drinks.map((row) => [row.drink, row]));
+    expect(byDrink.Sauvignon).toMatchObject({ size: "unstated", sizeDetail: "125ml", priceGbp: 6.5 });
+    expect(byDrink["House Merlot"]).toMatchObject({ size: "unstated", sizeDetail: "175ml", priceGbp: 14.5 });
+    expect(byDrink.Pinot).toMatchObject({ size: "unstated", sizeDetail: "250ml", priceGbp: 8 });
+    expect(byDrink.Asahi).toMatchObject({ size: "keg", sizeDetail: "500ml", priceGbp: 6.7 });
+    expect(byDrink.Peroni).toMatchObject({ size: "bottle", sizeDetail: "330ml", priceGbp: 6.55 });
+    expect(byDrink["Coca-Cola"]).toMatchObject({ size: "can", sizeDetail: "330ml", priceGbp: 1.5 });
+  });
+
+  it("keeps scotch egg and rum baba off a food menu and out of a food section", () => {
+    const food = "Scotch egg £6.50\nRum baba £7";
+    const foodPage = factsFromPage(food, {
+      sourceUrl: "https://eastbrookpub.co.uk/food-menu.pdf",
+      seenOn: "2026-10-01",
+      title: "Food menu",
+    });
+    expect(foodPage.drinks).toEqual([]);
+    expect(foodPage.excerpts[0].excerpt).toBe(food);
+    const mixed = "London Pride £5.50 /pint\nFood\nScotch egg £6.50\nRum baba £7\nBeer\nGuinness £5.80 /pint";
+    const drinksPage = factsFromPage(mixed, pageFact);
+    expect(drinksPage.drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
+    expect(drinksPage.excerpts[0].excerpt).toBe(mixed);
+  });
+
   it("keeps closure wording verbatim and does not treat an open kitchen or a former name as a closure field", () => {
     const open = factsFromPage("The kitchen is now closed.\nFormerly known as The Red Lion.\nLondon Pride £5.50 /pint", pageFact);
     expect(open.excerpts[0].excerpt).toContain("The kitchen is now closed.");
@@ -1110,6 +1139,103 @@ describe("a night that fails part way", () => {
     expect(closed.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
     expect(closed.queue.venues[0].hours?.statedDays).toContain("Monday");
     expect(closed.queue.venues[0].phone?.value).toBe("020 7946 0991");
+  });
+
+  it("keeps a bound page that is not a menu url, and does not price a food menu", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const calls: string[] = [];
+    const result = await runNightlyPass({
+      venues: [pub],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async (request) => {
+        calls.push(request.kind);
+        if (request.kind === "search") {
+          return {
+            results: [
+              {
+                url: "https://thecrown-bankside.co.uk/",
+                title: "Drinks",
+                content: "The Crown, 1 Bankside, SE1 6AN. London Pride £5.50 /pint.",
+              },
+              { url: "https://thecrown-bankside.co.uk/food-menu.pdf", title: "Food", content: "" },
+            ],
+            usage: { credits: 1 },
+          };
+        }
+        expect(request.urls).toEqual(["https://thecrown-bankside.co.uk/food-menu.pdf"]);
+        return {
+          results: [{ url: "https://thecrown-bankside.co.uk/food-menu.pdf", raw_content: "Scotch egg £6.50\nRum baba £7" }],
+          usage: { credits: 1 },
+        };
+      },
+    });
+    expect(calls).toEqual(["search", "extract"]);
+    expect(result.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/");
+    expect(result.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    const text = result.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n");
+    expect(text).toContain("London Pride £5.50");
+    expect(text).toContain("Scotch egg £6.50");
+    expect(text).toContain("Rum baba £7");
+    expect(result.queue.venues[0].drinks.find((row) => /scotch|rum|baba/i.test(row.drink))).toBeUndefined();
+  });
+
+  it("keeps stated days a later page does not restate", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const drinks = "https://thecrown-bankside.co.uk/drinks";
+    const beer = "https://thecrown-bankside.co.uk/beer";
+    type Night = Awaited<ReturnType<typeof runNightlyPass>>;
+    const night = (now: Date, queue: Night["queue"], cursor: Night["cursor"], bodies: Record<string, string>) =>
+      runNightlyPass({
+        venues: [pub],
+        cursor,
+        queue,
+        now,
+        usage: researcher,
+        reserveCredits: 0,
+        manualCap: 10,
+        staleAfterDays: 30,
+        fetchImpl: async (request) => {
+          if (request.kind === "search") {
+            return {
+              results: [
+                { url: drinks, title: "Drinks", content: "The Crown, 1 Bankside, SE1 6AN." },
+                { url: beer, title: "Beer", content: "" },
+              ],
+              usage: { credits: 1 },
+            };
+          }
+          return {
+            results: request.urls.map((url: string) => ({ url, raw_content: bodies[url] ?? "" })),
+            usage: { credits: 1 },
+          };
+        },
+      });
+    const first = await night(new Date("2026-09-01T12:00:00.000Z"), listedQueue, { version: 1, lastSeen: {} }, {
+      [drinks]: "Monday 12pm to 11pm",
+      [beer]: "Tuesday 12pm to 11pm",
+    });
+    expect(first.queue.venues[0].hours?.statedDays).toEqual(["Monday", "Tuesday"]);
+    const later = await night(oct1, first.queue, first.cursor, {
+      [drinks]: "Sunday 12pm to 10pm",
+      [beer]: "",
+    });
+    expect(later.queue.venues[0].hours?.statedDays).toEqual(["Monday", "Tuesday", "Sunday"]);
   });
 
   it("saves a finished venue and carries on when a later call fails", async () => {
