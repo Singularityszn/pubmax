@@ -102,6 +102,8 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Read A's PRIVATE profile card | limited card | full for a mate, limited for anybody else | full: she owns it | n/a |
 | Set who can see A's profile (`PATCH` `visibility`) | denied | 403, and the stored choice does not move | allowed | n/a |
 | A's `profiles` row at the table, the choice included | denied | no rows | own row | n/a |
+| Write A's `profiles` row at the table (handle, founding number, avatar moderation, report count, moderator note, or delete) | denied | denied | denied | n/a |
+| Insert an ownerless `profiles` row at the table | denied | denied | denied | n/a |
 
 ## Cells added for the wider roles
 
