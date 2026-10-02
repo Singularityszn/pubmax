@@ -904,10 +904,14 @@ describe("accepted Stop 1 description generation", () => {
     expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
   });
 
-  it.each(["anchor conflict", "zero matches"])("ends the refreshing status after %s and permits a retry", async (outcome) => {
+  it.each(["anchor conflict", "zero matches", "HTTP error"].flatMap((outcome) =>
+    [false, true].map((recovered) => ({ outcome, recovered })),
+  ))("ends refreshing after $outcome with recovered=$recovered and permits a retry", async ({ outcome, recovered }) => {
     const message = outcome === "anchor conflict"
       ? "We could not build a route from that pub right now. Try a different pub."
-      : "No venues matched that ask. Try a nearby area or a broader mood.";
+      : outcome === "zero matches"
+        ? "No venues matched that ask. Try a nearby area or a broader mood."
+        : "Could not generate a route right now.";
     let finishRequest: ((response: Response) => void) | undefined;
     let requests = 0;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
@@ -924,11 +928,22 @@ describe("accepted Stop 1 description generation", () => {
       acceptedArea: { kind: "night-patch", id: "camden" }, startsAt: null,
       displayEvidence: { kind: "directory", observedAt: null },
     }, { storage: sessionStorage })).not.toBeNull();
+    if (recovered) {
+      const route = writePlanRouteDraftEnvelope({
+        anchorVenueId: swissCottage.id, anchorSource: "pal", outcome: "route",
+        stops: generatedStops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
+        alternatives: [], nightContext: { ...inferNightContext(ask).context, stopCount: 3 },
+        routeTotals: null, transportBasis: null, planningConfidence: null, warnings: [],
+        groundingProof: "test-proof", operationKey: "test-operation", routeRevision: null, routeStale: false,
+      }, "planning-intent", localStorage);
+      expect(route.v1).toBe(true);
+      expect(route.v2).toBe(true);
+    }
     await mountComposer();
     const validationMessage = document.querySelector(".planComposer__error")?.textContent;
     await act(async () => {
       typeInto("#plan-concierge-query", ask);
-      clickButton("Make a plan");
+      clickButton(recovered ? "Sort it again" : "Make a plan");
     });
     expect(requests).toBe(1);
     expect(document.querySelector("#plan-route-status")?.textContent).toContain("Refreshing the route");
@@ -936,16 +951,20 @@ describe("accepted Stop 1 description generation", () => {
     await act(async () => {
       finishRequest!(Response.json(outcome === "anchor conflict"
         ? { outcome: "anchor-conflict", stops: [], message }
-        : { stops: [] }));
+        : outcome === "zero matches" ? { stops: [] }
+          : { error: { code: "PLAN_GENERATION_FAILED", message } },
+      { status: outcome === "HTTP error" ? 503 : 200 }));
     });
     await settleComposerEffects();
-    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(1);
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(recovered ? 3 : 1);
     expect(document.querySelector<HTMLInputElement>("#venue-name-1")?.value).toBe(swissCottage.name);
-    expect(document.querySelector("#plan-route-status")?.textContent).toBe(`The previous route is still here. ${message}`);
+    const failureStatus = recovered ? `The previous route is still here. ${message}` : message;
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe(failureStatus);
     expect(document.querySelector("#plan-route-status")?.textContent).not.toContain("Refreshing");
-    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
-    expect(document.querySelector(".planComposer__error")?.textContent).toBe(validationMessage);
-    await act(async () => { clickButton("Make a plan"); });
+    expect(Boolean(document.querySelector(".planComposer__routeStale"))).toBe(recovered);
+    expect(document.querySelector(".planComposer__error")?.textContent)
+      .toBe(outcome === "HTTP error" ? failureStatus : validationMessage);
+    await act(async () => { clickButton(recovered ? "Regenerate route" : "Make a plan"); });
     await settleComposerEffects();
     expect(requests).toBe(2);
     expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
