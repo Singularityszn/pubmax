@@ -18,14 +18,14 @@ export const maxDuration = 30;
 type RouteContext = { params: Promise<{ toolName: string }> };
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
+  const authDenied = assertPubPalLlmAuth(request);
+  if (authDenied) return authDenied;
+
   const { toolName } = await context.params;
   const normalized = toolName.trim();
   if (!isAskToolName(normalized)) {
     return publicApiError("That tool is not available.", "TOOL_NOT_ALLOWED", 404);
   }
-
-  const authDenied = assertPubPalLlmAuth(request);
-  if (authDenied) return authDenied;
 
   let body: unknown;
   try {
@@ -35,7 +35,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   }
 
   const { conversationId, args } = parsePubPalToolWebhookBody(body);
-  const limiterKey = pubPalWebhookLimiterKey("tool", normalized);
+  const limiterKey = pubPalWebhookLimiterKey(normalized);
   if (
     await isLimited(
       limiterKey,

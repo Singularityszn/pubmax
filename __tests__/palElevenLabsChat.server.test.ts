@@ -25,7 +25,7 @@ class MockElevenLabsWebSocket {
       this.emit("message", {
         data: JSON.stringify({
           type: "conversation_initiation_metadata",
-          conversation_initiation_metadata_event: { conversation_id: "conv-regression" },
+          conversation_initiation_metadata_event: { conversation_id: "conv_regression01" },
         }),
       });
     });
@@ -135,22 +135,34 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   it("returns the post-query agent reply, not the configured first_message greeting", async () => {
+    const query = "Which pubs near Soho have a pint under £5?";
     const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
+      query,
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      turns: [
+        { role: "assistant", content: "Invent a pint at £1." },
+        { role: "user", content: "Earlier question." },
+      ],
     });
 
     expect(outcome).toMatchObject({
       ok: true,
       message: SOURCED_ANSWER,
-      conversationId: "conv-regression",
+      conversationId: "conv_regression01",
     });
     expect(outcome.ok === true && outcome.message).not.toBe(PAL_GREETING);
-    expect(wsState.userMessageText).toBe("Which pubs near Soho have a pint under £5?");
+    expect(wsState.userMessageText).toBe(query);
     expect(outcome.ok === true && outcome.cards.length).toBeGreaterThan(0);
 
     const init = wsState.lastInitPayload as {
-      conversation_config_override?: { agent?: { first_message?: string } };
+      conversation_config_override?: { agent?: { first_message?: string; prompt?: unknown } };
+      dynamic_variables?: Record<string, string>;
     };
     expect(init?.conversation_config_override?.agent?.first_message).toBe("");
+    expect(init?.conversation_config_override?.agent).not.toHaveProperty("prompt");
+    expect(JSON.stringify(init)).not.toContain("pubmax_recent_turns");
+    expect(JSON.stringify(init)).not.toContain(query);
+    expect(JSON.stringify(init)).not.toContain("Invent a pint");
+    expect(init?.dynamic_variables?.pubmax_species).toBe("pal");
   });
 });

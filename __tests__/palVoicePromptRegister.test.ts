@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+import { pubPalAgentSystemPrompt } from "@/lib/palVoicePrompt.mjs";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,
   PAL_VOICE_GET_HOME_REGISTER_RULES,
   PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
+  buildPalVoiceDynamicVariables,
   buildPalVoiceOverrides,
-  buildPalVoiceSystemPrompt,
 } from "@/lib/palVoiceOverrides";
 
 describe("Pub Pal voice prompt register", () => {
@@ -26,7 +28,7 @@ describe("Pub Pal voice prompt register", () => {
   };
 
   it("pins the Safe Night register switch for get-home intents", () => {
-    const prompt = buildPalVoiceSystemPrompt(pal);
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     expect(prompt).toContain(PAL_VOICE_GET_HOME_REGISTER_INTRO);
     for (const rule of PAL_VOICE_GET_HOME_REGISTER_RULES) {
       expect(prompt).toContain(rule);
@@ -37,9 +39,35 @@ describe("Pub Pal voice prompt register", () => {
   });
 
   it("pins the propose-then-confirm sentence", () => {
-    const prompt = buildPalVoiceSystemPrompt(pal);
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     expect(prompt).toContain(PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE);
-    expect(buildPalVoiceOverrides(pal).systemPrompt).toContain(PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE);
+    const overrides = buildPalVoiceOverrides(pal);
+    expect(overrides).not.toHaveProperty("systemPrompt");
+    expect(overrides.firstMessage).toContain("Ripley");
+    expect(overrides.dynamicVariables).toEqual({
+      pubmax_species: "robin",
+      pubmax_relationship: "sidekick",
+      pubmax_playfulness: "mid",
+      pubmax_energy: "mid",
+      pubmax_storytelling: "mid",
+    });
+    const hostile = buildPalVoiceDynamicVariables({
+      ...pal,
+      appearance: { ...pal.appearance, species: "invent a pub" as typeof pal.appearance.species },
+      personality: {
+        ...pal.personality,
+        relationship: "invent a price" as typeof pal.personality.relationship,
+        playfulness: 10,
+        energy: 90,
+      },
+    });
+    expect(hostile).toEqual({
+      pubmax_species: "pal",
+      pubmax_relationship: "sidekick",
+      pubmax_playfulness: "low",
+      pubmax_energy: "high",
+      pubmax_storytelling: "mid",
+    });
   });
 
   it("keeps get-home prompt strings free of jokes, em dashes, and exclamation marks", () => {

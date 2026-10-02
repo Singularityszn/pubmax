@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 // Create or update the Pub Pal ElevenLabs Agent, idempotently.
 //
-// The agent is a THIN SHELL. It owns no knowledge: every answer comes from our
-// own tool registry through the Custom LLM bridge at /api/pub-pal/llm, which
-// runs the same grounded Night OS Ask path the text surface runs (ADR 0014).
+// The agent is a THIN SHELL. Factual answers come from the webhook tools.
+// Grounding stays in the base prompt. The browser may change the greeting
+// and the voice id. It may not replace the system prompt.
+// Captain, after this file changes, re-run once. Do not do this from an agent:
+//   npm run pubpal:agent -- --base-url https://pubmaxxing.com
+//
 // So this script sets four things and nothing else:
 //
-//   1. the Custom LLM URL plus its shared secret,
-//   2. no voice recording; ElevenLabs may still retain conversation data
-//      under its default policy for custom-LLM agents,
-//   3. a default voice, when one is set, and the per-session overrides that
-//      let each Pal speak in its own species voice,
+//   1. the webhook tools plus the shared secret they present,
+//   2. no voice recording, and zero retention on the provider side,
+//   3. a default voice, when one is set, plus greeting and voice-id overrides,
 //   4. the house first message and the propose-then-confirm rule (ADR 0006).
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
@@ -30,6 +31,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
+import {
+  PAL_VOICE_DYNAMIC_DEFAULTS,
+  pubPalAgentSystemPrompt,
+} from "../../lib/palVoicePrompt.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -98,24 +103,19 @@ function fail(message) {
 }
 
 function systemPrompt() {
-  return [
-    "You are the Pub Pal, a London night companion on PUBMAXX.",
-    "Call the PUBMAXX webhook tools before any factual answer. Speak what they return and nothing else.",
-    "Never invent a pub, a price, an opening hour, or an event. If the tools say nothing is on record, say that.",
-    "Recent thread (if any): {{pubmax_recent_turns}}. City: {{pubmax_city_id}}.",
-    "British spelling. No exclamation marks. No em dashes. Short sentences.",
-    "You may propose a plan or a saved fact, but you never apply one. Say what you would do and ask the person to confirm it in the app.",
-    "When the night turns to getting home, last trains, rides, or sobriety, switch to plain speech: one fact per sentence, no jokes, and hand off to the Getting Home tab.",
-    `End the call once it reaches ${MAX_SESSION_SECONDS} seconds or the person is done.`,
-  ].join("\n");
+  return pubPalAgentSystemPrompt(MAX_SESSION_SECONDS);
+}
+
+function conversationIdProperty() {
+  return {
+    type: "string",
+    dynamic_variable: "system__conversation_id",
+  };
 }
 
 const TOOL_WEBHOOK_BODY_PROPERTIES = {
   cheapest_pint_near: {
-    conversation_id: {
-      type: "string",
-      description: "ElevenLabs conversation id from the active session.",
-    },
+    conversation_id: conversationIdProperty(),
     query: {
       type: "string",
       description: "The user's full question when area or pub name are unclear.",
@@ -124,29 +124,20 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
     venueName: { type: "string", description: "Named pub to search around." },
   },
   propose_plan: {
-    conversation_id: {
-      type: "string",
-      description: "ElevenLabs conversation id from the active session.",
-    },
+    conversation_id: conversationIdProperty(),
     query: {
       type: "string",
       description: "The full crawl or plan ask, including area and stop count.",
     },
   },
   search_venues: {
-    conversation_id: {
-      type: "string",
-      description: "ElevenLabs conversation id from the active session.",
-    },
+    conversation_id: conversationIdProperty(),
     query: { type: "string", description: "The venue search ask." },
   },
 };
 
 const DEFAULT_WEBHOOK_BODY_PROPERTIES = {
-  conversation_id: {
-    type: "string",
-    description: "ElevenLabs conversation id from the active session.",
-  },
+  conversation_id: conversationIdProperty(),
   query: {
     type: "string",
     description: "The user's question this tool call should answer.",
@@ -220,6 +211,9 @@ function agentBody(toolIds) {
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
         language: "en",
+        dynamic_variables: {
+          dynamic_variable_placeholders: { ...PAL_VOICE_DYNAMIC_DEFAULTS },
+        },
       },
       conversation: {
         max_duration_seconds: MAX_SESSION_SECONDS,
@@ -230,7 +224,7 @@ function agentBody(toolIds) {
       overrides: {
         conversation_config_override: {
           agent: {
-            prompt: { prompt: true },
+            prompt: { prompt: false },
             first_message: true,
           },
           tts: { voice_id: true },
@@ -247,11 +241,24 @@ function agentBody(toolIds) {
   return { body, defaultVoice };
 }
 
+function redactToolConfig(config) {
+  return {
+    ...config,
+    api_schema: {
+      ...config.api_schema,
+      request_headers: {
+        "x-elevenlabs-llm-secret": { secret_id: "redacted" },
+        "Content-Type": "application/json",
+      },
+    },
+  };
+}
+
 function redactAgentPreview(body, baseUrl) {
   return {
     ...body,
-    webhook_tools: (AGENT_CONFIG.toolNames ?? []).map(
-      (name) => `${baseUrl}/api/pub-pal/tools/${name}`,
+    webhook_tools: (AGENT_CONFIG.toolNames ?? []).map((name) =>
+      redactToolConfig(webhookToolConfig(name, baseUrl, "redacted")),
     ),
     llm: AGENT_CONFIG.llm,
     llmCreditNote: AGENT_CONFIG.llmCreditNote,
