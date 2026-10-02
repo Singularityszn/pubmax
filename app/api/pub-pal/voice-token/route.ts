@@ -16,7 +16,9 @@ import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import { bindPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
+import { mintPubPalVoiceOwnerProof } from "@/lib/pubPalVoiceOwnerProof.server";
 import { getPubPalResult } from "@/lib/pubPalStore";
+import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const usage = new Map<string, PalVoiceMeterState>();
@@ -175,6 +177,15 @@ async function handleIssueToken(userId: string): Promise<Response> {
     });
   }
 
+  try {
+    trustedSigningKey();
+  } catch {
+    return publicApiError("Voice service is temporarily unavailable.", "UNAVAILABLE", 503, {
+      retryable: true,
+      compatibilityFields: { fallback: "text" },
+    });
+  }
+
   const month = currentMonth();
   const usageMonth = usageMonthDate(month);
   const supabaseConfigured = isSupabaseConfigured();
@@ -244,19 +255,21 @@ async function handleIssueToken(userId: string): Promise<Response> {
         compatibilityFields: { fallback: "text" },
       });
     }
+    let voiceOwnerProof: string;
     try {
       await bindPubPalToolTurn(conversationId, userId, DEFAULT_CITY_ID);
+      voiceOwnerProof = mintPubPalVoiceOwnerProof(userId, conversationId);
     } catch {
       return publicApiError("Voice service is temporarily unavailable.", "UNAVAILABLE", 503, {
         retryable: true,
         compatibilityFields: { fallback: "text" },
       });
     }
-    providerAllocated = true;
     const remainingMinutes = supabaseConfigured ? null : remainingVoiceMinutes(meter);
-    return jsonNoStore({
+    const result = jsonNoStore({
       signedUrl: payload.signed_url,
       conversationId,
+      voiceOwnerProof,
       connectionType: "websocket",
       overrides,
       maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
@@ -265,6 +278,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
       retention: "provider_default",
       mutationPolicy: "propose_then_confirm",
     });
+    providerAllocated = true;
+    return result;
   } catch {
     return publicApiError("Voice service did not respond in time.", "PROVIDER_TIMEOUT", 504, {
       retryable: true,
