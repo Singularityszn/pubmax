@@ -112,8 +112,8 @@ describe("node_modules freshness", () => {
       try {
         execFileSync(
           process.execPath,
-          ["scripts/check_node_modules_fresh.mjs", "--root", dir],
-          { cwd: process.cwd(), encoding: "utf8", stdio: "pipe" },
+          [join(process.cwd(), "scripts/check_node_modules_fresh.mjs")],
+          { cwd: dir, encoding: "utf8", stdio: "pipe" },
         );
       } catch (error) {
         const failed = error as { status?: number; stderr?: string };
