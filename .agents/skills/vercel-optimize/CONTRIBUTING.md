@@ -1,6 +1,8 @@
 # Contributing to `vercel-optimize`
 
-Keep changes small, metric-grounded, and fixture-tested. Runtime code lives in `skills/vercel-optimize`; tests and fixtures live in `packages/vercel-optimize-tests` so installed skills stay small.
+This repo vendors the skill at `.agents/skills/vercel-optimize`. Its scripts are in that directory. The test package `packages/vercel-optimize-tests` was not copied. The paths below are the upstream [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) layout.
+
+Keep changes small, metric-grounded, and fixture-tested. Upstream, runtime code lives in `skills/vercel-optimize` and tests and fixtures live in `packages/vercel-optimize-tests` so installed skills stay small.
 
 ## Common changes
 

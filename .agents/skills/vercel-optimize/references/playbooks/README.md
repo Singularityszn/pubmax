@@ -50,4 +50,4 @@ Each playbook is a Markdown file with a fixed shape so the recommender can parse
 2. Create `references/playbooks/<profile>.md` matching the schema.
 3. Add detection signals to the table above (the heuristics live in the recommender code; document them here).
 4. Update the playbook selection matrix in `references/scoring.md`.
-5. Run `node --test packages/vercel-optimize-tests/test/support-topics.test.mjs packages/vercel-optimize-tests/test/investigation-brief.test.mjs`. No tests directly cover playbooks (they're content), but the schema validator runs in CI.
+5. The support-topic schema validator lives in the upstream test package named in [CONTRIBUTING.md](../../CONTRIBUTING.md). No tests directly cover playbooks (they're content). This vendored copy does not include that package.

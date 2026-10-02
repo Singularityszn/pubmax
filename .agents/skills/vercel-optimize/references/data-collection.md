@@ -2,7 +2,7 @@
 
 What the skill collects in Step 1, where each signal comes from, and how it degrades when a capability is missing.
 
-All shapes here are covered by sanitized CLI fixtures in `packages/vercel-optimize-tests/test/fixtures/real-cli-output/`.
+Sanitized CLI fixtures for these shapes live in the upstream test package. This vendored copy does not include them. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Table of contents
 

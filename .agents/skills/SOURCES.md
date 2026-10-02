@@ -17,7 +17,7 @@ These were already in the tree. They are not part of the five packs below.
 | `maplibre-v6-migration` | MapLibre GL JS v5 to v6 migration for this app's map. Same upstream repo. |
 | `continual-learning` | Approval-gated mining of this workspace's transcripts into `AGENTS.md`. It is not in `~/.agents/skills`. |
 
-The MapLibre and Capacitor skills are the set vendored for this repo's map and native shell (pull request 1678).
+The MapLibre and Capacitor rows above were vendored for the map and native shell in pull request 1678. The 2 Oct 2026 refresh and the store-path skills are recorded below.
 
 ## Packs
 

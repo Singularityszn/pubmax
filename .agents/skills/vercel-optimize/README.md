@@ -84,7 +84,7 @@ The agent should collect metrics first. If it starts by reading source files or 
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). New gates, scanners, playbooks, citations, and sanitizers need fixture coverage in `packages/vercel-optimize-tests`.
+See [CONTRIBUTING.md](./CONTRIBUTING.md). New gates, scanners, playbooks, citations, and sanitizers need fixture coverage in the upstream test package named there.
 
 ## License
 
