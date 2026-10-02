@@ -428,7 +428,7 @@ import {
   scheduleLogIntentReveal,
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
-import { warmVenueDetail } from "@/lib/warmVenueDetail";
+import { getWarmedVenue, warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -1584,7 +1584,7 @@ export default function PubMap({
   }, [spoonsValueOn]);
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
-  const [experiencePolicyNow] = useState(() => Date.now());
+  const [experiencePolicyNow, setExperiencePolicyNow] = useState(() => Date.now());
   const [mapOverlay, setMapOverlay] = useState<MapOverlay>(() => {
     const restored = restoredMobileSession?.openSheet;
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
@@ -1819,42 +1819,6 @@ export default function PubMap({
     [slimPins, detailById],
   );
 
-  // A shared crawl may name cell-pack venues that are outside the opening
-  // viewport. Resolve those stops through the existing detail lane so the
-  // route is real on first paint instead of silently dropping unavailable
-  // rows while the spatial loader quite correctly stays viewport-scoped.
-  const seededRouteIds = seed.builtIds;
-  useEffect(() => {
-    const knownIds = new Set(baseVenues.map((venue) => venue.id));
-    const missingRouteIds = seededRouteIds.filter(
-      (id) => !knownIds.has(id) && !isUkBaseId(id),
-    );
-    if (missingRouteIds.length === 0) return;
-    let cancelled = false;
-    void Promise.all(missingRouteIds.map((id) => warmVenueDetail(id))).then(
-      (results) => {
-        if (cancelled) return;
-        const found = results.flatMap((result) =>
-          result.status === "found" ? [result.venue] : [],
-        );
-        if (found.length === 0) return;
-        setDetailById((current) => {
-          const next = new Map(current);
-          let changed = false;
-          for (const venue of found) {
-            if (next.get(venue.id) === venue) continue;
-            next.set(venue.id, venue);
-            changed = true;
-          }
-          return changed ? next : current;
-        });
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [baseVenues, seededRouteIds]);
-
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
   // leaking into the London feed/landing.
@@ -1966,6 +1930,24 @@ export default function PubMap({
   useEffect(() => {
     if (restoredRouteCategory) loadDrinkCategoryIndex(restoredRouteCategory);
   }, [loadDrinkCategoryIndex, restoredRouteCategory]);
+  // Cached observations keep their source dates, but a newly chosen view
+  // checks their authority at this read, rather than at the map's mount.
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setExperiencePolicyNow(Date.now());
+    });
+    return () => { cancelled = true; };
+  }, [
+    experienceLens,
+    mapDrinkLensCategory,
+    drinkServingGroup,
+    restoredRouteCategory,
+    spoonsValueOn,
+    communityPrices.byVenueId,
+    communityPrices.listedDrinkPrices,
+    communityPrices.listedNoAlcoholPrices,
+  ]);
   const currentRoutePricing = useMemo(() => currentMapRoutePricing(
     generatedPricing,
     restoredRouteCategory ? discoveryDrinkLensPrices(
@@ -2869,7 +2851,23 @@ export default function PubMap({
     () => hasSavedPubVenue(pubVenues, savedIds),
     [pubVenues, savedIds],
   );
-  const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  const venueById = useMemo(() => {
+    const byId = new Map(venues.map((venue) => [venue.id, venue]));
+    // Detail already resolved these old link IDs. Only the lookup gets aliases:
+    // pins and records keep their canonical identity, and the URL keeps order.
+    for (const id of builtIds) {
+      if (byId.has(id)) continue;
+      const canonicalId = getWarmedVenue(id)?.id;
+      const venue = canonicalId ? byId.get(canonicalId) : undefined;
+      if (venue) byId.set(id, venue);
+    }
+    return byId;
+  }, [builtIds, venues]);
+  // Controls compare resolved pub identities; the shared route keeps its raw IDs.
+  const builtVenueIds = useMemo(
+    () => builtIds.map((id) => venueById.get(id)?.id ?? id),
+    [builtIds, venueById],
+  );
   // A shared planner link can name stops outside the opening viewport. The slim
   // shard loader quite correctly reads only the map the reader is looking at,
   // but the planner still owes the URL's ordered stops immediately. Warm those
@@ -4207,10 +4205,12 @@ export default function PubMap({
 
   const toggleBuiltStop = useCallback((id: string) => {
     const venue = venueById.get(id);
+    const venueId = venue?.id ?? id;
     const pickable = !venue || isPubVenue(venue);
-    if (pickable && !builtIds.includes(id)) trackEvent("stop_added", { surface: "map" });
+    if (pickable && !builtVenueIds.includes(venueId)) trackEvent("stop_added", { surface: "map" });
     setBuiltIds((current) => {
-      if (current.includes(id)) return current.filter((existing) => existing !== id);
+      const matchesVenue = (existing: string) => (venueById.get(existing)?.id ?? existing) === venueId;
+      if (current.some(matchesVenue)) return current.filter((existing) => !matchesVenue(existing));
       if (!pickable) return current;
       return [...current, id];
     });
@@ -4221,7 +4221,7 @@ export default function PubMap({
     setMode("build");
     setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [builtIds, setBuiltIds, setMode, setRouteMapped, venueById]);
+  }, [builtVenueIds, setBuiltIds, setMode, setRouteMapped, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
@@ -5462,7 +5462,7 @@ export default function PubMap({
         onAltStyleChange={setAltStyle}
         route={route}
         filteredVenues={filteredPubVenues}
-        builtIds={builtIds}
+        builtIds={builtVenueIds}
         activeVenueId={selectedVenueIdOrUndefined}
         venueSignals={venueSignals}
         crawlBlurb={activeCrawlBlurb}
@@ -5601,10 +5601,10 @@ export default function PubMap({
         {selectedVenueIsPub ? (
           <button
             type="button"
-            aria-pressed={builtIds.includes(selectedVenue.id)}
+            aria-pressed={builtVenueIds.includes(selectedVenue.id)}
             onClick={() => toggleBuiltStop(selectedVenue.id)}
           >
-            {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+            {builtVenueIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
           </button>
         ) : null}
       </div>
@@ -5668,7 +5668,7 @@ export default function PubMap({
         <VenueInspector
           venue={selectedVenue}
           mode={mode}
-          inCrawl={builtIds.includes(selectedVenue.id)}
+          inCrawl={builtVenueIds.includes(selectedVenue.id)}
           // The UNMERGED drop signal on purpose: the sheet gives every source its
           // own row, so the "Latest Pint Drop price" line must stay the Pint Drop
           // price. The community submission gets its own dated row alongside it.
