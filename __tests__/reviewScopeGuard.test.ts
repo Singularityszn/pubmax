@@ -8,7 +8,7 @@ import {
   changedFilesFromGit,
   MAX_REVIEW_FILES,
   MAX_RUNTIME_DOMAINS,
-  REVIEW_SCOPE_FAILURE_HINT,
+  REVIEW_SCOPE_HINTS,
   summarizeReviewScope,
 } from "../scripts/check_review_scope.mjs";
 
@@ -383,7 +383,7 @@ describe("review scope guard", () => {
     }
   });
 
-  it("names the lane table on stderr when generated output has no lane", () => {
+  it("prints the hint for each forbidden category on stderr", () => {
     const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-hint-"));
     const git = (...args: string[]) =>
       execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
@@ -438,9 +438,28 @@ describe("review scope guard", () => {
       const failed = runCli(readmeHead, generatedHead);
       expect(failed.status).toBe(1);
       expect(JSON.parse(failed.stdout).ok).toBe(false);
-      expect(failed.stderr).toBe(`${REVIEW_SCOPE_FAILURE_HINT}\n`);
-      expect(REVIEW_SCOPE_FAILURE_HINT).toBe(
+      expect(failed.stderr).toBe(`${REVIEW_SCOPE_HINTS.generated}\n`);
+      expect(REVIEW_SCOPE_HINTS.generated).toBe(
         "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+      );
+
+      mkdirSync(join(repo, "skills/example"), { recursive: true });
+      writeFileSync(join(repo, "skills/example/SKILL.md"), "# example\n");
+      git("add", ".");
+      git("commit", "-qm", "add skill pack");
+      const skillHead = git("rev-parse", "HEAD");
+      const skillOnly = runCli(generatedHead, skillHead);
+      expect(skillOnly.status).toBe(1);
+      expect(JSON.parse(skillOnly.stdout).ok).toBe(false);
+      expect(skillOnly.stderr).toBe(`${REVIEW_SCOPE_HINTS["skill-pack"]}\n`);
+      expect(REVIEW_SCOPE_HINTS["skill-pack"]).toBe(
+        "A skill pack in this diff sits outside the project skill root. Move it under .agents/skills/; rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+      );
+
+      const both = runCli(readmeHead, skillHead);
+      expect(both.status).toBe(1);
+      expect(both.stderr).toBe(
+        `${REVIEW_SCOPE_HINTS.generated}\n${REVIEW_SCOPE_HINTS["skill-pack"]}\n`,
       );
     } finally {
       rmSync(repo, { recursive: true, force: true });

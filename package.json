@@ -6,7 +6,7 @@
     "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   },
   "scripts": {
-    "predev": "npm run prepare:maplibre-worker",
+    "predev": "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker",
     "dev": "next dev --webpack",
     "prebuild": "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board",
     "build": "next build",
@@ -58,7 +58,7 @@
     "build:uk-base": "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
     "build:uk-pub-search": "node scripts/build_uk_pub_search_index.mjs",
     "fetch:wikidata-notable-pubs": "node scripts/fetch_wikidata_notable_pubs.mjs",
-    "prepare:maplibre-worker": "node scripts/check_node_modules_fresh.mjs && node scripts/copy_maplibre_worker.mjs && node scripts/copy_elevenlabs_worklets.mjs",
+    "prepare:maplibre-worker": "node scripts/copy_maplibre_worker.mjs && node scripts/copy_elevenlabs_worklets.mjs",
     "build:heritage-listings": "node scripts/build_heritage_listings.mjs",
     "pubpal:agent": "node scripts/pubpal/create-elevenlabs-agent.mjs",
     "pubpal:design-voices": "node scripts/pubpal/design-pal-voices.mjs",

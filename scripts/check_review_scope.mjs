@@ -13,8 +13,12 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
-export const REVIEW_SCOPE_FAILURE_HINT =
-  "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may";
+export const REVIEW_SCOPE_HINTS = {
+  generated:
+    "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+  "skill-pack":
+    "A skill pack in this diff sits outside the project skill root. Move it under .agents/skills/; rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+};
 
 export const MAX_REVIEW_FILES = 150;
 export const MAX_RUNTIME_DOMAINS = 2;
@@ -331,7 +335,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
   try {
     const report = runReviewScopeCli();
     if (!report.ok) {
-      console.error(REVIEW_SCOPE_FAILURE_HINT);
+      for (const [category, hint] of Object.entries(REVIEW_SCOPE_HINTS)) {
+        if (report.forbidden.some((item) => item.category === category)) console.error(hint);
+      }
       process.exitCode = 1;
     }
   } catch (error) {

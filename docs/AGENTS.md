@@ -4,7 +4,7 @@ Rules about what the documentation itself governs: how copy reads, and what a nu
 
 Repo-wide laws and the index of every other area file are in the root [AGENTS.md](../AGENTS.md).
 
-- **Live docs are `docs/rules/`, `docs/*.md` without a date in the name, and the area `AGENTS.md` files.** Dated files (`*_2026-*.md`), `docs/proof/`, `docs/evidence/`, `docs/superpowers/`, `docs/handoffs/` and `docs/archive/` are records of their day: never cite them as current behaviour. Search live docs with `git grep <pattern> -- '*.md' ':!docs/proof' ':!docs/evidence' ':!docs/superpowers' ':!docs/handoffs' ':!docs/archive' ':!.firecrawl' ':!.agents'`.
+- **Live docs are `docs/rules/`, `docs/*.md` without a date in the name, and the area `AGENTS.md` files.** Any doc with a `2026-MM-DD` date anywhere in its file name is a dated record. Dated records, `docs/proof/`, `docs/evidence/`, `docs/superpowers/`, `docs/handoffs/` and `docs/archive/` are records of their day: never cite them as current behaviour. Search live docs with `git grep <pattern> -- '*.md' ':!docs/proof' ':!docs/evidence' ':!docs/superpowers' ':!docs/handoffs' ':!docs/archive' ':!.firecrawl' ':!.agents'`.
 
 ## Governed documents
 
