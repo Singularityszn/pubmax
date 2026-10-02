@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
   userId: "11111111-1111-4111-8111-111111111111" as string | null,
@@ -23,6 +23,10 @@ import { POST } from "@/app/api/pub-pal/tool-turn/route";
 import {
   __resetPubPalToolTurnStore,
   bindPubPalToolTurn,
+  hasStoredPubPalToolTurnForTest,
+  PUB_PAL_TOOL_TURN_TTL_MS,
+  purgeExpiredPubPalToolTurns,
+  readOwnedPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 const OWNER_ID = "11111111-1111-4111-8111-111111111111";
@@ -41,6 +45,7 @@ function post(body: unknown): Promise<Response> {
 }
 
 describe("POST /api/pub-pal/tool-turn", () => {
+  afterEach(() => vi.useRealTimers());
   beforeEach(async () => {
     authState.userId = OWNER_ID;
     __resetPubPalToolTurnStore();
@@ -89,5 +94,24 @@ describe("POST /api/pub-pal/tool-turn", () => {
   it("rejects a conversation id the provider would not issue", async () => {
     const response = await post({ conversationId: "conv-legacy" });
     expect(response.status).toBe(400);
+  });
+
+  it("owned no-line requests cannot keep a stored user line past its purge deadline", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
+    __resetPubPalToolTurnStore();
+    await bindPubPalToolTurn(CONVERSATION_ID, OWNER_ID, "london");
+    const started = Date.now();
+    expect((await post({ conversationId: CONVERSATION_ID,
+      threadTurn: { role: "user", content: "Quiet pubs in Clapham." },
+    })).status).toBe(200);
+    vi.setSystemTime(started + 90_000);
+    expect((await post({ conversationId: CONVERSATION_ID })).status).toBe(200);
+    expect((await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID))?.expiresAt)
+      .toBe(started + PUB_PAL_TOOL_TURN_TTL_MS);
+    vi.setSystemTime(started + PUB_PAL_TOOL_TURN_TTL_MS + 1);
+    await purgeExpiredPubPalToolTurns();
+    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(false);
+    expect((await post({ conversationId: CONVERSATION_ID })).status).toBe(404);
   });
 });
