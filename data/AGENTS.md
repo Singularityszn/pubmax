@@ -4,7 +4,7 @@ Rules about the committed data: what a row is worth, which lane it belongs to an
 
 Repo-wide laws and the index of every other area file are in the root [AGENTS.md](../AGENTS.md).
 
-- **Shapes of the committed datasets** (`pint_prices_app_dataset.json` is a bare array and not every row is priced; `venues_slim*.json` is `{revision, rows}` with `lat`/`lng`; manifests list `shards`) are in `data/README.md#shapes`.
+- **Shapes of the committed datasets** (`public/data/pint_prices_app_dataset.json` is a bare array and not every row is priced; `venues_slim*.json` is `{revision, rows}` with `lat`/`lng`; manifests list `shards`) are in `data/README.md#shapes`.
 
 ## Bundles, layers and lanes
 
