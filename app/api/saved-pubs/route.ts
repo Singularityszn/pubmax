@@ -14,6 +14,7 @@
 // signed-out/offline viewer (lib/savedPubs.ts), so this route only ever augments
 // the demo, never gates it.
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -27,6 +28,7 @@ import {
   cleanNote,
   savedListsStore,
   savedPubsStore,
+  type SavedPubsReader,
 } from "@/lib/savedPubsStore";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -38,6 +40,16 @@ assertServerEnv();
 // the raw client length.
 const MAX_VENUE_ID = 64;
 
+async function savedPubsReader(request: Request, handle: string): Promise<SavedPubsReader> {
+  if (!handle) return "public";
+  try {
+    if (!(await withdrawnHandles([handle])).has(handle)) return "public";
+  } catch {
+    return "public";
+  }
+  return (await callerOwnsHandle(request, handle)) ? "owner" : "public";
+}
+
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const handle = normalizeHandle(params.get("handle") ?? "");
@@ -45,7 +57,7 @@ export async function GET(request: Request): Promise<Response> {
 
   // ?lists=1 → the handle's custom list menu (story 33). Built-ins are known to
   // the client; this returns only the handle's OWN custom lists. Fail-soft → [].
-  const reader = handle && (await callerOwnsHandle(request, handle)) ? "owner" : "public";
+  const reader = await savedPubsReader(request, handle);
   if (params.get("lists")) {
     const lists = handle ? await savedListsStore(reader).listCustom(handle) : [];
     return jsonNoStore({ lists }, { status: 200 });
