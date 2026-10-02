@@ -285,6 +285,21 @@ describe("saved list parity", () => {
     expect(JSON.stringify(await savedListMetadata(listParams("sam")))).not.toContain("0 followers");
   });
 
+  it("still shows a suspended owner its own followed lists and list counts", async () => {
+    authState.userId = "user-suspended";
+    const followed = (await (
+      await get(getListFollows, "/api/saved-pubs/list-follows?follower=suspendedbob")
+    ).json()) as { followedLists: Array<{ ownerHandle: string }> };
+    expect(followed.followedLists.map((list) => list.ownerHandle)).toEqual(["sam"]);
+    const own = (await (
+      await get(
+        getListFollows,
+        `/api/saved-pubs/list-follows?follower=suspendedbob&owner=suspendedbob&listType=${encodeURIComponent(LIST)}`,
+      )
+    ).json()) as { counts: { followers: number | null; savedPubs: number } };
+    expect(own.counts).toEqual({ followers: 1, savedPubs: 1 });
+  });
+
   it("hides a suspended owner's saves and lists from another account", async () => {
     authState.userId = "user-sam";
     expect(await answered(await get(getSavedPubs, "/api/saved-pubs?handle=suspendedbob"))).toEqual(
