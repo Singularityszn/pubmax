@@ -107,11 +107,22 @@ test.describe("one Map surface history owner", () => {
     await openMap(page, "/map?q=Soho&sel=venue-15i2wst");
     await expectSoleDrawer(page, "venue");
 
+    // The desktop venue drawer is modal (map-accessibility.spec.ts pins
+    // aria-modal and its focus trap), so the map stage and its toolbar are
+    // inert while it is open. A drinker closes the venue, then plans; the
+    // deep-linked `sel=` must not reopen it over the planner.
+    const closeVenue = venue(page).getByRole("button", { name: /Close/ });
+    await expect(async () => {
+      await closeVenue.click();
+      await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+
     const planOuting = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
     await expect(async () => {
       await planOuting.click();
-      await expectSoleDrawer(page, "planner");
+      await expectSoleDrawer(page, "planner", 2_000);
     }).toPass({ timeout: 30_000 });
+    await expectSoleDrawer(page, "planner");
   });
 
   test("planner to venue leaves exactly one desktop drawer", async ({ page }) => {
