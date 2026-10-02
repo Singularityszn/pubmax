@@ -166,3 +166,15 @@ Run the scraper again with:
 python3 -u scripts/extract_pint_prices.py
 python3 scripts/build_app_dataset.py
 ```
+
+## Shapes
+
+Five committed files are probed by hand often enough to write down. Paths are from the repo root.
+
+| File | Top-level shape | Fields a row carries | Gotcha |
+| --- | --- | --- | --- |
+| `public/data/pint_prices_app_dataset.json` | bare array | `app_price_id`, `pub_name`, `pint_name`, `price_gbp`, `latitude`, `longitude`, `scraped_at_values` | Not `{rows}`, `{venues}` or `{data}`. `price_gbp` is on every row and is null when that row is not priced. Coordinates are `latitude` / `longitude`. |
+| `public/data/venues_slim.json` | `{revision, rows, generatedAt}` | `id`, `name`, `lat`, `lng`, `cheapestPrice` | `lat` / `lng`, not `latitude` / `longitude`. |
+| `public/data/venues_slim.core.json`, `public/data/venues_slim.cell.*.json`, `public/data/cities/*/venues_slim.json`, `public/data/cities/*/venues_slim.core.json` | `{revision, rows}` | `id`, `name`, `lat`, `lng` | Same row pack as the index, without `generatedAt`. |
+| `public/data/venues_slim.manifest.json` | `{version, revision, grid, shards}` | shard: `id`, `core`, `partition`, `url`, `count`, `bbox` | The list is `shards`, not `files` or `cells`. `grid` is the step (`originLat`, `originLon`, `latStep`, `lonStep`), not the cells. A city manifest (`public/data/cities/*/venues_slim.manifest.json`) is `{version, revision, shards}` with no `grid`. |
+| `data/osm/uk/chunks.json` | object | `chunkStats` rows: `id`, `bbox`, `elements`, `timestamp` | `chunks` is a count, not an array. The cells are `chunkStats`. There is no `grid` key. |
