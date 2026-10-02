@@ -1,7 +1,8 @@
 -- Owner and retention for Pal tool-turn rows (0169).
 -- 0160 stored provider conversation ids with no account and left expired rows in place.
 -- The captain applies this. The app deletes a row once expires_at has passed
--- (two minutes after the last write) and refuses a write from any other account.
+-- (two minutes after the user's last line; a tool result never extends it) and
+-- refuses a write from any other account.
 -- Dropping the owner column on rollback leaves the correlation rows, unowned again.
 
 alter table public.pub_pal_tool_turns
