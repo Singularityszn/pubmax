@@ -1,9 +1,11 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { callerUserId } from "@/lib/authServer";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -75,10 +77,20 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
+  const ownerId = await callerUserId(request);
+  if (!ownerId) {
+    return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
+  }
+
+  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
+  if (budgetRefusal) return budgetRefusal;
+
   const outcome = await runPalElevenLabsChatTurn({
     query,
     cityId: record.cityId,
-    turns: normaliseTurns(record.turns),
+    threadId: record.threadId,
+    fenceTurns: normaliseTurns(record.turns).filter((turn) => turn.role === "user"),
+    ownerId,
   });
 
   if (!outcome.ok) {
