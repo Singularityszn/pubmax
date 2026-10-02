@@ -12,8 +12,8 @@ import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { savedListPath } from "@/lib/savedListUrl";
 import { buildSavedListShareText } from "@/lib/shareArtifacts";
-import { fetchSavedForHandle, type ListType, type SavedPubDTO } from "@/lib/savedPubs";
-import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { creatorListMapHref } from "@/lib/creatorListMap";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
@@ -70,17 +70,13 @@ export default function SavedListDetail({
   const [followStateKey, setFollowStateKey] = useState(viewerKey);
   const viewerKeyRef = useRef(viewerKey);
   const [counts, setCounts] = useState(initialCounts);
-  const [ownVenues, setOwnVenues] = useState<SavedPubDTO[] | null>(null);
-  const shownVenues = ownVenues ?? venues;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const viewerStateReady = followStateKey === viewerKey;
-  const viewerOwnsList = viewerStateReady && viewer !== "" && viewer === owner;
   const canFollow = socialFriendsLaunchEnabled && viewerStateReady && viewer !== "" && viewer !== owner;
-  const canReadCounts = canFollow || (socialFriendsLaunchEnabled && viewerOwnsList);
   const shareUrl = savedListPath(owner, listType);
-  const mapHref = creatorListMapHref(shownVenues);
+  const mapHref = creatorListMapHref(venues);
   const shareText = buildSavedListShareText({
     owner,
     listType,
@@ -94,38 +90,20 @@ export default function SavedListDetail({
       setFollowing(false);
       setBusy(false);
       setError(null);
-      setOwnVenues(null);
     });
   }, [viewerKey]);
 
   useEffect(() => {
-    if (!viewerOwnsList) return;
-    const controller = new AbortController();
-
-    async function loadOwnVenues() {
-      const saved = await fetchSavedForHandle(owner, controller.signal);
-      if (!saved || controller.signal.aborted || viewerKeyRef.current !== viewerKey) return;
-      const listed = saved.filter((venue) => venue.listType === listType);
-      setOwnVenues(listed);
-      setCounts((current) => ({ ...current, savedPubs: listed.length }));
-    }
-
-    void loadOwnVenues();
-    return () => controller.abort();
-  }, [listType, owner, viewerKey, viewerOwnsList]);
-
-  useEffect(() => {
-    if (!canReadCounts) return;
+    if (!socialFriendsLaunchEnabled || !canFollow) return;
     const controller = new AbortController();
 
     async function loadState() {
       try {
-        const res = await authedFetch(
+        const res = await fetch(
           `/api/saved-pubs/list-follows?follower=${encodeURIComponent(viewer)}&owner=${encodeURIComponent(
             owner,
           )}&listType=${encodeURIComponent(listType)}`,
           { signal: controller.signal },
-          { requiresIdentity: true },
         );
         if (!res.ok) {
           discardBody(res);
@@ -149,7 +127,7 @@ export default function SavedListDetail({
 
     void loadState();
     return () => controller.abort();
-  }, [canReadCounts, listType, owner, viewer, viewerKey]);
+  }, [canFollow, listType, owner, socialFriendsLaunchEnabled, viewer, viewerKey]);
 
   async function toggleFollow() {
     if (busy || !canFollow || !socialFriendsLaunchEnabled) return;
@@ -264,11 +242,11 @@ export default function SavedListDetail({
         <h2 id="listVenuesHeading" className="savedHeading">
           Venues in this list
         </h2>
-        {shownVenues.length === 0 ? (
+        {venues.length === 0 ? (
           <p className="profileEmpty">@{owner} has not saved any venues to this list yet.</p>
         ) : (
           <ul className="savedListItems listDetailItems">
-            {shownVenues.map((venue) => (
+            {venues.map((venue) => (
               <li className="savedItem listDetailItem" key={`${venue.venueId}:${venue.listType}`}>
                 <Link className="savedItemVenue" href={venue.venueMapUrl}>
                   {venue.venueName}
