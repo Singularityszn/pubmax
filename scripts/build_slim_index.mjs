@@ -202,7 +202,7 @@ function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
     );
     if (unstamped.length > 0) {
       throw new Error(
-        `famous seed row(s) observed after the committed stamp ${builtAt.toISOString()}: ${unstamped.map((row) => row.id).join(", ")}; the seed was re-verified or added after the committed stamp; run npm run refresh:slim, then commit the slim`,
+        `famous seed row(s) observed after the committed stamp ${at.toISOString()}: ${unstamped.map((row) => row.id).join(", ")}; the seed was re-verified or added after the committed stamp; run npm run refresh:slim, then commit the slim`,
       );
     }
   }

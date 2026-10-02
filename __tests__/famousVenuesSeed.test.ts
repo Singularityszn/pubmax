@@ -233,19 +233,21 @@ describe("famous venue seeds", () => {
       const reverified = [
         ...applyVerification(
           new Map(PACKS.map(([file]) => [file, loadSeed(file)])),
-          shippedFamousIds(lastSlim).map((id) => ({ id, outcome: "confirmed" as const })),
+          seedRows().map((row) => ({ id: row.id, outcome: "confirmed" as const })),
           verifiedDay,
         ).values(),
       ].flat() as FamousVenueRow[];
       expect(() =>
         famousRowsForRebuild(reverified, { lastSlim, removedIds: [], refreshAt: null }),
-      ).toThrow(/re-verified or added after the committed stamp; run npm run refresh:slim/);
+      ).toThrow(
+        `observed after the committed stamp ${lastSlim.generatedAt}: ${reverified.map((row) => row.id).join(", ")}; the seed was re-verified or added after the committed stamp; run npm run refresh:slim`,
+      );
       const refreshed = famousRowsForRebuild(reverified, {
         lastSlim,
         removedIds: [],
         refreshAt: new Date(`${verifiedDay}T12:00:00.000Z`),
       });
-      expect(keptIds(refreshed)).toEqual(shippedFamousIds(lastSlim));
+      expect(keptIds(refreshed)).toEqual(reverified.map((row) => row.id).sort());
       expect(() =>
         famousRowsForRebuild(seedRows(), {
           lastSlim,
