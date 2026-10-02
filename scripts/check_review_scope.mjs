@@ -13,6 +13,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
+export const REVIEW_SCOPE_FAILURE_HINT =
+  "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may";
+
 export const MAX_REVIEW_FILES = 150;
 export const MAX_RUNTIME_DOMAINS = 2;
 
@@ -327,7 +330,10 @@ export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cw
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   try {
     const report = runReviewScopeCli();
-    if (!report.ok) process.exitCode = 1;
+    if (!report.ok) {
+      console.error(REVIEW_SCOPE_FAILURE_HINT);
+      process.exitCode = 1;
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 2;
