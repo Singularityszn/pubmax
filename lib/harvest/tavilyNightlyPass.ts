@@ -1,9 +1,10 @@
 // Nightly Tavily pass over the curated London index.
 //
-// The shared drink reader in lib/harvest/ukPriceCrawl.ts decides whether a
-// figure was stated. This module adds the night's budget, the resume cursor,
-// and the Listed queue. A web price is evidence for a curator. It is never a
-// Confirmed price and never a community price.
+// The shared drink reader in lib/harvest/ukPriceCrawl.ts is asked whether a
+// figure was stated. A stated serving it drops can still be queued. This
+// module adds the night's budget, the resume cursor, and the Listed queue.
+// A web price is evidence for a curator. It is never a Confirmed price and
+// never a community price.
 
 import {
   isOperatorHost,
