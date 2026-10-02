@@ -231,6 +231,39 @@ describe("verifyCallerAuth", () => {
     });
   });
 
+  it("answers banned when GoTrue still has a future banned_until", async () => {
+    authState.admin?.auth.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-1",
+          email: "a@example.com",
+          banned_until: "2999-01-01T00:00:00.000Z",
+        },
+      },
+      error: null,
+    });
+
+    await expect(verifyCallerAuth(request("token"))).resolves.toEqual({ status: "banned" });
+  });
+
+  it("does not treat an expired ban as a ban", async () => {
+    authState.admin?.auth.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-1",
+          email: "a@example.com",
+          banned_until: "2000-01-01T00:00:00.000Z",
+        },
+      },
+      error: null,
+    });
+
+    await expect(verifyCallerAuth(request("token"))).resolves.toEqual({
+      status: "verified",
+      identity: { id: "user-1", email: "a@example.com", createdAt: null },
+    });
+  });
+
   it("does not treat a network failure as invalid", async () => {
     authState.admin?.auth.getUser.mockRejectedValue(
       new Error("auth network unavailable"),

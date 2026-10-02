@@ -1455,8 +1455,8 @@ describe("auth callback URL safety", () => {
       attemptId: null,
       tokens: null,
       providerError: true,
-      accountBanned: true,
     });
+    expect(captured?.attempt.accountBanned).toBeUndefined();
     expect(scrubs).toEqual(["/login"]);
 
     const fragmentBan = await scrubAuthCallback(
@@ -1464,18 +1464,17 @@ describe("auth callback URL safety", () => {
       () => {},
       { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
     );
-    expect(fragmentBan?.attempt.accountBanned).toBe(true);
+    expect(fragmentBan?.attempt.providerError).toBe(true);
+    expect(fragmentBan?.attempt.accountBanned).toBeUndefined();
   });
 
-  it("ignores a bare ban signal outside a marked callback or auth page", () => {
+  it("ignores a bare ban flag, including on the login page", () => {
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?authBanned=1")).toBeNull();
     expect(
       readAuthCallbackAttempt("https://pubmaxxing.com/map#error_code=user_banned"),
     ).toBeNull();
-    expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authBanned=1")).toMatchObject({
-      providerError: true,
-      accountBanned: true,
-    });
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authBanned=1")).toBeNull();
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/?_authCallback=1&authBanned=1")?.accountBanned).toBeUndefined();
   });
 
   it("recognizes marked callbacks, error fragments, and bare token fragments", () => {

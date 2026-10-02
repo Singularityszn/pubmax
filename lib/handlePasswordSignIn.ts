@@ -80,9 +80,9 @@ export async function accountHasPassword(
 }
 
 /**
- * GoTrue reports `user_banned` BEFORE it checks the password, so this refusal
- * tells anybody who names a banned handle that its account is banned. That is
- * the accepted cost of showing a banned person the community-guidelines notice.
+ * GoTrue reports `user_banned` BEFORE it checks the password. The route must
+ * answer that the same way it answers a wrong password. Returning the ban here
+ * would tell anybody who can name the handle that the account is banned.
  */
 async function refusalIsBan(response: Response): Promise<boolean> {
   try {
@@ -98,8 +98,9 @@ async function refusalIsBan(response: Response): Promise<boolean> {
 }
 
 /**
- * Server-side password grant. Returns `"banned"` for a banned account and null
- * on any other failure (no enumeration).
+ * Server-side password grant. Returns `"banned"` when GoTrue refuses the
+ * account before checking the password, and null on any other failure. The
+ * route maps both to the same invalid-credentials answer.
  */
 export async function signInWithEmailPassword(
   email: string,

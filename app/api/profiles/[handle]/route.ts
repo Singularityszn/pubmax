@@ -178,9 +178,21 @@ export async function GET(
         : [false, false];
 
     // Auth-deletion stamp only. Legacy user_id-null rows stay fully live.
+    // A banned or suspended handle answers the same body as a handle nobody
+    // owns. A distinct 404 is how a reader learns the account existed.
     const presence = await profilePublicPresence(profile);
     if (presence === "withdrawn") {
-      return publicApiError("Profile not found.", "NOT_FOUND", 404);
+      return jsonNoStore(
+        {
+          profile: null,
+          projection: "full",
+          socialLinks: [],
+          counts: socialEnabled ? { followers: 0, following: 0 } : null,
+          viewerFollowing: false,
+          followsViewer: false,
+        },
+        { status: 200 },
+      );
     }
 
     if (presence === "gone" || isProfileTombstoned(profile)) {

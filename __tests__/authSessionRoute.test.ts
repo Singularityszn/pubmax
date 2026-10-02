@@ -204,6 +204,19 @@ describe("POST persist", () => {
     expect(res.headers.get("set-cookie") ?? "").not.toContain("karan%40example.com");
   });
 
+  it("refuses a banned bearer with the community-guidelines status", async () => {
+    verifyCallerAuth.mockResolvedValue({ status: "banned" });
+    const { POST } = await import("@/app/api/auth/session/route");
+    const res = await POST(
+      postRequest(
+        { action: "persist", refreshToken: "rt_first_token" },
+        { authorization: "Bearer jwt" },
+      ),
+    );
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toMatchObject({ code: "ACCOUNT_BANNED" });
+  });
+
   it("refuses a caller whose bearer token fails verification", async () => {
     verifyCallerAuth.mockResolvedValue({ status: "invalid" });
     const { POST } = await import("@/app/api/auth/session/route");

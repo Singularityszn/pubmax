@@ -9,6 +9,7 @@
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { followStore } from "@/lib/followStore";
 import { normalizeHandle } from "@/lib/profiles";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -32,7 +33,11 @@ export async function GET(
   if (!handle) return jsonNoStore({ lot: [] }, { status: 200 });
 
   try {
-    const lot = await followStore().listMutuals(handle);
+    const mutuals = await followStore().listMutuals(handle);
+    const hidden = await withdrawnHandles([handle, ...mutuals]);
+    // The subject is withdrawn: the same empty lot an unknown handle gets.
+    if (hidden.has(handle)) return jsonNoStore({ lot: [] }, { status: 200 });
+    const lot = mutuals.filter((entry) => !hidden.has(normalizeHandle(entry)));
     return jsonNoStore({ lot }, { status: 200 });
   } catch {
     // Fail-soft: a backend error must not break the feed. The lane falls through

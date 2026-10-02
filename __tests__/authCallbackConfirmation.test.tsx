@@ -114,7 +114,7 @@ beforeEach(() => {
   harness.releaseCoordination.mockReset();
   harness.socialProviderLoads.mockReset();
   harness.getUser.mockResolvedValue({
-    data: { user: { id: "account-a", email: "person@example.com" } },
+    data: { user: { id: "account-a", email: "person@example.com", email_confirmed_at: "2026-01-01T00:00:00.000Z" } },
     error: null,
   });
   harness.setSession.mockResolvedValue({
