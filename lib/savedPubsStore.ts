@@ -21,6 +21,7 @@ import "server-only";
 // FAIL-SOFT: a store error yields an empty list / an unchanged toggle rather than
 // throwing to the caller, so a saved-pubs outage can never break the profile page.
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
@@ -491,7 +492,31 @@ export const memorySavedPubsStore: SavedPubsStore = {
 // memory store uses the in-memory profile store implicitly (no profile id needed),
 // so dev/demo/test never touch the network.
 export function savedPubsStore(): SavedPubsStore {
-  return selectStore(memorySavedPubsStore, supabaseSavedPubsStore);
+  return selectStore(publicMemorySavedPubsStore, publicSupabaseSavedPubsStore);
+}
+
+function withoutWithdrawnSaves(store: SavedPubsStore): SavedPubsStore {
+  return {
+    async listSaved(input) {
+      if (input.handle && (await isWithdrawnHandle(input.handle))) return [];
+      return store.listSaved(input);
+    },
+    readSavedByHandles: (input) => store.readSavedByHandles(input),
+    readSaved: (input) => store.readSaved(input),
+    toggleSaved: (input) => store.toggleSaved(input),
+    ensureSaved: (input) => store.ensureSaved(input),
+  };
+}
+
+/** A banned or suspended handle reads as a handle nobody owns. Fails closed. */
+async function isWithdrawnHandle(handle: string): Promise<boolean> {
+  const key = normalizeHandle(handle);
+  if (!key) return false;
+  try {
+    return (await withdrawnHandles([key])).has(key);
+  } catch {
+    return true;
+  }
 }
 
 /** Test-only: clear the in-memory saved-pub partitions between cases. */
@@ -577,7 +602,17 @@ export const memorySavedListsStore: SavedListsStore = {
 };
 
 export function savedListsStore(): SavedListsStore {
-  return selectStore(memorySavedListsStore, supabaseSavedListsStore);
+  return selectStore(publicMemorySavedListsStore, publicSupabaseSavedListsStore);
+}
+
+function withoutWithdrawnLists(store: SavedListsStore): SavedListsStore {
+  return {
+    async listCustom(handle) {
+      if (await isWithdrawnHandle(handle)) return [];
+      return store.listCustom(handle);
+    },
+    createList: (handle, name) => store.createList(handle, name),
+  };
 }
 
 /** Test-only: clear the in-memory custom-list registry between cases. */
@@ -891,10 +926,43 @@ const memorySavedListFollowsStore: SavedListFollowsStore = {
 };
 
 export function savedListFollowsStore(): SavedListFollowsStore {
-  return selectStore(memorySavedListFollowsStore, supabaseSavedListFollowsStore);
+  return selectStore(publicMemorySavedListFollowsStore, publicSupabaseSavedListFollowsStore);
+}
+
+function withoutWithdrawnListFollows(store: SavedListFollowsStore): SavedListFollowsStore {
+  return {
+    followList: (follower, owner, listType) => store.followList(follower, owner, listType),
+    unfollowList: (follower, owner, listType) => store.unfollowList(follower, owner, listType),
+    async isFollowingList(follower, owner, listType) {
+      if ((await isWithdrawnHandle(follower)) || (await isWithdrawnHandle(owner))) return false;
+      return store.isFollowingList(follower, owner, listType);
+    },
+    async counts(owner, listType) {
+      if (await isWithdrawnHandle(owner)) return { followers: 0, savedPubs: 0 };
+      return store.counts(owner, listType);
+    },
+    async listFollowedBy(follower) {
+      if (await isWithdrawnHandle(follower)) return [];
+      const lists = await store.listFollowedBy(follower);
+      if (lists.length === 0) return lists;
+      try {
+        const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));
+        return lists.filter((list) => !hidden.has(normalizeHandle(list.ownerHandle)));
+      } catch {
+        return [];
+      }
+    },
+  };
 }
 
 /** Test-only: clear the in-memory saved-list follow edges between cases. */
 export function __resetMemorySavedListFollows(): void {
   memoryListFollows.clear();
 }
+
+const publicMemorySavedPubsStore = withoutWithdrawnSaves(memorySavedPubsStore);
+const publicSupabaseSavedPubsStore = withoutWithdrawnSaves(supabaseSavedPubsStore);
+const publicMemorySavedListsStore = withoutWithdrawnLists(memorySavedListsStore);
+const publicSupabaseSavedListsStore = withoutWithdrawnLists(supabaseSavedListsStore);
+const publicMemorySavedListFollowsStore = withoutWithdrawnListFollows(memorySavedListFollowsStore);
+const publicSupabaseSavedListFollowsStore = withoutWithdrawnListFollows(supabaseSavedListFollowsStore);
