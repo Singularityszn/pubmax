@@ -69,31 +69,6 @@ describe("explicit implicit-flow callback completion", () => {
 
   it("does not label an unowned confirmation with an unverified email", async () => {
     const getUser = vi.fn().mockResolvedValue({
-      data: {
-        user: {
-          id: "account-a",
-          email: "victim@example.com",
-          emailConfirmedAt: null,
-          handle: "nightowl",
-        },
-      },
-      error: null,
-    });
-    const pending = await prepareAuthCallbackSession(
-      { setSession: vi.fn() },
-      { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
-      false,
-      mintMatchingSession,
-      getUser,
-    );
-    expect(pending).toMatchObject({
-      status: "confirmation-required",
-      identity: { userId: "account-a", label: "nightowl" },
-    });
-  });
-
-  it("labels an unverified account by its id when it has no handle", async () => {
-    const getUser = vi.fn().mockResolvedValue({
       data: { user: { id: "account-a", email: "victim@example.com", emailConfirmedAt: null } },
       error: null,
     });
@@ -106,7 +81,7 @@ describe("explicit implicit-flow callback completion", () => {
     );
     expect(pending).toMatchObject({
       status: "confirmation-required",
-      identity: { userId: "account-a", label: "account-a" },
+      identity: { userId: "account-a", label: null },
     });
   });
 
@@ -451,7 +426,7 @@ describe("callback identity verification failures", () => {
     await expect(fetchAuthCallbackUser("access-a", {
       authConfig: { url: "https://provider.example", key: "public-key" }, fetchImpl,
     })).resolves.toEqual({
-      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: null, handle: null } },
+      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: null } },
       error: null,
     });
     expect(fetchImpl).toHaveBeenCalledWith("https://provider.example/auth/v1/user", expect.objectContaining({
