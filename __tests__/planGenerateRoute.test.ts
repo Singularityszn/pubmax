@@ -198,6 +198,9 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("joins trusted wine prices into value ranking without using pint prices", async () => {
+    // From 23:00 to 04:00 London the distance weight is three, and the nearer
+    // dearer wine outranks the cheaper one. The dataset stamp is daytime, so
+    // the order below is the wine price.
     const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
     try {
       loadConciergeVenuesMock.mockResolvedValueOnce([
