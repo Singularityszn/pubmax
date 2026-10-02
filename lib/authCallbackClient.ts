@@ -20,7 +20,6 @@ type AuthCallbackUser = {
   id: string;
   email?: string | null;
   emailConfirmedAt?: string | null;
-  handle?: string | null;
 };
 
 type AuthCallbackUserLookup = (accessToken: string) => Promise<{
@@ -28,15 +27,12 @@ type AuthCallbackUserLookup = (accessToken: string) => Promise<{
   error: unknown;
 }>;
 
-/** A verified email, otherwise the public handle, otherwise the account id. An unverified email is one the sender of the link can choose. */
-export function authCallbackConfirmationLabel(user: AuthCallbackUser): string {
+/** A verified email, otherwise no label. An unverified email is one the sender of the link can choose. */
+export function authCallbackConfirmationLabel(user: AuthCallbackUser): string | null {
   const email = user.email?.trim() ?? "";
   const confirmed =
     typeof user.emailConfirmedAt === "string" && user.emailConfirmedAt.trim().length > 0;
-  if (email && confirmed) return email;
-  const handle = user.handle?.trim() ?? "";
-  if (handle) return handle;
-  return user.id;
+  return email && confirmed ? email : null;
 }
 
 export async function fetchAuthCallbackUser(
@@ -80,7 +76,6 @@ export async function fetchAuthCallbackUser(
       id: body.id,
       email: typeof body.email === "string" ? body.email : null,
       emailConfirmedAt,
-      handle: typeof body.handle === "string" && body.handle.trim() ? body.handle.trim() : null,
     } },
     error: null,
   };
@@ -110,7 +105,7 @@ export type PreparedAuthCallbackSession<SessionValue> =
   | { status: "banned" }
   | {
       status: "confirmation-required";
-      identity: { userId: string; label: string };
+      identity: { userId: string; label: string | null };
       confirm: () => Promise<AuthCallbackSessionResult<SessionValue>>;
     };
 

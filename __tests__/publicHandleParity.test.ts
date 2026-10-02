@@ -6,16 +6,26 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return { ...actual, callerUserId: async () => authState.userId };
+});
+
 import { GET as getFollowers } from "@/app/api/profiles/[handle]/followers/route";
 import { GET as getFollowing } from "@/app/api/profiles/[handle]/following/route";
 import { GET as getLot } from "@/app/api/profiles/[handle]/lot/route";
-import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
+import { GET as getProfile, PATCH as patchProfile } from "@/app/api/profiles/[handle]/route";
+import { POST as claimHandle } from "@/app/api/identity/handle/claim/route";
+import ProfileHandleLayout from "@/app/u/[handle]/layout";
+import ProfilePage, { generateMetadata } from "@/app/u/[handle]/page";
 import {
   __resetMemoryProfileWithdrawals,
   __setMemoryAuthUserBanned,
   __setMemoryProfileWithdrawn,
 } from "@/lib/accountPublicAccess.server";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
+import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 
 const UNKNOWN = "neverexisted_qa9";
@@ -54,7 +64,30 @@ function following(handle: string): Promise<Response> {
   });
 }
 
+function claimAnonymously(handle: string): Promise<Response> {
+  return patchProfile(
+    new Request(`http://localhost/api/profiles/${handle}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Night Owl" }),
+    }),
+    { params: Promise.resolve({ handle }) },
+  );
+}
+
+function claimSignedIn(handle: string): Promise<Response> {
+  return claimHandle(
+    new Request("http://localhost/api/identity/handle/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ handle }),
+    }),
+  );
+}
+
 beforeEach(async () => {
+  authState.userId = null;
+  __resetMemoryIdentityHandles();
   delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -106,4 +139,47 @@ describe("public handle parity", () => {
     const body = (await (await lot("alice")).json()) as { lot: string[] };
     expect(body.lot).toEqual(["sam"]);
   });
+});
+
+describe("public profile page parity", () => {
+  it.each(subjects)("$kind handle renders the same page shell as an unknown handle", async ({ handle }) => {
+    await expect(
+      ProfileHandleLayout({ params: Promise.resolve({ handle }), children: "profile" }),
+    ).resolves.toBe("profile");
+    const page = await ProfilePage({ params: Promise.resolve({ handle }) });
+    const unknownPage = await ProfilePage({ params: Promise.resolve({ handle: UNKNOWN }) });
+    expect(page.type).toBe(unknownPage.type);
+  });
+
+  it.each(subjects)("$kind handle publishes the same metadata as an unknown handle", async ({ handle }) => {
+    const metadata = await generateMetadata({ params: Promise.resolve({ handle }) });
+    const unknown = await generateMetadata({ params: Promise.resolve({ handle: UNKNOWN }) });
+    expect(JSON.stringify(metadata).replaceAll(handle, UNKNOWN)).toBe(JSON.stringify(unknown));
+  });
+});
+
+describe("handle claim parity", () => {
+  it("lets a stranger claim a handle nobody owns", async () => {
+    expect((await claimAnonymously(UNKNOWN)).status).toBe(200);
+  });
+
+  it.each(["suspendedbob", "bannedbob"])(
+    "refuses a stranger's claim on %s with the generic unavailable answer",
+    async (handle) => {
+      expect(await answered(await claimAnonymously(handle))).toEqual({
+        status: 409,
+        body: { error: "That handle is not available.", code: "CONFLICT", retryable: false },
+      });
+    },
+  );
+
+  it.each(["suspendedbob", "bannedbob"])(
+    "answers a signed-in claim on %s exactly like a claim on a live taken handle",
+    async (handle) => {
+      authState.userId = "user-claimant";
+      const taken = await answered(await claimSignedIn("alice"));
+      expect(taken.status).toBe(409);
+      expect(await answered(await claimSignedIn(handle))).toEqual(taken);
+    },
+  );
 });
