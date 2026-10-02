@@ -189,7 +189,7 @@ export async function fetchGatedOuterLondonPage(url, pubWebsite, { fetchRefreshP
 export function selectDiscoveredOuterLondonMenu(candidates, pubWebsite) {
   for (const candidate of candidates) {
     if (typeof candidate !== "string") continue;
-    if (!/drink|menu|tap|beer|bar\b|wine|cocktail|spirit/i.test(candidate)) continue;
+    if (!/drink|menu|tap|beer|wine|cocktail|spirit/i.test(candidate)) continue;
     if (outerLondonUrlRefusal(candidate, pubWebsite)) continue;
     return candidate;
   }

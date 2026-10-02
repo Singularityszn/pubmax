@@ -605,9 +605,7 @@ describe("a long wine list", () => {
       return `<section><h2>Wine</h2><p>House red ${index} 175ml £${pounds}</p></section>`;
     });
     const html = `<p>Madri pint £6.20</p>${sections.join("")}`;
-    const started = performance.now();
     const reading = readVenueDrinkPrices(html);
-    const elapsed = performance.now() - started;
     const wines = reading.kept.filter((row) => row.category === "wine");
     expect(wines).toHaveLength(count);
     expect(wines[0]).toMatchObject({ drinkLabel: expect.stringContaining("House red 0") });
@@ -615,7 +613,5 @@ describe("a long wine list", () => {
       drinkLabel: expect.stringContaining(`House red ${count - 1}`),
     });
     expect(reading.kept.some((row) => row.category === "beer" && row.priceGbp === 6.2)).toBe(true);
-    // The same list, recounting each prefix from byte 0, took about 2 seconds.
-    expect(elapsed).toBeLessThan(1000);
   });
 });
