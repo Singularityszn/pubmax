@@ -37,6 +37,7 @@ const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
 const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
 const SERVING_SIZE = new RegExp(`\\b(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i");
+const POUR_OF = /^(?:(?:a|an)\s+)?(?:pints?|half|measures?|schooners?|two[\s-]thirds|glass(?:es)?|bottles?|cans?)\s+of\s+(?:(?:a|an)\s+)?(.+)$/i;
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
 const DRINKS_PATH =
@@ -533,7 +534,9 @@ export function acceptedExtractUrls(urls: readonly string[], siteOrigin: string)
 }
 
 function cleanName(label: string): string | null {
-  const cleaned = label
+  const poured = label.replace(/^[/|\s]+/, "").trim().match(POUR_OF);
+  const source = poured ? poured[1].trim() : label;
+  const cleaned = source
     .replace(/\bschooners?\b(?:\s*\([^)]*\))?/gi, " ")
     .replace(/\btwo[\s-]thirds\b(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/(?:⅔|\b2\/3\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
@@ -704,9 +707,10 @@ const LEADING_MEASURE = new RegExp(`^(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2|
 function isNewDrinkName(text: string): boolean {
   const body = text.replace(/^[/|\s]+/, "");
   if (!body || /^£/.test(body)) return false;
-  if (/^(?:Pint|Bottle|Glass|Can|Half)\s+of\b/.test(body)) return true;
+  const head = (body.split("£")[0] ?? "").trim();
+  if (POUR_OF.test(head)) return true;
   if (LEADING_MEASURE.test(body)) return false;
-  const name = cleanName((body.split("£")[0] ?? "").trim());
+  const name = cleanName(head);
   return Boolean(name && /[A-Za-z]/.test(name));
 }
 
@@ -812,7 +816,7 @@ function recordPriceLine(
           CATEGORY_PRICE_BANDS[outcome.kept.category] ?? { minGbp: BEER_MIN_GBP, maxGbp: BEER_MAX_GBP },
         )
       : drinkFromDrop(own.text, own.label, raw.priceGbp, outcome.drop, fact);
-    rememberDrink(drinks, seenDrinks, row);
+    rememberDrink(drinks, seenDrinks, row && line.includes(row.drink) ? row : null);
   }
 }
 

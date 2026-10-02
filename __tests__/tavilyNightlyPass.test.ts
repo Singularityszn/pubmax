@@ -577,9 +577,18 @@ describe("arguments and redaction", () => {
 const listedQueue = { version: 1 as const, standingRule: "listed" as const, venues: [] };
 const pageFact = { sourceUrl: "https://eastbrookpub.co.uk/drink-menu.html", seenOn: "2026-10-01" };
 
+function expectDrinkNameOwnedByLine(text: string, drinks: ReadonlyArray<{ drink: string }>): void {
+  for (const drink of drinks) {
+    expect(text.includes(drink.drink), text).toBe(true);
+    for (const other of drinks) {
+      if (other.drink === drink.drink) continue;
+      expect(drink.drink.includes(other.drink), text).toBe(false);
+    }
+  }
+}
+
 describe("a price stays in the lane the reader gave it", () => {
-  it("keeps the priced lines this pass already decided", () => {
-    const rows: Array<{
+  const rows: Array<{
       text: string;
       drinks: Array<{ drink: string; size: string; sizeDetail: string | null; priceGbp: number }>;
       excerpt?: boolean;
@@ -1031,7 +1040,93 @@ describe("a price stays in the lane the reader gave it", () => {
           { drink: "2018/19 Rioja", size: "unstated", sizeDetail: "175ml", priceGbp: 8.5 },
         ],
       },
+      {
+        text: "pint of Guinness £6",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6 }],
+      },
+      {
+        text: "Pint Of Guinness £6",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6 }],
+      },
+      {
+        text: "PINT OF GUINNESS £6",
+        drinks: [{ drink: "GUINNESS", size: "pint", sizeDetail: "pint", priceGbp: 6 }],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 pint of Guinness £5.80",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 },
+        ],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 Pint Of Guinness £5.80",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 },
+        ],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 PINT OF GUINNESS £5.80",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "GUINNESS", size: "pint", sizeDetail: "pint", priceGbp: 5.8 },
+        ],
+      },
+      {
+        text: "Measure of Jameson 25ml £4.50",
+        drinks: [{ drink: "Jameson", size: "unstated", sizeDetail: "25ml", priceGbp: 4.5 }],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 Measure of Jameson 25ml £4.50",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Jameson", size: "unstated", sizeDetail: "25ml", priceGbp: 4.5 },
+        ],
+      },
+      {
+        text: "Schooner of Neck Oil £6",
+        drinks: [{ drink: "Neck Oil", size: "unstated", sizeDetail: "schooner", priceGbp: 6 }],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 Schooner of Neck Oil £6",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Neck Oil", size: "unstated", sizeDetail: "schooner", priceGbp: 6 },
+        ],
+      },
+      {
+        text: "Two-thirds of Guinness £5.20",
+        drinks: [{ drink: "Guinness", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 Two-thirds of Guinness £5.20",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Guinness", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 },
+        ],
+      },
+      {
+        text: "A pint of Guinness £6",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6 }],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 A pint of Guinness £6",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6 },
+        ],
+      },
     ];
+
+  it("keeps the priced lines this pass already decided", () => {
     for (const row of rows) {
       const facts = factsFromPage(row.text, pageFact);
       const drinks = facts.drinks.map((drink) => ({
@@ -1046,6 +1141,13 @@ describe("a price stays in the lane the reader gave it", () => {
           { sourceUrl: pageFact.sourceUrl, excerpt: row.text, seenOn: pageFact.seenOn },
         ]);
       }
+    }
+  });
+
+  it("keeps each stored drink name inside its own item", () => {
+    for (const row of rows) {
+      const facts = factsFromPage(row.text, pageFact);
+      expectDrinkNameOwnedByLine(row.text, facts.drinks);
     }
   });
 
