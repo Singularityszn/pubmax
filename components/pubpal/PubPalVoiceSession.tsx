@@ -23,9 +23,16 @@ import {
 } from "@elevenlabs/react";
 import { Mic, MicOff, Send } from "lucide-react";
 
+import { useAuth } from "@/components/auth/authContext";
+import {
+  accountBoundFetch,
+  captureAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountRevision } from "@/lib/authProviderRevision";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -49,6 +56,8 @@ type VoiceTokenResponse = {
 type VoiceGrant = Omit<VoiceTokenResponse, "signedUrl"> & { signedUrl: string };
 
 type VoiceSessionAttempt = {
+  auth: AccountAuthSnapshot;
+  accountRevision: number;
   cancelled: boolean;
   releaseRequired: boolean;
   released: boolean;
@@ -79,13 +88,14 @@ async function syncVoiceToolTurn(input: {
   }
 }
 
-async function releaseVoiceSession(durationSeconds: number): Promise<void> {
+async function releaseVoiceSession(auth: AccountAuthSnapshot, durationSeconds: number): Promise<void> {
   try {
-    const response = await authedActionFetch("/api/pub-pal/voice-token", {
+    // Release the granted account's reservation after an account switch too.
+    const response = await accountBoundFetch(auth, "/api/pub-pal/voice-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "release", durationSeconds }),
-    }, { requiresIdentity: true });
+    });
     discardBody(response);
   } catch {
     // Best effort: a failed release must not block ending the local session.
@@ -93,6 +103,7 @@ async function releaseVoiceSession(durationSeconds: number): Promise<void> {
 }
 
 function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+  const { user, session } = useAuth();
   const { startSession, endSession, sendUserMessage } = useConversationControls();
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
@@ -106,6 +117,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
 
   const ownsAttempt = useCallback((attempt: VoiceSessionAttempt): boolean => (
     activeAttemptRef.current === attempt &&
+    attempt.accountRevision === readProviderAccountRevision() &&
     !attempt.cancelled &&
     !disposedRef.current
   ), []);
@@ -130,7 +142,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     attempt.connectedAt = null;
     if (!attempt.releaseRequired) return;
     attempt.released = true;
-    await releaseVoiceSession(durationSeconds);
+    await releaseVoiceSession(attempt.auth, durationSeconds);
   }, [clearCapTimer]);
 
   useEffect(() => {
@@ -160,8 +172,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   }, [isListening, isSpeaking, onStateChange, status]);
 
   const stop = useCallback(async (attempt: VoiceSessionAttempt, reason: VoiceEndReason = "user") => {
-    attempt.voiceEndReason ??= reason;
     if (!ownsAttempt(attempt)) return;
+    attempt.voiceEndReason ??= reason;
+    conversationIdRef.current = null;
     const wasCurrent = activeAttemptRef.current === attempt;
     attempt.cancelled = true;
     startController.settle();
@@ -184,7 +197,14 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
+    const auth = captureAccountAuth(user?.id ?? null, session);
+    if (!auth) {
+      setError(PAL_VOICE_START_ERROR);
+      return;
+    }
     const attempt: VoiceSessionAttempt = {
+      auth,
+      accountRevision: readProviderAccountRevision(),
       cancelled: false,
       releaseRequired: false,
       released: false,
@@ -195,6 +215,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
+    conversationIdRef.current = null;
     setError(null);
     setIsStarting(true);
     onStateChange?.("noticing");
@@ -206,6 +227,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         return navigator.mediaDevices.getUserMedia({ audio: true });
       },
       issueGrant: async () => {
+        if (!ownsAttempt(attempt)) throw new PubPalVoiceStartError(PAL_VOICE_START_ERROR);
         const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" }, { requiresIdentity: true });
         if (response.ok) attempt.releaseRequired = true;
         const body = await response.json() as VoiceTokenResponse;
@@ -228,6 +250,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
           onMessage: ({ role, message }) => {
+            if (!ownsAttempt(attempt)) return;
             const conversationId = conversationIdRef.current;
             const content = message.trim();
             if (!conversationId || !content) return;
@@ -251,12 +274,12 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
               }
             : undefined,
           onConnect: (meta) => {
+            if (!ownsAttempt(attempt)) return;
             const conversationId = meta?.conversationId;
             if (conversationId) {
               conversationIdRef.current = conversationId;
               void syncVoiceToolTurn({ conversationId });
             }
-            if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
             // The session is live. This is reported on CONNECT and not on the
@@ -272,9 +295,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             }, maxSessionSeconds * 1000);
           },
           onDisconnect: () => {
+            if (!ownsAttempt(attempt)) return;
             conversationIdRef.current = null;
             attempt.voiceEndReason ??= "disconnect";
-            if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
             attempt.cancelled = true;
@@ -282,8 +305,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             void finalizeSession(attempt);
           },
           onError: (message) => {
-            attempt.voiceEndReason ??= "error";
             if (!ownsAttempt(attempt)) return;
+            conversationIdRef.current = null;
+            attempt.voiceEndReason ??= "error";
             startController.settle();
             setIsStarting(false);
             attempt.cancelled = true;
@@ -320,6 +344,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const send = () => {
     const value = text.trim();
     if (!value || status !== "connected" || isStarting) return;
+    const attempt = activeAttemptRef.current;
+    if (!attempt || !ownsAttempt(attempt)) return;
     try {
       sendUserMessage(value);
     } catch {
@@ -400,8 +426,9 @@ export default function PubPalVoiceSession({
 }: {
   onStateChange?: (state: PalAnimationState) => void;
 }) {
+  const { user } = useAuth();
   return (
-    <ConversationProvider>
+    <ConversationProvider key={user?.id ?? "signed-out"}>
       <VoiceControls onStateChange={onStateChange} />
     </ConversationProvider>
   );
