@@ -299,14 +299,13 @@ export async function isLimited(
   durableKey: string,
   limit = RATE_LIMIT,
   windowMs = RATE_WINDOW_MS,
-  opts?: { failClosed?: boolean; now?: number },
+  opts?: { failClosed?: boolean },
 ): Promise<boolean> {
-  const now = opts?.now ?? Date.now();
   limit = applyE2ERateLimitAllowance(limit);
   if (!isSupabaseConfigured()) {
     // Pure local dev (no Supabase at all): in-memory result even for
     // fail-closed callers, so local dev keeps working.
-    return isRateLimited(localKey, now, limit, windowMs);
+    return isRateLimited(localKey, Date.now(), limit, windowMs);
   }
 
   const { verdict, reason } = await checkRateLimitDurableDetailed(
@@ -332,7 +331,7 @@ export async function isLimited(
     warnRateLimitFailOpen(reason, "degraded", Math.min(limit, DEGRADED_RATE_LIMIT), windowMs);
     return isRateLimited(
       localKey,
-      now,
+      Date.now(),
       Math.min(limit, DEGRADED_RATE_LIMIT),
       windowMs,
     );
@@ -340,7 +339,7 @@ export async function isLimited(
 
   // no-client / unknown → full in-memory budget (fail-open wide).
   warnRateLimitFailOpen(reason ?? "unknown", "full", limit, windowMs);
-  return isRateLimited(localKey, now, limit, windowMs);
+  return isRateLimited(localKey, Date.now(), limit, windowMs);
 }
 
 /**

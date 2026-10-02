@@ -8,7 +8,7 @@ const { isLimitedMock, loadConciergeVenuesMock, categoryIndexMock } = vi.hoisted
     durableKey: string,
     limit?: number,
     windowMs?: number,
-    opts?: { failClosed?: boolean; now?: number },
+    opts?: { failClosed?: boolean },
   ]) => {
     void args;
     return false;
@@ -458,13 +458,7 @@ describe("POST /api/plans/generate", () => {
 
     expect(response.status).toBe(200);
     const expectedKey = `plan-generate:${hashIp(trustedIp)}`;
-    expect(isLimitedMock.mock.calls[0]).toEqual([
-      expectedKey,
-      expectedKey,
-      8,
-      60_000,
-      { now: expect.any(Number) },
-    ]);
+    expect(isLimitedMock.mock.calls[0]).toEqual([expectedKey, expectedKey, 8, 60_000]);
     const recorded = JSON.stringify(isLimitedMock.mock.calls);
     expect(recorded).not.toContain(spoofedIp);
     expect(recorded).not.toContain(trustedIp);
@@ -484,10 +478,7 @@ describe("POST /api/plans/generate", () => {
     expect(budgetCall).toBeDefined();
     expect(budgetCall?.[1]).toBe(paidSpendBudgetKey("plan-generate"));
     expect(budgetCall?.[3]).toBe(PAID_SPEND_BUDGET_WINDOW_MS);
-    expect(budgetCall?.[4]).toEqual({
-      failClosed: true,
-      now: isLimitedMock.mock.calls[0]?.[4]?.now,
-    });
+    expect(budgetCall?.[4]).toEqual({ failClosed: true });
   });
 
   it("refuses with the deployment ceiling's own sentence once it is spent", async () => {

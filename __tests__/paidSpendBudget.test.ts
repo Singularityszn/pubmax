@@ -95,9 +95,7 @@ describe("lane coverage", () => {
   it("has every paid lane consuming the ceiling in its own file", () => {
     for (const lane of PAID_SPEND_LANES) {
       const source = readFileSync(join(ROOT, LANE_OWNERS[lane]), "utf8");
-      expect(source, LANE_OWNERS[lane]).toMatch(
-        new RegExp(`paidSpendBudgetRefusal\\("${lane}"(?:,\\s*[^)]+)?\\)`),
-      );
+      expect(source, LANE_OWNERS[lane]).toContain(`paidSpendBudgetRefusal("${lane}")`);
     }
   });
 });

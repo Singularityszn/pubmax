@@ -238,14 +238,14 @@ export async function preparePlanGeneration(
 	if (signingUnavailable) return { response: signingUnavailable };
 	const operationKey = parsedRequest.value.operationKey ?? `create-${randomUUID()}`;
 	const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
-	if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS, { now: requestNow })) {
+	if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
 		return { response: publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true }) };
 	}
 	// The per-address budget above is one signal and a caller picks their own
 	// address. This ceiling is the deployment's, and no header widens it. Plan
 	// generation spends the routing budget as well as OpenRouter, so it is the
 	// most expensive of the four lanes per call.
-	const budgetRefusal = await paidSpendBudgetRefusal("plan-generate", requestNow);
+	const budgetRefusal = await paidSpendBudgetRefusal("plan-generate");
 	if (budgetRefusal) return { response: budgetRefusal };
 	if (intake?.unsupportedPatch) {
 		return { response: publicApiError(
