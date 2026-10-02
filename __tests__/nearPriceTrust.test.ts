@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import {
-  NEAR_PRICE_TRUST_COLLECTED_AT,
+  NEAR_PRICE_TRUST_CAPTION,
   nearPriceTrustLabel,
   resolveNearPriceTrust,
   type NearPriceTrustVenue,
@@ -110,9 +110,21 @@ describe("near price trust", () => {
     expect(nearPriceTrustLabel(state, publisher)).toBe(expected);
   });
 
-  it("uses the shared pint dataset collection stamp", () => {
-    expect(NEAR_PRICE_TRUST_COLLECTED_AT).toBe(
-      `Prices last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`,
+  it("dates a named or unrecorded price by its own row's read, and never a loading or failed one", () => {
+    const JULY = "2026-07-03T23:10:47.000Z";
+    expect(nearPriceTrustLabel("named", "Pint Prices", JULY)).toBe("On record · Pint Prices · read 4 Jul");
+    expect(nearPriceTrustLabel("unrecorded", null, JULY)).toBe(
+      "On record · Publisher not recorded · read 4 Jul",
     );
+    expect(nearPriceTrustLabel("named", "Pint Prices", null)).toBe("On record · Pint Prices");
+    expect(nearPriceTrustLabel("loading", null, JULY)).toBe("On record · Checking publisher");
+    expect(nearPriceTrustLabel("degraded", null, JULY)).toBe("On record · Publisher could not be checked");
+  });
+
+  it("dates the pub list, never a price, with the dataset stamp", () => {
+    expect(NEAR_PRICE_TRUST_CAPTION).toMatch(
+      /^Pub list refreshed \d{1,2} [A-Z][a-z]{2,3} \d{4}\. Each price shows when it was last read\.$/,
+    );
+    expect(NEAR_PRICE_TRUST_CAPTION).toContain(String(PINT_DATASET_OBSERVED_AT.getUTCFullYear()));
   });
 });

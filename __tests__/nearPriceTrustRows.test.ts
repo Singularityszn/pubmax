@@ -3,13 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { NearMeCardList } from "@/components/nearme/NearMeNow";
-import {
-  formatObservedDate,
-  isoDate,
-  PINT_DATASET_OBSERVED_AT,
-} from "@/lib/dataFreshness";
+import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
-import type { NearPriceTrustResponse } from "@/lib/nearPriceTrust";
+import { NEAR_PRICE_TRUST_CAPTION, type NearPriceTrustResponse } from "@/lib/nearPriceTrust";
 
 const CARDS: NearMeCard[] = [
   {
@@ -65,7 +61,7 @@ describe("/near price trust rows", () => {
 
     expect(markup).toContain("On record · Pint Prices");
     expect(markup).toContain("On record · Publisher not recorded");
-    expect(occurrences(markup, `Prices last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`)).toBe(1);
+    expect(occurrences(markup, NEAR_PRICE_TRUST_CAPTION)).toBe(1);
   });
 
   it("does not attach evidence to a card when its price has changed", () => {
@@ -107,18 +103,30 @@ describe("/near price trust rows", () => {
     expect(occurrences(markup, "On record · Publisher could not be checked")).toBe(1);
   });
 
-  it("uses the shared dataset stamp instead of an arbitrary response date", () => {
+  it("dates each card by its own row's read, and an unread row by nothing", () => {
+    const markup = render({
+      status: "ready",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
+      results: [
+        { venueId: "venue-a", price: 3.25, publisher: "Pint Prices", observedAt: "2026-07-03T23:10:47.000Z" },
+        { venueId: "venue-b", price: 4.5, publisher: null, observedAt: null },
+      ],
+    });
+
+    expect(markup).toContain("On record · Pint Prices · read 4 Jul");
+    expect(markup).toContain("On record · Publisher not recorded<");
+    expect(markup).not.toContain("read 2 Oct");
+    expect(markup).not.toContain("Prices last collected");
+  });
+
+  it("captions the list with the dataset stamp instead of an arbitrary response date", () => {
     const markup = render({
       status: "ready",
       collectedAt: "2026-07-04",
       results: [{ venueId: "venue-a", price: 3.25, publisher: "Pint Prices", observedAt: null }],
     });
 
-    expect(markup).toContain(`Prices last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`);
-    // The day after the collection day may never appear: the stamp is anchored
-    // at noon UTC so no timezone conversion can roll it forward.
-    expect(markup).not.toContain(
-      `Prices last collected ${formatObservedDate(new Date(PINT_DATASET_OBSERVED_AT.getTime() + 24 * 60 * 60 * 1000))}.`,
-    );
+    expect(markup).toContain(NEAR_PRICE_TRUST_CAPTION);
+    expect(markup).not.toContain("4 Jul");
   });
 });

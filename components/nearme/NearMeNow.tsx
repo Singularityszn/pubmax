@@ -11,7 +11,7 @@ import type { NearAnswerSource } from "@/lib/analyticsEvents";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
 import {
-  NEAR_PRICE_TRUST_COLLECTED_AT,
+  NEAR_PRICE_TRUST_CAPTION,
   nearPriceTrustLabel,
   nearPriceTrustObservedAt,
 } from "@/lib/nearPriceTrust";
@@ -1023,7 +1023,7 @@ function NearMeAreaAnswer({
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
 
 function collectedPriceLabel(): string {
-  return NEAR_PRICE_TRUST_COLLECTED_AT;
+  return NEAR_PRICE_TRUST_CAPTION;
 }
 
 function trustLabelForCard(
@@ -1037,8 +1037,8 @@ function trustLabelForCard(
   );
   if (!match) return nearPriceTrustLabel("degraded");
   return match.publisher
-    ? nearPriceTrustLabel("named", match.publisher)
-    : nearPriceTrustLabel("unrecorded");
+    ? nearPriceTrustLabel("named", match.publisher, match.observedAt)
+    : nearPriceTrustLabel("unrecorded", null, match.observedAt);
 }
 
 function NearMeCardBody({
