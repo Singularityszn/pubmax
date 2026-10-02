@@ -1,8 +1,8 @@
-// Effective PostgreSQL proof for 0170 (Fable full-repo review B-2).
+// Effective PostgreSQL proof for 0171 (Fable full-repo review B-2).
 //
 // Before this migration a signed-in role can read an anonymous Pint Drop's
 // real handle, a structured visit report, and community_prices.contributor_handle,
-// and pint_drops is in the realtime publication. After 0170 those reads are
+// and pint_drops is in the realtime publication. After 0171 those reads are
 // refused, the other price columns stay readable, the table leaves the
 // publication, and a private join on live:pint-drops is admitted only to
 // authenticated. The rollback puts the disclosure back.
@@ -23,11 +23,11 @@ const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const FORWARD_NAME = "20261002193000_0170_pint_drops_table_door.sql";
+const FORWARD_NAME = "20261002220000_0171_pint_drops_table_door.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20261002193000_0170_pint_drops_table_door_rollback.sql",
+  "rollback/20261002220000_0171_pint_drops_table_door_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -131,7 +131,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0170 pint drop table door", () => {
+describe.skipIf(skipReason !== null)("0171 pint drop table door", () => {
   it("BEFORE: a signed-in role reads the anonymous handle, the visit, and the contributor", () => {
     expect(readAs("authenticated", `select handle from public.pint_drops where id = '${ANON_DROP}'`)).toBe(
       "secret_author",

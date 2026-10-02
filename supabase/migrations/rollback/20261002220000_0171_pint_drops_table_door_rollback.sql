@@ -1,4 +1,4 @@
--- Rollback for 0170 (Pint Drop table and realtime door).
+-- Rollback for 0171 (Pint Drop table and realtime door).
 --
 -- READ THIS BEFORE RUNNING IT. This puts the grants back. Every signed-in
 -- account can SELECT `pint_drops` and `structured_visit_reports` again, which

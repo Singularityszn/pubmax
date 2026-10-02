@@ -6,13 +6,13 @@ import "server-only";
 // `supabase_realtime` publication, and `authenticated` could SELECT the whole
 // table. A `postgres_changes` payload is the raw inserted row, so a signed-in
 // browser learned an anonymous author's real handle, moderator notes, report
-// reasons and receipt keys. Migration 0170 revokes that SELECT and takes the
+// reasons and receipt keys. Migration 0171 revokes that SELECT and takes the
 // table out of the publication. This sender posts a payload-free signal after
 // the row is already stored. The browser refetches through the filtered route.
 //
 // WHY THE TOPIC IS PRIVATE. A public channel authorises on the API key alone,
 // and the anon key is in every browser. `private: true` makes Realtime check
-// the subscriber's JWT against `realtime.messages` (the policy in 0170). This
+// the subscriber's JWT against `realtime.messages` (the policy in 0171). This
 // sender holds the secret key, which bypasses RLS. The subscriber
 // (lib/realtime.ts) must set private too, or the signal lands where nobody is
 // listening. A browser with no session cannot join; its poll still runs.

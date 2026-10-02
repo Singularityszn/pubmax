@@ -23,7 +23,7 @@ describe("Pint Drop persistence boundary", () => {
       'export const PINT_DROPS_TABLE = "pint_drops"',
     );
 
-    // lib/realtime.ts is no reader: since 0170 it listens on a private
+    // lib/realtime.ts is no reader: since 0171 it listens on a private
     // broadcast topic, never the table (pinned in __tests__/realtime.test.ts).
     for (const path of [
       "lib/pintDropsStore.ts",

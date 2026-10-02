@@ -34,7 +34,7 @@
 -- fixture stands in for them. If either is absent this RAISES: a door that
 -- quietly stayed open is worse than a migration that refuses to apply.
 --
--- Reverse: supabase/migrations/rollback/20261002193000_0170_pint_drops_table_door_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261002220000_0171_pint_drops_table_door_rollback.sql
 
 begin;
 
@@ -48,7 +48,7 @@ do $$
 begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     raise exception
-      'supabase_realtime publication is absent; 0170 cannot take pint_drops out of it'
+      'supabase_realtime publication is absent; 0171 cannot take pint_drops out of it'
       using hint = 'Apply on a Supabase project, or load scripts/rls/session-fixture.sql first.';
   end if;
 
@@ -66,7 +66,7 @@ do $$
 begin
   if to_regclass('realtime.messages') is null then
     raise exception
-      'realtime.messages is absent; 0170 cannot install the pint drop channel policy'
+      'realtime.messages is absent; 0171 cannot install the pint drop channel policy'
       using hint = 'Apply on a Supabase project, or load scripts/rls/session-fixture.sql first.';
   end if;
 

@@ -1,4 +1,4 @@
-/** The one topic a new Pint Drop announces on. Payload-free; see migration 0170. */
+/** The one topic a new Pint Drop announces on. Payload-free; see migration 0171. */
 export const PINT_DROPS_LIVE_TOPIC = "live:pint-drops";
 
 /** The broadcast event on that topic. The body is always empty. */

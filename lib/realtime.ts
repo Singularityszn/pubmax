@@ -8,7 +8,7 @@
 // visibility is `anonymous`, and `friends`/`legacy` rows that #29's server-side
 // filter would withhold from this viewer entirely. Rendering straight from the
 // payload would BYPASS every visibility/anonymity guarantee shipped in #29.
-// Migration 0170 therefore does not subscribe to the table at all. The server
+// Migration 0171 therefore does not subscribe to the table at all. The server
 // posts a payload-free private Broadcast (lib/pintDropsBroadcast.server.ts) and
 // this module listens for that signal only.
 //
@@ -116,7 +116,7 @@ function subscribeByPolling(
 //   2. on CHANNEL_ERROR/TIMED_OUT/CLOSED, likewise falls back to polling;
 //   3. on every broadcast, fires `onSignal()` — NEVER passing the payload.
 // Returns an Unsubscribe that removes the channel and clears every timer.
-// `private: true` must match the server (migration 0170). A public channel
+// `private: true` must match the server (migration 0171). A public channel
 // would authorise on the anon key alone, and a channel opened public here
 // would hear nothing from a private send.
 function subscribePintDropSignal(
@@ -236,7 +236,7 @@ function subscribePintDropSignal(
  * row is never surfaced. Falls back to `options.poll` on a 30s interval if the
  * channel can't join or drops. Returns a safe Unsubscribe.
  *
- * NOTE: Pint Drops are stored in `pint_drops`, which migration 0170 takes OUT
+ * NOTE: Pint Drops are stored in `pint_drops`, which migration 0171 takes OUT
  * of the `supabase_realtime` publication and closes to browser SELECT. Do not
  * put the table back, and do not re-open SELECT, to "fix" realtime. The nudge
  * is the private broadcast above. Polling via `options.poll` is the fallback

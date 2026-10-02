@@ -160,7 +160,7 @@ const SECOND_PRICE_VENUE = "venue-1f5ygjb";
 /** A third pub only A reports at, so the drop the moderator cell confirms is unconfirmed by construction. */
 const MODERATOR_VENUE = "venue-3h52h";
 /** The table-door rows live alone, so no price lane counts the seeded anonymous drop as a second reporter. */
-const DOOR_VENUE = "venue-door-0170";
+const DOOR_VENUE = "venue-door-0171";
 
 type Session = {
   sqlFile(path: string): void;
