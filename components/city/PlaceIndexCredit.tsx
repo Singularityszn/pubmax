@@ -2,13 +2,13 @@
  * The ODbL credit a UK place-index answer owes.
  *
  * `public/data/uk_base/places.json` is OpenStreetMap-derived (ODbL 1.0), and
- * the map's own `OSM_ATTRIBUTION` rides the MapLibre canvas, which neither the
- * landing's chooser nor the Places tab draws. So the credit rides the ANSWER,
- * the way `DeskDataCredit` already does for `/near`: wherever a surface prints
- * place names read out of that index, it prints this under them.
+ * the map's own `OSM_ATTRIBUTION` rides the MapLibre canvas, which the Places
+ * tab does not draw. So the credit rides the ANSWER, the way `DeskDataCredit`
+ * already does for `/near`: wherever a surface prints place names read out of
+ * that index, it prints this under them.
  *
- * The class is the caller's, because the two surfaces carry different inks; the
- * words and the link are not, so neither surface can drift into its own credit.
+ * The class is the caller's, because a surface carries its own ink; the words
+ * and the link are not, so no surface can drift into its own credit.
  */
 export default function PlaceIndexCredit({
   className,

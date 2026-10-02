@@ -10,23 +10,20 @@ import {
 } from "@/lib/ukPlaceSearch";
 
 /**
- * The UK place index read the two CITY PICKERS share.
+ * The UK place index read the Places tab's town search makes.
  *
  * The index is the map's own base layer, two megabytes of place names, so it is
  * never part of a surface's first paint: a caller asks for it only once its own
- * answer has run out. The landing's chooser and the Places tab ask it the same
- * question, so they ask through one loader rather than one four-state machine
- * each. It is NOT the only browser read of that file: the map's own search
+ * answer has run out. It is NOT the only browser read of that file: the map's own search
  * (`components/PubMap.tsx`) and its suggestion banner
  * (`components/map/CitySuggestBanner.tsx`) read it on their own lanes, with
  * their own lifecycles, and converging those is a separate piece of work.
  *
  * `load` is IDEMPOTENT while a read is in flight or done, and it hands back the
- * parsed rows, because the chooser's geolocation lane needs the places
- * themselves rather than the render state. A FAILED read clears the held
- * promise, so the next call is the retry: the chooser makes that call from its
- * change handler and the picker from an effect keyed on its query, and neither
- * can leave a reader who lost the network mid-word stuck on the failure line.
+ * parsed rows. A FAILED read clears the held promise, so the next call is the
+ * retry: the Places tab makes that call from an effect keyed on its query, so
+ * it cannot leave a reader who lost the network mid-word stuck on the failure
+ * line.
  */
 export function useUkPlaceIndex(): {
   status: UkPlaceIndexStatus;

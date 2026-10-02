@@ -105,7 +105,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/reactionClient.ts", fetchCount: 1, reason: "Social reaction reads and writes are no-store interaction state" },
   { path: "lib/prefetchVenue.ts", fetchCount: 1, reason: "hover prefetch warms an interaction detail, not a painted reload read" },
   { path: "lib/ukBasePubs.ts", fetchCount: 2, reason: "UK base shard loading is viewport-owned static map data" },
-  { path: "lib/useUkPlaceIndex.ts", fetchCount: 1, reason: "the ONE read both city pickers share of the UK place index, the map's own base layer, asked for only once a surface's own answer ran out and never on a first paint; the map's own search and suggestion banner keep their separate lanes" },
+  { path: "lib/useUkPlaceIndex.ts", fetchCount: 1, reason: "the ONE read the Places tab makes of the UK place index, the map's own base layer, asked for only once a surface's own answer ran out and never on a first paint; the map's own search and suggestion banner keep their separate lanes" },
   { path: "lib/webPush.ts", fetchCount: 2, reason: "push subscription transport is an account action" },
   { path: "lib/planInviteTokenClient.ts", fetchCount: 1, reason: "the live invite token is a capability-gated no-store read every share href follows, and a rotate must replace it in place" },
   { path: "lib/planSessionCapability.ts", fetchCount: 1, reason: "plan capability exchange is an auth-gated session read" },
