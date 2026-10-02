@@ -14,6 +14,8 @@ export declare function revisionFromCommitSha(value: unknown): string | null;
 
 export declare function readWorkingTreeCommitSha(cwd?: string): string | null;
 
+export declare function readPackDataRevision(root?: string): string | null;
+
 export declare function resolveDataRevision(
   env?: Record<string, string | undefined>,
   options?: { workingTreeSha?: string | null },
@@ -25,5 +27,5 @@ export declare function packBuildEnv(
 
 export declare function requireDataRevision(
   env?: Record<string, string | undefined>,
-  options?: { workingTreeSha?: string | null },
+  options?: { workingTreeSha?: string | null; packRevision?: string | null },
 ): string;

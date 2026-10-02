@@ -4,7 +4,11 @@ import { fileURLToPath } from "node:url";
 
 import { analyticsBuildEnv } from "./lib/analyticsAttribution.mjs";
 import { resolveBuildStamp } from "./lib/buildInfo.mjs";
-import { readWorkingTreeCommitSha, requireDataRevision } from "./lib/dataRevision.mjs";
+import {
+  readPackDataRevision,
+  readWorkingTreeCommitSha,
+  requireDataRevision,
+} from "./lib/dataRevision.mjs";
 import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
@@ -100,12 +104,14 @@ const workingTreeCommitSha = readWorkingTreeCommitSha(projectRoot);
 // The same tree also names the REVISION when a production build has no release
 // environment, which is what makes that build possible from a clean worktree
 // with a pulled environment (that file carries VERCEL_GIT_COMMIT_SHA="" and no
-// deployment id). `next dev` ignores the tree and takes `local`, the stamp on
-// the committed packs. lib/dataRevision.mjs owns the order and the refusal;
+// deployment id). `next dev` ignores the tree and takes the revision stamped on
+// the packs in public/data, so it accepts them whether they hold the committed
+// `local` or a local pack build's SHA. lib/dataRevision.mjs owns the order and the refusal;
 // scripts/lib/slimShards.mjs stamps its shard payloads from the same rule, so a
 // build and its data cannot disagree about which deploy they belong to.
 const swVersion = requireDataRevision(process.env, {
   workingTreeSha: workingTreeCommitSha,
+  packRevision: readPackDataRevision(projectRoot),
 });
 
 const buildStamp = resolveBuildStamp(process.env, { workingTreeSha: workingTreeCommitSha });

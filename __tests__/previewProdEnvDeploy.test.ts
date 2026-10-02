@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -9,6 +10,7 @@ import {
   NO_DATA_REVISION_REFUSAL,
   environmentDataRevision,
   packBuildEnv,
+  readPackDataRevision,
   requireDataRevision,
   resolveDataRevision,
   revisionFromCommitSha,
@@ -67,6 +69,43 @@ describe("a build names its own data revision", () => {
     expect(
       requireDataRevision(packBuildEnv({ NODE_ENV: "development" }), { workingTreeSha: sha }),
     ).toBe(LOCAL_DATA_REVISION);
+  });
+
+  it("expects in `next dev` exactly the stamp on the packs it serves", () => {
+    const sha = "949e0592b9ac6b8ee2b6b375fd5c686171791a30";
+    const root = mkdtempSync(path.join(tmpdir(), "pack-revision-"));
+    const stampPacks = (revision: string) => {
+      mkdirSync(path.join(root, "public", "data"), { recursive: true });
+      writeFileSync(
+        path.join(root, "public", "data", "venues_slim.manifest.json"),
+        JSON.stringify({ version: 2, revision, shards: [] }),
+      );
+    };
+    const devRevision = () =>
+      requireDataRevision(
+        { NODE_ENV: "development" },
+        { workingTreeSha: sha, packRevision: readPackDataRevision(root) },
+      );
+    try {
+      expect(readPackDataRevision(root)).toBeNull();
+      expect(devRevision()).toBe(LOCAL_DATA_REVISION);
+
+      stampPacks(LOCAL_DATA_REVISION);
+      expect(devRevision()).toBe(LOCAL_DATA_REVISION);
+
+      const restamped = requireDataRevision(packBuildEnv({}), { workingTreeSha: sha });
+      stampPacks(restamped);
+      expect(devRevision()).toBe("949e0592b9ac");
+
+      expect(
+        requireDataRevision(
+          { NODE_ENV: "production" },
+          { workingTreeSha: sha, packRevision: LOCAL_DATA_REVISION },
+        ),
+      ).toBe("949e0592b9ac");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("is the ONE rule: the build and its shard payloads read the same module", () => {
