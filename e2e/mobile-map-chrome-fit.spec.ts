@@ -3,6 +3,7 @@ import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDouble
 
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -946,7 +947,7 @@ for (const viewport of VIEWPORTS) {
   }) => {
     await installAuthDoubles(page);
     await seedSignedIn(page, "A");
-    await page.addInitScript((ownerId) => {
+    await page.addInitScript(({ ownerId, appearance, personality, voice }) => {
       // Consent is ANSWERED on purpose. Leaving it undecided renders
       // AnalyticsConsentPrompt, which lifts the map-edge column to its own
       // higher berth - the one berth where the collision this test exists for
@@ -962,9 +963,9 @@ for (const viewport of VIEWPORTS) {
           ownerId,
           name: "Ada",
           adultAttestedAt: now,
-          appearance: {},
-          personality: {},
-          voice: {},
+          appearance,
+          personality,
+          voice,
           muted: false,
           hidden: false,
           proposalPreferences: {},
@@ -973,7 +974,12 @@ for (const viewport of VIEWPORTS) {
           updatedAt: now,
         }),
       );
-    }, ACCOUNTS.A.id);
+    }, {
+      ownerId: ACCOUNTS.A.id,
+      appearance: DEFAULT_PAL_DRAFT.appearance,
+      personality: DEFAULT_PAL_DRAFT.personality,
+      voice: DEFAULT_PAL_DRAFT.voice,
+    });
     await openPhoneMap(page, viewport);
     // The pill requires a signed-in viewer and a matching cached owner,
     // then mounts after a microtask.

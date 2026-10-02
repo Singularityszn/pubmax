@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import sharp from "sharp";
 
 const VIEWPORT = { width: 390, height: 844 };
@@ -151,7 +152,7 @@ test.describe("mobile map tile paint", () => {
     await seedMap(page);
     await installAuthDoubles(page);
     await seedSignedIn(page, "A");
-    await page.addInitScript((ownerId) => {
+    await page.addInitScript(({ ownerId, appearance, personality, voice }) => {
       const now = "2026-01-01T00:00:00.000Z";
       window.localStorage.setItem(
         "pubmax_pub_pal_v1",
@@ -160,9 +161,9 @@ test.describe("mobile map tile paint", () => {
           ownerId,
           name: "Ada",
           adultAttestedAt: now,
-          appearance: {},
-          personality: {},
-          voice: {},
+          appearance,
+          personality,
+          voice,
           muted: false,
           hidden: false,
           proposalPreferences: {},
@@ -171,7 +172,12 @@ test.describe("mobile map tile paint", () => {
           updatedAt: now,
         }),
       );
-    }, ACCOUNTS.A.id);
+    }, {
+      ownerId: ACCOUNTS.A.id,
+      appearance: DEFAULT_PAL_DRAFT.appearance,
+      personality: DEFAULT_PAL_DRAFT.personality,
+      voice: DEFAULT_PAL_DRAFT.voice,
+    });
 
     await page.goto("/map");
     await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });

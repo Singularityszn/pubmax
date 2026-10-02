@@ -23,6 +23,7 @@ import Kicker from "@/components/ui/kicker";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { BRAND_NAME } from "@/lib/brandNaming";
+import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -577,7 +578,7 @@ export default function LoginPage({
   ) : undefined;
 
   return (
-    <main className="loginPage">
+    <main id={MAIN_LANDMARK_ID} className="loginPage">
       <div className="loginPageInner">
         <PageHead
           title={head.title}

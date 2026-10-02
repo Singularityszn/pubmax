@@ -477,7 +477,8 @@ test.describe("UI UX battle-test guardrails", () => {
     const map = page.locator(".mapCanvasWrap");
     await expect(async () => {
       if (!await map.isVisible()) {
-        await page.getByRole("link", { name: "Open the map", exact: true })
+        await page.getByTestId("today-screen").locator(".screenHead")
+          .getByRole("link", { name: "Open the map", exact: true })
           .click({ timeout: 1_000 });
       }
       await expect(map).toBeVisible({ timeout: 1_000 });
