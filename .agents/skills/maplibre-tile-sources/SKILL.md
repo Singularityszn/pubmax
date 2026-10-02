@@ -1,12 +1,12 @@
 ---
 name: maplibre-tile-sources
-description: How to choose and configure data sources for MapLibre GL JS - rendering your own data without tiles, hosted tile services, serverless PMTiles, self-hosted tile servers, tile schemas, and sprites.
+description: How to choose and configure data sources for MapLibre GL JS — rendering your own data without tiles, hosted tile services, serverless PMTiles, self-hosted tile servers, tile schemas, and sprites.
 status: verified
 ---
 
 # MapLibre Tile Sources
 
-MapLibre GL JS does not ship with map data. You provide a **style** that references **sources** - URLs or inline data that MapLibre fetches and renders. MapLibre works equally well for a store locator with 200 addresses, a city transit map, and a global basemap - the right source type depends on geographic scale and level of detail, update frequency, infrastructure constraints, and use case.
+MapLibre GL JS does not ship with map data. You provide a **style** that references **sources** — URLs or inline data that MapLibre fetches and renders. MapLibre works equally well for a store locator with 200 addresses, a city transit map, and a global basemap — the right source type depends on geographic scale and level of detail, update frequency, infrastructure constraints, and use case.
 
 ## When to Use This Skill
 
@@ -20,23 +20,23 @@ MapLibre GL JS does not ship with map data. You provide a **style** that referen
 
 A **style** (a style JSON, style document, or style object) is the configuration you pass to MapLibre. It contains the specific rendering rules governed by the [MapLibre Style Specification](https://maplibre.org/maplibre-style-spec/), maintained with parity for MapLibre GL JS and MapLibre Native.
 
-You can use a **style URL** from a provider - that URL references a style with sources, layers, glyphs, and sprite. Or you can **build your own style** and configure each yourself.
+You can use a **style URL** from a provider — that URL references a style with sources, layers, glyphs, and sprite. Or you can **build your own style** and configure each yourself.
 
 A style has three main components:
 
-- **Sources** - Point to the actual data. Each source has a `type` and either inline data or a URL. MapLibre requests tiles or data as the viewport changes. The same source can back many layers (e.g. roads, water, and labels all from one vector URL).
-- **Layers** - An ordered list defining what to draw and how. Each layer references a source (and for vector tiles, a `source-layer` name) and specifies paint/layout properties.
-- **Glyphs and sprite** - URLs to font SDF stacks and icon spritesheets. `sprite` has no fallback: a missing icon is silently omitted. `glyphs` does have one on GL JS ≥ 5.11.0 (text still renders, in a local/system font) - see [maplibre-fonts-glyphs](../maplibre-fonts-glyphs/SKILL.md) for the mechanism and its limits. Production styles should still supply both explicitly.
+- **Sources** — Point to the actual data. Each source has a `type` and either inline data or a URL. MapLibre requests tiles or data as the viewport changes. The same source can back many layers (e.g. roads, water, and labels all from one vector URL).
+- **Layers** — An ordered list defining what to draw and how. Each layer references a source (and for vector tiles, a `source-layer` name) and specifies paint/layout properties.
+- **Glyphs and sprite** — URLs to font SDF stacks and icon spritesheets. `sprite` has no fallback: a missing icon is silently omitted. `glyphs` does have one on GL JS ≥ 5.11.0 (text still renders, in a local/system font) — see [maplibre-fonts-glyphs](../maplibre-fonts-glyphs/SKILL.md) for the mechanism and its limits. Production styles should still supply both explicitly.
 
 **Source types:**
 
 | Type         | Description                                                                                              |
 | ------------ | -------------------------------------------------------------------------------------------------------- |
-| `vector`     | Vector tiles - binary-encoded geometry and attributes; the primary format for basemaps and data overlays |
-| `raster`     | Raster tile imagery - satellite photos, WMS/WMTS layers                                                  |
-| `raster-dem` | Elevation tiles - for terrain rendering and hillshading                                                  |
-| `geojson`    | GeoJSON data - inline object or URL; no tile server needed                                               |
-| `image`      | A single georeferenced image - scanned maps, annotated overlays                                          |
+| `vector`     | Vector tiles — binary-encoded geometry and attributes; the primary format for basemaps and data overlays |
+| `raster`     | Raster tile imagery — satellite photos, WMS/WMTS layers                                                  |
+| `raster-dem` | Elevation tiles — for terrain rendering and hillshading                                                  |
+| `geojson`    | GeoJSON data — inline object or URL; no tile server needed                                               |
+| `image`      | A single georeferenced image — scanned maps, annotated overlays                                          |
 | `video`      | Georeferenced video                                                                                      |
 
 `vector` and `raster` are the most common for basemaps and data overlays. `geojson` is ideal for small datasets or interactive data that doesn't need tiling. `raster-dem` is used for terrain and hillshade effects, as well as emerging use cases in scientific visualization. `image` and `video` sources are the least common, but let you georeference static images (such as a scanned map, chart, or overlay) or georeferenced videos as map layers.
@@ -65,16 +65,16 @@ GeoJSON downloads the entire file on every load. This works well at small scale 
 | Range      | File size / feature count        | Behavior                                                                                                    |
 | ---------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Sweet spot | < 2 MB / < 5,000 features        | Instantaneous loading, smooth interaction                                                                   |
-| Lag zone   | 5-20 MB / up to ~50,000 features | 1-3s parse delay; mobile may struggle; optimize by simplifying geometries and reducing coordinate precision |
+| Lag zone   | 5–20 MB / up to ~50,000 features | 1–3s parse delay; mobile may struggle; optimize by simplifying geometries and reducing coordinate precision |
 | Crash zone | > 50 MB / > 100,000 features     | High risk of browser freeze or crash; switch to vector tiles                                                |
 
-GeoJSON is **lossless** (exact coordinates preserved) and gives you full client-side access to feature properties - ideal for interactive data, dynamic updates, and datasets where you need to query or modify features without a server round-trip.
+GeoJSON is **lossless** (exact coordinates preserved) and gives you full client-side access to feature properties — ideal for interactive data, dynamic updates, and datasets where you need to query or modify features without a server round-trip.
 
 If your dataset exceeds these thresholds, or if you need zoom-dependent rendering (less detail at lower zoom levels), consider vector tiles instead.
 
 ### Other formats and the cloud-native ecosystem
 
-The choice of data source is shaped by more than performance: data type, update frequency, access patterns, and the broader geospatial ecosystem all factor in. Many formats (FlatGeobuf, GeoParquet, Cloud-Optimized GeoTIFF, KML, GPX, and more) can be displayed in MapLibre via plugins and custom protocols. The cloud-native geospatial ecosystem - formats designed for HTTP range requests and distributed storage - is evolving rapidly and increasingly relevant for web maps. A separate skill will cover this in depth; for now, see the [Map Rendering Plugins](https://github.com/maplibre/awesome-maplibre#map-rendering-plugins) and [Utility Libraries](https://github.com/maplibre/awesome-maplibre#utility-libraries) sections of awesome-maplibre.
+The choice of data source is shaped by more than performance: data type, update frequency, access patterns, and the broader geospatial ecosystem all factor in. Many formats (FlatGeobuf, GeoParquet, Cloud-Optimized GeoTIFF, KML, GPX, and more) can be displayed in MapLibre via plugins and custom protocols. The cloud-native geospatial ecosystem — formats designed for HTTP range requests and distributed storage — is evolving rapidly and increasingly relevant for web maps. A separate skill will cover this in depth; for now, see the [Map Rendering Plugins](https://github.com/maplibre/awesome-maplibre#map-rendering-plugins) and [Utility Libraries](https://github.com/maplibre/awesome-maplibre#utility-libraries) sections of awesome-maplibre.
 
 ## When You Need Tiles
 
@@ -106,7 +106,7 @@ Most MapLibre workflows use vector tiles; increasing numbers are integrating `ra
 
 ### Using MapLibre with Leaflet
 
-[Leaflet](https://leafletjs.com/) is a widely used JavaScript mapping library that supports only raster tiles. If your app is built on Leaflet, [MapLibre GL Leaflet](https://github.com/maplibre/maplibre-gl-leaflet) lets you pre-render a MapLibre GL compatible style as a raster layer - allowing you to use hosted vector tile sources in your Leaflet app.
+[Leaflet](https://leafletjs.com/) is a widely used JavaScript mapping library that supports only raster tiles. If your app is built on Leaflet, [MapLibre GL Leaflet](https://github.com/maplibre/maplibre-gl-leaflet) lets you pre-render a MapLibre GL compatible style as a raster layer — allowing you to use hosted vector tile sources in your Leaflet app.
 
 ### Combining source types
 
@@ -114,7 +114,7 @@ A MapLibre style can have any number of sources of any types simultaneously. Lay
 
 Sources can be composited in a custom style sheet or at run-time. Be aware that layer order matters: layers are drawn bottom-to-top in the order they appear in the style. A raster layer added after vector layers will obscure them.
 
-- **Vector basemap + GeoJSON overlay** - the most common pattern. Use a provider's style URL (or any vector tile source) as your basemap and add your own data on top with `map.addSource()` and `map.addLayer()`. To keep labels readable, insert your layer before the first symbol layer rather than appending to the top of the stack.
+- **Vector basemap + GeoJSON overlay** — the most common pattern. Use a provider's style URL (or any vector tile source) as your basemap and add your own data on top with `map.addSource()` and `map.addLayer()`. To keep labels readable, insert your layer before the first symbol layer rather than appending to the top of the stack.
 
 ```javascript
 // Start with any basemap style URL, then add your own data below labels
@@ -130,18 +130,18 @@ map.on('load', () => {
 });
 ```
 
-- **Raster imagery + vector labels** - add a raster source for satellite imagery, weather radar, historical imagery, heatmaps rendered server-side, or any imagery that isn't available as vector data. Add a vector source for roads, place names and other labels. This gives crisp imagery with crisp, resolution-independent vector geometries and labels on top.
-- **Vector basemap + raster-dem terrain** - add hillshading or 3D terrain to any vector basemap using a `raster-dem` source (elevation tiles). This is how MapLibre renders terrain and hillshade without a separate basemap style.
+- **Raster imagery + vector labels** — add a raster source for satellite imagery, weather radar, historical imagery, heatmaps rendered server-side, or any imagery that isn't available as vector data. Add a vector source for roads, place names and other labels. This gives crisp imagery with crisp, resolution-independent vector geometries and labels on top.
+- **Vector basemap + raster-dem terrain** — add hillshading or 3D terrain to any vector basemap using a `raster-dem` source (elevation tiles). This is how MapLibre renders terrain and hillshade without a separate basemap style.
 
 ### When to choose each approach
 
-Most real-world apps combine source types - a hosted basemap for the reference layer and your own data as a separate source. You rarely need to build a custom tile pipeline just for your data.
+Most real-world apps combine source types — a hosted basemap for the reference layer and your own data as a separate source. You rarely need to build a custom tile pipeline just for your data.
 
 | Scenario                                                        | Recommended source setup                                                         |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| < ~5,000 features, need click/hover interaction or live updates | GeoJSON - no tile server needed                                                  |
-| 5,000-100,000 features                                          | GeoJSON if you can simplify and accept 1-3s load delay; otherwise vector tiles   |
-| > 100,000 features or > 50 MB                                   | Vector tiles - generate with tippecanoe or Planetiler                            |
+| < ~5,000 features, need click/hover interaction or live updates | GeoJSON — no tile server needed                                                  |
+| 5,000–100,000 features                                          | GeoJSON if you can simplify and accept 1–3s load delay; otherwise vector tiles   |
+| > 100,000 features or > 50 MB                                   | Vector tiles — generate with tippecanoe or Planetiler                            |
 | Street, terrain, or place basemap                               | Hosted tile service (OpenFreeMap, MapTiler) or self-hosted (Martin)              |
 | Your own data over any basemap                                  | Hosted basemap style URL + your data as a separate GeoJSON or vector tile source |
 | Satellite/aerial imagery + labels                               | Raster tile source for imagery + vector source for roads and labels              |
@@ -152,22 +152,20 @@ The key distinction: the basemap and your data are almost always separate source
 
 "Hosting" tile data can mean two different things:
 
-- **Storing files on the web** - A `.pmtiles` archive (or pre-generated tile directory) lives on static storage like S3, R2, or GitHub Pages. No server process runs; MapLibre fetches tiles over HTTP using range requests or standard HTTP. Updates require regenerating and re-uploading the file.
-- **Running a tile server** - A server process handles tile requests dynamically, often from a database (PostGIS) or source file (MBTiles, PMTiles). Supports live data and on-the-fly generation, but requires deployment and ongoing maintenance.
+- **Storing files on the web** — A `.pmtiles` archive (or pre-generated tile directory) lives on static storage like S3, R2, or GitHub Pages. No server process runs; MapLibre fetches tiles over HTTP using range requests or standard HTTP. Updates require regenerating and re-uploading the file.
+- **Running a tile server** — A server process handles tile requests dynamically, often from a database (PostGIS) or source file (MBTiles, PMTiles). Supports live data and on-the-fly generation, but requires deployment and ongoing maintenance.
 
 The three options below map to these two approaches: PMTiles is file-based and serverless; hosted tile services run tile server infrastructure on your behalf; self-hosted means you run your own server.
 
 ### Serverless (PMTiles)
 
-[PMTiles](https://docs.protomaps.com/pmtiles/) is an open single-file tile format that supports vector or raster tiles - MapLibre fetches only the byte ranges it needs via HTTP range requests, with no tile server. Extract only the geographic scale you need, and host a `.pmtiles` file on static storage (S3, R2, GitHub Pages).
-
-See [maplibre-pmtiles-patterns](../maplibre-pmtiles-patterns/SKILL.md) for setup.
+[PMTiles](https://docs.protomaps.com/pmtiles/) is an open single-file tile format that supports vector or raster tiles — MapLibre fetches only the byte ranges it needs via HTTP range requests, with no tile server. Extract only the geographic scale you need, and host a `.pmtiles` file on static storage (S3, R2, GitHub Pages). Setup is that same PMTiles document. This repo does not host PMTiles and does not vendor a PMTiles skill.
 
 ### Hosted tile services
 
-Many providers offer hosted vector or raster tiles and pre-built style and tile URLs - no server to run. See [Map/Tile Providers in awesome-maplibre](https://github.com/maplibre/awesome-maplibre#maptile-providers) for a full list.
+Many providers offer hosted vector or raster tiles and pre-built style and tile URLs — no server to run. See [Map/Tile Providers in awesome-maplibre](https://github.com/maplibre/awesome-maplibre#maptile-providers) for a full list.
 
-For a no-key starting point, [OpenFreeMap](https://openfreemap.org/) provides free hosted OpenStreetMap tiles with MapLibre-ready styles (`https://tiles.openfreemap.org/styles/liberty` or `/positron`). It is community-funded - if your app depends on it in production, consider [donating](https://openfreemap.org) or self-hosting to reduce load on shared infrastructure.
+For a no-key starting point, [OpenFreeMap](https://openfreemap.org/) provides free hosted OpenStreetMap tiles with MapLibre-ready styles (`https://tiles.openfreemap.org/styles/liberty` or `/positron`). It is community-funded — if your app depends on it in production, consider [donating](https://openfreemap.org) or self-hosting to reduce load on shared infrastructure.
 
 **Do not use tile.openstreetmap.org** in production or for anything beyond very limited testing. The OpenStreetMap Foundation prohibits bulk and high-traffic use of their tile server; violating this blocks your IP. Use a hosted provider or self-host instead. See [switch2osm.org/providers](https://switch2osm.org/providers/) for a current provider list.
 
@@ -176,7 +174,7 @@ For a no-key starting point, [OpenFreeMap](https://openfreemap.org/) provides fr
 - ⚠️ Custom style layer definitions must match the schema of the hosted tile source
 - ⚠️ Vendor dependency
 - ⚠️ API keys required by most; check license, usage limits and pricing
-- ⚠️ Attribution required for OpenStreetMap-based tiles - at the same visual prominence as any other credit. OpenStreetMap data is licensed under the [ODbL](https://opendatacommons.org/licenses/odbl/); if you create an adapted database from OSM data, the share-alike clause requires you to release it under ODbL as well. Community-funded free services have usage policies; respect them, and give back through self-hosting or donations when your usage grows
+- ⚠️ Attribution required for OpenStreetMap-based tiles — at the same visual prominence as any other credit. OpenStreetMap data is licensed under the [ODbL](https://opendatacommons.org/licenses/odbl/); if you create an adapted database from OSM data, the share-alike clause requires you to release it under ODbL as well. Community-funded free services have usage policies; respect them, and give back through self-hosting or donations when your usage grows
 
 Store API keys in environment variables; never commit to source control.
 
@@ -187,27 +185,27 @@ Run your own server for full control over data, cost, and deployment. See [Tile 
 - ✅ Full control; no per-request cost at scale
 - ✅ Can serve dynamic data and convert to tiles on the fly
 - ✅ Supports air-gapped deployments
-- ⚠️ Data to process, and infrastructure to deploy and maintain. A global OpenStreetMap dataset requires approximately 1 TB of storage and 24 GB of RAM; a city-scale extract needs 10-20 GB of storage and 4 GB of RAM. See [switch2osm.org](https://switch2osm.org/serving-tiles/) for current hardware guidance.
+- ⚠️ Data to process, and infrastructure to deploy and maintain. A global OpenStreetMap dataset requires approximately 1 TB of storage and 24 GB of RAM; a city-scale extract needs 10–20 GB of storage and 4 GB of RAM. See [switch2osm.org](https://switch2osm.org/serving-tiles/) for current hardware guidance.
 - ⚠️ You must configure CORS and supply glyphs and sprite in your style
 
 ## Custom styles
 
-A custom style is one you write yourself, rather than using a provider's pre-built style URL. Custom styles can reference either hosted or self-hosted tile sources - and in practice, the most common pattern is both:
+A custom style is one you write yourself, rather than using a provider's pre-built style URL. Custom styles can reference either hosted or self-hosted tile sources — and in practice, the most common pattern is both:
 
-- **Hosted tile sources** - Your style JSON points to a provider's tile URL. You control visual appearance while relying on the provider for tile delivery. Your layer definitions must match the provider's tile schema, and you typically reuse their glyphs and sprite.
-- **Self-hosted tile sources** - Your style JSON points to your own tile server or PMTiles file. You control both style and data, but must supply glyphs and sprite yourself (or reuse publicly available ones that match your tile schema).
+- **Hosted tile sources** — Your style JSON points to a provider's tile URL. You control visual appearance while relying on the provider for tile delivery. Your layer definitions must match the provider's tile schema, and you typically reuse their glyphs and sprite.
+- **Self-hosted tile sources** — Your style JSON points to your own tile server or PMTiles file. You control both style and data, but must supply glyphs and sprite yourself (or reuse publicly available ones that match your tile schema).
 
-The most common real-world pattern is a hybrid: a custom style that references a hosted provider's basemap tiles - and often reuses their glyphs and sprite - while adding self-hosted tile sources or GeoJSON overlays for your own data. This gives you full control over your data layers without building basemap tile infrastructure from scratch.
+The most common real-world pattern is a hybrid: a custom style that references a hosted provider's basemap tiles — and often reuses their glyphs and sprite — while adding self-hosted tile sources or GeoJSON overlays for your own data. This gives you full control over your data layers without building basemap tile infrastructure from scratch.
 
 ### Pre-Defined Tile Schemas
 
-When building a custom style (rather than using a provider's pre-built style URL), you need to know the **tile schema** - the source-layer names and their properties. Your style's layer definitions must match the schema of your tile source.
+When building a custom style (rather than using a provider's pre-built style URL), you need to know the **tile schema** — the source-layer names and their properties. Your style's layer definitions must match the schema of your tile source.
 
 Common schemas:
 
-- **OpenMapTiles** - the most widely adopted schema, based on OpenStreetMap data. Rich and detailed, with source-layers like `transportation`, `water`, `landuse`, `poi`. The largest ecosystem of community styles targets this schema.
-- **Shortbread** - an open standard designed to be minimal and interoperable, not tied to any single vendor. Simpler structure than OpenMapTiles; a clean foundation if you're building styles from scratch.
-- **Protomaps** - purpose-built for the Protomaps PMTiles basemap ecosystem. Flat, simple structure with source-layers like `earth`, `water`, `roads`, `places`; optimized for serverless delivery. Published layer list: [docs.protomaps.com/basemaps/layers](https://docs.protomaps.com/basemaps/layers).
+- **OpenMapTiles** — the most widely adopted schema, based on OpenStreetMap data. Rich and detailed, with source-layers like `transportation`, `water`, `landuse`, `poi`. The largest ecosystem of community styles targets this schema.
+- **Shortbread** — an open standard designed to be minimal and interoperable, not tied to any single vendor. Simpler structure than OpenMapTiles; a clean foundation if you're building styles from scratch.
+- **Protomaps** — purpose-built for the Protomaps PMTiles basemap ecosystem. Flat, simple structure with source-layers like `earth`, `water`, `roads`, `places`; optimized for serverless delivery. Published layer list: [docs.protomaps.com/basemaps/layers](https://docs.protomaps.com/basemaps/layers).
 
 If you use a provider's pre-built style URL, the schema is already matched.
 
@@ -215,8 +213,8 @@ If you use a provider's pre-built style URL, the schema is already matched.
 
 Every production MapLibre style that shows text or icons needs:
 
-- **glyphs:** URL template for font stacks - `"glyphs": "https://example.com/fonts/{fontstack}/{range}.pbf"`. Setup, self-hosting vs. generating, the GL JS local-font fallback, and non-Latin scripts: [maplibre-fonts-glyphs](../maplibre-fonts-glyphs/SKILL.md).
-- **sprite:** Base URL for sprite sheet and metadata (serves both `.json` and `.png`) - `"sprite": "https://example.com/sprites/basic"`.
+- **glyphs:** URL template for font stacks — `"glyphs": "https://example.com/fonts/{fontstack}/{range}.pbf"`. Setup, self-hosting vs. generating, the GL JS local-font fallback, and non-Latin scripts: [maplibre-fonts-glyphs](../maplibre-fonts-glyphs/SKILL.md).
+- **sprite:** Base URL for sprite sheet and metadata (serves both `.json` and `.png`) — `"sprite": "https://example.com/sprites/basic"`.
 
 Pre-built style URLs from hosted providers include their own glyphs and sprite. When building a custom style or self-hosting, you must supply these URLs.
 
@@ -226,15 +224,15 @@ The alternative is to generate your own sprite sheet. See [Sprite Generation](ht
 
 ## TileJSON
 
-[TileJSON](https://github.com/mapbox/tilejson-spec) is a standard JSON format for describing a tileset - its tile URL template, zoom range, bounds, center, attribution, and (for vector tiles) the available source-layers. Tile servers and providers expose TileJSON endpoints; MapLibre can consume them directly.
+[TileJSON](https://github.com/mapbox/tilejson-spec) is a standard JSON format for describing a tileset — its tile URL template, zoom range, bounds, center, attribution, and (for vector tiles) the available source-layers. Tile servers and providers expose TileJSON endpoints; MapLibre can consume them directly.
 
 ### Referencing tiles in a source
 
-Tiles are addressed by zoom (Z), column (X), and row (Y) - a universal scheme across raster and vector tile sources (see [the OpenStreetMap wiki](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) for more information). In a MapLibre source, you reference tiles either directly via a `tiles` URL template or via a `url` pointing to a TileJSON endpoint.
+Tiles are addressed by zoom (Z), column (X), and row (Y) — a universal scheme across raster and vector tile sources (see [the OpenStreetMap wiki](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) for more information). In a MapLibre source, you reference tiles either directly via a `tiles` URL template or via a `url` pointing to a TileJSON endpoint.
 
 When a TileJSON endpoint is available, prefer `url`: MapLibre fetches the document and reads the tile URL template, zoom range, bounds, attribution, and (for vector tiles) the available source-layers automatically. Tile servers like Martin and tileserver-gl generate TileJSON endpoints for every tileset they serve, as do many hosted providers.
 
-When no TileJSON endpoint exists - for example, a raw raster tile service that gives you a URL template directly - use the `tiles` array and specify any metadata (minzoom, maxzoom, attribution) in the source definition yourself.
+When no TileJSON endpoint exists — for example, a raw raster tile service that gives you a URL template directly — use the `tiles` array and specify any metadata (minzoom, maxzoom, attribution) in the source definition yourself.
 
 **`tiles` array:**
 
@@ -258,7 +256,7 @@ When no TileJSON endpoint exists - for example, a raw raster tile service that g
 
 ### TileJSON and custom styles
 
-**Find the real names in the TileJSON.** For vector sources, the TileJSON `vector_layers` field lists each available `source-layer`, its attribute fields, and its zoom range. This is the authoritative reference when it is present - TileJSON 3.0 requires it for vector tilesets, but 2.x documents predate it and providers are inconsistent about supplying it. Its absence does not mean there is no schema: identify the schema by name (below) and work from its published layer list. If you use a provider's pre-built style URL, the schema is already matched for you; the mismatch only appears when you write your own layers.
+**Find the real names in the TileJSON.** For vector sources, the TileJSON `vector_layers` field lists each available `source-layer`, its attribute fields, and its zoom range. This is the authoritative reference when it is present — TileJSON 3.0 requires it for vector tilesets, but 2.x documents predate it and providers are inconsistent about supplying it. Its absence does not mean there is no schema: identify the schema by name (below) and work from its published layer list. If you use a provider's pre-built style URL, the schema is already matched for you; the mismatch only appears when you write your own layers.
 
 When generating tiles with Planetiler or tippecanoe, the output embeds TileJSON metadata in the MBTiles or PMTiles file. Tile servers like Martin read this metadata and expose it as a TileJSON endpoint automatically.
 
@@ -270,29 +268,27 @@ Hosted providers handle CORS for you. For self-hosted servers or static storage,
 
 ## Related Skills
 
-- [**maplibre-fonts-glyphs**](../maplibre-fonts-glyphs/SKILL.md) - Setting up the `glyphs` URL, self-hosting or generating font PBFs, and non-Latin script support.
-- [**maplibre-pmtiles-patterns**](../maplibre-pmtiles-patterns/SKILL.md) - Serverless PMTiles hosting and MapLibre integration.
-- **maplibre-style-patterns** - Layer and source configuration for common use cases. (Not yet in repo.)
-- [**maplibre-mapbox-migration**](../maplibre-mapbox-migration/SKILL.md) - Replacing Mapbox tiles with MapLibre-compatible sources.
+- [**maplibre-fonts-glyphs**](../maplibre-fonts-glyphs/SKILL.md) — Setting up the `glyphs` URL, self-hosting or generating font PBFs, and non-Latin script support.
+- **maplibre-style-patterns** — Layer and source configuration for common use cases. (Not yet in repo.)
 
 ## References
 
-1. **GeoJSON performance thresholds** (file size / feature count ranges) - community rules of thumb aggregated from Stack Overflow, Reddit, Medium, and Cesium Community Forum discussions. ⚑ _not authoritative or canonical_
-2. **PMTiles format and HTTP range request protocol** - [docs.protomaps.com/pmtiles/](https://docs.protomaps.com/pmtiles/)
-3. **Protomaps** (pre-built PMTiles basemaps) - [protomaps.com](https://protomaps.com); basemap layers: [docs.protomaps.com/basemaps/layers](https://docs.protomaps.com/basemaps/layers)
-4. **Planetiler** (generate vector tiles from OSM) - [GitHub](https://github.com/onthegomap/planetiler)
-5. **tippecanoe** (generate vector tiles from GeoJSON) - [github.com/felt/tippecanoe](https://github.com/felt/tippecanoe)
-6. **Martin tile server** - [maplibre.org/martin/](https://maplibre.org/martin/)
-7. **MapLibre Tile (MLT) specification** - [maplibre.org/maplibre-tile-spec/](https://maplibre.org/maplibre-tile-spec/)
-8. **OpenMapTiles schema** - [OpenMapTiles.org](https://openmaptiles.org/schema/)
-9. **Shortbread tile schema** - [shortbread-tiles.org](https://shortbread-tiles.org/)
-10. **TileJSON specification** - [github.com/mapbox/tilejson-spec](https://github.com/mapbox/tilejson-spec); version 3.0 (Aug 2021) made `vector_layers` required for vector tilesets
-11. **Leaflet** - [leaflet.js](https://leafletjs.com/)
-12. **MapLibre GL Leaflet** - [github.com/maplibre/maplibre-gl-leaflet](https://github.com/maplibre/maplibre-gl-leaflet)
+1. **GeoJSON performance thresholds** (file size / feature count ranges) — community rules of thumb aggregated from Stack Overflow, Reddit, Medium, and Cesium Community Forum discussions. ⚑ _not authoritative or canonical_
+2. **PMTiles format and HTTP range request protocol** — [docs.protomaps.com/pmtiles/](https://docs.protomaps.com/pmtiles/)
+3. **Protomaps** (pre-built PMTiles basemaps) — [protomaps.com](https://protomaps.com); basemap layers: [docs.protomaps.com/basemaps/layers](https://docs.protomaps.com/basemaps/layers)
+4. **Planetiler** (generate vector tiles from OSM) — [GitHub](https://github.com/onthegomap/planetiler)
+5. **tippecanoe** (generate vector tiles from GeoJSON) — [github.com/felt/tippecanoe](https://github.com/felt/tippecanoe)
+6. **Martin tile server** — [maplibre.org/martin/](https://maplibre.org/martin/)
+7. **MapLibre Tile (MLT) specification** — [maplibre.org/maplibre-tile-spec/](https://maplibre.org/maplibre-tile-spec/)
+8. **OpenMapTiles schema** — [OpenMapTiles.org](https://openmaptiles.org/schema/)
+9. **Shortbread tile schema** — [shortbread-tiles.org](https://shortbread-tiles.org/)
+10. **TileJSON specification** — [github.com/mapbox/tilejson-spec](https://github.com/mapbox/tilejson-spec); version 3.0 (Aug 2021) made `vector_layers` required for vector tilesets
+11. **Leaflet** — [leaflet.js](https://leafletjs.com/)
+12. **MapLibre GL Leaflet** — [github.com/maplibre/maplibre-gl-leaflet](https://github.com/maplibre/maplibre-gl-leaflet)
 13. **Cloud-native geospatial formats**: FlatGeobuf ([flatgeobuf.org](https://flatgeobuf.org/)), GeoParquet ([GeoParquet](https://geoparquet.org/)), Cloud-Optimized GeoTIFF ([COG website](https://cogeo.org/))
-14. **awesome-maplibre** - [github.com/maplibre/awesome-maplibre](https://github.com/maplibre/awesome-maplibre)
-15. **switch2osm.org** - Community guide to switching from Google Maps to OSM-based tile hosting, including provider list, self-hosting stack, hardware requirements, and ODbL licensing guidance - [switch2osm.org](https://switch2osm.org)
+14. **awesome-maplibre** — [github.com/maplibre/awesome-maplibre](https://github.com/maplibre/awesome-maplibre)
+15. **switch2osm.org** — Community guide to switching from Google Maps to OSM-based tile hosting, including provider list, self-hosting stack, hardware requirements, and ODbL licensing guidance — [switch2osm.org](https://switch2osm.org)
 
 ---
 
-**This skill is a snapshot.** Where a primary source contradicts it - the References above, MapLibre's current documentation, or what MapLibre does when you run it - that source wins. Follow it. With user approval, [report the disagreement](https://github.com/maplibre/maplibre-agent-skills/issues/new?template=ai-failure-report.md), citing the source and your MapLibre version: editing your installed copy helps no one else and is overwritten on the next update.
+**This skill is a snapshot.** Where a primary source contradicts it — the References above, MapLibre's current documentation, or what MapLibre does when you run it — that source wins. Follow it, then [report the disagreement](https://github.com/maplibre/maplibre-agent-skills/issues/new?template=ai-failure-report.md), citing the source and your MapLibre version: editing your installed copy helps no one else and is overwritten on the next update.
