@@ -38,7 +38,22 @@ export type PubPalToolTurn = {
 };
 
 type StoredTurn = PubPalToolTurn & { ownerId: string };
-type RevisionedStoredTurn = StoredTurn & { revision: number | null };
+type MemoryStoredTurn = StoredTurn & { generation: symbol };
+type RevisionedStoredTurn = StoredTurn & { revision: number | null; createdAt: string };
+
+/** Server-local origin of a computed receipt. Never part of a public turn or payload. */
+type PubPalToolTurnOrigin = Readonly<{
+  conversationId: string;
+  ownerId: string;
+} & (
+  | { backend: "memory"; generation: symbol }
+  | { backend: "durable"; createdAt: string }
+)>;
+
+type PubPalToolInvocationTurn = {
+  turn: PubPalToolTurn;
+  origin: PubPalToolTurnOrigin;
+};
 
 type PubPalToolTurnPayload = {
   query: string;
@@ -62,7 +77,7 @@ type OwnedWrite = {
   ownerId: string;
 };
 
-const memoryTurns = new Map<string, StoredTurn>();
+const memoryTurns = new Map<string, MemoryStoredTurn>();
 
 function publicTurn(stored: StoredTurn): PubPalToolTurn {
   return {
@@ -136,6 +151,7 @@ type PubPalToolTurnStore = {
   bind(conversationId: string, ownerId: string, cityId: CityId): Promise<void>;
   register(conversationId: string, input: OwnedWrite): Promise<void>;
   read(conversationId: string): Promise<PubPalToolTurn | null>;
+  readForInvocation(conversationId: string): Promise<PubPalToolInvocationTurn | null>;
   readOwned(conversationId: string, ownerId: string): Promise<PubPalToolTurn | null>;
   touch(conversationId: string, ownerId: string): Promise<boolean>;
   appendOwnedUserTurn(
@@ -152,6 +168,7 @@ type PubPalToolTurnStore = {
       hints?: string[];
       toolsUsed?: string[];
     },
+    origin: PubPalToolTurnOrigin,
   ): Promise<void>;
   purgeExpired(): Promise<void>;
 };
@@ -174,6 +191,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
       hints: [],
       toolsUsed: [],
       ownerId,
+      generation: Symbol(),
     });
   },
 
@@ -183,7 +201,10 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId) ?? null;
     if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
-    memoryTurns.set(conversationId, mergeOwned(existing, input, now));
+    memoryTurns.set(conversationId, {
+      ...mergeOwned(existing, input, now),
+      generation: existing?.generation ?? Symbol(),
+    });
   },
 
   async read(conversationId) {
@@ -192,6 +213,21 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     const turn = memoryTurns.get(conversationId);
     if (!turn) return null;
     return publicTurn(turn);
+  },
+
+  async readForInvocation(conversationId) {
+    pruneMemory(Date.now());
+    const turn = memoryTurns.get(conversationId);
+    if (!turn) return null;
+    return {
+      turn: publicTurn(turn),
+      origin: {
+        conversationId,
+        ownerId: turn.ownerId,
+        backend: "memory",
+        generation: turn.generation,
+      },
+    };
   },
 
   async readOwned(conversationId, ownerId) {
@@ -224,9 +260,12 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     return true;
   },
 
-  async append(conversationId, patch) {
+  async append(conversationId, patch, origin) {
     const turn = memoryTurns.get(conversationId);
     if (!turn || turn.expiresAt <= Date.now()) return;
+    if (origin.backend !== "memory" || origin.conversationId !== conversationId) return;
+    if (turn.ownerId !== origin.ownerId) throw new PubPalToolTurnAccessError();
+    if (turn.generation !== origin.generation) return;
     if (patch.cards?.length) turn.cards.push(...patch.cards);
     if (patch.proposals?.length) turn.proposals.push(...patch.proposals);
     if (patch.hints?.length) turn.hints.push(...patch.hints);
@@ -253,6 +292,7 @@ type ToolTurnRow = {
   owner_id: string | null;
   payload: unknown;
   expires_at: string;
+  created_at: string;
 };
 
 async function purgeExpiredRows(): Promise<void> {
@@ -271,7 +311,7 @@ type StoredLookup =
 async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   const { data, error } = await requireSupabaseAdmin()
     .from("pub_pal_tool_turns")
-    .select("conversation_id, owner_id, payload, expires_at")
+    .select("conversation_id, owner_id, payload, expires_at, created_at")
     .eq("conversation_id", conversationId)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
@@ -280,6 +320,9 @@ async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   const row = data as ToolTurnRow;
   // A null owner is not a free claim. Bind and register refuse it.
   if (!row.owner_id) return { status: "unowned" };
+  if (typeof row.created_at !== "string" || !Number.isFinite(Date.parse(row.created_at))) {
+    throw new Error("Invalid Pub Pal conversation creation time.");
+  }
   const payload = row.payload as PubPalToolTurnPayload;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Invalid Pub Pal conversation payload.");
@@ -295,6 +338,8 @@ async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
     turn: {
       ...turnFromPayload(payload, new Date(row.expires_at).getTime(), row.owner_id),
       revision: revision ?? null,
+      // Preserve raw PostgreSQL microseconds for generation comparison and CAS.
+      createdAt: row.created_at,
     },
   };
 }
@@ -335,6 +380,7 @@ async function updateStoredRow(
     })
     .eq("conversation_id", conversationId)
     .eq("owner_id", expected.ownerId)
+    .eq("created_at", expected.createdAt)
     .eq("expires_at", new Date(expected.expiresAt).toISOString())
     .gt("expires_at", new Date().toISOString());
   update = expected.revision === null
@@ -394,9 +440,14 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
+        let createdAt: string | undefined;
         for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
           const existing = claimedTurn(await lookupStoredRow(conversationId));
           if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
+          if (createdAt !== undefined && (!existing || existing.createdAt !== createdAt)) {
+            throw new PubPalToolTurnAccessError();
+          }
+          if (existing) createdAt ??= existing.createdAt;
           const next = mergeOwned(existing, input, userLineAt);
           if (existing) {
             next.expiresAt = Math.max(existing.expiresAt, next.expiresAt);
@@ -424,6 +475,32 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
       run: async () => {
         const lookup = await lookupStoredRow(conversationId);
         return lookup.status === "owned" ? publicTurn(lookup.turn) : null;
+      },
+    });
+  },
+
+  async readForInvocation(conversationId) {
+    return guard<PubPalToolInvocationTurn | null>({
+      context: "read-for-invocation",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.readForInvocation(conversationId),
+          onProduction: async () => null,
+        }),
+      run: async () => {
+        const lookup = await lookupStoredRow(conversationId);
+        if (lookup.status !== "owned") return null;
+        return {
+          turn: publicTurn(lookup.turn),
+          origin: {
+            conversationId,
+            ownerId: lookup.turn.ownerId,
+            backend: "durable",
+            createdAt: lookup.turn.createdAt,
+          },
+        };
       },
     });
   },
@@ -481,10 +558,13 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
+        let createdAt: string | undefined;
         for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
           const lookup = await lookupStoredRow(conversationId);
           if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
           const existing = lookup.turn;
+          if (createdAt !== undefined && existing.createdAt !== createdAt) return false;
+          createdAt ??= existing.createdAt;
           const next = {
             ...existing,
             turns: [...existing.turns, turn].slice(-6),
@@ -501,23 +581,23 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     });
   },
 
-  async append(conversationId, patch) {
+  async append(conversationId, patch, origin) {
     await guard<void>({
       context: "append",
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: "pub-pal-tool-turn",
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
-          fallback: () => memoryPubPalToolTurnStore.append(conversationId, patch),
+          fallback: () => memoryPubPalToolTurnStore.append(conversationId, patch, origin),
         }),
       run: async () => {
-        let ownerId: string | undefined;
         for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
           const lookup = await lookupStoredRow(conversationId);
           if (lookup.status !== "owned") return;
           const existing = lookup.turn;
-          if (ownerId !== undefined && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
-          ownerId = existing.ownerId;
+          if (origin.backend !== "durable" || origin.conversationId !== conversationId) return;
+          if (existing.ownerId !== origin.ownerId) throw new PubPalToolTurnAccessError();
+          if (existing.createdAt !== origin.createdAt) return;
           const next = {
             ...existing,
             cards: [...existing.cards, ...(patch.cards ?? [])],
@@ -573,6 +653,13 @@ export async function readPubPalToolTurn(conversationId: string): Promise<PubPal
   return pubPalToolTurnStore().read(conversationId);
 }
 
+/** Capture public context and private origin together, before asynchronous tool computation. */
+export async function readPubPalToolInvocationTurn(
+  conversationId: string,
+): Promise<PubPalToolInvocationTurn | null> {
+  return pubPalToolTurnStore().readForInvocation(conversationId);
+}
+
 export async function readOwnedPubPalToolTurn(
   conversationId: string,
   ownerId: string,
@@ -605,8 +692,9 @@ export async function appendPubPalToolTurn(
     hints?: string[];
     toolsUsed?: string[];
   },
+  origin: PubPalToolTurnOrigin,
 ): Promise<void> {
-  await pubPalToolTurnStore().append(conversationId, patch);
+  await pubPalToolTurnStore().append(conversationId, patch, origin);
 }
 
 export async function purgeExpiredPubPalToolTurns(): Promise<void> {
