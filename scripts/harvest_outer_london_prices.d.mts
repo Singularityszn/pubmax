@@ -27,6 +27,24 @@ export function priorPublishedSourceFor(
 
 export function pubDiscoveryAvailable(environment?: Record<string, string | undefined>): boolean;
 
+export function outerLondonUrlRefusal(url: string, pubWebsite: string): string | null;
+
+export function canonicalHarvestUrl(url: string): string | null;
+
+export function selectDiscoveredOuterLondonMenu(
+  candidates: readonly unknown[],
+  pubWebsite: string,
+): string | null;
+
+export function fetchGatedOuterLondonPage(
+  url: string,
+  pubWebsite: string,
+  deps: {
+    fetchRefreshPage: (input: { job: string; url: string }) => Promise<unknown>;
+    robotsChecker: (url: string) => Promise<{ allowed?: boolean; evidence?: string }>;
+  },
+): Promise<unknown>;
+
 export function verbatimValidateHarvestedDrinks(
   extracted: Array<{ drinkName: string; category: string; priceGbp: number }>,
   pagePounds: Set<string>,

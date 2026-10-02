@@ -530,7 +530,10 @@ export function isHarvestableChainMenuUrl(
     return false;
   }
 
-  const normalizeHost = (host: string) => host.toLowerCase().replace(/^www\./, "");
+  const normalizeHost = (host: string) => {
+    const normalized = normalizeHarvestHostname(host);
+    return normalized ? normalized.replace(/^www\./, "") : "";
+  };
   const sourceHosts = [source.url, ...(source.renderedMenuHosts ?? [])]
     .map((entry) => {
       try {
@@ -555,7 +558,7 @@ export function isHarvestableChainMenuUrl(
 const REFUSED_HOSTS = new Set([
   ...HARVEST_SOURCES.filter(isRefusedOnPermission).map((source) => {
     try {
-      return new URL(source.url).hostname.replace(/^www\./, "");
+      return normalizeHarvestHostname(new URL(source.url).hostname)?.replace(/^www\./, "") ?? source.url;
     } catch {
       return source.url;
     }
@@ -588,24 +591,50 @@ const REFUSED_HOSTS = new Set([
  * `harvestRedirectLanding`, which re-asks this predicate about the page a chain
  * landed on, and, if this gate ever guards a request-time route, an address
  * check after resolution.
+ *
+ * CGNAT (`100.64.0.0/10`), the benchmarking range (`198.18.0.0/15`) and the
+ * reserved block (`240.0.0.0/4`) are this network too: a crafted website tag
+ * that names one of them is a request to infrastructure that is not a pub.
  */
 function namesOurOwnNetwork(hostname: string): boolean {
-  const bracketed = hostname.startsWith("[") && hostname.endsWith("]");
-  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const host = normalizeHarvestHostname(hostname);
+  // `host..` is not a name we can attribute. Refuse it rather than compare
+  // the unstripped spelling, which is how a trailing dot used to miss.
+  if (host === null) return true;
   if (host === "localhost" || host.endsWith(".localhost")) return true;
   if (host.endsWith(".local") || host.endsWith(".internal")) return true;
   // A colon is never part of a DNS name, so anything holding one is an IPv6
   // literal and is judged as one - including a literal we cannot parse, which
   // fails closed rather than walking through the dotted-quad regex below.
-  if (bracketed || host.includes(":")) return namesOurOwnIpv6Network(host);
+  if (host.includes(":")) return namesOurOwnIpv6Network(host);
   return namesOurOwnIpv4Address(host);
+}
+
+/**
+ * One spelling of a host every harvest predicate compares.
+ *
+ * WHATWG keeps a single trailing dot on `hostname`, so `localhost.` and
+ * `tobycarvery.co.uk.` missed every string compare and named this machine or
+ * a refused estate. Lowercase, strip that one DNS-root dot, and return null
+ * for a second trailing dot: `host..` is not a name.
+ */
+export function normalizeHarvestHostname(hostname: string): string | null {
+  let host = hostname.trim().toLowerCase();
+  if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
+  if (host.endsWith(".")) {
+    host = host.slice(0, -1);
+    if (!host || host.endsWith(".")) return null;
+  }
+  return host || null;
 }
 
 /** The v4 rules, over a dotted quad. */
 function namesOurOwnIpv4Address(host: string): boolean {
   const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (!octets) return false;
-  const [first, second] = octets.slice(1).map(Number);
+  const parts = octets.slice(1).map(Number);
+  if (parts.some((part) => part > 255)) return true;
+  const [first, second] = parts;
   if (first === undefined || second === undefined) return false;
   return namesOurOwnIpv4Octets(first, second);
 }
@@ -613,9 +642,15 @@ function namesOurOwnIpv4Address(host: string): boolean {
 function namesOurOwnIpv4Octets(first: number, second: number): boolean {
   if (first === 0 || first === 127) return true;
   if (first === 10) return true;
+  // 100.64.0.0/10, carrier-grade NAT. Not a pub, and not in the RFC1918 list.
+  if (first === 100 && second >= 64 && second <= 127) return true;
   if (first === 169 && second === 254) return true;
   if (first === 172 && second >= 16 && second <= 31) return true;
   if (first === 192 && second === 168) return true;
+  // 198.18.0.0/15, network interconnect benchmarking.
+  if (first === 198 && (second === 18 || second === 19)) return true;
+  // 240.0.0.0/4, reserved.
+  if (first >= 240) return true;
   return false;
 }
 
@@ -719,7 +754,9 @@ function namesOurOwnIpv6Network(host: string): boolean {
  * through a subdomain while the table still claimed to hold it out.
  */
 function underRefusedHost(hostname: string): boolean {
-  const host = hostname.replace(/^www\./, "");
+  const normalized = normalizeHarvestHostname(hostname);
+  if (!normalized) return true;
+  const host = normalized.replace(/^www\./, "");
   if (REFUSED_HOSTS.has(host)) return true;
   for (const refused of REFUSED_HOSTS) {
     if (host.endsWith(`.${refused}`)) return true;
@@ -784,7 +821,8 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
 const PERMITTED_SOURCE_HOSTS: ReadonlySet<string> = new Set(
   HARVEST_SOURCES.filter(isHarvestSourceAllowed).flatMap((source) => {
     try {
-      return [new URL(source.url).hostname.replace(/^www\./, "")];
+      const host = normalizeHarvestHostname(new URL(source.url).hostname)?.replace(/^www\./, "");
+      return host ? [host] : [];
     } catch {
       return [];
     }
@@ -808,5 +846,7 @@ export function hasRecordedHarvestPermission(value: unknown): boolean {
     return false;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-  return PERMITTED_SOURCE_HOSTS.has(url.hostname.replace(/^www\./, ""));
+  const host = normalizeHarvestHostname(url.hostname);
+  if (!host) return false;
+  return PERMITTED_SOURCE_HOSTS.has(host.replace(/^www\./, ""));
 }
