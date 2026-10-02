@@ -6,50 +6,51 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { readProviderAccountRevision } from "@/lib/authProviderRevision";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/handleNormalize";
 
-const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 60_000;
 
-function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+export default function MessagesLink(): React.JSX.Element {
+  const { user, handle: authHandle, identityResolved } = useAuth();
+  // Shared account changes reset the badge; token refresh keeps its owner.
+  const accountRevision = readProviderAccountRevision();
+  const handle = identityResolved ? normalizeHandle(authHandle ?? "") : "";
+  return (
+    <AccountMessagesLink
+      key={`${user?.id ?? "guest"}:${accountRevision}:${handle}`}
+      userId={user?.id ?? null}
+      accountRevision={accountRevision}
+      handle={handle}
+    />
+  );
 }
 
-export default function MessagesLink(): React.JSX.Element {
+function AccountMessagesLink({
+  userId,
+  accountRevision,
+  handle,
+}: {
+  userId: string | null;
+  accountRevision: number;
+  handle: string;
+}): React.JSX.Element {
   const router = useRouter();
-  const { user, handle: authHandle } = useAuth();
-  const [handle, setHandle] = useState("");
   const [unread, setUnread] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    void Promise.resolve().then(() => {
-      if (!active) return;
-      const fromAuth = normalizeHandle(authHandle ?? "");
-      setHandle(fromAuth || readHandle());
-    });
-    return () => {
-      active = false;
-    };
-  }, [authHandle]);
-
   const refresh = useCallback(async () => {
-    if (!user) {
-      setUnread(0);
+    if (!userId || !handle || accountRevision !== readProviderAccountRevision()) {
       return;
     }
-    const h = normalizeHandle(authHandle ?? "") || handle.trim();
-    if (!h) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
+      const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(handle)}`, {
         signal: controller.signal,
       }, { requiresIdentity: true });
       if (!res.ok) {
@@ -57,29 +58,30 @@ export default function MessagesLink(): React.JSX.Element {
         return;
       }
       const body = (await res.json()) as { conversations?: ConversationDTO[] };
+      if (controller.signal.aborted || accountRevision !== readProviderAccountRevision()) return;
       const total = (body.conversations ?? []).reduce((sum, c) => sum + (c.unread || 0), 0);
       setUnread(total);
     } catch {
-      // aborted / offline — leave the badge as-is; the nav never breaks on this.
+      // An unavailable read keeps only this account's badge.
     }
-  }, [handle, user, authHandle]);
+  }, [accountRevision, handle, userId]);
 
   useEffect(() => {
-    // Never setState synchronously in the effect body (react-hooks/set-state-in-effect).
-    if (!user) {
-      void Promise.resolve().then(() => setUnread(0));
-      return;
-    }
-    void Promise.resolve().then(() => refresh());
-    const onFocus = () => void refresh();
+    if (!userId || !handle) return;
+    let disposed = false;
+    const onFocus = () => {
+      if (!disposed) void refresh();
+    };
+    void Promise.resolve().then(onFocus);
     window.addEventListener("focus", onFocus);
-    const interval = window.setInterval(() => void refresh(), POLL_MS);
+    const interval = window.setInterval(onFocus, POLL_MS);
     return () => {
+      disposed = true;
       window.removeEventListener("focus", onFocus);
       window.clearInterval(interval);
       abortRef.current?.abort();
     };
-  }, [handle, refresh, user]);
+  }, [handle, refresh, userId]);
 
   const label = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 
@@ -105,7 +107,7 @@ export default function MessagesLink(): React.JSX.Element {
       <MessageSquare size={18} aria-hidden="true" />
       {unread > 0 ? (
         // key={unread} remounts the badge whenever the count changes, so the
-        // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump —
+        // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump.
         // no separate "did it change" animation state to track.
         <span key={unread} className="siteNavBellBadge" aria-hidden="true">
           {unread > 99 ? "99+" : unread}
