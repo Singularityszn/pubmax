@@ -18,8 +18,8 @@ import "server-only";
 // listening. A browser with no session cannot join; its poll still runs.
 //
 // It is fire and forget. A Pint Drop must never fail because the nudge did,
-// and a caller hands the work to `deferPintDropsSignal` so a slow Realtime
-// cannot add its timeout to the response.
+// and a caller uses `signalPintDropLanded`, which defers the send so a slow
+// Realtime cannot add its timeout to the response.
 
 import { after } from "next/server";
 
