@@ -13,6 +13,7 @@ import {
 } from "@/lib/harvest/pubFacts";
 import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
 import {
+  CATEGORY_PRICE_BANDS,
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   isLikelyMenuUrl,
@@ -47,7 +48,8 @@ const AMENITY_LINES: ReadonlyArray<{ kind: AmenityKind; pattern: RegExp }> = [
   { kind: "music", pattern: /\b(live music|music night|\bdj\b)\b/i },
 ];
 
-const CLOSURE_LINE = /\b(permanently closed|we have closed|now closed|closed for good|reopened as|formerly known as)\b/i;
+const CLOSURE_LINE = /\b(permanently closed|closed permanently|closed for good|ceased trading|no longer trading)\b/i;
+const POSTCODE_TOKEN = "\\b([A-Z]{1,2}\\d[A-Z\\d]?)\\s*(\\d[A-Z]{2})\\b";
 const PHONE_LINE = /\b(0\d{2,4}\s\d{3,4}\s\d{3,4}|\+44\s?\d{2,4}\s\d{3,4}\s\d{3,4})\b/;
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
@@ -72,6 +74,7 @@ type NightlyVenue = {
   id: string;
   name: string;
   postcode: string;
+  street: string;
   borough: string;
   areaText: string;
   priced: boolean;
@@ -142,6 +145,7 @@ type VenueEvidence = {
   hours: PageFacts["hours"];
   phone: PageFacts["phone"];
   closure: PageFacts["closure"];
+  candidates: string[];
 };
 
 type QueueDocument = {
@@ -333,6 +337,52 @@ function formatPostcode(value: string): string {
   return `${match[1]} ${match[2]}`;
 }
 
+function postcodePattern(flags: string): RegExp {
+  return new RegExp(POSTCODE_TOKEN, flags);
+}
+
+function statesPostcode(text: string, postcode: string): boolean {
+  const wanted = compactPostcode(postcode);
+  if (!wanted) return false;
+  for (const match of text.matchAll(postcodePattern("gi"))) {
+    if (compactPostcode(`${match[1]}${match[2]}`) === wanted) return true;
+  }
+  return false;
+}
+
+function phraseWords(value: string): string[] {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+}
+
+function statesStreet(text: string, street: string): boolean {
+  const words = phraseWords(street);
+  if (words.length < 2 || !/^\d/.test(words[0])) return false;
+  const hay = phraseWords(text).join(" ");
+  const body = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+");
+  return new RegExp(`(?:^|\\s)${body}(?:\\s|$)`).test(hay);
+}
+
+function streetFromSearchText(name: string, searchText: string): string {
+  let rest = searchText.trim().toLowerCase();
+  const nameLower = name.trim().toLowerCase();
+  const variants = [nameLower];
+  if (nameLower.startsWith("the ")) variants.push(nameLower.slice(4));
+  let stripped = false;
+  for (const variant of variants) {
+    if (variant.length > 0 && rest.startsWith(variant)) {
+      rest = rest.slice(variant.length).trim();
+      stripped = true;
+      break;
+    }
+  }
+  if (!stripped) return "";
+  const at = rest.search(postcodePattern("i"));
+  const beforePostcode = (at >= 0 ? rest.slice(0, at) : rest).replace(/[,\s]+$/g, "");
+  const line = phraseWords(beforePostcode.split(",")[0] ?? "").join(" ");
+  if (!/^\d/.test(line) || line.length < 4) return "";
+  return line;
+}
+
 function compactPostcode(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
@@ -350,25 +400,32 @@ export function toNightlyVenue(row: unknown): NightlyVenue | null {
     ? (record.filterHints as Record<string, unknown>)
     : null;
   const searchText = hints && typeof hints.searchText === "string" ? hints.searchText : "";
-  const found = searchText.match(/\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i);
+  const found = postcodePattern("i").exec(searchText);
   const price = record.cheapestPrice;
   return {
     id: record.id,
     name: record.name,
     postcode: found ? formatPostcode(`${found[1]}${found[2]}`) : "",
+    street: streetFromSearchText(record.name, searchText),
     borough: typeof record.borough === "string" ? record.borough : "",
     areaText: searchText,
     priced: typeof price === "number" && Number.isFinite(price) && price > 0,
   };
 }
 
-export function chooseOperatorUrl(results: readonly SearchHit[], venue: { name: string; postcode: string }): string | null {
+function resultStatesVenue(result: SearchHit, venue: { postcode: string; street?: string }): boolean {
+  const text = `${result.title ?? ""} ${result.description ?? ""} ${result.content ?? ""}`;
+  return statesPostcode(text, venue.postcode) || statesStreet(text, venue.street ?? "");
+}
+
+export function chooseOperatorUrl(
+  results: readonly SearchHit[],
+  venue: { name: string; postcode: string; street?: string },
+): string | null {
   const eligible = results.filter((result) => isOperatorHost(result.url) && isHarvestableOperatorUrl(result.url));
-  const wanted = compactPostcode(venue.postcode);
-  const narrowed = wanted
-    ? eligible.filter((result) => compactPostcode(`${result.title ?? ""} ${result.content ?? ""}`).includes(wanted))
-    : [];
-  return pickOperatorUrl(narrowed.length > 0 ? narrowed : eligible, venue.name);
+  const narrowed = eligible.filter((result) => resultStatesVenue(result, venue));
+  if (narrowed.length === 0) return null;
+  return pickOperatorUrl(narrowed, venue.name);
 }
 
 function sameSite(candidate: string, siteOrigin: string): boolean {
@@ -451,9 +508,10 @@ function listedDrink(
   sourceUrl: string,
   seenOn: string,
   forced?: { size: DrinkSize; sizeDetail: string | null },
+  band: { minGbp: number; maxGbp: number } = { minGbp: BEER_MIN_GBP, maxGbp: BEER_MAX_GBP },
 ): ListedDrinkLine | null {
   const drink = cleanName(name);
-  if (!drink || !inBand(priceGbp, BEER_MIN_GBP, BEER_MAX_GBP)) return null;
+  if (!drink || !inBand(priceGbp, band.minGbp, band.maxGbp)) return null;
   const size = forced ?? sizeOf(line);
   return {
     drink,
@@ -485,10 +543,9 @@ function recordAmenityMatches(amenities: AmenityFact[], line: string, fact: Sour
 }
 
 function isFoodEvidence(line: string, outcome: PriceOutcome): boolean {
-  return (
-    FOOD_LINE.test(line) &&
-    (outcome.drop === "food-word-nearby" || outcome.drop === "no-category-word-nearby" || !outcome.kept)
-  );
+  if (!FOOD_LINE.test(line)) return false;
+  if (outcome.drop === "food-word-nearby") return !/\bhalf\b/i.test(line);
+  return outcome.drop === "no-category-word-nearby";
 }
 
 function recordFoodDish(
@@ -551,7 +608,15 @@ function recordPriceLine(
       continue;
     }
     const row = outcome.kept
-      ? listedDrink(outcome.kept.drinkLabel || label, line, outcome.kept.priceGbp, fact.sourceUrl, fact.seenOn)
+      ? listedDrink(
+          outcome.kept.drinkLabel || label,
+          line,
+          outcome.kept.priceGbp,
+          fact.sourceUrl,
+          fact.seenOn,
+          undefined,
+          CATEGORY_PRICE_BANDS[outcome.kept.category] ?? { minGbp: BEER_MIN_GBP, maxGbp: BEER_MAX_GBP },
+        )
       : drinkFromDrop(line, label, raw.priceGbp, outcome.drop, fact);
     rememberDrink(drinks, seenDrinks, row);
   }
@@ -679,15 +744,39 @@ export function queueDocument(input: unknown): QueueDocument {
       hours: (venue.hours as VenueEvidence["hours"]) ?? null,
       phone: (venue.phone as VenueEvidence["phone"]) ?? null,
       closure: (venue.closure as VenueEvidence["closure"]) ?? null,
+      candidates: Array.isArray(venue.candidates) ? venue.candidates.filter((url): url is string => isHttpUrl(url)) : [],
     };
   });
   return { version: 1, standingRule: "listed", venues };
 }
 
+function keepListedLines(previous: VenueEvidence | undefined, incoming: VenueEvidence): VenueEvidence {
+  if (!previous) return incoming;
+  const drinks = incoming.drinks.length > 0 ? incoming.drinks : previous.drinks;
+  const keepDishes = incoming.food.dishes.length === 0 && incoming.food.served === null && previous.food.dishes.length > 0;
+  if (!keepDishes && drinks === incoming.drinks) return incoming;
+  const dishes = keepDishes ? previous.food.dishes : incoming.food.dishes;
+  const prices = dishes.map((dish) => dish.priceGbp);
+  const food = keepDishes
+    ? {
+        served: true,
+        priceMinGbp: Math.min(...prices),
+        priceMaxGbp: Math.max(...prices),
+        dishes,
+        sourceUrl: previous.food.sourceUrl,
+        seenOn: previous.food.seenOn,
+      }
+    : incoming.food;
+  return { ...incoming, drinks, food };
+}
+
 export function mergeQueue(base: QueueDocument, incoming: readonly VenueEvidence[]): QueueDocument {
   const byKey = new Map<string, VenueEvidence>();
   for (const row of base.venues) byKey.set(venueKey(row), row);
-  for (const row of incoming) byKey.set(venueKey(row), row);
+  for (const row of incoming) {
+    const key = venueKey(row);
+    byKey.set(key, keepListedLines(byKey.get(key), row));
+  }
   return queueDocument({ version: 1, venues: [...byKey.values()] });
 }
 
@@ -696,11 +785,11 @@ function searchQueryFor(venue: NightlyVenue): string {
   return `"${name}" ${venue.postcode} ${venue.borough} pub drinks menu food`.replace(/\s+/g, " ").trim();
 }
 
-function pagesFromPayload(payload: unknown): Array<{ url: string; text: string }> {
+function pagesFromPayload(payload: unknown, keepEmpty = false): Array<{ url: string; title?: string; text: string }> {
   if (typeof payload !== "object" || payload === null) return [];
   const results = (payload as { results?: unknown }).results;
   if (!Array.isArray(results)) return [];
-  const pages: Array<{ url: string; text: string }> = [];
+  const pages: Array<{ url: string; title?: string; text: string }> = [];
   for (const result of results) {
     if (typeof result !== "object" || result === null) continue;
     const row = result as Record<string, unknown>;
@@ -710,8 +799,8 @@ function pagesFromPayload(payload: unknown): Array<{ url: string; text: string }
       : typeof row.content === "string"
         ? row.content
         : "";
-    if (!text.trim()) continue;
-    pages.push({ url: row.url, text });
+    if (!text.trim() && !keepEmpty) continue;
+    pages.push({ url: row.url, title: typeof row.title === "string" ? row.title : undefined, text });
   }
   return pages;
 }
@@ -721,6 +810,7 @@ function evidenceFor(
   seenOn: string,
   website: string | null,
   pages: Array<{ url: string; text: string }>,
+  candidates: readonly string[],
 ): VenueEvidence {
   const drinks: ListedDrinkLine[] = [];
   const dishes: FoodDish[] = [];
@@ -775,7 +865,24 @@ function evidenceFor(
     hours,
     phone,
     closure,
+    candidates: [...candidates],
   };
+}
+
+async function takePayload(
+  ledger: SpendLedger,
+  cost: number,
+  run: () => Promise<unknown>,
+): Promise<unknown | null> {
+  let payload: unknown;
+  try {
+    payload = await run();
+  } catch {
+    ledger.record(cost);
+    return null;
+  }
+  ledger.record(Math.max(cost, reportedCredits(payload, cost)));
+  return payload;
 }
 
 export async function runNightlyPass(input: {
@@ -788,6 +895,7 @@ export async function runNightlyPass(input: {
   staleAfterDays?: number;
   fetchImpl: (request: NightlyRequest) => Promise<unknown>;
   queue: QueueDocument;
+  persist?: (state: { queue: QueueDocument; cursor: NightlyCursor }) => void | Promise<void>;
 }): Promise<{ cursor: NightlyCursor; queue: QueueDocument; spent: number; stopped: "allowance" | "complete" }> {
   const today = isoDay(input.now);
   const allowance = tonightAllowance({
@@ -811,36 +919,50 @@ export async function runNightlyPass(input: {
       stopped = "allowance";
       break;
     }
-    const search = await input.fetchImpl({ kind: "search", venueId: venue.id, query: searchQueryFor(venue) });
-    ledger.record(Math.max(SEARCH_CREDIT_COST, reportedCredits(search, SEARCH_CREDIT_COST)));
-    const hits = pagesFromPayload(search).map((page) => {
-      const row = (Array.isArray((search as { results?: SearchHit[] }).results)
-        ? (search as { results: SearchHit[] }).results.find((result) => result.url === page.url)
-        : null);
-      return { url: page.url, title: row?.title, content: page.text, description: row?.title };
-    });
+    const search = await takePayload(ledger, SEARCH_CREDIT_COST, () =>
+      input.fetchImpl({ kind: "search", venueId: venue.id, query: searchQueryFor(venue) }),
+    );
+    if (!search) {
+      if (ledger.exhausted) stopped = "allowance";
+      if (ledger.exhausted) break;
+      continue;
+    }
+    const hits = pagesFromPayload(search, true).map((page) => ({
+      url: page.url,
+      title: page.title,
+      content: page.text,
+      description: page.title,
+    }));
     const website = chooseOperatorUrl(hits, venue);
     const origin = website ? new URL(website).origin : "";
     const urls = website ? acceptedExtractUrls(hits.map((hit) => hit.url), origin) : [];
     const pages: Array<{ url: string; text: string }> = [];
-    if (urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
-      const extracted = await input.fetchImpl({ kind: "extract", venueId: venue.id, urls });
-      ledger.record(Math.max(EXTRACT_CREDIT_COST, reportedCredits(extracted, EXTRACT_CREDIT_COST)));
+    if (website && urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
+      const extracted = await takePayload(ledger, EXTRACT_CREDIT_COST, () =>
+        input.fetchImpl({ kind: "extract", venueId: venue.id, urls }),
+      );
+      if (!extracted) {
+        if (ledger.exhausted) stopped = "allowance";
+        if (ledger.exhausted) break;
+        continue;
+      }
       const byUrl = new Map(pagesFromPayload(extracted).map((page) => [page.url, page.text]));
       for (const url of urls) {
-        const fromExtract = byUrl.get(url);
-        const fromSearch = hits.find((hit) => hit.url === url)?.content;
-        const text = fromExtract || fromSearch;
-        if (text) pages.push({ url, text });
+        const text = byUrl.get(url) || hits.find((hit) => hit.url === url)?.content;
+        if (text?.trim()) pages.push({ url, text });
       }
-    } else {
+    } else if (website) {
       for (const url of urls) {
         const text = hits.find((hit) => hit.url === url)?.content;
-        if (text) pages.push({ url, text });
+        if (text?.trim()) pages.push({ url, text });
       }
     }
-    queue = mergeQueue(queue, [evidenceFor(venue, today, website, pages)]);
+    const candidates = website
+      ? []
+      : [...new Set(hits.filter((hit) => isOperatorHost(hit.url)).map((hit) => hit.url))];
+    queue = mergeQueue(queue, [evidenceFor(venue, today, website, pages, candidates)]);
     cursor = advanceCursor(cursor, [venue.id], today);
+    if (input.persist) await input.persist({ queue, cursor });
     if (ledger.exhausted) {
       const index = selected.findIndex((row) => row.id === venue.id);
       if (index >= 0 && index < selected.length - 1) stopped = "allowance";
@@ -849,6 +971,17 @@ export async function runNightlyPass(input: {
   }
 
   return { cursor, queue, spent: ledger.spent, stopped };
+}
+
+export async function saveNightlyProgress(
+  state: { queue: QueueDocument; cursor: NightlyCursor },
+  write: {
+    queue: (queue: QueueDocument) => void | Promise<void>;
+    cursor: (cursor: NightlyCursor) => void | Promise<void>;
+  },
+): Promise<void> {
+  await write.queue(state.queue);
+  await write.cursor(state.cursor);
 }
 
 export function redactSecrets(text: string, secret: string): string {

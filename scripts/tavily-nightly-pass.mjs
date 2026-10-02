@@ -19,6 +19,7 @@ import {
   readTavilyUsage,
   redactSecrets,
   runNightlyPass,
+  saveNightlyProgress,
   selectNightlyVenues,
   tonightAllowance,
   toNightlyVenue,
@@ -224,9 +225,12 @@ async function main() {
     staleAfterDays: args.staleAfterDays,
     queue: loadQueue(),
     fetchImpl: (request) => liveFetch(request, key),
+    persist: (state) =>
+      saveNightlyProgress(state, {
+        queue: (queue) => atomicWriteJson(QUEUE_PATH, queue),
+        cursor: (cursor) => atomicWriteJson(CURSOR_PATH, cursor),
+      }),
   });
-  atomicWriteJson(CURSOR_PATH, result.cursor);
-  atomicWriteJson(QUEUE_PATH, result.queue);
   console.log(JSON.stringify({ spent: result.spent, stopped: result.stopped, queued: result.queue.venues.length }));
 }
 

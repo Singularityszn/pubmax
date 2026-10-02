@@ -18,6 +18,7 @@ import {
   redactSecrets,
   reportedCredits,
   runNightlyPass,
+  saveNightlyProgress,
   selectNightlyVenues,
   toNightlyVenue,
   tonightAllowance,
@@ -46,6 +47,7 @@ function venue(partial: Record<string, unknown>) {
     id: "venue-a",
     name: "The Example",
     postcode: "E1 1AA",
+    street: "",
     borough: "Hackney",
     areaText: "",
     priced: false,
@@ -241,6 +243,7 @@ describe("priority", () => {
           hours: null,
           phone: null,
           closure: null,
+          candidates: [],
         },
         {
           venueId: kingston.id,
@@ -255,6 +258,7 @@ describe("priority", () => {
           hours: null,
           phone: null,
           closure: null,
+          candidates: [],
         },
       ],
     );
@@ -365,6 +369,7 @@ describe("never Confirmed", () => {
           hours: null,
           phone: null,
           closure: null,
+          candidates: [],
         },
       ],
     });
@@ -404,6 +409,7 @@ describe("never Confirmed", () => {
             hours: null,
             phone: null,
             closure: null,
+            candidates: [],
           },
         ],
       }),
@@ -493,6 +499,325 @@ describe("arguments and redaction", () => {
       postcode: "N11 1AN",
       borough: "Enfield",
       priced: true,
+      street: "338 bowes road",
     });
   });
 });
+
+const listedQueue = { version: 1 as const, standingRule: "listed" as const, venues: [] };
+const pageFact = { sourceUrl: "https://eastbrookpub.co.uk/drink-menu.html", seenOn: "2026-10-01" };
+
+describe("a price stays in the lane the reader gave it", () => {
+  it("keeps a soft drink, a wine and a cocktail, and still drops a beer outside the beer band", () => {
+    const facts = factsFromPage(
+      "Coca-Cola £1.50\nHouse Merlot 175ml £14.50\nEspresso Martini £13.00\nNameless 330ml £1.50\nPeroni 330ml £6.55",
+      pageFact,
+    );
+    const prices = Object.fromEntries(facts.drinks.map((row) => [row.drink, row.priceGbp]));
+    expect(prices["Coca-Cola"]).toBe(1.5);
+    expect(prices["House Merlot"]).toBe(14.5);
+    expect(prices["Espresso Martini"]).toBe(13);
+    expect(prices["Peroni"]).toBe(6.55);
+    expect(facts.drinks.find((row) => row.drink === "Nameless")).toBeUndefined();
+  });
+
+  it("records a stated dish and refuses an offer, a half and a price outside its drink band", () => {
+    const facts = factsFromPage(
+      "Burger from £12.00\nBurger. Peroni Half £3.55\nBurger. House wine £40.00\nFish and chips £14.50\nBurger £12.00",
+      pageFact,
+    );
+    expect(facts.food.dishes.map((dish) => `${dish.name}|${dish.priceGbp}`).sort()).toEqual([
+      "Burger|12",
+      "Fish and chips|14.5",
+    ]);
+    expect(facts.drinks.find((row) => row.priceGbp === 3.55)).toBeUndefined();
+  });
+
+  it("queues a permanent closure and leaves an open kitchen and a former name alone", () => {
+    const open = factsFromPage("The kitchen is now closed.\nFormerly known as The Red Lion.\nLondon Pride £5.50 /pint", pageFact);
+    expect(open.closure).toBeNull();
+    expect(open.drinks.map((row) => row.drink)).toContain("London Pride");
+    const shut = factsFromPage("This pub is permanently closed.\nThe bar is closed for good.", pageFact);
+    expect(shut.closure?.quote).toMatch(/permanently closed/i);
+  });
+});
+
+describe("two pubs named The Crown", () => {
+  const bankside = venue({
+    id: "crown-se1",
+    name: "The Crown",
+    postcode: "SE1 6AN",
+    street: "1 Bankside",
+    borough: "Southwark",
+  });
+  const cable = venue({
+    id: "crown-e1",
+    name: "The Crown",
+    postcode: "E1 6AN",
+    street: "2 Cable Street",
+    borough: "Tower Hamlets",
+  });
+  const results = [
+    {
+      url: "https://thecrown-cable.co.uk/drinks",
+      title: "The Crown",
+      content: "The Crown, 2 Cable Street, E1 6AN. London Pride £5.20 /pint.",
+    },
+    {
+      url: "https://thecrown-bankside.co.uk/drinks",
+      title: "The Crown",
+      content: "The Crown, 1 Bankside, SE1 6AN. London Pride £6.10 /pint.",
+    },
+  ];
+
+  it("binds each Crown to the page that states its own postcode or street", () => {
+    expect(chooseOperatorUrl(results, bankside)).toBe("https://thecrown-bankside.co.uk/drinks");
+    expect(chooseOperatorUrl(results, cable)).toBe("https://thecrown-cable.co.uk/drinks");
+    expect(chooseOperatorUrl([
+      { url: "https://thecrown-bankside.co.uk/drinks", title: "The Crown", content: "1 Bankside. London Pride £6.10 /pint." },
+    ], bankside)).toBe("https://thecrown-bankside.co.uk/drinks");
+    expect(chooseOperatorUrl(results.slice(0, 1), bankside)).toBeNull();
+  });
+
+  it("does not treat a shorter postcode or an opening time as this pub", () => {
+    const se1 = [{ url: "https://thecrown-bankside.co.uk/drinks", title: "The Crown", content: "SE1 6AN. Open 11am." }];
+    expect(chooseOperatorUrl(se1, cable)).toBeNull();
+    expect(chooseOperatorUrl(se1, bankside)).toBe("https://thecrown-bankside.co.uk/drinks");
+    expect(chooseOperatorUrl([
+      { url: "https://thecrown.co.uk/drinks", title: "The Crown", content: "Open 11am. London Pride £5.50 /pint." },
+    ], venue({ name: "The Crown", postcode: "N1 1AM", street: "4 Upper Street" }))).toBeNull();
+    expect(chooseOperatorUrl([
+      { url: "https://thecrown.co.uk/drinks", title: "The Crown", content: "SW1F 9BP" },
+    ], venue({ name: "The Crown", postcode: "W1F 9BP", street: "5 Wardour Street" }))).toBeNull();
+  });
+
+  it("does not spend an extract or queue the other Crown when no result states this pub", async () => {
+    const calls: string[] = [];
+    const result = await runNightlyPass({
+      venues: [bankside],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async (request) => {
+        calls.push(request.kind);
+        return {
+          results: [{ url: "https://thecrown.co.uk/drinks", title: "The Crown", content: "London Pride £5.50 /pint. Open 11am." }],
+          usage: { credits: 1 },
+        };
+      },
+    });
+    expect(calls).toEqual(["search"]);
+    expect(result.queue.venues[0]).toMatchObject({
+      venueId: "crown-se1",
+      website: null,
+      candidates: ["https://thecrown.co.uk/drinks"],
+      drinks: [],
+    });
+  });
+
+  it("queues each Crown's own pint when both pages come back", async () => {
+    const result = await runNightlyPass({
+      venues: [bankside, cable],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async (request) => {
+        if (request.kind === "search") return { results, usage: { credits: 1 } };
+        const pages = request.urls.map((url: string) => ({
+          url,
+          raw_content: url.includes("bankside")
+            ? "The Crown, 1 Bankside, SE1 6AN\nLondon Pride £6.10 /pint"
+            : "The Crown, 2 Cable Street, E1 6AN\nLondon Pride £5.20 /pint",
+        }));
+        return { results: pages, usage: { credits: 1 } };
+      },
+    });
+    const byId = Object.fromEntries(result.queue.venues.map((row) => [row.venueId, row]));
+    expect(byId["crown-se1"].website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
+    expect(byId["crown-se1"].drinks.map((row) => row.priceGbp)).toEqual([6.1]);
+    expect(byId["crown-e1"].website?.url).toBe("https://thecrown-cable.co.uk/drinks");
+    expect(byId["crown-e1"].drinks.map((row) => row.priceGbp)).toEqual([5.2]);
+  });
+});
+
+describe("a night that fails part way", () => {
+  it("extracts a same-site menu listed without a snippet", async () => {
+    const pub = venue({ id: "east", name: "The Eastbrook", postcode: "IG11 7AB", street: "1 Dagenham Road" });
+    const extracted: string[][] = [];
+    const result = await runNightlyPass({
+      venues: [pub],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async (request) => {
+        if (request.kind === "search") {
+          return {
+            results: [
+              { url: "https://eastbrookpub.co.uk/food-menu.pdf", title: "Food", content: "" },
+              {
+                url: "https://eastbrookpub.co.uk/drink-menu.html",
+                title: "The Eastbrook",
+                content: "The Eastbrook, IG11 7AB. London Pride £5.50 /pint.",
+              },
+            ],
+            usage: { credits: 1 },
+          };
+        }
+        extracted.push(request.urls);
+        return {
+          results: [
+            { url: "https://eastbrookpub.co.uk/food-menu.pdf", raw_content: "Burger £12.00" },
+            { url: "https://eastbrookpub.co.uk/drink-menu.html", raw_content: "London Pride £5.50 /pint" },
+          ],
+          usage: { credits: 1 },
+        };
+      },
+    });
+    expect(extracted).toEqual([[
+      "https://eastbrookpub.co.uk/food-menu.pdf",
+      "https://eastbrookpub.co.uk/drink-menu.html",
+    ]]);
+    expect(result.queue.venues[0].food.dishes.map((dish) => dish.name)).toContain("Burger");
+    expect(result.queue.venues[0].drinks.map((row) => row.drink)).toContain("London Pride");
+  });
+
+  it("keeps the previous pint and dish when a later read finds nothing", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const search = {
+      results: [{
+        url: "https://thecrown-bankside.co.uk/drinks",
+        title: "The Crown",
+        content: "The Crown, 1 Bankside, SE1 6AN. London Pride £5.50 /pint. Burger £12.00",
+      }],
+      usage: { credits: 1 },
+    };
+    const first = await runNightlyPass({
+      venues: [pub],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: new Date("2026-09-01T12:00:00.000Z"),
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      fetchImpl: async (request) => {
+        if (request.kind === "search") return search;
+        return {
+          results: [{
+            url: "https://thecrown-bankside.co.uk/drinks",
+            raw_content: "London Pride £5.50 /pint\nBurger £12.00",
+          }],
+          usage: { credits: 1 },
+        };
+      },
+    });
+    expect(first.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    expect(first.queue.venues[0].food.dishes.map((dish) => dish.priceGbp)).toEqual([12]);
+    const later = await runNightlyPass({
+      venues: [pub],
+      cursor: first.cursor,
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: first.queue,
+      fetchImpl: async () => ({ results: [], usage: { credits: 1 } }),
+    });
+    expect(later.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
+    expect(later.queue.venues).toHaveLength(1);
+    expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    expect(later.queue.venues[0].food.dishes.map((dish) => dish.priceGbp)).toEqual([12]);
+  });
+
+  it("saves a finished venue and carries on when a later call fails", async () => {
+    const saved: string[][] = [];
+    const seen: string[] = [];
+    const result = await runNightlyPass({
+      venues: [
+        venue({ id: "a-ok", name: "The Eastbrook", postcode: "IG11 7AB", street: "1 Dagenham Road" }),
+        venue({ id: "b-search", name: "The Crown", postcode: "SE1 6AN", street: "1 Bankside" }),
+        venue({ id: "c-extract", name: "The Albion", postcode: "N1 1AA", street: "10 Upper Street" }),
+        venue({ id: "d-ok", name: "The Hope", postcode: "E8 1JH", street: "3 Mare Street" }),
+      ],
+      cursor: { version: 1, lastSeen: {} },
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 20,
+      staleAfterDays: 30,
+      queue: listedQueue,
+      persist: (state) => {
+        saved.push(Object.keys(state.cursor.lastSeen));
+      },
+      fetchImpl: async (request) => {
+        seen.push(`${request.kind}:${request.venueId}`);
+        if (request.venueId === "b-search") throw new Error("Tavily request failed (503).");
+        if (request.venueId === "c-extract" && request.kind === "extract") throw new Error("Tavily request failed (500).");
+        const url = request.venueId === "a-ok"
+          ? "https://eastbrookpub.co.uk/drinks"
+          : request.venueId === "c-extract"
+            ? "https://thealbion.co.uk/drinks"
+            : "https://thehope.co.uk/drinks";
+        const postcode = request.venueId === "a-ok" ? "IG11 7AB" : request.venueId === "c-extract" ? "N1 1AA" : "E8 1JH";
+        if (request.kind === "search") {
+          return {
+            results: [{ url, title: request.venueId, content: `${postcode} London Pride £5.50 /pint` }],
+            usage: { credits: 1 },
+          };
+        }
+        return { results: [{ url, raw_content: "London Pride £5.50 /pint" }], usage: { credits: 1 } };
+      },
+    });
+    expect(seen.map((row) => row.split(":")[1])).toEqual(["a-ok", "a-ok", "b-search", "c-extract", "c-extract", "d-ok", "d-ok"]);
+    expect(saved).toEqual([["a-ok"], ["a-ok", "d-ok"]]);
+    expect(result.cursor.lastSeen["b-search"]).toBeUndefined();
+    expect(result.cursor.lastSeen["c-extract"]).toBeUndefined();
+    expect(result.cursor.lastSeen["a-ok"]).toBe("2026-10-01");
+    expect(result.cursor.lastSeen["d-ok"]).toBe("2026-10-01");
+    expect(result.queue.venues.map((row) => row.venueId)).toEqual(["a-ok", "d-ok"]);
+  });
+
+  it("writes the queue before the cursor and stops when the queue write fails", async () => {
+    const state = { queue: listedQueue, cursor: { version: 1 as const, lastSeen: { "a-ok": "2026-10-01" } } };
+    const order: string[] = [];
+    await saveNightlyProgress(state, {
+      queue: () => {
+        order.push("queue");
+      },
+      cursor: () => {
+        order.push("cursor");
+      },
+    });
+    expect(order).toEqual(["queue", "cursor"]);
+    const failed: string[] = [];
+    await expect(saveNightlyProgress(state, {
+      queue: () => {
+        failed.push("queue");
+        throw new Error("disk");
+      },
+      cursor: () => {
+        failed.push("cursor");
+      },
+    })).rejects.toThrow(/disk/);
+    expect(failed).toEqual(["queue"]);
+  });
+});
+
