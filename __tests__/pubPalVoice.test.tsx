@@ -68,6 +68,9 @@ let container: HTMLDivElement;
 let root: Root | null;
 let getUserMedia: ReturnType<typeof vi.fn>;
 
+// Opaque client fixture only. Server HMAC validation is covered by route tests.
+const SYNTHETIC_VOICE_OWNER_PROOF = "synthetic-client-owner-proof";
+
 const voiceSession: Session = {
   access_token: "test-voice-owner-token",
   refresh_token: "test-refresh-token",
@@ -249,6 +252,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: stopTrack }] });
     requests.accountRequest.mockResolvedValueOnce(Response.json({
       signedUrl: "wss://voice.example/session",
+      voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
       maxSessionSeconds: 180,
     }));
     await mountAvailable();
@@ -543,6 +547,7 @@ describe("Pub Pal voice controls", () => {
 
     grant.resolve(new Response(JSON.stringify({
       signedUrl: "wss://voice.example/session",
+      voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -577,6 +582,7 @@ describe("Pub Pal voice controls", () => {
     requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
+        voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
         maxSessionSeconds: 1,
       }), {
         status: 200,
@@ -636,6 +642,7 @@ describe("Pub Pal voice controls", () => {
     requests.accountRequest
       .mockResolvedValueOnce(Response.json({
         signedUrl: "wss://voice.example/session",
+        voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
         maxSessionSeconds: 180,
       }))
       .mockResolvedValue(new Response(null, { status: 204 }));
@@ -712,6 +719,7 @@ describe("Pub Pal voice controls", () => {
     requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
+        voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
         maxSessionSeconds: 10,
       }), {
         status: 200,
@@ -788,6 +796,7 @@ describe("Pub Pal voice controls", () => {
     requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session-a",
+        voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
         maxSessionSeconds: 10,
       }), {
         status: 200,
@@ -796,6 +805,7 @@ describe("Pub Pal voice controls", () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session-b",
+        voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
         maxSessionSeconds: 1,
       }), {
         status: 200,
@@ -870,6 +880,7 @@ describe("Pub Pal voice controls", () => {
     requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
+        voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
         maxSessionSeconds: 1,
       }), {
         status: 200,
@@ -944,6 +955,7 @@ describe("Pub Pal voice controls", () => {
     requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
+        voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
         maxSessionSeconds: 1,
       }), {
         status: 200,
@@ -998,6 +1010,7 @@ describe("Pub Pal voice controls", () => {
     });
     requests.accountRequest.mockResolvedValueOnce(new Response(JSON.stringify({
       signedUrl: "wss://voice.example/session",
+      voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
       maxSessionSeconds: 10,
     }), {
       status: 200,
@@ -1026,6 +1039,7 @@ describe("Pub Pal voice controls", () => {
     });
     requests.accountRequest.mockResolvedValueOnce(new Response(JSON.stringify({
       signedUrl: "wss://voice.example/session",
+      voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
       conversationId: "conv_voiceSession1",
       overrides: {
         voiceId: "voice-fox",
@@ -1077,10 +1091,344 @@ describe("Pub Pal voice controls", () => {
     expect(JSON.parse(String((toolTurn?.[1] as RequestInit).body))).toEqual({
       conversationId: "conv_voiceSession1",
       cityId: "london",
+      voiceOwnerProof: SYNTHETIC_VOICE_OWNER_PROOF,
       threadTurn: { role: "user", content: "Quiet pubs." },
     });
     expect(
       requests.accountRequest.mock.calls.filter((call) => call[0] === "/api/pub-pal/tool-turn"),
     ).toHaveLength(1);
+  });
+});
+
+type RecoveryCallbacks = {
+  onConnect?: (meta?: { conversationId: string }) => void;
+  onMessage?: (message: { role: string; message: string }) => void;
+  onDisconnect?: () => void;
+};
+
+type RecoveryGrantFixture = { conversationId: string; voiceOwnerProof?: unknown };
+const RECOVERY_CID_A = "conv_clientRecovery01";
+const RECOVERY_CID_B = "conv_clientRecovery02";
+const RECOVERY_PROOF_A = "synthetic-opaque-owner-proof:A";
+const RECOVERY_PROOF_B = "synthetic-opaque-owner-proof:B";
+
+function RecoveryAccountVoice({ accountSession = voiceSession }: { accountSession?: Session }) {
+  const defaults = useAuth();
+  return createElement(AuthContext.Provider, {
+    value: {
+      ...defaults,
+      session: accountSession,
+      user: accountSession.user,
+      configured: true,
+      loading: false,
+      identityResolved: true,
+      providerAuthState: "authenticated",
+      supabaseAuthState: "authenticated",
+      accountRevision: readProviderIdentityRevision(),
+      contributionAuth: captureAccountAuth(accountSession.user.id, accountSession),
+      getCurrentUserId: () => accountSession.user.id,
+    },
+  }, createElement(PubPalVoice));
+}
+
+function recoveryResponses(
+  grants: RecoveryGrantFixture[],
+  toolResponse: (body: Record<string, unknown>) => Response | Promise<Response> = () => new Response(null, { status: 204 }),
+) {
+  let issued = 0;
+  requests.accountRequest.mockImplementation((input: string, init: RequestInit) => {
+    if (input === "/api/pub-pal/tool-turn") {
+      return Promise.resolve(toolResponse(JSON.parse(String(init.body))));
+    }
+    if (input === "/api/pub-pal/voice-token" && init.body === undefined) {
+      const grant = grants[issued++];
+      if (!grant) throw new Error("Unexpected additional voice grant.");
+      return Promise.resolve(Response.json({
+        signedUrl: "wss://voice.example/recovery-session",
+        maxSessionSeconds: 180,
+        ...grant,
+      }));
+    }
+    if (input === "/api/pub-pal/voice-token" && JSON.parse(String(init.body)).action === "release") {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    throw new Error("Unexpected recovery fixture request.");
+  });
+}
+
+function recoveryToolCalls() {
+  return requests.accountRequest.mock.calls.filter(([input]) => input === "/api/pub-pal/tool-turn");
+}
+
+function storedText(storage: Storage): string {
+  const entries: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key !== null) entries.push(key, storage.getItem(key) ?? "");
+  }
+  return entries.join("\n");
+}
+
+async function mountRecoveryVoice(accountSession = voiceSession): Promise<void> {
+  await act(async () => root?.render(createElement(RecoveryAccountVoice, { accountSession })));
+  await settle();
+  await act(async () => vi.dynamicImportSettled());
+  await settle();
+  expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
+}
+
+async function connectRecoveryVoice(): Promise<RecoveryCallbacks> {
+  getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>("button")?.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  const callbacks = voice.startSession.mock.calls.at(-1)?.[0] as RecoveryCallbacks | undefined;
+  expect(callbacks).toBeDefined();
+  voice.status = "connected";
+  await act(async () => callbacks?.onConnect?.());
+  await settle();
+  expect(container.querySelector("button")?.textContent).toContain("End");
+  return callbacks!;
+}
+
+describe("Pub Pal voice owner recovery transport", () => {
+  it.each(["localStorage", "sessionStorage"] as const)(
+    "detects retained synthetic proof values through %s APIs and restores the control key", (name) => {
+      const storage = window[name];
+      const key = "__pubpal_storage_oracle_control__";
+      const sentinel = "synthetic-storage-oracle-proof-value";
+      const previous = storage.getItem(key);
+      try {
+        storage.setItem(key, JSON.stringify({ voiceOwnerProof: sentinel }));
+        expect(storedText(storage)).toContain(sentinel);
+        // The same negative assertion used below must reject retained values,
+        // including the Node22+ fallback's closed Map, not only enumerable keys.
+        expect(() => expect(storedText(storage)).not.toContain(sentinel)).toThrow();
+      } finally {
+        if (previous === null) storage.removeItem(key);
+        else storage.setItem(key, previous);
+      }
+      expect(storage.getItem(key)).toBe(previous);
+    },
+  );
+
+  it.each([125, 175])("forwards owning proof with a genuine SDK user line after %s seconds", async (seconds) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
+    recoveryResponses([{ conversationId: RECOVERY_CID_A, voiceOwnerProof: RECOVERY_PROOF_A }]);
+    await mountRecoveryVoice();
+    const callbacks = await connectRecoveryVoice();
+    const checks = recoveryToolCalls();
+    expect(checks).toHaveLength(1);
+    expect(JSON.parse(String((checks[0][1] as RequestInit).body)).threadTurn).toBeUndefined();
+    await act(async () => {
+      vi.advanceTimersByTime(seconds * 1_000);
+      callbacks.onMessage?.({ role: "assistant", message: "Synthetic assistant line." });
+      callbacks.onMessage?.({ role: "user", message: "  Synthetic user line.  " });
+      await Promise.resolve();
+    });
+    const calls = recoveryToolCalls();
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(String((calls[1][1] as RequestInit).body))).toEqual({
+      conversationId: RECOVERY_CID_A,
+      cityId: "london",
+      voiceOwnerProof: RECOVERY_PROOF_A,
+      threadTurn: { role: "user", content: "Synthetic user line." },
+    });
+    expect(voice.endSession).not.toHaveBeenCalled();
+    expect(JSON.stringify(voice.startSession.mock.calls[0][0])).not.toContain(RECOVERY_PROOF_A);
+    expect(storedText(window.localStorage)).not.toContain(RECOVERY_PROOF_A);
+    expect(storedText(window.sessionStorage)).not.toContain(RECOVERY_PROOF_A);
+    expect(window.location.href).not.toContain(RECOVERY_PROOF_A);
+  });
+
+  it.each([125, 175])("forwards owning proof with a typed send after %s seconds", async (seconds) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
+    recoveryResponses([{ conversationId: RECOVERY_CID_A, voiceOwnerProof: RECOVERY_PROOF_A }]);
+    await mountRecoveryVoice();
+    await connectRecoveryVoice();
+    const input = container.querySelector<HTMLInputElement>("input");
+    await act(async () => {
+      vi.advanceTimersByTime(seconds * 1_000);
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "  Synthetic typed line.  ");
+      input?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.click());
+    await settle();
+    expect(voice.sendUserMessage.mock.calls).toEqual([["Synthetic typed line."]]);
+    const calls = recoveryToolCalls();
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(String((calls[1][1] as RequestInit).body))).toEqual({
+      conversationId: RECOVERY_CID_A,
+      cityId: "london",
+      voiceOwnerProof: RECOVERY_PROOF_A,
+      threadTurn: { role: "user", content: "Synthetic typed line." },
+    });
+    expect(input?.value).toBe("");
+    expect(voice.endSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps a no-line connect check distinct from genuine user context", async () => {
+    recoveryResponses([{ conversationId: RECOVERY_CID_A, voiceOwnerProof: RECOVERY_PROOF_A }]);
+    await mountRecoveryVoice();
+    const callbacks = await connectRecoveryVoice();
+    await act(async () => {
+      callbacks.onMessage?.({ role: "assistant", message: "Synthetic assistant line." });
+      callbacks.onMessage?.({ role: "user", message: "   " });
+    });
+    const calls = recoveryToolCalls();
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(String((calls[0][1] as RequestInit).body))).toEqual({
+      conversationId: RECOVERY_CID_A, cityId: "london", voiceOwnerProof: RECOVERY_PROOF_A,
+    });
+    expect(voice.sendUserMessage).not.toHaveBeenCalled();
+  });
+
+  it.each([404, 503])("shows an honest current-attempt error when genuine context sync receives %s", async (status) => {
+    recoveryResponses([{ conversationId: RECOVERY_CID_A, voiceOwnerProof: RECOVERY_PROOF_A }], body => (
+      body.threadTurn
+        ? Response.json({ error: "Voice context could not be saved. Try writing." }, { status })
+        : new Response(null, { status: 204 })
+    ));
+    await mountRecoveryVoice();
+    const callbacks = await connectRecoveryVoice();
+    await act(async () => callbacks.onMessage?.({ role: "user", message: "Synthetic refused line." }));
+    await settle();
+    expect(container.querySelector('[role="alert"]')?.textContent).toMatch(/context|sync|sav|message/i);
+    expect(recoveryToolCalls()).toHaveLength(2);
+    expect(voice.startSession).toHaveBeenCalledOnce();
+  });
+
+  it("a refused response after End cannot alter the successor attempt or launch more sync", async () => {
+    const pending = deferred<Response>();
+    recoveryResponses([
+      { conversationId: RECOVERY_CID_A, voiceOwnerProof: RECOVERY_PROOF_A },
+      { conversationId: RECOVERY_CID_B, voiceOwnerProof: RECOVERY_PROOF_B },
+    ], body => (body.threadTurn as { content?: string } | undefined)?.content === "Synthetic pending A line."
+      ? pending.promise : new Response(null, { status: 204 }));
+    await mountRecoveryVoice();
+    const first = await connectRecoveryVoice();
+    await act(async () => first.onMessage?.({ role: "user", message: "Synthetic pending A line." }));
+    voice.endSession.mockImplementation(() => { voice.status = "disconnected"; first.onDisconnect?.(); });
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    await act(async () => root?.render(createElement(RecoveryAccountVoice)));
+    const successor = await connectRecoveryVoice();
+    await act(async () => successor.onMessage?.({ role: "user", message: "Synthetic successor line." }));
+    await settle();
+    const beforeResponse = requests.accountRequest.mock.calls.length;
+    await act(async () => {
+      pending.resolve(Response.json({ error: "Synthetic late A refusal." }, { status: 404 }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await settle();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector("button")?.textContent).toContain("End");
+    expect(requests.accountRequest).toHaveBeenCalledTimes(beforeResponse);
+    const beforeCallbacks = recoveryToolCalls().length;
+    await act(async () => {
+      first.onConnect?.({ conversationId: RECOVERY_CID_A });
+      first.onMessage?.({ role: "user", message: "Synthetic stale A callback." });
+    });
+    expect(recoveryToolCalls()).toHaveLength(beforeCallbacks);
+    expect(voice.startSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps successor proof after a prior same-account attempt ends", async () => {
+    recoveryResponses([
+      { conversationId: RECOVERY_CID_A, voiceOwnerProof: RECOVERY_PROOF_A },
+      { conversationId: RECOVERY_CID_B, voiceOwnerProof: RECOVERY_PROOF_B },
+    ]);
+    await mountRecoveryVoice();
+    const first = await connectRecoveryVoice();
+    voice.endSession.mockImplementation(() => { voice.status = "disconnected"; first.onDisconnect?.(); });
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    await act(async () => root?.render(createElement(RecoveryAccountVoice)));
+    const successor = await connectRecoveryVoice();
+    await act(async () => successor.onMessage?.({ role: "user", message: "Synthetic successor line." }));
+    await settle();
+    const call = recoveryToolCalls().at(-1)!;
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
+      conversationId: RECOVERY_CID_B, cityId: "london", voiceOwnerProof: RECOVERY_PROOF_B,
+      threadTurn: { role: "user", content: "Synthetic successor line." },
+    });
+  });
+
+  it("a refused response after account A changes to B cannot alter B UI or launch more sync", async () => {
+    const pending = deferred<Response>();
+    recoveryResponses([{ conversationId: RECOVERY_CID_A, voiceOwnerProof: RECOVERY_PROOF_A }], body => (
+      body.threadTurn ? pending.promise : new Response(null, { status: 204 })
+    ));
+    await mountRecoveryVoice();
+    const first = await connectRecoveryVoice();
+    await act(async () => first.onMessage?.({ role: "user", message: "Synthetic pending A line." }));
+    const accountB: Session = {
+      ...voiceSession, access_token: "synthetic-account-b-token",
+      user: { ...voiceSession.user, id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" },
+    };
+    voice.status = "disconnected";
+    await act(async () => {
+      setProviderIdentity("supabase", accountB.user.id);
+      root?.render(createElement(RecoveryAccountVoice, { accountSession: accountB }));
+    });
+    await settle();
+    const beforeResponse = requests.accountRequest.mock.calls.length;
+    await act(async () => {
+      pending.resolve(Response.json({ error: "Synthetic late account A refusal." }, { status: 404 }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await settle();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
+    expect(requests.accountRequest).toHaveBeenCalledTimes(beforeResponse);
+    await act(async () => {
+      first.onConnect?.({ conversationId: RECOVERY_CID_A });
+      first.onMessage?.({ role: "user", message: "Synthetic stale account A callback." });
+    });
+    expect(requests.accountRequest).toHaveBeenCalledTimes(beforeResponse);
+    expect(voice.startSession).toHaveBeenCalledOnce();
+  });
+
+  it.each([undefined, null, "", "   ", 17, { proof: "synthetic" }, "p".repeat(1_001)])(
+    "refuses voice start when issued owner proof is missing or malformed (case %#)", async (proof) => {
+      const stopTrack = vi.fn();
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: stopTrack }] });
+      recoveryResponses([{ conversationId: RECOVERY_CID_A, voiceOwnerProof: proof }]);
+      await mountRecoveryVoice();
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>("button")?.click();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      await settle();
+      expect(voice.startSession).not.toHaveBeenCalled();
+      expect(container.querySelector('[role="alert"]')?.textContent).toMatch(/voice|context|proof|writ/i);
+      expect(container.querySelector("button")?.disabled).toBe(false);
+      expect(recoveryToolCalls()).toHaveLength(0);
+      expect(requests.releaseFetch).toHaveBeenCalledOnce();
+      const release = requests.releaseFetch.mock.calls[0][1] as RequestInit;
+      expect(JSON.parse(String(release.body))).toEqual({ action: "release", durationSeconds: 0 });
+      expect(stopTrack).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("accepts a bounded opaque proof without decoding or forwarding it to SDK", async () => {
+    const proof = "p".repeat(1_000);
+    recoveryResponses([{ conversationId: RECOVERY_CID_A, voiceOwnerProof: proof }]);
+    await mountRecoveryVoice();
+    await connectRecoveryVoice();
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    expect(JSON.stringify(voice.startSession.mock.calls[0][0])).not.toContain(proof);
+    expect(JSON.parse(String((recoveryToolCalls()[0][1] as RequestInit).body))).toEqual({
+      conversationId: RECOVERY_CID_A, cityId: "london", voiceOwnerProof: proof,
+    });
   });
 });
