@@ -157,10 +157,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId);
     if (existing && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
-    if (existing) {
-      existing.expiresAt = now + PUB_PAL_TOOL_TURN_TTL_MS;
-      return;
-    }
+    if (existing) return;
     memoryTurns.set(conversationId, {
       query: "",
       cityId,
@@ -205,7 +202,6 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId);
     if (!existing || existing.ownerId !== ownerId) return false;
-    existing.expiresAt = now + PUB_PAL_TOOL_TURN_TTL_MS;
     return true;
   },
 
@@ -320,11 +316,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         await purgeExpiredRows();
         const existing = claimedTurn(await lookupStoredRow(conversationId));
         if (existing && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
-        if (existing) {
-          existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
-          await writeStoredRow(conversationId, existing);
-          return;
-        }
+        if (existing) return;
         await writeStoredRow(conversationId, {
           query: "",
           cityId,
@@ -409,11 +401,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
       run: async () => {
         await purgeExpiredRows();
         const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
-        const existing = lookup.turn;
-        existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
-        await writeStoredRow(conversationId, existing);
-        return true;
+        return lookup.status === "owned" && lookup.turn.ownerId === ownerId;
       },
     });
   },
@@ -529,6 +517,7 @@ export async function appendOwnedPubPalUserTurn(
   turn: PubPalFenceTurn,
   cityId: CityId,
 ): Promise<boolean> {
+  if (turn.role !== "user" || !turn.content.trim()) return false;
   return pubPalToolTurnStore().appendOwnedUserTurn(conversationId, ownerId, turn, cityId);
 }
 
