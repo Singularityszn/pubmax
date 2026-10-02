@@ -276,7 +276,7 @@ export function usePintDrops(
     [authLoading, session, user?.id],
   );
   const [handle, setHandle] = useState(() =>
-    typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
+    localStorageSafe()?.getItem("pubmax_handle") ?? "",
   );
   // WHERE EACH PER-VENUE DROP READ GOT TO (review finding F-8). Same three-way
   // shape as `venuePriceStatus` in useCommunityPrices: a surface may only word a
