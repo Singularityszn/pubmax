@@ -193,7 +193,16 @@ afterEach(async () => {
       expect(JSON.parse(String(init.body)).action).toBe("release");
     }
     for (const call of requests.accountRequest.mock.calls) {
-      if ((call[1] as RequestInit | undefined)?.body === undefined) {
+      if (call[0] === "/api/pub-pal/tool-turn") {
+        expect(call).toEqual([
+          "/api/pub-pal/tool-turn",
+          expect.objectContaining({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          }),
+          { requiresIdentity: true },
+        ]);
+      } else if ((call[1] as RequestInit | undefined)?.body === undefined) {
         expect(call).toEqual([
           "/api/pub-pal/voice-token",
           { method: "POST" },
@@ -201,6 +210,8 @@ afterEach(async () => {
         ]);
       } else {
         expect(call).toHaveLength(2);
+        expect(call[0]).toBe("/api/pub-pal/voice-token");
+        expect(JSON.parse(String((call[1] as RequestInit).body)).action).toBe("release");
       }
     }
   } finally {
@@ -613,6 +624,85 @@ describe("Pub Pal voice controls", () => {
     expect(stopTrack).toHaveBeenCalledOnce();
   });
 
+  it("keeps the first 180-second deadline and duration after a second connect at 170 seconds", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    // Match the existing cap fixture. A CID supplied only after End must not
+    // cause a late callback to sync or revive the cancelled owning attempt.
+    requests.accountRequest
+      .mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/session",
+        maxSessionSeconds: 180,
+      }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    const session = voice.startSession.mock.calls[0][0] as {
+      onConnect?: (meta?: { conversationId: string }) => void;
+      onMessage?: (message: { role: string; message: string }) => void;
+      onDisconnect?: () => void;
+    };
+    voice.endSession.mockImplementation(() => session.onDisconnect?.());
+    voice.status = "connected";
+    await act(async () => session.onConnect?.());
+    expect(container.querySelector<HTMLButtonElement>("button")?.textContent).toContain("End");
+
+    await act(async () => {
+      vi.advanceTimersByTime(170_000);
+      session.onConnect?.();
+      await Promise.resolve();
+    });
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    expect(voice.endSession).not.toHaveBeenCalled();
+    expect(requests.releaseFetch).not.toHaveBeenCalled();
+    expect(analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_started")).toHaveLength(1);
+
+    await act(async () => vi.advanceTimersByTime(9_999));
+    expect(voice.endSession).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(requests.releaseFetch).toHaveBeenCalledOnce();
+    const release = requests.releaseFetch.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(release.body))).toEqual({
+      action: "release",
+      durationSeconds: 180,
+    });
+    expect(analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended")).toEqual([
+      ["voice_ended", { reason: "cap" }],
+    ]);
+
+    const requestsAtEnd = requests.accountRequest.mock.calls.length;
+    const timersAtEnd = vi.getTimerCount();
+    await act(async () => {
+      session.onConnect?.({ conversationId: "conv_lateFirstCap01" });
+      session.onMessage?.({ role: "user", message: "Late line after the session ended." });
+      await Promise.resolve();
+    });
+    expect(requests.accountRequest).toHaveBeenCalledTimes(requestsAtEnd);
+    expect(requests.accountRequest.mock.calls.filter(([input]) => input === "/api/pub-pal/tool-turn")).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(timersAtEnd);
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(requests.releaseFetch).toHaveBeenCalledOnce();
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+
   it("ends the current session from the visible End control and releases it once", async () => {
     vi.useFakeTimers();
     const stopTrack = vi.fn();
@@ -934,7 +1024,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
     });
-    requests.authedActionFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+    requests.accountRequest.mockResolvedValueOnce(new Response(JSON.stringify({
       signedUrl: "wss://voice.example/session",
       conversationId: "conv_voiceSession1",
       overrides: {
@@ -980,7 +1070,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
 
-    const toolTurn = requests.authedActionFetch.mock.calls.find(
+    const toolTurn = requests.accountRequest.mock.calls.find(
       (call) => call[0] === "/api/pub-pal/tool-turn",
     );
     expect(toolTurn).toBeTruthy();
@@ -990,7 +1080,7 @@ describe("Pub Pal voice controls", () => {
       threadTurn: { role: "user", content: "Quiet pubs." },
     });
     expect(
-      requests.authedActionFetch.mock.calls.filter((call) => call[0] === "/api/pub-pal/tool-turn"),
+      requests.accountRequest.mock.calls.filter((call) => call[0] === "/api/pub-pal/tool-turn"),
     ).toHaveLength(1);
   });
 });
