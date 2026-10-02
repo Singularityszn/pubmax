@@ -298,6 +298,30 @@ describe("saved list parity", () => {
       )
     ).json()) as { counts: { followers: number | null; savedPubs: number } };
     expect(own.counts).toEqual({ followers: 1, savedPubs: 1 });
+    const following = (await (
+      await get(
+        getListFollows,
+        `/api/saved-pubs/list-follows?follower=suspendedbob&owner=sam&listType=${encodeURIComponent(LIST)}`,
+      )
+    ).json()) as { following: boolean };
+    expect(following.following).toBe(true);
+  });
+
+  it("answers another account's list-follow reads for a suspended handle like an unknown handle", async () => {
+    authState.userId = "user-sam";
+    const path = (follower: string, owner?: string) =>
+      owner
+        ? `/api/saved-pubs/list-follows?follower=${follower}&owner=${owner}&listType=${encodeURIComponent(LIST)}`
+        : `/api/saved-pubs/list-follows?follower=${follower}`;
+    expect(await answered(await get(getListFollows, path("suspendedbob")))).toEqual(
+      await answered(await get(getListFollows, path(UNKNOWN))),
+    );
+    expect(await answered(await get(getListFollows, path("suspendedbob", "sam")))).toEqual(
+      await answered(await get(getListFollows, path(UNKNOWN, "sam"))),
+    );
+    expect(await answered(await get(getListFollows, path("alice", "suspendedbob")))).toEqual(
+      await answered(await get(getListFollows, path("alice", UNKNOWN))),
+    );
   });
 
   it("hides a suspended owner's saves and lists from another account", async () => {
