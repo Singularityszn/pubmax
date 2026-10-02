@@ -38,6 +38,11 @@ export const contentType = "image/png";
 
 // The same lookup the Bar Tab page uses. Never throws: a missing id or a read
 // we could not run yields null, and the card renders the generic poster.
+// Next stores a generated opengraph image unless the handler reads a request
+// API, and this route does not run the layout that opts the Bar Tab document
+// out. A missing id is a stable answer, so that poster may be stored. A read
+// we could not run calls headers() first, the same opt-out the page uses, so
+// only a found card can be stored.
 async function getVenue(id: string): Promise<Venue | null> {
   try {
     const read = await lookupVenueDetail(id);

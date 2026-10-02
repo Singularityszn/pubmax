@@ -36,13 +36,13 @@ The interface is that check. `__tests__/emailProvider.test.ts` calls `isEmailPro
 
 ## 1646 Bar Tab and Ledger venue reads
 
-**Still true:** it was, until this change. Both `app/bar-tab/[id]/page.tsx` and `app/ledger/[id]/page.tsx` defined `VenueReadResult`, `readVenueDataset`, and `readVenue`, and each parsed `public/data/pint_prices_app_dataset.json` on its own. A search for those three names now finds none. `app/bar-tab/[id]/opengraph-image.tsx` `getVenue` calls `lookupVenueDetail` as well.
+**Still true:** it was, until this change. Both `app/bar-tab/[id]/page.tsx` and `app/ledger/[id]/page.tsx` defined `VenueReadResult`, `readVenueDataset`, and `readVenue`, and each parsed `public/data/pint_prices_app_dataset.json` on its own. A search for `VenueReadResult` and `readVenueDataset` now finds none. `readVenue` still names an unrelated local in `lib/recapCardStats.server.ts`. `app/bar-tab/[id]/opengraph-image.tsx` `getVenue` calls `lookupVenueDetail` as well.
 
 **Seam decision:** deepen. The module is `lookupVenueDetail` in `lib/venueDetailIndex.ts`. Depth is one venue read. Three adapters sit on it, and each calls it the way `app/api/venue/[id]/route.ts` does:
 
 - `app/bar-tab/[id]/page.tsx` calls it from the page and from `generateMetadata`.
 - `app/ledger/[id]/page.tsx` calls it from the page and from `generateMetadata`.
-- `app/bar-tab/[id]/opengraph-image.tsx` `getVenue` calls it. `found` paints the venue. `missing` and `unavailable` yield null, so the card keeps its generic poster and does not paint a name the page would not claim.
+- `app/bar-tab/[id]/opengraph-image.tsx` `getVenue` calls it. `found` paints the venue. `missing` and `unavailable` yield null, so the card keeps its generic poster and does not paint a name the page would not claim. `missing` returns before `headers()`, so that poster can be stored. `unavailable`, and a thrown read, call `headers()` first, the same opt-out the Bar Tab page uses, so only a found card can be stored.
 
 No new port. `missing` renders the existing not-found card. `unavailable` renders the existing read-unavailable surface. The module asks `lookupCanonicalVenueId` first and does not cache a failed read, so the next request reads again. The pages and the share card do not call `resolveCanonicalVenueId`. That function turns an unreadable alias file into the original id, and the not-found card would swallow it.
 
