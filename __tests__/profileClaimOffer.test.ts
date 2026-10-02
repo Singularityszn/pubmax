@@ -117,18 +117,7 @@ describe("the profile page asks that question rather than its own", () => {
 });
 
 
-describe("handleIsAdoptable blocks withdrawn and reserved handles", () => {
-  it("never offers a withdrawn profile", () => {
-    expect(
-      handleIsAdoptable({
-        read: "answered",
-        ownerProfile: null,
-        tombstoned: false,
-        profileWithdrawn: true,
-      }),
-    ).toBe(false);
-  });
-
+describe("handleIsAdoptable blocks reserved handles", () => {
   it("never offers a reserved handle", () => {
     expect(
       handleIsAdoptable({

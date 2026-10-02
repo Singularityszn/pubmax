@@ -80,9 +80,10 @@ async function readMemoryWithdrawn(): Promise<WithdrawnRow[]> {
   const rows: WithdrawnRow[] = [];
   const seen = new Set<string>();
   const push = (profileId: string, handle: string) => {
-    const key = `${profileId}\0${normalizeHandle(handle)}`;
-    if (!key.endsWith("\0") && seen.has(key)) return;
-    if (!normalizeHandle(handle)) return;
+    const normalized = normalizeHandle(handle);
+    if (!normalized) return;
+    const key = `${profileId}\0${normalized}`;
+    if (seen.has(key)) return;
     seen.add(key);
     rows.push({ profileId, handle });
   };

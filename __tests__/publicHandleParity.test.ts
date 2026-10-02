@@ -19,6 +19,9 @@ import { GET as getProfile, PATCH as patchProfile } from "@/app/api/profiles/[ha
 import { POST as claimHandle } from "@/app/api/identity/handle/claim/route";
 import ProfileHandleLayout from "@/app/u/[handle]/layout";
 import ProfilePage, { generateMetadata } from "@/app/u/[handle]/page";
+import SavedListPage, { generateMetadata as savedListMetadata } from "@/app/u/[handle]/lists/[listType]/page";
+import { GET as getSavedPubs } from "@/app/api/saved-pubs/route";
+import { GET as getListFollows } from "@/app/api/saved-pubs/list-follows/route";
 import {
   __resetMemoryProfileWithdrawals,
   __setMemoryAuthUserBanned,
@@ -27,8 +30,17 @@ import {
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import {
+  __resetMemorySavedListFollows,
+  __resetMemorySavedLists,
+  __resetMemorySavedPubs,
+  memorySavedListsStore,
+  memorySavedPubsStore,
+  savedListFollowsStore,
+} from "@/lib/savedPubsStore";
 
 const UNKNOWN = "neverexisted_qa9";
+const LIST = "Date night";
 
 const subjects = [
   { kind: "unknown", handle: UNKNOWN },
@@ -95,6 +107,9 @@ beforeEach(async () => {
   __resetMemoryFollows();
   __resetMemoryProfiles();
   __resetMemoryProfileWithdrawals();
+  __resetMemorySavedPubs();
+  __resetMemorySavedLists();
+  __resetMemorySavedListFollows();
 
   const suspended = __seedMemoryOwnedProfile("suspendedbob", "user-suspended");
   const banned = __seedMemoryOwnedProfile("bannedbob", "user-banned");
@@ -112,7 +127,30 @@ beforeEach(async () => {
   await follows.follow("sam", "alice");
   await follows.follow("suspendedbob", "sam");
   await follows.follow("bannedbob", "sam");
+
+  for (const owner of ["suspendedbob", "bannedbob", "sam"]) {
+    await memorySavedPubsStore.toggleSaved({ handle: owner, venueId: "venue-parity-1", listType: LIST });
+    await memorySavedListsStore.createList(owner, LIST);
+  }
+  const listFollows = savedListFollowsStore();
+  await listFollows.followList("alice", "suspendedbob", LIST);
+  await listFollows.followList("alice", "bannedbob", LIST);
+  await listFollows.followList("alice", "sam", LIST);
+  await listFollows.followList("suspendedbob", "sam", LIST);
+  await listFollows.followList("bannedbob", "sam", LIST);
 });
+
+function get(handler: (request: Request) => Promise<Response>, path: string): Promise<Response> {
+  return handler(new Request(`http://localhost${path}`));
+}
+
+function listParams(handle: string) {
+  return { params: Promise.resolve({ handle, listType: encodeURIComponent(LIST) }) };
+}
+
+function sameAsUnknown(value: unknown, handle: string): string {
+  return JSON.stringify(value).replaceAll(handle, UNKNOWN);
+}
 
 describe("public handle parity", () => {
   it.each(subjects)("$kind profile answers like an unknown handle", async ({ handle }) => {
@@ -182,4 +220,55 @@ describe("handle claim parity", () => {
       expect(await answered(await claimSignedIn(handle))).toEqual(taken);
     },
   );
+});
+
+describe("saved list parity", () => {
+  it("still serves a live account's saved list", async () => {
+    const body = (await (await get(getSavedPubs, "/api/saved-pubs?handle=sam")).json()) as {
+      saved: unknown[];
+    };
+    expect(body.saved).toHaveLength(1);
+  });
+
+  it.each(subjects)("$kind saved pubs answer like an unknown handle", async ({ handle }) => {
+    expect(await answered(await get(getSavedPubs, `/api/saved-pubs?handle=${handle}`))).toEqual(
+      await answered(await get(getSavedPubs, `/api/saved-pubs?handle=${UNKNOWN}`)),
+    );
+  });
+
+  it.each(subjects)("$kind custom lists answer like an unknown handle", async ({ handle }) => {
+    expect(await answered(await get(getSavedPubs, `/api/saved-pubs?handle=${handle}&lists=1`))).toEqual(
+      await answered(await get(getSavedPubs, `/api/saved-pubs?handle=${UNKNOWN}&lists=1`)),
+    );
+  });
+
+  it.each(subjects)("$kind followed lists answer like an unknown handle", async ({ handle }) => {
+    expect(await answered(await get(getListFollows, `/api/saved-pubs/list-follows?follower=${handle}`))).toEqual(
+      await answered(await get(getListFollows, `/api/saved-pubs/list-follows?follower=${UNKNOWN}`)),
+    );
+  });
+
+  it.each(subjects)("$kind list counts answer like an unknown handle", async ({ handle }) => {
+    const path = (owner: string) =>
+      `/api/saved-pubs/list-follows?follower=alice&owner=${owner}&listType=${encodeURIComponent(LIST)}`;
+    expect(await answered(await get(getListFollows, path(handle)))).toEqual(
+      await answered(await get(getListFollows, path(UNKNOWN))),
+    );
+  });
+
+  it("omits a banned or withdrawn owner's list from a live follower's followed lists", async () => {
+    const body = (await (await get(getListFollows, "/api/saved-pubs/list-follows?follower=alice")).json()) as {
+      followedLists: Array<{ ownerHandle: string }>;
+    };
+    expect(body.followedLists.map((list) => list.ownerHandle)).toEqual(["sam"]);
+  });
+
+  it.each(subjects)("$kind list page renders like an unknown handle", async ({ handle }) => {
+    expect(sameAsUnknown(await SavedListPage(listParams(handle)), handle)).toBe(
+      JSON.stringify(await SavedListPage(listParams(UNKNOWN))),
+    );
+    expect(sameAsUnknown(await savedListMetadata(listParams(handle)), handle)).toBe(
+      JSON.stringify(await savedListMetadata(listParams(UNKNOWN))),
+    );
+  });
 });

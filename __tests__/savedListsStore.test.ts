@@ -17,8 +17,9 @@ beforeEach(() => {
 });
 
 describe("savedListsStore() — seam selection", () => {
-  it("selects the in-memory store when Supabase env is absent", () => {
-    expect(savedListsStore()).toBe(memorySavedListsStore);
+  it("reads the in-memory store when Supabase env is absent", async () => {
+    await memorySavedListsStore.createList("seam", "weekend spots");
+    expect(await savedListsStore().listCustom("seam")).toEqual(["weekend spots"]);
   });
 });
 

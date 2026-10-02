@@ -98,7 +98,6 @@ export type AuthCallbackAttempt = {
   attemptId: string | null;
   tokens: AuthCallbackTokens | null;
   providerError: boolean;
-  accountBanned?: boolean;
   signupProof?: string;
 };
 
@@ -538,16 +537,12 @@ function cleanAuthCallbackUrl(currentUrl: string): string | null {
   }
 }
 
-function rejectedAuthCallback(
-  parsedAttempt: AuthCallbackAttempt,
-  cleanUrl: string,
-): CapturedAuthCallback {
+function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
   return {
     attempt: {
       attemptId: null,
       tokens: null,
       providerError: true,
-      ...(parsedAttempt.accountBanned ? { accountBanned: true } : {}),
     },
     cleanUrl,
     localAttemptOwned: false,
@@ -567,7 +562,7 @@ function fallbackAuthCallback(
   parsedAttempt: AuthCallbackAttempt,
   cleanUrl: string,
 ): CapturedAuthCallback {
-  if (!parsedAttempt.tokens) return rejectedAuthCallback(parsedAttempt, cleanUrl);
+  if (!parsedAttempt.tokens) return rejectedAuthCallback(cleanUrl);
   return {
     attempt: parsedAttempt,
     cleanUrl,

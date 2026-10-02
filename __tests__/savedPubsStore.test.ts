@@ -32,8 +32,11 @@ async function aRealVenue(): Promise<{ id: string; name: string }> {
 }
 
 describe("savedPubsStore() — seam selection", () => {
-  it("selects the in-memory store when Supabase env is absent", () => {
-    expect(savedPubsStore()).toBe(memorySavedPubsStore);
+  it("reads the in-memory store when Supabase env is absent", async () => {
+    await memorySavedPubsStore.toggleSaved({ handle: "seam", venueId: "venue-seam", listType: "Favourites" });
+    const saved = await savedPubsStore().listSaved({ handle: "seam" });
+    expect(saved).toHaveLength(1);
+    expect(saved).toEqual(await memorySavedPubsStore.listSaved({ handle: "seam" }));
   });
 
   it("readSaved names a successful empty list as ready", async () => {
