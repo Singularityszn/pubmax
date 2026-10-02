@@ -1764,7 +1764,12 @@ function PlanComposerForm({
         nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
       }));
     }
-    const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
+    // A held Stop 1 exposes these controls before the wizard is complete.
+    // Explicit generation keeps answered choices and skips only missing ones,
+    // using the same intake rule as describe-first.
+    const intake = skipRemainingPlanIntake(
+      syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query),
+    );
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
     }
