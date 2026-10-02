@@ -678,6 +678,45 @@ describe("a price stays in the lane the reader gave it", () => {
       { text: "Burger from £12.00", drinks: [] },
       { text: "Fish and chips £14.50", drinks: [] },
       { text: "Burger. House wine £40.00", drinks: [] },
+      {
+        text: "Gordon's 25ml £4.50",
+        drinks: [{ drink: "Gordon's", size: "unstated", sizeDetail: "25ml", priceGbp: 4.5 }],
+      },
+      {
+        text: "Double Gordon's 50ml £7.20",
+        drinks: [{ drink: "Double Gordon's", size: "unstated", sizeDetail: "50ml", priceGbp: 7.2 }],
+      },
+      {
+        text: "Tequila 25ml £3.50",
+        drinks: [{ drink: "Tequila", size: "unstated", sizeDetail: "25ml", priceGbp: 3.5 }],
+      },
+      {
+        text: "Patron 25ml £6.00",
+        drinks: [{ drink: "Patron", size: "unstated", sizeDetail: "25ml", priceGbp: 6 }],
+      },
+      {
+        text: "Guinness £6.20 /pint | 175ml £7.50",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2 }],
+      },
+      {
+        text: "London Pride £5.50 /pint. 175ml £6.50",
+        drinks: [{ drink: "London Pride", size: "pint", sizeDetail: "pint", priceGbp: 5.5 }],
+      },
+      {
+        text: "Sauvignon 125ml £6.50 / 175ml £6.50",
+        drinks: [
+          { drink: "Sauvignon", size: "unstated", sizeDetail: "125ml", priceGbp: 6.5 },
+          { drink: "Sauvignon", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5 },
+        ],
+      },
+      {
+        text: "Peroni schooner £5.40",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "schooner", priceGbp: 5.4 }],
+      },
+      {
+        text: "Peroni two-thirds £5.20",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
     ];
     for (const row of rows) {
       const drinks = factsFromPage(row.text, pageFact).drinks.map((drink) => ({
@@ -688,6 +727,34 @@ describe("a price stays in the lane the reader gave it", () => {
       }));
       expect(drinks, row.text).toEqual(row.drinks);
     }
+  });
+
+  it("keeps both glasses when a later night prices the second size the same", () => {
+    const glass = (sizeDetail: string, seenOn: string) => ({
+      drink: "Sauvignon",
+      size: "unstated" as const,
+      sizeDetail,
+      priceGbp: 6.5,
+      standing: "listed" as const,
+      sourceUrl: pageFact.sourceUrl,
+      seenOn,
+    });
+    const night = (drinks: ReturnType<typeof glass>[], seenOn: string) => ({
+      venueId: "eastbrook",
+      name: "Eastbrook",
+      postcode: "IG11 7AB",
+      borough: "Barking and Dagenham",
+      seenOn,
+      website: null,
+      drinks,
+      excerpts: [],
+      candidates: [],
+    });
+    const queued = mergeQueue(
+      { version: 1, standingRule: "listed", venues: [night([glass("125ml", "2026-10-01")], "2026-10-01")] },
+      [night([glass("175ml", "2026-10-02")], "2026-10-02")],
+    );
+    expect(queued.venues[0].drinks.map((row) => row.sizeDetail)).toEqual(["125ml", "175ml"]);
   });
 
   it("leaves an offer, a half and a food price out of the drink list and keeps the lines verbatim", () => {

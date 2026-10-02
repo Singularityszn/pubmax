@@ -35,7 +35,8 @@ const SEED_PATCHES = ["soho", "clapham", "shoreditch", "islington", "camden"] as
 const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "hounslow"]);
 
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
-const SERVING_SIZE = /\b(?:pints?|halves|half|kegs?|bottles?|cans?|glasses|glass|measures|measure|\d{2,4}\s*ml)\b/i;
+const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
+const SERVING_SIZE = new RegExp(`\\b(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i");
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
 const DRINKS_PATH =
@@ -44,6 +45,7 @@ const DRINKS_LABEL = /\b(drinks?|bars?|beers?|wines?|cocktails?|ale|lager|stout|
 const FOOD_LABEL = /\b(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const HEADING_FILLER = new Set(["and", "menu", "list"]);
 const GLASS_ML = new Set(["125ml", "175ml", "250ml"]);
+const SPIRIT_ML = new Set(["25ml", "35ml", "50ml"]);
 
 type DrinkSize = "pint" | "keg" | "bottle" | "can" | "unstated";
 
@@ -533,7 +535,7 @@ export function acceptedExtractUrls(urls: readonly string[], siteOrigin: string)
 function cleanName(label: string): string | null {
   const cleaned = label
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
-    .replace(/\b(kegs?|pints?|bottles?|cans?|glasses|glass|halves|half|measures|measure)\b/gi, " ")
+    .replace(new RegExp(`\\b(${SERVING_WORD})\\b`, "gi"), " ")
     .replace(/[/|]+/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^[\s,;:.\-]+|[\s,;:.\-]+$/g, "")
@@ -544,14 +546,25 @@ function cleanName(label: string): string | null {
 
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line)) return { size: "pint", sizeDetail: "pint" };
+  if (/\bschooners?\b/i.test(line)) return { size: "unstated", sizeDetail: "schooner" };
+  if (/\btwo[\s-]thirds\b/i.test(line)) return { size: "unstated", sizeDetail: "two-thirds" };
   const ml = /\b(\d{2,4})\s*ml\b/i.exec(line);
   const detail = ml ? `${ml[1]}ml` : null;
+  if (detail && SPIRIT_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
+  if (detail && GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
   if (/\bcans?\b/i.test(line)) return { size: "can", sizeDetail: detail ?? "can" };
   if (/\bkeg\b/i.test(line)) return { size: "keg", sizeDetail: detail };
   if (/\bbottles?\b/i.test(line)) return { size: "bottle", sizeDetail: detail ?? "bottle" };
-  if (detail && GLASS_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
-  if (detail && detail !== "568ml") return { size: "bottle", sizeDetail: detail };
+  if (detail === "330ml") return { size: "bottle", sizeDetail: detail };
   return { size: "unstated", sizeDetail: null };
+}
+
+function measureAllowed(line: string, size: { size: DrinkSize; sizeDetail: string | null }): boolean {
+  if (size.size === "pint" || size.size === "keg" || size.size === "bottle" || size.size === "can") return true;
+  if (size.sizeDetail === "half" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
+  if (size.sizeDetail && (GLASS_ML.has(size.sizeDetail) || SPIRIT_ML.has(size.sizeDetail))) return true;
+  if (/\b\d{2,4}\s*ml\b/i.test(line)) return false;
+  return /\b(?:glasses|glass)\b/i.test(line);
 }
 
 function inBand(priceGbp: number, min: number, max: number): boolean {
@@ -570,6 +583,7 @@ function listedDrink(
   const drink = cleanName(name);
   if (!drink || !inBand(priceGbp, band.minGbp, band.maxGbp)) return null;
   const size = forced ?? sizeOf(line);
+  if (!measureAllowed(line, size)) return null;
   return {
     drink,
     size: size.size,
@@ -584,7 +598,7 @@ function listedDrink(
 type PriceOutcome = ReturnType<typeof decideKeylessUkPriceCandidate>;
 
 function measureTail(after: string): string {
-  return /^(?:\s*\/\s*|\s+)(?:pints?|halves|half|kegs?|bottles?|cans?|glasses|glass|measures|measure|\d{2,4}\s*ml)\b/i.exec(after)?.[0] ?? "";
+  return new RegExp(`^(?:\\s*\\/\\s*|\\s+)(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i").exec(after)?.[0] ?? "";
 }
 
 function trailingMeasure(after: string): string {
@@ -599,6 +613,8 @@ function namedLabel(line: string, at: number, local: string): string {
   const before = line.slice(0, at);
   const prior = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
   if (!prior || prior.index === undefined) return local;
+  const between = before.slice(prior.index + prior[0].length);
+  if (/(?:\. |; | \| |\|\s)/.test(between)) return local;
   const priorLabel = drinkLabelFromPriceContext(line, prior[0], prior.index) ?? "";
   const priorName = cleanName(priorLabel);
   if (!priorName) return local;
@@ -622,11 +638,7 @@ function drinkFromDrop(
   fact: SourcedFact,
 ): ListedDrinkLine | null {
   if (drop === "bottled-measure-not-a-pint") {
-    const size = sizeOf(line);
-    return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, {
-      size: size.size === "unstated" ? "bottle" : size.size,
-      sizeDetail: size.sizeDetail ?? "bottle",
-    });
+    return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
   }
   if (drop === "half-measure-not-a-pint") {
     return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, {
@@ -636,13 +648,17 @@ function drinkFromDrop(
   }
   if (drop !== "no-category-word-nearby") return null;
   const size = sizeOf(line);
-  if (size.size !== "pint" && size.size !== "keg" && size.size !== "bottle" && size.size !== "can") return null;
+  if (size.size === "unstated" && !size.sizeDetail) return null;
   return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, size);
+}
+
+function listedDrinkKey(row: { drink: string; size: string; sizeDetail: string | null; priceGbp: number }): string {
+  return `${row.drink.toLowerCase()}|${row.size}|${row.sizeDetail ?? ""}|${row.priceGbp}`;
 }
 
 function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: ListedDrinkLine | null): void {
   if (!row) return;
-  const key = `${row.drink.toLowerCase()}|${row.size}|${row.priceGbp}`;
+  const key = listedDrinkKey(row);
   if (seenDrinks.has(key)) return;
   seenDrinks.add(key);
   drinks.push(row);
@@ -866,7 +882,7 @@ function keepListedLines(previous: VenueEvidence | undefined, incoming: VenueEvi
   const drinks = unionBy(
     previous.drinks,
     incoming.drinks,
-    (row) => `${row.drink.toLowerCase()}|${row.size}|${row.priceGbp}`,
+    (row) => listedDrinkKey(row),
   );
   const excerpts = unionBy(previous.excerpts, incoming.excerpts, (row) => `${row.sourceUrl}|${row.excerpt}`);
   const website = incoming.website ?? previous.website;
@@ -941,7 +957,7 @@ function evidenceFor(
       boundSnippet: page.boundSnippet,
     });
     for (const drink of facts.drinks) {
-      const key = `${drink.drink.toLowerCase()}|${drink.size}|${drink.priceGbp}`;
+      const key = listedDrinkKey(drink);
       if (drinkKeys.has(key)) continue;
       drinkKeys.add(key);
       drinks.push(drink);
