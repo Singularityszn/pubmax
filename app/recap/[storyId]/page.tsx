@@ -112,12 +112,17 @@ export default async function PublicRecapPage({ params }: Props) {
 
   // Resolve approved photo URLs server-side (signed, short-lived). Only the
   // published + consent-approved photos ever reach this map.
+  const ownerByMomentId = new Map(src.moments.map((moment) => [moment.id, moment.ownerId]));
   const photoUrls = new Map<string, string>();
   await Promise.all(
     view.photos.map(async (photo) => {
       // Short TTL: signed URLs can't be revoked, so a withdrawn consent must not
       // stay fetchable for an hour. The page re-signs on every render.
-      const url = await signedNightMomentPhotoUrl(photo.mediaObjectKey, PUBLIC_RECAP_PHOTO_TTL_SECONDS);
+      const url = await signedNightMomentPhotoUrl(
+        photo.mediaObjectKey,
+        ownerByMomentId.get(photo.id) ?? "",
+        PUBLIC_RECAP_PHOTO_TTL_SECONDS,
+      );
       if (url) photoUrls.set(photo.id, url);
     }),
   );

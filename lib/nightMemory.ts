@@ -120,8 +120,17 @@ function optionalDate(value: unknown): string | null {
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
 }
 
-/** Normalise a Moment at the trust boundary. Every accepted Moment is private. */
-export function cleanNightMomentDraft(raw: unknown): NightMomentDraft | null {
+/**
+ * Normalise a Moment at the trust boundary. Every accepted Moment is private.
+ *
+ * `serverMediaObjectKey` is the only storage key this accepts. A JSON body
+ * cannot name one: the field on `raw` is ignored, and the multipart route
+ * passes the key its own upload just wrote.
+ */
+export function cleanNightMomentDraft(
+  raw: unknown,
+  serverMediaObjectKey: string | null = null,
+): NightMomentDraft | null {
   if (!raw || typeof raw !== "object") return null;
   const input = raw as Record<string, unknown>;
   if (!NIGHT_MOMENT_KINDS.includes(input.kind as NightMomentKind)) return null;
@@ -130,7 +139,7 @@ export function cleanNightMomentDraft(raw: unknown): NightMomentDraft | null {
   if (kind === "pint_drop" && (!pintDropId || !UUID.test(pintDropId))) return null;
   const caption = cleanText(input.caption, 500);
   const venueId = optionalText(input.venueId, 80);
-  const mediaObjectKey = optionalText(input.mediaObjectKey, 500);
+  const mediaObjectKey = optionalText(serverMediaObjectKey, 500);
   if (!caption && !venueId && !mediaObjectKey && kind !== "pint_drop") return null;
   return {
     kind,

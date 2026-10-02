@@ -20,6 +20,8 @@
 
 import type { Provenance } from "@/lib/curation";
 import { demoDrinksEnabled } from "@/lib/demoContent";
+import { isHttpUrl } from "@/lib/httpUrl";
+import { isFiniteNumber, isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
 import {
   alcoholTypeForDrink,
   isDemoDrinkSource,
@@ -80,40 +82,12 @@ export type DrinkMenuRow = {
   latestContributorAt: string | null;
 };
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
 function isValidOptionalString(value: unknown): boolean {
   return value === undefined || isNonEmptyString(value);
 }
 
 function isValidOptionalAbv(value: unknown): boolean {
   return value === undefined || (isFiniteNumber(value) && value >= 0 && value <= 100);
-}
-
-// http(s) URL guard — a first-party source must be a real link the UI can
-// attribute to. Rejects anything that isn't an absolute http(s) URL.
-function isHttpUrl(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-// A valid ISO timestamp that is not in the future (a future observation is a
-// data error — you cannot have observed a price that hasn't happened yet).
-function isValidObservedAt(value: unknown, now: number): value is string {
-  if (!isNonEmptyString(value)) return false;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) && ms <= now;
 }
 
 // Hand-rolled row guard — drop malformed rows rather than throw. `now` is
@@ -136,7 +110,7 @@ export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()
   if (typeof source !== "object" || source === null) return false;
   const src = source as Record<string, unknown>;
   if (!isNonEmptyString(src.label)) return false;
-  if (!isHttpUrl(src.url)) return false;
+  if (!isHttpUrl(src.url, { allowWhitespace: true })) return false;
   // A licence string is mandatory — an unlicensed source is not permissible
   // (governance: every fact is {source, licence, observedAt}).
   if (!isNonEmptyString(src.licence)) return false;

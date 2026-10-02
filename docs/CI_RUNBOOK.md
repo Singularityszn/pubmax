@@ -20,7 +20,7 @@ runs-on: [self-hosted, pubmax-mac]
 Install once on the runner Mac:
 
 ```sh
-brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # or another Node 22 install
+brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # Node must satisfy engines.node in package.json
 npx playwright install chromium   # or let CI cache under ~/Library/Caches/ms-playwright
 ```
 
@@ -59,6 +59,11 @@ Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node
 
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).
+
+The lint-and-types job runs `npx tsc --noEmit`. Next resolves the TypeScript 6
+compiler API at build time. The merge bar `npm run verify` runs
+[`npm run typecheck`](../package.json) (TypeScript 7 native); see
+[`next.config.mjs`](../next.config.mjs) for why both exist.
 
 ### Register or re-register the runner
 

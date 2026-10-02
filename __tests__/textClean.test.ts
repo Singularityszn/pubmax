@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cleanText, isHttpUrl, readString } from "@/lib/textClean";
+import { cleanHttpUrl, cleanText, readString } from "@/lib/textClean";
 
 describe("readString", () => {
   it("returns non-empty strings unchanged (no trim on return value)", () => {
@@ -118,23 +118,23 @@ describe("cleanText \u2014 cap boundary", () => {
   });
 });
 
-describe("isHttpUrl", () => {
+describe("cleanHttpUrl", () => {
   it("accepts well-formed http(s) URLs within the cap", () => {
-    expect(isHttpUrl("https://example.com/avatar.png", 200)).toBe(
+    expect(cleanHttpUrl("https://example.com/avatar.png", 200)).toBe(
       "https://example.com/avatar.png",
     );
-    expect(isHttpUrl(" http://localhost:3000/x ", 200)).toBe("http://localhost:3000/x");
+    expect(cleanHttpUrl(" http://localhost:3000/x ", 200)).toBe("http://localhost:3000/x");
   });
 
   it("rejects javascript: and data: schemes", () => {
-    expect(isHttpUrl("javascript:alert(1)", 200)).toBeUndefined();
-    expect(isHttpUrl("data:text/html,hello", 200)).toBeUndefined();
+    expect(cleanHttpUrl("javascript:alert(1)", 200)).toBeUndefined();
+    expect(cleanHttpUrl("data:text/html,hello", 200)).toBeUndefined();
   });
 
   it("rejects malformed, empty, or over-long values", () => {
-    expect(isHttpUrl("", 200)).toBeUndefined();
-    expect(isHttpUrl("not-a-url", 200)).toBeUndefined();
-    expect(isHttpUrl("https://example.com", 10)).toBeUndefined();
-    expect(isHttpUrl(null, 200)).toBeUndefined();
+    expect(cleanHttpUrl("", 200)).toBeUndefined();
+    expect(cleanHttpUrl("not-a-url", 200)).toBeUndefined();
+    expect(cleanHttpUrl("https://example.com", 10)).toBeUndefined();
+    expect(cleanHttpUrl(null, 200)).toBeUndefined();
   });
 });

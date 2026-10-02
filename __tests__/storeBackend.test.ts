@@ -15,6 +15,7 @@ import {
   createFailSoftGuard,
   errorMessage,
   isMissingTableSchema,
+  isUniqueViolation,
   missingTables,
   selectStore,
 } from "@/lib/storeBackend";
@@ -272,5 +273,17 @@ describe("createFailSoftGuard", () => {
       guardObj.isSchemaMiss(new Error('relation "public.widgets" does not exist')),
     ).toBe(true);
     expect(guardObj.isSchemaMiss(new Error("permission denied"))).toBe(false);
+  });
+
+  it("recognises only Postgres unique_violation 23505", () => {
+    expect(isUniqueViolation({ code: "23505" })).toBe(true);
+    expect(isUniqueViolation({ code: "23503" })).toBe(false);
+    expect(isUniqueViolation({})).toBe(false);
+    expect(isUniqueViolation(null)).toBe(false);
+    expect(isUniqueViolation(undefined)).toBe(false);
+    const messageOnly: { code?: string; message?: string } = {
+      message: "duplicate key value violates unique constraint",
+    };
+    expect(isUniqueViolation(messageOnly)).toBe(false);
   });
 });

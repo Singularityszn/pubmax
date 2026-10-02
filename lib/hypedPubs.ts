@@ -20,6 +20,8 @@
 //      reading of how loud a pub is, and a number on a screen reads as a
 //      measurement.
 
+import { isHttpUrl } from "@/lib/httpUrl";
+
 /** One place the talk was found, and the day it was read. */
 export type HypedPubSource = {
   /** How the publisher is named on screen, e.g. "r/london". */
@@ -78,16 +80,6 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isHttpUrl(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function isDatedIso(value: unknown): value is string {
   return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
 }
@@ -96,7 +88,7 @@ function parseSource(value: unknown): HypedPubSource | null {
   if (typeof value !== "object" || value === null) return null;
   const raw = value as Record<string, unknown>;
   if (!isNonEmptyString(raw.label)) return null;
-  if (!isHttpUrl(raw.url)) return null;
+  if (!isHttpUrl(raw.url, { allowWhitespace: true })) return null;
   if (!isDatedIso(raw.observedAt)) return null;
   return {
     label: raw.label.trim(),

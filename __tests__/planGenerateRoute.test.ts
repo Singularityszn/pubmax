@@ -151,7 +151,7 @@ function generatedVenue(
   };
 }
 
-async function prepareWineValueSearch(now: number) {
+async function prepareWineValueSearch(now: number, query = "cheap 125ml wine in Clapham for 2") {
   // Price validation uses the real quote reader and its own clock. Keep that
   // clock at daytime so the injected night clock remains independently tested.
   const daytime = new Date(now);
@@ -195,7 +195,7 @@ async function prepareWineValueSearch(now: number) {
     return await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({
-        query: "cheap 125ml wine in Clapham for 2",
+        query,
         anchor: { venueId: "v1", source: "pal", acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null,
           selectedDrinkPriceEvidence: { category: "wine", pence: 900, serving: "125ml", source: "listed",
             sourceUrl: "https://pub.example/v1/wine", observedAt } },
@@ -410,6 +410,22 @@ describe("POST /api/plans/generate", () => {
     expect("prepared" in result).toBe(true);
     if (!("prepared" in result)) return;
     expect(result.prepared.context.daypart).toBe("daytime");
+    expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £7.00");
+    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+  });
+
+  it("keeps trusted wine value ordering when the query requests after work in daytime", async () => {
+    const result = await prepareWineValueSearch(
+      PLAN_GENERATION_TEST_NOW,
+      "cheap 125ml wine in Clapham for 2 after work",
+    );
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context).toMatchObject({ daypart: "after_work", drinkCategory: "wine" });
     expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
     expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
     expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £7.00");

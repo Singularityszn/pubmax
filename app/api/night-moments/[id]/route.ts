@@ -45,6 +45,6 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
     return publicApiError("That Moment was not found.", "NOT_FOUND", 404);
   }
   // The photo leaves with the row, through the one storage seam the upload used.
-  await Promise.all(removed.mediaObjectKeys.map((key) => removeNightMomentPhoto(key)));
+  await Promise.all(removed.mediaObjectKeys.map((key) => removeNightMomentPhoto(key, ownerId)));
   return jsonNoStore({ removed: true });
 }

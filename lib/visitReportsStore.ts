@@ -26,6 +26,7 @@ import { randomUUID } from "crypto";
 import {
   admin,
   createFailSoftGuard,
+  isUniqueViolation,
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
@@ -332,12 +333,6 @@ function fromRow(row: Record<string, unknown>): VisitReport {
     moderatedAt: row.moderated_at ? String(row.moderated_at) : undefined,
     moderatorNote: row.moderator_note ? String(row.moderator_note) : undefined,
   };
-}
-
-/** Postgres unique_violation (23505): a concurrent insert raced us to the same
- *  (venue, handle, night) — fall through to an update of the existing row. */
-function isUniqueViolation(error: { code?: string } | null | undefined): boolean {
-  return error?.code === "23505";
 }
 
 async function selectExistingId(fields: VisitReportFields): Promise<string | null> {
