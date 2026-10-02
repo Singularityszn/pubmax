@@ -178,6 +178,13 @@ export function provenanceCopyForResult(
   return provenanceCopyForDepartures(ride.departures);
 }
 
+function provenanceForShownTimes(data: LastRideResult | undefined): string | null {
+  return data && (
+    data.trains.length > 0
+    || data.departures?.some((line) => line.times.length > 0)
+  ) ? provenanceCopyForResult(data) : null;
+}
+
 function modeWord(data: Partial<LastRideResult> | undefined, cityId: CityId): string {
   if (data?.modeLabel) return data.modeLabel;
   if (cityId === "manchester") return "tram";
@@ -457,7 +464,7 @@ export default function LastTrainCard({
   }
   // Provenance honesty (H5): prefer provider-supplied copy (Metrolink static);
   // London still scopes the live claim to departures only.
-  const provenance = readyData ? provenanceCopyForResult(readyData) : null;
+  const provenance = provenanceForShownTimes(readyData);
 
   return (
     <section aria-label={rideLabel} style={styles.card}>
@@ -555,7 +562,7 @@ export default function LastTrainCard({
 
       {readyData && showLondonStaticFallback(cityId, readyData) ? (
         <p style={styles.note}>
-          Station from our map. Live train times unavailable until TfL responds again.
+          Station from our map.
         </p>
       ) : null}
 
@@ -633,7 +640,7 @@ export default function LastTrainCard({
         </div>
       ) : null}
 
-      {readyData ? <p style={styles.provenance}>{provenance}</p> : null}
+      {provenance ? <p style={styles.provenance}>{provenance}</p> : null}
     </section>
   );
 }
