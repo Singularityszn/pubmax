@@ -39,6 +39,19 @@ afterAll(() => {
   delete process.env.RATE_LIMIT_STRICT;
 });
 
+describe("isLimited clock", () => {
+  it("counts an injected instant and lets the window expire against that instant", async () => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const { isLimited } = await loadPintDrops();
+    const start = 1_700_000_000_000;
+
+    await expect(isLimited("local:clock", "durable:clock", 1, 60_000, { now: start })).resolves.toBe(false);
+    await expect(isLimited("local:clock", "durable:clock", 1, 60_000, { now: start + 1_000 })).resolves.toBe(true);
+    await expect(isLimited("local:clock", "durable:clock", 1, 60_000, { now: start + 61_000 })).resolves.toBe(false);
+  });
+});
+
 describe("isLimited fail-open WARN", () => {
   it("emits a degraded fail_open WARN on a transient durable error", async () => {
     const { isLimited } = await loadPintDrops();
