@@ -89,6 +89,7 @@ export async function POST(request: Request): Promise<Response> {
     query,
     cityId: record.cityId,
     threadId: record.threadId,
+    fenceTurns: normaliseTurns(record.turns).filter((turn) => turn.role === "user"),
     ownerId,
   });
 

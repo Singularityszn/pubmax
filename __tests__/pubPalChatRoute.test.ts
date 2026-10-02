@@ -112,6 +112,7 @@ describe("POST /api/pub-pal/chat", () => {
       query: "Cheapest pint in Clapham?",
       cityId: undefined,
       threadId: "conv_previous01",
+      fenceTurns: [{ role: "user", content: "Earlier question." }],
       ownerId: authState.userId,
     });
   });

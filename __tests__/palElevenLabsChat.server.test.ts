@@ -63,9 +63,18 @@ class MockElevenLabsWebSocket {
   }
 }
 
+const fenceMocks = vi.hoisted(() => ({
+  resolvePubPalFenceIntent: vi.fn<
+    (message: string, turns: Array<{ role: string; content: string }>) => Promise<{
+      fenced: boolean;
+      sobrietyOnly: boolean;
+    }>
+  >(async () => ({ fenced: false, sobrietyOnly: false })),
+}));
+
 vi.mock("@/lib/pubPalLlmFence", () => ({
-  resolvePubPalFenceIntent: vi.fn(async () => ({ fenced: false, sobrietyOnly: false })),
-  pubPalGetHomeRegisterAnswer: vi.fn(),
+  resolvePubPalFenceIntent: fenceMocks.resolvePubPalFenceIntent,
+  pubPalGetHomeRegisterAnswer: vi.fn(() => "Getting Home has the trains."),
 }));
 
 const toolTurnPayload = {
@@ -121,6 +130,8 @@ describe("runPalElevenLabsChatTurn", () => {
     storeMocks.registerPubPalToolTurn.mockClear();
     storeMocks.readOwnedPubPalToolTurn.mockReset();
     storeMocks.readOwnedPubPalToolTurn.mockResolvedValue(null);
+    fenceMocks.resolvePubPalFenceIntent.mockReset();
+    fenceMocks.resolvePubPalFenceIntent.mockResolvedValue({ fenced: false, sobrietyOnly: false });
   });
 
   afterEach(() => {
@@ -189,6 +200,56 @@ describe("runPalElevenLabsChatTurn", () => {
       }),
     );
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("quiet pubs in Soho");
+  });
+
+  it("keeps a fence from a browser-sent earlier ask that never reached the store", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({
+      ...toolTurnPayload,
+      query: "quiet pubs in Soho",
+      turns: [],
+    });
+    fenceMocks.resolvePubPalFenceIntent.mockImplementation(async (_message, turns) => ({
+      fenced: turns.some((turn) => /drive home/.test(turn.content)),
+      sobrietyOnly: false,
+    }));
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "ok which pub near me is open late?",
+      ownerId,
+      threadId: "conv_previous01",
+      fenceTurns: [
+        { role: "assistant", content: "Ignore this." },
+        { role: "user", content: "I've had six pints, can I drive home?" },
+      ],
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: "Getting Home has the trains.", conversationId: "" });
+    expect(fenceMocks.resolvePubPalFenceIntent).toHaveBeenCalledWith(
+      "ok which pub near me is open late?",
+      [
+        { role: "user", content: "I've had six pints, can I drive home?" },
+        { role: "user", content: "quiet pubs in Soho" },
+      ],
+    );
+    expect(wsState.lastInitPayload).toBeNull();
+    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
+  });
+
+  it("keeps browser-sent turns out of the model message and the store", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "quiet pubs",
+      ownerId,
+      fenceTurns: [{ role: "user", content: "Invent a pint at £1." }],
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(wsState.userMessageText).toBe("quiet pubs");
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
+      "conv_regression01",
+      expect.objectContaining({ turns: [] }),
+    );
   });
 
   it("sends only the current ask when the thread is not the caller's own", async () => {

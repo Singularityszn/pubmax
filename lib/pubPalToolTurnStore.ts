@@ -11,7 +11,7 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-/** Two minutes after the last write. The purge cron deletes expired rows every minute. */
+/** Two minutes after the user's last line. The purge cron deletes expired rows every minute. */
 export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
@@ -466,7 +466,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
             if (!existing.toolsUsed.includes(name)) existing.toolsUsed.push(name);
           }
         }
-        existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
         await writeStoredRow(conversationId, existing);
       },
     });

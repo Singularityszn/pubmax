@@ -88,6 +88,8 @@ export type PalElevenLabsChatInput = {
   cityId?: unknown;
   /** The previous answer's conversation id. Only the owner's own stored row is read. */
   threadId?: unknown;
+  /** Browser-sent user turns. They may only add a get-home fence, never reach the model or the store. */
+  fenceTurns?: PubPalFenceTurn[];
   ownerId: string;
 };
 
@@ -119,7 +121,11 @@ export async function runPalElevenLabsChatTurn(
   } catch {
     return { ok: false, code: "UNAVAILABLE" };
   }
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, turns);
+  const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
+  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, [
+    ...fenceTurns,
+    ...turns,
+  ]);
   if (fenced) {
     return {
       ok: true,

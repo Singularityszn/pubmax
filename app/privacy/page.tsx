@@ -727,8 +727,9 @@ export default function PrivacyPage() {
               that answers it (OpenRouter, and ElevenLabs at{" "}
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
               configured). Nothing else about you goes with it. We do not keep
-              the audio. Recent lines are stored against your account and
-              deleted within three minutes of your last line.
+              the audio. Recent lines are stored against your account for two
+              minutes after your last line, then deleted by a clean-up that
+              runs every minute.
             </dd>
           </div>
           <div className="legalRow">
@@ -801,8 +802,9 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Pub Pal lines:</strong>{" "}recent lines from typed chat and
-            voice are stored against your account and deleted within three
-            minutes of your last line. We do not keep the audio.
+            voice are stored against your account for two minutes after your
+            last line, then deleted by a clean-up that runs every minute. We
+            do not keep the audio.
           </li>
           <li>
             <strong>After you delete your account:</strong>{" "}the prices and
