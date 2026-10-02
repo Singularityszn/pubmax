@@ -539,7 +539,7 @@ function cleanName(label: string): string | null {
     .replace(/(?:⅔|\b2\/3\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/(?:½|\b1\/2\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
-    .replace(new RegExp(`\\b(${SERVING_WORD})\\b`, "gi"), " ")
+    .replace(new RegExp(`\\b(?:${SERVING_WORD})(?:\\s+of(?:\\s+a)?)?\\b`, "gi"), " ")
     .replace(/[/|]+/g, (mark, offset, source) => (
       mark === "/"
       && /(?:19|20)\d{2}$/.test(source.slice(Math.max(0, offset - 4), offset))
@@ -699,15 +699,15 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
 
 const JOINED_SIZE_LIST = /(?<![\d/.£])\d{2,4}(?:\s*ml)?(?:\s*\/\s*\d{2,4}(?:\s*ml)?)+(?!\s*\/\s*\d)/gi;
 const JOINED_PRICE_LIST = /^\s*((?:£\s?\d{1,2}(?:\.\d{2})?)(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*)/;
-const ITEM_MEASURE = new RegExp(
-  `^(?:${SERVING_WORD}|\\d{1,2}\\s*/\\s*\\d{1,2}|\\d{2,4}(?:\\s*ml)?(?:\\s*/\\s*\\d{2,4}(?:\\s*ml)?)+)\\b`,
-  "i",
-);
+const LEADING_MEASURE = new RegExp(`^(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2|2\\/3|⅔)\\b`, "i");
 
 function isNewDrinkName(text: string): boolean {
   const body = text.replace(/^[/|\s]+/, "");
-  if (!body || /^£/.test(body) || ITEM_MEASURE.test(body)) return false;
-  return Boolean(cleanName((body.split("£")[0] ?? "").trim()));
+  if (!body || /^£/.test(body)) return false;
+  if (/^(?:Pint|Bottle|Glass|Can|Half)\s+of\b/.test(body)) return true;
+  if (LEADING_MEASURE.test(body)) return false;
+  const name = cleanName((body.split("£")[0] ?? "").trim());
+  return Boolean(name && /[A-Za-z]/.test(name));
 }
 
 function splitPriceItems(line: string): string[] {
@@ -749,7 +749,7 @@ function pairedMeasureLines(line: string): string[] | null {
   let saw = false;
   let cursor = 0;
   for (const match of line.matchAll(JOINED_SIZE_LIST)) {
-    if (match.index === undefined || !/ml/i.test(match[0])) continue;
+    if (match.index === undefined || match.index < cursor || !/ml/i.test(match[0])) continue;
     const sizes = [...match[0].matchAll(/\d{2,4}/g)].map((token) => `${token[0]}ml`);
     const priceMatch = JOINED_PRICE_LIST.exec(line.slice(match.index + match[0].length));
     const prices = priceMatch
@@ -759,8 +759,9 @@ function pairedMeasureLines(line: string): string[] | null {
       const before = line.slice(cursor, match.index).trim();
       if (before.includes("£")) parts.push(before);
       saw = true;
-      cursor = line.length;
-      break;
+      const consumed = priceMatch ? priceMatch[0].length : 0;
+      cursor = match.index + match[0].length + consumed;
+      continue;
     }
     saw = true;
     const name = line.slice(cursor, match.index).replace(/\s+/g, " ").trim();

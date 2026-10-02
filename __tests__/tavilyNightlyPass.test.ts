@@ -966,6 +966,71 @@ describe("a price stays in the lane the reader gave it", () => {
           { drink: "Landlord", size: "unstated", sizeDetail: "half", priceGbp: 2.4 },
         ],
       },
+      {
+        text: "Pint of Guinness £6",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6 }],
+      },
+      {
+        text: "Bottle of Moretti £5.20",
+        drinks: [{ drink: "Moretti", size: "bottle", sizeDetail: "bottle", priceGbp: 5.2 }],
+      },
+      {
+        text: "Glass of Merlot 175ml £7.50",
+        drinks: [{ drink: "Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 }],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 Pint of Guinness £5.80",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 },
+        ],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 | Pint of Guinness £5.80",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 },
+        ],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50. Pint of Guinness £5.80",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 },
+        ],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 Bottle of Moretti £5.20",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Moretti", size: "bottle", sizeDetail: "bottle", priceGbp: 5.2 },
+        ],
+      },
+      {
+        text: "Peroni 330/440ml £4.50/£5.50 Glass of Merlot 175ml £7.50",
+        drinks: [
+          { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 },
+          { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5 },
+          { drink: "Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 },
+        ],
+      },
+      {
+        text: "Peroni 330/440ml £4.50 Pint of Guinness £5.80",
+        drinks: [{ drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 5.8 }],
+        excerpt: true,
+      },
+      {
+        text: "Sauvignon 125/175ml £6.50/£7.50 2018/19 Rioja 175ml £8.50",
+        drinks: [
+          { drink: "Sauvignon", size: "unstated", sizeDetail: "125ml", priceGbp: 6.5 },
+          { drink: "Sauvignon", size: "unstated", sizeDetail: "175ml", priceGbp: 7.5 },
+          { drink: "2018/19 Rioja", size: "unstated", sizeDetail: "175ml", priceGbp: 8.5 },
+        ],
+      },
     ];
     for (const row of rows) {
       const facts = factsFromPage(row.text, pageFact);
