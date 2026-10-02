@@ -592,16 +592,20 @@ function ownPrice(line: string, verbatim: string, at: number): { text: string; a
   const after = line.slice(at + verbatim.length);
   const tail = measureTail(after);
   const pair = tail ? "" : (/^\s*[|/]\s*£\s?\d{1,2}(?:\.\d{2})?\b/.exec(after)?.[0] ?? "");
-  const prior = [...line.slice(0, at).matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
-  let start = prior ? (prior.index ?? 0) + prior[0].length : 0;
-  if (prior) start += measureTail(line.slice(start)).length;
-  const lead = /^\s*(?:[.;|,:-]\s*)+/.exec(line.slice(start, at));
-  if (lead) start += lead[0].length;
-  return {
-    label,
-    text: `${line.slice(start, at)}${verbatim}${tail || pair}`,
-    at: at - start,
-  };
+  const prefix = label ? `${label} ` : "";
+  return { label, text: `${prefix}${verbatim}${tail || pair}`, at: prefix.length };
+}
+
+function pairedPint(after: string): number | null {
+  const match = /^\s*[|/]\s*£\s?(\d{1,2}(?:\.\d{2})?)\b/.exec(after);
+  return match ? Number(match[1]) : null;
+}
+
+function foodWordBeforeFigure(line: string, at: number, verbatim: string): boolean {
+  const through = line.slice(0, at + verbatim.length);
+  const raw = findUkPriceCandidates(through).at(-1);
+  if (!raw) return false;
+  return decideKeylessUkPriceCandidate(through, raw).drop === "food-word-nearby";
 }
 
 function drinkFromDrop(
@@ -652,6 +656,7 @@ function recordPriceLine(
     if (!sized && !pairedHalf) continue;
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
     if (!sized && outcome.drop !== "half-measure-not-a-pint") continue;
+    if (outcome.drop === "half-measure-not-a-pint" && foodWordBeforeFigure(line, raw.at, raw.verbatim)) continue;
     const row = outcome.kept
       ? listedDrink(
           outcome.kept.drinkLabel || own.label,
@@ -664,6 +669,19 @@ function recordPriceLine(
         )
       : drinkFromDrop(own.text, own.label, raw.priceGbp, outcome.drop, fact);
     rememberDrink(drinks, seenDrinks, row);
+    if (row && outcome.drop === "half-measure-not-a-pint") {
+      const pintGbp = pairedPint(line.slice(raw.at + raw.verbatim.length));
+      if (pintGbp !== null) {
+        rememberDrink(drinks, seenDrinks, listedDrink(
+          row.drink,
+          `${row.drink} pint`,
+          pintGbp,
+          fact.sourceUrl,
+          fact.seenOn,
+          { size: "pint", sizeDetail: "pint" },
+        ));
+      }
+    }
   }
 }
 
@@ -1052,6 +1070,7 @@ export async function runNightlyPass(input: {
     const urls = candidateUrls.filter((url) => permitted.has(url));
     const pages: Array<{ url: string; title?: string; text: string; boundSnippet?: boolean }> = [];
     let useSnippets = true;
+    let extractRead = false;
     if (urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
       const extracted = await takePayload(ledger, EXTRACT_CREDIT_COST, () =>
         input.fetchImpl({ kind: "extract", venueId: venue.id, urls }),
@@ -1064,6 +1083,7 @@ export async function runNightlyPass(input: {
       if (!responseFailed(extracted)) {
         useSnippets = false;
         const extractedPages = pagesFromPayload(extracted);
+        extractRead = extractedPages.length > 0;
         for (const url of urls) {
           const extractedPage = extractedPages.find((page) => sameListedUrl(page.url, url));
           const hit = hits.find((row) => sameListedUrl(row.url, url));
@@ -1086,7 +1106,8 @@ export async function runNightlyPass(input: {
       : [...new Set(hits.filter((hit) => isOperatorHost(hit.url)).map((hit) => hit.url))];
     const evidence = evidenceFor(venue, today, website, pages, candidates);
     queue = mergeQueue(queue, [evidence]);
-    if (evidence.website || evidence.excerpts.length > 0 || evidence.drinks.length > 0) {
+    const pageWasRead = urls.length === 0 || extractRead;
+    if (pageWasRead && (evidence.website || evidence.excerpts.length > 0 || evidence.drinks.length > 0)) {
       cursor = advanceCursor(cursor, [venue.id], today);
     }
     if (input.persist) await input.persist({ queue, cursor });
