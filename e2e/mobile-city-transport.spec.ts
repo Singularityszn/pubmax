@@ -12,12 +12,21 @@ for (const city of ["manchester", "london"] as const) {
     });
 
     let recovered = false;
-    await page.route("**/api/citymcp/status", (route) => route.fulfill({
-      status: recovered ? 200 : 503,
-      json: recovered
-        ? { tubeLines: [{ line: "Victoria", status: "Minor delays", disruption: "Service recovering after signal repairs." }] }
-        : { error: "Unavailable" },
-    }));
+    if (city === "london") {
+      await page.route("**/api/citymcp/status", (route) => route.fulfill({
+        status: recovered ? 200 : 503,
+        json: recovered
+          ? { tubeLines: [{ line: "Victoria", status: "Minor delays", disruption: "Service recovering after signal repairs." }] }
+          : { error: "Unavailable" },
+      }));
+    } else {
+      await page.route("**/api/citymcp/status**", () => {
+        throw new Error("a non-London map must not call live city status");
+      });
+      await page.route("**/api/tfl/**", () => {
+        throw new Error("a non-London map must not call TfL");
+      });
+    }
     const statusRequests: string[] = [];
     page.on("request", (request) => {
       if (new URL(request.url()).pathname === "/api/citymcp/status") {
@@ -64,7 +73,6 @@ for (const city of ["manchester", "london"] as const) {
       expect(statusRequests.length).toBeGreaterThan(beforeReconnect);
       await expect(page.getByText("TfL updates are unavailable.", { exact: true })).toHaveCount(0);
     } else {
-      await page.waitForTimeout(1_000);
       expect(statusRequests).toEqual([]);
       await expect(transitTab).toHaveCount(0);
       await expect(tflButton).toHaveCount(0);

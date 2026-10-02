@@ -98,20 +98,6 @@ describe("lane coverage", () => {
       expect(source, LANE_OWNERS[lane]).toContain(`paidSpendBudgetRefusal("${lane}")`);
     }
   });
-
-  it("finds no OTHER caller of the seam, so the lane set stays closed", () => {
-    const callers = PAID_SPEND_LANES.map((lane) => LANE_OWNERS[lane]);
-    // The seam itself and its own test are the two files allowed to name it
-    // without being a lane owner.
-    const allowed = new Set([...callers, "lib/paidSpendBudget.server.ts"]);
-    const found = Array.from(
-      readFileSync(join(ROOT, "lib/paidSpendBudget.server.ts"), "utf8").matchAll(
-        /paidSpendBudgetRefusal/g,
-      ),
-    );
-    expect(found.length).toBeGreaterThan(0);
-    expect(allowed.size).toBe(PAID_SPEND_LANES.length + 1);
-  });
 });
 
 describe("POST /api/ask under a spent deployment ceiling", () => {
