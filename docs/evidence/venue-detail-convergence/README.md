@@ -23,7 +23,7 @@ Unchanged. Both routes still say there are no photos on this wall yet. The wall 
 
 ## What did change
 
-The pages no longer keep their own copy of the venue read. A missing id still renders the existing not-found card. An unavailable read still renders the existing read-unavailable surface, and that failure is not cached.
+The pages no longer keep their own copy of the venue read. A missing id still renders the existing not-found card. An unavailable read still renders the existing read-unavailable surface. The Bar Tab page calls `headers()` on that path so the unavailable document is not stored in the route cache; the share card yields its generic poster instead.
 
 A famous-venue seed the old dataset index did not hold now opens. Before the switch, `bar-american-bar-savoy` rendered "This pub isn't on the tab" and "This pub isn't in the ledger". After it, both pages render American Bar at The Savoy, Strand, London WC2R 0EZ, Westminster. That difference is in `__tests__/venuePageReadUnavailable.test.tsx`. These six shots are the pub that already had a page.
 

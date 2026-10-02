@@ -3,8 +3,8 @@
  *
  * It is not the not-found card: that one says the pub may have moved or the
  * link is wrong, which over a pub the dataset holds is the wrong sentence and
- * the wrong door. Both pages read the bundled dataset three ways (`found`,
- * `absent`, `unavailable`) precisely so those two are worded apart, and they
+ * the wrong door. Both pages call `lookupVenueDetail` three ways (`found`,
+ * `missing`, `unavailable`) precisely so those two are worded apart, and they
  * share this one surface rather than each deciding again (astra-review P1-2).
  *
  * IT CLAIMS NOTHING ABOUT THE PUB. A read we could not run tells us nothing in
