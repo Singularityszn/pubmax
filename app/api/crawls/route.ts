@@ -26,7 +26,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
-import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { lookupCanonicalVenue, lookupRetiredIndexedVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 assertServerEnv();
@@ -111,9 +111,16 @@ export async function POST(request: Request): Promise<Response> {
   if (venueLookups.some((lookup) => lookup.status === "unavailable")) {
     return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
   }
+  // A stop naming a pub that left the map keeps its place in a saved crawl.
+  const retired = await Promise.all(
+    venueLookups.map((lookup) =>
+      lookup.status === "unknown" ? lookupRetiredIndexedVenue(lookup.canonicalId) : null,
+    ),
+  );
   if (
     venueLookups.some(
-      (lookup) => lookup.status !== "found" || !isPubVenueKind(lookup.venue.kind),
+      (lookup, index) =>
+        !retired[index] && (lookup.status !== "found" || !isPubVenueKind(lookup.venue.kind)),
     )
   ) {
     return publicApiError("Every crawl stop must be a pub from the map.", "INVALID_REQUEST", 400);

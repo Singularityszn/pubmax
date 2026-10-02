@@ -42,7 +42,7 @@ function RetiredStopItem({ stop, number }: { stop: RetiredRouteStop; number: num
 }
 
 export default function RouteList({
-  route,
+  route: stops,
   retiredStops = [],
   activeVenueId,
   venueSignals,
@@ -51,6 +51,9 @@ export default function RouteList({
   journeyByToIndex,
   onSelectVenue,
 }: RouteListProps) {
+  // The walked stops. A stop naming a pub that left the map is named in its
+  // place from `retiredStops`, with no directions and no leg.
+  const route = stops.filter((venue) => !venue.retired);
   // A place line per stop, widened only where two stops share a name (see
   // lib/routeStops.ts). London has several Queens Heads.
   const placeLabels = routeStopPlaceLabels(

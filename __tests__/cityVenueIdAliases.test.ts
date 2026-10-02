@@ -4,7 +4,9 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { POST as POST_CRAWL } from "@/app/api/crawls/route";
 import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
+import { __resetCrawlStories, getCrawlStoryBySlug } from "@/lib/crawlStoryStore";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
@@ -266,6 +268,29 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
     expect(detail.status === "found" ? [detail.venue.name, detail.venue.retired] : null).toEqual([
       "Henman & Cooper",
       true,
+    ]);
+  });
+
+  it("keeps a retired stop in its place when a crawl naming it is saved", async () => {
+    __resetCrawlStories();
+    const stops = [HARE_AND_HOUNDS.current, HENMAN_AND_COOPER, CHEMIC_TAVERN.current];
+    const saved = await POST_CRAWL(
+      new Request("http://localhost/api/crawls", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: "Brum and back",
+          stops: stops.map((venueId) => ({ venueId, priceGbp: null })),
+        }),
+      }),
+    );
+    expect(saved.status).toBe(201);
+    const { slug } = (await saved.json()) as { slug: string };
+    const story = await getCrawlStoryBySlug(slug);
+    expect(story?.stops.map((stop) => [stop.venueId, stop.venueName])).toEqual([
+      [HARE_AND_HOUNDS.current, "Hare & Hounds"],
+      [HENMAN_AND_COOPER, "Henman & Cooper (may have closed)"],
+      [CHEMIC_TAVERN.current, "The Chemic Tavern"],
     ]);
   });
 

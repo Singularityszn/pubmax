@@ -41,6 +41,8 @@ export default function RouteMetrics({
   routeWaterCount,
   routeWriterCount,
 }: RouteMetricsProps) {
+  const retiredStops = legSummary.retiredStops ?? 0;
+  const walkedStops = routeLength - retiredStops;
   return (
     <div className="routeMetrics">
       <div>
@@ -79,8 +81,11 @@ export default function RouteMetrics({
       ) : null}
       <div>
         <Trophy size={17} />
-        <span>{routeLength}</span>
-        <small>{routeLength === 1 ? stopNoun : `${stopNoun}s`}</small>
+        <span>{walkedStops}</span>
+        <small>
+          {walkedStops === 1 ? stopNoun : `${stopNoun}s`}
+          {retiredStops > 0 ? ` + ${retiredStops} may have closed` : ""}
+        </small>
       </div>
       <div>
         <Landmark size={17} />
