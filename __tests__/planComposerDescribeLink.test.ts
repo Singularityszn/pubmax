@@ -860,6 +860,264 @@ describe("selected route stop-count edits", () => {
     });
     expect(server.creates).toHaveLength(0);
   });
+
+  async function generateOrdinaryRoute(query: string) {
+    await mountComposer();
+    await act(async () => { typeInto("#plan-describe-first-query", query); });
+    await act(async () => { clickButton("Sort it"); });
+    await settleComposerEffects();
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+  }
+
+  async function setOrdinaryStopCount(value: "2" | "3") {
+    const count = document.querySelector<HTMLSelectElement>("#plan-context-stops");
+    if (!count) throw new Error("real Stops control did not render");
+    await act(async () => {
+      count.value = value;
+      count.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  async function recoverOrdinaryPreview() {
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before recovery");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+  }
+
+  it("recovers an ordinary explicit three-stop choice over the earlier two-pub query", async () => {
+    const server = installCountRecheckServer();
+    const twoPubAsk = "Two pubs in Clapham";
+    await generateOrdinaryRoute(twoPubAsk);
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    await setOrdinaryStopCount("3");
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { query: twoPubAsk, context: { stopCount: 3 } }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[1]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[1]?.body.intake).not.toHaveProperty("stopCount");
+    expect(readPlanIntakeDraft(localStorage)?.answers.stopCount).toBe(3);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null"))
+      .not.toHaveProperty("hasSelectedRouteEdits");
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(currentLockControl().disabled).toBe(false);
+
+    await recoverOrdinaryPreview();
+    expect(server.attempts).toHaveLength(2);
+    expect(conciergeFieldValue()).toBe(twoPubAsk);
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(currentLockControl().disabled).toBe(false);
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: twoPubAsk, context: { stopCount: 3, groupSize: 8 } }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[2]?.body).not.toHaveProperty("routeVenueIds");
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-3", createOperationKey: "count-fixture-operation-3", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("recovers an ordinary explicit nondefault two-stop choice without selected IDs", async () => {
+    const server = installCountRecheckServer();
+    const threePubAsk = "Three pubs in Clapham";
+    await generateOrdinaryRoute(threePubAsk);
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({ effectiveStopCount: 3, status: 200 });
+    await setOrdinaryStopCount("2");
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(server.attempts[1]?.body).not.toHaveProperty("routeVenueIds");
+    expect(readPlanIntakeDraft(localStorage)?.answers.stopCount).toBe(2);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null"))
+      .not.toHaveProperty("hasSelectedRouteEdits");
+    await recoverOrdinaryPreview();
+    expect(server.attempts).toHaveLength(2);
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: threePubAsk, context: { stopCount: 2, groupSize: 8 }, intake: { stopCount: 2 } },
+      effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[2]?.body).not.toHaveProperty("routeVenueIds");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("keeps legacy query count authority when a three-pub preview has no stored count answer", async () => {
+    const server = installCountRecheckServer();
+    // Existing public legacy draft writers create a preview, not a count
+    // correction, a selected-edit hint or an inferred Night Context.
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()));
+    writePlanDraftEnvelope({
+      title: "Legacy preview night", creatorName: "QA Loopback", startTime: "2030-07-24T20:00",
+      conciergeQuery: "Two pubs in Clapham",
+      stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId]! })),
+    }, "manual", sessionStorage);
+    await mountComposer();
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(readPlanIntakeDraft(localStorage)?.answers).not.toHaveProperty("stopCount");
+    expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+    await act(async () => { clickButton("Make a plan"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({
+      body: { query: "Two pubs in Clapham" }, effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[0]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[0]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[0]?.body.intake).not.toHaveProperty("stopCount");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("does not treat a legacy context's normalized three-stop default as a saved count correction", async () => {
+    const server = installCountRecheckServer();
+    const legacyContext: Record<string, unknown> = { ...inferNightContext("Two pubs in Clapham").context };
+    delete legacyContext.stopCount;
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()));
+    writePlanDraftEnvelope({
+      title: "Legacy context night", creatorName: "QA Loopback", startTime: "2030-07-24T20:00",
+      conciergeQuery: "Two pubs in Clapham",
+      stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId]! })),
+    }, "manual", sessionStorage);
+    // Old public V1 payload has no count answer or selection hint. Restore
+    // through the real reader; do not pass a fabricated React context.
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+      stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId], alternatives: [] })),
+      nightContext: legacyContext, routeRevision: null, routeStale: true,
+      groundingProof: null, createOperationKey: null, planAnchor: null,
+    }));
+    expect(legacyContext).not.toHaveProperty("stopCount");
+    await mountComposer();
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(readPlanIntakeDraft(localStorage)?.answers).not.toHaveProperty("stopCount");
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({
+      body: { query: "Two pubs in Clapham", context: { groupSize: 8 } }, effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[0]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[0]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[0]?.body.intake).not.toHaveProperty("stopCount");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  async function exerciseFreshPalCountHandoff(clientNavigation: boolean) {
+    const server = installCountRecheckServer();
+    const twoPubAsk = "Two pubs in Clapham";
+    const threePubAsk = "Three pubs in Clapham";
+    await generateOrdinaryRoute(twoPubAsk);
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({
+      body: { query: twoPubAsk }, effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[0]?.body).not.toHaveProperty("routeVenueIds");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(readPlanIntakeDraft(localStorage)?.answers.stopCount).toBe(2);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null"))
+      .not.toHaveProperty("hasSelectedRouteEdits");
+
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before the fresh Pal handoff");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    const freshSearch = `?query=${encodeURIComponent(threePubAsk)}`;
+    // Use the existing router-commit ordering double only for the client
+    // navigation sibling. Both read the actual saved route and intake again.
+    if (clientNavigation) stageClientNavigation("", freshSearch);
+    else setSearch(freshSearch);
+    await mountComposer();
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { query: threePubAsk }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[1]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[1]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[1]?.body.intake).not.toHaveProperty("stopCount");
+    expect(conciergeFieldValue()).toBe(threePubAsk);
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-2", createOperationKey: "count-fixture-operation-2", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+
+    // A count-free FIRST handoff request alone is not enough: old explicit
+    // count state must not reappear on a later ordinary context recheck.
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: threePubAsk, context: { groupSize: 8 } }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[2]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[2]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[2]?.body.intake).not.toHaveProperty("stopCount");
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  }
+
+  it("lets a fresh Pal URL ask replace the saved ordinary two-stop count on mount and later recheck", async () => {
+    await exerciseFreshPalCountHandoff(false);
+  });
+
+  it("lets a fresh Pal client navigation replace the saved ordinary two-stop count after the old route render", async () => {
+    await exerciseFreshPalCountHandoff(true);
+  });
+
 });
 
 afterEach(async () => {
