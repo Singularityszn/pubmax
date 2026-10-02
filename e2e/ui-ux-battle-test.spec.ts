@@ -438,6 +438,10 @@ test.describe("UI UX battle-test guardrails", () => {
       localStorage.removeItem("pubmaxx:analytics-consent:v1");
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      // The card waits until the product has answered
+      // (lib/consentAnswerMoment.ts). This case measures the Privacy link,
+      // so the answer that ends the wait is seeded.
+      sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
     });
     await page.goto("/today");
     const privacy = page.locator(".analyticsConsentPrompt a");

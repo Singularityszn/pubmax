@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -46,6 +46,7 @@ export type PlanCrawlRouteMapCanvasProps = {
   routeLine: GeoJSON.FeatureCollection;
   routeStops: GeoJSON.FeatureCollection;
   lineCoords: LngLat[];
+  attributionSlotRef?: RefObject<HTMLElement | null>;
 };
 
 export default function PlanCrawlRouteMapCanvas({
@@ -53,10 +54,11 @@ export default function PlanCrawlRouteMapCanvas({
   routeLine,
   routeStops,
   lineCoords,
+  attributionSlotRef,
 }: PlanCrawlRouteMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const routeRef = useRef<PlanCrawlRouteMapCanvasProps>({ stopCoords, routeLine, routeStops, lineCoords });
+  const routeRef = useRef({ stopCoords, routeLine, routeStops, lineCoords });
   const themeRef = useRef<"light" | "dark">(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
@@ -77,19 +79,30 @@ export default function PlanCrawlRouteMapCanvas({
       interactive: false,
     });
     mapRef.current = map;
+    const attributionSlot = attributionSlotRef?.current ?? null;
     // MapLibre opens the compact attribution expanded and only collapses it on
     // a drag, which this static preview never gets, so the panel would sit on
-    // the last stop. Start it at the (i) button. Not a synthetic click: the
-    // preview sits inside the card's clickable figure and the click would
-    // navigate to the map.
-    const attribution = container.querySelector<HTMLElement>(".maplibregl-ctrl-attrib");
-    attribution?.classList.remove("maplibregl-compact-show");
-    attribution?.removeAttribute("open");
+    // the last stop. Start it at the (i) button. The button then leaves the
+    // aria-hidden canvas so it is not a hidden control inside the card link.
+    const parkAttribution = () => {
+      const live = container.querySelector<HTMLElement>(".maplibregl-ctrl-attrib");
+      live?.classList.remove("maplibregl-compact-show");
+      live?.removeAttribute("open");
+      const liveCorner = container.querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right");
+      if (liveCorner && attributionSlot) attributionSlot.replaceChildren(liveCorner);
+      for (const node of container.querySelectorAll<HTMLElement>(
+        "button, a, input, select, textarea, canvas, [tabindex]",
+      )) {
+        node.tabIndex = -1;
+      }
+    };
+    parkAttribution();
 
     const paintRoute = () => {
       const route = routeRef.current;
       syncPlanRoutePreviewScene(map, route.routeLine, route.routeStops);
       fitPreviewRoute(map, route.stopCoords, route.lineCoords);
+      parkAttribution();
     };
 
     map.on("load", paintRoute);
@@ -110,10 +123,12 @@ export default function PlanCrawlRouteMapCanvas({
 
     return () => {
       themeObserver.disconnect();
+      const parked = attributionSlot?.querySelector(".maplibregl-ctrl-bottom-right");
+      if (parked) container.appendChild(parked);
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [attributionSlotRef]);
 
   useEffect(() => {
     routeRef.current = { stopCoords, routeLine, routeStops, lineCoords };

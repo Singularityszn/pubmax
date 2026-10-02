@@ -59,8 +59,9 @@ test.describe("locked plan route map", () => {
     await expect(mapPreview).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-canvas")).toBeVisible();
     // The credit starts at its (i) button: an open panel covers the last stop.
-    await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-button")).toBeVisible();
-    await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-inner")).toBeHidden();
+    // The credit sits beside the link, not inside the aria-hidden canvas.
+    await expect(page.locator(".planRouteMiniMap__attrib .maplibregl-ctrl-attrib-button")).toBeVisible();
+    await expect(page.locator(".planRouteMiniMap__attrib .maplibregl-ctrl-attrib-inner")).toBeHidden();
 
     const mapCard = page.locator(".planRouteMiniMap--clickable");
     await expect(mapCard).toBeVisible();

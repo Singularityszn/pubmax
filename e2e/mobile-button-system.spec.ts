@@ -388,6 +388,14 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await setTheme(page, "light");
+  // The closure banner waits while the first-visit ask or the city nudge is
+  // up (components/map/mapBannerStaging.css). Those stay mounted as
+  // display:none, so a width read on the hidden node is 0. This case is the
+  // painted lane, which is the banner after those asks are answered.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+  });
   await page.goto("/map");
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   // "Show all" left the map edge for the Layers popover (7 Sep 2026, B9), so
