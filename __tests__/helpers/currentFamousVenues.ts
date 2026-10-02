@@ -8,7 +8,7 @@ const FAMOUS_DIR = path.join(ROOT, "data", "famous_venues");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 
 /** Two weeks before the seed window closes, the freshness gate should already be stale. */
-export const FAMOUS_VENUE_LEAD_MS = 14 * 24 * 60 * 60 * 1000;
+const FAMOUS_VENUE_LEAD_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
  * The clock the committed slim was built with. Counts in this suite follow it,

@@ -432,7 +432,7 @@ describe("venues_slim.json", () => {
     const entry = registry.datasets.find((dataset) => dataset.id === "famous_venues");
     const generatedAt = slimPayloadGeneratedAt();
     expect(entry).toMatchObject({
-      artifact: null,
+      artifact: "public/data/venues_slim.json",
       class: "episodic",
       stamp: { kind: "literal", value: generatedAt.toISOString() },
       stalenessBudgetHours: famousVenueLeadBudgetHours(generatedAt),
