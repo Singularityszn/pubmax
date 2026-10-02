@@ -114,6 +114,27 @@ function generatedVenue(
   };
 }
 
+function prepareWineValueSearch(now: number) {
+  loadConciergeVenuesMock.mockResolvedValueOnce([
+    generatedVenue("v1", { cheapestPrice: 4 }),
+    generatedVenue("v2", { cheapestPrice: 6 }),
+    generatedVenue("v3", { cheapestPrice: 3 }),
+  ]);
+  categoryIndexMock.mockResolvedValueOnce({
+    prices: [
+      { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
+      { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
+      { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
+    ],
+    truncated: false,
+    degraded: false,
+  });
+  return preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+    method: "POST",
+    body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+  }), now);
+}
+
 describe("POST /api/plans/generate", () => {
   beforeEach(() => {
     isLimitedMock.mockClear();
@@ -198,38 +219,45 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("joins trusted wine prices into value ranking without using pint prices", async () => {
-    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
-    try {
-      loadConciergeVenuesMock.mockResolvedValueOnce([
-        generatedVenue("v1", { cheapestPrice: 4 }),
-        generatedVenue("v2", { cheapestPrice: 6 }),
-        generatedVenue("v3", { cheapestPrice: 3 }),
-      ]);
-      categoryIndexMock.mockResolvedValueOnce({
-        prices: [
-          { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: PLAN_GENERATION_TEST_NOW, source: "community", corroborations: 2 },
-          { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: PLAN_GENERATION_TEST_NOW, source: "community", corroborations: 2 },
-          { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: PLAN_GENERATION_TEST_NOW, source: "community", corroborations: 1 },
-        ],
-        truncated: false,
-        degraded: false,
-      });
+    // The dataset stamp is 13:00 London, so the distance weight is two and
+    // the cheaper corroborated wine leads.
+    const result = await prepareWineValueSearch(PLAN_GENERATION_TEST_NOW);
 
-      const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-        method: "POST",
-        body: JSON.stringify({ query: "cheap wine in Clapham for 2 after work" }),
-      }));
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context.daypart).toBe("daytime");
+    expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
+    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+  });
 
-      expect("prepared" in result).toBe(true);
-      if (!("prepared" in result)) return;
-      expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
-      expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
-      expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
-      expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
-      expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
-    } finally {
-      clock.mockRestore();
-    }
+  it("ranks the nearer dearer wine first after 23:00 London", async () => {
+    // 23:30 London is get_home. The distance weight is three, so v1's shorter
+    // walk outranks v2's cheaper glass. v3 still has only one corroboration.
+    const lateNight = Date.parse("2026-07-16T22:30:00.000Z");
+    const result = await prepareWineValueSearch(lateNight);
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context.daypart).toBe("get_home");
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v1", "v2", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £9.00");
+    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+  });
+
+  it("ranks the nearer dearer wine first in the London small hours", async () => {
+    // 02:30 London is still last night's late_night, with the same distance weight.
+    const smallHours = Date.parse("2026-07-17T01:30:00.000Z");
+    const result = await prepareWineValueSearch(smallHours);
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context.daypart).toBe("late_night");
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v1", "v2", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £9.00");
   });
 
   it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {

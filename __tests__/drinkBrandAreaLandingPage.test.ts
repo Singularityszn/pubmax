@@ -104,7 +104,8 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(html).toContain(`<h1>Cheapest ${landing!.brandLabel} pints in ${landing!.areaName}</h1>`);
     expect(html).toContain(`From £${firstRow.priceGbp.toFixed(2)}`);
     expect(html).toContain(formatPricedLandingPublisherStatus(firstRow.publisher));
-    expect(html).toContain(`Collected ${formatObservedDate(new Date(landing!.collectedAt))}.`);
+    expect(landing!.collectedAt).not.toBeNull();
+    expect(html).toContain(`Collected ${formatObservedDate(new Date(landing!.collectedAt!))}.`);
     expect(html.match(new RegExp(`href="${escapeRegExp(htmlHref(mapHref))}"`, "g"))).toHaveLength(1);
     expect(html).not.toContain("q=Clapham");
     expect(html).not.toContain("drink=beer");

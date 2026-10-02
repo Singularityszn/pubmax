@@ -84,14 +84,21 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 // requiresSupabaseStore() flag below — so no-op it here for a deterministic import
 // in every environment.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
-vi.mock("@/lib/venueAliases", () => ({
-  resolveCanonicalVenueId: async (id: string) =>
-    id === "legacy-pub"
-      ? "canonical-pub"
-      : id === "legacy-bar"
-        ? "bar-test"
-        : id,
-}));
+vi.mock("@/lib/venueAliases", () => {
+  const aliases: Record<string, string> = { "legacy-pub": "canonical-pub", "legacy-bar": "bar-test" };
+  const canonical = (id: string) => aliases[id] ?? id;
+  return {
+    resolveCanonicalVenueId: async (id: string) => canonical(id),
+    loadVenueAliasResolver: async () => ({
+      canonical,
+      storedIds: (id: string) => [
+        canonical(id),
+        ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
+      ],
+      retired: () => null,
+    }),
+  };
+});
 vi.mock("@/lib/venueIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
   const venue = (id: string): import("@/lib/venueIndex").VenueRef =>

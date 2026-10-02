@@ -32,6 +32,10 @@ import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
+  ELEVENLABS_LIBSAMPLERATE_PATH,
+  ELEVENLABS_WORKLET_PATHS,
+} from "@/lib/elevenlabsWorkletAssets";
+import {
   createPubPalVoiceStartController,
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
@@ -40,6 +44,7 @@ import {
 
 type VoiceTokenResponse = {
   signedUrl?: string;
+  conversationId?: string;
   overrides?: PalVoiceOverrides;
   maxSessionSeconds?: number;
   error?: string;
@@ -60,7 +65,7 @@ type VoiceSessionAttempt = {
 
 async function syncVoiceToolTurn(input: {
   conversationId: string;
-  threadTurn?: { role: "user" | "assistant"; content: string };
+  threadTurn?: { role: "user"; content: string };
 }): Promise<void> {
   try {
     const response = await authedActionFetch("/api/pub-pal/tool-turn", {
@@ -222,26 +227,25 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
+        if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
+          workletPaths: ELEVENLABS_WORKLET_PATHS,
+          libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onMessage: ({ role, message }) => {
             const conversationId = conversationIdRef.current;
             const content = message.trim();
-            if (!conversationId || !content) return;
-            const threadRole =
-              role === "user" ? "user" : role === "agent" ? "assistant" : null;
-            if (!threadRole) return;
+            if (!conversationId || !content || role !== "user") return;
             void syncVoiceToolTurn({
               conversationId,
-              threadTurn: { role: threadRole, content },
+              threadTurn: { role: "user", content },
             });
           },
           overrides: overrides
             ? {
                 agent: {
-                  prompt: { prompt: overrides.systemPrompt },
                   firstMessage: overrides.firstMessage,
                 },
                 ...(overrides.voiceId
@@ -249,12 +253,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
                   : {}),
               }
             : undefined,
-          onConnect: (meta) => {
-            const conversationId = meta?.conversationId;
-            if (conversationId) {
-              conversationIdRef.current = conversationId;
-              void syncVoiceToolTurn({ conversationId });
-            }
+          onConnect: () => {
+            const boundId = conversationIdRef.current;
+            if (boundId) void syncVoiceToolTurn({ conversationId: boundId });
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);

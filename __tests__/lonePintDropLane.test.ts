@@ -448,6 +448,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
           pint_name: "Pravha",
           price_gbp: 6.2,
           pub_url: "https://www.pint-prices.com/pub/the-sir-christopher-hatton",
+          scraped_at_values: "2026-09-04T11:15:56Z",
         },
       ] as Venue["prices"],
     });
@@ -455,11 +456,15 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     expect(chip).toEqual({
       figure: "£6.20",
       priceGbp: 6.2,
-      caption: baselineTrustCaption({ standing: "listed", publisher: PUBLISHER }),
+      caption: baselineTrustCaption({
+        standing: "listed",
+        publisher: PUBLISHER,
+        observedOn: "2026-09-04",
+      }),
       observed: true,
       trust: null,
     });
-    expect(chip?.caption).toMatch(/^Listed · collected /);
+    expect(chip?.caption).toBe("Listed · collected 4 Sept");
     expect(chip?.caption).not.toMatch(/baseline/i);
   });
 

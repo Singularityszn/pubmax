@@ -17,7 +17,7 @@ These were already in the tree. They are not part of the five packs below.
 | `maplibre-v6-migration` | MapLibre GL JS v5 to v6 migration for this app's map. Same upstream repo. |
 | `continual-learning` | Approval-gated mining of this workspace's transcripts into `AGENTS.md`. It is not in `~/.agents/skills`. |
 
-The MapLibre and Capacitor skills are the set vendored for this repo's map and native shell (pull request 1678).
+The MapLibre and Capacitor rows above were vendored for the map and native shell in pull request 1678. The 2 Oct 2026 refresh and the store-path skills are recorded below.
 
 ## Packs
 
@@ -29,6 +29,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 
 - Repo: https://github.com/emilkowalski/skills
 - Commit: `d16ebe60d09a5ba2afcb7054ede9d0a10c9f6128` (`main`)
+- Checked 2 Oct 2026. This is still the upstream tip.
 
 `animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `emil-prototype`, `review-animations`, `write-swift`.
 
@@ -38,6 +39,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 
 - Repo: https://github.com/Leonxlnx/taste-skill
 - Commit: `ce26fc25c0e5e8cab638f883de62d9a86ee5e45b` (`main`)
+- Checked 2 Oct 2026. This is still the upstream tip.
 
 Directory name, then frontmatter `name` when it differs:
 
@@ -61,6 +63,7 @@ Directory name, then frontmatter `name` when it differs:
 
 - Repo: https://github.com/jakubkrehel/skills
 - Commit: `267330e1adfc66a718fb65fa6918c1f06d0a689e` (`main`)
+- Checked 2 Oct 2026. This is still the upstream tip.
 
 `better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`.
 
@@ -68,6 +71,7 @@ Directory name, then frontmatter `name` when it differs:
 
 - Repo: https://github.com/gnurio/refactoring-ui-plugin
 - Commit: `00781eab1dde7fdb720d63f8d6c8148bf5835a31` (`main`)
+- Checked 2 Oct 2026. This is still the upstream tip.
 
 `01-establish-visual-hierarchy`, `02-apply-typography-scale`, `03-build-color-palette`, `04-apply-consistent-spacing`, `05-design-button-hierarchy`, `06-eliminate-visual-clutter`, `07-design-empty-states`, `08-use-shadows-appropriately`, `09-manage-color-contrast`, `10-group-related-elements`, `meta-refactor-ui`.
 
@@ -76,8 +80,94 @@ The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. 
 ### shadcn-labs/skills
 
 - Repo: https://github.com/shadcn-labs/skills
-- Commit: `cb4cd2b719e9539720f3cd07cf297999e58b5eff` (`main`)
+- Commit: `5316082202ab6a7e0779b16b5c58b846c006a460` (`main`), refreshed 2 Oct 2026 from `cb4cd2b719e9539720f3cd07cf297999e58b5eff`
 
 Kept from that pack: `icon-set-audit`, `icon-set-extend`, `icon-set-generator`, `launch-shadcn-registry`, `tailwind-to-stylex`.
 
-Dropped, because they sit outside that UI scope or duplicate the machine-wide set: `docs-i18n-zh`, `mastra-file-agents`, `skill-creator`, `unslop`, `writing-great-skills`.
+Chinese companions for `launch-shadcn-registry` and `tailwind-to-stylex` are not kept. The English skills stay.
+
+Dropped, because they sit outside that UI scope or duplicate the machine-wide set: `docs-i18n-zh`, `mastra-file-agents`, `skill-creator`, `unslop`, `writing-great-skills`. The 2 Oct 2026 upstream also added Chinese companions for `mastra-file-agents`. That skill stays dropped.
+
+## MapLibre and Capacitor refreshes
+
+These were already in the tree. Refreshed 2 Oct 2026 to the upstream tips below. `debugging-capacitor` keeps three local guards the upstream file does not: debug-only WebView and cleartext flags, ATS exceptions never committed, and no `rm -rf node_modules` in a shared worktree unless someone asks.
+
+### maplibre/maplibre-agent-skills
+
+- Repo: https://github.com/maplibre/maplibre-agent-skills
+- Commit: `bc6a884a6b6b08936cf917b26092463e5d22e180` (`main`)
+
+Refreshed: `maplibre-source-wiring`, `maplibre-terrain-rendering`, `maplibre-tile-sources`, `maplibre-v6-migration`.
+
+Added, because the refreshed source-wiring skill points at them and this app styles a MapLibre map: `maplibre-cartography`, `maplibre-fonts-glyphs`.
+
+Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `maplibre-mapbox-migration`, `maplibre-running-evals`, `maplibre-skill-authoring`. Vendored copies do not link to `maplibre-pmtiles-patterns` or `maplibre-mapbox-migration`. Those relative links are removed. PMTiles setup stays on the Protomaps docs already cited in `maplibre-tile-sources`.
+
+### Cap-go/capgo-skills
+
+- Repo: https://github.com/Cap-go/capgo-skills
+- Commit: `c0afb73c859a85c35c8d03d3dc9afdee5fe78d30` (`main`)
+
+Refreshed: `debugging-capacitor`.
+
+## Stack skills added 2 Oct 2026
+
+Twenty-five skills. Official vendor repos first. Nothing here duplicates the machine-wide set (Poteto, Matt Pocock, Kun Chen, Superpowers, Addy Osmani, jev, typesafe-ai, new-feature, verification-before-completion, last30days) or a skill already in this directory.
+
+A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) ranked [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills), [supabase/agent-skills](https://github.com/supabase/agent-skills), [elevenlabs/skills](https://github.com/elevenlabs/skills), and [Cap-go/capgo-skills](https://github.com/Cap-go/capgo-skills). PostHog's Next.js skills are the official [PostHog/skills](https://github.com/PostHog/skills) tree. Supabase documents the install at [supabase.com/docs/guides/ai-tools/ai-skills](https://supabase.com/docs/guides/ai-tools/ai-skills). Vercel documents React and Next.js skills at [vercel.com/docs/agent-resources/skills](https://vercel.com/docs/agent-resources/skills).
+
+### supabase/agent-skills
+
+- Repo: https://github.com/supabase/agent-skills
+- Commit: `544bfc56c89afe2b87b20017a59b2c6e9502a1fb` (`main`)
+
+`supabase`, `supabase-postgres-best-practices`.
+
+### vercel-labs/agent-skills
+
+- Repo: https://github.com/vercel-labs/agent-skills
+- Commit: `063bee94c3f4df8453406c830b0a7df0f2860278` (`main`)
+
+`react-best-practices` (frontmatter `vercel-react-best-practices`), `composition-patterns` (`vercel-composition-patterns`), `react-view-transitions` (`vercel-react-view-transitions`), `web-design-guidelines`, `vercel-optimize`.
+
+`web-design-guidelines` tells the agent to fetch `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md` when someone asks for a review. That fetch is not an install step.
+
+`vercel-optimize` ships reviewed local scripts. They call the Vercel CLI when an agent runs the skill. They do not run on install. `collect-signals.mjs` redacts sensitive text before it prints JSON.
+
+Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`), `react-native-skills` (this app uses Capacitor), `writing-guidelines` (generic, and the machine already has writing skills), `vercel-cli-with-tokens` (token handling).
+
+### elevenlabs/skills
+
+- Repo: https://github.com/elevenlabs/skills
+- Commit: `81f1eafc65c9219ab4aa305d81ffc552a6f43f9d` (`main`)
+
+`elevenlabs-agents` is the upstream `agents` skill. The directory and the frontmatter `name` are `elevenlabs-agents` so this copy does not register as a generic agents skill. Also `text-to-speech`, `speech-to-text`, `speech-engine`.
+
+Upstream `references/installation.md` in three of these skills offered `curl … | sh` for the ElevenLabs CLI. Those blocks are removed. npm, Homebrew, and Scoop remain.
+
+Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isolator`, `setup-api-key`, `update-skills-from-changelog`.
+
+### PostHog/skills
+
+- Repo: https://github.com/PostHog/skills
+- Commit: `188417f71b1e67765ce814118bce9f79d8a1a393` (`main`)
+
+`integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
+
+The rest of that repo is other frameworks or PostHog-product operations. Those stay upstream.
+
+### Cap-go/capgo-skills (store path)
+
+Same commit as the Capacitor refresh above.
+
+`capacitor-app-store`, `capacitor-apple-review-preflight`, `capacitor-best-practices`, `capacitor-accessibility`, `capacitor-security`, `safe-area-handling`, `capacitor-testing`, `capacitor-performance`, `capacitor-deep-linking`.
+
+`capacitor-security` includes a fake `sk_live_abc123xyz` string inside a "do not hardcode keys" example. It is not a credential.
+
+Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this app is already on Capacitor 8), plugin-authoring skills, Ionic and Konsta UI skills.
+
+`capacitor-best-practices` is edited locally so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest`. Do not leave that major unless someone asks.
+
+### maplibre/maplibre-agent-skills (added)
+
+Same commit as the MapLibre refresh above. `maplibre-cartography`, `maplibre-fonts-glyphs`.

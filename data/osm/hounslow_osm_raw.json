@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:26:40Z",
+    "timestamp_osm_base": "2026-10-02T10:17:06Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -166,6 +166,7 @@
         "amenity": "pub",
         "brand": "Fuller's",
         "brand:wikidata": "Q5253950",
+        "check_date": "2026-09-30",
         "live_sport": "yes",
         "name": "The Swan Inn",
         "toilets": "yes",
@@ -240,7 +241,7 @@
         "addr:postcode": "TW2 7DT",
         "addr:street": "Kneller Road",
         "amenity": "pub",
-        "fhrs:id": "353419",
+        "fhrs:id": "1639862",
         "live_sport": "yes",
         "name": "The Duke of Cambridge",
         "source:addr": "FHRS Open Data"
@@ -386,7 +387,7 @@
         "beer_garden": "yes",
         "brand": "Fuller's",
         "brand:wikidata": "Q5253950",
-        "check_date": "2025-12-05",
+        "check_date": "2026-09-05",
         "food": "yes",
         "internet_access": "wlan",
         "level": "0",
@@ -398,16 +399,6 @@
         "smoking": "outside",
         "website": "https://www.ploughnorthfields.co.uk/",
         "wheelchair": "yes"
-      }
-    },
-    {
-      "type": "node",
-      "id": 249573138,
-      "lat": 51.4917587,
-      "lon": -0.2622862,
-      "tags": {
-        "amenity": "pub",
-        "name": "Betty"
       }
     },
     {
@@ -908,7 +899,7 @@
         "addr:postcode": "W5 5EX",
         "addr:street": "St Marys Road",
         "amenity": "pub",
-        "check_date": "2025-09-13",
+        "check_date": "2026-07-24",
         "fhrs:id": "1138237",
         "internet_access": "wlan",
         "name": "The New Inn",
@@ -986,7 +977,7 @@
       "lon": -0.3061795,
       "tags": {
         "amenity": "pub",
-        "check_date": "2026-01-04",
+        "check_date": "2026-09-05",
         "live_sport": "yes",
         "name": "Roddy's Bar"
       }
@@ -1402,7 +1393,7 @@
         "addr:postcode": "W13 9RT",
         "addr:street": "Northfield Avenue",
         "amenity": "pub",
-        "check_date": "2025-11-15",
+        "check_date": "2026-08-19",
         "level": "0",
         "microbrewery": "yes",
         "name": "The Owl and the Pussycat",
@@ -1882,11 +1873,11 @@
         "brand": "Fuller's",
         "brand:wikidata": "Q5253950",
         "brewery": "Fullers",
-        "building": "yes",
+        "building": "retail",
         "check_date": "2025-09-13",
         "diet:vegan": "yes",
         "diet:vegetarian": "yes",
-        "fhrs:id": "353334",
+        "fhrs:id": "1584085",
         "food": "yes",
         "indoor_seating": "yes",
         "internet_access": "wlan",
@@ -1894,6 +1885,7 @@
         "name": "Tap on the Line",
         "outdoor_seating": "yes",
         "ref:GB:uprn": "100023574089",
+        "source:addr": "FHRS Open Data",
         "website": "https://www.tapontheline.co.uk/"
       }
     },
@@ -2166,8 +2158,8 @@
         "addr:postcode": "TW2 5BB",
         "addr:street": "Staines Road",
         "amenity": "pub",
-        "building": "yes",
-        "fhrs:id": "353771",
+        "building": "retail",
+        "fhrs:id": "1574776",
         "food": "yes",
         "internet_access": "wlan",
         "live_sport": "yes",
@@ -2222,8 +2214,8 @@
       "type": "way",
       "id": 298834128,
       "center": {
-        "lat": 51.4274308,
-        "lon": -0.3305859
+        "lat": 51.4274159,
+        "lon": -0.3305529
       },
       "tags": {
         "addr:city": "Teddington",
@@ -2244,8 +2236,8 @@
       "type": "way",
       "id": 298834131,
       "center": {
-        "lat": 51.4275552,
-        "lon": -0.328532
+        "lat": 51.4275452,
+        "lon": -0.3284946
       },
       "tags": {
         "addr:city": "Teddington",
@@ -2254,6 +2246,7 @@
         "addr:street": "High Street",
         "amenity": "pub",
         "building": "yes",
+        "check_date": "2026-07-25",
         "fhrs:id": "1574782",
         "name": "The King's Head",
         "operator": "The White Brasserie Company",
@@ -2281,8 +2274,8 @@
       "type": "way",
       "id": 311571963,
       "center": {
-        "lat": 51.4259993,
-        "lon": -0.3304516
+        "lat": 51.425994,
+        "lon": -0.3304972
       },
       "tags": {
         "addr:housenumber": "38",
@@ -2304,11 +2297,13 @@
         "lon": -0.3322955
       },
       "tags": {
+        "addr:city": "Twickenham",
+        "addr:housenumber": "1",
         "addr:postcode": "TW1 4EZ",
-        "addr:street": "Station Road",
+        "addr:street": "Queen's Road",
         "amenity": "pub",
         "building": "yes",
-        "fhrs:id": "353700",
+        "fhrs:id": "1574779",
         "indoor_seating": "yes",
         "name": "The Albany",
         "opening_hours": "Tu-Th 16:00-21:30; Fr,Sa 12:00-21:30; Su 12:00-18:00",
@@ -2656,14 +2651,34 @@
         "addr:street": "Heath Road",
         "amenity": "bar",
         "building": "apartments",
-        "check_date": "2024-11-02",
+        "check_date": "2026-09-12",
         "contact:phone": "+44 20 8891 5596",
         "fhrs:id": "1574822",
-        "name": "Seyri",
+        "name": "Turkish Kitchen",
         "old_fhrs:id": "353472",
         "outdoor_seating": "pedestrian_zone",
         "source:addr": "FHRS Open Data",
         "website": "https://daracafe.co.uk/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 358385140,
+      "center": {
+        "lat": 51.4613965,
+        "lon": -0.4455402
+      },
+      "tags": {
+        "amenity": "pub",
+        "brand": "Wetherspoon",
+        "brand:wikidata": "Q6109362",
+        "check_date": "2025-02-05",
+        "diet:vegetarian": "yes",
+        "dog": "no",
+        "food": "yes",
+        "indoor_seating": "yes",
+        "name": "The Star Light",
+        "outdoor_seating": "no"
       }
     },
     {
@@ -2780,6 +2795,7 @@
         "building:material": "brick",
         "check_date": "2025-12-07",
         "contact:website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/london/the-william-webb-ellis-twickenham",
+        "dog": "no",
         "fhrs:id": "1690074",
         "food": "yes",
         "image": "https://archive.org/details/twickenham-2019-02-17/Twickenham%202019-02-17/DSCN8743.JPG",
@@ -2923,27 +2939,6 @@
         "brand:wikidata": "Q118314187",
         "building": "yes",
         "name": "The General Roy"
-      }
-    },
-    {
-      "type": "way",
-      "id": 423650545,
-      "center": {
-        "lat": 51.4275286,
-        "lon": -0.3550427
-      },
-      "tags": {
-        "addr:city": "Hampton Hill",
-        "addr:housenumber": "92",
-        "addr:postcode": "TW12 1NY",
-        "addr:street": "High Street",
-        "addr:suburb": "Hampton Hill",
-        "amenity": "pub",
-        "building": "yes",
-        "fhrs:id": "1574922",
-        "name": "The Beech House",
-        "old_name": "The Refectory",
-        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -3288,8 +3283,8 @@
       "type": "way",
       "id": 469058873,
       "center": {
-        "lat": 51.4267355,
-        "lon": -0.339058
+        "lat": 51.4267351,
+        "lon": -0.3390635
       },
       "tags": {
         "addr:city": "Teddington",
@@ -3506,7 +3501,7 @@
         "amenity": "pub",
         "building": "yes",
         "building:levels": "3",
-        "fhrs:id": "353415",
+        "fhrs:id": "1575075",
         "live_sport": "yes",
         "name": "The Prince Albert",
         "opening_hours": "Mo-We 10:00-24:00, Th-Sa 10:00-00:30, Su 11:00-24:00",
@@ -3534,7 +3529,7 @@
         "brewery": "yes",
         "building": "yes",
         "building:levels": "2",
-        "check_date": "2024-11-05",
+        "check_date": "2026-08-19",
         "diet:vegetarian": "yes",
         "email": "forester.ealing@fullers.co.uk",
         "food": "yes",
@@ -3674,7 +3669,7 @@
         "contact:instagram": "http://instagram.com/whiteswantwick",
         "contact:phone": "+44 20 8744 2951",
         "contact:website": "http://www.whiteswantwickenham.co.uk/",
-        "fhrs:id": "353409",
+        "fhrs:id": "1682451",
         "food": "yes",
         "name": "The White Swan",
         "operator": "Fuller's",
@@ -3690,6 +3685,47 @@
         "wheelchair": "limited",
         "wheelchair:description": "Outside is fully accessible.",
         "wikidata": "Q20746332"
+      }
+    },
+    {
+      "type": "way",
+      "id": 586607947,
+      "center": {
+        "lat": 51.4468391,
+        "lon": -0.3213603
+      },
+      "tags": {
+        "addr:city": "Twickenham",
+        "addr:housename": "Ferryside",
+        "addr:postcode": "TW1 3DN",
+        "addr:street": "Riverside",
+        "amenity": "pub",
+        "beer_garden": "yes",
+        "check_date": "2026-08-27",
+        "email": "WhiteSwan.Twickenham@fullers.co.uk",
+        "fhrs:id": "1682451",
+        "internet_access": "wlan",
+        "internet_access:fee": "customers",
+        "landuse": "commercial",
+        "name": "The White Swan",
+        "opening_hours": "Mo-Tu,Su 11:00-22:00; We-Sa 11:00-23:00",
+        "operator": "Fuller’s",
+        "outdoor_seating": "yes",
+        "payment:apple_pay": "yes",
+        "payment:cards": "yes",
+        "payment:cash": "yes",
+        "payment:coins": "yes",
+        "payment:contactless": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "payment:google_pay": "yes",
+        "real_fire": "yes",
+        "source": "survey",
+        "source:geometry": "bing",
+        "toilets": "yes",
+        "website": "https://www.whiteswantwickenham.co.uk/",
+        "website:menu": "https://www.whiteswantwickenham.co.uk/food/menus",
+        "wheelchair": "limited"
       }
     },
     {
@@ -3892,7 +3928,7 @@
         "building": "yes",
         "building:levels": "2",
         "check_date": "2026-01-11",
-        "fhrs:id": "353903",
+        "fhrs:id": "1905594",
         "name": "Rose & Lion",
         "roof:colour": "grey",
         "roof:levels": "1",
@@ -4054,7 +4090,7 @@
         "building": "yes",
         "building:levels": "2",
         "check_date": "2025-04-12",
-        "fhrs:id": "1574166",
+        "fhrs:id": "1574166;1684250",
         "food": "yes",
         "image": "https://archive.org/details/twickenham-2019-02-17/Twickenham%202019-02-17/DSCN8842.JPG",
         "live_sport": "yes",
@@ -4110,8 +4146,8 @@
         "addr:postcode": "TW2 5NJ",
         "addr:street": "Hampton Road",
         "amenity": "pub",
-        "building": "yes",
-        "fhrs:id": "353756",
+        "building": "retail",
+        "fhrs:id": "1574777",
         "name": "Brouge",
         "not:addr:postcode": "TW2 5NG",
         "old_fhrs:id": "1083611",
@@ -4291,32 +4327,10 @@
     },
     {
       "type": "way",
-      "id": 707077026,
-      "center": {
-        "lat": 51.4272134,
-        "lon": -0.3282199
-      },
-      "tags": {
-        "addr:city": "Teddington",
-        "addr:housenumber": "114-116",
-        "addr:postcode": "TW11 8JB",
-        "addr:street": "High Street",
-        "amenity": "bar",
-        "building": "retail",
-        "building:levels": "3",
-        "fhrs:id": "1575097",
-        "name": "One One Four",
-        "outdoor_seating": "yes",
-        "roof:levels": "1",
-        "source:addr": "FHRS Open Data"
-      }
-    },
-    {
-      "type": "way",
       "id": 707994822,
       "center": {
-        "lat": 51.4270175,
-        "lon": -0.3318387
+        "lat": 51.4270104,
+        "lon": -0.3318083
       },
       "tags": {
         "addr:city": "Teddington",
@@ -4341,8 +4355,8 @@
       "type": "way",
       "id": 708049987,
       "center": {
-        "lat": 51.4258066,
-        "lon": -0.3368109
+        "lat": 51.4258008,
+        "lon": -0.3367788
       },
       "tags": {
         "addr:city": "Teddington",
@@ -4379,7 +4393,7 @@
         "addr:suburb": "Ham",
         "amenity": "pub",
         "building": "yes",
-        "check_date": "2026-07-17",
+        "check_date": "2026-09-16",
         "fhrs:id": "1704039",
         "food": "yes",
         "indoor_seating": "yes",
@@ -4395,6 +4409,7 @@
         "toilets": "yes",
         "toilets:access": "customers",
         "website:menu": "https://www.thenewinnham.co.uk/#menu",
+        "wheelchair": "limited",
         "wikidata": "Q26355850"
       }
     },
@@ -4402,8 +4417,8 @@
       "type": "way",
       "id": 723739293,
       "center": {
-        "lat": 51.4178558,
-        "lon": -0.3182988
+        "lat": 51.4178457,
+        "lon": -0.3182688
       },
       "tags": {
         "addr:city": "Teddington",
@@ -4585,9 +4600,9 @@
         "addr:postcode": "TW11 8UD",
         "addr:street": "Stanley Road",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
         "building:levels": "2",
-        "fhrs:id": "353422",
+        "fhrs:id": "1670794",
         "live_sport": "yes",
         "name": "The Red Lion",
         "ref:GB:uprn": "10024348027;100022326431",
@@ -4626,8 +4641,8 @@
       "type": "way",
       "id": 775590346,
       "center": {
-        "lat": 51.4585807,
-        "lon": -0.2996678
+        "lat": 51.4585933,
+        "lon": -0.2996302
       },
       "tags": {
         "addr:city": "Richmond",
@@ -4767,8 +4782,8 @@
       "type": "way",
       "id": 813133873,
       "center": {
-        "lat": 51.4236852,
-        "lon": -0.3345952
+        "lat": 51.4236737,
+        "lon": -0.3345596
       },
       "tags": {
         "addr:city": "Teddington",
@@ -4894,18 +4909,19 @@
         "addr:postcode": "TW9 1UY",
         "addr:street": "St. Mary's Grove",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
         "building:levels": "2",
         "cuisine": "pizza",
         "diet:vegan": "no",
         "diet:vegetarian": "yes",
-        "fhrs:id": "353362",
+        "fhrs:id": "1575064",
         "food": "yes",
         "name": "The Mitre",
         "outdoor_seating": "yes",
         "real_ale": "yes",
         "ref:GB:uprn": "10024348028;100022317455",
         "smoking": "outside",
+        "source:addr": "FHRS Open Data",
         "toilets": "yes",
         "toilets:access": "customers"
       }
@@ -4941,7 +4957,7 @@
         "check_date": "2023-08-20",
         "cuisine": "british",
         "diet:vegetarian": "yes",
-        "fhrs:id": "1574780",
+        "fhrs:id": "1690077",
         "fireplace": "yes",
         "indoor_seating": "yes",
         "name": "The Barmy Arms",
@@ -4979,7 +4995,7 @@
         "brand": "Greene King",
         "brand:wikidata": "Q5564162",
         "building": "yes",
-        "fhrs:id": "353417",
+        "fhrs:id": "1575074",
         "fhrs:local_authority_id": "2803",
         "indoor_seating": "yes",
         "live_sport": "yes",
@@ -5169,8 +5185,8 @@
       "type": "way",
       "id": 950051568,
       "center": {
-        "lat": 51.4239847,
-        "lon": -0.3326444
+        "lat": 51.4239783,
+        "lon": -0.3326173
       },
       "tags": {
         "addr:city": "Teddington",
@@ -5179,8 +5195,9 @@
         "addr:postcode": "TW11 0BB",
         "addr:street": "Victoria Road",
         "amenity": "pub",
-        "building": "yes",
-        "fhrs:id": "1575010",
+        "building": "retail",
+        "check_date": "2026-07-24",
+        "fhrs:id": "1704089",
         "name": "The Railway",
         "source:addr": "FHRS Open Data"
       }
@@ -5437,7 +5454,7 @@
         "amenity": "pub",
         "building": "yes",
         "fhrs:authority": "Richmond-Upon-Thames",
-        "fhrs:id": "354568",
+        "fhrs:id": "1575659",
         "name": "The Scrummery",
         "source": "survey",
         "survey:date": "2018-10-09"
@@ -5722,8 +5739,8 @@
       "type": "way",
       "id": 1333311979,
       "center": {
-        "lat": 51.4922883,
-        "lon": -0.2570215
+        "lat": 51.492182,
+        "lon": -0.2569759
       },
       "tags": {
         "addr:city": "London",
@@ -5838,18 +5855,20 @@
         "brand": "Fuller's",
         "brand:wikidata": "Q5253950",
         "building": "yes",
+        "check_date": "2026-09-04",
         "check_date:currency:XBT": "2025-03-05",
         "currency:GBP": "yes",
         "currency:XBT": "no",
         "description": "Dating back to 1650, the George & Devonshire in Chiswick serves up a slice of history alongside its fabulous food and drink",
         "email": "georgeanddevonshire@gmail.com",
+        "indoor_seating": "yes",
         "internet_access": "wlan",
         "internet_access:fee": "no",
         "name": "George and Devonshire",
         "operator": "Fuller's",
+        "outdoor_seating": "yes",
         "phone": "+44 20 8742 7342",
         "real_ale": "yes",
-        "survey:date": "2025-03-05",
         "toilets": "yes",
         "toilets:access": "customers",
         "website": "https://www.georgeanddevonshire.co.uk/",

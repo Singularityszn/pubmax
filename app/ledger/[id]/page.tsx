@@ -14,9 +14,11 @@ import {
 } from "@/lib/ledger";
 import { type ViewerContext } from "@/lib/pintDrops";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
-import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { CITIES } from "@/lib/cities";
+import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
+import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { venueMapUrl } from "@/lib/venueIndex";
+import { type Venue } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import JsonLd from "@/components/seo/JsonLd";
@@ -31,10 +33,9 @@ import "./ledger.css";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // high-contrast, voice-friendly rendering of a venue's story for the
-// Boomer/Gen-X reading surface. Same seams as the map's venue sheet and the
-// /p/[id] permalink: the FULL venue detail (same cheap read path as
-// app/api/venue/[id]) plus the same Pint Drop store the API route reads
-// (lib/pintDropsStore), reused, not rebuilt.
+// Boomer/Gen-X reading surface. The venue is lookupVenueDetail, the same
+// module app/api/venue/[id] calls, plus the same Pint Drop store the API
+// route reads (lib/pintDropsStore), reused, not rebuilt.
 //
 // A server component: no client fetch, so the first paint already carries the
 // whole logbook. The only client-side sliver is the optional "Read this page"
@@ -46,53 +47,8 @@ type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// Mirrors app/api/venue/[id]'s memoized read: group the bundled dataset once
-// per process and look venues up by id. Never throws, and never words a failed
-// read as an absence (astra-review P1-2): the catch used to memoise the EMPTY
-// map, so one unreadable dataset made every Ledger URL say the pub is not in
-// the ledger until the instance recycled. Only a successful parse is cached; a
-// failed read is its own answer, and the next request reads the file again.
-let cachedVenues: Map<string, Venue> | null = null;
-
-type VenueReadResult =
-  | { status: "found"; venue: Venue }
-  | { status: "absent" }
-  | { status: "unavailable" };
-
-async function readVenueDataset(): Promise<Map<string, Venue> | null> {
-  if (cachedVenues) return cachedVenues;
-  try {
-    await getVenueIndex(); // keeps the shared dataset read warm/memoized
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as unknown;
-    if (!Array.isArray(rows)) return null;
-    const index = new Map<string, Venue>();
-    for (const venue of groupVenuePrices(rows as VenuePrice[])) {
-      index.set(venue.id, venue);
-    }
-    cachedVenues = index;
-    return index;
-  } catch {
-    return null;
-  }
-}
-
-async function readVenue(id: string): Promise<VenueReadResult> {
-  const venues = await readVenueDataset();
-  if (!venues) return { status: "unavailable" };
-  const direct = venues.get(id);
-  if (direct) return { status: "found", venue: direct };
-  // Resolve a merged duplicate id (D1) so a Ledger link to a losing id still
-  // opens the surviving canonical venue.
-  const canonical = await lookupCanonicalVenueId(id);
-  // An alias file we could not read is a read we could not run, never a pub
-  // that is not here: it is the same answer the dataset failure gets.
-  if (canonical.status === "unavailable") return { status: "unavailable" };
-  const aliased = canonical.venueId === id ? null : venues.get(canonical.venueId);
-  return aliased ? { status: "found", venue: aliased } : { status: "absent" };
-}
+// missing is the not-found card. unavailable is the read-unavailable surface.
+// lookupVenueDetail does not cache a failed read, so the next request reads again.
 
 function pintDropStoreFor() {
   return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
@@ -122,7 +78,7 @@ function isFullFamilyEntry(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const read = await readVenue(id);
+  const read = await lookupVenueDetail(id);
 
   // A read we could not run claims nothing in the unfurl: the same bare title
   // an absent pub gets, because the answer is unknown, not "no".
@@ -151,14 +107,25 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 const SITE_URL = "https://pubmaxxing.com";
 
-// BarOrPub structured data for the venue permalink (Wave S1.3). ONLY fields the
-// dataset actually carries: name, geo (lat/lng), postal address, canonical url.
-// No invented cuisine/priceRange/rating: provenance rule. lat/lng and address
-// are omitted when absent rather than guessed. When the pub is on the official
+// The region is the city the venue id names. A London id carries no city
+// prefix, so the region stays London. A national base id names no city, so
+// the region is omitted rather than labelled London.
+function ledgerAddressRegion(venueId: string): string | undefined {
+  const cityId = cityIdFromVenueId(venueId);
+  if (cityId) return CITIES[cityId].displayName;
+  if (isNationalBaseVenueId(venueId)) return undefined;
+  return "London";
+}
+
+// BarOrPub structured data for the venue permalink (Wave S1.3). Name, geo
+// (lat/lng), postal address, and the canonical url. No invented cuisine,
+// price range, or rating. lat/lng and the street address are omitted when
+// absent. The region is the city the id names. When the pub is on the official
 // register (Historic England NHLE) we add a factual `description` + a
 // heritage `additionalProperty` carrying the grade + list-entry citation, so
 // AI/search engines see the listed-building status straight from the JSON-LD.
 function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
+  const addressRegion = ledgerAddressRegion(venue.id);
   const hasGeo =
     typeof venue.latitude === "number" && typeof venue.longitude === "number";
   return {
@@ -183,7 +150,7 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
             "@type": "PostalAddress",
             ...(venue.address ? { streetAddress: venue.address } : {}),
             ...(venue.primaryBorough ? { addressLocality: venue.primaryBorough } : {}),
-            addressRegion: "London",
+            ...(addressRegion ? { addressRegion } : {}),
             addressCountry: "GB",
           },
         }
@@ -247,9 +214,9 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   const viewer = await resolveViewer(searchParams);
   // Three answers, and the order is the rule: a read we could not run is
   // answered BEFORE the not-found card, or the card swallows it.
-  const read = await readVenue(id);
+  const read = await lookupVenueDetail(id);
   if (read.status === "unavailable") return <LedgerReadUnavailable id={id} />;
-  if (read.status === "absent") return <NotInTheLedger />;
+  if (read.status !== "found") return <NotInTheLedger />;
   const { venue } = read;
   // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
   const nonce = (await headers()).get("x-nonce") ?? undefined;

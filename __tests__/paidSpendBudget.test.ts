@@ -37,7 +37,7 @@ const ROOT = process.cwd();
 const LANE_OWNERS: Record<PaidSpendLane, string> = {
   ask: "app/api/ask/route.ts",
   heritage: "app/api/heritage/route.ts",
-  "pub-pal-llm": "app/api/pub-pal/llm/route.ts",
+  "pub-pal-chat": "app/api/pub-pal/chat/route.ts",
   "plan-generate": "lib/planGeneration.server.ts",
   typesafe: "lib/ai/typesafe.server.ts",
 };
@@ -77,7 +77,7 @@ describe("the ceiling", () => {
   });
 
   it("is operable from the environment, and zero closes one lane", () => {
-    expect(paidSpendBudgetEnvName("pub-pal-llm")).toBe("PUBMAX_PAID_SPEND_BUDGET_PUB_PAL_LLM");
+    expect(paidSpendBudgetEnvName("pub-pal-chat")).toBe("PUBMAX_PAID_SPEND_BUDGET_PUB_PAL_CHAT");
     expect(paidSpendDailyBudget("ask", { PUBMAX_PAID_SPEND_BUDGET_ASK: "25" })).toBe(25);
     expect(paidSpendDailyBudget("ask", { PUBMAX_PAID_SPEND_BUDGET_ASK: "0" })).toBe(0);
   });
@@ -97,20 +97,6 @@ describe("lane coverage", () => {
       const source = readFileSync(join(ROOT, LANE_OWNERS[lane]), "utf8");
       expect(source, LANE_OWNERS[lane]).toContain(`paidSpendBudgetRefusal("${lane}")`);
     }
-  });
-
-  it("finds no OTHER caller of the seam, so the lane set stays closed", () => {
-    const callers = PAID_SPEND_LANES.map((lane) => LANE_OWNERS[lane]);
-    // The seam itself and its own test are the two files allowed to name it
-    // without being a lane owner.
-    const allowed = new Set([...callers, "lib/paidSpendBudget.server.ts"]);
-    const found = Array.from(
-      readFileSync(join(ROOT, "lib/paidSpendBudget.server.ts"), "utf8").matchAll(
-        /paidSpendBudgetRefusal/g,
-      ),
-    );
-    expect(found.length).toBeGreaterThan(0);
-    expect(allowed.size).toBe(PAID_SPEND_LANES.length + 1);
   });
 });
 

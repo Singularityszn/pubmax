@@ -8,7 +8,7 @@
       "label": "London pint-price dataset",
       "class": "episodic",
       "artifact": "public/data/pint_prices_app_dataset.json",
-      "stamp": { "kind": "literal", "value": "2026-09-04T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
+      "stamp": { "kind": "literal", "value": "2026-10-02T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
       "cadence": "episodic — re-collected by hand, then re-exported",
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (node scripts/refresh_pint_price_observations.mjs → python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only → npm run canonicalize:venues → npm run build:slim). npm run export:data re-exports the committed CSV and re-collects nothing, and the bundled artifact carries layered rows the CSV does not hold, so it is not the collection step. See data/README.md.",
@@ -303,6 +303,17 @@
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual (node scripts/spoonme/import-report.mjs). The figures are SpoonMe's reading of Wetherspoon menus rather than ours, so nothing we run can lawfully advance them: the lane carries no budget and is named for the day it was retrieved, the same ruling drink_price_updates carries. See data/spoonme/README.md.",
       "gate": "none to run (one public page fetch). The pack is credited and linked wherever it is printed and may never enter a price lane."
+    },
+    {
+      "id": "famous_venues",
+      "label": "Famous venue verification window",
+      "class": "episodic",
+      "artifact": "public/data/venues_slim.json",
+      "stamp": { "kind": "literal", "value": "2026-09-25T00:00:00.000Z", "consumedBy": "public/data/venues_slim.json generatedAt, the latest seed observedAt or expiresAt at or before the build that scripts/build_slim_index.mjs kept the current famous rows as of. A rebuild before the next seed boundary writes the same value, so the literal matches that field without the gate opening the slim payload." },
+      "cadence": "episodic. Re-verify the seed (npm run verify:famous-venues) and rebuild the slim index before the window closes",
+      "stalenessBudgetHours": 384,
+      "refreshWorkflow": "manual (npm run verify:famous-venues, then the slim build). The budget is two weeks of lead before the earliest expiresAt still inside this slim build, derived by __tests__/helpers/currentFamousVenues.ts.",
+      "gate": "The seed's own expiresAt. A lapsed row is withheld from the slim index rather than shipped stale."
     }
   ]
 }

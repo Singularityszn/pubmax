@@ -186,6 +186,7 @@ describe("venuePriceLane — one precedence for the overview price area", () => 
       cheapestPrice: 6.2,
       standing: "none",
       publisher: null,
+      observedOn: null,
     });
 
     const anchored = makeVenue({

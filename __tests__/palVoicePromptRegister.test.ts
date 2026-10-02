@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+import { pubPalAgentSystemPrompt } from "@/lib/palVoicePrompt.mjs";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,
   PAL_VOICE_GET_HOME_REGISTER_RULES,
   PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
   buildPalVoiceOverrides,
-  buildPalVoiceSystemPrompt,
 } from "@/lib/palVoiceOverrides";
 
 describe("Pub Pal voice prompt register", () => {
@@ -26,7 +27,7 @@ describe("Pub Pal voice prompt register", () => {
   };
 
   it("pins the Safe Night register switch for get-home intents", () => {
-    const prompt = buildPalVoiceSystemPrompt(pal);
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     expect(prompt).toContain(PAL_VOICE_GET_HOME_REGISTER_INTRO);
     for (const rule of PAL_VOICE_GET_HOME_REGISTER_RULES) {
       expect(prompt).toContain(rule);
@@ -37,9 +38,15 @@ describe("Pub Pal voice prompt register", () => {
   });
 
   it("pins the propose-then-confirm sentence", () => {
-    const prompt = buildPalVoiceSystemPrompt(pal);
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     expect(prompt).toContain(PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE);
-    expect(buildPalVoiceOverrides(pal).systemPrompt).toContain(PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE);
+    const overrides = buildPalVoiceOverrides(pal);
+    expect(Object.keys(overrides).sort()).toEqual(["firstMessage", "voiceId"]);
+    expect(overrides.firstMessage).toContain("Ripley");
+  });
+
+  it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {
+    expect(pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS)).not.toContain("{{");
   });
 
   it("keeps get-home prompt strings free of jokes, em dashes, and exclamation marks", () => {

@@ -8,6 +8,19 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+    "aria-labelledby"?: string;
+  }) => createElement("a", { href, "data-next-link": "true", ...rest }, children),
+}));
+
 vi.mock("@/components/map/canvas/PlanCrawlRouteMapCanvas", async () => {
   const React = await import("react");
   return {

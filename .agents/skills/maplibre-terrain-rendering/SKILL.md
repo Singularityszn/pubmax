@@ -1,6 +1,6 @@
 ---
 name: maplibre-terrain-rendering
-description: Drawing elevation in MapLibre GL JS once a raster-dem source works - hillshade and `hillshade-method`, the `color-relief` layer and the `["elevation"]` expression, runtime contours with `maplibre-contour`, and 3D terrain with its camera and sky. Use when relief looks harsh, flat, or absent, or when the layer type or property for an elevation effect is unclear.
+description: Drawing elevation in MapLibre GL JS once a raster-dem source works — hillshade and `hillshade-method`, the `color-relief` layer and the `["elevation"]` expression, runtime contours with `maplibre-contour`, and 3D terrain with its camera and sky. Use when relief looks harsh, flat, or absent, or when the layer type or property for an elevation effect is unclear.
 status: verified
 ---
 
@@ -13,7 +13,7 @@ type or API, and most of the wrong answers here are Mapbox GL JS properties that
 
 These are symptoms as you would observe them, before you know the cause:
 
-- **Harsh hillshade contrast:** black-and-white ridges, blown-out slopes, chalky valleys - or several hillshade layers stacked to soften them (one layer with `hillshade-method: "multidirectional"`).
+- **Harsh hillshade contrast:** black-and-white ridges, blown-out slopes, chalky valleys — or several hillshade layers stacked to soften them (one layer with `hillshade-method: "multidirectional"`).
 - **Dynamic elevation coloring:** the map needs coloring by height, client-side, with no pre-rendered tiles (a `color-relief` layer over `["elevation"]`, not `raster-color` on a `raster` layer).
 - **Runtime contour lines:** contour lines straight from a `raster-dem` source, with no pre-generated contour tileset (`maplibre-contour`, not a hand-rolled marching-squares pipeline).
 - **Flat 3D terrain:** `map.setTerrain()` is on and nothing extrudes (the camera is at `pitch: 0`, and raising `exaggeration` will not fix it).
@@ -22,15 +22,15 @@ These are symptoms as you would observe them, before you know the cause:
 - **Terrain lag or frame drops:** stutter when panning or tilting with terrain on (stacked hillshade passes, dense draped layers).
 
 **Not this skill.** Elevation values that are wrong, spiky, or inverted, choosing an elevation tileset,
-`encoding`, and generating DEM tiles - the style specification's `raster-dem` source page,
+`encoding`, and generating DEM tiles — the style specification's `raster-dem` source page,
 <https://maplibre.org/maplibre-style-spec/sources/#raster-dem>. Where hillshade sits among the other layers
-of a style - [maplibre-cartography](../maplibre-cartography/SKILL.md).
+of a style — [maplibre-cartography](../maplibre-cartography/SKILL.md).
 
 ## Which one you want
 
 | Goal                                            | What draws it                                                         |
 | ----------------------------------------------- | --------------------------------------------------------------------- |
-| Shaded relief under a 2D map                    | A `hillshade` layer. No `setTerrain` needed - the two are independent |
+| Shaded relief under a 2D map                    | A `hillshade` layer. No `setTerrain` needed — the two are independent |
 | Color by height (hypsometric tint)              | A `color-relief` layer (GL JS 5.6)                                    |
 | Contour lines, without pre-generating a tileset | The `maplibre-contour` library, feeding a `vector` source             |
 | A tilted, extruded surface you fly over         | `map.setTerrain()` plus camera pitch                                  |
@@ -109,7 +109,7 @@ will be dropped as unknown properties. A `raster` layer pointed at a DEM shows p
 ## Contours at runtime
 
 [`maplibre-contour`](https://github.com/onthegomap/maplibre-contour) derives vector contour tiles in a Web
-Worker from the same DEM tiles and serves them through a registered protocol - no contour tileset to
+Worker from the same DEM tiles and serves them through a registered protocol — no contour tileset to
 build.[3]
 
 ```javascript
@@ -167,7 +167,7 @@ map.setSky({
 - **`terrain` takes only `source` and `exaggeration`** (default `1`).[4] It is a root-level style object,
   set in the style or through `map.setTerrain()`; `map.setTerrain(null)` turns it off.
 - **Pitch is what makes it visible.** At `pitch: 0` an extruded surface is seen straight down and reads as
-  flat. Set `pitch` on the map (or `map.easeTo({ pitch: 60 })`) before concluding the terrain is broken  - 
+  flat. Set `pitch` on the map (or `map.easeTo({ pitch: 60 })`) before concluding the terrain is broken —
   and raise `exaggeration` only after the camera is tilted, never as the fix for a flat-looking map.
 - **There is no `sky` layer type in MapLibre.** The layer types are `fill`, `line`, `symbol`, `circle`,
   `heatmap`, `fill-extrusion`, `raster`, `hillshade`, `color-relief`, and `background`.[1] Sky is a
@@ -178,25 +178,24 @@ map.setSky({
 - `map.queryTerrainElevation(lngLat)` returns the elevation under a location once terrain is on.[6]
 
 **Cost.** Terrain decodes DEM tiles, builds a mesh, and re-draws every layer draped over it, so it is the
-most expensive thing on this page - noticeably so at high zoom and pitch on low-end devices. Keep the
+most expensive thing on this page — noticeably so at high zoom and pitch on low-end devices. Keep the
 terrain stack small: one shared `raster-dem` source, one or two elevation layers, and only the overlays you
 need.
 
 ## Related Skills
 
-- [**maplibre-cartography**](../maplibre-cartography/SKILL.md) - Where a hillshade layer belongs in the layer order, and palettes that survive over relief.
-- [**maplibre-pmtiles-patterns**](../maplibre-pmtiles-patterns/SKILL.md) - Serving DEM and imagery tiles from a single PMTiles file.
+- [**maplibre-cartography**](../maplibre-cartography/SKILL.md) — Where a hillshade layer belongs in the layer order, and palettes that survive over relief.
 
 ## References
 
-1. **Style Specification: layers** - `hillshade` and `color-relief` paint properties, defaults, `hillshade-method` values, and the complete list of layer types - <https://maplibre.org/maplibre-style-spec/layers/>
-2. **Style Specification: expressions** - `["elevation"]`, valid only in `color-relief-color` - <https://maplibre.org/maplibre-style-spec/expressions/>
-3. **`maplibre-contour`** - `DemSource`, `setupMaplibre`, `contourProtocolUrl` - <https://github.com/onthegomap/maplibre-contour>
-4. **Style Specification: terrain** - <https://maplibre.org/maplibre-style-spec/terrain/>
-5. **Style Specification: sky** - <https://maplibre.org/maplibre-style-spec/sky/>
-6. **GL JS `Map` API** - `setTerrain`, `setSky`, `queryTerrainElevation` - <https://maplibre.org/maplibre-gl-js/docs/API/classes/Map/>
-7. **Examples** - [3D terrain](https://maplibre.org/maplibre-gl-js/docs/examples/3d-terrain/), [sky, fog, terrain](https://maplibre.org/maplibre-gl-js/docs/examples/sky-fog-terrain/), [color relief](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-color-relief-layer/), [contour lines](https://maplibre.org/maplibre-gl-js/docs/examples/add-contour-lines/), [multidirectional hillshade](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-multidirectional-hillshade-layer/)
+1. **Style Specification: layers** — `hillshade` and `color-relief` paint properties, defaults, `hillshade-method` values, and the complete list of layer types — <https://maplibre.org/maplibre-style-spec/layers/>
+2. **Style Specification: expressions** — `["elevation"]`, valid only in `color-relief-color` — <https://maplibre.org/maplibre-style-spec/expressions/>
+3. **`maplibre-contour`** — `DemSource`, `setupMaplibre`, `contourProtocolUrl` — <https://github.com/onthegomap/maplibre-contour>
+4. **Style Specification: terrain** — <https://maplibre.org/maplibre-style-spec/terrain/>
+5. **Style Specification: sky** — <https://maplibre.org/maplibre-style-spec/sky/>
+6. **GL JS `Map` API** — `setTerrain`, `setSky`, `queryTerrainElevation` — <https://maplibre.org/maplibre-gl-js/docs/API/classes/Map/>
+7. **Examples** — [3D terrain](https://maplibre.org/maplibre-gl-js/docs/examples/3d-terrain/), [sky, fog, terrain](https://maplibre.org/maplibre-gl-js/docs/examples/sky-fog-terrain/), [color relief](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-color-relief-layer/), [contour lines](https://maplibre.org/maplibre-gl-js/docs/examples/add-contour-lines/), [multidirectional hillshade](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-multidirectional-hillshade-layer/)
 
 ---
 
-**This skill is a snapshot.** Where a primary source contradicts it - the References above, MapLibre's current documentation, or what MapLibre does when you run it - that source wins. Follow it. With user approval, [report the disagreement](https://github.com/maplibre/maplibre-agent-skills/issues/new?template=ai-failure-report.md), citing the source and your MapLibre version: editing your installed copy helps no one else and is overwritten on the next update.
+**This skill is a snapshot.** Where a primary source contradicts it — the References above, MapLibre's current documentation, or what MapLibre does when you run it — that source wins. Follow it, then [report the disagreement](https://github.com/maplibre/maplibre-agent-skills/issues/new?template=ai-failure-report.md), citing the source and your MapLibre version: editing your installed copy helps no one else and is overwritten on the next update.

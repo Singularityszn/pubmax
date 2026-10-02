@@ -192,8 +192,8 @@ test.describe("map keyboard and screen-reader venue path", () => {
   }) => {
     await page.goto("/map");
 
-    for (const selector of [".maplibregl-ctrl-zoom-in", ".maplibregl-ctrl-zoom-out"] as const) {
-      const control = page.locator(selector);
+    for (const name of ["Zoom in", "Zoom out"] as const) {
+      const control = page.getByRole("button", { name });
       await expect(control).toBeVisible({ timeout: 30_000 });
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
@@ -243,7 +243,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     expect(beforeMove).toBeGreaterThan(0);
     expect(beforeMoveIds.every(Boolean)).toBe(true);
 
-    const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
+    const zoomIn = page.getByRole("button", { name: "Zoom in" });
     await zoomIn.click();
     await zoomIn.click();
     await zoomIn.click();
@@ -370,12 +370,24 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const closeButton = drawer.getByRole("button", { name: /Close/ });
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("role", "dialog");
+    await expect(drawer).toHaveAttribute("aria-modal", "true");
     await expect
       .poll(
         async () => closeButton.evaluate((node) => node === document.activeElement),
         { timeout: 30_000 },
       )
       .toBe(true);
+
+    const focusables = drawer.locator(
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+    );
+    const firstFocusable = focusables.first();
+    const lastFocusable = focusables.last();
+    await lastFocusable.focus();
+    await page.keyboard.press("Tab");
+    await expect(firstFocusable).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastFocusable).toBeFocused();
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();

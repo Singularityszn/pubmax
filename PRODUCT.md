@@ -50,6 +50,8 @@ Explored in `docs/design-explorations/`. **Ship A for light, B for dark — not 
 
 Token source of truth: `app/globals.css` (light) and `app/theme.css` (dark). Visual detail: `DESIGN.md`.
 
+For the messaging exception to this colour decision, see the [design system](docs/DESIGN_SYSTEM.md).
+
 ## Taste dials
 
 Product register (map shell, planner density) with brand-level accent moments on Plan CTAs and map selection:

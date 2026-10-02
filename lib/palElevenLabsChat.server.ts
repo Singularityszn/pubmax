@@ -1,16 +1,19 @@
 import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
-import type { AskCard, AskProposal, AskTurn } from "@/lib/ask/types";
+import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
+import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
+  type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
 import {
-  consumePubPalToolTurn,
+  readOwnedPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
+  type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 const CHAT_TIMEOUT_MS = 28_000;
@@ -21,7 +24,7 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForPubPalToolTurn(conversationId: string): Promise<Awaited<ReturnType<typeof consumePubPalToolTurn>>> {
+async function waitForPubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
   const deadline = Date.now() + TOOL_TURN_WAIT_MS;
   while (Date.now() < deadline) {
     const peek = await readPubPalToolTurn(conversationId);
@@ -29,11 +32,30 @@ async function waitForPubPalToolTurn(conversationId: string): Promise<Awaited<Re
       peek &&
       (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0)
     ) {
-      break;
+      return peek;
     }
     await sleep(TOOL_TURN_POLL_MS);
   }
-  return consumePubPalToolTurn(conversationId);
+  return readPubPalToolTurn(conversationId);
+}
+
+/** The signed-in owner's earlier asks, read from their own stored turn and never from the request. */
+async function priorOwnedAsks(threadId: unknown, ownerId: string): Promise<PubPalFenceTurn[]> {
+  if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return [];
+  const prior = await readOwnedPubPalToolTurn(threadId, ownerId);
+  if (!prior) return [];
+  return [...prior.turns, { role: "user" as const, content: prior.query }]
+    .filter((turn) => turn.role === "user" && turn.content.trim())
+    .slice(-6);
+}
+
+function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
+  if (priorAsks.length === 0) return query;
+  return [
+    "My earlier asks in this chat, oldest first:",
+    ...priorAsks.map((turn) => `- ${turn.content}`),
+    `Now: ${query}`,
+  ].join("\n");
 }
 
 type AgentResponseEvent = {
@@ -44,14 +66,6 @@ type AgentResponseEvent = {
     conversation_id?: string;
   };
 };
-
-function recentTurnsSummary(turns: AskTurn[]): string {
-  if (turns.length === 0) return "";
-  return turns
-    .slice(-6)
-    .map((turn) => `${turn.role === "user" ? "User" : "Pal"}: ${turn.content}`)
-    .join("\n");
-}
 
 async function fetchSignedConversationUrl(apiKey: string, agentId: string): Promise<string> {
   const url = new URL("https://api.elevenlabs.io/v1/convai/conversation/get-signed-url");
@@ -72,7 +86,11 @@ async function fetchSignedConversationUrl(apiKey: string, agentId: string): Prom
 export type PalElevenLabsChatInput = {
   query: string;
   cityId?: unknown;
-  turns?: AskTurn[];
+  /** The previous answer's conversation id. Only the owner's own stored row is read. */
+  threadId?: unknown;
+  /** Browser-sent user turns. They may only add a get-home fence, never reach the model or the store. */
+  fenceTurns?: PubPalFenceTurn[];
+  ownerId: string;
 };
 
 export type PalElevenLabsChatOutcome =
@@ -97,8 +115,17 @@ export async function runPalElevenLabsChatTurn(
   if (!query) return { ok: false, code: "UNAVAILABLE" };
 
   const cityId = resolveAskCityId(input.cityId);
-  const turns = Array.isArray(input.turns) ? input.turns : [];
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, turns);
+  let turns: PubPalFenceTurn[];
+  try {
+    turns = await priorOwnedAsks(input.threadId, input.ownerId);
+  } catch {
+    return { ok: false, code: "UNAVAILABLE" };
+  }
+  const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
+  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, [
+    ...fenceTurns,
+    ...turns,
+  ]);
   if (fenced) {
     return {
       ok: true,
@@ -155,10 +182,6 @@ export async function runPalElevenLabsChatTurn(
               client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
             },
           },
-          dynamic_variables: {
-            pubmax_city_id: cityId,
-            pubmax_recent_turns: recentTurnsSummary(turns),
-          },
         }),
       );
     });
@@ -186,18 +209,20 @@ export async function runPalElevenLabsChatTurn(
           payload.conversation_initiation_metadata_event?.conversation_id?.trim() ?? "";
         void (async () => {
           try {
-            if (conversationId) {
-              await registerPubPalToolTurn(conversationId, {
-                query,
-                cityId,
-                turns: turns.map((turn) => ({
-                  role: turn.role,
-                  content: turn.content,
-                })),
-              });
+            if (!isPubPalConversationId(conversationId)) {
+              finish({ ok: false, code: "UNAVAILABLE" });
+              return;
             }
+            await registerPubPalToolTurn(conversationId, {
+              query,
+              cityId,
+              ownerId: input.ownerId,
+              turns,
+            });
             userMessageSent = true;
-            ws.send(JSON.stringify({ type: "user_message", text: query }));
+            ws.send(
+              JSON.stringify({ type: "user_message", text: userMessageText(query, turns) }),
+            );
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });
           }

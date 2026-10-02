@@ -166,6 +166,52 @@ describe("review scope guard", () => {
     expect(report.categoryCounts.regenerated).toBe(1);
   });
 
+  it("permits the slim venue payload when the diff carries the slim builder", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_slim_index.mjs",
+      "public/data/venues_slim.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categoryCounts).toEqual({ source: 1, regenerated: 1 });
+    expect(report.regeneratedLanes).toEqual(["venues_slim"]);
+  });
+
+  it("permits city slim packs when the diff carries a city OSM pack", () => {
+    const report = summarizeReviewScope([
+      "data/cities/leeds/osm_pubs.json",
+      "public/data/cities/leeds/venues_slim.json",
+      "public/data/cities/leeds/venues_slim.core.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categoryCounts).toEqual({ other: 1, regenerated: 2 });
+    expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
+  });
+
+  it("permits the UK pub search index when the diff carries the UK OSM pack", () => {
+    const report = summarizeReviewScope([
+      "data/osm/uk/uk_osm_pubs.json",
+      "data/generated/uk_pub_search.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.regeneratedLanes).toEqual(["uk_pub_search"]);
+  });
+
+  it("keeps city slim packs and the UK search index forbidden without their inputs", () => {
+    const report = summarizeReviewScope([
+      "public/data/pint_prices_app_dataset.json",
+      "public/data/cities/leeds/venues_slim.json",
+      "data/generated/uk_pub_search.json",
+    ]);
+
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "data/generated/uk_pub_search.json" },
+      { category: "generated", path: "public/data/cities/leeds/venues_slim.json" },
+    ]);
+  });
+
   it("keeps a lane forbidden when nothing in the diff produced it", () => {
     const report = summarizeReviewScope([
       "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",

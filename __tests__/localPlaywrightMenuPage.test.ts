@@ -21,8 +21,12 @@ function makePage(
   html = "<html><body>Coke Zero £2.80</body></html>",
 ) {
   let routeHandler: ((route: MockRoute) => Promise<void>) | undefined;
+  let websocketHandler: ((socket: { close: () => void }) => void) | undefined;
   let currentUrl = "";
   const page = {
+    routeWebSocket: vi.fn((_pattern: RegExp, handler: (socket: { close: () => void }) => void) => {
+      websocketHandler = handler;
+    }),
     route: vi.fn(async (_pattern: string, handler: (route: MockRoute) => Promise<void>) => {
       routeHandler = handler;
     }),
@@ -41,7 +45,13 @@ function makePage(
   };
   const browser = { newPage: vi.fn(async () => page), close: vi.fn(async () => {}) };
   const browserType = { launch: vi.fn(async () => browser) };
-  return { page, browser, browserType, getRouteHandler: () => routeHandler };
+  return {
+    page,
+    browser,
+    browserType,
+    getRouteHandler: () => routeHandler,
+    getWebsocketHandler: () => websocketHandler,
+  };
 }
 
 describe("local rendered menu page", () => {
@@ -93,6 +103,20 @@ describe("local rendered menu page", () => {
     }));
     expect(route.continue).not.toHaveBeenCalled();
     expect(browser.newPage).toHaveBeenCalledWith(expect.objectContaining({ serviceWorkers: "block" }));
+  });
+
+  it("closes websocket upgrades before the page can open one", async () => {
+    const { browserType, page, getWebsocketHandler } = makePage();
+    await fetchLocalPlaywrightMenuPage(MENU_URL, {
+      sourceId: "greene-king-menu-prices",
+      browserType,
+      fetchImpl: htmlFetch,
+      robotsChecker: async () => ({ allowed: true, reason: "allowed", evidence: "fixture" }),
+    });
+    expect(page.routeWebSocket).toHaveBeenCalledWith(/.*/, expect.any(Function));
+    const socket = { close: vi.fn() };
+    getWebsocketHandler()?.(socket);
+    expect(socket.close).toHaveBeenCalledOnce();
   });
 
   it("refuses URL policy failures before launching Chromium", async () => {

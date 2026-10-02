@@ -23,6 +23,7 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
+import { VENUE_DETAIL_INCLUDE_RETIRED_PARAM } from "@/lib/prefetchVenue";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { venueAmenityStatus, venueContacts, type Venue, type VenuePrice } from "@/lib/venues";
@@ -40,8 +41,10 @@ export async function GET(
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
   const lookup = await lookupVenueDetail(id);
+  const includeRetired =
+    new URL(request.url).searchParams.get(VENUE_DETAIL_INCLUDE_RETIRED_PARAM) === "1";
 
-  if (lookup.status === "missing") {
+  if (lookup.status === "missing" || (lookup.status === "retired" && !includeRetired)) {
     return publicApiError("Venue not found.", "NOT_FOUND", 404);
   }
   if (lookup.status === "unavailable") {

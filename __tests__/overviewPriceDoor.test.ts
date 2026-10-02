@@ -295,7 +295,7 @@ describe("overviewPriceDoor: one door per trust state", () => {
     expect(overviewPriceDoor("corroborated", { lane: "contributor", contributorPrice: 4.5 })).toEqual(log);
     expect(overviewPriceDoor("none", null)).toEqual(log);
     expect(overviewPriceDoor(null, null)).toEqual(log);
-    expect(overviewPriceDoor(null, { lane: "baseline", standing: "none", publisher: null, cheapestPrice: 6.2 })).toEqual(log);
+    expect(overviewPriceDoor(null, { lane: "baseline", standing: "none", publisher: null, observedOn: null, cheapestPrice: 6.2 })).toEqual(log);
     expect(
       overviewPriceDoor(null, {
         lane: "listed",

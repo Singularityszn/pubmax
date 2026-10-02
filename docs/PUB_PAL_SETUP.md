@@ -36,7 +36,7 @@ Variables → Production, Preview). All four are server-only.
 |---|---|
 | `ELEVENLABS_API_KEY` | Account key. Never reaches the browser: `/api/pub-pal/voice-token` mints a short-lived signed session URL instead |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
-| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/tools/{name}` (and the legacy `/api/pub-pal/llm` bridge if still wired). Generate with `openssl rand -hex 32` |
+| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/tools/{name}`. Generate with `openssl rand -hex 32` |
 | `ELEVENLABS_VOICE_ROBIN` … `_CORGI` | One voice id per species (`lib/palElevenLabsVoice.ts`). Create with `npm run pubpal:design-voices` |
 | `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The onboarding voice picks. When the slot for a Pal's pick is set it always wins; the species voice is used only when that slot is empty |
 
@@ -84,8 +84,10 @@ and PATCHes the agent plus workspace webhook tools. Each tool calls
 (stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`), waits up to
 28 seconds for a response (`response_timeout_secs` in the script; the route
 allows 30 seconds via `maxDuration`). Deploying the app alone does not change
-timeout or webhook body schema on an agent that already exists: re-run this
-script with `ELEVENLABS_PUB_PAL_AGENT_ID` set after changing those values.
+the system prompt, the override grants, a tool schema, or the timeout on an
+agent that already exists. The captain re-runs
+`npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those
+changes. Do not run that command from an agent session.
 Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Live
 proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
@@ -107,9 +109,11 @@ was created before session voice overrides were enabled. Re-run
 `true` on that agent.
 
 If the UI shows **Failed to load the rawAudioProcessor worklet module** (or the
-session never reaches "Pal is listening" after metadata), the page CSP is
-blocking ElevenLabs AudioWorklet scripts. Production CSP must include `blob:`
-and `data:` in `script-src` (see `proxy.ts`).
+session never reaches "Pal is listening" after metadata), the same-origin
+AudioWorklet files were not copied. `npm run prepare:maplibre-worker` (predev
+and prebuild) writes them to `public/vendor/elevenlabs/`, and the voice session
+passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
+`blob:` or `data:` back into `script-src`.
 
 ---
 

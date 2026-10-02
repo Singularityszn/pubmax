@@ -49,7 +49,7 @@ Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs
 |---|---|
 | `ELEVENLABS_API_KEY` | **Server-only** ElevenLabs account key. Never exposed to the browser; `/api/pub-pal/voice-token` mints short-lived session URLs. |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | Agent id from `npm run pubpal:agent -- --base-url https://your-deployment`. |
-| `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}` (and legacy `/api/pub-pal/llm` if wired). |
+| `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}`. |
 | `ELEVENLABS_VOICE_*` | Per-species and onboarding voice ids (`lib/palElevenLabsVoice.ts`). See `docs/PUB_PAL_SETUP.md`. |
 
 ### Optional — other integrations
@@ -350,7 +350,7 @@ vercel promote <deployment-url>
 
 `npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
 uploading. An authenticated `GET /api/version` names that commit (see below).
-An unauthenticated request returns health only. The command forwards every argument.
+An unauthenticated request returns `ok` and `deploymentId`, and never the commit. The command forwards every argument.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
@@ -480,14 +480,14 @@ it back to a deployment.
 
 ### Which commit is this deploy serving
 
-`GET /api/version` returns `{ "ok": true }` without valid cron authentication.
-This proves route health only. Build metadata requires an existing `CRON_SECRET`
+`GET /api/version` returns `{ "ok": true, "deploymentId": "dpl_..." }` without valid cron authentication.
+`deploymentId` is the public marker a stale tab compares. The commit, its source and the build time require an existing `CRON_SECRET`
 configured on the target deployment. Keep that credential in the process
 environment; never put its value in an argument, log or file.
 
 With an authorised credential already available, run this from the clean checkout
 that produced the deployment. Set `DEPLOYMENT_URL` to its HTTPS URL. The request
-fails if authentication returns health only or the running commit differs from HEAD.
+fails if authentication omits the commit or the running commit differs from HEAD.
 
 ```sh
 node --input-type=module <<'NODE'
