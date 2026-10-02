@@ -24,7 +24,7 @@
 import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
   | { allowed: true; reason: "unlinked" | "owner" }
@@ -35,6 +35,19 @@ export type HandleActionGate =
   | { allowed: false; status: number; error: string };
 
 type HandleActionIntent = "read" | "write" | "delete";
+
+const NOT_OWNER_ERROR =
+  "This handle belongs to a signed-in account. Sign in as its owner to continue.";
+
+export type HandleActionOptions = {
+  /**
+   * Messages and notifications reads. An unowned row and a tombstone (the
+   * owner column cleared on account deletion) are the same refusal as a
+   * handle owned by somebody else. The demo path stays open for every other
+   * caller.
+   */
+  requireAccountOwner?: boolean;
+};
 
 /** One owner for deciding whether a route action may claim an unlinked handle. */
 function handleActionIntent(method: string): HandleActionIntent {
@@ -98,11 +111,17 @@ export function gateHasVerifiedActor(gate: HandleActionGate): boolean {
  * A route that already verified the bearer passes `verifiedUserId` so the JWT
  * is checked once per request rather than once per gate. Omitting it keeps the
  * old behaviour; passing `null` states the caller is anonymous.
+ *
+ * `requireAccountOwner` closes the private-inbox read. A messages or
+ * notifications read is allowed only when this caller's account owns a live
+ * handle. An unowned row and a tombstone answer the same not-owner refusal a
+ * handle owned by somebody else already answers.
  */
 export async function gateHandleAction(
   request: Request,
   handle: string,
   verifiedUserId?: string | null,
+  options?: HandleActionOptions,
 ): Promise<HandleActionGate> {
   const key = normalizeHandle(handle);
   if (!key) {
@@ -126,6 +145,18 @@ export async function gateHandleAction(
     const callerOwnsHandle = Boolean(
       caller && rowUserId && caller === rowUserId,
     );
+    // A deleted account keeps its rows and clears the owner. That row, and a
+    // handle no account has ever owned, are not a demo inbox.
+    if (
+      options?.requireAccountOwner &&
+      (!callerOwnsHandle || (existing != null && isProfileTombstoned(existing)))
+    ) {
+      return {
+        allowed: false,
+        status: 403,
+        error: NOT_OWNER_ERROR,
+      };
+    }
     // Reserved contributor handles stay blocked for new claims and hijacks, but
     // a signed-in owner saving their own current handle must succeed idempotently.
     // A linked handle taken by someone else is a 403, not a reserved 409.
@@ -157,8 +188,7 @@ export async function gateHandleAction(
       return {
         allowed: false,
         status: decision.status,
-        error:
-          "This handle belongs to a signed-in account. Sign in as its owner to continue.",
+        error: NOT_OWNER_ERROR,
       };
     }
 

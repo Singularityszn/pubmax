@@ -138,8 +138,11 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   const authDone = performance.now();
 
   // The bearer was verified once above; the gate takes that answer rather than
-  // asking the auth server a second time on the same request.
-  const ownership = await gateHandleAction(request, handle, actor.userId);
+  // asking the auth server a second time on the same request. A thread read
+  // requires the caller's account to own the handle, same as the inbox.
+  const ownership = await gateHandleAction(request, handle, actor.userId, {
+    requireAccountOwner: true,
+  });
   if (!ownership.allowed) {
     if (ownership.status === 403) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);

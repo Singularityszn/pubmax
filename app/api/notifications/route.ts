@@ -3,12 +3,11 @@
 //   POST { handle, id? }             → { notifications, unread }   (marks read)
 //
 // Wave I2: resolve the actor via resolveMessageHandle (JWT-linked handle wins)
-// then gateHandleAction — same ownership model as messages. Linked handles
-// require the matching signed-in owner; unlinked/demo handles still work
-// anonymously. A notification carries only already-public feed signal
-// (a follow, a reaction, a comment, a crawl save), so keying a read by
-// recipient handle is low-sensitivity — it can never reveal anything the feed
-// doesn't already show. See lib/notifications.ts and migration 0010.
+// then gateHandleAction. A read, including the inbox a mark-read returns, is
+// allowed only when the caller's account owns the handle. An unowned row and
+// a tombstone are the same refusal as a handle owned by somebody else. A
+// notification carries only already-public feed signal (a follow, a reaction,
+// a comment, a crawl save). See lib/notifications.ts and migration 0010.
 //
 // Reads are fail-soft (the store returns an empty inbox on any error), so a
 // notifications outage can never 500 the bell / activity page. Store choice is the
@@ -39,7 +38,9 @@ export async function GET(request: Request): Promise<Response> {
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const handle = await resolveMessageHandle(request, asserted);
   if (!handle) return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
-  const ownership = await gateHandleAction(request, handle);
+  const ownership = await gateHandleAction(request, handle, undefined, {
+    requireAccountOwner: true,
+  });
   if (!ownership.allowed) {
     // Fail-soft on store outage: empty bell keeps chrome rendering.
     if (ownership.status === 503) {
@@ -65,7 +66,9 @@ export async function POST(request: Request): Promise<Response> {
   const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
   if (!handle) return publicApiError("Add a handle.", "INVALID_REQUEST", 400);
 
-  const ownership = await gateHandleAction(request, handle);
+  const ownership = await gateHandleAction(request, handle, undefined, {
+    requireAccountOwner: true,
+  });
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
