@@ -392,6 +392,89 @@ function assertMeasured(
   );
 }
 
+
+async function assertMapFirstVisitPhoneNoticeLayout(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  surface: string,
+  assertions: SurfaceAssertion[],
+): Promise<void> {
+  if (!ASSERT_LAYOUT || surface !== "map-first-visit" || viewport.width !== 390) {
+    return;
+  }
+  // Overlap floors need the consent card, which paints only after an answer
+  // moment (lib/consentAnswerMoment.ts). Closing the arrival card is not one.
+  await page.evaluate(() => {
+    sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
+    window.dispatchEvent(new Event("pubmax:consent-answer-moment"));
+  });
+  await expect(page.locator(".analyticsConsentPrompt")).toBeVisible({
+    timeout: 15_000,
+  });
+  await settle(page);
+
+  const notice = await panel(page, "analytics notice", ".analyticsConsentPrompt");
+  const credit = await panel(page, "map credit", ".maplibregl-ctrl-bottom-right");
+  const planAction = await panel(
+    page,
+    "Describe the outing",
+    ".mobilePlanActivation",
+  );
+
+  const overlap =
+    notice && credit
+      ? round(
+          Math.max(
+            0,
+            Math.min(notice.bottom, credit.bottom) - Math.max(notice.top, credit.top),
+          ),
+        )
+      : Number.NaN;
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice leaves map credit reachable",
+    Number.isFinite(overlap) && overlap === 0,
+    `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
+  );
+
+  const planOverlap =
+    notice && planAction
+      ? round(
+          Math.max(
+            0,
+            Math.min(notice.bottom, planAction.bottom) -
+              Math.max(notice.top, planAction.top),
+          ),
+        )
+      : Number.NaN;
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice leaves primary map action clear",
+    !notice ||
+      !planAction ||
+      (Number.isFinite(planOverlap) && planOverlap === 0),
+    !planAction
+      ? "plan action hidden while consent paints"
+      : `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
+  );
+
+  const noticeShare = notice
+    ? round((notice.height / viewport.height) * 100)
+    : Number.NaN;
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice stays below 24 percent of phone height",
+    Number.isFinite(noticeShare) && noticeShare < 24,
+    `${noticeShare}%`,
+  );
+}
+
 async function measureSurfaceAssertions(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
@@ -472,15 +555,6 @@ async function measureSurfaceAssertions(
     const topbar = panels.find(
       (candidate) => candidate.name === "mobile map topbar",
     );
-    const notice = panels.find(
-      (candidate) => candidate.name === "analytics notice",
-    );
-    const planAction = panels.find(
-      (candidate) => candidate.name === "Describe the outing",
-    );
-    const credit = panels.find(
-      (candidate) => candidate.name === "map credit",
-    );
     // The phone map chrome is ONE bar (design judgement 2026-08-01, finding
     // 2.3), so the whole stack is the bar's own height, not a three-row band.
     const chromeHeight = topbar ? round(topbar.bottom - topbar.top) : Number.NaN;
@@ -505,53 +579,6 @@ async function measureSurfaceAssertions(
       "phone controls stay in one uncut row",
       barMetrics.scrollWidth <= barMetrics.clientWidth,
       `scroll ${barMetrics.scrollWidth}px; client ${barMetrics.clientWidth}px; bar ${topbar?.left}-${topbar?.right}px`,
-    );
-    const overlap =
-      notice && credit
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, credit.bottom) -
-                Math.max(notice.top, credit.top),
-            ),
-          )
-        : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice leaves map credit reachable",
-      Number.isFinite(overlap) && overlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
-    );
-    const planOverlap =
-      notice && planAction
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, planAction.bottom) -
-                Math.max(notice.top, planAction.top),
-            ),
-          )
-        : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice leaves primary map action clear",
-      Number.isFinite(planOverlap) && planOverlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
-    );
-    const noticeShare = notice
-      ? round((notice.height / viewport.height) * 100)
-      : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice stays below 24 percent of phone height",
-      Number.isFinite(noticeShare) && noticeShare < 24,
-      `${noticeShare}%`,
     );
   }
 
@@ -767,6 +794,12 @@ async function captureSurface(
     surface,
     rows,
     panels,
+  );
+  await assertMapFirstVisitPhoneNoticeLayout(
+    page,
+    viewport,
+    surface,
+    assertions,
   );
 
   const screenshot = `${surface}-${viewport.width}.png`;
