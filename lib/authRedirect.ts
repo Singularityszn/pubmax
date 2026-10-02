@@ -30,7 +30,7 @@ const AUTH_ATTEMPT_TTL_MS = 60 * 60 * 1000;
 const AUTH_ATTEMPT_ID_PATTERN = /^[0-9a-f]{32}$/;
 
 export const AUTH_CALLBACK_MARKER = "_authCallback";
-export const AUTH_ACCOUNT_BANNED_PARAM = "authBanned";
+const AUTH_ACCOUNT_BANNED_PARAM = "authBanned";
 export const AUTH_ATTEMPT_PARAM = "_authAttempt";
 export const REFERRAL_SIGNUP_PROOF_PARAM = "_referralSignupProof";
 export const AUTH_ATTEMPT_IN_PROGRESS_MESSAGE =
