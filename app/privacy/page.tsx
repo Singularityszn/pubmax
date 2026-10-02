@@ -723,8 +723,8 @@ export default function PrivacyPage() {
             <dt>AI features</dt>
             <dd>
               If you ask The Landlord about a pub, or talk to Pub Pal by typing
-              or by voice, the text of that request goes to the model provider
-              that answers it (OpenRouter, and ElevenLabs at{" "}
+              or by voice, the text or audio of that request goes to the model
+              provider that answers it (OpenRouter, and ElevenLabs at{" "}
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
               configured). Nothing else about you goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
