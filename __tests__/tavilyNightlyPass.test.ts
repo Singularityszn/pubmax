@@ -327,7 +327,7 @@ describe("price lines from a recorded page", () => {
     expect(byDrink["Asahi Super Dry Draught Lager"]).toMatchObject({ size: "keg", priceGbp: 6.7, standing: "listed" });
     expect(facts.drinks.find((row) => row.drink === "Madri Lager")).toBeUndefined();
     expect(byDrink["Peroni Nastro Azzurro"]).toMatchObject({ size: "bottle", priceGbp: 6.55, sizeDetail: "330ml", standing: "listed" });
-    expect(facts.drinks.find((row) => row.priceGbp === 3.55)).toBeUndefined();
+    expect(byDrink.Peroni).toMatchObject({ size: "unstated", sizeDetail: "half", priceGbp: 3.55, standing: "listed" });
     expect(facts.drinks.find((row) => row.priceGbp === 6)).toBeUndefined();
     expect(facts.drinks.find((row) => row.priceGbp === 50)).toBeUndefined();
     expect(facts.drinks.find((row) => /fiver|about/i.test(row.drink))).toBeUndefined();
@@ -597,6 +597,19 @@ describe("a price stays in the lane the reader gave it", () => {
     expect(facts.drinks).toEqual([]);
     expect(facts.excerpts[0].excerpt).toBe(page);
     expect(facts.excerpts[0].sourceUrl).toBe(pageFact.sourceUrl);
+  });
+
+  it("records a stated half and the first figure of a price pair, and not as a pint", () => {
+    const stated = factsFromPage("Peroni Half £3.55", pageFact);
+    expect(stated.drinks).toEqual([
+      expect.objectContaining({ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }),
+    ]);
+    const paired = factsFromPage("Peroni £3.55/£7.10", pageFact);
+    expect(paired.drinks).toEqual([
+      expect.objectContaining({ drink: "Peroni", size: "unstated", sizeDetail: "half", priceGbp: 3.55 }),
+    ]);
+    expect(paired.drinks.find((row) => row.priceGbp === 7.1 || row.size === "pint")).toBeUndefined();
+    expect(factsFromPage("Burger. Peroni Half £3.55", pageFact).drinks).toEqual([]);
   });
 
   it("keeps a sized drink on the same line as a dish and leaves the dish in the excerpt", () => {
@@ -1069,7 +1082,7 @@ describe("a night that fails part way", () => {
     expect(later.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
   });
 
-  it("does not mark a venue seen on an error payload or a night with no drink", async () => {
+  it("does not mark a venue seen on an error payload, and marks a food-only read seen", async () => {
     const pub = venue({
       id: "crown-se1",
       name: "The Crown",
@@ -1139,7 +1152,7 @@ describe("a night that fails part way", () => {
         };
       },
     });
-    expect(foodOnly.cursor.lastSeen["crown-se1"]).toBe("2026-09-01");
+    expect(foodOnly.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
     expect(foodOnly.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
     expect(foodOnly.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
   });

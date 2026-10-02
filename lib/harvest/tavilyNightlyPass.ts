@@ -583,12 +583,25 @@ function listedDrink(
 
 type PriceOutcome = ReturnType<typeof decideKeylessUkPriceCandidate>;
 
+function measureTail(after: string): string {
+  return /^(?:\s*\/\s*|\s+)(?:pints?|halves|half|kegs?|bottles?|cans?|glasses|glass|measures|measure|\d{2,4}\s*ml)\b/i.exec(after)?.[0] ?? "";
+}
+
 function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
   const label = drinkLabelFromPriceContext(line, verbatim, at) ?? "";
   const after = line.slice(at + verbatim.length);
-  const tail = /^(?:\s*\/\s*|\s+)(?:pints?|halves|half|kegs?|bottles?|cans?|glasses|glass|measures|measure|\d{2,4}\s*ml)\b/i.exec(after);
-  const prefix = label ? `${label} ` : "";
-  return { label, text: `${prefix}${verbatim}${tail ? tail[0] : ""}`, at: prefix.length };
+  const tail = measureTail(after);
+  const pair = tail ? "" : (/^\s*[|/]\s*£\s?\d{1,2}(?:\.\d{2})?\b/.exec(after)?.[0] ?? "");
+  const prior = [...line.slice(0, at).matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
+  let start = prior ? (prior.index ?? 0) + prior[0].length : 0;
+  if (prior) start += measureTail(line.slice(start)).length;
+  const lead = /^\s*(?:[.;|,:-]\s*)+/.exec(line.slice(start, at));
+  if (lead) start += lead[0].length;
+  return {
+    label,
+    text: `${line.slice(start, at)}${verbatim}${tail || pair}`,
+    at: at - start,
+  };
 }
 
 function drinkFromDrop(
@@ -603,6 +616,12 @@ function drinkFromDrop(
     return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, {
       size: size.size === "unstated" ? "bottle" : size.size,
       sizeDetail: size.sizeDetail ?? "bottle",
+    });
+  }
+  if (drop === "half-measure-not-a-pint") {
+    return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, {
+      size: "unstated",
+      sizeDetail: "half",
     });
   }
   if (drop !== "no-category-word-nearby") return null;
@@ -628,8 +647,11 @@ function recordPriceLine(
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
-    if (!SERVING_SIZE.test(own.text)) continue;
+    const sized = SERVING_SIZE.test(own.text);
+    const pairedHalf = /^\s*[|/]\s*£/.test(own.text.slice(own.at + raw.verbatim.length));
+    if (!sized && !pairedHalf) continue;
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
+    if (!sized && outcome.drop !== "half-measure-not-a-pint") continue;
     const row = outcome.kept
       ? listedDrink(
           outcome.kept.drinkLabel || own.label,
@@ -1064,7 +1086,9 @@ export async function runNightlyPass(input: {
       : [...new Set(hits.filter((hit) => isOperatorHost(hit.url)).map((hit) => hit.url))];
     const evidence = evidenceFor(venue, today, website, pages, candidates);
     queue = mergeQueue(queue, [evidence]);
-    if (evidence.drinks.length > 0) cursor = advanceCursor(cursor, [venue.id], today);
+    if (evidence.website || evidence.excerpts.length > 0 || evidence.drinks.length > 0) {
+      cursor = advanceCursor(cursor, [venue.id], today);
+    }
     if (input.persist) await input.persist({ queue, cursor });
     if (ledger.exhausted) {
       const index = selected.findIndex((row) => row.id === venue.id);
