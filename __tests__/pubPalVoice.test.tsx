@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import type { Session } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const voice = vi.hoisted(() => ({
@@ -14,7 +15,8 @@ const voice = vi.hoisted(() => ({
 }));
 
 const requests = vi.hoisted(() => ({
-  authedActionFetch: vi.fn(),
+  accountRequest: vi.fn(),
+  releaseFetch: vi.fn(),
 }));
 
 const analytics = vi.hoisted(() => ({
@@ -41,7 +43,7 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
-  authedActionFetch: requests.authedActionFetch,
+  authedActionFetch: requests.accountRequest,
 }));
 
 vi.mock("@/lib/analytics", async (importOriginal) => ({
@@ -50,6 +52,9 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
 }));
 
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
+import { AuthContext, useAuth } from "@/components/auth/authContext";
+import { captureAccountAuth } from "@/lib/accountBoundFetch";
+import { readProviderIdentityRevision, setProviderIdentity } from "@/lib/authProviderRevision";
 import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
@@ -58,6 +63,39 @@ import {
 let container: HTMLDivElement;
 let root: Root | null;
 let getUserMedia: ReturnType<typeof vi.fn>;
+
+const voiceSession: Session = {
+  access_token: "test-voice-owner-token",
+  refresh_token: "test-refresh-token",
+  expires_in: 3600,
+  token_type: "bearer",
+  user: {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    aud: "authenticated",
+    app_metadata: {},
+    user_metadata: {},
+    created_at: "2026-10-01T00:00:00Z",
+  },
+};
+
+function AuthenticatedVoice(props: ComponentProps<typeof PubPalVoice>) {
+  const defaults = useAuth();
+  return createElement(AuthContext.Provider, {
+    value: {
+      ...defaults,
+      session: voiceSession,
+      user: voiceSession.user,
+      configured: true,
+      loading: false,
+      identityResolved: true,
+      providerAuthState: "authenticated",
+      supabaseAuthState: "authenticated",
+      accountRevision: readProviderIdentityRevision(),
+      contributionAuth: captureAccountAuth(voiceSession.user.id, voiceSession),
+      getCurrentUserId: () => voiceSession.user.id,
+    },
+  }, createElement(PubPalVoice, props));
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -78,7 +116,7 @@ async function settle(): Promise<void> {
 
 async function mountAvailable(): Promise<void> {
   await act(async () => {
-    root?.render(createElement(PubPalVoice));
+    root?.render(createElement(AuthenticatedVoice));
   });
   await settle();
   await act(async () => vi.dynamicImportSettled());
@@ -101,16 +139,30 @@ beforeEach(() => {
   voice.startSession.mockReset();
   voice.endSession.mockReset();
   voice.sendUserMessage.mockReset();
-  requests.authedActionFetch.mockReset();
+  requests.accountRequest.mockReset();
+  // Grants keep their helper options. Real release fetches share the response
+  // queue with two arguments, normalizing only the native Headers object.
+  requests.releaseFetch.mockReset().mockImplementation((input: RequestInfo | URL, init: RequestInit) => (
+    requests.accountRequest(input, {
+      ...init,
+      headers: Object.fromEntries(new Headers(init.headers).entries()),
+    })
+  ));
+  setProviderIdentity("supabase", voiceSession.user.id);
   analytics.trackEvent.mockReset();
-  requests.authedActionFetch.mockResolvedValue(new Response(null, { status: 204 }));
+  requests.accountRequest.mockResolvedValue(new Response(null, { status: 204 }));
 
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify({ available: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })),
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/pub-pal/voice-token" && init?.method === "POST") {
+        return requests.releaseFetch(input, init);
+      }
+      return new Response(JSON.stringify({ available: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }),
   );
   getUserMedia = vi.fn();
   Object.defineProperty(navigator, "mediaDevices", {
@@ -123,11 +175,36 @@ beforeEach(() => {
   root = createRoot(container);
 });
 
-afterEach(() => {
-  unmount();
-  container.remove();
-  vi.unstubAllGlobals();
-  vi.useRealTimers();
+afterEach(async () => {
+  try {
+    unmount();
+    await settle();
+    for (const [input, init] of requests.releaseFetch.mock.calls as Array<[RequestInfo | URL, RequestInit]>) {
+      expect(input).toBe("/api/pub-pal/voice-token");
+      expect(init.method).toBe("POST");
+      const headers = new Headers(init.headers);
+      expect(headers.get("authorization")).toBe(`Bearer ${voiceSession.access_token}`);
+      expect(headers.get("content-type")).toBe("application/json");
+      expect([...headers.keys()].sort()).toEqual(["authorization", "content-type"]);
+      expect(JSON.parse(String(init.body)).action).toBe("release");
+    }
+    for (const call of requests.accountRequest.mock.calls) {
+      if ((call[1] as RequestInit | undefined)?.body === undefined) {
+        expect(call).toEqual([
+          "/api/pub-pal/voice-token",
+          { method: "POST" },
+          { requiresIdentity: true },
+        ]);
+      } else {
+        expect(call).toHaveLength(2);
+      }
+    }
+  } finally {
+    container.remove();
+    setProviderIdentity("supabase", null);
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  }
 });
 
 describe("Pub Pal voice controls", () => {
@@ -153,9 +230,22 @@ describe("Pub Pal voice controls", () => {
   });
 
   it("keeps a connected message draft after a send error and sends it on retry", async () => {
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: stopTrack }] });
+    requests.accountRequest.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      maxSessionSeconds: 180,
+    }));
     await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const session = voice.startSession.mock.calls[0][0] as { onConnect?: () => void };
+    await act(async () => session.onConnect?.());
     voice.status = "connected";
-    await act(async () => root?.render(createElement(PubPalVoice)));
+    await act(async () => root?.render(createElement(AuthenticatedVoice)));
     const input = container.querySelector<HTMLInputElement>("input");
     const sendButton = container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]');
 
@@ -177,6 +267,14 @@ describe("Pub Pal voice controls", () => {
     expect(voice.sendUserMessage.mock.calls).toEqual([["A quiet pub in Soho"], ["A quiet pub in Soho"]]);
     expect(input?.value).toBe("");
     expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    expect(requests.accountRequest).toHaveBeenCalledOnce();
+    unmount();
+    await settle();
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
+    expect(requests.releaseFetch).toHaveBeenCalledOnce();
   });
 
   it("offers writing while muted only after the shared service is available", async () => {
@@ -185,7 +283,7 @@ describe("Pub Pal voice controls", () => {
     vi.stubGlobal("fetch", availabilityFetch);
 
     await act(async () => {
-      root?.render(createElement(PubPalVoice, { muted: true }));
+      root?.render(createElement(AuthenticatedVoice, { muted: true }));
     });
     await settle();
 
@@ -203,7 +301,7 @@ describe("Pub Pal voice controls", () => {
     expect(writingLink?.textContent ?? "").toContain("Ask in writing");
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(voice.startSession).not.toHaveBeenCalled();
-    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(requests.accountRequest).not.toHaveBeenCalled();
   });
 
   it.each(["unconfigured", "probe failure"])("offers Map Ask while muted when the shared service is %s", async (caseName) => {
@@ -211,14 +309,14 @@ describe("Pub Pal voice controls", () => {
       ? vi.fn(async () => Response.json({ available: false }))
       : vi.fn(async () => { throw new TypeError("Network unavailable"); }));
 
-    await act(async () => root?.render(createElement(PubPalVoice, { muted: true })));
+    await act(async () => root?.render(createElement(AuthenticatedVoice, { muted: true })));
     await settle();
 
     expect(container.querySelector<HTMLAnchorElement>('a[href="/map"]')?.textContent ?? "").toContain("Ask on the map");
     expect(container.querySelector('a[href="/pal/chat"]')).toBeNull();
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(voice.startSession).not.toHaveBeenCalled();
-    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(requests.accountRequest).not.toHaveBeenCalled();
   });
 
   it("keeps a cancelled owner's availability answer out of the next Pal", async () => {
@@ -228,12 +326,12 @@ describe("Pub Pal voice controls", () => {
       .mockResolvedValueOnce(Response.json({ available: false }));
     vi.stubGlobal("fetch", availabilityFetch);
 
-    await act(async () => root?.render(createElement(PubPalVoice, { key: "owner-a", muted: true })));
+    await act(async () => root?.render(createElement(AuthenticatedVoice, { key: "owner-a", muted: true })));
     await settle();
     expect(availabilityFetch).toHaveBeenCalledOnce();
     const previousSignal = availabilityFetch.mock.calls[0]?.[1]?.signal as AbortSignal | undefined;
 
-    await act(async () => root?.render(createElement(PubPalVoice, { key: "owner-b", muted: true })));
+    await act(async () => root?.render(createElement(AuthenticatedVoice, { key: "owner-b", muted: true })));
     await settle();
     expect(previousSignal?.aborted).toBe(true);
     expect(container.querySelector<HTMLAnchorElement>('a[href="/map"]')?.textContent ?? "").toContain("Ask on the map");
@@ -274,7 +372,7 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(getUserMedia).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(requests.accountRequest).not.toHaveBeenCalled();
     expect(startButton?.disabled).toBe(false);
     expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
     expect(container.textContent).toContain(PAL_MICROPHONE_PERMISSION_ERROR);
@@ -292,7 +390,7 @@ describe("Pub Pal voice controls", () => {
     expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true);
     expect(container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]')?.textContent ?? "").toContain("Ask in writing");
     expect(getUserMedia).not.toHaveBeenCalled();
-    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(requests.accountRequest).not.toHaveBeenCalled();
     expect(voice.startSession).not.toHaveBeenCalled();
   });
 
@@ -301,7 +399,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
     });
-    requests.authedActionFetch
+    requests.accountRequest
       .mockResolvedValueOnce(new Response("{", {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -324,19 +422,22 @@ describe("Pub Pal voice controls", () => {
     expect(startButton?.disabled).toBe(false);
     expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
     expect(container.textContent).toContain(PAL_VOICE_START_ERROR);
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
-    expect(requests.authedActionFetch.mock.calls[1]).toEqual([
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest.mock.calls[1]).toEqual([
       "/api/pub-pal/voice-token",
       expect.objectContaining({
         method: "POST",
+        headers: {
+          authorization: `Bearer ${voiceSession.access_token}`,
+          "content-type": "application/json",
+        },
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
-      { requiresIdentity: true },
     ]);
 
     unmount();
     await settle();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
     expect(voice.endSession).not.toHaveBeenCalled();
   });
 
@@ -348,7 +449,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
     });
-    requests.authedActionFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+    requests.accountRequest.mockResolvedValueOnce(new Response(JSON.stringify({
       error,
       code,
     }), {
@@ -372,11 +473,11 @@ describe("Pub Pal voice controls", () => {
     expect(startButton?.disabled).toBe(false);
     expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
     expect(container.textContent).toContain(error);
-    expect(requests.authedActionFetch).toHaveBeenCalledOnce();
+    expect(requests.accountRequest).toHaveBeenCalledOnce();
 
     unmount();
     await settle();
-    expect(requests.authedActionFetch).toHaveBeenCalledOnce();
+    expect(requests.accountRequest).toHaveBeenCalledOnce();
   });
 
   it("cancels pending permission on unmount and stops a late probe without grant or connect", async () => {
@@ -397,7 +498,7 @@ describe("Pub Pal voice controls", () => {
     await settle();
 
     expect(stopTrack).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(requests.accountRequest).not.toHaveBeenCalled();
     expect(voice.startSession).not.toHaveBeenCalled();
   });
 
@@ -407,7 +508,7 @@ describe("Pub Pal voice controls", () => {
       getTracks: () => [{ stop: stopTrack }],
     });
     const grant = deferred<Response>();
-    requests.authedActionFetch
+    requests.accountRequest
       .mockReturnValueOnce(grant.promise)
       .mockResolvedValue(new Response(null, { status: 204 }));
 
@@ -419,11 +520,11 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
 
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(1);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(1);
     expect(voice.startSession).not.toHaveBeenCalled();
 
     unmount();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(1);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(1);
 
     grant.resolve(new Response(JSON.stringify({
       signedUrl: "wss://voice.example/session",
@@ -435,18 +536,21 @@ describe("Pub Pal voice controls", () => {
 
     expect(stopTrack).toHaveBeenCalledOnce();
     expect(voice.startSession).not.toHaveBeenCalled();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
-    expect(requests.authedActionFetch.mock.calls[1]).toEqual([
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest.mock.calls[1]).toEqual([
       "/api/pub-pal/voice-token",
       expect.objectContaining({
         method: "POST",
+        headers: {
+          authorization: `Bearer ${voiceSession.access_token}`,
+          "content-type": "application/json",
+        },
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
-      { requiresIdentity: true },
     ]);
 
     await settle();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
   });
 
   it("uses connected duration when the cap timer stops a session", async () => {
@@ -455,7 +559,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
     });
-    requests.authedActionFetch
+    requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
         maxSessionSeconds: 1,
@@ -492,8 +596,8 @@ describe("Pub Pal voice controls", () => {
     const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
     expect(ended).toEqual([["voice_ended", { reason: "cap" }]]);
 
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
-    const releaseRequest = requests.authedActionFetch.mock.calls[1][1] as RequestInit;
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
+    const releaseRequest = requests.accountRequest.mock.calls[1][1] as RequestInit;
     const releaseBody = JSON.parse(String(releaseRequest.body)) as {
       action: string;
       durationSeconds: number;
@@ -511,7 +615,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
     });
-    requests.authedActionFetch
+    requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
         maxSessionSeconds: 10,
@@ -544,7 +648,7 @@ describe("Pub Pal voice controls", () => {
 
     voice.status = "connected";
     await act(async () => {
-      root?.render(createElement(PubPalVoice));
+      root?.render(createElement(AuthenticatedVoice));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -558,8 +662,8 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(voice.endSession).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
-    const releaseRequest = requests.authedActionFetch.mock.calls[1][1] as RequestInit;
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
+    const releaseRequest = requests.accountRequest.mock.calls[1][1] as RequestInit;
     const releaseBody = JSON.parse(String(releaseRequest.body)) as {
       action: string;
       durationSeconds: number;
@@ -574,7 +678,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(voice.endSession).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
     expect(stopTrack).toHaveBeenCalledOnce();
     const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
     expect(ended).toEqual([["voice_ended", { reason: "user" }]]);
@@ -587,7 +691,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia
       .mockResolvedValueOnce({ getTracks: () => [{ stop: stopTrackA }] })
       .mockResolvedValueOnce({ getTracks: () => [{ stop: stopTrackB }] });
-    requests.authedActionFetch
+    requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session-a",
         maxSessionSeconds: 10,
@@ -623,7 +727,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>("button")?.click();
@@ -638,7 +742,7 @@ describe("Pub Pal voice controls", () => {
       sessionB.onConnect?.();
       await Promise.resolve();
     });
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(3);
 
     await act(async () => {
       sessionA.onDisconnect?.();
@@ -646,15 +750,15 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(3);
 
     await act(async () => {
       vi.advanceTimersByTime(1_000);
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(4);
-    const releaseRequest = requests.authedActionFetch.mock.calls[3][1] as RequestInit;
+    expect(requests.accountRequest).toHaveBeenCalledTimes(4);
+    const releaseRequest = requests.accountRequest.mock.calls[3][1] as RequestInit;
     expect(JSON.parse(String(releaseRequest.body))).toEqual({
       action: "release",
       durationSeconds: 1,
@@ -669,7 +773,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
     });
-    requests.authedActionFetch
+    requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
         maxSessionSeconds: 1,
@@ -689,7 +793,7 @@ describe("Pub Pal voice controls", () => {
 
     expect(getUserMedia).toHaveBeenCalledOnce();
     expect(stopTrack).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(1);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(1);
     expect(voice.startSession).toHaveBeenCalledOnce();
 
     const session = voice.startSession.mock.calls[0][0] as {
@@ -710,15 +814,18 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(voice.endSession).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
-    expect(requests.authedActionFetch.mock.calls[1]).toEqual([
+    expect(requests.accountRequest.mock.calls[1]).toEqual([
       "/api/pub-pal/voice-token",
       expect.objectContaining({
         method: "POST",
+        headers: {
+          authorization: `Bearer ${voiceSession.access_token}`,
+          "content-type": "application/json",
+        },
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
-      { requiresIdentity: true },
     ]);
 
     await act(async () => {
@@ -729,7 +836,7 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(voice.endSession).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
     const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
     expect(ended).toEqual([["voice_ended", { reason: "error" }]]);
   });
@@ -740,7 +847,7 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
     });
-    requests.authedActionFetch
+    requests.accountRequest
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
         maxSessionSeconds: 1,
@@ -776,7 +883,7 @@ describe("Pub Pal voice controls", () => {
     const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
     expect(ended).toEqual([["voice_ended", { reason: "user" }]]);
     expect(voice.endSession).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       vi.advanceTimersByTime(1_001);
@@ -787,7 +894,7 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(voice.endSession).toHaveBeenCalledOnce();
-    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.accountRequest).toHaveBeenCalledTimes(2);
     expect(stopTrack).toHaveBeenCalledOnce();
   });
 });
