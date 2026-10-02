@@ -5,7 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { isFoodCategory } from "@/lib/food";
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
-import { assertCurrentFamousVenueRows } from "@/scripts/build_slim_index.mjs";
+import { famousRowsForRebuild } from "@/scripts/build_slim_index.mjs";
+import {
+  currentFamousVenueIds,
+  famousSeedLapsedAt,
+  slimPayloadGeneratedAt,
+} from "./helpers/currentFamousVenues";
 import { normalizeVenueName } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -170,21 +175,25 @@ describe("famous venue seeds", () => {
     }
   });
 
-  it("withholds expired famous venues from slim instead of failing the build", () => {
+  it("refuses a slim rebuild that drops famous venues the last index shipped", () => {
     const rows = PACKS.flatMap(([file]) => loadSeed(file));
     vi.spyOn(console, "log").mockImplementation(() => {});
-    expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-09-25T12:00:00.000Z")),
-    ).toHaveLength(71);
-    vi.restoreAllMocks();
-    const logs: string[] = [];
-    const spy = vi.spyOn(console, "log").mockImplementation((...args) => {
-      logs.push(args.map(String).join(" "));
-    });
-    expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-10-25T00:00:00.000Z")),
-    ).toHaveLength(0);
-    expect(logs.join("\n")).toMatch(/withholding 88 famous venue/);
-    spy.mockRestore();
+    const shipped = [...currentFamousVenueIds(slimPayloadGeneratedAt())];
+    expect(shipped.length).toBeGreaterThan(0);
+    try {
+      const kept = famousRowsForRebuild(rows, shipped, slimPayloadGeneratedAt());
+      expect(kept.rows.map((row: { id: string }) => row.id).sort()).toEqual(
+        [...shipped].sort(),
+      );
+      const lapsedAt = famousSeedLapsedAt();
+      expect(() => famousRowsForRebuild(rows, shipped, lapsedAt)).toThrow(
+        /slim rebuild would drop famous venue/,
+      );
+      expect(() => famousRowsForRebuild(rows, [], lapsedAt)).toThrow(
+        /slim rebuild would keep 0 famous venues/,
+      );
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });

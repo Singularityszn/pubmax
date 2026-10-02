@@ -64,6 +64,39 @@ function parseSteps(yaml: string): WorkflowStep[] {
   return steps;
 }
 
+/** Each job's `needs` list, as GitHub reads it. A job with no needs starts on its own. */
+function parseJobNeeds(yaml: string): Record<string, string[]> {
+  const needs: Record<string, string[]> = {};
+  let job = "";
+  for (const line of yaml.split("\n")) {
+    const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
+    if (jobHeader) {
+      job = jobHeader[1];
+      needs[job] = [];
+      continue;
+    }
+    const need = /^ {4}needs: \[(.*)\]$/.exec(line);
+    if (need && job) {
+      needs[job] = need[1]
+        .split(",")
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
+    }
+  }
+  return needs;
+}
+
+function jobAncestors(job: string, needs: Record<string, string[]>): Set<string> {
+  const seen = new Set<string>();
+  const walk = (name: string) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    for (const dep of needs[name] ?? []) walk(dep);
+  };
+  walk(job);
+  return seen;
+}
+
 /** Each job's own wall, in minutes, as GitHub reads it. */
 function parseJobWalls(yaml: string): Record<string, number> {
   const walls: Record<string, number> = {};
@@ -139,6 +172,17 @@ describe("clean-main CI release gate", () => {
     const [first] = steps.filter((step) => step.job === "performance-budget");
     expect(first.run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
     expect(first.run).toContain("GITHUB_ENV");
+  });
+
+  it("does not let the freshness calendar skip the build, unit shards or coverage", () => {
+    const needs = parseJobNeeds(workflow);
+    for (const job of ["production-build", "unit-tests", "coverage"]) {
+      expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
+    }
+    expect(needs["production-build"]).toEqual(["lint-and-types"]);
+    expect(needs["unit-tests"]).toEqual(["production-build"]);
+    expect(needs.coverage).toEqual(["unit-tests"]);
+    expect(needs.freshness).toEqual([]);
   });
 
   it("gates coverage and freshness independently", () => {

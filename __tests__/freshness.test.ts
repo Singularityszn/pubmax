@@ -824,15 +824,34 @@ describe("data/freshness_registry.json integrity", () => {
     }
   });
 
-  it("carries pint_index_snapshot as a budgeted user-cadence feed", () => {
-    // The feed that prompted the rule: it grows only as confirmed Pint Drops
-    // arrive, so a quiet stretch leaves it dated. An unbudgeted entry would
-    // read "untracked" instead and the rename would never reach it.
+  it("does not age an empty Pint Index on the neglect clock", () => {
+    // The published snapshot has no observations. A 2160h budget would call
+    // that empty file stale on 14 October 2026, and restamping generatedAt
+    // would claim a collection that did not happen. The budget returns with
+    // the first observation.
+    const snapshot = JSON.parse(
+      readFileSync(join(root, "public/data/pint_index_snapshot.json"), "utf8"),
+    ) as { status?: string; observations?: unknown[]; generatedAt?: string };
     const entry = registry.datasets.find((row) => row.id === "pint_index_snapshot");
-    expect(entry?.class).toBe("user-cadence");
-    expect(classNamesSnapshots("user-cadence")).toBe(true);
-    expect(typeof entry?.stalenessBudgetHours).toBe("number");
     expect(entry?.artifact).toBe("public/data/pint_index_snapshot.json");
+    expect(entry).toBeDefined();
+    if (snapshot.status === "empty" && (snapshot.observations?.length ?? 0) === 0) {
+      expect(entry).toMatchObject({
+        class: "snapshot",
+        stalenessBudgetHours: null,
+      });
+      const aged = evaluateDataset(
+        entry!,
+        snapshot.generatedAt ?? null,
+        new Date("2026-10-14T00:00:00.000Z"),
+      );
+      expect(aged.status).toBe("snapshot");
+      return;
+    }
+    expect(entry).toMatchObject({
+      class: "user-cadence",
+      stalenessBudgetHours: 2160,
+    });
   });
 
   it("does not classify manually published feeds as cron schedules", () => {

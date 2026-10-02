@@ -57,8 +57,10 @@ Playwright jobs take `PW_PORT` from `.github/actions/pubmax-playwright-port`. Th
 
 Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node_modules` on `pubmax-mac` jobs. Restoring those caches from GitHub's cache service can stall ~20 minutes and fail authentication on self-hosted runners; each Mac already keeps npm tarballs under `~/.npm`. Setup Node steps use `timeout-minutes: 5` so a stuck restore fails fast.
 
-`ci.yml` also chains jobs (`production-build` after lint + freshness, unit
-shards `max-parallel: 1`, coverage after unit tests).
+`ci.yml` chains the code jobs (`production-build` after lint, unit shards
+`max-parallel: 1`, coverage after unit tests). The freshness job runs on its
+own: a calendar breach is that job's red mark and does not skip the build,
+the unit shards or coverage.
 
 ### Register or re-register the runner
 
