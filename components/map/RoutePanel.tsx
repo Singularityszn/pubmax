@@ -29,7 +29,6 @@ import RouteHeader from "@/components/map/route/RouteHeader";
 import RouteMetrics from "@/components/map/route/RouteMetrics";
 import RouteActions from "@/components/map/route/RouteActions";
 import RouteList from "@/components/map/route/RouteList";
-import type { RetiredRouteStop } from "@/components/map/pubmap/useMapPlanCoordinator";
 import CrawlProgressSection from "@/components/map/route/CrawlProgressSection";
 import VenuePicker from "@/components/map/route/VenuePicker";
 import { useRoutePois } from "@/components/map/route/useRoutePois";
@@ -49,8 +48,6 @@ type RoutePanelProps = {
   altStyle: AltCrawlStyle;
   onAltStyleChange: (style: AltCrawlStyle) => void;
   route: Venue[];
-  /** Built stops whose pub left the map, named in the stop list in their place. */
-  retiredStops?: readonly RetiredRouteStop[];
   filteredVenues: Venue[];
   builtIds: string[];
   activeVenueId: string | undefined;
@@ -94,7 +91,6 @@ export default function RoutePanel({
   altStyle,
   onAltStyleChange,
   route,
-  retiredStops = [],
   filteredVenues,
   builtIds,
   activeVenueId,
@@ -191,7 +187,6 @@ export default function RoutePanel({
   const stopsList = (
     <RouteList
       route={route}
-      retiredStops={retiredStops}
       activeVenueId={activeVenueId}
       venueSignals={venueSignals}
       legSummary={legSummary}

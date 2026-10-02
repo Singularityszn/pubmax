@@ -2,7 +2,6 @@
 
 import { Beer, Footprints, Navigation, TrainFront } from "lucide-react";
 
-import type { RetiredRouteStop } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeLegs";
 import { journeyAddsTransit } from "@/lib/formatJourney";
@@ -16,8 +15,6 @@ type VenueSignals = Map<
 
 type RouteListProps = {
   route: Venue[];
-  /** Stops on this crawl whose pub left the map. Never route stops, only named. */
-  retiredStops?: readonly RetiredRouteStop[];
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
   legSummary: RouteLegsSummary;
@@ -26,16 +23,8 @@ type RouteListProps = {
   onSelectVenue: (id: string) => void;
 };
 
-/** "1 stop on this crawl may have closed: The Duck" */
-function retiredStopsLine(stops: readonly RetiredRouteStop[]): string | null {
-  if (stops.length === 0) return null;
-  const count = stops.length === 1 ? "1 stop" : `${stops.length} stops`;
-  return `${count} on this crawl may have closed: ${stops.map((stop) => stop.name).join(", ")}`;
-}
-
 export default function RouteList({
   route,
-  retiredStops = [],
   activeVenueId,
   venueSignals,
   legSummary,
@@ -55,11 +44,7 @@ export default function RouteList({
     })),
   );
 
-  const retiredLine = retiredStopsLine(retiredStops);
-
   return (
-    <>
-    {retiredLine ? <p className="routeRetiredNote">{retiredLine}</p> : null}
     <ol className="routeList">
       {route.map((venue, index) => {
         const signal = venueSignals.get(venue.id);
@@ -135,6 +120,5 @@ export default function RouteList({
         );
       })}
     </ol>
-    </>
   );
 }

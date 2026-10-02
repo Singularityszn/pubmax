@@ -3982,13 +3982,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-radius: inherit;
 }
 
-/* The crawl's stops whose pub left the map: named once, above the route. */
-.routeRetiredNote {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
 .routeList li:hover {
   border-color: var(--brass);
   transform: translateX(2px);

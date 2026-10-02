@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { POST as POST_CRAWL } from "@/app/api/crawls/route";
 import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
-import { __resetCrawlStories, getCrawlStoryBySlug } from "@/lib/crawlStoryStore";
+import { __resetCrawlStories } from "@/lib/crawlStoryStore";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
@@ -271,7 +271,7 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
     ]);
   });
 
-  it("keeps a retired stop in its place when a crawl naming it is saved", async () => {
+  it("refuses to save a crawl naming it, like any id that is not a pub on the map", async () => {
     __resetCrawlStories();
     const stops = [HARE_AND_HOUNDS.current, HENMAN_AND_COOPER, CHEMIC_TAVERN.current];
     const saved = await POST_CRAWL(
@@ -284,14 +284,7 @@ describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
         }),
       }),
     );
-    expect(saved.status).toBe(201);
-    const { slug } = (await saved.json()) as { slug: string };
-    const story = await getCrawlStoryBySlug(slug);
-    expect(story?.stops.map((stop) => [stop.venueId, stop.venueName])).toEqual([
-      [HARE_AND_HOUNDS.current, "Hare & Hounds"],
-      [HENMAN_AND_COOPER, "Henman & Cooper (may have closed)"],
-      [CHEMIC_TAVERN.current, "The Chemic Tavern"],
-    ]);
+    expect(saved.status).toBe(400);
   });
 
   it("answers reads only: no write can land on a pub the map no longer lists", async () => {

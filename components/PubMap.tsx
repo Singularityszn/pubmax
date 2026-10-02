@@ -3115,18 +3115,13 @@ export default function PubMap({
     () => planStopsToRouteVenues(activePlanStops, venueById),
     [activePlanStops, venueById],
   );
-  const retiredDetailById = useMemo(
-    () => new Map([...detailById].filter(([, venue]) => venue.retired)),
-    [detailById],
-  );
-  const { route, retiredStops, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
+  const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
     mode,
     builtIds,
     routeMapped,
     suggestedRoute,
     activePlanRoute,
     venueById,
-    retiredById: retiredDetailById,
   });
   // A suggested route exists behind the clean map, but its TfL legs are only
   // useful once the planner is open or the viewer explicitly maps it.
@@ -5332,7 +5327,6 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
-        retiredStops={retiredStops}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
         activeVenueId={selectedVenueIdOrUndefined}

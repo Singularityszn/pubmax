@@ -46,27 +46,6 @@ export function useMapPlanCoordinator(initial: InitialPlanState) {
   };
 }
 
-/** A built stop whose pub left the map. It is never a route stop, only named. */
-export type RetiredRouteStop = {
-  id: string;
-  name: string;
-};
-
-/**
- * The built stops that name a retired pub, in the crawl's own order. The route
- * leaves them out entirely: no pin, no leg, no last train, no Round, no log.
- * The stop list only names them, once, above the route.
- */
-export function builtRouteRetiredStops(
-  builtIds: readonly string[],
-  retiredById: ReadonlyMap<string, Venue>,
-): RetiredRouteStop[] {
-  return builtIds.flatMap((id) => {
-    const retired = retiredById.get(id);
-    return retired?.retired ? [{ id, name: retired.name }] : [];
-  });
-}
-
 /** Resolves exactly one route presentation: explicit mapped route first, restored plan second. */
 export function useMapPlanPresentation({
   mode,
@@ -75,7 +54,6 @@ export function useMapPlanPresentation({
   suggestedRoute,
   activePlanRoute,
   venueById,
-  retiredById,
 }: {
   mode: CrawlMode;
   builtIds: string[];
@@ -83,7 +61,6 @@ export function useMapPlanPresentation({
   suggestedRoute: Venue[];
   activePlanRoute: Venue[];
   venueById: ReadonlyMap<string, Venue>;
-  retiredById: ReadonlyMap<string, Venue>;
 }) {
   // Crawl routes price stops as pints, so a bar/food id that sneaks into
   // builtIds (old URL, stale localStorage) must never resolve into the route.
@@ -95,10 +72,6 @@ export function useMapPlanPresentation({
     [builtIds, venueById],
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
-  const retiredStops = useMemo(
-    () => (mode === "suggest" ? [] : builtRouteRetiredStops(builtIds, retiredById)),
-    [builtIds, mode, retiredById],
-  );
   const routeMappedActive = routeMapped && route.length >= 2;
   const routeForMap = useMemo(
     () => (routeMappedActive ? route : activePlanRoute),
@@ -106,5 +79,5 @@ export function useMapPlanPresentation({
   );
   const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
 
-  return { route, retiredStops, routeMappedActive, routeForMap, routeForMapLegs };
+  return { route, routeMappedActive, routeForMap, routeForMapLegs };
 }
