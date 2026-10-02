@@ -18,6 +18,7 @@ import {
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   isLikelyMenuUrl,
+  MIN_PRICED_LINES_FOR_LIST,
   pageStatesADrinksList,
   pageText,
   drinkLabelFromPriceContext,
@@ -690,11 +691,11 @@ function pricesAllowed(url: string, title: string | undefined, section: "drinks"
   const titleDrinks = saysMenu(titleKind, "drinks");
   if (pathIsFoodOnly(path)) return false;
   if (section === "food") return false;
-  if (pathDrinks) return true;
+  if (pathDrinks || section === "drinks") return true;
   if (pathFood && !pathDrinks) return false;
   if (titleFood && !titleDrinks) return false;
   if (titleDrinks && !titleFood) return true;
-  return section === "drinks";
+  return false;
 }
 
 function mayRecordPrices(
@@ -704,7 +705,9 @@ function mayRecordPrices(
   reading: ReturnType<typeof readVenueDrinkPrices>,
 ): boolean {
   if (section === "food" || pathIsFoodOnly(url)) return false;
-  if (pricesAllowed(url, title, section)) return true;
+  if (!pricesAllowed(url, title, section)) return false;
+  if (section === "drinks" || pathIsDrinksMenu(urlPath(url))) return true;
+  if (reading.kept.length < MIN_PRICED_LINES_FOR_LIST) return true;
   return pageStatesADrinksList(reading);
 }
 
@@ -881,6 +884,15 @@ function searchQueryFor(venue: NightlyVenue): string {
   return `"${name}" ${venue.postcode} ${venue.borough} pub drinks menu food`.replace(/\s+/g, " ").trim();
 }
 
+function responseFailed(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return true;
+  const body = payload as Record<string, unknown>;
+  const error = body.error;
+  if (typeof error === "string" && error.trim().length > 0) return true;
+  if (typeof error === "object" && error !== null) return true;
+  return "results" in body && !Array.isArray(body.results);
+}
+
 function pagesFromPayload(payload: unknown, keepEmpty = false): Array<{ url: string; title?: string; text: string }> {
   if (typeof payload !== "object" || payload === null) return [];
   const results = (payload as { results?: unknown }).results;
@@ -1015,7 +1027,7 @@ export async function runNightlyPass(input: {
     const search = await takePayload(ledger, SEARCH_CREDIT_COST, () =>
       input.fetchImpl({ kind: "search", venueId: venue.id, query: searchQueryFor(venue) }),
     );
-    if (!search) {
+    if (!search || responseFailed(search)) {
       if (ledger.exhausted) stopped = "allowance";
       if (ledger.exhausted) break;
       continue;
@@ -1036,6 +1048,7 @@ export async function runNightlyPass(input: {
           : candidateUrls
         : [];
     const pages: Array<{ url: string; title?: string; text: string }> = [];
+    let useSnippets = true;
     if (website && urls.length > 0 && ledger.canSpend(EXTRACT_CREDIT_COST)) {
       const extracted = await takePayload(ledger, EXTRACT_CREDIT_COST, () =>
         input.fetchImpl({ kind: "extract", venueId: venue.id, urls }),
@@ -1045,13 +1058,17 @@ export async function runNightlyPass(input: {
         if (ledger.exhausted) break;
         continue;
       }
-      const extractedPages = pagesFromPayload(extracted);
-      for (const url of urls) {
-        const extractedPage = extractedPages.find((page) => sameListedUrl(page.url, url));
-        const hit = hits.find((row) => sameListedUrl(row.url, url));
-        pushListedPage(pages, url, extractedPage?.text || hit?.content, extractedPage?.title ?? hit?.title);
+      if (!responseFailed(extracted)) {
+        useSnippets = false;
+        const extractedPages = pagesFromPayload(extracted);
+        for (const url of urls) {
+          const extractedPage = extractedPages.find((page) => sameListedUrl(page.url, url));
+          const hit = hits.find((row) => sameListedUrl(row.url, url));
+          pushListedPage(pages, url, extractedPage?.text || hit?.content, extractedPage?.title ?? hit?.title);
+        }
       }
-    } else if (website) {
+    }
+    if (website && useSnippets) {
       const snippetUrls = urls.length > 0 ? urls : candidateUrls;
       for (const url of snippetUrls) {
         const hit = hits.find((row) => sameListedUrl(row.url, url));
@@ -1065,8 +1082,9 @@ export async function runNightlyPass(input: {
     const candidates = website
       ? []
       : [...new Set(hits.filter((hit) => isOperatorHost(hit.url)).map((hit) => hit.url))];
-    queue = mergeQueue(queue, [evidenceFor(venue, today, website, pages, candidates)]);
-    cursor = advanceCursor(cursor, [venue.id], today);
+    const evidence = evidenceFor(venue, today, website, pages, candidates);
+    queue = mergeQueue(queue, [evidence]);
+    if (evidence.drinks.length > 0) cursor = advanceCursor(cursor, [venue.id], today);
     if (input.persist) await input.persist({ queue, cursor });
     if (ledger.exhausted) {
       const index = selected.findIndex((row) => row.id === venue.id);

@@ -641,6 +641,37 @@ describe("a price stays in the lane the reader gave it", () => {
     expect(byDrink["Coca-Cola"]).toMatchObject({ size: "can", sizeDetail: "330ml", priceGbp: 1.5 });
   });
 
+  it("reads the size on each price of one line", () => {
+    const facts = factsFromPage("Guinness pint £6.20 | Peroni 330ml bottle £5.50", pageFact);
+    const byDrink = Object.fromEntries(facts.drinks.map((row) => [row.drink, row]));
+    expect(byDrink.Guinness).toMatchObject({ size: "pint", priceGbp: 6.2 });
+    expect(byDrink.Peroni).toMatchObject({ size: "bottle", sizeDetail: "330ml", priceGbp: 5.5 });
+  });
+
+  it("does not price a bare menu, and a drinks heading still beats a food title", () => {
+    const lunch = "London Pride £5.50 /pint\nGuinness £5.80 /pint\nAsahi £6.20 /pint\nMadri £6.10 /pint\nScotch egg £6.50";
+    const bare = factsFromPage(lunch, {
+      sourceUrl: "https://pub.example/menu",
+      seenOn: "2026-10-01",
+      title: "Sunday lunch",
+    });
+    expect(bare.drinks).toEqual([]);
+    expect(bare.excerpts[0].excerpt).toContain("Scotch egg £6.50");
+    const headed = "Draught beer\nLondon Pride £5.50 /pint\nBottled beers\nPeroni 330ml bottle £5.50\nCask ale\nLandlord £4.20 /pint\nFood\nScotch egg £6.50\nRum baba £7";
+    const menu = factsFromPage(headed, {
+      sourceUrl: "https://pub.example/menu",
+      seenOn: "2026-10-01",
+      title: "Sunday lunch",
+    });
+    expect(menu.drinks.map((row) => `${row.drink}|${row.size}|${row.priceGbp}`).sort()).toEqual([
+      "Landlord|pint|4.2",
+      "London Pride|pint|5.5",
+      "Peroni|bottle|5.5",
+    ]);
+    expect(menu.drinks.find((row) => /scotch|rum|baba/i.test(row.drink))).toBeUndefined();
+    expect(menu.excerpts[0].excerpt).toContain("Scotch egg £6.50");
+  });
+
   it("keeps scotch egg and rum baba off a food menu and out of a food section", () => {
     const food = "Scotch egg £6.50\nRum baba £7";
     const foodPage = factsFromPage(food, {
@@ -922,11 +953,88 @@ describe("a night that fails part way", () => {
       queue: first.queue,
       fetchImpl: async () => ({ results: [], usage: { credits: 1 } }),
     });
-    expect(later.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
+    expect(later.cursor.lastSeen["crown-se1"]).toBe("2026-09-01");
     expect(later.queue.venues).toHaveLength(1);
     expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
     expect(later.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
     expect(later.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
+  });
+
+  it("does not mark a venue seen on an error payload or a night with no drink", async () => {
+    const pub = venue({
+      id: "crown-se1",
+      name: "The Crown",
+      postcode: "SE1 6AN",
+      street: "1 Bankside",
+    });
+    const prior = {
+      version: 1 as const,
+      standingRule: "listed" as const,
+      venues: [{
+        venueId: "crown-se1",
+        name: "The Crown",
+        postcode: "SE1 6AN",
+        borough: "Southwark",
+        seenOn: "2026-09-01",
+        website: { url: "https://thecrown-bankside.co.uk/drinks", sourceUrl: "https://thecrown-bankside.co.uk/drinks", seenOn: "2026-09-01" },
+        drinks: [{
+          drink: "London Pride",
+          size: "pint" as const,
+          sizeDetail: "pint",
+          priceGbp: 5.5,
+          standing: "listed" as const,
+          sourceUrl: "https://thecrown-bankside.co.uk/drinks",
+          seenOn: "2026-09-01",
+        }],
+        excerpts: [{ sourceUrl: "https://thecrown-bankside.co.uk/drinks", excerpt: "London Pride £5.50 /pint", seenOn: "2026-09-01" }],
+        hours: null,
+        phone: null,
+        candidates: [],
+      }],
+    };
+    const cursor = { version: 1 as const, lastSeen: { "crown-se1": "2026-09-01" } };
+    const errored = await runNightlyPass({
+      venues: [pub],
+      cursor,
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: prior,
+      fetchImpl: async () => ({ error: "Too many requests", usage: { credits: 1 } }),
+    });
+    expect(errored.cursor.lastSeen["crown-se1"]).toBe("2026-09-01");
+    expect(errored.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    const foodOnly = await runNightlyPass({
+      venues: [pub],
+      cursor,
+      usage: researcher,
+      now: oct1,
+      reserveCredits: 0,
+      manualCap: 10,
+      staleAfterDays: 30,
+      queue: prior,
+      fetchImpl: async (request) => {
+        if (request.kind === "search") {
+          return {
+            results: [{
+              url: "https://thecrown-bankside.co.uk/food-menu.pdf",
+              title: "The Crown",
+              content: "The Crown, 1 Bankside, SE1 6AN.",
+            }],
+            usage: { credits: 1 },
+          };
+        }
+        return {
+          results: [{ url: "https://thecrown-bankside.co.uk/food-menu.pdf", raw_content: "Burger £12.00" }],
+          usage: { credits: 1 },
+        };
+      },
+    });
+    expect(foodOnly.cursor.lastSeen["crown-se1"]).toBe("2026-09-01");
+    expect(foodOnly.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    expect(foodOnly.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
   });
 
   it("keeps a queued food line when a later page states the kitchen but prices no dish", async () => {
