@@ -506,11 +506,6 @@ async function measureSurfaceAssertions(
       barMetrics.scrollWidth <= barMetrics.clientWidth,
       `scroll ${barMetrics.scrollWidth}px; client ${barMetrics.clientWidth}px; bar ${topbar?.left}-${topbar?.right}px`,
     );
-    // Closing the arrival card is not an answer moment
-    // (lib/consentAnswerMoment.ts), so the card stays down and the credit
-    // is reachable because nothing is painted over it. Once an answer has
-    // put the card up, the same floors still apply.
-    const noticeWaiting = !notice;
     const overlap =
       notice && credit
         ? round(
@@ -526,10 +521,8 @@ async function measureSurfaceAssertions(
       surface,
       viewport.width,
       "analytics notice leaves map credit reachable",
-      noticeWaiting || (Number.isFinite(overlap) && overlap === 0),
-      noticeWaiting
-        ? `notice waiting; credit ${credit?.top}-${credit?.bottom}px`
-        : `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
+      Number.isFinite(overlap) && overlap === 0,
+      `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
     );
     const planOverlap =
       notice && planAction
@@ -546,10 +539,8 @@ async function measureSurfaceAssertions(
       surface,
       viewport.width,
       "analytics notice leaves primary map action clear",
-      noticeWaiting || (Number.isFinite(planOverlap) && planOverlap === 0),
-      noticeWaiting
-        ? `notice waiting; action ${planAction?.top}-${planAction?.bottom}px`
-        : `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
+      Number.isFinite(planOverlap) && planOverlap === 0,
+      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
     );
     const noticeShare = notice
       ? round((notice.height / viewport.height) * 100)
@@ -559,8 +550,8 @@ async function measureSurfaceAssertions(
       surface,
       viewport.width,
       "analytics notice stays below 24 percent of phone height",
-      noticeWaiting || (Number.isFinite(noticeShare) && noticeShare < 24),
-      noticeWaiting ? "notice waiting" : `${noticeShare}%`,
+      Number.isFinite(noticeShare) && noticeShare < 24,
+      `${noticeShare}%`,
     );
   }
 
