@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import WallClient from "./WallClient";
+import DrinkWall from "@/components/drink-wall/DrinkWall";
+import SiteNav from "@/components/nav/SiteNav";
 
 export const metadata: Metadata = {
   title: "Drink Wall · PUBMAXXING",
@@ -9,5 +10,12 @@ export const metadata: Metadata = {
 };
 
 export default function WallPage() {
-  return <WallClient />;
+  return (
+    <main className="wallPage">
+      <SiteNav />
+      <div className="wallPageBody">
+        <DrinkWall />
+      </div>
+    </main>
+  );
 }

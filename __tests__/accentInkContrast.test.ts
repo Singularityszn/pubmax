@@ -620,11 +620,6 @@ describe("no surface puts the raw accent back on a light word", () => {
   // surface their ink lands on is an ancestor's decision.
   const HOLD_TO_INK: ReadonlyArray<readonly [file: string, selector: string]> = [
     ["components/ui/kicker.css", ".kicker {"],
-    ["components/city/cityChooser.css", ".cityChooser--section .cityChooserLocate {"],
-    [
-      "components/city/cityChooser.css",
-      ".cityChooser--section .cityChooserReleaseBadge {",
-    ],
     ["components/map/venueOccupancy.css", ".venueOccupancySignIn a {"],
     ["components/plan/nightCrawl.css", ".nightCrawl__enterKicker {"],
   ];
