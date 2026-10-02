@@ -64,7 +64,7 @@ const API_ROUTES = routeFiles(API_DIR);
 type PaidRouteCase = {
   route: string;
   call: () => Promise<Response>;
-  refusal: { status: number; body: Record<string, unknown> };
+  answer: { status: number; body: Record<string, unknown> };
 };
 
 function jsonPost(url: string, body: unknown): Request {
@@ -96,7 +96,41 @@ const CEILING_SPENT = { status: 429, body: { code: PAID_SPEND_REFUSAL_CODE } };
 const SIGN_IN_TO_CONTRIBUTE = { status: 401, body: { status: "sign_in_required" } };
 const SIGN_IN_AS_OWNER = { status: 403, body: { code: "FORBIDDEN" } };
 const CRON_UNAUTHORIZED = { status: 401, body: { code: "CRON_UNAUTHORIZED" } };
-const NO_SUCH_PROFILE = { status: 404, body: { code: "NOT_FOUND" } };
+const REPORT_ACCEPTED = { status: 200, body: { ok: true } };
+
+const REPORTED_HANDLE = "reported";
+const REPORTED_GALLERY_COVER_ID = "77777777-7777-4777-8777-777777777771";
+
+/** A profile with an approved avatar, cover and gallery cover, so a report reaches a real image. */
+async function seedReportedProfile(): Promise<void> {
+  const { __resetMemoryProfiles, profileStore } = await import("@/lib/profileStore");
+  const { __resetProfileCoverPhotos, memoryProfileCoverPhotoStore } = await import(
+    "@/lib/profileCoverPhotoStore"
+  );
+  const { profileImageServingKey } = await import("@/lib/profileImageSlots");
+  __resetMemoryProfiles();
+  __resetProfileCoverPhotos();
+  const store = profileStore();
+  const profile = await store.createOwned(REPORTED_HANDLE, "user-reported");
+  const images = [
+    ["avatar", "11111111-1111-4111-8111-111111111111"],
+    ["cover", "22222222-2222-4222-8222-222222222222"],
+  ] as const;
+  for (const [slot, generation] of images) {
+    await store.setOwnedImage(REPORTED_HANDLE, slot, {
+      objectKey: profileImageServingKey(slot, profile.id, generation),
+      generation,
+      moderationState: "approved",
+    });
+  }
+  const galleryGeneration = "55555555-5555-4555-8555-555555555555";
+  await memoryProfileCoverPhotoStore.create({
+    id: REPORTED_GALLERY_COVER_ID,
+    profileId: profile.id,
+    generation: galleryGeneration,
+    objectKey: profileImageServingKey("cover", profile.id, galleryGeneration),
+  });
+}
 
 const cronProbe = (job: string): PaidRouteCase => ({
   route: `app/api/cron/${job}/route.ts`,
@@ -104,7 +138,7 @@ const cronProbe = (job: string): PaidRouteCase => ({
     (await import(/* @vite-ignore */ path.join(ROOT, "app/api/cron", job, "route.ts"))).GET(
       anonymousGet(`http://localhost/api/cron/${job}`),
     ),
-  refusal: CRON_UNAUTHORIZED,
+  answer: CRON_UNAUTHORIZED,
 });
 
 /** Every route handler that can reach a paid provider, called with no session. */
@@ -115,7 +149,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
       (await import("@/app/api/ask/route")).POST(
         jsonPost("http://localhost/api/ask", { query: "Where is a quiet pint" }),
       ),
-    refusal: CEILING_SPENT,
+    answer: CEILING_SPENT,
   },
   {
     route: "app/api/heritage/route.ts",
@@ -126,7 +160,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
           question: "How old is this pub?",
         }),
       ),
-    refusal: CEILING_SPENT,
+    answer: CEILING_SPENT,
   },
   {
     route: "app/api/plans/generate/route.ts",
@@ -134,7 +168,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
       (await import("@/app/api/plans/generate/route")).POST(
         jsonPost("http://localhost/api/plans/generate", { query: "A quiet crawl in Soho" }),
       ),
-    refusal: CEILING_SPENT,
+    answer: CEILING_SPENT,
   },
   {
     route: "app/api/pub-pal/llm/route.ts",
@@ -144,7 +178,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
           messages: [{ role: "user", content: "Where is a quiet pint" }],
         }),
       ),
-    refusal: UNAUTHENTICATED,
+    answer: UNAUTHENTICATED,
   },
   {
     route: "app/api/pub-pal/tools/[toolName]/route.ts",
@@ -155,7 +189,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
         }),
         params({ toolName: "venue_heritage" }),
       ),
-    refusal: UNAUTHENTICATED,
+    answer: UNAUTHENTICATED,
   },
   {
     route: "app/api/pub-pal/tool-turn/route.ts",
@@ -166,7 +200,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
           query: "Where is a quiet pint",
         }),
       ),
-    refusal: UNAUTHENTICATED,
+    answer: UNAUTHENTICATED,
   },
   {
     route: "app/api/pub-pal/voice-token/route.ts",
@@ -174,19 +208,19 @@ const PAID_ROUTES: PaidRouteCase[] = [
       (await import("@/app/api/pub-pal/voice-token/route")).POST(
         jsonPost("http://localhost/api/pub-pal/voice-token", {}),
       ),
-    refusal: UNAUTHENTICATED,
+    answer: UNAUTHENTICATED,
   },
   {
     route: "app/api/drink-wall/route.ts",
     call: async () =>
       (await import("@/app/api/drink-wall/route")).POST(photoPost("http://localhost/api/drink-wall")),
-    refusal: SIGN_IN_TO_CONTRIBUTE,
+    answer: SIGN_IN_TO_CONTRIBUTE,
   },
   {
     route: "app/api/venue-photos/route.ts",
     call: async () =>
       (await import("@/app/api/venue-photos/route")).POST(photoPost("http://localhost/api/venue-photos")),
-    refusal: SIGN_IN_TO_CONTRIBUTE,
+    answer: SIGN_IN_TO_CONTRIBUTE,
   },
   {
     route: "app/api/profiles/[handle]/avatar/route.ts",
@@ -195,7 +229,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
         photoPost("http://localhost/api/profiles/someone/avatar"),
         params({ handle: "someone" }),
       ),
-    refusal: SIGN_IN_AS_OWNER,
+    answer: SIGN_IN_AS_OWNER,
   },
   {
     route: "app/api/profiles/[handle]/cover/route.ts",
@@ -204,7 +238,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
         photoPost("http://localhost/api/profiles/someone/cover"),
         params({ handle: "someone" }),
       ),
-    refusal: SIGN_IN_AS_OWNER,
+    answer: SIGN_IN_AS_OWNER,
   },
   {
     route: "app/api/profiles/[handle]/covers/route.ts",
@@ -213,7 +247,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
         photoPost("http://localhost/api/profiles/someone/covers"),
         params({ handle: "someone" }),
       ),
-    refusal: SIGN_IN_AS_OWNER,
+    answer: SIGN_IN_AS_OWNER,
   },
   {
     route: "app/api/messages/[id]/route.ts",
@@ -226,34 +260,43 @@ const PAID_ROUTES: PaidRouteCase[] = [
         }),
         params({ id: "thread-1" }),
       ),
-    refusal: UNAUTHENTICATED,
+    answer: UNAUTHENTICATED,
   },
   {
     route: "app/api/profiles/[handle]/avatar/report/route.ts",
-    call: async () =>
-      (await import("@/app/api/profiles/[handle]/avatar/report/route")).POST(
-        jsonPost("http://localhost/api/profiles/someone/avatar/report", { reason: "spam" }),
-        params({ handle: "someone" }),
-      ),
-    refusal: NO_SUCH_PROFILE,
+    call: async () => {
+      await seedReportedProfile();
+      return (await import("@/app/api/profiles/[handle]/avatar/report/route")).POST(
+        jsonPost(`http://localhost/api/profiles/${REPORTED_HANDLE}/avatar/report`, { reason: "spam" }),
+        params({ handle: REPORTED_HANDLE }),
+      );
+    },
+    answer: REPORT_ACCEPTED,
   },
   {
     route: "app/api/profiles/[handle]/cover/report/route.ts",
-    call: async () =>
-      (await import("@/app/api/profiles/[handle]/cover/report/route")).POST(
-        jsonPost("http://localhost/api/profiles/someone/cover/report", { reason: "spam" }),
-        params({ handle: "someone" }),
-      ),
-    refusal: NO_SUCH_PROFILE,
+    call: async () => {
+      await seedReportedProfile();
+      return (await import("@/app/api/profiles/[handle]/cover/report/route")).POST(
+        jsonPost(`http://localhost/api/profiles/${REPORTED_HANDLE}/cover/report`, { reason: "spam" }),
+        params({ handle: REPORTED_HANDLE }),
+      );
+    },
+    answer: REPORT_ACCEPTED,
   },
   {
     route: "app/api/profiles/[handle]/covers/[coverId]/report/route.ts",
-    call: async () =>
-      (await import("@/app/api/profiles/[handle]/covers/[coverId]/report/route")).POST(
-        jsonPost("http://localhost/api/profiles/someone/covers/cover-1/report", { reason: "spam" }),
-        params({ handle: "someone", coverId: "cover-1" }),
-      ),
-    refusal: NO_SUCH_PROFILE,
+    call: async () => {
+      await seedReportedProfile();
+      return (await import("@/app/api/profiles/[handle]/covers/[coverId]/report/route")).POST(
+        jsonPost(
+          `http://localhost/api/profiles/${REPORTED_HANDLE}/covers/${REPORTED_GALLERY_COVER_ID}/report`,
+          { reason: "spam" },
+        ),
+        params({ handle: REPORTED_HANDLE, coverId: REPORTED_GALLERY_COVER_ID }),
+      );
+    },
+    answer: REPORT_ACCEPTED,
   },
   {
     route: "app/api/profiles/[handle]/covers/[coverId]/route.ts",
@@ -265,7 +308,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
         }),
         params({ handle: "someone", coverId: "cover-1" }),
       ),
-    refusal: SIGN_IN_AS_OWNER,
+    answer: SIGN_IN_AS_OWNER,
   },
   cronProbe("enrich-city-pubs"),
   cronProbe("harvest-refresh"),
@@ -369,13 +412,13 @@ describe("an API route called without a session", () => {
     ).toBe(true);
   }, 120_000);
 
-  it.each(PAID_ROUTES)("$route refuses a real request before any paid call", async ({ route, call, refusal }) => {
+  it.each(PAID_ROUTES)("$route answers a real request with no session and no paid call", async ({ route, call, answer }) => {
     expect(API_ROUTES).toContain(route);
 
     const response = await call();
 
-    expect(response.status).toBe(refusal.status);
-    expect(await response.json()).toMatchObject(refusal.body);
+    expect(response.status).toBe(answer.status);
+    expect(await response.json()).toMatchObject(answer.body);
     expect(paidHostsCalled(paidFetch)).toEqual([]);
   });
 
