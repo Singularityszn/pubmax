@@ -482,10 +482,7 @@ export function AuthProvider({
     );
 
     const reportCallbackFailure = (callbackAttempt: AuthCallbackAttempt | null) => {
-      if (callbackAttempt?.accountBanned) {
-        setAuthBannedNotice(true);
-        setAuthCallbackError(null);
-      } else if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+      if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
     };
 
     if (!configured) {
@@ -804,7 +801,7 @@ export function AuthProvider({
         scrubLingeringBrowserAuthCallback();
         if (!active) return;
         if (exchange && captured) finishCallbackExchange(exchange, captured);
-        if (callbackAttempt?.accountBanned || unownedAccountBanned) {
+        if (unownedAccountBanned) {
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
         } else if (
