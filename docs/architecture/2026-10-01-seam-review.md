@@ -42,7 +42,7 @@ The interface is that check. `__tests__/emailProvider.test.ts` calls `isEmailPro
 
 - `app/bar-tab/[id]/page.tsx` calls it from the page and from `generateMetadata`.
 - `app/ledger/[id]/page.tsx` calls it from the page and from `generateMetadata`.
-- `app/bar-tab/[id]/opengraph-image.tsx` `getVenue` calls it. `found` paints the venue. `missing` and `unavailable` yield null, so the card keeps its generic poster and does not paint a name the page would not claim. `missing` returns before `headers()`, so that poster can be stored. `unavailable`, and a thrown read, call `headers()` first, the same opt-out the Bar Tab page uses, so only a found card can be stored.
+- `app/bar-tab/[id]/opengraph-image.tsx` `getVenue` calls it. `found` paints the venue. `missing` and `unavailable` yield null, so the card keeps its generic poster and does not paint a name the page would not claim.
 
 No new port. `missing` renders the existing not-found card. `unavailable` renders the existing read-unavailable surface. The module asks `lookupCanonicalVenueId` first and does not cache a failed read, so the next request reads again. The pages and the share card do not call `resolveCanonicalVenueId`. That function turns an unreadable alias file into the original id, and the not-found card would swallow it.
 
@@ -68,7 +68,7 @@ The interface is the handler. The existing tests already call it the way those c
 
 **Files changed:** none in the route or its tests. This section is the record.
 
-**Fully resolved:** yes. The route stays. The doc cites the device caller and the approved-claim join, and the tests call the handler.
+**Fully resolved:** no. The filed question asked whether a client is meant to call this route. No component, cron, or script sends the GET. The route stays, and the issue stays open until a caller is named.
 
 ## 1809 GET /api/plans/anchor
 

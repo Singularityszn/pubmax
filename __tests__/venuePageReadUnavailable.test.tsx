@@ -17,14 +17,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const headerReads = vi.hoisted(() => ({ count: 0 }));
 const venueLookup = vi.hoisted(() => ({ throwNext: false }));
 
 vi.mock("next/headers", () => ({
-  headers: async () => {
-    headerReads.count += 1;
-    return new Headers();
-  },
+  headers: async () => new Headers(),
 }));
 vi.mock("@/lib/venueDetailIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/venueDetailIndex")>();
@@ -50,11 +46,6 @@ vi.mock("next/og", () => ({
   },
 }));
 
-const dataset = vi.hoisted(() => ({
-  fail: false,
-  reads: 0,
-}));
-
 const aliases = vi.hoisted(() => ({
   fail: false,
   reads: 0,
@@ -66,10 +57,6 @@ vi.mock("fs", async (importOriginal) => {
   const promises = {
     ...actual.promises,
     readFile: async (file: unknown, ...rest: unknown[]) => {
-      if (typeof file === "string" && file.endsWith("pint_prices_app_dataset.json")) {
-        dataset.reads += 1;
-        if (dataset.fail) throw new Error("EIO: i/o error, read");
-      }
       if (typeof file === "string" && file.endsWith("venue_id_aliases.json")) {
         aliases.reads += 1;
         if (aliases.fail) throw new Error("EIO: i/o error, read");
@@ -136,11 +123,8 @@ function titleVenueName(title: unknown): string {
 }
 
 beforeEach(() => {
-  dataset.fail = false;
-  dataset.reads = 0;
   aliases.fail = false;
   aliases.reads = 0;
-  headerReads.count = 0;
   venueLookup.throwNext = false;
   resetVenueAliasesForTests();
   resetVenueDetailCachesForTests();
@@ -240,6 +224,24 @@ describe.each([
   });
 });
 
+function ledgerStructuredAddress(markup: string): { addressRegion?: string } {
+  const match = markup.match(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/);
+  if (!match?.[1]) throw new Error("Ledger did not emit structured data");
+  const data = JSON.parse(match[1]) as { address?: { addressRegion?: string } };
+  return data.address ?? {};
+}
+
+describe("the Ledger structured address", () => {
+  it("names Manchester for a Manchester pub, and London for a London pub", async () => {
+    const manchester = await render(LedgerPage, "venue-mcr-iy010v");
+    expect(manchester).toContain("Grove Alehouse");
+    expect(ledgerStructuredAddress(manchester).addressRegion).toBe("Manchester");
+
+    const london = await render(LedgerPage, venue.id);
+    expect(ledgerStructuredAddress(london).addressRegion).toBe("London");
+  });
+});
+
 describe("the Bar Tab share card", () => {
   it("names the same pub the page title names", async () => {
     for (const id of [venue.id, mergedId, FAMOUS_BAR_ID]) {
@@ -254,7 +256,6 @@ describe("the Bar Tab share card", () => {
       expect(card, id).toContain(painted);
       if (id === FAMOUS_BAR_ID) expect(named).toBe(FAMOUS_BAR_NAME);
     }
-    expect(headerReads.count).toBe(0);
   });
 
   it("keeps the generic poster when the pub is missing", async () => {
@@ -265,7 +266,6 @@ describe("the Bar Tab share card", () => {
     expect(meta.title).toBe("Bar Tab: PUBMAXXING");
     expect(card).toContain("A London pub");
     expect(card).not.toContain("the cheapest pint on the tab");
-    expect(headerReads.count).toBe(0);
   });
 
   it("does not name a pub the page could not load", async () => {
@@ -280,17 +280,14 @@ describe("the Bar Tab share card", () => {
       expect(card, id).not.toContain(name);
       expect(card, id).toContain("A London pub");
       expect(card, id).not.toContain("the cheapest pint on the tab");
-      expect(headerReads.count, id).toBe(1);
-      headerReads.count = 0;
     }
   });
 
-  it("keeps the generic poster off the route cache when the venue read throws", async () => {
+  it("keeps the generic poster when the venue read throws", async () => {
     venueLookup.throwNext = true;
     const card = await renderCard(venue.id);
     expect(card).toContain("A London pub");
     expect(card).not.toContain(venue.name);
     expect(card).not.toContain("the cheapest pint on the tab");
-    expect(headerReads.count).toBe(1);
   });
 });

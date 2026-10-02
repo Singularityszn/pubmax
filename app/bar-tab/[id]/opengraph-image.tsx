@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { ImageResponse } from "next/og";
 
 import { buildBarTab, normalizePintDrop, type PintDropDTO } from "@/lib/feed";
@@ -38,22 +37,13 @@ export const contentType = "image/png";
 
 // The same lookup the Bar Tab page uses. Never throws: a missing id or a read
 // we could not run yields null, and the card renders the generic poster.
-// Next stores a generated opengraph image unless the handler reads a request
-// API, and this route does not run the layout that opts the Bar Tab document
-// out. A missing id is a stable answer, so that poster may be stored. A read
-// we could not run calls headers() first, the same opt-out the page uses, so
-// only a found card can be stored.
 async function getVenue(id: string): Promise<Venue | null> {
   try {
     const read = await lookupVenueDetail(id);
-    if (read.status === "found") return read.venue;
-    if (read.status === "missing") return null;
+    return read.status === "found" ? read.venue : null;
   } catch {
-    await headers();
     return null;
   }
-  await headers();
-  return null;
 }
 
 // The same public read the page makes — anonymous surface, visibility applied.

@@ -27,6 +27,23 @@ The pages no longer keep their own copy of the venue read. A missing id still re
 
 A famous-venue seed the old dataset index did not hold now opens. Before the switch, `bar-american-bar-savoy` rendered "This pub isn't on the tab" and "This pub isn't in the ledger". After it, both pages render American Bar at The Savoy, Strand, London WC2R 0EZ, Westminster. That difference is in `__tests__/venuePageReadUnavailable.test.tsx`. These six shots are the pub that already had a page.
 
+## Newly reachable venues
+
+`lookupVenueDetail` also answers city venues and famous-venue seeds. The old pages rendered the not-found card for both. About 2,500 venues now open on the Ledger and the Bar Tab that did not before:
+
+| Newly opening | Count | Source |
+| --- | ---: | --- |
+| City venues outside London | 2,431 | `public/data/cities/*/venues_slim.json`, the eleven enabled packs |
+| Seed-only bars | 32 | `data/generated/venue_details.jsonl` |
+| Seed-only late food | 17 | same |
+| Seed-only restaurants | 21 | same |
+
+Feed cards and pub permalinks already linked to these pages, so those links were dead. A Manchester pub such as Grove Alehouse (`venue-mcr-iy010v`) now renders, and its structured address names Manchester. The Ledger test for that id is in `__tests__/venuePageReadUnavailable.test.tsx`.
+
+## The French House
+
+`venue-1kpe609`, The French House, is the one venue that is both a dataset pub and a famous seed. The seed wins in the detail artifact. The address becomes 49 Dean Street, London W1D 5BG. The seed carries its story in `description` ("Soho's wartime Free French gathered here, and the bar still serves beer only in half-pints.") and returns an empty `curation`, so the Ledger no longer shows the heritage note the dataset page had. The other 70 seed-only venues open a Ledger with no heritage note for the same reason.
+
 ## Cold-process timing
 
 One fresh Vitest process per route. The clock starts when that process imports the page module and stops after the first server render of `venue-16pnwmm`, including the markup.
