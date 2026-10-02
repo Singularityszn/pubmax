@@ -428,7 +428,7 @@ export default function PubPalVoiceSession({
 }) {
   const { user } = useAuth();
   return (
-    <ConversationProvider key={user?.id ?? "signed-out"}>
+    <ConversationProvider key={`${user?.id ?? "signed-out"}:${readProviderAccountRevision()}`}>
       <VoiceControls onStateChange={onStateChange} />
     </ConversationProvider>
   );
