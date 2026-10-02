@@ -24,10 +24,15 @@ export async function planStopResolver(
   cityId?: CityId,
   submitted: readonly unknown[] = [],
 ): Promise<(raw: unknown) => PlanStopTarget | null> {
+  return (await planStopResolution(cityId, submitted)).resolve;
+}
+
+async function planStopResolution(cityId?: CityId, submitted: readonly unknown[] = []) {
   const cities = cityId ? [cityId] : (Object.keys(CITIES) as CityId[]);
   const venueLists = await Promise.all(cities.map((city) => loadConciergeVenues(city)));
   const venuesById = new Map<string, PlanStopTarget>(venueLists.flat().map((venue) =>
     [venue.id, { venueId: venue.id, venueName: venue.name }]));
+  const physicalVenueIds = new Map<string, string>();
   const submittedTargets = submitted.length <= MAX_PLAN_STOP_COUNT ? submitted.flatMap((raw) => {
     if (!raw || typeof raw !== "object") return [raw];
     const alternatives = (raw as Record<string, unknown>).alternatives;
@@ -42,8 +47,10 @@ export async function planStopResolver(
     const lookup = await lookupUkBasePub(id);
     if (lookup.status === "ready" && lookup.pub.kind === "pub"
       && cities.some((city) => pointInCityBounds(lookup.pub.lat, lookup.pub.lng, CITIES[city]))) {
-      venuesById.set(id, venuesById.get(lookup.pub.curatedVenueId)
-        ?? { venueId: lookup.pub.id, venueName: lookup.pub.name });
+      // Alias equivalence prevents duplicates without replacing the submitted identity.
+      physicalVenueIds.set(id, venuesById.has(lookup.pub.curatedVenueId)
+        ? lookup.pub.curatedVenueId : lookup.pub.id);
+      venuesById.set(id, { venueId: lookup.pub.id, venueName: lookup.pub.name });
     }
   }
   const placesById = new Map(
@@ -51,7 +58,7 @@ export async function planStopResolver(
       cultureWaypointPois(city).map((poi) => [poi.id, poi] as const),
     ),
   );
-  return (raw: unknown): PlanStopTarget | null => {
+  const resolve = (raw: unknown): PlanStopTarget | null => {
     const value = raw && typeof raw === "object"
       ? (raw as Record<string, unknown>).venueId
       : raw;
@@ -67,6 +74,7 @@ export async function planStopResolver(
     const venue = venuesById.get(classified.venueId);
     return venue ?? null;
   };
+  return { resolve, physicalVenueId: (id: string) => physicalVenueIds.get(id) ?? id };
 }
 
 /**
@@ -77,7 +85,7 @@ export async function planStopResolver(
  */
 export async function canonicalPlanRoute(raw: unknown, cityId?: CityId): Promise<PlanStopDTO[] | null> {
   if (!Array.isArray(raw) || !isPlanStopCount(raw.length)) return null;
-  const resolve = await planStopResolver(cityId, raw);
+  const { resolve, physicalVenueId } = await planStopResolution(cityId, raw);
   const stops = raw.map((value, position) => {
     const target = resolve(value);
     if (!target) return null;
@@ -98,10 +106,10 @@ export async function canonicalPlanRoute(raw: unknown, cityId?: CityId): Promise
   });
   if (stops.some((stop) => stop === null)) return null;
   const resolved = stops as PlanStopDTO[];
-  const routeIds = new Set(resolved.map((stop) => stop.venueId));
+  const routeIds = new Set(resolved.map((stop) => physicalVenueId(stop.venueId)));
   if (routeIds.size !== resolved.length) return null;
   return resolved.some((stop) => {
-    const ids = stop.alternatives?.map((alternative) => alternative.venueId) ?? [];
+    const ids = stop.alternatives?.map((alternative) => physicalVenueId(alternative.venueId)) ?? [];
     return ids.some((id) => routeIds.has(id)) || new Set(ids).size !== ids.length;
   }) ? null : resolved;
 }

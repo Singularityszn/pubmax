@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+const committedPacks = vi.hoisted(() => ({ enabled: false }));
+
 // Server pack fixture copied exactly from committed
 // public/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json.
 // Only the existing UK identity reader is doubled; this pub is NEVER added to
@@ -15,7 +17,8 @@ const basePlanPack = vi.hoisted(() => ({
 vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ukBaseIndex")>();
   return { ...actual, lookupUkBasePub: async (id: string) =>
-    id === basePlanPack.pub.id ? basePlanPack.result : { status: "missing" as const } };
+    committedPacks.enabled ? actual.lookupUkBasePub(id)
+      : id === basePlanPack.pub.id ? basePlanPack.result : { status: "missing" as const } };
 });
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -27,13 +30,15 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
   return { ...actual, isLimited: async () => false };
 });
-vi.mock("@/lib/concierge/venues.server", () => ({
-  loadConciergeVenues: async () => [
-    { id: "venue-a", name: "Venue A" },
-    { id: "venue-b", name: "Venue B" },
-    { id: "venue-c", name: "Venue C" },
-  ],
-}));
+vi.mock("@/lib/concierge/venues.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/concierge/venues.server")>();
+  return { loadConciergeVenues: async (cityId: import("@/lib/cities").CityId) =>
+    committedPacks.enabled ? actual.loadConciergeVenues(cityId) : [
+      { id: "venue-a", name: "Venue A" },
+      { id: "venue-b", name: "Venue B" },
+      { id: "venue-c", name: "Venue C" },
+    ] };
+});
 
 import { composerCreatePayload } from "@/components/plan/PlanComposer";
 import { POST as CREATE } from "@/app/api/plans/route";
@@ -389,6 +394,81 @@ describe("POST /api/plans — anchored lock", () => {
       outcome: null,
     });
     expect(genericBody.eventTokens).not.toHaveProperty("planDraftSaved");
+  });
+});
+
+describe("locking a committed base pub whose curated alias exists", () => {
+  const baseId = "venue-uk-w545664029";
+  const curatedId = "venue-u5unwx";
+  const routeIds = [baseId, "venue-eltcmh", "venue-1iyj2h1"];
+
+  beforeEach(() => { __resetMemoryPlans(); committedPacks.enabled = true; });
+  afterEach(() => { __resetMemoryPlans(); committedPacks.enabled = false; });
+
+  it("locks and reloads the exact signed base anchor without trusting submitted price or name", async () => {
+    const operation = "base-alias-first-lock-01";
+    const body = {
+      cityId: "london",
+      stops: [{ venueId: baseId, venueName: "Client name", selectedDrinkPriceEvidence: {
+        category: "wine", pence: 99_999, serving: "125ml", source: "listed",
+        sourceUrl: "https://example.invalid/client-price", observedAt: new Date().toISOString(),
+      } }],
+      anchor: { venueId: baseId, source: "near", outcome: "anchor-only" },
+      groundingProof: mintPlanGroundingProofV2({ routeVenueIds: [baseId], allowedVenueIds: [baseId],
+        anchorVenueId: baseId, anchorSource: "near", outcome: "anchor-only", operationKey: operation }),
+    };
+    const response = await create(body, operation);
+    expect(response.status).toBe(201);
+    const saved = await response.json();
+    expect(saved.plan.stops).toEqual([{ venueId: baseId, venueName: "Westminster Arms", position: 0 }]);
+    expect(saved.plan.plan).toMatchObject({ anchorVenueId: baseId, outcome: "anchor-only", routeReadyAt: null });
+    expect(saved.grounded).toBe(true);
+    expect(saved.eventTokens.planDraftSaved).toEqual(expect.any(String));
+    expect(saved.eventTokens.planAccepted).toBe("");
+    const loaded = await GET(new Request(`${URL}/${saved.plan.plan.id}`, {
+      headers: { authorization: `Bearer ${saved.memberToken}` },
+    }), { params: Promise.resolve({ id: saved.plan.plan.id }) });
+    expect(loaded.status).toBe(200);
+    expect((await loaded.json()).stops).toEqual(saved.plan.stops);
+    const replay = await create(body, operation);
+    expect(replay.status).toBe(201);
+    const replayed = await replay.json();
+    expect(replayed.created).toBe(false);
+    expect(replayed.plan.plan.id).toBe(saved.plan.plan.id);
+    expect(replayed.plan.stops).toEqual(saved.plan.stops);
+  });
+
+  it("keeps a signed route's base identity and order alongside curated pubs", async () => {
+    const operation = "base-alias-route-lock-01";
+    const response = await create({ cityId: "london",
+      stops: routeIds.map((venueId) => ({ venueId, venueName: "Client name" })),
+      anchor: { venueId: baseId, source: "near", outcome: "route" },
+      groundingProof: mintPlanGroundingProofV2({ routeVenueIds: routeIds, allowedVenueIds: routeIds,
+        anchorVenueId: baseId, anchorSource: "near", outcome: "route", operationKey: operation }),
+    }, operation);
+    expect(response.status).toBe(201);
+    const saved = await response.json();
+    expect(saved.plan.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(routeIds);
+    expect(saved.plan.stops.map((stop: { venueName: string }) => stop.venueName))
+      .toEqual(["Westminster Arms", "The Blackfriar", "The Red Lion"]);
+    expect(saved.plan.plan).toMatchObject({ anchorVenueId: baseId, outcome: "route" });
+    expect(saved.plan.plan.routeReadyAt).toEqual(expect.any(String));
+    expect(saved.grounded).toBe(true);
+  });
+
+  it.each([
+    { label: "substituted curated alias", ids: [curatedId, "venue-eltcmh", "venue-1iyj2h1"] },
+    { label: "permuted later stops", ids: [baseId, "venue-1iyj2h1", "venue-eltcmh"] },
+  ])("still refuses $label against the exact signed base route", async ({ label, ids }) => {
+    const operation = `base-alias-mismatch-${label}`;
+    const response = await create({ cityId: "london",
+      stops: ids.map((venueId) => ({ venueId, venueName: "Client name" })),
+      anchor: { venueId: baseId, source: "near", outcome: "route" },
+      groundingProof: mintPlanGroundingProofV2({ routeVenueIds: routeIds, allowedVenueIds: routeIds,
+        anchorVenueId: baseId, anchorSource: "near", outcome: "route", operationKey: operation }),
+    }, operation);
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("PLAN_ANCHOR_PROOF_ROUTE_MISMATCH");
   });
 });
 
