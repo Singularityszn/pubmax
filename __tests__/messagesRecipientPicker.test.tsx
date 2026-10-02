@@ -71,6 +71,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
+import { RECIPIENT_SEARCH_DEBOUNCE_MS } from "@/components/messages/useMessageRecipientSearch";
 
 type Recipient = { handle: string; displayName?: string; avatarUrl?: string };
 type PickerProps = {
@@ -89,7 +90,7 @@ let root: Root;
 
 async function settle(milliseconds = 0): Promise<void> {
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, milliseconds));
+    await vi.advanceTimersByTimeAsync(milliseconds);
   });
 }
 
@@ -190,6 +191,7 @@ function postBodies(): unknown[] {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
   requests.searchCalls = [];
   requests.postCalls = [];
   requests.searchRespond = async () =>
@@ -233,6 +235,7 @@ afterEach(async () => {
     await act(async () => root.unmount());
   }
   container?.remove();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -248,7 +251,7 @@ describe("message recipient picker", () => {
     expect(search).not.toBeNull();
 
     await typeInto(search!, "hari");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(
       requests.searchCalls.find((call) => call.method === "GET")?.url,
     ).toBe("/api/profiles/search?q=hari");
@@ -262,7 +265,7 @@ describe("message recipient picker", () => {
     expect(document.activeElement).toBe(search);
 
     await typeInto(search!, "not-a-recipient");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     const chat = buttonNamed("Chat");
     expect(chat).not.toBeNull();
     await click(chat!);
@@ -330,7 +333,7 @@ describe("message recipient picker", () => {
 
     await mount();
     await typeInto(searchInput()!, "hari");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(pending).toHaveLength(1);
 
     authState.current = {
@@ -350,7 +353,7 @@ describe("message recipient picker", () => {
     expect(pending[0].signal?.aborted).toBe(true);
 
     await typeInto(searchInput()!, "jane");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(pending).toHaveLength(2);
     await act(async () => {
       pending[1].resolve(
@@ -388,11 +391,11 @@ describe("message recipient picker", () => {
     await mount();
     const search = searchInput()!;
     await typeInto(search, "ha");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     await typeInto(search, "har");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     await typeInto(search, "ha");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(pending).toHaveLength(3);
 
     await act(async () => {
@@ -444,18 +447,18 @@ describe("message recipient picker", () => {
 
     await mount();
     await typeInto(searchInput()!, "hari");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
     expect(container.textContent).not.toContain("No people found");
     expect(buttonNamed("Add @hari")).toBeNull();
 
     await click(buttonNamed("Retry search")!);
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(searchAttempts).toBe(2);
     expect(buttonNamed("Add @hari")).not.toBeNull();
 
     await typeInto(searchInput()!, "unknown-prefix");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     const chat = buttonNamed("Chat");
     expect(chat).not.toBeNull();
     expect(chat!.disabled || chat!.getAttribute("aria-disabled") === "true").toBe(
@@ -480,7 +483,7 @@ describe("message recipient picker", () => {
     await mount({ onOpened });
     const search = searchInput()!;
     await typeInto(search, "hari");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     await click(buttonNamed("Add @hari")!);
     await click(buttonNamed("Chat")!);
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
@@ -513,7 +516,7 @@ describe("message recipient picker", () => {
     };
     await mount(props);
     await typeInto(searchInput()!, "hari");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(resolveSearch).toBeDefined();
 
     await click(buttonNamed("Close new message")!);
@@ -542,7 +545,7 @@ describe("message recipient picker", () => {
 
     await mount({ onOpened: oldOnOpened });
     await typeInto(searchInput()!, "hari");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     await click(buttonNamed("Add @hari")!);
     await click(buttonNamed("Chat")!);
     expect(resolveCreate).toBeDefined();
@@ -592,7 +595,7 @@ describe("message recipient picker", () => {
 
     await mount(props);
     await typeInto(searchInput()!, "hari");
-    await settle(260);
+    await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     await click(buttonNamed("Add @hari")!);
     await click(buttonNamed("Chat")!);
     expect(resolveCreate).toBeDefined();

@@ -720,6 +720,9 @@ async function main() {
   // stamped with the zone of its nearest station — an honest approximation,
   // labelled as such in the UI. See scripts/lib/stationZones.mjs.
   const stationZones = await loadStationZones();
+  // One clock for the filter and the stamp. The famous-venue tests read
+  // generatedAt back, so a later day cannot disagree with the rows this build kept.
+  const builtAt = new Date();
   const famousRows = assertCurrentFamousVenueRows(
     (
       await Promise.all(
@@ -728,7 +731,7 @@ async function main() {
         ),
       )
     ).flat(),
-    new Date(),
+    builtAt,
   );
   const famousPriceBands = typeRelativePriceBands(famousRows);
 
@@ -826,7 +829,10 @@ async function main() {
   detailIndex.count = detailLines.length;
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
-  const slimText = JSON.stringify(buildShardPayload(slim));
+  const slimText = JSON.stringify({
+    ...buildShardPayload(slim),
+    generatedAt: builtAt.toISOString(),
+  });
   const detailText = detailLines.join("");
   const detailIndexText = JSON.stringify(detailIndex);
   await mkdir(GENERATED_DIR, { recursive: true });

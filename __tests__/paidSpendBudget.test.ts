@@ -5,8 +5,8 @@
 // limiter can never refuse because each value is its own bucket, and which the
 // deployment ceiling refuses the moment it is spent.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,6 +41,111 @@ const LANE_OWNERS: Record<PaidSpendLane, string> = {
   "plan-generate": "lib/planGeneration.server.ts",
   typesafe: "lib/ai/typesafe.server.ts",
 };
+
+const PAID_PROVIDER_MARK = /https:\/\/openrouter\.ai\/|https:\/\/api\.elevenlabs\.io\/|https:\/\/api\.typesafe\.ai\//;
+const CEILING_MARK = "paidSpendBudgetRefusal(";
+const AUTH_MARK = /callerUserId\(|callerAuthIdentity\(|requireLinkedActor\(|resolveContributionIdentity\(|verifyCallerAuth\(|gateHandleAction\(|assertPubPalLlmAuth\(/;
+
+/**
+ * Anonymous paid routes that still skip the deployment ceiling.
+ * This list may only shrink. The chat route is the known hole: fixing it
+ * means editing app/api/pub-pal, which this change does not own.
+ */
+const KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES = ["app/api/pub-pal/chat/route.ts"];
+
+function walkSources(dir: string, acc: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    if (entry === "node_modules" || entry.startsWith(".")) continue;
+    const full = path.join(dir, entry);
+    if (statSync(full).isDirectory()) walkSources(full, acc);
+    else if (/\.(ts|tsx|mjs)$/.test(entry) && !entry.endsWith(".d.ts")) acc.push(full);
+  }
+  return acc;
+}
+
+function resolveImport(fromFile: string, spec: string): string | null {
+  let base: string;
+  if (spec.startsWith("@/")) base = path.join(ROOT, spec.slice(2));
+  else if (spec.startsWith(".")) base = path.resolve(path.dirname(fromFile), spec);
+  else return null;
+  const candidates = [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.mjs`,
+    `${base}.js`,
+    path.join(base, "index.ts"),
+    path.join(base, "index.tsx"),
+    path.join(base, "index.mjs"),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
+function importedSpecs(source: string): string[] {
+  const specs: string[] = [];
+  const statement = /(?:^|\n)\s*(?:import|export)\s+([\s\S]*?)\sfrom\s+["']([^"']+)["']/g;
+  for (const match of source.matchAll(statement)) {
+    const clause = match[1] ?? "";
+    if (/^type\b/.test(clause.trim())) continue;
+    const spec = match[2];
+    if (spec) specs.push(spec);
+  }
+  const dynamic = /import\s*\(\s*["']([^"']+)["']\s*\)/g;
+  for (const match of source.matchAll(dynamic)) {
+    if (match[1]) specs.push(match[1]);
+  }
+  const sideEffect = /^\s*import\s+["']([^"']+)["']/gm;
+  for (const match of source.matchAll(sideEffect)) {
+    if (match[1]) specs.push(match[1]);
+  }
+  return specs;
+}
+
+function anonymousPaidRoutesMissingCeiling(): string[] {
+  const files = [
+    ...walkSources(path.join(ROOT, "app")),
+    ...walkSources(path.join(ROOT, "lib")),
+  ];
+  const sourceByFile = new Map(files.map((file) => [file, readFileSync(file, "utf8")]));
+  const imports = new Map<string, string[]>();
+  const guards = new Set<string>();
+  const paidLeaves = new Set<string>();
+  for (const [file, source] of sourceByFile) {
+    if (source.includes(CEILING_MARK)) guards.add(file);
+    if (PAID_PROVIDER_MARK.test(source)) paidLeaves.add(file);
+    imports.set(
+      file,
+      importedSpecs(source)
+        .map((spec) => resolveImport(file, spec))
+        .filter((resolved): resolved is string => resolved !== null && sourceByFile.has(resolved)),
+    );
+  }
+
+  const offenders: string[] = [];
+  for (const [file, source] of sourceByFile) {
+    if (!file.includes(`${path.sep}app${path.sep}api${path.sep}`) || !file.endsWith(`${path.sep}route.ts`)) {
+      continue;
+    }
+    if (AUTH_MARK.test(source)) continue;
+    const seen = new Set<string>();
+    const reaches = (current: string, guarded: boolean, authed: boolean): boolean => {
+      if (authed) return false;
+      const key = `${guarded ? "1" : "0"}:${current}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      const currentSource = sourceByFile.get(current) ?? "";
+      const nextAuthed = AUTH_MARK.test(currentSource);
+      const nextGuarded = guarded || guards.has(current);
+      if (paidLeaves.has(current) && !nextGuarded && !nextAuthed) return true;
+      for (const dep of imports.get(current) ?? []) {
+        if (reaches(dep, nextGuarded, nextAuthed)) return true;
+      }
+      return false;
+    };
+    if (reaches(file, false, false)) offenders.push(path.relative(ROOT, file));
+  }
+  return offenders.sort();
+}
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -94,23 +199,13 @@ describe("the ceiling", () => {
 describe("lane coverage", () => {
   it("has every paid lane consuming the ceiling in its own file", () => {
     for (const lane of PAID_SPEND_LANES) {
-      const source = readFileSync(join(ROOT, LANE_OWNERS[lane]), "utf8");
+      const source = readFileSync(path.join(ROOT, LANE_OWNERS[lane]), "utf8");
       expect(source, LANE_OWNERS[lane]).toContain(`paidSpendBudgetRefusal("${lane}")`);
     }
   });
 
-  it("finds no OTHER caller of the seam, so the lane set stays closed", () => {
-    const callers = PAID_SPEND_LANES.map((lane) => LANE_OWNERS[lane]);
-    // The seam itself and its own test are the two files allowed to name it
-    // without being a lane owner.
-    const allowed = new Set([...callers, "lib/paidSpendBudget.server.ts"]);
-    const found = Array.from(
-      readFileSync(join(ROOT, "lib/paidSpendBudget.server.ts"), "utf8").matchAll(
-        /paidSpendBudgetRefusal/g,
-      ),
-    );
-    expect(found.length).toBeGreaterThan(0);
-    expect(allowed.size).toBe(PAID_SPEND_LANES.length + 1);
+  it("refuses an anonymous route that can reach a paid provider without the ceiling", () => {
+    expect(anonymousPaidRoutesMissingCeiling()).toEqual(KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES);
   });
 });
 

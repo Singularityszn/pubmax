@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   filterVenues,
@@ -18,7 +18,11 @@ import {
 import { slimVenueToPin } from "@/lib/slimPins";
 import { CITIES } from "@/lib/cities";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
-import { expectedSlimFamousCounts } from "@/__tests__/helpers/currentFamousVenues";
+import {
+  expectedSlimFamousCounts,
+  famousVenueLeadBudgetHours,
+  slimPayloadGeneratedAt,
+} from "@/__tests__/helpers/currentFamousVenues";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
@@ -396,6 +400,43 @@ describe("venues_slim.json", () => {
     // And the whole set matches, not just the sample.
     const slimIds = new Set(rows.map((v) => v.id));
     expect(slimIds).toEqual(canonicalIds);
+  });
+
+  it("counts famous rows as of the slim payload clock, not the wall clock", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-26T00:00:00.000Z"));
+    try {
+      const expected = expectedSlimFamousCounts();
+      const famous = (slim as SlimVenue[]).filter(
+        (row) => row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
+      );
+      expect(expected.total).toBeGreaterThan(0);
+      expect(famous).toHaveLength(expected.total);
+      expect(expectedSlimFamousCounts(new Date("2026-10-26T00:00:00.000Z")).total).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("asks the freshness gate to alarm two weeks before those rows expire", () => {
+    const registry = JSON.parse(
+      readFileSync(path.join(ROOT, "data", "freshness_registry.json"), "utf8"),
+    ) as {
+      datasets: Array<{
+        id: string;
+        artifact: string | null;
+        stalenessBudgetHours: number | null;
+        stamp: { kind: string; value?: string };
+      }>;
+    };
+    const entry = registry.datasets.find((dataset) => dataset.id === "famous_venues");
+    const generatedAt = slimPayloadGeneratedAt();
+    expect(entry).toMatchObject({
+      artifact: null,
+      class: "episodic",
+      stamp: { kind: "literal", value: generatedAt.toISOString() },
+      stalenessBudgetHours: famousVenueLeadBudgetHours(generatedAt),
+    });
   });
 
   it("ships exact curated pack counts with every type-relative band", () => {

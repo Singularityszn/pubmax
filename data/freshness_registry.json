@@ -303,6 +303,17 @@
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual (node scripts/spoonme/import-report.mjs). The figures are SpoonMe's reading of Wetherspoon menus rather than ours, so nothing we run can lawfully advance them: the lane carries no budget and is named for the day it was retrieved, the same ruling drink_price_updates carries. See data/spoonme/README.md.",
       "gate": "none to run (one public page fetch). The pack is credited and linked wherever it is printed and may never enter a price lane."
+    },
+    {
+      "id": "famous_venues",
+      "label": "Famous venue verification window",
+      "class": "episodic",
+      "artifact": null,
+      "stamp": { "kind": "literal", "value": "2026-09-25T12:56:20.000Z", "consumedBy": "public/data/venues_slim.json generatedAt, the clock scripts/build_slim_index.mjs used when it kept the current famous rows. The literal matches that field so the gate does not have to open the slim payload." },
+      "cadence": "episodic. Re-verify the seed (npm run verify:famous-venues) and rebuild the slim index before the window closes",
+      "stalenessBudgetHours": 371,
+      "refreshWorkflow": "manual (npm run verify:famous-venues, then the slim build). The budget is two weeks of lead before the earliest expiresAt still inside this slim build, derived by __tests__/helpers/currentFamousVenues.ts.",
+      "gate": "The seed's own expiresAt. A lapsed row is withheld from the slim index rather than shipped stale."
     }
   ]
 }

@@ -348,6 +348,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   const mapStage = page.locator(".mapStage");
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(planner.locator("#railSearchInput")).toBeVisible();
+  await expect(planner.locator(".controlRail")).toHaveCount(1);
+  await expect(planner.getByRole("group", { name: "Crawl mode" })).toBeVisible();
   await expect
     .poll(async () => (await renderedBox(planner, "planner rail")).x)
     .toBeCloseTo(0, 0);
