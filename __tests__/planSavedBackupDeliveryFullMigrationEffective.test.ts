@@ -15,8 +15,10 @@ const requiredMigrationNames = [
   "20261001092000_0180_completion_group_snapshot.sql",
   "20261001092100_0181_social_crew_completion.sql",
   "20261001092200_0182_completion_group_active_accounts.sql",
+  "20261002110000_0183_plan_saved_stop_counts.sql",
 ] as const;
 const requiredRollbackNames = [
+  "rollback/20261002110000_0183_plan_saved_stop_counts_rollback.sql",
   "rollback/20261001092200_0182_completion_group_active_accounts_rollback.sql",
   "rollback/20261001092100_0181_social_crew_completion_rollback.sql",
   "rollback/20261001092000_0180_completion_group_snapshot_rollback.sql",
@@ -62,6 +64,7 @@ const emptyRoute = [
 ];
 let session: PostgresSession | null = null;
 let surfaceBeforeBackupMigrations = "";
+let surfaceBeforeStopCountMigration = "";
 
 function db(): PostgresSession {
   if (!session) throw new Error("PostgreSQL session unavailable");
@@ -160,7 +163,10 @@ beforeAll(async () => {
     db().applyFile(forwardPaths[0]);
     db().applyFile(forwardPaths[1]);
     surfaceBeforeBackupMigrations = functionSurface();
-    for (const path of forwardPaths.slice(2)) db().applyFile(path);
+    for (const path of forwardPaths.slice(2)) {
+      if (path.endsWith("_0183_plan_saved_stop_counts.sql")) surfaceBeforeStopCountMigration = functionSurface();
+      db().applyFile(path);
+    }
   } catch (error) {
     await session.stop();
     session = null;
@@ -173,7 +179,81 @@ afterAll(async () => {
   session = null;
 });
 
-describe.skipIf(skipReason !== null)("Plan backup evidence through migrations 0176-0182", () => {
+describe.skipIf(skipReason !== null)("Plan backup evidence through migrations 0176-0183", () => {
+  it.each([1, 2])("replaces a saved route with %i stops without changing host or revision gates", (count) => {
+    const suffix = String(count + 3);
+    const stops = routeWithEvidence.slice(0, count);
+    expect(create(suffix, emptyRoute)).toBe("created");
+    expect(db().sql(`select public.replace_plan_route_atomic(
+      '${planId(suffix)}'::uuid, '${token("f")}', 1, ${json(stops)}, null, false)`))
+      .toBe("forbidden");
+    expect(routeRevision(suffix)).toBe("1");
+    expect(replace(suffix, stops, json({ drinkCategory: "wine" }))).toBe("ok");
+    expect(routeRevision(suffix)).toBe("2");
+    expect(savedContext(suffix)).toEqual({ drinkCategory: "wine" });
+    const saved = db().sql(`select jsonb_agg(jsonb_build_object('venueId', venue_id,
+      'position', position, 'primary', selected_drink_price_evidence, 'alternatives', alternatives)
+      order by position)::text from public.plan_stops where plan_id = '${planId(suffix)}'`);
+    expect(JSON.parse(saved)).toEqual(stops.map((stop, position) => ({
+      venueId: stop.venueId, position,
+      primary: "selectedDrinkPriceEvidence" in stop ? stop.selectedDrinkPriceEvidence : null,
+      alternatives: stop.alternatives,
+    })));
+    expect(replace(suffix, emptyRoute)).toBe("conflict");
+    const oversized = Array.from({ length: 7 }, (_, position) => ({
+      venueId: `venue-${position}`, venueName: `Venue ${position}`,
+    }));
+    for (const invalidStops of [[], oversized]) {
+      expect(replace(suffix, invalidStops, "null", 2)).toBe("invalid");
+    }
+    expect(routeRevision(suffix)).toBe("2");
+    expect(db().sql(`select jsonb_agg(jsonb_build_object('venueId', venue_id,
+      'position', position, 'primary', selected_drink_price_evidence, 'alternatives', alternatives)
+      order by position)::text from public.plan_stops where plan_id = '${planId(suffix)}'`)).toBe(saved);
+  });
+
+  it.each([1, 2])("accepts and replays a %i-stop proposal while retaining its evidence", (count) => {
+    const suffix = String(count + 5);
+    const stops = routeWithEvidence.slice(0, count).map((stop, position) => ({ ...stop, position }));
+    expect(create(suffix, emptyRoute)).toBe("created");
+    db().sql(`insert into public.plan_route_proposals
+      (id, plan_id, proposed_by_member_id, expected_route_revision, stops, reason,
+       resolved_constraint_ids, unresolved_constraint_ids, status, idempotency_key, created_at)
+      values ('${proposalId(suffix)}'::uuid, '${planId(suffix)}'::uuid, '${memberId(suffix)}'::uuid, 1,
+        ${json(stops)}, 'Keep the shorter route', '[]'::jsonb, '[]'::jsonb, 'pending',
+        'proposal-${suffix}', '2026-07-24T12:20:00Z')`);
+    expect(db().sql(`select public.decide_plan_route_proposal_atomic(
+      '${planId(suffix)}'::uuid, '${proposalId(suffix)}'::uuid, '${token("f")}',
+      'accepted', 'decision-${suffix}', '2026-07-24T12:30:00Z')`)).toBe("forbidden");
+    expect(routeRevision(suffix)).toBe("1");
+    expect(decide(suffix)).toBe("decided");
+    expect(decide(suffix)).toBe("already_decided");
+    expect(routeRevision(suffix)).toBe("2");
+    expect(JSON.parse(db().sql(`select jsonb_agg(jsonb_build_object('venueId', venue_id,
+      'position', position, 'primary', selected_drink_price_evidence, 'alternatives', alternatives)
+      order by position)::text from public.plan_stops where plan_id = '${planId(suffix)}'`)))
+      .toEqual(stops.map((stop) => ({ venueId: stop.venueId, position: stop.position,
+        primary: "selectedDrinkPriceEvidence" in stop ? stop.selectedDrinkPriceEvidence : null,
+        alternatives: stop.alternatives })));
+    expect(JSON.parse(db().sql(`select stops::text from public.plan_route_proposals
+      where id = '${proposalId(suffix)}'`))).toEqual(stops);
+  });
+
+  it("reverses the short-stop RPC change without losing saved routes or changing permissions", () => {
+    const surfaceAfterStopCountMigration = functionSurface();
+    db().applyFile(rollbackPaths[0]);
+    expect(functionSurface()).toBe(surfaceBeforeStopCountMigration);
+    expect(replace("4", routeWithEvidence.slice(0, 1), "null", 2)).toBe("invalid");
+    for (const [suffix, count] of [["4", 1], ["5", 2]] as const) {
+      expect(routeRevision(suffix)).toBe("2");
+      expect(db().sql(`select count(*)::text from public.plan_stops where plan_id = '${planId(suffix)}'`))
+        .toBe(String(count));
+      expect(storedAlternatives(suffix, 0)).toEqual([listedBackup]);
+    }
+    db().applyFile(forwardPaths.at(-1)!);
+    expect(functionSurface()).toBe(surfaceAfterStopCountMigration);
+  });
+
   it("stores, replays, replaces, accepts, filters, authorizes, and restores the backup RPC surface after reverse twins", () => {
     expect(alternativeColumnExists()).toBe(true);
     expect(db().sql(`select data_type || ':' || is_nullable from information_schema.columns
