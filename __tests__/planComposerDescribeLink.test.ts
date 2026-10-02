@@ -62,6 +62,9 @@ import {
 } from "@/lib/planIntake";
 import { writePlanDraftEnvelope } from "@/lib/planDraft";
 import * as planOccasion from "@/lib/planOccasion";
+import { parsePlanGenerationIntake } from "@/lib/planGenerationIntake";
+import { writePlanningIntent } from "@/lib/planningIntent";
+import { writePlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
 
 const URL_ASK = "Plan a crawl in Soho for 4";
@@ -792,5 +795,112 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
     });
     expect(generateCall).toBeTruthy();
     expect(document.body.textContent).toContain("Route refreshed");
+  });
+});
+
+// A held Stop 1 renders the full composer before the wizard is complete.
+// Validate its actual emitted intake through the server parser, so a canned
+// success cannot hide a body the real generate route would refuse.
+describe("accepted Stop 1 description generation", () => {
+  const ask = "Three cheap recorded pints in Camden";
+  const swissCottage = { id: "venue-18uogns", name: "Ye Olde Swiss Cottage", kind: "pub" };
+  const generatedStops = [
+    { venueId: swissCottage.id, venueName: swissCottage.name },
+    DEFAULT_GENERATE_BODY.stops[1],
+    DEFAULT_GENERATE_BODY.stops[2],
+  ];
+
+  function validateSubmittedIntake() {
+    const bodies: unknown[] = [];
+    const accepted: boolean[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([swissCottage]);
+      const body: unknown = JSON.parse(String(init?.body ?? "null"));
+      bodies.push(body);
+      const intake = typeof body === "object" && body !== null && "intake" in body ? body.intake : undefined;
+      const parsed = parsePlanGenerationIntake(intake);
+      accepted.push(parsed.ok);
+      if (!parsed.ok) {
+        return Response.json({ error: { code: parsed.code, message: parsed.message } }, { status: 400 });
+      }
+      return Response.json({
+        ...DEFAULT_GENERATE_BODY,
+        stops: generatedStops,
+        inferredContext: {
+          ...inferNightContext(ask).context,
+          ...(parsed.value.handoff.groupSize !== null ? { groupSize: parsed.value.handoff.groupSize } : {}),
+        },
+      });
+    }));
+    return { bodies, accepted };
+  }
+
+  it.each(["fresh acceptance", "recovered group answer"])("generates from %s without losing Stop 1", async (scenario) => {
+    const server = validateSubmittedIntake();
+    expect(writePlanningIntent({
+      source: "pal", cityId: "london", acceptedVenueId: swissCottage.id,
+      acceptedArea: { kind: "night-patch", id: "camden" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, { storage: sessionStorage })).not.toBeNull();
+    if (scenario === "recovered group answer") {
+      const draft = createPlanIntakeDraft({ kind: "patch", id: "camden" });
+      writePlanIntakeDraft({
+        ...draft, settledSteps: ["area", "group-size"],
+        answers: { ...draft.answers, groupSize: 4 },
+      });
+      const route = writePlanRouteDraftEnvelope({
+        anchorVenueId: swissCottage.id, anchorSource: "pal", outcome: "anchor-only",
+        stops: [{ key: 1, venueId: swissCottage.id, venueName: swissCottage.name, alternatives: [] }],
+        alternatives: [], nightContext: { ...inferNightContext("Camden for 4").context, stopCount: 1 },
+        routeTotals: null, transportBasis: null, planningConfidence: null, warnings: [],
+        groundingProof: null, operationKey: null, routeRevision: null, routeStale: true,
+      }, "planning-intent", localStorage);
+      expect(route.v1).toBe(true);
+      expect(route.v2).toBe(true);
+    }
+    await mountComposer();
+    expect(document.querySelector("#plan-describe-first-query")).toBeNull();
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(1);
+    expect(document.querySelector<HTMLInputElement>("#venue-name-1")?.value).toBe(swissCottage.name);
+    await act(async () => {
+      typeInto("#plan-concierge-query", ask);
+      clickButton(scenario === "recovered group answer" ? "Regenerate route" : "Make a plan");
+    });
+    await settleComposerEffects();
+
+    expect(server.accepted).toEqual([true]);
+    expect(server.bodies).toEqual([expect.objectContaining({
+      query: ask,
+      anchor: expect.objectContaining({ venueId: swissCottage.id, source: "pal" }),
+      intake: expect.objectContaining({
+        area: { kind: "night-patch", id: "camden" },
+        groupSize: scenario === "recovered group answer" ? 4 : null,
+      }),
+    })]);
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
+    expect(Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]'))
+      .map((input) => input.value)).toEqual(generatedStops.map((stop) => stop.venueName));
+    expect(document.querySelector<HTMLInputElement>("#venue-name-1")?.value).toBe(swissCottage.name);
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
+    if (scenario === "recovered group answer") {
+      expect(document.querySelector<HTMLInputElement>("#plan-context-people")?.value).toBe("4");
+    }
+  });
+
+  it("keeps fresh describe-first generation valid through the same server parser", async () => {
+    const server = validateSubmittedIntake();
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", ask);
+      clickButton("Sort it");
+    });
+    await settleComposerEffects();
+
+    expect(server.accepted).toEqual([true]);
+    expect(server.bodies).toEqual([expect.objectContaining({ query: ask })]);
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
   });
 });
