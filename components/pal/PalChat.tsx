@@ -24,6 +24,7 @@ import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import Screen from "@/components/ui/screen";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
@@ -228,6 +229,7 @@ export function AnswerCard({
 export default function PalChat() {
   const router = useRouter();
   const { user, session } = useAuth();
+  const viewerSession = useViewerSession();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
@@ -530,7 +532,9 @@ export default function PalChat() {
                     role="alert"
                   >
                     {entry.message}
-                    {entry.needsSignIn ? (
+                    {/* A 401 while the session is still loading is not
+                        sign-out, so the door waits for the live answer. */}
+                    {entry.needsSignIn && viewerSession.signedOut ? (
                       <>
                         {" "}
                         <Link
