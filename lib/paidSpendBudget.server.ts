@@ -25,11 +25,15 @@ import { isLimited } from "@/lib/pintDrops";
  * its own budget before it can eat the shared one, and after any gate that
  * refuses a caller outright, so a rejected caller spends nothing.
  */
-export async function paidSpendBudgetRefusal(lane: PaidSpendLane): Promise<Response | null> {
+export async function paidSpendBudgetRefusal(
+  lane: PaidSpendLane,
+  now: number = Date.now(),
+): Promise<Response | null> {
   const key = paidSpendBudgetKey(lane);
   const budget = paidSpendDailyBudget(lane);
   const spent = await isLimited(key, key, budget, PAID_SPEND_BUDGET_WINDOW_MS, {
     failClosed: true,
+    now,
   });
   if (!spent) return null;
   // One structured line an operator can alert on. The lane and the ceiling are
