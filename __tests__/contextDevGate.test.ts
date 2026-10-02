@@ -10,7 +10,7 @@ import {
   scrapeMarkdown,
   searchWeb,
   sitemapUrls,
-} from "@/lib/contextDev.server";
+} from "@/lib/contextDev";
 import type { RobotsChecker } from "@/lib/harvest/robots";
 
 const KEY = { CONTEXT_DEV_API_KEY: "ctx-key" } as unknown as NodeJS.ProcessEnv;

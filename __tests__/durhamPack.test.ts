@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { landmarksForCity } from "@/lib/cityLandmarks";
+import { landmarksForCityAsync } from "@/lib/cityStoryCatalog.async";
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { validateAllStoryBands } from "@/lib/storyBands";
@@ -26,11 +26,15 @@ const slim = (rowsFromSlimPayload(JSON.parse(readFileSync(SLIM_PATH, "utf8"))) ?
 const slimIds = new Set(slim.map((v) => v.id));
 
 describe("Durham Bailey editorial pack", () => {
-  const landmarks = landmarksForCity("durham");
+  let landmarks: Awaited<ReturnType<typeof landmarksForCityAsync>> = [];
+
+  beforeAll(async () => {
+    landmarks = (await landmarksForCityAsync("durham"));
+  });
   const bands = storyBandsForCity("durham");
   const crawls = curatedCrawlsForCity("durham");
 
-  it("ships ≥6 sourced landmarks", () => {
+  it("ships ≥6 sourced landmarks", async () => {
     expect(landmarks.length).toBeGreaterThanOrEqual(6);
     expect(landmarks.length).toBeLessThanOrEqual(10);
     expect(new Set(landmarks.map((l) => l.id)).size).toBe(landmarks.length);
@@ -47,7 +51,7 @@ describe("Durham Bailey editorial pack", () => {
     }
   });
 
-  it("ships ≥2 valid story bands including bailey-crawl for deep links", () => {
+  it("ships ≥2 valid story bands including bailey-crawl for deep links", async () => {
     expect(bands.length).toBeGreaterThanOrEqual(2);
     expect(bands.some((b) => b.id === "bailey-crawl")).toBe(true);
     expect(bands.map((b) => b.id)).toEqual(
@@ -56,7 +60,7 @@ describe("Durham Bailey editorial pack", () => {
     expect(validateAllStoryBands(bands, landmarks)).toEqual({});
   });
 
-  it("ships ≥2 curated crawls whose stop ids exist in the Durham slim index", () => {
+  it("ships ≥2 curated crawls whose stop ids exist in the Durham slim index", async () => {
     expect(crawls.length).toBeGreaterThanOrEqual(2);
     expect(new Set(crawls.map((c) => c.id)).size).toBe(crawls.length);
     expect(crawls.map((c) => c.name)).toEqual(
@@ -84,15 +88,15 @@ describe("Durham Bailey editorial pack", () => {
     }
   });
 
-  it("keeps London selectors on the London catalogs", () => {
-    expect(landmarksForCity("london").some((l) => l.id === "tower-bridge")).toBe(true);
+  it("keeps London selectors on the London catalogs", async () => {
+    expect((await landmarksForCityAsync("london")).some((l) => l.id === "tower-bridge")).toBe(true);
     expect(storyBandsForCity("london")).toHaveLength(6);
     expect(curatedCrawlsForCity("london").length).toBeGreaterThanOrEqual(3);
-    expect(landmarksForCity("durham").some((l) => l.id === "tower-bridge")).toBe(false);
+    expect((await landmarksForCityAsync("durham")).some((l) => l.id === "tower-bridge")).toBe(false);
     expect(storyBandsForCity("durham").some((b) => b.id === "river-history")).toBe(false);
   });
 
-  it("points CityConfig.poisPath at a valid Durham POI seed", () => {
+  it("points CityConfig.poisPath at a valid Durham POI seed", async () => {
     expect(CITIES.durham.poisPath).toBe("/data/cities/durham/pois.json");
     const pois = JSON.parse(readFileSync(POIS_PATH, "utf8")) as Poi[];
     expect(pois.length).toBeGreaterThanOrEqual(12);

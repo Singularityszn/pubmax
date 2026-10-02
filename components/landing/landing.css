@@ -401,10 +401,6 @@ a.lpPubPint:hover { color: var(--ink); }
 .skelLineTop { width: 45%; height: 18px; }.skelLineShort { width: 62%; }
 @keyframes lpSkeleton { to { opacity: .42; } }
 
-/* ── City chooser (its own styles live in components/city) ──────────────── */
-
-.lpCityChooser { padding: 28px var(--page-gutter) 90px; background: var(--paper); }
-
 /* ── Footer: directory, disclosure, small print ─────────────────────────── */
 
 .lpFooter { padding: clamp(48px, 7vw, 88px) var(--page-gutter) calc(36px + env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); color: var(--ink); }
@@ -488,19 +484,7 @@ a.lpPubPint:hover { color: var(--ink); }
   .lpNav { grid-template-columns: auto 1fr; }.lpPrimaryNav { display: none; }.lpNavActions { justify-self: end; }
 }
 
-/* The create action floats over the right edge of a phone, and a full-width
-   city card's tagline ran under it. The card reserves that lane from the
-   control's own published inset (components/nav/mobileNav.css), the shape
-   the /near list already takes, and holds it whenever the control is in the
-   document rather than only while it is painted. */
 @media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lp .cityChooserLink {
-    padding-right: max(
-      var(--space-4),
-      calc(var(--create-fab-lane) - var(--page-gutter))
-    );
-  }
-
   /* The answer card has its own right-aligned Near me control. Keep it out of
      the same published compose lane the rail rows already reserve. */
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpAnswerHead {
@@ -557,7 +541,6 @@ a.lpPubPint:hover { color: var(--ink); }
      margin then re-pad) so the first and last card line up with the content
      edges and nothing overflows the viewport on one side. */
   .dropStripRail { margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); grid-auto-columns: min(82vw, 310px); }
-  .lpCityChooser { padding-inline: var(--page-gutter); }
 }
 
 /* Mobile legibility floor: every visible micro-label rides at least 12px on a

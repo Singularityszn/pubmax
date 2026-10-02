@@ -4,8 +4,7 @@
 // carries no `server-only` marker, because scripts/whatson/eventsRefresh.mjs
 // imports it under plain `node`: Node strips TypeScript types but resolves no
 // tsconfig `@/*` alias, and `server-only` throws on import outside a React
-// Server Component. Import the transport from `@/lib/contextDev.server` in app
-// code; this lane is a CLI consumer.
+// Server Component. This lane is a CLI consumer of `../contextDev.ts`.
 
 import {
   createContextDevBudget,

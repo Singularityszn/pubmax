@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { scrapeMarkdown } from "@/lib/contextDev.server";
+import { scrapeMarkdown } from "@/lib/contextDev";
 
 // A permitted chain pub page the UK price crawl has ALREADY priced
 // (data/uk_prices/site_harvest.jsonl), so the proof is checkable against a row

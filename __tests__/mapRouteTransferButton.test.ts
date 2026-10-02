@@ -2,9 +2,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { MapRouteTransferButton, type MapRouteResponse } from "@/components/plan/MapRouteTransferButton";
+import { MapRouteTransferButton } from "@/components/plan/MapRouteTransferButton";
+import type { MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
 
-const response: MapRouteResponse = {
+const response: MapGeneratedRouteResponse = {
   groundingProof: "payload.signature",
   operationKey: "operation-1",
   stops: [{ venueId: "venue-a", venueName: "Venue A", alternatives: [] }],

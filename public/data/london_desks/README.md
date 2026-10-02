@@ -40,4 +40,4 @@ The shard and base layers credit the MAP, because that is where they are drawn.
 This pack is read by `/near?mode=desk`, which renders no map canvas, so
 `OSM_ATTRIBUTION` never reaches it. The desk answer therefore carries its own
 credit (`components/nearme/DeskDataCredit.tsx`), the way `UnverifiedPubSheet`
-and `CityChooser` credit the OSM rows they show.
+and `PlaceIndexCredit` credit the OSM rows they show.

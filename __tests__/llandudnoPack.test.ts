@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { CITIES, listEnabledCities, pointInCityBounds } from "@/lib/cities";
 import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
-import { landmarksForCity } from "@/lib/cityLandmarks";
+import { landmarksForCityAsync } from "@/lib/cityStoryCatalog.async";
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import {
   CITY_VENUE_ID_PREFIX,
@@ -93,7 +93,7 @@ const PLACES = parseUkPlaceIndex(
 );
 
 describe("Llandudno curated pack", () => {
-  it("keeps the audited estate source and shipped copy identical", () => {
+  it("keeps the audited estate source and shipped copy identical", async () => {
     expect(readFileSync(ESTATE_COVERAGE_PATH, "utf8")).toBe(
       readFileSync(
         join(ROOT, "data", "cities", "llandudno", "estate_coverage.json"),
@@ -102,7 +102,7 @@ describe("Llandudno curated pack", () => {
     );
   });
 
-  it("ships real coastal pubs with city-salted ids, in bounds, and no price", () => {
+  it("ships real coastal pubs with city-salted ids, in bounds, and no price", async () => {
     expect(SLIM.length).toBeGreaterThanOrEqual(20);
     const ids = new Set<string>();
     for (const row of SLIM) {
@@ -117,7 +117,7 @@ describe("Llandudno curated pack", () => {
     }
   });
 
-  it("ships estate coverage with honest price and source states", () => {
+  it("ships estate coverage with honest price and source states", async () => {
     expect(ESTATE_COVERAGE).toMatchObject({ version: 1, city: "llandudno" });
     expect(Number.isFinite(Date.parse(ESTATE_COVERAGE.observedAt))).toBe(true);
 
@@ -162,7 +162,7 @@ describe("Llandudno curated pack", () => {
     }
   });
 
-  it("labels each pin with the town OSM states for it, never the pack's name", () => {
+  it("labels each pin with the town OSM states for it, never the pack's name", async () => {
     const areas = new Set(SLIM.map((row) => row.borough));
     // The pack is one stretch of coast, so a single label would put Llandudno
     // on a Conwy pub.
@@ -182,7 +182,7 @@ describe("Llandudno curated pack", () => {
     }
   });
 
-  it("takes its rows out of the UK base layer rather than a second observation", () => {
+  it("takes its rows out of the UK base layer rather than a second observation", async () => {
     expect(SEED.promotedFrom).toBe("data/osm/uk/uk_osm_pubs.json");
     const basePack: { pubs: Array<{ osmId: string }> } = JSON.parse(
       readFileSync(join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json"), "utf8"),
@@ -195,7 +195,7 @@ describe("Llandudno curated pack", () => {
     for (const pub of SEED.pubs) expect(baseOsmIds.has(pub.osmId)).toBe(true);
   });
 
-  it("hands every promoted pub's base row to its curated pin, so nothing double-pins", () => {
+  it("hands every promoted pub's base row to its curated pin, so nothing double-pins", async () => {
     const manifest: { urlPrefix: string; shards: Array<{ id: string }> } =
       JSON.parse(
         readFileSync(
@@ -225,15 +225,15 @@ describe("Llandudno curated pack", () => {
     for (const row of SLIM) expect(owners.has(row.id)).toBe(true);
   });
 
-  it("resolves its venue ids to Llandudno and to no other city", () => {
+  it("resolves its venue ids to Llandudno and to no other city", async () => {
     expect(cityIdFromVenueId(SLIM[0]!.id)).toBe("llandudno");
     expect(venueIdMatchesCity(SLIM[0]!.id, "llandudno")).toBe(true);
     expect(venueIdMatchesCity(SLIM[0]!.id, "london")).toBe(false);
     expect(venueIdMatchesCity(SLIM[0]!.id, "bath")).toBe(false);
   });
 
-  it("claims no editorial it does not ship, and no London fallthrough", () => {
-    expect(landmarksForCity("llandudno")).toEqual([]);
+  it("claims no editorial it does not ship, and no London fallthrough", async () => {
+    expect(await landmarksForCityAsync("llandudno")).toEqual([]);
     expect(storyBandsForCity("llandudno")).toEqual([]);
     expect(curatedCrawlsForCity("llandudno")).toEqual([]);
     expect(CITIES.llandudno.poisPath).toBeNull();
@@ -242,7 +242,7 @@ describe("Llandudno curated pack", () => {
 });
 
 describe("Llandudno place search", () => {
-  it("lands the shipped index's Llandudno on the curated map", () => {
+  it("lands the shipped index's Llandudno on the curated map", async () => {
     const [first] = buildCityChooserSearchResults(
       "Llandudno",
       listEnabledCities(),
@@ -256,7 +256,7 @@ describe("Llandudno place search", () => {
     });
   });
 
-  it("routes the other towns in the pack to the same curated map", () => {
+  it("routes the other towns in the pack to the same curated map", async () => {
     for (const query of ["Conwy", "Colwyn Bay"]) {
       const [first] = buildCityChooserSearchResults(
         query,
@@ -270,7 +270,7 @@ describe("Llandudno place search", () => {
 });
 
 describe("city id tables", () => {
-  it("agree on every pack's venue-id prefix", () => {
+  it("agree on every pack's venue-id prefix", async () => {
     // The prefix is written down twice: the builder salts venue ids with it and
     // the app reads a venue id back to its city with it. A pack whose two
     // spellings disagreed would ship pins no surface could place.

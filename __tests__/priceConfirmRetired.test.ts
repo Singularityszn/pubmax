@@ -75,7 +75,7 @@ describe("the anonymous price-confirm lane is retired", () => {
   });
 
   it("leaves no vouch publisher in the fact-claim signals", () => {
-    expect(code(join(ROOT, "lib/priceFactClaims.ts"))).not.toContain("price-confirm");
+    expect(existsSync(join(ROOT, "lib/priceFactClaims.ts"))).toBe(false);
   });
 
   it("leaves no vouch wording in the confidence read", () => {

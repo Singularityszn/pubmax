@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { landmarksForCity } from "@/lib/cityLandmarks";
+import { landmarksForCityAsync } from "@/lib/cityStoryCatalog.async";
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { validateAllStoryBands } from "@/lib/storyBands";
@@ -26,11 +26,15 @@ const slim = (rowsFromSlimPayload(JSON.parse(readFileSync(SLIM_PATH, "utf8"))) ?
 const slimIds = new Set(slim.map((v) => v.id));
 
 describe("Cambridge King Street Run editorial pack", () => {
-  const landmarks = landmarksForCity("cambridge");
+  let landmarks: Awaited<ReturnType<typeof landmarksForCityAsync>> = [];
+
+  beforeAll(async () => {
+    landmarks = (await landmarksForCityAsync("cambridge"));
+  });
   const bands = storyBandsForCity("cambridge");
   const crawls = curatedCrawlsForCity("cambridge");
 
-  it("ships ≥8 sourced landmarks", () => {
+  it("ships ≥8 sourced landmarks", async () => {
     expect(landmarks.length).toBeGreaterThanOrEqual(8);
     expect(new Set(landmarks.map((l) => l.id)).size).toBe(landmarks.length);
     for (const landmark of landmarks) {
@@ -46,7 +50,7 @@ describe("Cambridge King Street Run editorial pack", () => {
     }
   });
 
-  it("ships ≥3 valid story bands including king-street-run for deep links", () => {
+  it("ships ≥3 valid story bands including king-street-run for deep links", async () => {
     expect(bands.length).toBeGreaterThanOrEqual(3);
     expect(bands.some((b) => b.id === "king-street-run")).toBe(true);
     expect(bands.map((b) => b.id)).toEqual(
@@ -57,7 +61,7 @@ describe("Cambridge King Street Run editorial pack", () => {
     expect(run?.copy.toLowerCase()).toMatch(/drink responsibly|folklore|not a sanctioned/);
   });
 
-  it("ships ≥2 curated crawls whose stop ids exist in the Cambridge slim index", () => {
+  it("ships ≥2 curated crawls whose stop ids exist in the Cambridge slim index", async () => {
     expect(crawls.length).toBeGreaterThanOrEqual(2);
     expect(new Set(crawls.map((c) => c.id)).size).toBe(crawls.length);
     expect(crawls.map((c) => c.name)).toEqual(
@@ -85,15 +89,15 @@ describe("Cambridge King Street Run editorial pack", () => {
     }
   });
 
-  it("keeps London selectors on the London catalogs", () => {
-    expect(landmarksForCity("london").some((l) => l.id === "tower-bridge")).toBe(true);
+  it("keeps London selectors on the London catalogs", async () => {
+    expect((await landmarksForCityAsync("london")).some((l) => l.id === "tower-bridge")).toBe(true);
     expect(storyBandsForCity("london")).toHaveLength(6);
     expect(curatedCrawlsForCity("london").length).toBeGreaterThanOrEqual(3);
-    expect(landmarksForCity("cambridge").some((l) => l.id === "tower-bridge")).toBe(false);
+    expect((await landmarksForCityAsync("cambridge")).some((l) => l.id === "tower-bridge")).toBe(false);
     expect(storyBandsForCity("cambridge").some((b) => b.id === "river-history")).toBe(false);
   });
 
-  it("points CityConfig.poisPath at a valid Cambridge POI seed", () => {
+  it("points CityConfig.poisPath at a valid Cambridge POI seed", async () => {
     expect(CITIES.cambridge.poisPath).toBe("/data/cities/cambridge/pois.json");
     const pois = JSON.parse(readFileSync(POIS_PATH, "utf8")) as Poi[];
     expect(pois.length).toBeGreaterThanOrEqual(15);

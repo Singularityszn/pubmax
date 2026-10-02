@@ -4,7 +4,7 @@
  * `/near` renders no map canvas, so `OSM_ATTRIBUTION` (passed to MapLibre as
  * `customAttribution`) never reaches this surface, and every desk card prints
  * OSM's own name, address, opening hours and wifi tag. The credit therefore
- * rides the answer itself, the way `UnverifiedPubSheet` and `CityChooser`
+ * rides the answer itself, the way `UnverifiedPubSheet` and `PlaceIndexCredit`
  * already credit the rows they show.
  */
 export default function DeskDataCredit() {

@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("server-only", () => ({}));
+import { describe, expect, it } from "vitest";
 
 import {
   dedupeSiteHarvestLedgerRows,
@@ -11,7 +9,7 @@ import {
   parseSiteHarvestLedgerText,
   siteHarvestLedgerCollectKey,
   siteHarvestLedgerDuplicateKeys,
-} from "@/lib/siteHarvestLedger";
+} from "@/lib/siteHarvestLedgerCore";
 
 describe("site harvest ledger", () => {
   const owners = loadCuratedUkBaseOwners();

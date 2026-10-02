@@ -1,4 +1,4 @@
-// Shared site-harvest ledger logic for the server entry point and operator CLI.
+// Shared site-harvest ledger logic for the operator CLIs.
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";

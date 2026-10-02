@@ -9,7 +9,7 @@ import {
   isContextDevConfigured,
   scrapeHtml,
   scrapeMarkdown,
-} from "@/lib/contextDev.server";
+} from "@/lib/contextDev";
 
 const noSleep = async () => {};
 
