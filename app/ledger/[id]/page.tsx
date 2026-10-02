@@ -14,9 +14,11 @@ import {
 } from "@/lib/ledger";
 import { type ViewerContext } from "@/lib/pintDrops";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
+import { CITIES } from "@/lib/cities";
+import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
-import type { Venue } from "@/lib/venues";
+import { type Venue } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import JsonLd from "@/components/seo/JsonLd";
@@ -31,10 +33,9 @@ import "./ledger.css";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // high-contrast, voice-friendly rendering of a venue's story for the
-// Boomer/Gen-X reading surface. Same seams as the map's venue sheet and the
-// /p/[id] permalink: the FULL venue detail (same cheap read path as
-// app/api/venue/[id]) plus the same Pint Drop store the API route reads
-// (lib/pintDropsStore), reused, not rebuilt.
+// Boomer/Gen-X reading surface. The venue is lookupVenueDetail, the same
+// module app/api/venue/[id] calls, plus the same Pint Drop store the API
+// route reads (lib/pintDropsStore), reused, not rebuilt.
 //
 // A server component: no client fetch, so the first paint already carries the
 // whole logbook. The only client-side sliver is the optional "Read this page"
@@ -103,14 +104,25 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 const SITE_URL = "https://pubmaxxing.com";
 
-// BarOrPub structured data for the venue permalink (Wave S1.3). ONLY fields the
-// dataset actually carries: name, geo (lat/lng), postal address, canonical url.
-// No invented cuisine/priceRange/rating: provenance rule. lat/lng and address
-// are omitted when absent rather than guessed. When the pub is on the official
+// The region is the city the venue id names. A London id carries no city
+// prefix, so the region stays London. A national base id names no city, so
+// the region is omitted rather than labelled London.
+function ledgerAddressRegion(venueId: string): string | undefined {
+  const cityId = cityIdFromVenueId(venueId);
+  if (cityId) return CITIES[cityId].displayName;
+  if (isNationalBaseVenueId(venueId)) return undefined;
+  return "London";
+}
+
+// BarOrPub structured data for the venue permalink (Wave S1.3). Name, geo
+// (lat/lng), postal address, and the canonical url. No invented cuisine,
+// price range, or rating. lat/lng and the street address are omitted when
+// absent. The region is the city the id names. When the pub is on the official
 // register (Historic England NHLE) we add a factual `description` + a
 // heritage `additionalProperty` carrying the grade + list-entry citation, so
 // AI/search engines see the listed-building status straight from the JSON-LD.
 function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
+  const addressRegion = ledgerAddressRegion(venue.id);
   const hasGeo =
     typeof venue.latitude === "number" && typeof venue.longitude === "number";
   return {
@@ -135,7 +147,7 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
             "@type": "PostalAddress",
             ...(venue.address ? { streetAddress: venue.address } : {}),
             ...(venue.primaryBorough ? { addressLocality: venue.primaryBorough } : {}),
-            addressRegion: "London",
+            ...(addressRegion ? { addressRegion } : {}),
             addressCountry: "GB",
           },
         }
