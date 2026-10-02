@@ -1793,6 +1793,7 @@ function PlanComposerForm({
       intakeContextForSort,
       queryArea,
     );
+    const hasPreviousRoute = routeSorted && stops.length > 0;
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
@@ -1839,13 +1840,18 @@ function PlanComposerForm({
         // Answered 200 with no Stops on purpose: the kept pub is what is in the
         // way, and only the server knows which check refused it.
         setConciergeNote(anchorConflict);
+        setRouteStale(hasPreviousRoute);
+        setRouteStatus(planGenerationFailureStatus(anchorConflict, hasPreviousRoute));
         return;
       }
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) {
         // Zero matches is guidance, not failure (friction sweep follow-up 9):
         // the polite status slot, never the red error banner.
-        setConciergeNote("No venues matched that ask. Try a nearby area or a broader mood.");
+        const guidance = "No venues matched that ask. Try a nearby area or a broader mood.";
+        setConciergeNote(guidance);
+        setRouteStale(hasPreviousRoute);
+        setRouteStatus(planGenerationFailureStatus(guidance, hasPreviousRoute));
         return;
       }
       setStops(suggested);
@@ -1882,10 +1888,10 @@ function PlanComposerForm({
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
       // earlier route is still here".
-      const failureStatus = planGenerationFailureStatus(message, stops.length > 0);
+      const failureStatus = planGenerationFailureStatus(message, hasPreviousRoute);
       trackErrorShown("plan", errorShownKindFromStatus(responseStatus));
       setError(failureStatus);
-      setRouteStale(true);
+      setRouteStale(hasPreviousRoute);
       setRouteStatus(failureStatus);
     } finally {
       setSorting(false);
