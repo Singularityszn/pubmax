@@ -1,15 +1,24 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
+import { canonicalizeSaved, type SavedPub } from "@/lib/savedPubs";
 import { __resetMemorySavedPubs, memorySavedPubsStore } from "@/lib/savedPubsStore";
 import { spoonsValueRowFor } from "@/lib/spoonsValue.server";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
-import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { resetVenueAliasesForTests, setVenueAliasesPathForTests } from "@/lib/venueAliases";
+import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { lookupCanonicalVenue, resolveVenue } from "@/lib/venueIndex";
 import {
   mergeCityVenueIdAliases,
+  mergeRetiredCityVenues,
+  retiredCityVenues,
   supersededCityVenueIds,
 } from "../scripts/lib/cityVenueIdAliases.mjs";
 
@@ -66,6 +75,30 @@ describe("supersededCityVenueIds", () => {
   });
 });
 
+describe("retiredCityVenues", () => {
+  it("keeps a pub that left OSM with no successor under its own name, area and last point", () => {
+    const closed = pub({ osmId: "node/307020647", name: "The Duck", lat: 52.471534, lng: -1.9396181 });
+    const moved = pub({ osmId: "node/11371732533", name: "Hare & Hounds" });
+    const movedOn = { ...moved, address: "106, High Street, Birmingham" };
+    expect(
+      retiredCityVenues({ id: "birmingham", displayName: "Birmingham" }, [closed, moved], [movedOn]),
+    ).toEqual([
+      {
+        id: cityVenueIdForPub("birmingham", closed),
+        name: "The Duck",
+        area: "Birmingham",
+        lat: 52.471534,
+        lng: -1.9396181,
+      },
+    ]);
+  });
+
+  it("lets a retired pub that comes back to OSM leave the records", () => {
+    const record = { name: "The Duck", area: "Birmingham", lat: 52.47, lng: -1.94 };
+    expect(mergeRetiredCityVenues({ "venue-bhm-a": record }, [], new Set(["venue-bhm-a"]))).toEqual({});
+  });
+});
+
 describe("mergeCityVenueIdAliases", () => {
   it("re-points an alias whose target is itself superseded, so no reader follows a chain", () => {
     expect(
@@ -118,21 +151,103 @@ describe("a superseded city id still names the same pub", () => {
     expect(legacy.map((drop) => drop.id)).toEqual(["legacy-before-refresh"]);
   });
 
-  it("names and links a saved pub stored under the old id as the same pub", async () => {
-    await memorySavedPubsStore.toggleSaved({
-      handle: "brummie",
-      venueId: HARE_AND_HOUNDS.old,
-      listType: "Want to Visit",
-    });
+  // A save written before the refresh, when no alias named the old id yet.
+  async function saveBeforeTheRefresh(venueId: string): Promise<void> {
+    const dir = mkdtempSync(path.join(tmpdir(), "no-aliases-"));
+    const file = path.join(dir, "venue_id_aliases.json");
+    writeFileSync(file, JSON.stringify({ aliases: {} }));
+    setVenueAliasesPathForTests(file);
+    await memorySavedPubsStore.toggleSaved({ handle: "brummie", venueId, listType: "Want to Visit" });
+    resetVenueAliasesForTests();
+  }
+
+  afterEach(() => resetVenueAliasesForTests());
+
+  it("answers a saved pub stored under the old id as the same pub under its current id", async () => {
+    await saveBeforeTheRefresh(HARE_AND_HOUNDS.old);
     const read = await memorySavedPubsStore.readSaved({ handle: "brummie" });
-    expect(read).toMatchObject({ status: "ready" });
     expect(read.status === "ready" ? read.rows : []).toMatchObject([
       {
-        // The stored identity, which is what a toggle removes the save by.
-        venueId: HARE_AND_HOUNDS.old,
+        venueId: HARE_AND_HOUNDS.current,
         venueName: "Hare & Hounds",
         venueMapUrl: expect.stringContaining(HARE_AND_HOUNDS.current),
       },
+    ]);
+  });
+
+  it("never saves the pub a second time from its current id, and unsaves the old save", async () => {
+    await saveBeforeTheRefresh(HARE_AND_HOUNDS.old);
+    expect(
+      await memorySavedPubsStore.ensureSaved({
+        handle: "brummie",
+        profileId: "profile-brummie",
+        venueId: HARE_AND_HOUNDS.current,
+        listType: "Want to Visit",
+      }),
+    ).toEqual({ outcome: "already_saved" });
+    const afterToggle = await memorySavedPubsStore.toggleSaved({
+      handle: "brummie",
+      venueId: HARE_AND_HOUNDS.current,
+      listType: "Want to Visit",
+    });
+    expect(afterToggle).toEqual([]);
+  });
+
+  it("rewrites this device's saves under the current id, one save per list", () => {
+    const saved: SavedPub[] = [
+      { venueId: HARE_AND_HOUNDS.old, listType: "Want to Visit", savedAt: "2026-09-01T20:00:00.000Z" },
+      { venueId: HARE_AND_HOUNDS.current, listType: "Want to Visit", savedAt: "2026-10-02T20:00:00.000Z" },
+      { venueId: CHEMIC_TAVERN.old, listType: "Cheap Pint", savedAt: "2026-09-02T20:00:00.000Z" },
+    ];
+    const aliases = new Map([
+      [HARE_AND_HOUNDS.old, HARE_AND_HOUNDS.current],
+      [CHEMIC_TAVERN.old, CHEMIC_TAVERN.current],
+    ]);
+    expect(canonicalizeSaved(saved, (id) => aliases.get(id) ?? id)).toEqual([
+      { venueId: HARE_AND_HOUNDS.current, listType: "Want to Visit", savedAt: "2026-09-01T20:00:00.000Z" },
+      { venueId: CHEMIC_TAVERN.current, listType: "Cheap Pint", savedAt: "2026-09-02T20:00:00.000Z" },
+    ]);
+  });
+});
+
+describe("a pub that left OpenStreetMap is retired, never orphaned", () => {
+  const HENMAN_AND_COOPER = "venue-bhm-y7p3wr";
+
+  beforeEach(() => {
+    __resetMemorySavedPubs();
+  });
+
+  it("resolves a tombstoned id to its own pub, in its own city, flagged as no longer listed", async () => {
+    const venue = await resolveVenue(HENMAN_AND_COOPER);
+    expect(venue).toMatchObject({
+      id: HENMAN_AND_COOPER,
+      name: "Henman & Cooper (may have closed)",
+      borough: "Birmingham",
+      retired: true,
+    });
+    expect(venue?.lat).toBeCloseTo(52.48057, 4);
+    expect(venue?.lng).toBeCloseTo(-1.90132, 4);
+
+    const detail = await lookupVenueDetail(HENMAN_AND_COOPER);
+    expect(detail.status === "found" ? [detail.venue.name, detail.venue.retired] : null).toEqual([
+      "Henman & Cooper (may have closed)",
+      true,
+    ]);
+  });
+
+  it("answers reads only: no write can land on a pub the map no longer lists", async () => {
+    expect((await lookupCanonicalVenue(HENMAN_AND_COOPER)).status).toBe("unknown");
+  });
+
+  it("names a save stored against it as that pub, never a London fallback", async () => {
+    await memorySavedPubsStore.toggleSaved({
+      handle: "brummie",
+      venueId: HENMAN_AND_COOPER,
+      listType: "Want to Visit",
+    });
+    const read = await memorySavedPubsStore.readSaved({ handle: "brummie" });
+    expect(read.status === "ready" ? read.rows.map((row) => row.venueName) : []).toEqual([
+      "Henman & Cooper (may have closed)",
     ]);
   });
 });

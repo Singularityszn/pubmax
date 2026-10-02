@@ -61,8 +61,6 @@ export type LandingPubCardData = {
   drinkHref: string | null;
   /** Who listed it, or null when the row names no publisher. */
   publisher: { label: string; url: string } | null;
-  /** ISO day the bundled dataset was collected. */
-  collectedOn: string;
   /** ISO day the publisher's own row was last read at its source, or null when no row records one. */
   observedOn: string | null;
   /**
@@ -107,7 +105,7 @@ function drinkHrefFor(venue: Venue, venues: readonly Venue[]): string | null {
 export function buildLandingPubCard(
   venues: readonly Venue[],
   rawHistory: unknown,
-  opts: { collectedOn: string; now?: number },
+  opts: { now?: number } = {},
 ): LandingPubCardData | null {
   const now = opts.now ?? Date.now();
   const history = groupPriceHistoryByVenue(parsePriceHistory(rawHistory, now));
@@ -137,7 +135,6 @@ export function buildLandingPubCard(
     pintName: pintLabel(chosen),
     drinkHref: drinkHrefFor(chosen, venues),
     publisher,
-    collectedOn: opts.collectedOn,
     observedOn,
     standing,
     then: {

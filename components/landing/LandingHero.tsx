@@ -118,7 +118,6 @@ type Answer = {
   scope: LandingAnswerScope;
   walkMinutes?: number;
   evidence: Evidence;
-  collectedOn: string;
   then: LandingArchiveThen | null;
   rail: LandingRailRow[];
 };
@@ -143,7 +142,6 @@ function anchorAnswer(
     drinkHref: card.drinkHref,
     scope: "anchor",
     evidence: { publisher: card.publisher, standing: card.standing, observedOn: card.observedOn },
-    collectedOn: card.collectedOn,
     // The index holds the anchor's own then row with its printed labels.
     then: archive[card.id] ?? null,
     rail,
@@ -155,7 +153,6 @@ function nearAnswer(
   rest: NearMeCard[],
   scope: "walkable" | "widened",
   archive: LandingArchiveIndex,
-  collectedOn: string,
 ): Answer {
   return {
     id: first.id,
@@ -167,7 +164,6 @@ function nearAnswer(
     scope,
     walkMinutes: first.walkMinutes,
     evidence: "loading",
-    collectedOn,
     then: archive[first.id] ?? null,
     rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
       id: card.id,
@@ -220,13 +216,13 @@ export default function LandingHero({
   );
   const [near, setNear] = useState<NearState>({ kind: "idle" });
   const generation = useRef(0);
-  const collectedOn = card?.collectedOn ?? null;
+  const hasCard = card !== null;
 
   // The swap. One generation counter keeps a slow first read from landing
   // over a later one. The ranker and the slim index load only here, so the
   // landing's own bundle never carries them for a reader who never taps.
   const locate = useCallback(() => {
-    if (!collectedOn) return;
+    if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setNear({ kind: "failed", line: NEAR_ME_FAILED_LINE });
       return;
@@ -253,7 +249,7 @@ export default function LandingHero({
               return;
             }
             const [first, ...rest] = ranked.cards;
-            setAnswer(nearAnswer(first, rest, ranked.scope, archive, collectedOn));
+            setAnswer(nearAnswer(first, rest, ranked.scope, archive));
             setNear({ kind: "answered" });
             const controller = new AbortController();
             const evidence = await readEvidence(first.id, first.cheapestPrice, controller.signal);
@@ -267,12 +263,12 @@ export default function LandingHero({
       () => fail(NEAR_ME_FAILED_LINE),
       NEAR_ME_LOCATION_OPTIONS,
     );
-  }, [archive, collectedOn]);
+  }, [archive, hasCard]);
 
   // A reader who already said yes gets the near-you answer with no tap. A
   // reader who has not is never asked on arrival: the control on the card asks.
   useEffect(() => {
-    if (!collectedOn) return;
+    if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
     let cancelled = false;
     navigator.permissions
@@ -284,7 +280,7 @@ export default function LandingHero({
     return () => {
       cancelled = true;
     };
-  }, [collectedOn, locate]);
+  }, [hasCard, locate]);
 
   // Which picture the card stands on. It follows the ANSWER, so a near-you
   // swap moves to that pub's own borough rather than keeping the anchor's.
@@ -414,10 +410,9 @@ function AnswerCard({
   const evidence = answer.evidence;
   const publisher = typeof evidence === "object" ? evidence.publisher : null;
   const standing = typeof evidence === "object" ? evidence.standing : null;
-  // The day THIS pub's row was read, once the evidence names one; until then,
-  // and for a row that records no read, the day the dataset was collected.
-  const collectedOn =
-    (typeof evidence === "object" ? evidence.observedOn : null) ?? answer.collectedOn;
+  // The day THIS pub's row was read. No day prints until the evidence names
+  // one, and none for a row that records no read.
+  const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
   return (
     <article
       className="lpPubCard lpAnswerCard lpPubCard--photo"
@@ -471,7 +466,7 @@ function AnswerCard({
         ) : (
           sourceLine(evidence)
         )}
-        , collected {collectedDay(collectedOn)}.
+        {observedOn ? `, collected ${collectedDay(observedOn)}` : ""}.
       </p>
       {standing ? (
         <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>

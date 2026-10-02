@@ -24,7 +24,6 @@ const card: LandingPubCardData = {
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha",
   publisher: { label: "pint-prices.com", url: "https://www.pint-prices.com/pub/x" },
-  collectedOn: "2026-07-03",
   observedOn: "2026-07-03",
   standing: "listed",
   then: {
@@ -99,15 +98,15 @@ describe("landing answer card copy", () => {
     expect(words).not.toContain("!");
   });
 
-  it("says no publisher is recorded when the row names none", () => {
-    const bare = render({ publisher: null });
-    expect(bare).toContain("No publisher recorded, collected 3 July 2026.");
+  it("says no publisher is recorded when the row names none, and prints no day it does not hold", () => {
+    const bare = render({ publisher: null, observedOn: null });
+    expect(bare).toContain("No publisher recorded.");
+    expect(bare).not.toMatch(/collected \d/);
   });
 
-  it("dates the listing by the day its own row was read, not the dataset's latest collection", () => {
-    const unread = render({ collectedOn: "2026-10-02", observedOn: "2026-08-21" });
+  it("dates the listing by the day its own row was read", () => {
+    const unread = render({ observedOn: "2026-08-21" });
     expect(unread).toContain("collected 21 August 2026.");
-    expect(unread).not.toContain("2 October 2026");
   });
 
   it("asks Still £X? of the pub on the card, as the first QUIET door", () => {

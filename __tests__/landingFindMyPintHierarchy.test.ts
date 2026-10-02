@@ -45,7 +45,6 @@ const card: LandingPubCardData = {
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha",
   publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
-  collectedOn: "2026-07-03",
   observedOn: "2026-07-03",
   standing: "listed",
   then: {

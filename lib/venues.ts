@@ -238,6 +238,8 @@ export type Venue = {
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
   storySourceUrl?: string;
+  /** A pub that left OpenStreetMap: answered by id so a stored reference names it, never listed. */
+  retired?: true;
   // Publicly-documented accessible-venue facts (PRD issue #28). Present ONLY for
   // the small curated seed of pubs whose access is documented (see
   // lib/venueAccessibilitySeeds.ts); for every other venue this is undefined —

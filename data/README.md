@@ -16,9 +16,10 @@ independently-authored sources.
 
 That stamp is the day the DATASET was last collected. It is not the date a pub
 shows. Every row carries its own `scraped_at_values`, the instant that row was
-last read at its source, and the venue sheet, the peek, the landing answer card
-and the cheap pint board date a listed price by that row's own day
-(`answerEvidenceFor` in `lib/landingHero.ts`). A re-collection re-dates only the
+last read at its source, and the venue sheet and its Menu tab, the peek, the
+landing answer card, the cheap pint board, the drink-type pages and plan stops
+date a price by that row's own day (`legacyPintPriceObservedOn` in
+`lib/drinks.ts`). A re-collection re-dates only the
 rows its source still states. A row it did not read keeps the day it was read,
 and a row that records no read (the outer-London gazetteer seed, for one) claims
 no listing and prints no collection day. A shared stamp is never applied to an

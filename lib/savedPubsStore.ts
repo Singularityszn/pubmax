@@ -27,6 +27,7 @@ import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
+import { storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 // The list a pub is filed under is now free text (story 33): the seven built-ins
@@ -137,18 +138,18 @@ export type SavedPubsStore = {
 // ── DTO enrichment (server-side venue-name resolution) ───────────────────────
 // Fold raw rows into DTOs, resolving each venue id to its real pub name + map url
 // through the bundled index. A save stored under a merged or superseded venue id
-// is named and linked as the venue that id now resolves to, and keeps its stored
-// id, which is the identity a toggle removes it by. An id the dataset no longer
-// carries falls back to a friendly label — never the raw "venue-…" id. Newest
-// save first.
+// is answered under the id that venue carries now, and a toggle matches every
+// id the venue may be stored under, so the two always name one save. An id the
+// dataset no longer carries falls back to a friendly label — never the raw
+// "venue-…" id. Newest save first.
 type VenueIndexMap = Awaited<ReturnType<typeof getVenueIndex>>;
 
 function dtoFromRow(row: SavedRow, index: VenueIndexMap, aliases: VenueAliasResolver): SavedPubDTO {
-  const currentId = aliases.canonical(row.venueId);
+  const venueId = aliases.canonical(row.venueId);
   return {
-    venueId: row.venueId,
-    venueName: index.get(currentId)?.name ?? "A London venue",
-    venueMapUrl: venueMapUrl(currentId),
+    venueId,
+    venueName: storedVenueRef(index, aliases, venueId)?.name ?? "A London venue",
+    venueMapUrl: venueMapUrl(venueId),
     listType: row.listType,
     ...(row.note ? { note: row.note } : {}),
     savedAt: row.savedAt,
@@ -305,19 +306,21 @@ const supabaseSavedPubsStore: SavedPubsStore = {
 
   async toggleSaved(input) {
     const listType = cleanListType(input.listType);
-    const venueId = input.venueId;
     try {
       const profileId = await profileIdForHandle(supabaseProfileStore, input.handle, true);
-      if (!profileId || !venueId || !listType) {
+      if (!profileId || !input.venueId || !listType) {
         return this.listSaved({ handle: input.handle });
       }
+      const venueIds = (await loadVenueAliasResolver()).storedIds(input.venueId);
+      const venueId = venueIds[0];
 
-      // Is (profile, venue, list) already saved? A select decides insert vs delete.
+      // Is (profile, venue, list) already saved, under any id the venue may be
+      // stored under? A select decides insert vs delete.
       const { data: existing, error: readError } = await admin()
         .from(TABLE)
         .select("id")
         .eq("profile_id", profileId)
-        .eq("venue_id", venueId)
+        .in("venue_id", venueIds)
         .eq("list_type", listType)
         .limit(1);
       if (readError) throw new Error(readError.message);
@@ -327,7 +330,7 @@ const supabaseSavedPubsStore: SavedPubsStore = {
           .from(TABLE)
           .delete()
           .eq("profile_id", profileId)
-          .eq("venue_id", venueId)
+          .in("venue_id", venueIds)
           .eq("list_type", listType);
         if (error) throw new Error(error.message);
       } else {
@@ -351,12 +354,23 @@ const supabaseSavedPubsStore: SavedPubsStore = {
 
   async ensureSaved(input) {
     const listType = cleanListType(input.listType);
-    const venueId = input.venueId;
     const profileId = input.profileId.trim();
-    if (!profileId || !normalizeHandle(input.handle) || !venueId || !listType) {
+    if (!profileId || !normalizeHandle(input.handle) || !input.venueId || !listType) {
       return { outcome: "unavailable" };
     }
     try {
+      const [venueId, ...formerIds] = (await loadVenueAliasResolver()).storedIds(input.venueId);
+      if (formerIds.length > 0) {
+        const { data: former, error: formerError } = await admin()
+          .from(TABLE)
+          .select("id")
+          .eq("profile_id", profileId)
+          .in("venue_id", formerIds)
+          .eq("list_type", listType)
+          .limit(1);
+        if (formerError) throw new Error(formerError.message);
+        if ((former ?? []).length > 0) return { outcome: "already_saved" };
+      }
       const { data, error } = await admin()
         .from(TABLE)
         .upsert(
@@ -435,14 +449,15 @@ export const memorySavedPubsStore: SavedPubsStore = {
     if (!input.venueId || !listType) {
       return this.listSaved({ handle: input.handle, actorHash: input.actorHash });
     }
+    const venueIds = (await loadVenueAliasResolver()).storedIds(input.venueId);
     const partition = memoryRows.get(owner) ?? new Map<string, SavedRow>();
-    const key = rowKey(input.venueId, listType);
-    if (partition.has(key)) {
-      partition.delete(key);
+    const savedKeys = venueIds.map((id) => rowKey(id, listType)).filter((key) => partition.has(key));
+    if (savedKeys.length > 0) {
+      for (const key of savedKeys) partition.delete(key);
     } else {
       const note = cleanNote(input.note);
-      partition.set(key, {
-        venueId: input.venueId,
+      partition.set(rowKey(venueIds[0], listType), {
+        venueId: venueIds[0],
         listType,
         ...(note ? { note } : {}),
         savedAt: new Date().toISOString(),
@@ -458,11 +473,11 @@ export const memorySavedPubsStore: SavedPubsStore = {
     if (!input.profileId.trim() || !normalizeHandle(input.handle) || !input.venueId || !listType) {
       return { outcome: "unavailable" };
     }
+    const venueIds = (await loadVenueAliasResolver()).storedIds(input.venueId);
     const partition = memoryRows.get(owner) ?? new Map<string, SavedRow>();
-    const key = rowKey(input.venueId, listType);
-    if (partition.has(key)) return { outcome: "already_saved" };
-    partition.set(key, {
-      venueId: input.venueId,
+    if (venueIds.some((id) => partition.has(rowKey(id, listType)))) return { outcome: "already_saved" };
+    partition.set(rowKey(venueIds[0], listType), {
+      venueId: venueIds[0],
       listType,
       savedAt: new Date().toISOString(),
     });

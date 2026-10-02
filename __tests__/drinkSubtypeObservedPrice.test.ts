@@ -127,12 +127,18 @@ describe("selectObservedSubtypePriceForVenue", () => {
 
   it("picks the cheapest matching row and keeps its observation date from updates", () => {
     const venue = makeVenue([
-      makePrice("Coke Zero", 3.2),
+      { ...makePrice("Coke Zero", 3.2), scraped_at_values: "2026-07-03T23:10:47+00:00" },
       makePrice("Diet Coke", 2.9),
     ]);
     const zero = selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero");
     expect(zero?.priceGbp).toBe(3.2);
-    expect(zero?.observedAt).toBeTruthy();
+    // Dated by the day its own row was read, never the dataset's collection day.
+    expect(zero?.observedAt).toBe("2026-07-03T12:00:00.000Z");
+    const undated = selectObservedSubtypePriceForVenue(
+      makeVenue([makePrice("Coke Zero", 3.2)]),
+      "soft-drink-coke-zero",
+    );
+    expect(undated?.observedAt).toBe("");
 
     const update: DrinkPriceUpdate = {
       venueKey: "test pub|1 test st|51.50000|-0.10000",

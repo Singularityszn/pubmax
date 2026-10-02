@@ -11,6 +11,7 @@ import {
   builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
+  mapSelectionNoticeCopy,
   mapSelectionNoticeFromSearch,
   MAP_SELECTION_NOTICE_PARAM,
   MAP_SELECTION_LOOKUP_FAILED_NOTE,
@@ -282,6 +283,14 @@ describe("mapSelectionNotice", () => {
 
   it("stays silent with no selection", () => {
     expect(mapSelectionNotice({ ...base, selectedVenueId: "" })).toBeNull();
+  });
+
+  it("names a retired pub's link as that pub, no longer on the map", () => {
+    expect(mapSelectionNotice({ ...base, detailStatus: "retired" })).toBe("retired");
+    expect(mapSelectionNoticeCopy("retired", "The Duck (may have closed)")).toBe(
+      "The Duck (may have closed) is no longer on the map.",
+    );
+    expect(mapSelectionNoticeCopy("unknown", null)).toBe(UNKNOWN_MAP_SELECTION_NOTE);
   });
 
   it("ships quiet empty-state voice with no em dash", () => {

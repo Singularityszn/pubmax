@@ -51,8 +51,9 @@ export type DrinkProvenance = {
   /** Validated publisher link when the price record names one. */
   sourceUrl?: string;
   licence: string;
-  // ISO-8601 timestamp the fact was observed/seeded.
-  observedAt: string;
+  // ISO-8601 timestamp the fact was observed/seeded. Null when the record
+  // states no read, so no day may be printed for it.
+  observedAt: string | null;
   /** Explicit where a publisher label alone cannot identify the price lane. */
   lane?: "dataset" | "drink-price-update" | "demo";
 };
@@ -235,6 +236,12 @@ export function legacyPintPriceObservedOn(price: LegacyPintPrice): string | null
   return Number.isFinite(latest) ? new Date(latest).toISOString().slice(0, 10) : null;
 }
 
+/** The row's own read day as an instant at noon UTC, or null when it records no read. */
+export function legacyPintPriceObservedAt(price: LegacyPintPrice): string | null {
+  const day = legacyPintPriceObservedOn(price);
+  return day ? `${day}T12:00:00.000Z` : null;
+}
+
 type NamedPriceSource = {
   label: string;
   url: string;
@@ -263,11 +270,9 @@ export function namedLegacyPintPriceSource(
 // A pint row → a beer Drink. Rows without a numeric price are skipped (a menu
 // entry must carry a price; an unpriced pint is not a menu item). A valid
 // publisher URL on the row stays attached; otherwise provenance says only that
-// this is an app-dataset baseline, not a live feed.
-export function legacyPricesToDrinks(
-  prices: LegacyPintPrice[],
-  observedAt: string,
-): Drink[] {
+// this is an app-dataset baseline, not a live feed. Each drink is dated by the
+// day its own row was read, never by the dataset's collection day.
+export function legacyPricesToDrinks(prices: LegacyPintPrice[]): Drink[] {
   const drinks: Drink[] = [];
   for (const price of prices) {
     if (typeof price.price_gbp !== "number") continue;
@@ -296,7 +301,7 @@ export function legacyPricesToDrinks(
         source: namedSource?.label ?? "app-dataset",
         ...(namedSource ? { sourceUrl: namedSource.url } : {}),
         licence: namedSource ? "not stated in record" : "first-party",
-        observedAt,
+        observedAt: legacyPintPriceObservedAt(price),
         lane: "dataset",
       },
     });

@@ -6,7 +6,7 @@ import path from "path";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { lookupCanonicalVenue, venueOsmIds } from "@/lib/venueIndex";
+import { lookupCanonicalVenue, lookupRetiredIndexedVenue, venueOsmIds } from "@/lib/venueIndex";
 import {
   lookupCanonicalVenueWithOsm,
   resetVenueOsmIndexForTests,
@@ -292,7 +292,10 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   const venueLookup = await lookupCanonicalVenue(id);
   if (venueLookup.status === "unavailable") return { status: "unavailable" };
-  if (venueLookup.status === "unknown") return { status: "missing" };
+  if (venueLookup.status === "unknown") {
+    const retired = await lookupRetiredIndexedVenue(venueLookup.canonicalId);
+    return retired ? { status: "found", venue: slimVenueToPin(retired.slimVenue) } : { status: "missing" };
+  }
 
   const artifactResult = await readVenueFromArtifact(id);
   let venue: Venue | null = artifactResult.status === "found" ? artifactResult.venue : null;

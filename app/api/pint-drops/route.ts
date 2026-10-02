@@ -48,6 +48,7 @@ import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -101,7 +102,7 @@ async function withVenueNames<T extends { venueId: string }>(
     return {
       ...drop,
       venueId,
-      venueName: index.get(venueId)?.name ?? VENUE_FALLBACK_LABEL,
+      venueName: storedVenueRef(index, aliases, venueId)?.name ?? VENUE_FALLBACK_LABEL,
       venueMapUrl: venueMapUrl(venueId),
     };
   });

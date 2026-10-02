@@ -353,7 +353,8 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
-import { getSaved } from "@/lib/savedPubs";
+import { canonicalizeStoredSaved, getSaved } from "@/lib/savedPubs";
+import { loadVenueAliasMap } from "@/lib/venueAliasMap";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
@@ -579,10 +580,9 @@ import {
   builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
+  mapSelectionNoticeCopy,
   mapSelectionNoticeFromSearch,
-  MAP_SELECTION_LOOKUP_FAILED_NOTE,
   MAP_SELECTION_NOTICE_PARAM,
-  UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
   activeLensLabelFor,
@@ -1448,6 +1448,8 @@ export default function PubMap({
   const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
     () => arrivalSelectionNotice,
   );
+  // The name a retired pub's selection notice prints, from its own detail read.
+  const [retiredSelectionName, setRetiredSelectionName] = useState<string | null>(null);
   useEffect(() => {
     if (!selectionNotice || typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -1635,6 +1637,19 @@ export default function PubMap({
   const [savedIds, setSavedIds] = useState<Set<string>>(() =>
     typeof window === "undefined" ? new Set<string>() : readSavedVenueIds(),
   );
+  // A save this device stored under a venue id that has since been merged or
+  // superseded is rewritten under the id the map serves now, once per page.
+  useEffect(() => {
+    let cancelled = false;
+    void loadVenueAliasMap().then((aliases) => {
+      if (cancelled || aliases.size === 0) return;
+      canonicalizeStoredSaved((venueId) => aliases.get(venueId) ?? venueId);
+      setSavedIds(readSavedVenueIds());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -4973,6 +4988,11 @@ export default function PubMap({
         });
         return;
       }
+      if (result.venue.retired) {
+        setRetiredSelectionName(result.venue.name);
+        setDetailStatusById((current) => new Map(current).set(requestedVenueId, "retired"));
+        return;
+      }
       const canonicalVenueId = result.venue.id;
       resolveMapSelection(requestedVenueId, canonicalVenueId);
       setDetailById((current) => {
@@ -5010,7 +5030,7 @@ export default function PubMap({
     const unresolvedVenueId = selectedVenueId;
     queueMicrotask(() => {
       setSelectionNotice(notice);
-      if (notice !== "unknown") return;
+      if (notice === "lookup-failed") return;
       rejectMapSelection(unresolvedVenueId);
       setSelectedVenueId((current) => (current === unresolvedVenueId ? "" : current));
     });
@@ -6126,16 +6146,14 @@ export default function PubMap({
           data-testid={
             selectionNotice === "unknown"
               ? "unknown-map-selection"
-              : "map-selection-lookup-failed"
+              : selectionNotice === "retired"
+                ? "retired-map-selection"
+                : "map-selection-lookup-failed"
           }
         >
           <MapPinned className="ukPlaceArrivalIcon" size={18} aria-hidden="true" />
           <span className="ukPlaceArrivalCopy">
-            <strong>
-              {selectionNotice === "unknown"
-                ? UNKNOWN_MAP_SELECTION_NOTE
-                : MAP_SELECTION_LOOKUP_FAILED_NOTE}
-            </strong>
+            <strong>{mapSelectionNoticeCopy(selectionNotice, retiredSelectionName)}</strong>
           </span>
           <button
             type="button"

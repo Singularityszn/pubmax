@@ -192,10 +192,15 @@ describe("groupDrinksByCategory", () => {
 describe("legacyPricesToDrinks", () => {
   it("views pint rows as beer drinks, carrying dataset provenance", () => {
     const prices: LegacyPintPrice[] = [
-      { app_price_id: "p1", pint_name: "London Pride", price_gbp: 6.4 },
+      {
+        app_price_id: "p1",
+        pint_name: "London Pride",
+        price_gbp: 6.4,
+        scraped_at_values: "2026-07-03T23:10:47+00:00",
+      },
       { app_price_id: "p2", pint_name: "Guinness", price_gbp: 6.1 },
     ];
-    const drinks = legacyPricesToDrinks(prices, OBSERVED);
+    const drinks = legacyPricesToDrinks(prices);
     expect(drinks).toHaveLength(2);
     expect(drinks[0]).toMatchObject({
       id: "beer-p1",
@@ -214,9 +219,25 @@ describe("legacyPricesToDrinks", () => {
     expect(drinks[0].provenance).toEqual({
       source: "app-dataset",
       licence: "first-party",
-      observedAt: OBSERVED,
+      observedAt: "2026-07-03T12:00:00.000Z",
       lane: "dataset",
     });
+  });
+
+  it("dates each drink by its own row's read, and a row that records none by no day", () => {
+    const drinks = legacyPricesToDrinks([
+      {
+        app_price_id: "tattoo",
+        pint_name: "ASPALL DRAUGHT CYDER",
+        price_gbp: 6,
+        scraped_at_values: "2026-08-21T15:44:29.901Z",
+      },
+      { app_price_id: "harrow", pint_name: "Lager", price_gbp: 4.6, scraped_at_values: "" },
+    ]);
+    expect(drinks.map((drink) => drink.provenance.observedAt)).toEqual([
+      "2026-08-21T12:00:00.000Z",
+      null,
+    ]);
   });
 
   it("keeps the named publisher from a price record instead of a generic dataset label", () => {
@@ -231,7 +252,6 @@ describe("legacyPricesToDrinks", () => {
           pub_url: sourceUrl,
         },
       ],
-      OBSERVED,
     );
 
     expect(drink.provenance).toMatchObject({
@@ -246,7 +266,6 @@ describe("legacyPricesToDrinks", () => {
         { app_price_id: "p1", pint_name: "No price", price_gbp: null },
         { app_price_id: "p2", pint_name: "Priced", price_gbp: 5 },
       ],
-      OBSERVED,
     );
     expect(drinks.map((d) => d.id)).toEqual(["beer-p2"]);
   });
@@ -254,7 +273,6 @@ describe("legacyPricesToDrinks", () => {
   it("falls back to a name when the pint name is blank", () => {
     const drinks = legacyPricesToDrinks(
       [{ app_price_id: "p1", pint_name: "", price_gbp: 5 }],
-      OBSERVED,
     );
     expect(drinks[0].name).toBe("Pint");
   });
@@ -265,7 +283,7 @@ describe("beerDrinksToLegacy (inverse view)", () => {
     const prices: LegacyPintPrice[] = [
       { app_price_id: "p1", pint_name: "London Pride", price_gbp: 6.4 },
     ];
-    const back = beerDrinksToLegacy(legacyPricesToDrinks(prices, OBSERVED));
+    const back = beerDrinksToLegacy(legacyPricesToDrinks(prices));
     expect(back).toEqual(prices);
   });
 

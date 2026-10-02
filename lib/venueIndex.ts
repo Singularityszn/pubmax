@@ -8,7 +8,8 @@ import {
   cityIdFromVenueId,
   venueCityPrefix,
 } from "@/lib/cityVenueIds";
-import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { retiredVenueRef } from "@/lib/storedVenueRef";
+import { lookupRetiredVenue, resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { matchVenuePermalinkSlug } from "@/lib/venuePermalinkSlug";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -32,6 +33,8 @@ export type VenueRef = {
   kind?: VenueKind;
   osmId?: string;
   osmIds?: string[];
+  /** A pub that left OpenStreetMap: still named, never listed on the map. */
+  retired?: true;
 };
 
 export function venueOsmIds(venue: VenueRef): string[] {
@@ -263,10 +266,35 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
   return lookupCanonicalVenueFromIndex(id, readCityVenueIndex);
 }
 
+/**
+ * The retired pub a stored reference names, as an indexed venue. A READ answer
+ * only: `lookupCanonicalVenue` never returns it, so no write can land on a pub
+ * the map no longer lists.
+ */
+export async function lookupRetiredIndexedVenue(id: string): Promise<IndexedVenue | null> {
+  const retired = await lookupRetiredVenue(id);
+  if (!retired) return null;
+  const venue = retiredVenueRef(retired);
+  return {
+    venue,
+    slimVenue: {
+      id: venue.id,
+      name: venue.name,
+      borough: venue.borough,
+      lat: venue.lat,
+      lng: venue.lng,
+      cheapestPrice: null,
+      retired: true,
+    },
+  };
+}
+
 export async function resolveVenue(id: string): Promise<VenueRef | null> {
   if (!id) return null;
   const lookup = await lookupCanonicalVenue(id);
-  return lookup.status === "found" ? lookup.venue : null;
+  if (lookup.status === "found") return lookup.venue;
+  if (lookup.status !== "unknown") return null;
+  return (await lookupRetiredIndexedVenue(lookup.canonicalId))?.venue ?? null;
 }
 
 /**

@@ -244,7 +244,13 @@ function collectRows(report) {
   const harvest = siteHarvestRows();
   const pubs = basePubs();
   const owners = curatedOwners(pubs);
-  addSiteHarvestRows(harvest.rows, siteHarvestOwners(harvest.rows, pubs, owners), push, report);
+  addSiteHarvestRows(
+    harvest.rows,
+    siteHarvestOwners(harvest.rows, pubs, owners),
+    new Set(pubs.map((pub) => pub.ref)),
+    push,
+    report,
+  );
   notes.push(
     harvest.from
       ? `site-harvest: ${harvest.rows.length} row(s) read from ${harvest.from}`
@@ -275,7 +281,7 @@ function collectRows(report) {
 }
 
 /** Lane one: the prices a pub's or a chain's own site stated. */
-function addSiteHarvestRows(harvestRows, owners, push, report) {
+function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
   for (const ledgerRow of harvestRows) {
     const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
@@ -286,8 +292,16 @@ function addSiteHarvestRows(harvestRows, owners, push, report) {
       typeof row.venueId === "string"
         ? row.venueId.replace(/^venue-uk-/, "")
         : null;
+    // A base pub that left OSM, and was not redrawn as another object, is no
+    // pin any reader can open, so its price has nowhere honest to sit.
+    const leftTheBase =
+      servedRefs.size > 0 &&
+      typeof row.venueId === "string" &&
+      row.venueId.startsWith("venue-uk-") &&
+      !servedRefs.has(osmRef) &&
+      !owners.has(osmRef);
     const venueId = (osmRef && owners.get(osmRef)) || row.venueId;
-    if (typeof venueId !== "string" || venueId.length === 0) {
+    if (leftTheBase || typeof venueId !== "string" || venueId.length === 0) {
       report.droppedUnresolvedVenue += 1;
       continue;
     }

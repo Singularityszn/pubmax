@@ -111,7 +111,7 @@ describe("landing pub card", () => {
         { venueId: "venue-eltcmh", priceGbp: 3.75, observedOn: "2015-08-05" },
         { venueId: "venue-eltcmh", priceGbp: 3.6, observedOn: "2013-07-14" },
       ]),
-      { collectedOn: "2026-07-03", now: NOW },
+      { now: NOW },
     );
     expect(card).toEqual({
       id: "venue-eltcmh",
@@ -123,7 +123,6 @@ describe("landing pub card", () => {
       drinkHref: null,
       // The house publisher label for that host (lib/drinks.ts), never the URL.
       publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
-      collectedOn: "2026-07-03",
       // The day the publisher's own row was read, which the card prints.
       observedOn: "2026-07-03",
       // lib/priceTier.ts: a published price with a public page inside its window.
@@ -149,22 +148,22 @@ describe("landing pub card", () => {
       { venueId: "venue-old", priceGbp: 2, observedOn: "2009-01-01" },
       { venueId: LANDING_PUB_PREFERENCE[0], priceGbp: 3.6, observedOn: "2013-07-14" },
     ]);
-    expect(buildLandingPubCard(venues, rows, { collectedOn: "2026-07-03", now: NOW })?.id).toBe(LANDING_PUB_PREFERENCE[0]);
-    expect(buildLandingPubCard(venues.slice(0, 2), rows, { collectedOn: "2026-07-03", now: NOW })?.id).toBe("venue-old");
+    expect(buildLandingPubCard(venues, rows, { now: NOW })?.id).toBe(LANDING_PUB_PREFERENCE[0]);
+    expect(buildLandingPubCard(venues.slice(0, 2), rows, { now: NOW })?.id).toBe("venue-old");
   });
 
   it("chooses nothing rather than a pub missing a price or an archive row", () => {
     const rows = history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]);
-    expect(buildLandingPubCard([venue("venue-a", "Unpriced", null)], rows, { collectedOn: "2026-07-03", now: NOW })).toBeNull();
-    expect(buildLandingPubCard([venue("venue-b", "No archive", 5)], rows, { collectedOn: "2026-07-03", now: NOW })).toBeNull();
-    expect(buildLandingPubCard([], rows, { collectedOn: "2026-07-03", now: NOW })).toBeNull();
+    expect(buildLandingPubCard([venue("venue-a", "Unpriced", null)], rows, { now: NOW })).toBeNull();
+    expect(buildLandingPubCard([venue("venue-b", "No archive", 5)], rows, { now: NOW })).toBeNull();
+    expect(buildLandingPubCard([], rows, { now: NOW })).toBeNull();
   });
 
   it("names no publisher when the row carries no page, and the standing falls to none", () => {
     const card = buildLandingPubCard(
       [venue("venue-a", "Quiet Arms", 5, "")],
       history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),
-      { collectedOn: "2026-07-03", now: NOW },
+      { now: NOW },
     );
     expect(card?.publisher).toBeNull();
     expect(card?.standing).toBe("none");
@@ -176,7 +175,7 @@ describe("landing pub card", () => {
     const card = buildLandingPubCard(
       [venue("venue-a", "Old Menu", 5, "https://www.pint-prices.com/pub/x", "2024-01-01T12:00:00Z")],
       history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),
-      { collectedOn: "2026-07-03", now: NOW },
+      { now: NOW },
     );
     expect(card?.standing).toBe("none");
     expect(card?.priceGbp).toBe(5);

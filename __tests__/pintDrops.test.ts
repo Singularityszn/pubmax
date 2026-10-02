@@ -95,6 +95,7 @@ vi.mock("@/lib/venueAliases", () => {
         canonical(id),
         ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
       ],
+      retired: () => null,
     }),
   };
 });

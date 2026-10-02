@@ -579,14 +579,16 @@ async function fetchCity(city, options = {}) {
   const normPath = path.join(ROOT, "data", "cities", city.id, "osm_pubs.json");
   const previousPubs = await readPackPubs(normPath);
   const result = await writeCityPack(city, options);
-  const superseded = await recordCityVenueIdAliases(
+  const { superseded, retired } = await recordCityVenueIdAliases(
     ROOT,
-    city.id,
+    city,
     previousPubs,
     await readPackPubs(normPath),
   );
-  if (superseded.length > 0) {
-    console.log(`  recorded ${superseded.length} superseded venue id(s) in ${CITY_VENUE_ALIASES_FILE}`);
+  if (superseded.length > 0 || retired.length > 0) {
+    console.log(
+      `  recorded ${superseded.length} superseded venue id(s) and ${retired.length} retired pub(s) in ${CITY_VENUE_ALIASES_FILE}`,
+    );
   }
   return result;
 }
