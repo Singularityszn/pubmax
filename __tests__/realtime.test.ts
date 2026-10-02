@@ -3,11 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // The Realtime helper (issue #37). Two things matter and are unit-testable
 // without a live socket:
 //   1. countSpillingNow — a pure recency counter.
-//   2. The SIGNAL-ONLY contract: on a postgres_changes INSERT event the helper
-//      invokes the caller's nudge and NEVER hands over the payload row (which
-//      would leak a hidden/anonymous drop, bypassing #29). We assert this with a
-//      fake channel that captures the registered handler and fires it with a
-//      raw row — the nudge must receive NOTHING from that row.
+//   2. The SIGNAL-ONLY contract: on a private broadcast the helper invokes the
+//      caller's nudge and NEVER hands over a payload (which would leak a
+//      hidden/anonymous drop, bypassing #29). We assert this with a fake
+//      channel that captures the registered handler and fires it with a raw
+//      row — the nudge must receive NOTHING from that row.
 //
 // authClient is mocked so no real Supabase env / browser is needed.
 
@@ -15,12 +15,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 type ChangeHandler = (payload: unknown) => void;
 
 let capturedHandler: ChangeHandler | null = null;
+let capturedEvent: string | null = null;
+let capturedChannel: { name: string; privateChannel: boolean | undefined } | null = null;
 let subscribeCb: ((status: string) => void) | null = null;
 let removed = false;
 
 function makeFakeChannel() {
   return {
-    on(_event: string, _filter: unknown, handler: ChangeHandler) {
+    on(event: string, _filter: unknown, handler: ChangeHandler) {
+      capturedEvent = event;
       capturedHandler = handler;
       return this;
     },
@@ -32,7 +35,10 @@ function makeFakeChannel() {
 }
 
 const fakeSupabase = {
-  channel: () => makeFakeChannel(),
+  channel: (name: string, opts?: { config?: { private?: boolean } }) => {
+    capturedChannel = { name, privateChannel: opts?.config?.private };
+    return makeFakeChannel();
+  },
   removeChannel: () => {
     removed = true;
   },
@@ -44,6 +50,7 @@ vi.mock("@/lib/authClient", () => ({
 }));
 
 // Imported AFTER the mock is registered.
+import { PINT_DROPS_LIVE_EVENT, PINT_DROPS_LIVE_TOPIC } from "@/lib/pintDropsTopics";
 import {
   countSpillingNow,
   SPILLING_NOW_WINDOW_MIN,
@@ -53,6 +60,8 @@ import {
 
 beforeEach(() => {
   capturedHandler = null;
+  capturedEvent = null;
+  capturedChannel = null;
   subscribeCb = null;
   removed = false;
   vi.useFakeTimers();
@@ -102,14 +111,20 @@ describe("countSpillingNow (pure)", () => {
 });
 
 describe("subscribeToNewDrops — SIGNAL ONLY", () => {
-  it("fires the nudge on an INSERT event WITHOUT passing the raw payload row", () => {
+  it("fires the nudge on a private broadcast WITHOUT passing the payload", () => {
     const nudge = vi.fn();
     const unsub = subscribeToNewDrops(nudge);
     // Simulate a successful channel join so the watchdog is cancelled.
     subscribeCb?.("SUBSCRIBED");
     expect(capturedHandler).toBeTypeOf("function");
+    expect(capturedEvent).toBe("broadcast");
+    expect(capturedChannel).toEqual({
+      name: PINT_DROPS_LIVE_TOPIC,
+      privateChannel: true,
+    });
+    expect(PINT_DROPS_LIVE_EVENT).toBe("drop");
 
-    // A raw postgres_changes payload carries the whole row — handle, visibility.
+    // A payload must not become arguments, even when it carries the raw row.
     capturedHandler?.({
       eventType: "INSERT",
       new: { id: "d1", handle: "secret-user", visibility: "anonymous" },
