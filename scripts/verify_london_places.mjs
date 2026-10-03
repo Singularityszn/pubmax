@@ -27,6 +27,10 @@ import { fileURLToPath } from "node:url";
 import { londonVenueIdFor } from "../lib/londonVenueShards.ts";
 import { parseOsmOpeningHours } from "../lib/nearDesk.ts";
 import {
+  PLACE_DETAILS_ENTERPRISE_FREE_MONTHLY,
+  PLACE_DETAILS_ENTERPRISE_USD_PER_THOUSAND,
+  PLACE_DETAILS_PRO_FREE_MONTHLY,
+  PLACE_DETAILS_PRO_USD_PER_THOUSAND,
   PLACES_CAFE_DETAILS_FIELD_MASK,
   PLACES_MATCH_RADIUS_METERS,
   PLACES_PUB_DETAILS_FIELD_MASK,
@@ -533,8 +537,8 @@ async function main() {
 
     const skippedNoResult = all.filter((venue) => progress.searches[venue.id]?.reason === "no_result").length;
     const skippedAmbiguous = all.filter((venue) => progress.searches[venue.id]?.reason === "ambiguous").length;
-    const proCalls = venues.pubs.filter((venue) => progress.details[venue.id] && !progress.details[venue.id].skipped).length;
-    const enterpriseCalls = venues.cafes.filter((venue) => progress.details[venue.id] && !progress.details[venue.id].skipped).length;
+    const proCalls = venues.pubs.filter((venue) => progress.details[venue.id]).length;
+    const enterpriseCalls = venues.cafes.filter((venue) => progress.details[venue.id]).length;
 
     writeJson(join(OUT_DIR, "london.json"), {
       version: 1,
@@ -561,8 +565,8 @@ async function main() {
             sku: "Places API Place Details Pro",
             fieldMask: PLACES_PUB_DETAILS_FIELD_MASK,
             calls: proCalls,
-            usdPerThousandAfterFreeCap: 17,
-            freeMonthlyCap: 5000,
+            usdPerThousandAfterFreeCap: PLACE_DETAILS_PRO_USD_PER_THOUSAND,
+            freeMonthlyCap: PLACE_DETAILS_PRO_FREE_MONTHLY,
             projectedUsd: projectedPlacesSpendUsd({
               proCalls,
               enterpriseCalls: 0,
@@ -573,8 +577,8 @@ async function main() {
             sku: "Places API Place Details Enterprise",
             fieldMask: PLACES_CAFE_DETAILS_FIELD_MASK,
             calls: enterpriseCalls,
-            usdPerThousandAfterFreeCap: 20,
-            freeMonthlyCap: 1000,
+            usdPerThousandAfterFreeCap: PLACE_DETAILS_ENTERPRISE_USD_PER_THOUSAND,
+            freeMonthlyCap: PLACE_DETAILS_ENTERPRISE_FREE_MONTHLY,
             projectedUsd: projectedPlacesSpendUsd({
               proCalls: 0,
               enterpriseCalls,
