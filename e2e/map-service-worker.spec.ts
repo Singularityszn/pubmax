@@ -56,10 +56,13 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await resetServiceWorkerState(page);
-  const workerRoute = /\/sw\.js\?v=/;
+  // Chromium's own update checks for a registered worker are not seen by
+  // context.route, so a pre-fix fixture at /sw.js was silently replaced by
+  // the current public/sw.js mid-test. The app server answers 404 for
+  // /pre-fix-sw.js, so those checks fail and the fixture stays in place.
+  const workerRoute = /\/(?:pre-fix-)?sw\.js\?v=/;
   await context.route(workerRoute, (route) => {
-    const version = new URL(route.request().url()).searchParams.get("v");
-    if (version?.startsWith("legacy-")) {
+    if (new URL(route.request().url()).pathname === "/pre-fix-sw.js") {
       return route.fulfill({
         status: 200,
         contentType: "application/javascript",
@@ -70,7 +73,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   });
 
   await page.goto("/offline.html");
-  const activeLegacyUrl = `/sw.js?v=legacy-active-${Date.now()}&cache-policy=write-safe-v1`;
+  const activeLegacyUrl = `/pre-fix-sw.js?v=legacy-active-${Date.now()}&cache-policy=write-safe-v1`;
   await page.evaluate(async (scriptUrl) => {
     await navigator.serviceWorker.register(scriptUrl, {
       updateViaCache: "none",
@@ -133,7 +136,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   });
   expect(tileUrl).not.toBeNull();
 
-  const waitingLegacyUrl = `/sw.js?v=legacy-waiting-${Date.now()}&cache-policy=write-safe-v1`;
+  const waitingLegacyUrl = `/pre-fix-sw.js?v=legacy-waiting-${Date.now()}&cache-policy=write-safe-v1`;
   const waitingState = await page.evaluate(async (scriptUrl) => {
     const registration = await navigator.serviceWorker.register(scriptUrl);
     const candidate = registration.installing ?? registration.waiting;
@@ -228,10 +231,29 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   const origin = new URL(page.url()).origin;
   const usage = await cdp.send("Storage.getUsageAndQuota", { origin });
   expect(usage.usage).toBeGreaterThan(0);
-  await cdp.send("Storage.overrideQuotaForOrigin", {
-    origin,
-    quotaSize: Math.floor(usage.usage / 2),
-  });
+  // A one-byte quota fails every CacheStorage write that adds bytes, whatever
+  // the reported usage figure includes. In this local fixture Chromium reported
+  // a zero override as active but did not enforce it. Prove the override is
+  // live and a real write in the old worker's cache rejects before asking the
+  // worker to store. The pressure stays on through the target rollout, its
+  // cache continuity and the poisoned-tile recovery.
+  await cdp.send("Storage.overrideQuotaForOrigin", { origin, quotaSize: 1 });
+  const overridden = await cdp.send("Storage.getUsageAndQuota", { origin });
+  expect(overridden.overrideActive).toBe(true);
+  expect(overridden.quota).toBe(1);
+  expect(
+    await page.evaluate(async (swrCacheName) => {
+      try {
+        await (await caches.open(swrCacheName)).put(
+          "/quota-probe",
+          new Response("quota probe"),
+        );
+        return "stored";
+      } catch (error) {
+        return error instanceof DOMException ? error.name : String(error);
+      }
+    }, legacyState.cacheNames.swr),
+  ).toBe("QuotaExceededError");
 
   const uncachedTileUrl = `${tileUrl}?quota-miss=${Date.now()}`;
   const direct = await request.get(uncachedTileUrl);
@@ -323,6 +345,11 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
         }
       }
       return {
+        copiedData: Boolean(
+          await caches.match("/data/legacy-offline.json", {
+            cacheName: `pubmax-sw-data-${targetVersion}`,
+          }),
+        ),
         data: await matchFamily("data", "/data/legacy-offline.json"),
         plan: await matchFamily("preview-plan-v2", "/plan/trusted-offline"),
         poisoned: await matchFamily("swr", poisonedTileUrl),
@@ -339,7 +366,10 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       targetScriptUrl: takeover.controller!,
     },
   );
+  // The destination copy was rejected by the quota, so the data entry is
+  // still served from the retained legacy cache.
   expect(cacheContinuity).toEqual({
+    copiedData: false,
     data: true,
     plan: true,
     poisoned: false,
@@ -410,10 +440,9 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
 
   // Real controller/CacheStorage navigation with synthetic HTML. Actual Plan
   // serialization and authenticated account switching need separate proof.
-  // context.setOffline does not reliably cut the network of a restarted
-  // service worker, so a worker fetch can still reach the live server and
-  // hang or answer 404. While offline, fail every worker-owned request as a
-  // disconnected network would, and record them so a live response cannot
+  // This offline phase explicitly fails every worker-owned request as a
+  // disconnected network would, keeping the synthetic private and public
+  // navigations offline. The requests are recorded so a live response cannot
   // pass for the cached path.
   const offlineWorkerRequests: string[] = [];
   const failWorkerNetwork = (route: Route) => {
@@ -457,7 +486,10 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       ]),
     );
   } finally {
-    await context.setOffline(false);
-    await context.unroute("**/*", failWorkerNetwork);
+    try {
+      await context.setOffline(false);
+    } finally {
+      await context.unroute("**/*", failWorkerNetwork);
+    }
   }
 });
