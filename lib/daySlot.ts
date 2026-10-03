@@ -22,3 +22,14 @@ export function daySlot(now: Date): DaySlot {
   if (hour >= 17 && hour < 22) return "evening";
   return "night";
 }
+
+/**
+ * The band /tonight should name. The Day/Tonight control is already on Tonight,
+ * so a morning or afternoon clock must not make the card say morning. Evening
+ * and night keep the clock, because those are tonight.
+ */
+export function tonightDayPart(now: Date): DaySlot {
+  const slot = daySlot(now);
+  if (slot === "morning" || slot === "afternoon") return "evening";
+  return slot;
+}

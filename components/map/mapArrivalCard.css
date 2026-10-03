@@ -8,7 +8,7 @@
    is a fact rather than a hope. Two short lines and a 44px action row fit
    inside it at 320px. */
 .mapArrivalCard {
-  --map-arrival-strip-max-h: 132px;
+  --map-arrival-strip-max-h: 104px;
   position: fixed;
   z-index: calc(var(--z-tabbar, 30) + 2);
   /* The phone chrome MEASURES itself, because its rows come and go (a query
@@ -24,8 +24,8 @@
   max-height: var(--map-arrival-strip-max-h);
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px 10px;
-  padding: 10px 44px 10px 12px;
+  gap: 4px 8px;
+  padding: 6px 40px 6px 10px;
   border: 1px solid var(--hairline, var(--line));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--panel-raised) 96%, transparent);

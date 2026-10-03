@@ -198,4 +198,28 @@ describe("summariseTonightConditions", () => {
     });
     expect(summary.factsLine).toMatch(/^15°C feels like, drizzle, 45% chance of rain, /);
   });
+
+  it("names the evening when Tonight is open on a morning clock", () => {
+    const morning = new Date("2026-10-03T08:30:00.000Z");
+    const weather = { tempC: 11, precipitationProbabilityPct: 0 };
+    const facts = observationFacts({
+      observation: {
+        feelsLikeC: 11,
+        condition: "Cloudy",
+        precipitationProbabilityPct: 0,
+        windKph: 5,
+        observedAt: "2026-10-03T08:00:00.000Z",
+      },
+      nightArea: "piccadilly-soho",
+      now: morning,
+      stale: false,
+    });
+    const summary = summariseTonightConditions({
+      weather,
+      facts,
+      now: morning,
+      tally: null,
+    });
+    expect(summary.drinkLine).toBe("Crisp autumn evening. Amber ale weather.");
+  });
 });

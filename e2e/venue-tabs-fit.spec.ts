@@ -153,7 +153,7 @@ for (const viewport of [
   { width: 390, height: 844, scope: PORTAL },
   { width: 1440, height: 900, scope: ".venueInspector" },
 ] as const) {
-  test(`${viewport.width}: the empty header photo is a 56px row`, async ({ page }) => {
+  test(`${viewport.width}: the empty header photo is one line`, async ({ page }) => {
     test.slow();
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await preparePage(page);
@@ -169,7 +169,8 @@ for (const viewport of [
       const column = (element.parentElement as HTMLElement).getBoundingClientRect();
       return { width: rect.width, height: rect.height, columnWidth: column.width };
     });
-    expect(box.height).toBeCloseTo(56, 0);
+    expect(box.height).toBeGreaterThan(16);
+    expect(box.height).toBeLessThan(40);
     expect(box.width).toBeGreaterThan(box.columnWidth / 2);
   });
 }

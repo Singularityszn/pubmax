@@ -1,8 +1,8 @@
 /* One-tap crowd report on the venue sheet. 44px taps, 16px type. */
 
 .venueOccupancy {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
 }
 
@@ -19,6 +19,10 @@
   font-size: 16px;
   line-height: 1.35;
   color: var(--ink);
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
 }
 
 .venueOccupancyReading--empty {

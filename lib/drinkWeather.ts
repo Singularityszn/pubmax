@@ -38,9 +38,9 @@ export type DrinkWeatherInput = {
   month: number;
   /**
    * Which part of the London day the verdict is being read in. Optional, and
-   * omitting it keeps the evening wording this table was written in. A caller
-   * that prints the line (/today, /tonight) passes its own band
-   * (lib/daySlot.ts) so the wording matches the hour it is read at.
+   * omitting it keeps the evening wording this table was written in. /today
+   * passes the clock band (lib/daySlot.ts). /tonight passes `tonightDayPart`,
+   * so the Day/Tonight control wins when the clock is still morning.
    */
   dayPart?: DaySlot;
   /**
@@ -68,8 +68,9 @@ type DrinkWeatherRule = DrinkWeatherVerdict & {
    * Wording for the day bands where `line` would name the wrong one.
    *
    * `line` stays the EVENING sentence, because that is where this table was
-   * written; a caller that passes no `dayPart` gets it. /today and /tonight
-   * both pass their own band (lib/daySlot.ts), so they read these entries.
+   * written; a caller that passes no `dayPart` gets it. /today passes the
+   * clock band. /tonight passes `tonightDayPart`, so a morning clock on the
+   * Tonight control still reads the evening sentence.
    * Only the rules that name a time of day carry entries here: a reader
    * greeted "Good morning" on /today met "Crisp autumn evening. Amber ale
    * weather." underneath it, and the card and the greeting were describing two

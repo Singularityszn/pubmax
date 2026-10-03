@@ -12,7 +12,7 @@
 //     with no venue claim (never a fabricated count)
 //   - a pint-under-ceiling claim only when price data actually supports it
 
-import { daySlot } from "@/lib/daySlot";
+import { tonightDayPart } from "@/lib/daySlot";
 import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
 import type { ObservationFacts } from "@/lib/weatherObservationCopy";
 import { haversineKm } from "@/lib/haversine";
@@ -160,7 +160,7 @@ export function summariseTonightConditions(args: {
         tempC: weather.tempC,
         precipitationProbabilityPct: weather.precipitationProbabilityPct,
         month: londonMonth(now, timeZone),
-        dayPart: daySlot(now),
+        dayPart: tonightDayPart(now),
         isDay: facts.isDay,
       });
   return {
