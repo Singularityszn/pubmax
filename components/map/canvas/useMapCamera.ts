@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { MutableRefObject } from "react";
-import { maplibregl } from "@/lib/maplibreWorkerAssets";
-import type * as MapLibre from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { LONG_JUMP_CURVE, easeOutCubic } from "./easing";
 import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";
@@ -23,9 +22,9 @@ const PHONE_ROUTE_PADDING = { top: 160, right: 28, bottom: 200, left: 28 };
 const MIN_ROUTE_CONTENT_PX = 48;
 
 function routeFitPadding(
-  map: MapLibre.Map,
+  map: maplibregl.Map,
   isPhone: boolean,
-): number | MapLibre.PaddingOptions {
+): number | maplibregl.PaddingOptions {
   if (!isPhone) return 90;
   const container = map.getContainer();
   const verticalScale = Math.min(
@@ -189,7 +188,7 @@ export function whenBottomSheetSettles(
 }
 
 type CameraRefs = {
-  mapRef: MutableRefObject<MapLibre.Map | null>;
+  mapRef: MutableRefObject<maplibregl.Map | null>;
   reducedRef: MutableRefObject<boolean>;
   /** The city's designed view: the attitude a whole-city fit returns to. */
   cityViewRef: MutableRefObject<MapView>;
@@ -229,7 +228,7 @@ export function useMapCamera(refs: CameraRefs) {
   // coalesces a still-pending move and interrupts any active MapLibre
   // animation before it begins, so route, nearby, cluster, and venue moves
   // cannot fight each other on screen.
-  const scheduleCamera = useCallback((kind: CameraIntentKind, key: string, move: (map: MapLibre.Map) => void) => {
+  const scheduleCamera = useCallback((kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void) => {
     // Asked twice on purpose. The first check keeps a move that is already
     // refused from occupying the lane; the second is the one that matters,
     // because the lane defers by a frame and a reader can put a finger down
@@ -251,7 +250,7 @@ export function useMapCamera(refs: CameraRefs) {
   const cameraLanePending = useCallback(() => coordinator.pending(), [coordinator]);
 
   // Explicit camera move for venue, route, and city navigation.
-  const cinematic = useCallback((options: MapLibre.EaseToOptions, kind: CameraIntentKind = "venue") => {
+  const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind = "venue") => {
     const duration = reducedRef.current ? 0 : (options.duration ?? 1000);
     const center = Array.isArray(options.center)
       ? options.center.join(",")

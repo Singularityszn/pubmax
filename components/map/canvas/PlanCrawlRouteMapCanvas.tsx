@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
+import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { syncPlanRoutePreviewScene } from "@/components/map/canvas/planRoutePreviewScene";
@@ -10,8 +11,7 @@ import {
   UK_BOUNDS,
   OSM_ATTRIBUTION,
 } from "@/components/map/canvas/tokens";
-import { MAPLIBRE_WORKER_URL, maplibregl } from "@/lib/maplibreWorkerAssets";
-import type * as MapLibre from "maplibre-gl";
+import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import type { LngLat } from "@/lib/routeMiniMap";
 import { planCrawlRouteFitBounds } from "@/lib/planCrawlRouteMap";
 
@@ -20,7 +20,7 @@ maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 const PREVIEW_PITCH = 0;
 const PREVIEW_BEARING = 0;
 
-function fitPreviewRoute(map: MapLibre.Map, stopCoords: LngLat[], lineCoords: LngLat[]): void {
+function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: LngLat[]): void {
   const bounds = planCrawlRouteFitBounds(stopCoords, lineCoords);
   if (!bounds) return;
   const box = new maplibregl.LngLatBounds(
@@ -57,7 +57,7 @@ export default function PlanCrawlRouteMapCanvas({
   attributionSlotRef,
 }: PlanCrawlRouteMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapLibre.Map | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
   const routeRef = useRef({ stopCoords, routeLine, routeStops, lineCoords });
   const themeRef = useRef<"light" | "dark">(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
