@@ -15,7 +15,7 @@
 // made, and `projection` is which of the two answers THIS reader was handed.
 // `lib/profileVisibilityBoundary.server.ts` is the only place that is decided.
 
-import { profilePublicPresence } from "@/lib/accountPublicAccess.server";
+import { profilePublicPresence, withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { isAccountVisibility } from "@/lib/accountVisibility";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -169,8 +169,13 @@ export async function GET(
     // "Follows you" (lib/followRelation.ts owns that resolution). The reverse
     // edge is already public through /following and /lot, so this adds a round
     // trip's worth of convenience, never a new disclosure.
+    // A withdrawn viewer answers like a viewer who never existed: both flags
+    // stay false, so the query cannot say that handle exists.
+    const viewerIsWithdrawn = viewer
+      ? (await withdrawnHandles([viewer])).has(viewer)
+      : false;
     const [viewerFollowing, followsViewer] =
-      socialEnabled && viewer && viewer !== handle
+      socialEnabled && viewer && viewer !== handle && !viewerIsWithdrawn
         ? await Promise.all([
             follows.isFollowing(viewer, handle),
             follows.isFollowing(handle, viewer),
