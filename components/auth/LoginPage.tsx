@@ -37,9 +37,9 @@ import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { addLinkAwareDestination } from "@/lib/addLink";
 import {
+  loginPageGate,
   loginPageHasSessionHint,
   loginPageHeadCopy,
-  loginPageShowsSkeleton,
 } from "@/lib/loginPageFraming";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 
@@ -567,19 +567,21 @@ export default function LoginPage({
   // Adding an account is the ONE case where a live session does not get the
   // signed-in card: the person came here to bring a second account onto this
   // device, and telling them they are already in would be answering a question
-  // they did not ask. A hinted session still resolving is read as live, so the
-  // head over the already-painted form does not change when it answers.
+  // they did not ask. The skeleton, card and form split lives in the framing
+  // leaf.
   const sessionHinted = useLoginSessionHint(sessionHint);
-  const adding = addAccount && (Boolean(user) || (loading && sessionHinted));
-  const showSignedIn = Boolean(user) && !adding;
   const returning = Boolean(welcomeBack) && !useDifferentAccount;
-  // Adding an account asked for the form, so a hint must not hide it. Everyone
-  // else with a hint keeps the skeleton until the session answers.
-  const hasSessionHint = sessionHinted && !addAccount;
-  // With no hint the form is the first paint, so the head above it is settled
-  // too and does not shift when the session answers.
+  const { adding, showSignedIn, headSessionKnown, showSkeleton, showForm } =
+    loginPageGate({
+      sessionKnown: !loading,
+      signedIn: Boolean(user),
+      addAccount,
+      sessionHinted,
+      hasAuthSurface,
+      returning,
+    });
   const head = loginPageHeadCopy({
-    sessionKnown: !loading || !hasSessionHint,
+    sessionKnown: headSessionKnown,
     adding,
     signedIn: Boolean(user),
     returning,
@@ -588,19 +590,6 @@ export default function LoginPage({
   });
   const showWelcomeBack =
     !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
-  const showSkeleton = loginPageShowsSkeleton({
-    sessionKnown: !loading,
-    hasAuthSurface,
-    hasSessionHint,
-  });
-  // No hint: the email door is in the first paint, and a session that then
-  // appears replaces it with the signed-in card. A welcome-back cookie is
-  // itself a hint, so that card still waits out the resolve.
-  const showForm =
-    !showSignedIn &&
-    hasAuthSurface &&
-    !showSkeleton &&
-    (loading || !welcomeBack || useDifferentAccount);
 
 
   // ONE primary for the page, decided by the same state the body is. A signed-in

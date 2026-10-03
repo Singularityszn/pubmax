@@ -68,6 +68,62 @@ export function loginPageShowsSkeleton({
   return !sessionKnown && hasAuthSurface && hasSessionHint;
 }
 
+/**
+ * Which of the skeleton, the signed-in card and the email door /login paints,
+ * and whether the head over them is settled. Adding an account is the ONE case
+ * where a live session does not get the signed-in card: the person came here
+ * to bring a second account onto this device. A hinted session still
+ * resolving is read as live there, so the head over the already-painted form
+ * does not change when it answers, and the hint never hides the form they
+ * asked for. Everyone else with a hint keeps the skeleton until the session
+ * answers. With no hint the form is the first paint, so its head is settled
+ * too, and a session that then appears replaces the form with the card. A
+ * welcome-back cookie is itself a hint, so that card still waits out the
+ * resolve.
+ */
+export function loginPageGate({
+  sessionKnown,
+  signedIn,
+  addAccount,
+  sessionHinted,
+  hasAuthSurface,
+  returning,
+}: {
+  sessionKnown: boolean;
+  signedIn: boolean;
+  addAccount: boolean;
+  sessionHinted: boolean;
+  hasAuthSurface: boolean;
+  /** A welcome-back card the reader has not dismissed for another account. */
+  returning: boolean;
+}): {
+  adding: boolean;
+  showSignedIn: boolean;
+  headSessionKnown: boolean;
+  showSkeleton: boolean;
+  showForm: boolean;
+} {
+  const adding = addAccount && (signedIn || (!sessionKnown && sessionHinted));
+  const showSignedIn = signedIn && !adding;
+  const hasSessionHint = sessionHinted && !addAccount;
+  const showSkeleton = loginPageShowsSkeleton({
+    sessionKnown,
+    hasAuthSurface,
+    hasSessionHint,
+  });
+  return {
+    adding,
+    showSignedIn,
+    headSessionKnown: sessionKnown || !hasSessionHint,
+    showSkeleton,
+    showForm:
+      !showSignedIn &&
+      hasAuthSurface &&
+      !showSkeleton &&
+      (!sessionKnown || !returning),
+  };
+}
+
 export function loginPageHeadCopy({
   sessionKnown,
   adding,
