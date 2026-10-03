@@ -17,13 +17,20 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const AUDIT_LEVELS = ["high", "critical"];
 
 // Advisories knowingly tolerated, keyed by GitHub advisory URL.
-// Empty on purpose after the eslint 10 bump removed the only prior entry
-// (GHSA-mh99-v99m-4gvg via eslint 9 -> minimatch@3 -> brace-expansion@1).
 // Add an entry only after upgrades and overrides are exhausted; never raise
 // --audit-level or omit dev deps to hide a finding. Each entry needs an
 // inline rationale and a removal condition, and only while a second
 // production-only audit proves the chain is dev-only.
-export const WAIVED_ADVISORIES = new Map();
+export const WAIVED_ADVISORIES = new Map([
+  // GHSA-vfj7-8cjw-p6xm has no patched braces release as of 2026-10-03.
+  // Dev-only chain: eslint-config-next@16.3.8 -> @next/eslint-plugin-next@16.3.8
+  // -> fast-glob@3.3.1 -> micromatch@4.0.8 -> braces@3.0.3. A compatible
+  // upgrade/override cannot select a patched release; npm proposes downgrading
+  // eslint-config-next to 14.2.35 instead. The fresh production audit below
+  // remains mandatory. Remove when patched braces or a compatible Next lint
+  // chain clears this advisory in the full audit; restore the empty-map test.
+  ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm", "high"],
+]);
 
 function runAudit(packageDirectory, extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {
