@@ -79,11 +79,13 @@ export function descriptiveNameOf(filename) {
 
 // The lines of an applied list that can describe an applied migration. A
 // pasted `supabase migration list` row is `Local | Remote | Time`, and a row
-// whose Remote cell is blank is a repo file the database has not run.
+// whose Remote cell is blank is a repo file the database has not run. A
+// two-cell `version | name` ledger row stays, even when its name is null.
 function appliedLines(text) {
   return text.split(/\r?\n/).filter((line) => {
-    const cells = line.split("|");
-    return cells.length < 2 || cells[1].trim() !== "";
+    const cells = line.split("|").map((cell) => cell.trim());
+    const cliRow = cells.length >= 3 && /^(?:\d{14})?$/.test(cells[0]);
+    return !cliRow || cells[1] !== "";
   });
 }
 

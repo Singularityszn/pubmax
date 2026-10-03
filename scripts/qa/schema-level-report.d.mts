@@ -16,6 +16,10 @@ export function fetchAppliedList(
   execFile?: (
     file: string,
     args: readonly string[],
-    options: { encoding: "utf8"; env: NodeJS.ProcessEnv },
+    options: {
+      encoding: "utf8";
+      stdio: ["ignore", "pipe", "pipe"];
+      env: NodeJS.ProcessEnv;
+    },
   ) => string,
 ): { target: string; text: string };

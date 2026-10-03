@@ -117,8 +117,8 @@ function targetHostOf(url) {
 
 // Runs the fixed select and returns the ledger text with the host it came
 // from. `execFile` is injectable so a test can see the arguments without a
-// database. The connection string is an argument to psql and is stripped
-// from any error this function throws.
+// database. The connection string is an argument to psql and is replaced by
+// <SCHEMA_LEVEL_DATABASE_URL> in any error this function throws.
 export function fetchAppliedList(env, execFile = execFileSync) {
   const url = env.SCHEMA_LEVEL_DATABASE_URL?.trim();
   if (!url) {
@@ -133,6 +133,7 @@ export function fetchAppliedList(env, execFile = execFileSync) {
       [url, "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "\t", "-c", APPLIED_LIST_SQL],
       {
         encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
         env: {
           ...env,
           PGOPTIONS: `${previousOptions}-c default_transaction_read_only=on`,
@@ -141,10 +142,7 @@ export function fetchAppliedList(env, execFile = execFileSync) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes(url)) {
-      throw new Error("--fetch failed");
-    }
-    throw error;
+    throw new Error(message.split(url).join("<SCHEMA_LEVEL_DATABASE_URL>"));
   }
   return { target, text };
 }

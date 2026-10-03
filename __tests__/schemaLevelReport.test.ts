@@ -134,6 +134,25 @@ describe("schema-level report", () => {
     });
   });
 
+  it("keeps an applied psql-aligned ledger row whose name is null", () => {
+    const migrations = [
+      "20260705214936_0007_function_search_path.sql",
+      "20260707053408_0016_drinks.sql",
+    ];
+    const appliedText = [
+      "     version     |           name",
+      "-----------------+---------------------------",
+      " 20260705214936 | ",
+      " 20260707053408 | 0016_drinks",
+      "(2 rows)",
+    ].join("\n");
+
+    expect(compareSchemaLevel(migrations, appliedText)).toEqual({
+      missing: [],
+      outOfOrder: [],
+    });
+  });
+
   it("prints the target first when known, then missing labels, then out-of-order labels", () => {
     expect(
       formatSchemaLevelReport({ missing: ["0161", "0162"], outOfOrder: ["0169"] }),
@@ -174,11 +193,21 @@ describe("schema-level report", () => {
     expect(APPLIED_LIST_SQL.startsWith("select ")).toBe(true);
     expect(seen?.pgoptions).toContain("default_transaction_read_only=on");
 
-    expect(() =>
+    let failure: unknown;
+    try {
       fetchAppliedList({ SCHEMA_LEVEL_DATABASE_URL: url }, () => {
-        throw new Error(`connection failed for ${url}`);
-      }),
-    ).toThrow("--fetch failed");
+        throw new Error(
+          `Command failed: psql ${url} --no-psqlrc\npsql: error: password authentication failed for user "report"`,
+        );
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(Error);
+    const message = (failure as Error).message;
+    expect(message).toContain("psql <SCHEMA_LEVEL_DATABASE_URL> --no-psqlrc");
+    expect(message).toContain("password authentication failed");
+    expect(message).not.toContain("secret");
   });
 
   it("reports 0161-0168 missing when later labels were applied under other versions", () => {
