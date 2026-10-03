@@ -1,5 +1,10 @@
 // Founder photographs of London in a mosaic below the hero (captain 26 Sep 2026).
-// Lazy-loaded, no preload: the hero owns LCP; this section is always below the fold.
+// The hero owns LCP; this section is always below the fold. Images mount only once
+// the section nears the viewport so their bytes do not queue behind the answer photo.
+
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 
 import Kicker from "@/components/ui/kicker";
 import {
@@ -18,6 +23,9 @@ const WIDEST = LONDON_COLLAGE_WIDTHS[LONDON_COLLAGE_WIDTHS.length - 1];
 /** Phone strip tile width, tablet hero span, then the widest desktop span (2 of 5 columns). */
 const COLLAGE_SIZES =
   "(max-width: 699px) min(72vw, 280px), (max-width: 959px) 100vw, min(40vw, 500px)";
+
+/** Tight margin: start fetching only when the reader is about to scroll here. */
+const COLLAGE_ROOT_MARGIN = "80px 0px";
 
 function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
   return (
@@ -50,8 +58,34 @@ function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
 }
 
 export default function LandingLondonCollage() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [showMosaic, setShowMosaic] = useState(false);
+
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setShowMosaic(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShowMosaic(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: COLLAGE_ROOT_MARGIN },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="lpCollage" aria-labelledby="lpCollageHeading">
+    <section className="lpCollage" aria-labelledby="lpCollageHeading" ref={sectionRef}>
       <div className="lpCollageInner">
         <header className="lpCollageHead">
           <Kicker>London</Kicker>
@@ -60,15 +94,23 @@ export default function LandingLondonCollage() {
           </h2>
         </header>
 
-        <ul
-          className="lpCollageMosaic"
-          aria-label="Founder photographs of London"
-          tabIndex={0}
-        >
-          {LONDON_COLLAGE_PHOTOS.map((photo) => (
-            <CollageTile key={photo.id} photo={photo} />
-          ))}
-        </ul>
+        {showMosaic ? (
+          <ul
+            className="lpCollageMosaic"
+            aria-label="Founder photographs of London"
+            tabIndex={0}
+          >
+            {LONDON_COLLAGE_PHOTOS.map((photo) => (
+              <CollageTile key={photo.id} photo={photo} />
+            ))}
+          </ul>
+        ) : (
+          <div
+            className="lpCollageMosaic lpCollageMosaic--pending"
+            aria-hidden="true"
+            style={{ minHeight: "min(72vw, 280px)" }}
+          />
+        )}
 
         <p className="lpCollageCredit">{LONDON_COLLAGE_CREDIT}</p>
       </div>

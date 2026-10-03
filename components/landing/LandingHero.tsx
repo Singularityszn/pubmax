@@ -352,7 +352,6 @@ export default function LandingHero({
               alt="Tower Bridge and the Thames in London from above"
               decoding="sync"
               loading="eager"
-              fetchPriority="high"
             />
           </picture>
           <figcaption className="lpLondonCaption">
@@ -418,7 +417,7 @@ function AnswerCard({
       className="lpPubCard lpAnswerCard lpPubCard--photo"
       aria-labelledby="lp-answer-name"
     >
-      <LandingPhoto resolved={photo} sizes={ANSWER_PHOTO_SIZES} />
+      <LandingPhoto resolved={photo} sizes={ANSWER_PHOTO_SIZES} priority />
       <div className="lpAnswerHead">
         <Kicker tone="muted">
           {kicker}
