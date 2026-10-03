@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
@@ -142,13 +142,11 @@ export default function MapSearchSuggest({
   }, [mode]);
 
   const [debouncedQuery, setDebouncedQuery] = useState(query);
-  // Debounce only. A deferred value stays stale for as long as the map keeps
-  // streaming shards: each of those updates is urgent and restarts the deferred
-  // commit, so the venue rows never arrive on a loaded runner.
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query), 80);
     return () => window.clearTimeout(timer);
   }, [query]);
+  const deferredQuery = useDeferredValue(debouncedQuery);
   const [searchIndex, setSearchIndex] = useState<MapSearchIndex | null>(null);
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const searchIndexPromiseRef = useRef<Promise<MapSearchIndex | null> | null>(null);
@@ -179,7 +177,7 @@ export default function MapSearchSuggest({
     () =>
       buildMapSearchSuggestions({
         cityId,
-        query: debouncedQuery,
+        query: deferredQuery,
         venues,
         localities,
         places,
@@ -190,7 +188,7 @@ export default function MapSearchSuggest({
       }),
     [
       cityId,
-      debouncedQuery,
+      deferredQuery,
       venues,
       localities,
       places,
@@ -210,15 +208,15 @@ export default function MapSearchSuggest({
         })),
         venues: [],
       } satisfies MapSearchIndex;
-      const cityResults = searchMapSearchIndex(cityOnlyIndex, debouncedQuery);
+      const cityResults = searchMapSearchIndex(cityOnlyIndex, deferredQuery);
       const venueResults = searchIndex
-        ? searchMapSearchIndex(searchIndex, debouncedQuery).filter(
+        ? searchMapSearchIndex(searchIndex, deferredQuery).filter(
             (result) => result.kind === "venue",
           )
         : [];
       return [...cityResults, ...venueResults];
     },
-    [debouncedQuery, searchIndex],
+    [deferredQuery, searchIndex],
   );
   const indexedCities = useMemo(
     () => indexedResults.filter((result): result is Extract<MapSearchIndexResult, { kind: "city" }> => result.kind === "city"),
@@ -251,7 +249,7 @@ export default function MapSearchSuggest({
     // a stem ("Blackfriars") must not sit above the pub ("The Blackfriar").
     if (
       mapSearchVenuesLeadAreas({
-        query: debouncedQuery,
+        query: deferredQuery,
         pubCount: suggestions.pubs.length,
         indexedVenueCount: indexedVenues.length,
       })
@@ -259,7 +257,7 @@ export default function MapSearchSuggest({
       return [...cities, ...pubs, ...indexed, ...areas, ...places, ...ukBase];
     }
     return [...cities, ...areas, ...pubs, ...indexed, ...places, ...ukBase];
-  }, [debouncedQuery, indexedCities, indexedVenues, mergedUkBasePubs, suggestions]);
+  }, [deferredQuery, indexedCities, indexedVenues, mergedUkBasePubs, suggestions]);
 
   const [activeIndex, setActiveIndex] = useState(-1);
   // Keyboard events can arrive before React commits the previous highlight.
@@ -287,8 +285,8 @@ export default function MapSearchSuggest({
   );
 
   const trimmed = query.trim();
-  const debouncedTrimmed = debouncedQuery.trim();
-  const querySettled = debouncedTrimmed === trimmed;
+  const deferredTrimmed = deferredQuery.trim();
+  const querySettled = deferredTrimmed === trimmed;
   // Panel stays present for a typed miss so the combobox never collapses into a
   // silent empty state. Toolbar search still closes when focus deliberately
   // leaves the search surface; overlay search remains open until Escape/X.
@@ -312,7 +310,7 @@ export default function MapSearchSuggest({
       return;
     }
 
-    const normalized = debouncedTrimmed.toLocaleLowerCase();
+    const normalized = deferredTrimmed.toLocaleLowerCase();
     if (lastAnnouncedQuery.current === normalized) return;
 
     const timer = window.setTimeout(() => {
@@ -323,7 +321,7 @@ export default function MapSearchSuggest({
     }, NO_RESULTS_ANNOUNCE_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [debouncedTrimmed, hasResults, showEmptyLine, trimmed.length]);
+  }, [deferredTrimmed, hasResults, showEmptyLine, trimmed.length]);
 
   const activate = useCallback(
     (entry: FlatItem | undefined) => {
@@ -418,7 +416,7 @@ export default function MapSearchSuggest({
   );
 
   const venuesLead = mapSearchVenuesLeadAreas({
-    query: debouncedQuery,
+    query: deferredQuery,
     pubCount: suggestions.pubs.length,
     indexedVenueCount: indexedVenues.length,
   });
@@ -449,7 +447,7 @@ export default function MapSearchSuggest({
   const originNote =
     suggestions.origin === "user" ? "Distances from you" : "Distances from the map centre";
   const liveAnnouncement =
-    showEmptyLine && announcedQuery === debouncedTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
+    showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
   const pubGroup = suggestions.pubs.length > 0 ? (
     <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
