@@ -1,3 +1,7 @@
+import { mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -24,7 +28,10 @@ import {
 // owner-only reads are browser route doubles. Every surface under test is the
 // real shipped UI, and the durable resume cookie is the REAL route.
 
-const SHOTS = "/tmp/pubmax-account-switch";
+// The console user already owns /tmp/pubmax-account-switch (mode 755). The
+// dedicated runner cannot write there, so each user gets their own directory.
+const SHOTS = join(tmpdir(), `pubmax-account-switch-${process.getuid?.() ?? process.pid}`);
+mkdirSync(SHOTS, { recursive: true });
 
 
 

@@ -597,10 +597,8 @@ describe("local refresh validation", () => {
       join(repository, "package.json"),
       JSON.stringify({
         scripts: {
-          "prevalidate-data":
-            "node -e \"require('fs').writeFileSync('generated.marker','ready')\"",
           "validate-data":
-            "node -e \"if(!require('fs').existsSync('generated.marker'))process.exit(1)\"",
+            "node -e \"require('fs').writeFileSync('generated.marker','ready')\" && node -e \"if(!require('fs').existsSync('generated.marker'))process.exit(1)\"",
         },
       }),
     );

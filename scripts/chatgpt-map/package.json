@@ -11,6 +11,10 @@
     "proof:recovery": "node --import tsx widget-recovery-proof.mjs",
     "proof:lifecycle": "node --import tsx widget-lifecycle-proof.mjs"
   },
+  "allowScripts": {
+    "esbuild": true,
+    "fsevents": false
+  },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "2.0.3",
     "@modelcontextprotocol/sdk": "1.31.0",

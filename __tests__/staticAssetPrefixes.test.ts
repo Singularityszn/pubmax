@@ -82,7 +82,7 @@ function generalMatcherSource(): string {
 describe("static asset prefixes", () => {
   // A prefix earns its place by BYTES THIS REPOSITORY HOLDS, and the witness is
   // the commit. `existsSync` alone was the bug: `public/vendor/` is gitignored
-  // build output that `prebuild` writes, so it was there on every machine that
+  // build output that `npm run build` writes before `next build`, so it was there on every machine that
   // had ever run the app and absent in the CI unit job, which checks out clean
   // and runs `npx vitest run` with no build in front of it.
   it("names only directories a clean checkout really holds", () => {
@@ -127,7 +127,7 @@ describe("static asset prefixes", () => {
       // And the build really runs it, which is the whole reason a directory
       // absent from the commit is still there for `next build` to serve.
       expect(PACKAGE_SCRIPTS[generator.npmScript]).toContain(generator.script);
-      expect(PACKAGE_SCRIPTS.prebuild).toContain(generator.npmScript);
+      expect(PACKAGE_SCRIPTS.build).toContain(generator.npmScript);
     }
   });
 

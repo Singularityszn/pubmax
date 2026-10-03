@@ -472,7 +472,7 @@ export function securityProxy(request: NextRequest) {
     ? "'unsafe-inline'"
     : `'nonce-${nonce}'`;
   // Voice AudioWorklets are same-origin files under /vendor/elevenlabs, copied
-  // at predev/prebuild and passed as workletPaths when a session starts.
+  // by `npm run dev` and `npm run build` and passed as workletPaths when a session starts.
   // script-src stays 'self' plus the nonce (or 'unsafe-inline' on the five
   // prerendered documents). data: and blob: are not script sources: a data:
   // URL would run without a nonce.

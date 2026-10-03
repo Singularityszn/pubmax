@@ -122,8 +122,8 @@ was created before session voice overrides were enabled. Re-run
 
 If the UI shows **Failed to load the rawAudioProcessor worklet module** (or the
 session never reaches "Pal is listening" after metadata), the same-origin
-AudioWorklet files were not copied. `npm run prepare:maplibre-worker` (predev
-and prebuild) writes them to `public/vendor/elevenlabs/`, and the voice session
+AudioWorklet files were not copied. `npm run prepare:maplibre-worker` (the first
+step of `npm run dev` and `npm run build`) writes them to `public/vendor/elevenlabs/`, and the voice session
 passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
 `blob:` or `data:` back into `script-src`.
 
