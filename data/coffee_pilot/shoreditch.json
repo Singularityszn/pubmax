@@ -139,6 +139,15 @@
       "standing": "listed"
     },
     {
+      "venueId": "venue-osm-n12110401801",
+      "venueName": "Vintage Cafe",
+      "drink": "matcha latte",
+      "priceGbp": 4.15,
+      "sourceUrl": "https://www.vintagecafeshoreditch.co.uk/menu/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
       "venueId": "venue-osm-w637312549",
       "venueName": "Jujuhome Cha",
       "drink": "matcha latte",

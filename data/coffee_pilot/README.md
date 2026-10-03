@@ -33,7 +33,7 @@ Places, review sites and menu aggregators were not used.
 | Santo Remedio, 55 Great Eastern Street | Row: flat white, latte (menu PDF) |
 | Love Churros, Boxpark | Row: flat white, latte (chain menu image) |
 | Franzè & Evans, 101 Redchurch Street | Row: flat white, latte, matcha latte (menu PDF, hot prices) |
-| Vintage Cafe, 17 Cheshire Street | Row: flat white, latte. "Green Matcha Latte" not logged |
+| Vintage Cafe, 17 Cheshire Street | Row: flat white, latte, matcha latte ("Green Matcha Latte") |
 | Jujuhome Cha, Boxpark | Row: matcha latte |
 | gram'n degrees, 93 Kingsland Road | Row: flat white, latte. Drink named "Matcha" not logged |
 | The Bike Shed, 384 Old Street | Row: flat white, latte (drinks PDF, figures without £) |
