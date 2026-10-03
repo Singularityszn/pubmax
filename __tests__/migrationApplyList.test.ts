@@ -13,7 +13,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  isMigrationApplied,
+  labelOf,
   listMigrations,
+  parseAppliedLabels,
+  parseAppliedNames,
   parseAppliedVersions,
   unappliedMigrations,
   versionOf,
@@ -101,5 +105,48 @@ describe("migration-apply-list", () => {
   it("reads the version prefix off a filename", () => {
     expect(versionOf("20260806235944_0075_social_crews.sql")).toBe("20260806235944");
     expect(versionOf("not-a-migration.sql")).toBeNull();
+  });
+
+  it("reads the four-digit label and ignores a filename that has none", () => {
+    expect(labelOf("20261002210000_0170_profiles_table_door.sql")).toBe("0170");
+    expect(labelOf("20260715091628_pub_pal_plan_completion_indexes.sql")).toBeNull();
+  });
+
+  it("treats a migration as applied when the label matches and the version does not", () => {
+    const filename = "20261002210000_0170_profiles_table_door.sql";
+    const appliedText = "20261003050416\t0170_profiles_table_door\n";
+    const versions = parseAppliedVersions(appliedText);
+    const labels = parseAppliedLabels(appliedText);
+
+    expect(versions.has("20261002210000")).toBe(false);
+    expect(isMigrationApplied(filename, versions, labels)).toBe(true);
+    expect(unappliedMigrations([filename, "20260929120000_0161_plan_selected_drink_evidence.sql"], versions, labels)).toEqual([
+      "20260929120000_0161_plan_selected_drink_evidence.sql",
+    ]);
+  });
+
+  it("does not read a label out of a bare 14-digit version", () => {
+    expect([...parseAppliedLabels("20261002210000")]).toEqual([]);
+    expect([...parseAppliedLabels("0170")]).toEqual(["0170"]);
+  });
+
+  it("treats a migration as applied when only the descriptive name was recorded", () => {
+    const filename = "20260831140000_0127_plan_membership_account_claim.sql";
+    const appliedText = "20260827120448\tplan_membership_account_claim\n";
+    const versions = parseAppliedVersions(appliedText);
+    const labels = parseAppliedLabels(appliedText);
+    const names = parseAppliedNames(appliedText);
+
+    expect(labels.has("0127")).toBe(false);
+    expect(names.has("plan_membership_account_claim")).toBe(true);
+    expect(isMigrationApplied(filename, versions, labels, names)).toBe(true);
+    expect(
+      unappliedMigrations(
+        [filename, "20260831142000_0131_social_crew_membership_reuse_capacity.sql"],
+        versions,
+        labels,
+        names,
+      ),
+    ).toEqual(["20260831142000_0131_social_crew_membership_reuse_capacity.sql"]);
   });
 });
