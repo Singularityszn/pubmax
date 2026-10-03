@@ -1,6 +1,6 @@
 -- Close the Pint Drop table and realtime door (Fable full-repo review B-2).
 --
--- Apply AFTER 0169. Captain applies; agents ship SQL only.
+-- Apply AFTER 0170. Captain applies; agents ship SQL only.
 --
 -- WHAT WAS WRONG. `0066` granted `authenticated` SELECT on the Pint Drop table.
 -- `0118` renamed that table to `public.pint_drops` and the grant went with it.

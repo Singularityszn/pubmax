@@ -80,7 +80,7 @@ silently stale.
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
 | referralStore | factory-eligible, policy-heavy | Referral identity, milestone, and proof-expiry policy. |
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
-| savedPubsStore | legacy-exception | Inline Supabase configuration branch plus profile bootstrap; needs its own selector refactor. |
+| savedPubsStore | legacy-exception | Inline Supabase configuration branch keyed by existing profile rows; needs its own selector refactor. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
 | socialCrewCompletionStore | not dual-backend | Supabase-only atomic crew completion RPC and private completion read. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
@@ -144,6 +144,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/api/profiles/directory/route.ts",
     "app/api/pub-pal/voice-token/route.ts",
     "app/api/saved-pubs/list-follows/route.ts",
+    "app/api/saved-pubs/route.ts",
     "app/api/starter-packs/[slug]/follow/route.ts",
     "app/api/starter-packs/route.ts",
     "app/bar-tab/[id]/opengraph-image.tsx",

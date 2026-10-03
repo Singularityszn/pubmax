@@ -90,4 +90,14 @@ describe("what a What's-On row must look like", () => {
       ),
     ).toContain("endsAt needs an exact startsAt and a valid ISO value");
   });
+
+  it("keeps a row whose image or source URL carries a space the URL parser encodes", () => {
+    const row = base({
+      startsAt: "2026-08-16T19:00:00.000Z",
+      imageUrl: "https://cdn.example.com/events/Quiz Night.jpg",
+      source: { label: "common", url: " https://www.common-social.com/post/abc" },
+    });
+    expect(whatsOnRowProblems(row, NOW)).toEqual([]);
+    expect(spineIsValidWhatsOnRow(row, NOW)).toBe(true);
+  });
 });

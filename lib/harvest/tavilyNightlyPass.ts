@@ -12,6 +12,7 @@ import {
   type OperatorSearchResult,
 } from "@/lib/harvest/pubFacts";
 import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
+import { isHttpUrl } from "@/lib/httpUrl";
 import type { RobotsChecker } from "@/lib/harvest/robots";
 import {
   CATEGORY_PRICE_BANDS,
@@ -924,11 +925,11 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
 
 const FORBIDDEN_VENUE_KEYS = ["cheapestPrice", "contributorId", "contributor", "communityPrice", "confirmed"];
 
-function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string" || value.length === 0) return false;
+function isHttpUrlWithoutUserInfo(value: unknown): value is string {
+  if (!isHttpUrl(value, { allowWhitespace: true })) return false;
   try {
     const url = new URL(value);
-    return (url.protocol === "http:" || url.protocol === "https:") && !url.username && !url.password;
+    return !url.username && !url.password;
   } catch {
     return false;
   }
@@ -951,7 +952,7 @@ export function queueDocument(input: unknown): QueueDocument {
       if (price.standing !== "listed") {
         throw new Error("A nightly queue price is listed. Confirmed is refused.");
       }
-      if (typeof price.drink !== "string" || !isHttpUrl(price.sourceUrl)) {
+      if (typeof price.drink !== "string" || !isHttpUrlWithoutUserInfo(price.sourceUrl)) {
         throw new Error("A nightly queue price is listed.");
       }
       if (typeof price.priceGbp !== "number" || !Number.isFinite(price.priceGbp)) {
@@ -972,7 +973,7 @@ export function queueDocument(input: unknown): QueueDocument {
     for (const row of excerptsIn) {
       if (typeof row !== "object" || row === null) continue;
       const item = row as Record<string, unknown>;
-      if (!isHttpUrl(item.sourceUrl) || typeof item.excerpt !== "string") continue;
+      if (!isHttpUrlWithoutUserInfo(item.sourceUrl) || typeof item.excerpt !== "string") continue;
       const excerpt = item.excerpt.trim().slice(0, EXCERPT_MAX);
       if (!excerpt) continue;
       excerpts.push({
@@ -990,7 +991,7 @@ export function queueDocument(input: unknown): QueueDocument {
       website: venue.website && typeof venue.website === "object" ? (venue.website as VenueEvidence["website"]) : null,
       drinks,
       excerpts,
-      candidates: Array.isArray(venue.candidates) ? venue.candidates.filter((url): url is string => isHttpUrl(url)) : [],
+      candidates: Array.isArray(venue.candidates) ? venue.candidates.filter((url): url is string => isHttpUrlWithoutUserInfo(url)) : [],
     };
   });
   return { version: 1, standingRule: "listed", venues };
