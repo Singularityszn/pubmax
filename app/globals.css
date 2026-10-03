@@ -4722,31 +4722,33 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 }
 
 @media (max-width: 640px) {
-  /* Phone: the card is one 56px row on the tab bar's lane. The window stays
-     the scroller, so Allow or No thanks never moves the reader; the lane is
-     published on html while the card is mounted and the page reserves it as
-     foot padding, so Today, Plan and /pubs actions end above it. html is the
-     element that carries the larger-text bucket, so the lane grows with the
-     card on the same frame. */
-  html:has(.analyticsConsentPrompt):not(:has(.mapStage)) {
-    --analytics-consent-reserve: var(--analytics-consent-mobile-clearance, 56px);
-  }
-
+  /* Phone: the card is one row on the tab bar's lane. The window stays the
+     scroller, so Allow or No thanks never moves the reader. While the card is
+     mounted it publishes its own measured height on html
+     (components/AnalyticsConsentPrompt.tsx, --analytics-consent-reserve) and
+     the page reserves exactly that as foot padding, so Today, Plan, /pubs and
+     /social actions end above it at every text size; the reserve is removed
+     with the card. The token is the lane until the first measurement. */
   body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: calc(
-      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-reserve, 0px)
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
     );
   }
 
+  /* With no tab bar the card is the foot of the screen and its measured
+     height already carries its home-indicator padding. */
   body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)):not(:has(.mapStage)) {
-    padding-bottom: calc(
-      var(--analytics-consent-reserve, 0px) + max(12px, env(safe-area-inset-bottom))
+    padding-bottom: var(
+      --analytics-consent-reserve,
+      calc(var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom)))
     );
   }
 
   html:has(.analyticsConsentPrompt) {
     scroll-padding-bottom: calc(
-      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 56px)
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
     );
   }
 

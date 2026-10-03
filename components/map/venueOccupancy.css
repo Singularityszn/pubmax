@@ -19,10 +19,7 @@
   font-size: 16px;
   line-height: 1.35;
   color: var(--ink);
-  overflow: visible;
-  white-space: normal;
   overflow-wrap: anywhere;
-  text-overflow: clip;
 }
 
 .venueOccupancyReading--empty {

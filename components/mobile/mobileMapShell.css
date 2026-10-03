@@ -146,7 +146,7 @@
        e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
     bottom: max(
       calc(var(--mobile-map-dock-clearance) + 68px),
-      calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-mobile-clearance, 56px))
+      calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
     );
   }
 

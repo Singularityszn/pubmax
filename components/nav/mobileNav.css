@@ -58,14 +58,13 @@
      what sits in this band is the Near me FAB parked at the column's own bottom
      (justify-content: space-between). The consent variant keeps the column one
      gap above the analytics card docked on the tab bar: its own berth while the
-     card is the 56px row, higher only when larger text grows the card's rem
-     lane. The create action does not stack above that card at all,
+     card is the 56px row, higher only when the card's measured lane grows. The create action does not stack above that card at all,
      it stands down (createFab.css). */
   --map-corner-locate-size: 52px;
   --map-corner-bottom: calc(var(--float-stack-base) + 72px);
   --map-corner-bottom-consent: max(
     var(--map-corner-bottom),
-    calc(var(--float-stack-base) + var(--analytics-consent-mobile-clearance, 56px))
+    calc(var(--float-stack-base) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
   );
 
   /* The map's first-visit ask is NOT a member of this stack. It was, as a
@@ -127,10 +126,17 @@ body:has(.mapStage):has(.palSummon) {
 body:has(.mapStage):has(.analyticsConsentPrompt) {
   --pal-summon-bottom: max(
     calc(var(--float-stack-top-plan) + var(--float-stack-gap)),
-    calc(var(--float-stack-base) + var(--analytics-consent-mobile-clearance, 56px))
+    calc(var(--float-stack-base) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
   );
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
+  );
+}
+/* The column follows the Pub Pal pill over the consent berth
+   (mobileMapShell.css), so the published edge does too. */
+body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon) {
+  --float-stack-top-map-corner: calc(
+    var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
   );
 }
 

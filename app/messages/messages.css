@@ -1454,7 +1454,7 @@ html[data-theme="dark"] .messageBubblePhoto {
     --composer-clearance: calc(
       var(--tabbar-h, 64px)
         + env(safe-area-inset-bottom, 0px)
-        + var(--analytics-consent-mobile-clearance, 56px)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
     );
   }
 

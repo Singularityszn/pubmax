@@ -282,23 +282,23 @@
 /* The half sheet ends at the command bar. A 56px empty frame pushed the busy
    reading under that bar, so the line was clipped. */
 @media (max-width: 640px) {
-  .venueInspector:has(.venueImage--empty) .venueTabPanel {
+  .venueInspector:has(.venueBaselinePhoto.venueImage--empty) .venueTabPanel {
     margin-top: 4px;
   }
 
   /* The half-sheet's first screen has to include the busy reading. The tab
      strip's 10px margins and the occupancy gap pushed "No fresh reading"
      under the command bar. */
-  .venueInspector:has(.venueImage--empty) .venueTabs {
+  .venueInspector:has(.venueBaselinePhoto.venueImage--empty) .venueTabs {
     margin-top: 4px;
     margin-bottom: 4px;
   }
 
-  .venueInspector:has(.venueImage--empty) .venueOccupancy {
+  .venueInspector:has(.venueBaselinePhoto.venueImage--empty) .venueOccupancy {
     margin-top: 0;
   }
 
-  .venueInspector:has(.venueImage--empty) .venueOccupancyReading {
+  .venueInspector:has(.venueBaselinePhoto.venueImage--empty) .venueOccupancyReading {
     margin-top: 2px;
   }
 }

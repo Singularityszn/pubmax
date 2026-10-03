@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BRAND_NAME } from "@/lib/brandNaming";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 import {
   analyticsConsentDecision,
@@ -33,11 +33,38 @@ type AnalyticsConsentPromptContentProps = {
 // (__tests__/analyticsConsentRow.test.ts). It still names the brand
 // (lib/brandNaming.ts), says what is collected and why, and that it is never
 // sold and carries no ads; the rest is one tap away on /privacy.
+// The page reserves the card's REAL height while it is mounted, so the foot
+// clears the card at every text size and wrap, and the reserve is gone the
+// moment the card is (app/globals.css reads --analytics-consent-reserve).
+function useConsentReserve(card: RefObject<HTMLElement | null>): void {
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (!element) return;
+    const root = document.documentElement;
+    const publish = () => {
+      root.style.setProperty(
+        "--analytics-consent-reserve",
+        `${Math.ceil(element.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publish);
+    observer?.observe(element);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty("--analytics-consent-reserve");
+    };
+  }, [card]);
+}
+
 export function AnalyticsConsentPromptContent({
   onDecision,
 }: AnalyticsConsentPromptContentProps) {
+  const cardRef = useRef<HTMLElement | null>(null);
+  useConsentReserve(cardRef);
   return (
     <aside
+      ref={cardRef}
       className="analyticsConsentPrompt"
       aria-label="Anonymous analytics choice"
     >
