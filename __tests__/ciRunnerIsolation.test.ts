@@ -231,6 +231,26 @@ describe("the dedicated runner setup", () => {
       `"\${as_user[@]}" sh -c 'cd "$1" && shift && exec ./config.sh "$@"' sh "$dir"`,
     );
   });
+
+  it("copies runsvc.sh to the runner root and restarts a service that is already loaded", () => {
+    const script = readFileSync(join(ROOT, "scripts/ci/setup-dedicated-runner-user.sh"), "utf8");
+    const registration = script.split('for spec in "${RUNNERS[@]}"')[1];
+    expect(registration).toContain(`sudo -u "$user" cp "$dir/bin/runsvc.sh" "$dir/runsvc.sh"`);
+    expect(registration).toContain(`sudo -u "$user" chmod u+x "$dir/runsvc.sh"`);
+    const bootstrapAt = registration.indexOf('launchctl bootstrap system "$plist"');
+    const kickstartAt = registration.lastIndexOf('launchctl kickstart -k "system/${service}"');
+    expect(bootstrapAt).toBeGreaterThan(-1);
+    expect(kickstartAt).toBeGreaterThan(bootstrapAt);
+  });
+
+  it("fails when a runner is still offline after a minute", () => {
+    const script = readFileSync(join(ROOT, "scripts/ci/setup-dedicated-runner-user.sh"), "utf8");
+    const prove = script.split('say "Prove it"')[1];
+    expect(prove).toBeDefined();
+    expect(prove).toContain("SECONDS + 60");
+    expect(prove).toContain('"$status" != "online"');
+    expect(prove).toContain("runners not online within 60s");
+  });
 });
 
 describe("the runner identity check", () => {

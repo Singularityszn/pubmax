@@ -77,11 +77,14 @@ In order, it:
    (label `pubmax-mac`, `PW_PORT` 3200, 3210 and 3220 unless the old runner set
    one) and `karan-mac-pubmax-refresh` as `ghrefresh` (label
    `pubmax-mac-refresh`);
-6. writes one LaunchDaemon per runner and starts it;
+6. copies `bin/runsvc.sh` to the runner root (the package ships it only under
+   `bin/`; the LaunchDaemon runs the root copy), writes one LaunchDaemon per
+   runner, bootstraps it and kickstarts it so a service already loaded from an
+   earlier apply restarts;
 7. proves the result: the identity check passes as both users, neither can read
    `~/.ssh`, `~/.config/gh` or `~/.gitconfig` or the other user's home, no
-   `Runner.Listener` runs as the console user, and GitHub lists all four
-   runners.
+   `Runner.Listener` runs as the console user, and GitHub shows all four
+   runners online within 60 seconds, or the script exits.
 
 Then rerun the checks on any open pull request.
 

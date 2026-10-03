@@ -286,6 +286,12 @@ for spec in "${RUNNERS[@]}"; do
     fi
   fi
 
+  # The tarball ships bin/runsvc.sh. svc.sh install copies it to the runner
+  # root, which is what the LaunchDaemon executes. Without that copy launchd
+  # exits 78 (EX_CONFIG) and the runner stays offline. Copying again is safe.
+  change sudo -u "$user" cp "$dir/bin/runsvc.sh" "$dir/runsvc.sh"
+  change sudo -u "$user" chmod u+x "$dir/runsvc.sh"
+
   # The runner service reads .path for its PATH and .env for job variables.
   change sudo -u "$user" sh -c "printf '%s\n' '${RUNNER_PATH}' > '${dir}/.path'"
   change sudo -u "$user" sh -c "grep -v '^PW_PORT=' '${dir}/.env' 2>/dev/null > '${dir}/.env.next' || true; printf 'PW_PORT=%s\n' '${port}' >> '${dir}/.env.next'; mv '${dir}/.env.next' '${dir}/.env'"
@@ -345,10 +351,13 @@ PLIST
     fi
   fi
   if root_read launchctl print "system/${service}" >/dev/null 2>&1; then
-    change sudo launchctl kickstart -k "system/${service}"
+    note "${service} is already loaded"
   else
     change sudo launchctl bootstrap system "$plist"
   fi
+  # Bootstrap does not restart a service that is already loaded. The first
+  # apply loaded these, they exited 78, and a repair has to kickstart them.
+  change sudo launchctl kickstart -k "system/${service}"
 done
 
 # ---------------------------------------------------------------------------
@@ -382,7 +391,24 @@ if sudo -u "$PRIVILEGED_USER" ls "/Users/${PR_USER}" >/dev/null 2>&1 || sudo -u 
   failed=1
 fi
 
-sleep 10
+deadline=$((SECONDS + 60))
+offline=""
+while true; do
+  view="$(gh api "repos/${REPO}/actions/runners" --paginate --jq '.runners[] | "\(.name)\t\(.status)"')"
+  offline=""
+  for spec in "${RUNNERS[@]}"; do
+    name="${spec%%:*}"
+    status="$(printf '%s\n' "$view" | awk -F '\t' -v n="$name" '$1 == n { print $2; exit }')"
+    if [ "$status" != "online" ]; then
+      offline="${offline}     ${name}  ${status:-absent}"$'\n'
+    fi
+  done
+  if [ -z "$offline" ] || [ "$SECONDS" -ge "$deadline" ]; then
+    break
+  fi
+  sleep 5
+done
+
 listeners="$(ps -axo user=,command= | awk '/Runner\.Listener/ && !/awk/ {print $1}' | sort | uniq -c)"
 note "Runner.Listener processes by user:"
 printf '%s\n' "$listeners" | sed 's/^/     /'
@@ -394,6 +420,10 @@ fi
 note "GitHub's view:"
 gh api "repos/${REPO}/actions/runners" --paginate \
   --jq '.runners[] | "     \(.name)  \(.status)  \([.labels[].name] | join(","))"'
+if [ -n "$offline" ]; then
+  printf '%s' "$offline" >&2
+  die "runners not online within 60s"
+fi
 
 if [ "$failed" -ne 0 ]; then
   die "one or more checks failed; see above and the rollback in docs/CI_RUNBOOK.md"
