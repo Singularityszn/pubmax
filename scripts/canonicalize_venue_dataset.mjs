@@ -9,7 +9,7 @@
 // canonical id, so stored references (pint drops, plans, saved lists) still
 // resolve via lib/venueAliases.ts.
 //
-// Runs as part of the reproducible pipeline (postexport:data + prebuild:slim),
+// Runs as part of the reproducible pipeline (the last step of export:data and the first of build:slim),
 // so it heals both this committed artifact AND any regeneration from the CSV.
 // Idempotent: a run against an already-canonical dataset finds no duplicates
 // and leaves both files untouched (aliases are merged cumulatively, never

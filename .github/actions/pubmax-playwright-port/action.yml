@@ -10,9 +10,16 @@ runs:
     - shell: bash
       env:
         RUNNER_NAME: ${{ runner.name }}
-      run: |
+      # The port is either the runner's own PW_PORT, refused unless it is a
+      # plain port number, or computed below, so GITHUB_ENV only ever receives
+      # PW_PORT=<digits>.
+      run: | # zizmor: ignore[github-env]
         set -euo pipefail
         if [ -n "${PW_PORT:-}" ]; then
+          if ! [[ "$PW_PORT" =~ ^[0-9]{1,5}$ ]]; then
+            echo "PW_PORT from the runner environment is not a port number" >&2
+            exit 1
+          fi
           echo "PW_PORT=${PW_PORT}" >> "$GITHUB_ENV"
           echo "Playwright port ${PW_PORT} (from runner environment)"
           exit 0

@@ -65,21 +65,26 @@ jobs:
         run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(node -p "Date.now()")" >> "$GITHUB_ENV"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
           # The ratchet check compares this branch's ceilings against the base
           # branch's, so it needs the base branch to compare against.
           fetch-depth: 0
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       # A budget is a ratchet, and this is the pawl. When the gate fails, the
       # fastest way to make the red go away is to raise the ceiling, and #1314 is
@@ -167,7 +172,7 @@ jobs:
 
       - name: Keep the A/B evidence with the run
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: performance-budget-ab
           path: |
@@ -194,18 +199,23 @@ jobs:
     timeout-minutes: 17
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
@@ -228,7 +238,7 @@ jobs:
       # one and does not need a second red mark.
       - name: Upload UX lane table
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ux-lane-13-perf
           path: test-results/**/ux-lane-13-perf.md

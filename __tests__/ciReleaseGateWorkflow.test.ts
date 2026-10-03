@@ -120,10 +120,10 @@ describe("clean-main CI release gate", () => {
   });
 
   it("does not persist the workflow token in build checkouts", () => {
-    const checkouts = workflow.match(/uses: actions\/checkout@v4/g) ?? [];
+    const checkouts = workflow.match(/uses: actions\/checkout@[0-9a-f]{40} # v\S+/g) ?? [];
     const protectedCheckouts =
       workflow.match(
-        /uses: actions\/checkout@v4\n\s+with:\n\s+persist-credentials: false/g,
+        /uses: actions\/checkout@[0-9a-f]{40} # v\S+\n\s+with:\n\s+persist-credentials: false/g,
       ) ?? [];
 
     expect(checkouts.length).toBeGreaterThan(0);

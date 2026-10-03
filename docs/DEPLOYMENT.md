@@ -301,7 +301,7 @@ Changing provider state needs no app code or deployment.
 
 ## Build-time data artifacts
 
-`npm run prebuild` regenerates the browser data packs and the server-only venue
+`npm run build` first regenerates the browser data packs and the server-only venue
 detail pack:
 
 | Output | Role |
@@ -315,7 +315,7 @@ detail pack:
 | `data/generated/venue_details.jsonl` | Per-venue detail payloads: pub price rows or curated venue facts (not committed). |
 
 Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates all
-build-time packs via `prebuild`; the UK base pack remains committed so first
+build-time packs in `npm run build`; the UK base pack remains committed so first
 paint never needs server-side generation. If venue detail artifacts are absent
 locally, `lib/venueDetailIndex.ts` falls back to the raw pint dataset plus
 `data/famous_venues/` outside production so `/api/venue/[id]` still works in

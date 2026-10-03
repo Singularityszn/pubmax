@@ -30,7 +30,7 @@
 // PRICES. None. OSM is not a price source (data/osm/uk/README.md). A base pub
 // has no price by construction; it is the canvas the community prices in.
 //
-// Run: node scripts/build_uk_base_shards.mjs   (wired into `npm run prebuild`)
+// Run: node scripts/build_uk_base_shards.mjs   (wired into `npm run build`)
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
