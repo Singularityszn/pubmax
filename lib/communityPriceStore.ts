@@ -1409,7 +1409,7 @@ async function readReceiptOwner(args: AttributedPriceArgs): Promise<Record<strin
 /** Receipt keys stay inside the durable writer, never in its public result. */
 async function submitPriceWithReceipt(args: AttributedPriceArgs, processed: Buffer): Promise<Record<string, unknown> | null> {
   // Read-only price routes do not eagerly load the image encoder/store.
-  const { uploadPreparedPhoto, deletePhotos, PhotoProcessingError } = await import("@/lib/pintDropsStore");
+  const { uploadPreparedPhoto, deletePhotos, PhotoProcessingError } = await import("@/lib/uploadedImage.server");
   let candidate: string | null = null;
   try {
     candidate = await uploadPreparedPhoto("receipt", args.p_venue_id, `community-receipt-${randomUUID()}`, processed);
