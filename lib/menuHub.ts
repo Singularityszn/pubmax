@@ -35,14 +35,20 @@ export function menuHubTiles(venue: Venue, drinks: Drink[]): MenuHubTile[] {
   const tiles: MenuHubTile[] = [];
   const groups = groupDrinksByCategory(drinks);
   const totalDrinks = drinks.length;
+  const hasPublishedPrices = (venue.listedBeerPrices?.length ?? 0) > 0 ||
+    (venue.listedCategoryPrices?.length ?? 0) > 0;
+  const publishedPricesUnavailable = venue.listedBeerPrices === null &&
+    venue.listedCategoryPrices === null;
 
-  if (totalDrinks > 0) {
+  if (totalDrinks > 0 || hasPublishedPrices || publishedPricesUnavailable) {
     tiles.push({
       id: "drinks",
       kind: "drinks",
       label: "Drinks",
-      hint: totalDrinks === 1 ? "1 on record" : `${totalDrinks} on record`,
-      count: totalDrinks,
+      hint: publishedPricesUnavailable ? "Menu prices unavailable" :
+        hasPublishedPrices ? "Published menu prices" :
+        totalDrinks === 1 ? "1 on record" : `${totalDrinks} on record`,
+      ...(hasPublishedPrices || publishedPricesUnavailable ? {} : { count: totalDrinks }),
     });
   }
 

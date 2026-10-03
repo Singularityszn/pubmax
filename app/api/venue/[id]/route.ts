@@ -65,6 +65,11 @@ export async function GET(
       : bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY);
   const listedCategoryPrices =
     bundle.status === "unavailable" ? null : projectListedCategoryPrices(bundle.rows);
+  const listedBeerPrices =
+    bundle.status === "unavailable"
+      ? null
+      : projectListedCategoryPrices(bundle.rows, undefined, { includeBeer: true })
+          .filter((quote) => quote.category === "beer");
 
   // WHAT THE TWO OBSERVED PACKS HOLD ABOUT THIS PUB, scoped here for the same
   // reason the bundle is: the Drinks tab drew a handful of rows about one pub
@@ -124,6 +129,7 @@ export async function GET(
         amenityStatus,
         bundlePrices,
         listedCategoryPrices,
+        listedBeerPrices,
         priceUpdates,
       },
       busyness,
