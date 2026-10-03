@@ -28,6 +28,10 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
+import {
+  readProviderAccountRevision,
+  subscribeProviderIdentityRevision,
+} from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
@@ -227,6 +231,18 @@ export function AnswerCard({
 }
 
 export default function PalChat() {
+  const { user } = useAuth();
+  const accountRevision = useSyncExternalStore(
+    subscribeProviderIdentityRevision,
+    readProviderAccountRevision,
+    () => 0,
+  );
+  return (
+    <PalChatConversation key={`${user?.id ?? "signed-out"}:${accountRevision}`} />
+  );
+}
+
+function PalChatConversation() {
   const router = useRouter();
   const { user, session } = useAuth();
   const viewerSession = useViewerSession();
@@ -251,6 +267,14 @@ export default function PalChat() {
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
 
   const nextId = useCallback(() => {
     counterRef.current += 1;
@@ -311,6 +335,7 @@ export default function PalChat() {
       setPending(true);
       trackEvent("concierge_ask");
       const result = await sessionRef.current(text, DEFAULT_CITY_ID);
+      if (!aliveRef.current) return;
       setPending(false);
       if (result === null) return; // superseded by a newer ask — do nothing
       if (result.status === "error") {
