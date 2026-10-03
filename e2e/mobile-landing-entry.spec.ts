@@ -274,7 +274,10 @@ test.describe("mobile landing entry", () => {
     await page.goto("/");
 
     await page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
-    await expect(page).toHaveURL(/\/near\?locate=1$/);
+    // /near writes the answered patch back to the URL once it settles
+    // (NearMeNow's syncPatchToUrl), so the landing's own href may already
+    // carry `&patch=` by the time the assertion polls.
+    await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
     await page.goto("/");
 
     // The receipt door, quiet now: the pub's own Pint Drop door.

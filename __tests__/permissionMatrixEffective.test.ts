@@ -2047,7 +2047,7 @@ describe("saves: two lanes, two promises", () => {
     expect(stranger.status).toBe(200);
   });
 
-  it("at the table: a save answers its owner alone, and a stranger's write matches no row", () => {
+  it("at the table: a save answers its owner alone, and every browser write is refused at the grant", () => {
     expect(visibleRows("anon", null, "select count(*) from public.saved_pubs")).toBe(0);
     expect(
       visibleRows(
@@ -2064,13 +2064,17 @@ describe("saves: two lanes, two promises", () => {
       ),
     ).toBe(0);
 
-    // The owner policy filters the statement rather than erroring it, so the
-    // proof is that nothing MOVED, never that the statement failed.
-    attemptAsRole(
-      "authenticated",
-      DAVE,
-      `update public.saved_pubs set note = 'moved at the table' where profile_id = '${ALICE_PROFILE}'`,
-    );
+    // 0172 took every browser write grant, so the owner's own update is
+    // refused at the grant as well as a stranger's, and nothing MOVED.
+    for (const sub of [DAVE, ALICE]) {
+      const attempted = attemptAsRole(
+        "authenticated",
+        sub,
+        `update public.saved_pubs set note = 'moved at the table' where profile_id = '${ALICE_PROFILE}'`,
+      );
+      expect(attempted.ok, attempted.err).toBe(false);
+      expect(attempted.err).toMatch(/permission denied/i);
+    }
     expect(
       truth(`select count(*) from public.saved_pubs where note = 'moved at the table'`),
     ).toBe("0");

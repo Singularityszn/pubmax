@@ -4,7 +4,8 @@ const authState = vi.hoisted(() => ({
   verification: { status: "absent" } as
     | { status: "absent" }
     | { status: "invalid" }
-    | { status: "unavailable" },
+    | { status: "unavailable" }
+  | { status: "banned" },
 }));
 
 vi.mock("@/lib/authServer", () => ({
@@ -65,6 +66,19 @@ describe("resolveContributionIdentity auth verification", () => {
         error: "Sign in to contribute.",
       },
       httpStatus: 401,
+    });
+  });
+
+  it("refuses a banned bearer before any contribution write", async () => {
+    authState.verification = { status: "banned" };
+
+    await expect(resolveContributionIdentity(request)).resolves.toEqual({
+      ok: false,
+      body: {
+        code: "ACCOUNT_BANNED",
+        error: "This account has been banned for not following the PubMaxx community guidelines.",
+      },
+      httpStatus: 403,
     });
   });
 

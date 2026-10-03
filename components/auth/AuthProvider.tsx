@@ -22,7 +22,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
@@ -42,6 +42,7 @@ import { trackEvent } from "@/lib/analytics";
 import { syncPosthogPersonIdentity } from "@/lib/posthog/posthogPerson";
 import { isUserSignUp } from "@/lib/userSignedUp";
 import {
+  authCallbackConfirmationLabel,
   clearLegacyPkceVerifiers,
   fetchAuthCallbackUser,
   prepareAuthCallbackSession,
@@ -136,8 +137,12 @@ export { useAuth } from "@/components/auth/authContext";
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
 
-function signedInAsMessage(email: string | null | undefined): string {
-  const address = typeof email === "string" ? email.trim() : "";
+function signedInAsMessage(user: User): string {
+  const address = authCallbackConfirmationLabel({
+    id: user.id,
+    email: user.email,
+    emailConfirmedAt: user.email_confirmed_at,
+  });
   return address ? `Signed in as ${address}.` : "Signed in.";
 }
 
@@ -292,10 +297,6 @@ function callbackAttemptFailed(attempt: AuthCallbackAttempt | null, verification
   return verificationFailed || Boolean(attempt && (attempt.providerError || !attempt.tokens));
 }
 
-function callbackAccountBanned(attempt: AuthCallbackAttempt | null, unownedAccountBanned: boolean): boolean {
-  return Boolean(attempt?.accountBanned || unownedAccountBanned);
-}
-
 type PendingBootstrapInstall = {
   input: Pick<Session, "access_token" | "refresh_token">;
   cancelled: boolean;
@@ -354,7 +355,7 @@ export function AuthProvider({
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   const [authBannedNotice, setAuthBannedNotice] = useState(false);
   const [authCallbackConfirmation, setAuthCallbackConfirmation] = useState<{
-    label: string;
+    label: string | null;
     confirm: () => void;
   } | null>(null);
   /** Confirmation receipt after an unowned callback is accepted. */
@@ -570,10 +571,7 @@ export function AuthProvider({
     );
 
     const reportCallbackFailure = (callbackAttempt: AuthCallbackAttempt | null) => {
-      if (callbackAttempt?.accountBanned) {
-        setAuthBannedNotice(true);
-        setAuthCallbackError(null);
-      } else if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+      if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
     };
 
     if (!configured) {
@@ -843,7 +841,7 @@ export function AuthProvider({
           setSessionLoading(false);
           if (!captured.localAttemptOwned) {
             setAuthSignedInNotice(
-              signedInAsMessage(exchangedSession.user?.email),
+              signedInAsMessage(exchangedSession.user),
             );
           }
           // The PKCE flow this app ran before left one-time code-verifier keys
@@ -1052,7 +1050,7 @@ export function AuthProvider({
         if (cancelledLocalInstall || callbackConfirmationCancelled.current) return;
         if (!active) return;
         if (exchange && captured) finishCallbackExchange(exchange, captured);
-        if (callbackAccountBanned(callbackAttempt, unownedAccountBanned)) {
+        if (unownedAccountBanned) {
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
         } else if (callbackAttemptFailed(callbackAttempt, verificationFailed)) {
@@ -1497,7 +1495,11 @@ export function AuthProvider({
         <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
       ) : authCallbackConfirmation ? (
         <div className="authCallbackNotice authCallbackNotice--confirm" role="alert">
-          <span>Sign in as {authCallbackConfirmation.label}?</span>
+          <span>
+            {authCallbackConfirmation.label
+              ? `Sign in as ${authCallbackConfirmation.label}?`
+              : "Sign in to this account?"}
+          </span>
           <div className="authCallbackNoticeActions">
             <button
               type="button"

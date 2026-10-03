@@ -3,8 +3,7 @@
 import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import type { DisplayedMapRoute } from "@/lib/mapRouteTransfer";
-import { MapRouteTransferButton, type MapRouteResponse } from "@/components/plan/MapRouteTransferButton";
+import { MapRouteTransferButton } from "@/components/plan/MapRouteTransferButton";
 
 import PubmaxxLoadingEmber from "@/components/brand/PubmaxxLoadingEmber";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import type { CityId } from "@/lib/cities";
 import { getNightAreasForCity, type NightAreaSlug } from "@/lib/nightAreas";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
+import type { DisplayedMapRoute, MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
 import { shouldWarmMapIntent } from "@/lib/mapWarmup";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { planRouteTotalsFallbackLabel, resolvePlanRouteTotalLabel } from "@/lib/planRouteTotalsClient";
@@ -90,7 +90,7 @@ export function MobilePlanActivation({
     routeTotalLabel: string;
     endings: PlanEndingRecommendation[];
     // L12: full grounded response carried for a zero-regeneration Plan transfer.
-    mapRoute: MapRouteResponse | null;
+    mapRoute: MapGeneratedRouteResponse | null;
   } | null>(null);
   const routeUpgradeRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
@@ -181,7 +181,7 @@ export function MobilePlanActivation({
         endings: generated.endings,
         // The narrow body type above omits proof/operationKey/alternatives; the
         // runtime response carries them for the exact-Route transfer.
-        mapRoute: body as unknown as MapRouteResponse,
+        mapRoute: body as unknown as MapGeneratedRouteResponse,
       });
       routeUpgradeRef.current?.abort();
       const routeController = new AbortController();

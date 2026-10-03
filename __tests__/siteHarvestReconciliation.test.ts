@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   normalizeSiteHarvestLedgerRow,
   parseSiteHarvestLedgerText,
   type SiteHarvestLedgerRow,
   siteHarvestLedgerCollectKey, loadCuratedUkBaseOwners, siteHarvestLedgerDuplicateKeys,
-} from "@/lib/siteHarvestLedger";
+} from "@/lib/siteHarvestLedgerCore";
 import { isHarvestableDrinkUpdateUrl } from "@/lib/harvest/sourcePolicy";
 import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
 import {
@@ -18,8 +18,6 @@ import {
   isValidUkPriceBundleRow,
   type UkPriceBundleRow,
 } from "@/lib/ukPriceBundle";
-
-vi.mock("server-only", () => ({}));
 
 type RowIdentity = {
   sha256: string;

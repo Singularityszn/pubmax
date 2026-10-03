@@ -5,7 +5,8 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { MapRouteTransferButton, type MapRouteResponse } from "@/components/plan/MapRouteTransferButton";
+import { MapRouteTransferButton } from "@/components/plan/MapRouteTransferButton";
+import type { MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
 
 import { transferMapRouteToDraft } from "@/lib/mapRouteTransfer";
 import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
@@ -15,7 +16,7 @@ import { createPlanningIntent, PLANNING_INTENT_STORAGE_KEY, readPlanningIntent }
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
 
-const response: MapRouteResponse = {
+const response: MapGeneratedRouteResponse = {
   groundingProof: "payload.signature",
   operationKey: "operation-1",
   stops: [{ venueId: "venue-a", venueName: "Venue A", alternatives: [] }],
@@ -143,7 +144,7 @@ it("cancels a moved-Stop-1 transfer when session acceptance cannot be cleared, t
       acceptedArea: { kind: "night-patch", id: "soho" }, startsAt: null,
       expiresAt: new Date(now + 60 * 60 * 1000).toISOString() },
   }, "planning-intent", session, now).v2).toBe(true);
-  const anchoredResponse: MapRouteResponse = {
+  const anchoredResponse: MapGeneratedRouteResponse = {
     ...response, outcome: "route", anchored: true, anchorVenueId: "venue-a", anchorSource: "near",
     stops: [{ venueId: "venue-a", venueName: "Venue A", alternatives: [] },
       { venueId: "venue-b", venueName: "Venue B", alternatives: [] }],

@@ -23,8 +23,8 @@
 // lib/harvest/firecrawl.ts carries none: a plain-node CLI
 // (scripts/whatson/eventsRefresh.mjs) imports the events lane that sits on top
 // of it, and `server-only` resolves to a module that THROWS on import outside a
-// React Server Component. `lib/contextDev.server.ts` re-exports this surface
-// behind that marker for app code.
+// React Server Component. Nothing in app code imports it. If an app caller
+// appears, `__tests__/serverOnlyGuard.test.ts` is where to demand the door.
 //
 // Docs: https://docs.context.dev (append .md to any page for Markdown).
 

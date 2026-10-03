@@ -27,7 +27,8 @@ import {
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
+import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { areaPublicCheckIns, visibleCheckInsForViewer } from "@/lib/socialFeed";
 import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
@@ -150,6 +151,16 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
+    // A check-in hangs off its author's profile row. A signed-in author's row
+    // was created, owned, by the gate. An anonymous check-in may only use a row
+    // that already exists: minting one would leave it unowned, and an unowned
+    // row is frozen against the account that later claims the handle.
+    if (
+      !gateHasVerifiedActor(ownership) &&
+      !(await profileStore().getByHandle(ownership.handle))
+    ) {
+      return publicApiError("Profile not found.", "NOT_FOUND", 404);
+    }
     const checkIn = await checkInStore().create(validation.value);
     let wantedNote: string | undefined;
     let wantedFulfilled = 0;

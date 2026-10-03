@@ -8,8 +8,6 @@ import { transferMapRouteToDraft, type MapGeneratedRouteResponse, type Displayed
 
 import { releaseAcceptedPlanContext } from "@/lib/planComposerHandoff";
 
-export type { MapGeneratedRouteResponse as MapRouteResponse } from "@/lib/mapRouteTransfer";
-
 const PLAN_HREF = "/plan?src=mobile-route-preview";
 const PLAN_LABEL = "Open Plan to lock it in";
 

@@ -12,8 +12,20 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return { ...actual, callerUserId: async () => authState.userId };
+});
+
 import { GET, POST } from "@/app/api/notifications/route";
 import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificationsStore";
+import {
+  __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
+  __seedMemoryOwnedProfile,
+  __tombstoneMemoryProfile,
+} from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/notifications";
 const originalSocialLaunch = process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
@@ -32,7 +44,9 @@ function post(body: unknown): Promise<Response> {
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  authState.userId = null;
   __resetMemoryNotifications();
+  __resetMemoryProfiles();
 });
 
 afterEach(() => {
@@ -70,6 +84,8 @@ describe("GET /api/notifications", () => {
   });
 
   it("returns a handle's notifications newest-first with an unread count", async () => {
+    __seedMemoryOwnedProfile("ken", "user-ken");
+    authState.userId = "user-ken";
     await notificationsStore().emit({ recipientHandle: "ken", actorHandle: "ale", kind: "follow" });
     await notificationsStore().emit({
       recipientHandle: "ken",
@@ -83,6 +99,45 @@ describe("GET /api/notifications", () => {
     expect(body.notifications).toHaveLength(2);
     expect(body.unread).toBe(2);
   });
+
+  it("refuses a stranger the same way for an owned handle, an unowned handle and a tombstone", async () => {
+    __seedMemoryOwnedProfile("sam", "user-sam");
+    __seedMemoryLegacyProfile("quietfox");
+    __seedMemoryOwnedProfile("departed", "user-departed");
+    __tombstoneMemoryProfile("departed");
+    for (const handle of ["sam", "quietfox", "departed"]) {
+      await notificationsStore().emit({
+        recipientHandle: handle,
+        actorHandle: "ale",
+        kind: "follow",
+      });
+    }
+
+    async function refusal(handle: string): Promise<{ status: number; body: unknown }> {
+      authState.userId = "user-stranger";
+      const res = await get(`handle=${handle}`);
+      return { status: res.status, body: await res.json() };
+    }
+
+    const owned = await refusal("sam");
+    const unowned = await refusal("quietfox");
+    const tombstoned = await refusal("departed");
+
+    expect(owned.status).toBe(403);
+    expect(unowned).toEqual(owned);
+    expect(tombstoned).toEqual(owned);
+
+    async function markRefusal(handle: string): Promise<{ status: number; body: unknown }> {
+      authState.userId = "user-stranger";
+      const res = await post({ handle });
+      return { status: res.status, body: await res.json() };
+    }
+
+    const markedOwned = await markRefusal("sam");
+    expect(markedOwned.status).toBe(403);
+    expect(await markRefusal("quietfox")).toEqual(markedOwned);
+    expect(await markRefusal("departed")).toEqual(markedOwned);
+  });
 });
 
 describe("POST /api/notifications — mark read", () => {
@@ -92,6 +147,8 @@ describe("POST /api/notifications — mark read", () => {
   });
 
   it("marks all a handle's notifications read", async () => {
+    __seedMemoryOwnedProfile("ken", "user-ken");
+    authState.userId = "user-ken";
     await notificationsStore().emit({ recipientHandle: "ken", actorHandle: "ale", kind: "follow" });
     const res = await post({ handle: "ken" });
     expect(res.status).toBe(200);

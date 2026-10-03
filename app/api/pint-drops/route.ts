@@ -44,7 +44,6 @@ import {
 import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
-import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -59,21 +58,6 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 // time, so the route never comes up half-broken. No-op outside production, where
 // the in-memory store is the intended dev/demo backend.
 assertServerEnv();
-
-// A pint drop is also the moment a handle first "exists" socially, so we lazily
-// create its profile row (foundation for follows / saved lists / a public
-// /u/[handle]). Best-effort and non-blocking: a profile hiccup must never fail
-// an otherwise-good drop, so failures are logged, not thrown.
-async function ensureProfileForHandle(handle: string): Promise<void> {
-  try {
-    await profileStore().ensure(handle);
-  } catch (err) {
-    console.warn(
-      "[pint-drops] could not ensure profile for handle (drop still saved):",
-      err instanceof Error ? err.message : err,
-    );
-  }
-}
 
 // The friendly label a card shows when an id has no resolvable pub name — kept
 // in step with lib/feed.ts VENUE_FALLBACK_LABEL so server and client agree.
@@ -540,10 +524,6 @@ export async function POST(request: Request): Promise<Response> {
       dropPayload.priceGbp,
       dropPayload.authorityKey,
     );
-    // Fire-and-forget: the profile bootstrap must never delay or fail the drop
-    // response (an awaited Supabase upsert here blocks every submission and hangs
-    // unmocked tests). It never rejects — the inner try/catch swallows failures.
-    void ensureProfileForHandle(ownership.handle);
     if (ownership.callerUserId) {
       void qualifyCheapPintForAccountId(ownership.callerUserId);
     }

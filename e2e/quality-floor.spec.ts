@@ -29,19 +29,19 @@ const RAW_VENUE_ID = /venue-[a-z0-9]+/;
 // boundary (writes go through the service-role client, so RLS alone can't gate
 // them — see lib/profileOwnership.ts + migration 0009). The ownership DECISION
 // itself is pure and exhaustively unit-tested (lib/profileOwnership.ts via
-// __tests__/profileOwnership*.test.ts): an UNLINKED handle stays editable by
-// anyone (the demo/self-asserted-handle stance); a LINKED handle is editable
-// ONLY by its matching authenticated owner (a non-owner → 403).
+// __tests__/profileOwnership*.test.ts): an EXISTING unlinked handle stays
+// editable by anyone (the demo/self-asserted-handle stance); a LINKED handle is
+// editable ONLY by its matching authenticated owner (a non-owner → 403). An
+// anonymous write of a handle with no row stores nothing and answers 404.
 //
 // At the HTTP seam, headlessly, we can only ever synthesise a NON-owner caller
-// (no Authorization, or a garbage bearer). Whether that call is rejected (403)
-// or allowed (200) then depends on backend state we can't deterministically
-// fabricate here: on a store-backed env an UNLINKED target legitimately 200s
-// (demo path — that is correct, not a hole), while a LINKED target 403s; on a
-// store-less prod env every write 503s. Asserting a fixed status for an
-// arbitrary handle would therefore be coupling to environment state, not to the
-// contract. So these request-level tests pin the parts of the contract that hold
-// in EVERY backend and never depend on which handle is linked:
+// (no Authorization, or a garbage bearer). Whether that call is 404 (no row),
+// 200 (an existing unlinked row) or 403 (linked, not the owner) depends on
+// backend state we can't deterministically fabricate here; on a store-less
+// prod env every write 503s. Asserting a fixed status for an arbitrary handle
+// would therefore be coupling to environment state, not to the contract. So
+// these request-level tests pin the parts of the contract that hold in EVERY
+// backend and never depend on which handle is linked:
 //
 //   • The trust boundary runs FIRST: a malformed body is a clean 400, and a
 //     missing handle is rejected up front — before any ownership/store branch.
@@ -56,16 +56,16 @@ const RAW_VENUE_ID = /venue-[a-z0-9]+/;
 // trust boundary or by ownership before mutating anything real.
 
 // Documented statuses the profile write seam can return for a non-owner caller
-// with a well-formed body: 200 (demo/unlinked, store present), 403 (linked,
-// not-owner), 401 (rejected auth), 429 (rate-limited), 503 (no store in prod).
-// Anything OUTSIDE this set — a 500, a 302, a 404-on-a-real-handle — is a bug.
-const DOCUMENTED_WRITE_STATUSES = new Set([200, 401, 403, 429, 503]);
+// with a well-formed body: 200 (an existing unlinked row, store present),
+// 404 (no row — an anonymous write must not mint one), 403 (linked, not-owner),
+// 401 (rejected auth), 429 (rate-limited), 503 (no store in prod).
+// Anything OUTSIDE this set — a 500, a 302 — is a bug.
+const DOCUMENTED_WRITE_STATUSES = new Set([200, 401, 403, 404, 429, 503]);
 
 test.describe("profile edit seam — request-level trust boundary (story 31)", () => {
-  // We only ever attempt writes as a NON-owner (no session). A same-named real
-  // account is never mutated: an unlinked handle is the demo path (a throwaway
-  // field patch), a linked one rejects us. We use a nonce handle so we never
-  // even collide with a meaningful profile.
+  // We only ever attempt writes as a NON-owner (no session). A nonce handle
+  // has no row, so the store-backed answer is 404 and nothing is written. A
+  // linked handle rejects us. We never collide with a meaningful profile.
   const TARGET = `e2e-nonowner-${Date.now().toString(36)}`;
 
   test("a malformed body is a clean 400, never a 500 (trust boundary runs first)", async ({

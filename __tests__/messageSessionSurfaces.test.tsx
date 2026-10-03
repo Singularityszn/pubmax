@@ -113,7 +113,7 @@ function signedOut(): void {
 
 function signedIn(
   userId = "user-1",
-  handle = "alice",
+  handle: string | null = "alice",
   accountRevision = 1,
 ): void {
   authState.current = { user: { id: userId }, handle, accountRevision };
@@ -449,6 +449,30 @@ describe("message sign-in doors", () => {
     );
     expect(host.querySelector('button[aria-label="New message"]')).not.toBeNull();
     expect(host.textContent).not.toContain("Nobody in here yet.");
+  });
+
+  it("tells an account its device handle is not linked instead of offering a retry", async () => {
+    signedIn("user-no-handle", null, 1);
+    window.localStorage.setItem("pubmax_handle", "demo_drinker");
+    fetchState.response = () =>
+      Response.json({ error: "That handle belongs to another account." }, { status: 403 });
+
+    try {
+      await render(createElement(MessagesInboxClient));
+
+      expect(host.textContent).toContain("@demo_drinker isn’t linked to your account.");
+      expect(host.querySelector('a[href="/u/you#account-settings"]')?.textContent).toBe(
+        "Claim a handle",
+      );
+      expect(host.textContent).not.toContain("Couldn’t load your conversations.");
+      expect(host.querySelector(".threadRetryBtn")).toBeNull();
+      expect(host.querySelector('[role="alert"]')).toBeNull();
+      expect(host.querySelector<HTMLButtonElement>('button[aria-label="New message"]')?.disabled).toBe(true);
+      expect(inboxEvents.poll).toBeNull();
+      expect(fetchState.calls).toBe(1);
+    } finally {
+      window.localStorage.removeItem("pubmax_handle");
+    }
   });
 
   it("hides account A thread content while account B is still loading", async () => {

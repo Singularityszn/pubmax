@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 
-// A withdrawn account (banned in auth, or its Social account suspended) is
-// "Profile not found" to the public: /api/profiles/<handle> answers 404. The
-// page used to read that 404 as a failed read, fall through to the visitor
-// branch, and paint an empty account shell with "Sign in to follow" and "Sign
-// in to message" under a handle nobody may follow. It now reads the same as a
-// handle nobody owns.
+// A withdrawn account (banned in auth, or its Social account suspended) gets
+// the same /api/profiles/<handle> answer as a handle nobody owns, so the page
+// renders the same shell for both and never says the account existed.
 
 import { act, createElement, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -91,9 +88,6 @@ const LIVE_PROFILE = {
 };
 
 function profileAnswer(handle: string): Response {
-  if (handle === "karansdad") {
-    return json({ error: { code: "NOT_FOUND", message: "Profile not found." } }, 404);
-  }
   return json({
     profile: handle === "alice_pints" ? LIVE_PROFILE : null,
     projection: "full",
@@ -175,11 +169,11 @@ describe("a withdrawn account's public profile page", () => {
     expect(empty).toContain("Claim this handle");
   });
 
-  it("calls notFound for a withdrawn or policy-blocked handle", async () => {
+  it("calls notFound for a policy-blocked handle", async () => {
     await expect(visit("karansdad")).rejects.toThrow("notFound");
   });
 
-  it("gives a signed-in reader notFound on a withdrawn handle", async () => {
+  it("gives a signed-in reader notFound on a policy-blocked handle", async () => {
     session.user = { id: "viewer-1" };
     session.handle = "bob_bitter";
 

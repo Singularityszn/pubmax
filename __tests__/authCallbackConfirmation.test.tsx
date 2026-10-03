@@ -133,7 +133,7 @@ beforeEach(() => {
   harness.releaseCoordination.mockReset();
   harness.socialProviderLoads.mockReset();
   harness.getUser.mockResolvedValue({
-    data: { user: { id: "account-a", email: "person@example.com" } },
+    data: { user: { id: "account-a", email: "person@example.com", email_confirmed_at: "2026-01-01T00:00:00.000Z" } },
     error: null,
   });
   harness.setSession.mockResolvedValue({
@@ -141,7 +141,7 @@ beforeEach(() => {
       session: {
         access_token: "synthetic-access",
         refresh_token: "synthetic-refresh",
-        user: { id: "account-a", email: "person@example.com" },
+        user: { id: "account-a", email: "person@example.com", email_confirmed_at: "2026-01-01T00:00:00.000Z" },
       },
     },
     error: null,
@@ -712,6 +712,32 @@ describe("unowned auth callback confirmation", () => {
     await act(async () => continueButton?.click());
     await vi.waitFor(() => expect(harness.setSession).toHaveBeenCalledOnce());
     expect(container?.textContent).toContain("Signed in as person@example.com.");
+  });
+
+  it("asks to sign in to this account when the email is unverified", async () => {
+    harness.getUser.mockResolvedValue({
+      data: { user: { id: "account-a", email: "victim@example.com" } },
+      error: null,
+    });
+    harness.setSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "synthetic-access",
+          refresh_token: "synthetic-refresh",
+          user: { id: "account-a", email: "victim@example.com" },
+        },
+      },
+      error: null,
+    });
+    await mount();
+    await vi.waitFor(() => expect(container?.textContent).toContain("Sign in to this account?"));
+    expect(container?.textContent).not.toContain("victim@example.com");
+    expect(container?.textContent).not.toContain("account-a?");
+    const continueButton = [...container!.querySelectorAll("button")].find((button) => button.textContent === "Continue");
+    await act(async () => continueButton?.click());
+    await vi.waitFor(() => expect(harness.setSession).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(container?.textContent).toContain("Signed in."));
+    expect(container?.textContent).not.toContain("victim@example.com");
   });
 
   it("leaves an invalid unowned callback unsigned-in", async () => {

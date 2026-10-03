@@ -133,7 +133,7 @@ no side effect, as above.
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle | writes to their OWN list, never the named one ||||| allowed |
-| `saved_pubs` at the table | denied | owner rows only, a stranger's write matches nothing ||||| own rows |
+| `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
 | A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
 
 ## Findings from the first run
@@ -172,7 +172,11 @@ no side effect, as above.
    they act on their OWN list. Only a caller with no linked profile falls back
    to the asserted handle, and an anonymous caller asserting a CLAIMED handle is
    403. The cells assert both halves, because "refused" would have been the
-   wrong claim and "allowed" alone would have hidden which list moved.
+   wrong claim and "allowed" alone would have hidden which list moved. A
+   messages or notifications read refuses that fallback unless the caller's
+   account owns the handle (`requireAccountOwner` in
+   `lib/profileOwnership.ts`), so an unowned or deleted account's handle is
+   nobody's inbox.
 3. **`conversations` and `messages` are no longer deny-all.** Migration 0019
    created them RLS-on with no policy and says so in its own comment; 0066 then
    granted SELECT to `authenticated` behind two participant policies. The cell
@@ -180,8 +184,11 @@ no side effect, as above.
    reads nothing, and SELECT is the whole grant, so the route stays the only way
    a message is written. The 0019 comment is now the older half of the story.
 4. **An owner policy filters a statement, it does not error it.** A stranger's
-   `update` on somebody's saves succeeds against zero rows. A table cell must
+   `update` on somebody's saves succeeded against zero rows. A table cell must
    therefore assert that nothing MOVED rather than that the statement failed.
+   Since `0172` no browser role holds a write grant on `saved_pubs`, so the
+   same `update` is refused at the grant, for the owner too, and the cell
+   asserts the refusal as well as that nothing moved.
 
 ## The private profile card (migration 0154)
 
