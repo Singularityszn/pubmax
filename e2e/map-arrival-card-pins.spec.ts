@@ -63,7 +63,7 @@ test.describe("the first-visit card and the pin field", () => {
       })
       .toBeGreaterThan(0);
 
-    // And the card is not sitting on the pin field: it is a strip at the top.
+    // And the card leaves the upper map clear: it is one row docked low.
     // `boundingBox()` answers x/y/width/height and NOTHING else: reading `.top`
     // off it gave undefined, `undefined + height` gave NaN, and every
     // comparison against NaN is false, so this pair of assertions passed on a
@@ -71,7 +71,7 @@ test.describe("the first-visit card and the pin field", () => {
     const box = await card.boundingBox();
     expect(box).not.toBeNull();
     const cardBottom = box!.y + box!.height;
-    expect(cardBottom).toBeLessThan(PHONE.height / 2);
+    expect(box!.y).toBeGreaterThan(PHONE.height / 2);
 
     // No reported mark is UNDER the strip. Not "every mark is below it": the
     // probe reported a pin at y 5.5, in the band above the phone's own top bar,

@@ -70,9 +70,9 @@
 
   /* The map's first-visit ask is NOT a member of this stack. It was, as a
      256px panel at the foot of the phone, and every member above it read a
-     published berth to step clear. It is a strip under the top bar now
-     (components/map/mapArrivalCard.css), so it takes no band down here and
-     nothing steps around it.
+     published berth to step clear. It is a one-row pill now
+     (components/map/mapArrivalCard.css) that parks on the map-edge column's
+     published top edge, so it reads this stack and nothing steps around it.
 
   /* Member: the create action itself. It publishes its geometry here like every
      member below it, because the BODY has to reserve its lane: the bottom

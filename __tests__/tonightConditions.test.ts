@@ -169,6 +169,7 @@ describe("summariseTonightConditions", () => {
       stale: false,
       checkedLabel: "Checked 15 minutes ago",
       drinkLine: "Beer garden weather. Lager or cider.",
+      drinkRuleId: "summer-garden",
       drinkSuggestion: "a cold lager or cider",
       venueClaim: "4 gardens near you with a pint under 6 quid",
     });
@@ -199,7 +200,7 @@ describe("summariseTonightConditions", () => {
     expect(summary.factsLine).toMatch(/^15°C feels like, drizzle, 45% chance of rain, /);
   });
 
-  it("names the evening when Tonight is open on a morning clock", () => {
+  it("names the clock's part of the day, for every surface that reads it", () => {
     const morning = new Date("2026-10-03T08:30:00.000Z");
     const weather = { tempC: 11, precipitationProbabilityPct: 0 };
     const facts = observationFacts({
@@ -220,6 +221,7 @@ describe("summariseTonightConditions", () => {
       now: morning,
       tally: null,
     });
-    expect(summary.drinkLine).toBe("Crisp autumn evening. Amber ale weather.");
+    expect(summary.drinkLine).toBe("Crisp autumn morning. Amber ale weather.");
+    expect(summary.drinkRuleId).toBe("crisp-autumn");
   });
 });

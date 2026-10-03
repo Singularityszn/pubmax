@@ -1,33 +1,25 @@
-/* The first-visit strip. It asks from the TOP, under the phone's own one bar,
-   because the panel it replaced sat at the foot of the screen over the pins the
-   map exists to show (docs/proof/astra-live-walk/report.md B1, measured at
-   390x844: y 533 to 768). Nothing here berths any other floating member, and
-   nothing steps around it: the strip's whole lane is above the map's content.
-
-   The height is capped rather than left to the copy, so the pin field below it
-   is a fact rather than a hope. Two short lines and a 44px action row fit
-   inside it at 320px. */
+/* The first-visit ask. On a phone it is ONE ROW, a pill docked low over the
+   map-edge column: the question, "Use my location" and the close. As a strip
+   under the top bar it still covered the upper map on first open (y 120 to
+   228 at 390x844), and as a panel at the foot it sat on the pins
+   (docs/proof/astra-live-walk/report.md B1). It reads the floating stack's
+   published top edge (components/nav/mobileNav.css), so it parks one gap
+   above Near me, whichever berth that column is on, and nothing steps around
+   it. "Choose an area" is the city switcher's own path on a phone. */
 .mapArrivalCard {
-  --map-arrival-strip-max-h: 104px;
   position: fixed;
   z-index: calc(var(--z-tabbar, 30) + 2);
-  /* The phone chrome MEASURES itself, because its rows come and go (a query
-     chip, a search row) and the published token is the resting stack. Anchored
-     to the token alone the strip landed at y 120 with the chip row's own
-     bottom at 215, so "Pints" read through it. */
-  top: calc(
-    var(--mobile-map-chrome-measured-h, var(--mobile-map-chrome-full-h, 118px)) + 8px
-  );
+  bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
   right: max(12px, env(safe-area-inset-right));
   left: max(12px, env(safe-area-inset-left));
   display: grid;
-  max-height: var(--map-arrival-strip-max-h);
-  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 52px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 4px 8px;
-  padding: 6px 40px 6px 10px;
+  gap: 6px;
+  padding: 3px 3px 3px 14px;
   border: 1px solid var(--hairline, var(--line));
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
   color: var(--ink);
   box-shadow: var(--shadow-sm);
@@ -45,13 +37,12 @@
 .mapArrivalCardSay {
   display: grid;
   gap: 2px;
-  grid-column: 1 / -1;
   min-width: 0;
 }
 
 .mapArrivalCardTitle {
   margin: 0;
-  font-size: 0.98rem;
+  font-size: 0.86rem;
   line-height: 1.2;
 }
 
@@ -64,7 +55,6 @@
 
 .mapArrivalCardActions {
   display: flex;
-  grid-column: 1 / -1;
   gap: 8px;
 }
 
@@ -72,39 +62,14 @@
    (components/ui/button.css), so this sheet only lays them out. They wore
    --radius-sm at weight 600 beside every other control's 14px at 700 (site
    audit 13 Sep 2026, D7), and before that an --ink primary, the only black
-   one on the site (report.md B1). */
-/* Each label on ONE line. At the family's 16px padding the pair needs 307px
-   side by side ("Use my location" 163, "Choose an area" 136, and the gap),
-   and in two equal halves both wrapped to two or three lines at 390px. So the
-   row reaches into the close button's lane (the close sits in the strip's top
-   corner, above this row), each button takes its label's width, and under
-   360px the locate glyph and 4px a side give way. */
-.mapArrivalCardActions {
-  margin-inline-end: -32px;
-}
-
+   one on the site (report.md B1). Each label stays on one line. */
 .mapArrivalCardActions button {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
-@media (max-width: 359px) {
-  .mapArrivalCardActions button {
-    padding-inline: var(--space-3, 12px);
-  }
-
-  .mapArrivalCardActions button svg {
-    display: none;
-  }
-}
-
-/* The close sits in the strip's own top-right padding lane, so it never takes
-   a column from the copy. It keeps the 44px target with a negative margin
-   rather than a 44px box that would set the strip's height. */
+/* The close keeps the 44px target, as the pill's last column. */
 .mapArrivalCardClose {
-  position: absolute;
-  top: 2px;
-  right: 2px;
   display: inline-flex;
   width: 44px;
   height: 44px;
@@ -116,11 +81,36 @@
   color: var(--muted);
 }
 
+@media (max-width: 640px) {
+  /* The location sentence stays the card's description, read with it,
+     because it is the visible half of a pair with the iOS purpose string
+     (docs/proof/mobile-app-design/STORE_READINESS.md); the pill has no
+     second line to print it on. */
+  .mapArrivalCardLead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mapArrivalCardChooseArea,
+  .mapArrivalCardActions button svg {
+    display: none;
+  }
+
+  .mapArrivalCardActions button {
+    padding-inline: var(--space-3, 12px);
+  }
+}
+
 /* From 641px up the map has a toolbar rather than one bar, and the strip docks
    under it as a single row: the copy on the left, the two actions on the right.
    The desktop map's own bottom-right lane (the ODbL credit, the Layers
    control) is untouched by it, which is why the berths this file used to
-   publish for them are gone. */
+   publish for them are gone. The height is capped, so the pin field below it
+   is a fact rather than a hope. */
 @media (min-width: 641px) {
   .mapArrivalCard {
     --map-arrival-strip-max-h: 76px;
@@ -136,24 +126,27 @@
       12px
     );
     right: auto;
+    bottom: auto;
     left: 50%;
     width: min(680px, calc(100vw - 40px));
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    min-height: 0;
+    max-height: var(--map-arrival-strip-max-h);
+    gap: 6px 10px;
+    padding: 10px 44px 10px 12px;
+    border-radius: var(--radius-md);
     transform: translateX(-50%);
   }
 
-  .mapArrivalCardSay {
-    grid-column: 1;
+  .mapArrivalCardTitle {
+    font-size: 0.98rem;
   }
 
-  .mapArrivalCardActions {
-    grid-column: 2;
-    flex: 0 0 auto;
-    margin-inline-end: 0;
-  }
-
-  .mapArrivalCardActions button {
-    flex: 0 0 auto;
+  /* The close sits in the strip's own top-right padding lane, so it never
+     takes a column from the copy. */
+  .mapArrivalCardClose {
+    position: absolute;
+    top: 2px;
+    right: 2px;
   }
 }
 
@@ -166,7 +159,7 @@
 @keyframes map-arrival-card-arrive {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
