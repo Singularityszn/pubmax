@@ -211,6 +211,19 @@ function selectedDrinkEvidenceKeys(hint: Record<string, unknown>): string[] {
     : ["category", "pence", "serving", "source", "reportedAt"];
 }
 
+function parseIntentDrinkEvidence(hint: unknown, now: number): SelectedDrinkPriceEvidence | null | undefined {
+  if (hint === undefined) return null;
+  if (!isPlainRecord(hint)) return undefined;
+  const keys = selectedDrinkEvidenceKeys(hint);
+  if (!hasExactKeys(hint, keys)) return undefined;
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(hint);
+  if (!selectedDrinkPriceEvidence) return undefined;
+  const observed = selectedDrinkPriceEvidence.source === "listed"
+    ? selectedDrinkPriceEvidence.observedAt : selectedDrinkPriceEvidence.reportedAt;
+  if (Date.parse(observed) > now + PLANNING_INTENT_MAX_FUTURE_SKEW_MS) return undefined;
+  return selectedDrinkPriceEvidence;
+}
+
 /**
  * Parse one strict PlanningIntent envelope. The function is pure: callers that
  * own storage decide whether a rejected value should be removed.
@@ -243,18 +256,8 @@ export function parsePlanningIntent(
     !VENUE_ID_PATTERN.test(value.acceptedVenueId)
   ) return null;
 
-  let selectedDrinkPriceEvidence: SelectedDrinkPriceEvidence | null = null;
-  if (value.selectedDrinkPriceEvidence !== undefined) {
-    const hint = value.selectedDrinkPriceEvidence;
-    if (!isPlainRecord(hint)) return null;
-    const keys = selectedDrinkEvidenceKeys(hint);
-    if (!hasExactKeys(hint, keys)) return null;
-    selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(hint);
-    if (!selectedDrinkPriceEvidence) return null;
-    const observed = selectedDrinkPriceEvidence.source === "listed"
-      ? selectedDrinkPriceEvidence.observedAt : selectedDrinkPriceEvidence.reportedAt;
-    if (Date.parse(observed) > now + PLANNING_INTENT_MAX_FUTURE_SKEW_MS) return null;
-  }
+  const selectedDrinkPriceEvidence = parseIntentDrinkEvidence(value.selectedDrinkPriceEvidence, now);
+  if (selectedDrinkPriceEvidence === undefined) return null;
   const acceptedArea = parseArea(value.acceptedArea);
   if (acceptedArea === undefined) return null;
 

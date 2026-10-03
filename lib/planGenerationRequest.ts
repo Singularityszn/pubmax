@@ -174,68 +174,73 @@ function isNullableIntegerInRange(value: unknown, min: number, max: number): val
   return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max);
 }
 
+function assignContextField(result: Partial<NightContext>, key: keyof NightContext, item: unknown): boolean {
+  switch (key) {
+    case "nightArea":
+      if (item !== null && !isNightAreaSlug(item)) return false;
+      result.nightArea = item as NightContext["nightArea"];
+      break;
+    case "daypart":
+      if (!isDaypart(item)) return false;
+      result.daypart = item;
+      break;
+    case "partyType":
+      if (!isPartyType(item)) return false;
+      result.partyType = item;
+      break;
+    case "groupSize":
+      if (!isNullableIntegerInRange(item, 1, 30)) return false;
+      result.groupSize = item;
+      break;
+    case "stopCount":
+      if (!isPlanStopCount(item)) return false;
+      result.stopCount = item;
+      break;
+    case "budget":
+      if (!isBudget(item)) return false;
+      result.budget = item;
+      break;
+    case "budgetLimitPence":
+      if (!isNullableIntegerInRange(item, 500, 50_000)) return false;
+      result.budgetLimitPence = item;
+      break;
+    case "zeroProof":
+      if (typeof item !== "boolean") return false;
+      result.zeroProof = item;
+      break;
+    case "drinkCategory":
+      if (item !== null && !isDrinkCategory(item)) return false;
+      result.drinkCategory = item as NightContext["drinkCategory"];
+      break;
+    case "drinkSubtype":
+    case "drinkServing":
+      if (item !== null && typeof item !== "string") return false;
+      result[key] = item;
+      break;
+    case "wetherspoonsPreferred":
+      if (typeof item !== "boolean") return false;
+      result.wetherspoonsPreferred = item;
+      break;
+    case "atmosphere":
+    case "foodNeeds":
+    case "accessibility":
+    case "transportConstraints": {
+      const list = strictList(item);
+      if (!list) return false;
+      result[key] = list;
+      break;
+    }
+  }
+  return true;
+}
+
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;
   const result: Partial<NightContext> = {};
   for (const key of Object.keys(value) as (keyof NightContext)[]) {
     const item = value[key];
-    switch (key) {
-      case "nightArea":
-        if (item !== null && !isNightAreaSlug(item)) return undefined;
-        result.nightArea = item as NightContext["nightArea"];
-        break;
-      case "daypart":
-        if (!isDaypart(item)) return undefined;
-        result.daypart = item;
-        break;
-      case "partyType":
-        if (!isPartyType(item)) return undefined;
-        result.partyType = item;
-        break;
-      case "groupSize":
-        if (!isNullableIntegerInRange(item, 1, 30)) return undefined;
-        result.groupSize = item;
-        break;
-      case "stopCount":
-        if (!isPlanStopCount(item)) return undefined;
-        result.stopCount = item;
-        break;
-      case "budget":
-        if (!isBudget(item)) return undefined;
-        result.budget = item;
-        break;
-      case "budgetLimitPence":
-        if (!isNullableIntegerInRange(item, 500, 50_000)) return undefined;
-        result.budgetLimitPence = item;
-        break;
-      case "zeroProof":
-        if (typeof item !== "boolean") return undefined;
-        result.zeroProof = item;
-        break;
-      case "drinkCategory":
-        if (item !== null && !isDrinkCategory(item)) return undefined;
-        result.drinkCategory = item as NightContext["drinkCategory"];
-        break;
-      case "drinkSubtype":
-      case "drinkServing":
-        if (item !== null && typeof item !== "string") return undefined;
-        result[key] = item;
-        break;
-      case "wetherspoonsPreferred":
-        if (typeof item !== "boolean") return undefined;
-        result.wetherspoonsPreferred = item;
-        break;
-      case "atmosphere":
-      case "foodNeeds":
-      case "accessibility":
-      case "transportConstraints": {
-        const list = strictList(item);
-        if (!list) return undefined;
-        result[key] = list;
-        break;
-      }
-    }
+    if (!assignContextField(result, key, item)) return undefined;
   }
   if (Object.hasOwn(result, "drinkSubtype") || Object.hasOwn(result, "drinkServing")) {
     if (result.zeroProof && (result.drinkSubtype || result.drinkServing)) return undefined;

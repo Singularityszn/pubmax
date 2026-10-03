@@ -124,6 +124,17 @@ export function mergeNightContext(current: Partial<NightContext>, patch: Partial
   return merged;
 }
 
+function inferDrinkContext(query: string, lower: string, reasons: ContextReason[]): Pick<NightContext, "zeroProof" | "drinkCategory" | "drinkSubtype"> {
+  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
+  const drinkRequest = zeroProof ? null : planRequestedDrink(query);
+  const drinkCategory = drinkRequest?.category ?? null;
+  // This handoff adds Cider continuity; other existing typed lanes keep their category shape.
+  const drinkSubtype = drinkRequest?.subtype === "beer-cider" ? drinkRequest.subtype : null;
+  if (drinkCategory) reasons.push({ field: "drinkCategory", evidence: drinkCategory, explanation: "Matched the requested drink category." });
+  if (drinkSubtype) reasons.push({ field: "drinkSubtype", evidence: drinkSubtype, explanation: "Matched the requested drink subtype." });
+  return { zeroProof, drinkCategory, ...(drinkSubtype ? { drinkSubtype } : {}) };
+}
+
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
   const query = cleanText(rawQuery, 500);
   const lower = query.toLocaleLowerCase();
@@ -191,13 +202,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
-  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
-  const drinkRequest = zeroProof ? null : planRequestedDrink(query);
-  const drinkCategory = drinkRequest?.category ?? null;
-  // This handoff adds Cider continuity; other existing typed lanes keep their category shape.
-  const drinkSubtype = drinkRequest?.subtype === "beer-cider" ? drinkRequest.subtype : null;
-  if (drinkCategory) reasons.push({ field: "drinkCategory", evidence: drinkCategory, explanation: "Matched the requested drink category." });
-  if (drinkSubtype) reasons.push({ field: "drinkSubtype", evidence: drinkSubtype, explanation: "Matched the requested drink subtype." });
+  const drinkContext = inferDrinkContext(query, lower, reasons);
   const wetherspoonsPreferred = spoonsMentioned;
   if (wetherspoonsPreferred) {
     reasons.push({
@@ -216,9 +221,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
       stopCount,
       budget,
       budgetLimitPence,
-      zeroProof,
-      drinkCategory,
-      ...(drinkSubtype ? { drinkSubtype } : {}),
+      ...drinkContext,
       wetherspoonsPreferred,
       atmosphere,
       foodNeeds,

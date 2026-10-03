@@ -107,6 +107,47 @@ function canonicalTimestamp(value: unknown): { value: string; time: number } | n
   return { value, time };
 }
 
+function parseAcceptedDraftArea(area: unknown): PlanningIntentArea | undefined {
+  return area === null
+    ? null
+    : isRecord(area)
+      && ((hasExactKeys(area, ["kind", "id"]) && area.kind === "night-patch" && typeof area.id === "string" && NIGHT_PATCHES.some((patch) => patch.id === area.id))
+        || (hasExactKeys(area, ["kind", "name"]) && area.kind === "borough" && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name)))
+        ? area as PlanningIntentArea
+        : undefined;
+}
+
+function parseAcceptedDraftAnchor(anchor: unknown): StoredPlanDraft["acceptedAnchor"] | null {
+  if (anchor === undefined) return undefined;
+  if (!isRecord(anchor)) return null;
+  if (hasExactKeys(anchor, LEGACY_ACCEPTED_ANCHOR_KEYS)) return undefined;
+  if (!hasExactKeys(anchor, [...ACCEPTED_ANCHOR_KEYS,
+    ...(Object.hasOwn(anchor, "drinkRequest") ? ["drinkRequest"] : []),
+    ...(Object.hasOwn(anchor, "selectedDrinkPriceEvidence") ? ["selectedDrinkPriceEvidence"] : []),
+  ])) return null;
+  const drinkRequest = cleanPublicDrinkRequest(anchor.drinkRequest);
+  if (Object.hasOwn(anchor, "drinkRequest") && !drinkRequest) return null;
+  const venueId = boundedText(anchor.venueId, 200);
+  const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
+    ? anchor.source as PlanningIntentSource
+    : null;
+  const cityId = anchor.cityId === null
+    ? null
+    : typeof anchor.cityId === "string" && Object.hasOwn(CITIES, anchor.cityId)
+      ? anchor.cityId as CityId
+      : undefined;
+  const startsAt = anchor.startsAt === null ? null : canonicalTimestamp(anchor.startsAt)?.value;
+  const expiresAt = canonicalTimestamp(anchor.expiresAt)?.value;
+  const acceptedArea = parseAcceptedDraftArea(anchor.acceptedArea);
+  if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(anchor.selectedDrinkPriceEvidence);
+  if (anchor.selectedDrinkPriceEvidence !== undefined && !selectedDrinkPriceEvidence) return null;
+  return { venueId, source, cityId, acceptedArea, startsAt, expiresAt,
+    ...(drinkRequest ? { drinkRequest } : {}),
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+  };
+}
+
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
   if (
     !isRecord(value)
@@ -130,52 +171,8 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     return { key: index + 1, venueId, venueName };
   });
   if (stops.some((stop) => stop === null)) return null;
-  let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
-  if (value.acceptedAnchor !== undefined) {
-    const anchor = value.acceptedAnchor;
-    if (!isRecord(anchor)) return null;
-    if (hasExactKeys(anchor, LEGACY_ACCEPTED_ANCHOR_KEYS)) {
-      return {
-        title,
-        creatorName,
-        startTime,
-        conciergeQuery,
-        stops: stops as StoredPlanDraft["stops"],
-      };
-    }
-    if (!hasExactKeys(anchor, [...ACCEPTED_ANCHOR_KEYS,
-      ...(Object.hasOwn(anchor, "drinkRequest") ? ["drinkRequest"] : []),
-      ...(Object.hasOwn(anchor, "selectedDrinkPriceEvidence") ? ["selectedDrinkPriceEvidence"] : []),
-    ])) return null;
-    const drinkRequest = cleanPublicDrinkRequest(anchor.drinkRequest);
-    if (Object.hasOwn(anchor, "drinkRequest") && !drinkRequest) return null;
-    const venueId = boundedText(anchor.venueId, 200);
-    const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
-      ? anchor.source as PlanningIntentSource
-      : null;
-    const cityId = anchor.cityId === null
-      ? null
-      : typeof anchor.cityId === "string" && Object.hasOwn(CITIES, anchor.cityId)
-        ? anchor.cityId as CityId
-        : undefined;
-    const startsAt = anchor.startsAt === null ? null : canonicalTimestamp(anchor.startsAt)?.value;
-    const expiresAt = canonicalTimestamp(anchor.expiresAt)?.value;
-    const area = anchor.acceptedArea;
-    const acceptedArea = area === null
-      ? null
-      : isRecord(area)
-        && ((hasExactKeys(area, ["kind", "id"]) && area.kind === "night-patch" && typeof area.id === "string" && NIGHT_PATCHES.some((patch) => patch.id === area.id))
-          || (hasExactKeys(area, ["kind", "name"]) && area.kind === "borough" && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name)))
-          ? area as PlanningIntentArea
-          : undefined;
-    if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
-    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(anchor.selectedDrinkPriceEvidence);
-    if (anchor.selectedDrinkPriceEvidence !== undefined && !selectedDrinkPriceEvidence) return null;
-    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt,
-      ...(drinkRequest ? { drinkRequest } : {}),
-      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
-    };
-  }
+  const acceptedAnchor = parseAcceptedDraftAnchor(value.acceptedAnchor);
+  if (acceptedAnchor === null) return null;
   return {
     title,
     creatorName,

@@ -126,11 +126,12 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
   });
 
   const acceptedVenueId = result.acceptedVenueId.value;
+  const acceptedIntent = result.acceptedVenueId.source === "planning-intent" ? input.planningIntent : null;
   const draftAnchor = input.planDraft?.draft.acceptedAnchor?.venueId === acceptedVenueId
     ? input.planDraft.draft.acceptedAnchor
     : null;
   const acceptedSource = draftAnchor?.source ?? (result.acceptedVenueId.source === "planning-intent"
-    ? input.planningIntent?.source ?? null
+    ? acceptedIntent?.source ?? null
     : result.acceptedVenueId.source === "route-v2" || result.acceptedVenueId.source === "route-legacy"
       ? result.routePreview?.value.anchorSource ?? null
       : null);
@@ -138,21 +139,21 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     ? draftAnchor ?? {
         venueId: acceptedVenueId,
         source: acceptedSource,
-        cityId: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.cityId
+        cityId: acceptedIntent
+          ? acceptedIntent.cityId
           : null,
-        acceptedArea: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.acceptedArea
+        acceptedArea: acceptedIntent
+          ? acceptedIntent.acceptedArea
           : result.area.value,
-        startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.startsAt
+        startsAt: acceptedIntent
+          ? acceptedIntent.startsAt
           : result.startsAt.value,
-        ...(result.acceptedVenueId.source === "planning-intent" && input.planningIntent?.drinkRequest
-          ? { drinkRequest: input.planningIntent.drinkRequest } : {}),
-        ...(result.acceptedVenueId.source === "planning-intent" && input.planningIntent?.selectedDrinkPriceEvidence
-          ? { selectedDrinkPriceEvidence: input.planningIntent.selectedDrinkPriceEvidence } : {}),
-        expiresAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.expiresAt
+        ...(acceptedIntent?.drinkRequest
+          ? { drinkRequest: acceptedIntent.drinkRequest } : {}),
+        ...(acceptedIntent?.selectedDrinkPriceEvidence
+          ? { selectedDrinkPriceEvidence: acceptedIntent.selectedDrinkPriceEvidence } : {}),
+        expiresAt: acceptedIntent
+          ? acceptedIntent.expiresAt
           : null,
       }
     : null;

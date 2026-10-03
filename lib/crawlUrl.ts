@@ -116,6 +116,20 @@ function parseNum(raw: string | null, min: number, max: number): number | undefi
   return Number.isFinite(n) ? clamp(n, min, max) : undefined;
 }
 
+function encodeRouteDrinkIntent(params: URLSearchParams, intent: RouteDrinkIntent | null | undefined): void {
+  if (intent?.zeroProof === true) params.set("routeLow", "1");
+  else if (intent) {
+    const request = cleanPublicDrinkRequest({ drinkCategory: intent.drinkCategory,
+      drinkSubtype: intent.drinkSubtype, drinkServing: intent.drinkServing });
+    if (request && isMapLensDrinkCategory(request.drinkCategory)
+      && (request.drinkCategory !== "beer" || request.drinkSubtype === "beer-cider")) {
+      params.set("routeDrink", request.drinkCategory);
+      if (request.drinkSubtype) params.set("routeSub", request.drinkSubtype);
+      if (request.drinkServing) params.set("routeServing", request.drinkServing);
+    }
+  }
+}
+
 export function encodeCrawl(state: CrawlUrlState): string {
   const { mode, filters, builtIds, selectedVenueId } = state;
   const params = new URLSearchParams();
@@ -166,18 +180,7 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (zone !== null && zone !== "all") params.set("zone", String(zone));
   if (builtIds.length) {
     params.set("pubs", builtIds.join(","));
-    const intent = state.routeDrinkIntent;
-    if (intent?.zeroProof === true) params.set("routeLow", "1");
-    else if (intent) {
-      const request = cleanPublicDrinkRequest({ drinkCategory: intent.drinkCategory,
-        drinkSubtype: intent.drinkSubtype, drinkServing: intent.drinkServing });
-      if (request && isMapLensDrinkCategory(request.drinkCategory)
-        && (request.drinkCategory !== "beer" || request.drinkSubtype === "beer-cider")) {
-        params.set("routeDrink", request.drinkCategory);
-        if (request.drinkSubtype) params.set("routeSub", request.drinkSubtype);
-        if (request.drinkServing) params.set("routeServing", request.drinkServing);
-      }
-    }
+    encodeRouteDrinkIntent(params, state.routeDrinkIntent);
   }
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
