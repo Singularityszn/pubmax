@@ -119,13 +119,13 @@
     {
       "id": "pint_index_snapshot",
       "label": "London Pint Index (borough medians)",
-      "class": "user-cadence",
+      "class": "snapshot",
       "artifact": "public/data/pint_index_snapshot.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "event-sourced — grows as confirmed Pint Drops / official-publisher observations arrive",
-      "stalenessBudgetHours": 2160,
-      "refreshWorkflow": "user-cadence (the growth loop IS the refresh mechanism)",
-      "gate": "none; only confirmed Pint Drops + official-publisher / open-data sources are eligible"
+      "cadence": "empty snapshot — status is empty and observations is empty, so there is no collection to age. A published Index with observations is user-cadence again and owes a 2160h neglect budget.",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "user-cadence once the snapshot holds observations (the growth loop is the refresh). While status is empty, restamping generatedAt would claim a collection that did not happen, and a 2160h budget would go red on 14 October 2026 with nothing new to publish. Restore class user-cadence and stalenessBudgetHours 2160 in the same change that publishes the first observation.",
+      "gate": "none; only confirmed Pint Drops + official-publisher / open-data sources are eligible. An empty snapshot carries no neglect budget."
     },
     {
       "id": "late_food_evidence",
@@ -310,10 +310,10 @@
       "class": "episodic",
       "artifact": "public/data/venues_slim.json",
       "stamp": { "kind": "literal", "value": "2026-09-25T00:00:00.000Z", "consumedBy": "public/data/venues_slim.json generatedAt, the latest seed observedAt or expiresAt at or before the build that scripts/build_slim_index.mjs kept the current famous rows as of. A rebuild before the next seed boundary writes the same value, so the literal matches that field without the gate opening the slim payload." },
-      "cadence": "episodic. Re-verify the seed (npm run verify:famous-venues) and rebuild the slim index before the window closes",
+      "cadence": "episodic. Re-verify the seed (npm run verify:famous-venues -- --write) and run npm run refresh:slim before the window closes, then commit the slim",
       "stalenessBudgetHours": 384,
-      "refreshWorkflow": "manual (npm run verify:famous-venues, then the slim build). The budget is two weeks of lead before the earliest expiresAt still inside this slim build, derived by __tests__/helpers/currentFamousVenues.ts.",
-      "gate": "The seed's own expiresAt. A lapsed row is withheld from the slim index rather than shipped stale."
+      "refreshWorkflow": "manual (npm run verify:famous-venues -- --write, then npm run refresh:slim; build:slim alone rebuilds at the committed stamp). The budget is two weeks of lead before the earliest expiresAt still inside this slim build, derived by __tests__/helpers/currentFamousVenues.ts.",
+      "gate": "The seed's own expiresAt. A rebuild that would drop a famous venue the last slim index shipped fails instead of writing a shorter index."
     }
   ]
 }

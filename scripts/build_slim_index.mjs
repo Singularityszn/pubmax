@@ -53,6 +53,12 @@ const FAMOUS_VENUE_PATHS = [
   path.join(ROOT, "data", "famous_venues", "late_food.json"),
   path.join(ROOT, "data", "famous_venues", "restaurants.json"),
 ];
+const FAMOUS_VENUE_REMOVED_PATH = path.join(
+  ROOT,
+  "data",
+  "famous_venues",
+  "removed.json",
+);
 
 // A region is loaded from the manifest plus the viewport and one grid ring.
 // Keep individual cells small enough that a phone never pays for London-wide
@@ -134,8 +140,8 @@ function famousVenueFilterHints(row) {
 }
 
 // A malformed seed row fails the build. A well-formed row whose verification
-// window has lapsed (isCurrentNightOutPlace) is withheld from the slim index,
-// with a log line naming it, until its source is re-verified and expiresAt moves.
+// window has lapsed (isCurrentNightOutPlace) is not current. famousRowsForRebuild
+// refuses to write when that would drop a venue the last slim index shipped.
 function assertCurrentFamousVenueRows(rows, now) {
   const malformed = rows.filter(
     (row) => nightOutPlaceRowValidationErrors(row).length > 0,
@@ -159,6 +165,80 @@ function assertCurrentFamousVenueRows(rows, now) {
     );
   }
   return current;
+}
+
+const FAMOUS_SLIM_KINDS = new Set(["bar", "food", "restaurant"]);
+
+/** Famous venue ids in a slim payload, the set a later rebuild must not shrink. */
+function shippedFamousVenueIds(payload) {
+  const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+  return rows
+    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind))
+    .map((row) => row.id);
+}
+
+/**
+ * Rows the rebuild may write. A build-time rebuild (refreshAt null) keeps the
+ * clock the last slim was stamped with, so the calendar alone never changes it;
+ * only an explicit refresh moves the clock. A non-empty seed that is entirely
+ * lapsed, or any shipped id missing from the current set and not named in
+ * data/famous_venues/removed.json, fails before a shorter index is written.
+ */
+function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
+  let at = refreshAt;
+  if (!at) {
+    const stampedAt = Date.parse(lastSlim?.generatedAt);
+    if (!Number.isFinite(stampedAt)) {
+      throw new Error(
+        "build:slim rebuilds at the committed venues_slim.json generatedAt and found none; run npm run refresh:slim",
+      );
+    }
+    at = new Date(stampedAt);
+  }
+  const builtAt = famousVenueClock(seedRows, at);
+  if (!refreshAt) {
+    const unstamped = seedRows.filter(
+      (row) => Date.parse(row.observedAt) > builtAt.getTime(),
+    );
+    if (unstamped.length > 0) {
+      throw new Error(
+        `famous seed row(s) observed after the committed stamp ${at.toISOString()}: ${unstamped.map((row) => row.id).join(", ")}; the seed was re-verified or added after the committed stamp; run npm run refresh:slim, then commit the slim`,
+      );
+    }
+  }
+  const kept = assertCurrentFamousVenueRows(seedRows, builtAt);
+  const keptIds = new Set(kept.map((row) => row.id));
+  const seedIds = new Set(seedRows.map((row) => row.id));
+  const allowedRemovals = new Set(removedIds);
+  const lapsed = [];
+  const removed = [];
+  for (const id of shippedFamousVenueIds(lastSlim)) {
+    if (keptIds.has(id)) continue;
+    if (seedIds.has(id)) lapsed.push(id);
+    else if (!allowedRemovals.has(id)) removed.push(id);
+  }
+  if (lapsed.length > 0 || removed.length > 0) {
+    const parts = [];
+    if (lapsed.length > 0) {
+      parts.push(
+        `not current at ${builtAt.toISOString()} for ${lapsed.length}: ${lapsed.join(", ")}`,
+      );
+    }
+    if (removed.length > 0) {
+      parts.push(
+        `no longer in the seed and not in data/famous_venues/removed.json: ${removed.join(", ")}`,
+      );
+    }
+    throw new Error(
+      `slim rebuild would drop famous venue(s); ${parts.join("; ")}`,
+    );
+  }
+  if (seedRows.length > 0 && kept.length === 0) {
+    throw new Error(
+      `slim rebuild would keep 0 famous venues from a seed of ${seedRows.length}`,
+    );
+  }
+  return { builtAt, rows: kept };
 }
 
 // A valid row's window is at most NIGHT_OUT_PLACE_MAX_AGE_MS, so which rows are
@@ -740,8 +820,19 @@ async function main() {
   ).flat();
   // One clock for the filter and the stamp. The famous-venue tests read
   // generatedAt back, so a later day cannot disagree with the rows this build kept.
-  const builtAt = famousVenueClock(famousSeedRows, new Date());
-  const famousRows = assertCurrentFamousVenueRows(famousSeedRows, builtAt);
+  // build:slim reuses the committed stamp; only --refresh reads the wall clock.
+  // A clock that would drop a shipped famous venue fails before any write.
+  let lastSlim = null;
+  try {
+    lastSlim = JSON.parse(await readFile(SLIM_PATH, "utf8"));
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  const { builtAt, rows: famousRows } = famousRowsForRebuild(famousSeedRows, {
+    lastSlim,
+    removedIds: JSON.parse(await readFile(FAMOUS_VENUE_REMOVED_PATH, "utf8")),
+    refreshAt: process.argv.includes("--refresh") ? new Date() : null,
+  });
   const famousPriceBands = typeRelativePriceBands(famousRows);
 
   const slim = [];
@@ -968,6 +1059,7 @@ async function main() {
 
 export {
   assertCurrentFamousVenueRows,
+  famousRowsForRebuild,
   buildDrinkHints,
   buildCurationHints,
   typeRelativePriceBands,

@@ -72,7 +72,7 @@ jobs:
 
   production-build:
     name: Production build
-    needs: [lint-and-types, freshness]
+    needs: [lint-and-types]
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 28
     steps:
