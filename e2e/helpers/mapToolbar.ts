@@ -68,16 +68,16 @@ export async function selectFirstToolbarVenue(
   // Exact group names only: "Venues across city maps" is a different lane whose
   // first "Soho" row can be a Birmingham tavern that opens another city's map.
   await waitForVenueIndexReady(page, timeout);
-  // Suggestions render from a deferred query, which a loaded runner can hold for
-  // seconds. Wait on the venue row itself; refilling the same text keeps the
-  // query, whereas picking an Area clears it and restarts that render.
+  // Suggestions follow an 80ms debounce. Fill once and wait for the venue row:
+  // filling again restarts that debounce and the search-index fetch, so a loaded
+  // runner can spend the whole budget restarting work that was about to paint.
+  // Picking an Area would clear the query, so this wait stays on the venue row.
+  const option = mapVenueSuggestionGroup(page).getByRole("option").first();
+  await search.click();
+  await search.fill(query);
   await expect(async () => {
     await dismissVenueIndexRetryIfPresent(page);
-    await search.click();
-    await search.fill(query);
-    await expect(mapVenueSuggestionGroup(page).getByRole("option").first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(option).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout });
   await expect(async () => {
     const option = mapVenueSuggestionGroup(page).getByRole("option").first();
