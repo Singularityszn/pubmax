@@ -47,6 +47,7 @@ import {
 import { cleanNightContext, mergeNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
@@ -976,6 +977,13 @@ export function AcceptedContextPanel({
     .find((stop) => stop.venueId === handoff.heldVenueId)?.venueName
     ?? UNRESOLVED_ACCEPTED_VENUE_LABEL;
   const whenLabel = londonServiceDateLabel(handoff.startsAt);
+  const drinkRequest = handoff.acceptedAnchor?.drinkRequest;
+  const drinkLabel = drinkRequest
+    ? parseDrinkSubtypeParam(drinkRequest.drinkSubtype, drinkRequest.drinkCategory)?.longLabel
+      ?? categoryLabel(drinkRequest.drinkCategory)
+    : null;
+  const priceEvidence = cleanSelectedDrinkPriceEvidence(handoff.acceptedAnchor?.selectedDrinkPriceEvidence) ?? undefined;
+  const quote = selectedDrinkPriceDescription(priceEvidence);
   return (
     <>
       {handoff.showAcceptedSummary && (
@@ -984,6 +992,20 @@ export function AcceptedContextPanel({
           <dl className="planComposer__acceptedList">
             {handoff.heldVenueId && (
               <div><dt>Venue</dt><dd>{venueName}</dd></div>
+            )}
+            {drinkLabel && (
+              <div><dt>Drink</dt><dd>{drinkLabel}{drinkRequest?.drinkServing ? ` (${drinkRequest.drinkServing} requested)` : ""}</dd></div>
+            )}
+            {quote && (
+              <div>
+                <dt>Quote</dt>
+                <dd>
+                  {quote}
+                  {priceEvidence?.source === "listed" && (
+                    <> <a href={priceEvidence.sourceUrl} target="_blank" rel="noopener noreferrer">View menu source</a></>
+                  )}
+                </dd>
+              </div>
             )}
             {handoff.area && (
               <div><dt>Area</dt><dd>{acceptedPlanAreaLabel(handoff.area)}</dd></div>
