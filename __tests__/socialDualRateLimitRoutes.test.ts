@@ -7,7 +7,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 const isLimitedMock = vi.hoisted(() =>
-  vi.fn(async (_local: string, _durable: string) => false),
+  vi.fn<(local: string, durable: string) => Promise<boolean>>(async () => false),
 );
 
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
