@@ -2,12 +2,14 @@
  * Verify London OSM pubs and the Shoreditch coffee-box cafes with Places.
  *
  * Text Search is IDs only (free). Place Details then reads businessStatus
- * for pubs and, for those cafes, the opening period list, which is compared
- * in memory with the cafe's OSM hours and dropped. The files this writes
- * store our venue id, the place id, our closure boolean (pubs) or our
- * OSM-hours verdict (cafes: agree, disagree or no_osm_hours), and the day.
- * Nothing else Google returned is written. Cafes whose OSM hours disagree are
- * printed for human review.
+ * and displayName for pubs and, for those cafes, the opening period list.
+ * The name and the periods are compared in memory with our OSM row and
+ * dropped. A pub counts as closed only when Google says CLOSED_PERMANENTLY
+ * and the names match; closed_pubs.json is the single record of closure.
+ * The files this writes store our venue id, the place id, our cafe
+ * OSM-hours verdict (agree, disagree or no_osm_hours), closed OSM refs, and
+ * the day. Nothing else Google returned is written. Closures, unconfirmed
+ * closures and cafes whose OSM hours disagree are printed for human review.
  *
  * Daily quota overrides are raised for this process and put back to the
  * values read at the start. The job stops before any paid call when the
@@ -36,7 +38,7 @@ import {
   matchRectangle,
   OSM_HOURS_VERDICTS,
   osmHoursVerdict,
-  osmRefFromLayerId,
+  pubClosureVerdict,
   projectedPlacesSpendUsd,
   pubVerificationRow,
   textQueryForOsmVenue,
@@ -287,7 +289,7 @@ function idsFromSearch(body) {
   return places.map((place) => (typeof place.id === "string" ? place.id : ""));
 }
 
-function periodsFromDetails(body, fieldMask) {
+function readDetailsBody(body, fieldMask) {
   const allowed = new Set(fieldMask.split(",").map((part) => part.split(".")[0]));
   allowed.add("id");
   allowed.add("name");
@@ -299,9 +301,10 @@ function periodsFromDetails(body, fieldMask) {
     if (hourKeys.length > 0) throw new Error(`details field mask returned ${hourKeys.join(",")}`);
   }
   const status = body.businessStatus;
-  if (typeof status !== "string" || !KNOWN_STATUS.has(status)) return { status: null, periods: null };
+  if (typeof status !== "string" || !KNOWN_STATUS.has(status)) return { status: null, periods: null, name: null };
   const periods = hours && Array.isArray(hours.periods) ? hours.periods : null;
-  return { status, periods };
+  const name = typeof body.displayName?.text === "string" ? body.displayName.text : null;
+  return { status, periods, name };
 }
 
 async function searchVenue(apiKey, venue) {
@@ -326,7 +329,7 @@ async function readDetails(apiKey, placeId, fieldMask) {
     fieldMask,
     { method: "GET" },
   );
-  return periodsFromDetails(body, fieldMask);
+  return readDetailsBody(body, fieldMask);
 }
 
 function cafeDetail(read, osmHours) {
@@ -334,6 +337,20 @@ function cafeDetail(read, osmHours) {
   const placesHours = weeklyHoursFromPlacesPeriods(read.periods);
   if (!placesHours) return { skipped: "hours_unreadable" };
   return { osmHoursVerdict: osmHoursVerdict(osmHours, placesHours) };
+}
+
+function collectPub(venue, progress, day, pubs, closedRefs, pubsForReview) {
+  const detail = progress.details[venue.id];
+  const search = progress.searches[venue.id];
+  if (!detail || detail.skipped || !search || search.outcome !== "matched") return;
+  if (!["open", "closed", "closed_unconfirmed"].includes(detail.closure)) return;
+  pubs.push(pubVerificationRow(venue.id, search.placeId, day));
+  if (detail.closure === "closed") {
+    closedRefs.push(venue.osmRef);
+    pubsForReview.push(`${venue.id} ${venue.name}, ${venue.address}: closed, hidden from the map`);
+  } else if (detail.closure === "closed_unconfirmed") {
+    pubsForReview.push(`${venue.id} ${venue.name}, ${venue.address}: Google says closed but the name differs; not hidden`);
+  }
 }
 
 function collectCafe(venue, progress, day, cafes, cafesForReview) {
@@ -486,7 +503,7 @@ async function main() {
       if (!read.status) {
         progress.details[venue.id] = { skipped: "unknown_status" };
       } else if (venue.kind === "pub") {
-        progress.details[venue.id] = { closedPermanently: read.status === "CLOSED_PERMANENTLY" };
+        progress.details[venue.id] = { closure: pubClosureVerdict(read.status, venue.name, read.name) };
       } else {
         progress.details[venue.id] = cafeDetail(read, venue.osmHours);
       }
@@ -501,32 +518,18 @@ async function main() {
     const day = verifiedDay();
     const pubs = [];
     const cafes = [];
-    const closedForReview = [];
+    const closedRefs = [];
+    const pubsForReview = [];
     const cafesForReview = [];
     for (const venue of venues.pubs) {
-      const detail = progress.details[venue.id];
-      const search = progress.searches[venue.id];
-      if (!detail || detail.skipped || !search || search.outcome !== "matched") continue;
-      if (typeof detail.closedPermanently !== "boolean") continue;
-      pubs.push(pubVerificationRow(venue.id, search.placeId, detail.closedPermanently, day));
-      if (detail.closedPermanently) {
-        closedForReview.push({
-          venueId: venue.id,
-          name: venue.name,
-          address: venue.address,
-        });
-      }
+      collectPub(venue, progress, day, pubs, closedRefs, pubsForReview);
     }
     for (const venue of venues.cafes) {
       collectCafe(venue, progress, day, cafes, cafesForReview);
     }
     pubs.sort((a, b) => a.venueId.localeCompare(b.venueId));
     cafes.sort((a, b) => a.venueId.localeCompare(b.venueId));
-    closedForReview.sort((a, b) => a.venueId.localeCompare(b.venueId));
-    const closedRefs = closedForReview
-      .map((row) => osmRefFromLayerId(row.venueId))
-      .filter((ref) => ref !== null)
-      .sort();
+    closedRefs.sort();
 
     const skippedNoResult = all.filter((venue) => progress.searches[venue.id]?.reason === "no_result").length;
     const skippedAmbiguous = all.filter((venue) => progress.searches[venue.id]?.reason === "ambiguous").length;
@@ -588,17 +591,20 @@ async function main() {
         ...cafeVerdictCounts(cafes),
         skippedNoResult,
         skippedAmbiguous,
-        closedPermanently: closedForReview.length,
+        closedPermanently: closedRefs.length,
+        closedUnconfirmed: pubsForReview.length - closedRefs.length,
       },
       pubs,
-      closedForReview,
     });
     writeJson(join(OUT_DIR, "closed_pubs.json"), { verifiedAt: day, osmRefs: closedRefs });
     writeJson(join(OUT_DIR, "shoreditch_cafes.json"), { verifiedAt: day, rows: cafes });
     if (existsSync(PROGRESS_PATH)) unlinkSync(PROGRESS_PATH);
     console.log(
-      `wrote verification: ${pubs.length} pubs, ${cafes.length} cafes, ${closedForReview.length} permanently closed`,
+      `wrote verification: ${pubs.length} pubs, ${cafes.length} cafes, ${closedRefs.length} permanently closed`,
     );
+    pubsForReview.sort();
+    console.log(`pubs for human review (${pubsForReview.length}):`);
+    for (const line of pubsForReview) console.log(`  ${line}`);
     cafesForReview.sort();
     console.log(`cafes for human review (${cafesForReview.length}):`);
     for (const line of cafesForReview) console.log(`  ${line}`);

@@ -21,6 +21,8 @@ import {
   OSM_HOURS_VERDICTS,
   osmHoursVerdict,
   osmRefFromLayerId,
+  placesNameMatchesOsm,
+  pubClosureVerdict,
   projectedPlacesSpendUsd,
   textQueryForOsmVenue,
   weeklyHoursFromPlacesPeriods,
@@ -114,6 +116,24 @@ describe("Places id-only match", () => {
         lng: -0.08123,
       }),
     ).toBe("The Crown 51.52512 -0.08123");
+  });
+});
+
+describe("a pub is closed only on a name-confirmed match", () => {
+  it("closes a pub when Google says closed and the names match", () => {
+    expect(pubClosureVerdict("CLOSED_PERMANENTLY", "The Crown & Anchor", "Crown and Anchor")).toBe("closed");
+    expect(placesNameMatchesOsm("The Queen's Head", "Queens Head")).toBe(true);
+  });
+
+  it("sends a closed listing with another name to review instead of hiding the pub", () => {
+    expect(pubClosureVerdict("CLOSED_PERMANENTLY", "Crown & Anchor", "The Crown")).toBe("closed_unconfirmed");
+    expect(pubClosureVerdict("CLOSED_PERMANENTLY", "The Crown", null)).toBe("closed_unconfirmed");
+    expect(pubClosureVerdict("CLOSED_PERMANENTLY", "", "")).toBe("closed_unconfirmed");
+  });
+
+  it("treats every other status as open", () => {
+    expect(pubClosureVerdict("OPERATIONAL", "The Crown", "The Crown")).toBe("open");
+    expect(pubClosureVerdict("CLOSED_TEMPORARILY", "The Crown", "The Crown")).toBe("open");
   });
 });
 
@@ -251,7 +271,7 @@ describe("Shoreditch coffee box and spend cap", () => {
 
   it("keeps the field masks on the free and narrowest paid SKUs", () => {
     expect(PLACES_TEXT_SEARCH_FIELD_MASK).toBe("places.id");
-    expect(PLACES_PUB_DETAILS_FIELD_MASK).toBe("businessStatus");
+    expect(PLACES_PUB_DETAILS_FIELD_MASK).toBe("businessStatus,displayName");
     expect(PLACES_CAFE_DETAILS_FIELD_MASK).toBe("businessStatus,regularOpeningHours.periods");
   });
 });
@@ -309,18 +329,17 @@ describe("committed Places verification files", () => {
     expect(ledger.summary.cafesNoOsmHours).toBe(count("no_osm_hours"));
   });
 
-  it("lists exactly the pubs marked permanently closed", () => {
+  it("keeps pub closure only in closed_pubs.json", () => {
     const ledger = JSON.parse(
       readFileSync(path.join(ROOT, "data/places_verification/london.json"), "utf8"),
-    ) as { pubs?: { venueId?: string; closedPermanently?: boolean }[] };
+    ) as { pubs: Record<string, unknown>[]; summary: Record<string, number> };
     const closed = JSON.parse(
       readFileSync(path.join(ROOT, "data/places_verification/closed_pubs.json"), "utf8"),
-    ) as { osmRefs?: string[] };
-    const fromLedger = (ledger.pubs ?? [])
-      .filter((row) => row.closedPermanently === true)
-      .map((row) => osmRefFromLayerId(row.venueId ?? ""))
-      .filter((ref): ref is string => ref !== null)
-      .sort();
-    expect([...(closed.osmRefs ?? [])].sort()).toEqual(fromLedger);
+    ) as { osmRefs: string[] };
+    expect(ledger).not.toHaveProperty("closedForReview");
+    for (const row of ledger.pubs) {
+      expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "venueId", "verifiedAt"]);
+    }
+    expect(ledger.summary.closedPermanently).toBe(closed.osmRefs.length);
   });
 });

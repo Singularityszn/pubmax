@@ -2,9 +2,9 @@
  * Google Places is used only to verify our own OSM venues, never copied.
  *
  * A committed row may hold our venue id, the Google place id, a verdict we
- * derived (a pub's permanent closure, or whether a cafe's OSM hours agree
- * with Google), and the day we checked. Google's hours are compared in
- * memory and dropped. Nothing Google returned beyond the place id is stored
+ * derived (whether a cafe's OSM hours agree with Google), and the day we
+ * checked. Pub closure lives only in closed_pubs.json as OSM refs. Google's
+ * hours and names are compared in memory and dropped. Nothing Google returned beyond the place id is stored
  * or shown (Maps Platform terms).
  */
 
@@ -18,8 +18,11 @@ const EARTH_RADIUS_M = 6_371_000;
 /** IDs-only Text Search. Any wider mask bills a paid SKU. */
 export const PLACES_TEXT_SEARCH_FIELD_MASK = "places.id";
 
-/** Place Details Pro. `businessStatus` is the whole mask. */
-export const PLACES_PUB_DETAILS_FIELD_MASK = "businessStatus";
+/**
+ * Place Details Pro. `displayName` is read in memory to confirm the match
+ * before a closure counts; it is never stored.
+ */
+export const PLACES_PUB_DETAILS_FIELD_MASK = "businessStatus,displayName";
 
 /**
  * Place Details Enterprise, and only the period list. The periods are read in
@@ -52,9 +55,14 @@ export type IdOnlyMatch =
 export type PlacesPubVerification = {
   venueId: string;
   googlePlaceId: string;
-  closedPermanently: boolean;
   verifiedAt: string;
 };
+
+/**
+ * `closed` hides the pub. `closed_unconfirmed` is Google saying closed for a
+ * place whose name does not match ours; it goes to human review only.
+ */
+export type PubClosureVerdict = "open" | "closed" | "closed_unconfirmed";
 
 export const OSM_HOURS_VERDICTS = ["agree", "disagree", "no_osm_hours"] as const;
 export type OsmHoursVerdict = (typeof OSM_HOURS_VERDICTS)[number];
@@ -207,10 +215,37 @@ export function weeklyHoursFromPlacesPeriods(periods: unknown): WeeklyOpeningHou
 export function pubVerificationRow(
   venueId: string,
   googlePlaceId: string,
-  closedPermanently: boolean,
   verifiedAt: string,
 ): PlacesPubVerification {
-  return { venueId, googlePlaceId, closedPermanently, verifiedAt };
+  return { venueId, googlePlaceId, verifiedAt };
+}
+
+function comparableName(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/['\u2019]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/^the /, "");
+}
+
+export function placesNameMatchesOsm(osmName: string, placesName: string | null): boolean {
+  if (!placesName) return false;
+  const ours = comparableName(osmName);
+  return ours.length > 0 && ours === comparableName(placesName);
+}
+
+/** Never hide a pub on an unchecked match: a closure needs the names to agree. */
+export function pubClosureVerdict(
+  businessStatus: string,
+  osmName: string,
+  placesName: string | null,
+): PubClosureVerdict {
+  if (businessStatus !== "CLOSED_PERMANENTLY") return "open";
+  return placesNameMatchesOsm(osmName, placesName) ? "closed" : "closed_unconfirmed";
 }
 
 function dayKey(hours: WeeklyOpeningHours, day: number): string {
