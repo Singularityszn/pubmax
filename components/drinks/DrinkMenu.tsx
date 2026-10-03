@@ -18,6 +18,8 @@ import {
 } from "@/lib/dataFreshness";
 import { DrinkGlyph } from "./DrinkGlyph";
 import DrinkRowMain from "./DrinkRowMain";
+import PublishedMenuPrices from "@/components/map/PublishedMenuPrices";
+import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
 
 import "./drinkMenu.css";
 
@@ -224,6 +226,8 @@ export type DrinkMenuProps = {
   venueId?: string;
   /** When set, only this category's section is shown (Menu hub drill-in). */
   categoryFilter?: DrinkCategory;
+  publishedPrices?: readonly ListedCategoryPrice[];
+  publishedPricesUnavailable?: boolean;
   /** Optional back control for the Menu hub → deep-dive flow. */
   onBack?: () => void;
   backLabel?: string;
@@ -234,17 +238,22 @@ export default function DrinkMenu({
   venueName,
   venueId,
   categoryFilter,
+  publishedPrices = [],
+  publishedPricesUnavailable = false,
   onBack,
   backLabel = "Menus",
 }: DrinkMenuProps) {
   const groups = groupDrinksByCategory(drinks).filter((group) =>
     categoryFilter ? group.category === categoryFilter : true,
   );
+  const shownPublishedPrices = publishedPrices.filter((quote) =>
+    categoryFilter ? quote.category === categoryFilter : true,
+  );
   const hasUnattributedPrice = groups.some((group) =>
     group.drinks.some((drink) => isUnattributedPrice(drink.provenance)),
   );
 
-  if (groups.length === 0) {
+  if (groups.length === 0 && shownPublishedPrices.length === 0 && !publishedPricesUnavailable) {
     return (
       <div className="drinkMenu drinkMenuEmpty" role="status">
         {onBack ? (
@@ -269,6 +278,7 @@ export default function DrinkMenu({
           ← {backLabel}
         </button>
       ) : null}
+      <PublishedMenuPrices prices={shownPublishedPrices} unavailable={publishedPricesUnavailable} />
       {groups.map((group) => (
         <CategorySection
           key={group.category}
@@ -283,11 +293,11 @@ export default function DrinkMenu({
           about seeded examples (#1427); demo rows are opt-in now
           (demoDrinksEnabled, lib/demoContent.ts) and each one still carries its
           own Demo chip, which is where that claim belongs. */}
-      <p className="drinkMenuFootnote">
+      {groups.length > 0 ? <p className="drinkMenuFootnote">
         {hasUnattributedPrice
           ? "“Publisher not recorded” means the price is on record but its publisher was not captured."
           : "Publisher links open where the price record names one."}
-      </p>
+      </p> : null}
     </div>
   );
 }
