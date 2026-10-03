@@ -257,6 +257,37 @@ test("mobile consent never covers /pubs Book a table while visible", async ({ pa
   expect(await pointOwner(page, coveredBox!, ".pubsBookLink")).toBe("control");
 });
 
+// A KEYBOARD READER REACHES /social's FORM WITHOUT SCROLLING BY HAND. The
+// browser only scrolls a focused control into view past the root's
+// scroll-padding, so a page rule that sets its own padding must still keep
+// the card's lane in it, or Tab parks the Handle field under the card.
+test("mobile consent never covers a control keyboard focus lands on in /social", async ({ page }) => {
+  test.setTimeout(90_000);
+  await prepareUndecidedConsent(page);
+  await page.goto("/social", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".socialPage")).toBeVisible({ timeout: 30_000 });
+
+  const covered: string[] = [];
+  for (let press = 0; press < 60; press += 1) {
+    await page.keyboard.press("Tab");
+    const hit = await page.evaluate(() => {
+      const focused = document.activeElement as HTMLElement | null;
+      const card = document.querySelector(".analyticsConsentPrompt");
+      if (!focused || focused === document.body || !card || card.contains(focused)) return null;
+      if (focused.closest(".mobileTabBar")) return null;
+      const box = focused.getBoundingClientRect();
+      const lane = card.getBoundingClientRect();
+      if (box.height === 0 || box.bottom <= lane.top || box.top >= lane.bottom) return null;
+      return `${focused.tagName.toLowerCase()} "${focused.getAttribute("aria-label") ?? focused.textContent?.trim().slice(0, 40)}" ${Math.round(box.top)}-${Math.round(box.bottom)} under ${Math.round(lane.top)}`;
+    });
+    if (hit) covered.push(hit);
+  }
+  expect(covered).toEqual([]);
+});
+
 // EVERY PHONE IS A HEIGHT, AND THE SHORT ONES ARE WHERE THIS CARD BITES.
 //
 // The coverage tests above run at 390x844, which is where the card has the most

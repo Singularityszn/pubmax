@@ -59,6 +59,25 @@ async function grantLocation(page: Page): Promise<void> {
   }, GRANTED_FIX);
 }
 
+/** A refused fix, so the first-visit Use my location hands over the area picker. */
+async function denyLocation(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(
+          _success: PositionCallback,
+          error?: PositionErrorCallback | null,
+        ) {
+          error?.({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+        },
+        watchPosition: () => 0,
+        clearWatch: () => {},
+      },
+    });
+  });
+}
+
 async function paintedPinCount(page: Page): Promise<number> {
   return page.evaluate(
     () =>
@@ -88,9 +107,12 @@ async function prepareFirstVisitMap(page: Page): Promise<void> {
 }
 
 test.describe("map first-visit arrival", () => {
-  test("choose area remembers Camden and hides the card on return", async ({
+  // On a phone the pill offers location alone, so the opening area picker is
+  // what a refusal hands over.
+  test("a refused location opens the area picker, which remembers Camden", async ({
     page,
   }) => {
+    await denyLocation(page);
     await prepareFirstVisitMap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
@@ -99,7 +121,7 @@ test.describe("map first-visit arrival", () => {
 
     const arrival = page.locator(".mapArrivalCard");
     await expect(arrival).toBeVisible({ timeout: 15_000 });
-    await arrival.getByRole("button", { name: "Choose an area" }).click();
+    await arrival.getByRole("button", { name: "Use my location" }).click();
 
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="choose-area"]');
     await expect(sheet).toBeVisible({ timeout: 15_000 });

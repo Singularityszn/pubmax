@@ -68,8 +68,12 @@
 .venueImage--header.venueImage--empty {
   aspect-ratio: auto;
   min-height: 0;
-  height: 56px;
-  padding: 0 1rem;
+  height: auto;
+  margin: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* N3 desktop inspector photo header — taller, edge-to-edge under title.

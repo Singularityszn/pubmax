@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { LocateFixed, X } from "lucide-react";
 
 import {
@@ -13,7 +13,8 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import "./mapArrivalCard.css";
 
 /**
- * The first-visit ask, as a strip under the phone's own top bar.
+ * The first-visit ask: a compact pill low over the map on a phone, a strip
+ * under the toolbar on a desktop.
  *
  * It used to be a 256px panel at the foot of the screen, over the densest part
  * of central London, and the map under it was `inert` while it was up: the
@@ -22,9 +23,9 @@ import "./mapArrivalCard.css";
  * astra-live-walk/report.md B1). A first-time reader had to shut a card before
  * the product worked.
  *
- * So it asks from the top now, the map stays live under it, and the reader's
- * own first move on the map is an answer: they came to look at pubs, which is
- * a clearer "no thanks" than the close button. PubMap owns that dismissal
+ * So the map stays live under the ask now, and the reader's own first move on
+ * the map is an answer: they came to look at pubs, which is a clearer "no
+ * thanks" than the close button. PubMap owns that dismissal
  * (`dismissMapFirstVisitArrivalOnMapUse`), because the gesture and the pin tap
  * both arrive there.
  */
@@ -38,6 +39,7 @@ export default function MapArrivalCard({
   onDismiss?: () => void;
 }) {
   const cardRef = useRef<HTMLElement | null>(null);
+  const leadId = useId();
 
   useEffect(() => {
     setMapFirstVisitArrivalCardVisible(true);
@@ -67,13 +69,14 @@ export default function MapArrivalCard({
       ref={cardRef}
       className="mapArrivalCard"
       aria-label="First visit"
+      aria-describedby={leadId}
       tabIndex={-1}
     >
       <div className="mapArrivalCardSay">
         <h2 className="mapArrivalCardTitle">Cheapest pints near you?</h2>
         {/* The visible half of a pair with the iOS purpose string. See
             docs/proof/mobile-app-design/STORE_READINESS.md. */}
-        <p className="mapArrivalCardLead">
+        <p id={leadId} className="mapArrivalCardLead">
           Location is used only while the map is open.
         </p>
       </div>
@@ -91,7 +94,7 @@ export default function MapArrivalCard({
         </button>
         <button
           type="button"
-          className={buttonVariants({ variant: "secondary" })}
+          className={`${buttonVariants({ variant: "secondary" })} mapArrivalCardChooseArea`}
           onClick={() => {
             dismissMapFirstVisitArrival();
             onChooseArea();

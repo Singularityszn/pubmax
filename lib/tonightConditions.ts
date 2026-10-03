@@ -13,7 +13,11 @@
 //   - a pint-under-ceiling claim only when price data actually supports it
 
 import { daySlot } from "@/lib/daySlot";
-import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
+import {
+  evaluateDrinkWeather,
+  type DrinkWeatherRuleId,
+  type VenueLens,
+} from "@/lib/drinkWeather";
 import type { ObservationFacts } from "@/lib/weatherObservationCopy";
 import { haversineKm } from "@/lib/haversine";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
@@ -51,6 +55,11 @@ export type TonightConditionsSummary = {
   checkedLabel: string;
   /** The verdict's calm line, e.g. "Warm and dry. Beer garden weather." */
   drinkLine: string;
+  /**
+   * The rule behind `drinkLine`, or null with no verdict, so a surface that
+   * names its own part of the day can re-read the line (lib/drinkWeather.ts).
+   */
+  drinkRuleId: DrinkWeatherRuleId | null;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
   drinkSuggestion: string;
   /** "4 gardens near you with a pint under 6 quid", or null. */
@@ -169,6 +178,7 @@ export function summariseTonightConditions(args: {
     stale: facts.stale,
     checkedLabel: facts.checkedLabel,
     drinkLine: verdict?.line ?? "",
+    drinkRuleId: verdict?.ruleId ?? null,
     drinkSuggestion: verdict?.drinkSuggestion ?? "",
     venueClaim: verdict ? buildVenueClaim(verdict.venueLens, tally) : null,
   };

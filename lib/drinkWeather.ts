@@ -39,8 +39,8 @@ export type DrinkWeatherInput = {
   /**
    * Which part of the London day the verdict is being read in. Optional, and
    * omitting it keeps the evening wording this table was written in. A caller
-   * that prints the line (/today, /tonight) passes its own band
-   * (lib/daySlot.ts) so the wording matches the hour it is read at.
+   * that prints the line (/today, the conditions summary) passes the clock's
+   * band (lib/daySlot.ts) so the wording matches the hour it is read at.
    */
   dayPart?: DaySlot;
   /**
@@ -68,8 +68,9 @@ type DrinkWeatherRule = DrinkWeatherVerdict & {
    * Wording for the day bands where `line` would name the wrong one.
    *
    * `line` stays the EVENING sentence, because that is where this table was
-   * written; a caller that passes no `dayPart` gets it. /today and /tonight
-   * both pass their own band (lib/daySlot.ts), so they read these entries.
+   * written; a caller that passes no `dayPart` gets it. /today and the
+   * conditions summary pass the clock's band (lib/daySlot.ts), and /tonight's
+   * strip re-reads the line for its own band through `drinkWeatherLine`.
    * Only the rules that name a time of day carry entries here: a reader
    * greeted "Good morning" on /today met "Crisp autumn evening. Amber ale
    * weather." underneath it, and the card and the greeting were describing two
@@ -224,9 +225,23 @@ export function evaluateDrinkWeather(input: DrinkWeatherInput): DrinkWeatherVerd
   if (!Number.isInteger(input.month) || input.month < 1 || input.month > 12) return null;
   const match = DRINK_WEATHER_RULES.find((rule) => rule.when(input));
   if (!match) return null;
-  const { when: _when, dayPartLine, ...verdict } = match;
+  const { when: _when, dayPartLine: _dayPartLine, ...verdict } = match;
   void _when;
-  const dayPart = input.dayPart;
-  const line = (dayPart && dayPartLine?.[dayPart]) || verdict.line;
-  return { ...verdict, line };
+  void _dayPartLine;
+  return { ...verdict, line: ruleLine(match, input.dayPart) };
+}
+
+function ruleLine(rule: DrinkWeatherRule, dayPart: DaySlot | undefined): string {
+  return (dayPart && rule.dayPartLine?.[dayPart]) || rule.line;
+}
+
+/**
+ * The line a verdict that has already fired reads in another day band. A
+ * surface that names its own part of the day rather than the clock's
+ * (/tonight, the Tonight side of the Day/Tonight switch) re-reads the
+ * summary's rule here.
+ */
+export function drinkWeatherLine(ruleId: DrinkWeatherRuleId, dayPart: DaySlot): string | null {
+  const rule = DRINK_WEATHER_RULES.find((candidate) => candidate.ruleId === ruleId);
+  return rule ? ruleLine(rule, dayPart) : null;
 }
