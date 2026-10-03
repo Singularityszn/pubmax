@@ -143,6 +143,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/api/profiles/search/route.ts",
     "app/api/pub-pal/voice-token/route.ts",
     "app/api/saved-pubs/list-follows/route.ts",
+    "app/api/saved-pubs/route.ts",
     "app/api/starter-packs/[slug]/follow/route.ts",
     "app/api/starter-packs/route.ts",
     "app/bar-tab/[id]/opengraph-image.tsx",
