@@ -150,6 +150,10 @@ const SEASONAL_PROMO = /\b(?:christmas|festive|halloween|new years?(?: eve)?)\b/
 const SITE_NAVIGATION = /\b(?:about us|contact us|careers|hotels)\b|\s[-\u2013]\s*j\s*d\s*wetherspoon\b/i;
 /** A quote that opens on the last word of a sentence has lost the sentence that word belonged to. */
 const SENTENCE_TAIL = /^[\w'-]+\.(?:\s|$)/;
+/** A question asks; it does not state. */
+const QUESTION = /\?$/;
+/** A quote cut off after a verb that still needs its object. */
+const DANGLING_INFINITIVE = /\bto (?:keep|make|get|give|take|bring|have)$/;
 
 /**
  * What a quote must say for each amenity to stand. Tea, coffee, soft drinks and
@@ -180,7 +184,9 @@ function quoteIsChainOrSeasonal(quote: string): boolean {
 /** Whether a quote states the amenity at this pub, rather than only mentioning a nearby word. */
 function evidenceStatesAmenity(key: PubWebsiteAmenityKey, quote: string): boolean {
   const folded = foldText(quote);
-  if (quoteIsChainOrSeasonal(folded)) return false;
+  if (quoteIsChainOrSeasonal(folded) || QUESTION.test(folded) || DANGLING_INFINITIVE.test(folded)) {
+    return false;
+  }
   const statement = AMENITY_STATEMENTS[key];
   return statement ? statement(folded) : true;
 }
@@ -196,6 +202,34 @@ export function statedAmenities(
     stated[key] = quote;
   }
   return stated;
+}
+
+export type PubEvidenceRow = {
+  sourceUrl?: string;
+  amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
+};
+
+/**
+ * Evidence that speaks for one pub. A page more than one pub points at is a
+ * chain page, so its quotes describe the brand rather than any one of them.
+ * Every stamp, from a fresh harvest or from the committed evidence file, goes
+ * through here.
+ */
+export function pubSpecificEvidence<T extends PubEvidenceRow>(
+  rows: readonly T[],
+): (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] {
+  const pubsPerPage = new Map<string, number>();
+  for (const row of rows) {
+    if (row.sourceUrl) pubsPerPage.set(row.sourceUrl, (pubsPerPage.get(row.sourceUrl) ?? 0) + 1);
+  }
+  const kept: (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] = [];
+  for (const row of rows) {
+    if (!row.sourceUrl || pubsPerPage.get(row.sourceUrl) !== 1) continue;
+    const amenities = statedAmenities(row.amenities ?? {});
+    if (Object.keys(amenities).length === 0) continue;
+    kept.push({ ...row, amenities });
+  }
+  return kept;
 }
 
 /** Keep true values whose evidence is a quote from the page that states the amenity. Everything else goes. */

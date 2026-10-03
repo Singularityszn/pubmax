@@ -9,6 +9,7 @@ import {
   matchPubToVenue,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
+  pubSpecificEvidence,
   stampAmenityColumns,
   statedAmenities,
 } from "@/lib/harvest/pubWebsiteAmenities";
@@ -195,6 +196,34 @@ describe("statedAmenities", () => {
         pool: "two pool tables",
       }),
     ).toEqual({ beerGarden: "Our beer garden opens", pool: "two pool tables" });
+  });
+
+  it("drops a question and a quote cut off before its object", () => {
+    expect(
+      statedAmenities({
+        liveSports: "Do you show live sport?",
+        karaoke: "karaoke to keep",
+        food: "Our kitchen serves food to order",
+      }),
+    ).toEqual({ food: "Our kitchen serves food to order" });
+  });
+});
+
+describe("pubSpecificEvidence", () => {
+  it("drops a page several pubs point at and gates the quotes of the rest", () => {
+    const rows = [
+      { osmId: "a", sourceUrl: "https://chain.example/food-drink", amenities: { liveSports: "Live Sport" } },
+      { osmId: "b", sourceUrl: "https://chain.example/food-drink", amenities: {} },
+      {
+        osmId: "c",
+        sourceUrl: "https://crown.example/",
+        amenities: { pubQuiz: "Quiz Machine", food: "serves food every day" },
+      },
+      { osmId: "d", sourceUrl: "https://swan.example/", amenities: { nonAlcoholic: "soft drinks" } },
+    ];
+    expect(pubSpecificEvidence(rows)).toEqual([
+      { osmId: "c", sourceUrl: "https://crown.example/", amenities: { food: "serves food every day" } },
+    ]);
   });
 });
 

@@ -7,6 +7,12 @@
 //
 //   npm run harvest:pub-website-amenities
 //   npm run harvest:pub-website-amenities -- --limit 1
+//   npm run harvest:pub-website-amenities -- --restamp
+//
+// --restamp stamps the committed evidence file onto the pint dataset through
+// the same gate. It reads no checkpoint, fetches nothing and calls no model.
+// A stamp only fills a blank cell and cannot be taken back, so run it on the
+// unstamped dataset, for example straight after `npm run export:data`.
 //
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
@@ -33,8 +39,8 @@ import {
   matchPubToVenue,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
+  pubSpecificEvidence,
   spendFromTokenCounts,
-  statedAmenities,
   stampAmenityColumns,
 } from "../../../lib/harvest/pubWebsiteAmenities.ts";
 import { stableVenueIdFromKey, venueGroupingKey } from "../../../lib/venues.ts";
@@ -294,16 +300,32 @@ function columnCoverage(rows) {
   return counts;
 }
 
-function stampDataset(dataset, rowsByVenue, byOsmId) {
+function readEvidence() {
+  try {
+    return JSON.parse(readFileSync(EVIDENCE_PATH, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+/** Stamp evidence rows onto the dataset file and report what changed. */
+function stampDataset(dataset, evidenceRows) {
+  const rowsByVenue = new Map();
+  dataset.forEach((row, index) => {
+    const venueId = stableVenueIdFromKey(venueGroupingKey(row));
+    const bucket = rowsByVenue.get(venueId) ?? [];
+    bucket.push(index);
+    rowsByVenue.set(venueId, bucket);
+  });
+  const before = columnCoverage(dataset);
   let stampedRows = 0;
   let stampedVenues = 0;
-  for (const entry of Object.values(byOsmId)) {
-    if (entry.status !== "ok" || !entry.venueId) continue;
-    const amenities = entry.amenities ?? {};
-    if (Object.keys(amenities).length === 0) continue;
+  for (const entry of pubSpecificEvidence(evidenceRows)) {
+    if (!entry.venueId) continue;
     let venueStamped = false;
     for (const index of rowsByVenue.get(entry.venueId) ?? []) {
-      const result = stampAmenityColumns(dataset[index], amenities);
+      const result = stampAmenityColumns(dataset[index], entry.amenities);
       if (result.stamped.length === 0) continue;
       dataset[index] = result.row;
       stampedRows += 1;
@@ -311,10 +333,61 @@ function stampDataset(dataset, rowsByVenue, byOsmId) {
     }
     if (venueStamped) stampedVenues += 1;
   }
-  return { stampedRows, stampedVenues };
+  const after = columnCoverage(dataset);
+  if (stampedRows > 0) {
+    const datasetTemp = `${DATASET_PATH}.tmp`;
+    writeFileSync(datasetTemp, JSON.stringify(dataset));
+    renameSync(datasetTemp, DATASET_PATH);
+  }
+  return { before, after, stampedRows, stampedVenues };
+}
+
+function restampFromEvidence() {
+  const evidence = readEvidence();
+  if (!evidence || !Array.isArray(evidence.rows)) throw new Error("no committed evidence file to restamp from");
+  const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
+  if (!Array.isArray(dataset)) throw new Error("expected a pint dataset array");
+  const { before, after, stampedRows, stampedVenues } = stampDataset(dataset, evidence.rows);
+  const next = {
+    ...evidence,
+    columnCoverageBefore: evidence.columnCoverageBefore ?? before,
+    columnCoverageAfter: after,
+    stampedVenues,
+    stampedRows,
+  };
+  writeFileSync(EVIDENCE_PATH, `${JSON.stringify(next, null, 2)}\n`);
+  console.log(JSON.stringify({ stampedVenues, stampedRows, columnCoverageAfter: after }));
+}
+
+function evidenceFromCheckpoint(byOsmId) {
+  const candidates = [];
+  const skipCounts = {};
+  for (const [osmId, entry] of Object.entries(byOsmId)) {
+    if (entry.status !== "ok") {
+      const status = entry.status ?? "unknown";
+      skipCounts[status] = (skipCounts[status] ?? 0) + 1;
+      continue;
+    }
+    candidates.push({
+      osmId,
+      name: entry.name,
+      venueId: entry.venueId,
+      sourceUrl: entry.sourceUrl,
+      verifiedAt: entry.verifiedAt,
+      amenities: entry.amenities ?? {},
+    });
+  }
+  const rows = pubSpecificEvidence(candidates).sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const unused = candidates.length - rows.length;
+  if (unused > 0) skipCounts.ok = unused;
+  return { rows, skipCounts };
 }
 
 async function main() {
+  if (process.argv.includes("--restamp")) {
+    restampFromEvidence();
+    return;
+  }
   const limit = argValue("--limit") ? Number(argValue("--limit")) : null;
   if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
     console.error("--limit needs a positive integer");
@@ -328,22 +401,17 @@ async function main() {
   }
 
   const anchors = [];
-  const rowsByVenue = new Map();
-  for (let index = 0; index < dataset.length; index += 1) {
-    const row = dataset[index];
+  const seenVenues = new Set();
+  for (const row of dataset) {
     const venueId = stableVenueIdFromKey(venueGroupingKey(row));
-    let bucket = rowsByVenue.get(venueId);
-    if (!bucket) {
-      bucket = [];
-      rowsByVenue.set(venueId, bucket);
-      anchors.push({
-        venueId,
-        name: String(row.pub_name ?? ""),
-        lat: Number(row.latitude),
-        lng: Number(row.longitude),
-      });
-    }
-    bucket.push(index);
+    if (seenVenues.has(venueId)) continue;
+    seenVenues.add(venueId);
+    anchors.push({
+      venueId,
+      name: String(row.pub_name ?? ""),
+      lat: Number(row.latitude),
+      lng: Number(row.longitude),
+    });
   }
 
   const pubs = [];
@@ -507,38 +575,11 @@ async function main() {
     }
   });
   await Promise.all(workers);
-  for (const entry of Object.values(byOsmId)) {
-    if (entry.amenities) entry.amenities = statedAmenities(entry.amenities);
-  }
   await save();
 
-  const before = columnCoverage(dataset);
-  const { stampedRows, stampedVenues } = stampDataset(dataset, rowsByVenue, byOsmId);
-  const after = columnCoverage(dataset);
-  if (stampedRows > 0) {
-    const datasetTemp = `${DATASET_PATH}.tmp`;
-    writeFileSync(datasetTemp, JSON.stringify(dataset));
-    renameSync(datasetTemp, DATASET_PATH);
-  }
-
-  const evidenceRows = [];
-  const skipCounts = {};
-  for (const [osmId, entry] of Object.entries(byOsmId)) {
-    if (entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > 0) {
-      evidenceRows.push({
-        osmId,
-        name: entry.name,
-        venueId: entry.venueId,
-        sourceUrl: entry.sourceUrl,
-        verifiedAt: entry.verifiedAt,
-        amenities: entry.amenities,
-      });
-      continue;
-    }
-    const status = entry.status ?? "unknown";
-    skipCounts[status] = (skipCounts[status] ?? 0) + 1;
-  }
-  evidenceRows.sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const previous = readEvidence();
+  const { rows: evidenceRows, skipCounts } = evidenceFromCheckpoint(byOsmId);
+  const { before, after, stampedRows, stampedVenues } = stampDataset(dataset, evidenceRows);
   mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
   const evidence = {
     version: 1,
@@ -556,7 +597,7 @@ async function main() {
     },
     actualSpendUsd: Number(spent.toFixed(4)),
     jobCapUsd: JOB_SPEND_CAP_USD,
-    columnCoverageBefore: before,
+    columnCoverageBefore: previous?.columnCoverageBefore ?? before,
     columnCoverageAfter: after,
     stampedVenues,
     stampedRows,
@@ -570,7 +611,7 @@ async function main() {
       evidenceRows: evidenceRows.length,
       stampedVenues,
       stampedRows,
-      columnCoverageBefore: before,
+      columnCoverageBefore: evidence.columnCoverageBefore,
       columnCoverageAfter: after,
       stopped,
     }),
