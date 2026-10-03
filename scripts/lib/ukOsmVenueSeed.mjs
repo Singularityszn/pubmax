@@ -12,9 +12,9 @@
  * THE RULE this table encodes: a row exists because OSM STATES the thing.
  * `restaurant` is not a drinking venue, so only a restaurant that states a bar,
  * a microbrewery, real ale, `alcohol=yes|served`, or an alcoholic `drink:*`
- * key is taken; `fast_food` is not a night venue, so only one that states
- * alcohol or 24/7 hours is taken. Nothing is inferred from a name, a chain or
- * a postcode.
+ * key is taken; a `club=*` and a casino are taken on the same stated terms;
+ * `fast_food` is not a night venue, so only one that states alcohol or 24/7
+ * hours is taken. Nothing is inferred from a name, a chain or a postcode.
  *
  * OSM data is © OpenStreetMap contributors, ODbL 1.0.
  */
@@ -80,13 +80,13 @@ function statedAvailable(value) {
 }
 
 /**
- * A restaurant states that it serves alcohol. A plain restaurant, a coffee
- * tag, and `alcohol=no` do not.
+ * The element states that it serves alcohol: a bar, a microbrewery, real ale,
+ * `alcohol=yes|served`, `drink` set to an alcoholic name, or an alcoholic
+ * `drink:*` key on offer. A coffee tag and `alcohol=no` do not.
  *
  * @param {Record<string, string>} tags
  */
-export function restaurantStatesAlcohol(tags) {
-  if (tags.amenity !== "restaurant") return false;
+export function statesAlcohol(tags) {
   if (yes(tags.bar) || yes(tags.microbrewery)) return true;
   if (REAL_ALE_SERVED.includes(tags.real_ale ?? "")) return true;
   if (ALCOHOL_SERVED.includes(tags.alcohol ?? "")) return true;
@@ -95,23 +95,28 @@ export function restaurantStatesAlcohol(tags) {
   return ALCOHOLIC_DRINK_KEYS.some((key) => key.slice("drink:".length) === generic);
 }
 
-function restaurantBarSelectors() {
+/**
+ * Overpass selectors for `base` narrowed to elements that state alcohol, one
+ * per clause of `statesAlcohol`.
+ *
+ * @param {string} base an Overpass tag filter, e.g. `["amenity"="restaurant"]`
+ */
+function alcoholStatedSelectors(base) {
   const drinkNames = ALCOHOLIC_DRINK_KEYS.map((key) => key.slice("drink:".length)).join("|");
   const drinkKeys = ALCOHOLIC_DRINK_KEYS.join("|");
   const available = DRINK_AVAILABLE.join("|");
   return [
-    '["amenity"="restaurant"]["bar"="yes"]',
-    '["amenity"="restaurant"]["microbrewery"="yes"]',
-    '["amenity"="restaurant"]["real_ale"~"^(yes|only|sometimes)$"]',
-    '["amenity"="restaurant"]["alcohol"~"^(yes|served)$"]',
-    `["amenity"="restaurant"]["drink"~"^(${drinkNames})$"]`,
-    `["amenity"="restaurant"][~"^(${drinkKeys})$"~"^(${available})$"]`,
+    `${base}["bar"="yes"]`,
+    `${base}["microbrewery"="yes"]`,
+    `${base}["real_ale"~"^(yes|only|sometimes)$"]`,
+    `${base}["alcohol"~"^(yes|served)$"]`,
+    `${base}["drink"~"^(${drinkNames})$"]`,
+    `${base}[~"^(${drinkKeys})$"~"^(${available})$"]`,
   ];
 }
 
-/** Keys a Greater London supplement asks for in one Overpass request.
- * The rest of the taxonomy stays on the grid pull it already completed. */
-export const LONDON_DRINK_SUPPLEMENT_KEYS = ["nightclub", "restaurant_bar"];
+const ALCOHOL_STATED_NOTE =
+  "a bar, a microbrewery, real ale, alcohol=yes|served, drink=<alcoholic name>, or an alcoholic drink:* key as yes, served, draught or bottled";
 
 /** @type {TaxonomyRow[]} */
 export const UK_VENUE_TAXONOMY = [
@@ -148,13 +153,20 @@ export const UK_VENUE_TAXONOMY = [
     note: "amenity=nightclub",
   },
   {
+    key: "music_venue",
+    kind: "club",
+    group: "drink",
+    selectors: ['["amenity"="music_venue"]'],
+    match: (tags) => tags.amenity === "music_venue",
+    note: "amenity=music_venue",
+  },
+  {
     key: "restaurant_bar",
     kind: "restaurant",
     group: "drink",
-    selectors: restaurantBarSelectors(),
-    match: (tags) => restaurantStatesAlcohol(tags),
-    note:
-      "amenity=restaurant only where OSM states a bar, a microbrewery, real ale, alcohol=yes|served, drink=<alcoholic name>, or an alcoholic drink:* key as yes, served, draught or bottled",
+    selectors: alcoholStatedSelectors('["amenity"="restaurant"]'),
+    match: (tags) => tags.amenity === "restaurant" && statesAlcohol(tags),
+    note: `amenity=restaurant only where OSM states ${ALCOHOL_STATED_NOTE}`,
   },
   {
     key: "hotel_bar",
@@ -163,6 +175,22 @@ export const UK_VENUE_TAXONOMY = [
     selectors: ['["tourism"="hotel"]["bar"="yes"]'],
     match: (tags) => tags.tourism === "hotel" && yes(tags.bar),
     note: "tourism=hotel only where OSM states a bar; a hotel with no stated bar is not a lounge",
+  },
+  {
+    key: "social_club",
+    kind: "club",
+    group: "drink",
+    selectors: alcoholStatedSelectors('["club"]'),
+    match: (tags) => Boolean(tags.club) && statesAlcohol(tags),
+    note: `club=* (a social, members' or sports club) only where OSM states ${ALCOHOL_STATED_NOTE}`,
+  },
+  {
+    key: "casino_bar",
+    kind: "other",
+    group: "drink",
+    selectors: alcoholStatedSelectors('["amenity"="casino"]'),
+    match: (tags) => tags.amenity === "casino" && statesAlcohol(tags),
+    note: `amenity=casino only where OSM states ${ALCOHOL_STATED_NOTE}`,
   },
   {
     key: "off_licence",
@@ -281,19 +309,12 @@ function roundCoord(value) {
  *
  * @param {Bbox} bbox
  * @param {string} [scope]
- * @param {{ timeout?: number, keys?: string[] | null }} [options]
+ * @param {{ timeout?: number }} [options]
  */
-export function buildUkVenueQuery(bbox, scope = "all", { timeout = 90, keys = null } = {}) {
-  let rows = taxonomyForScope(scope);
-  if (keys) {
-    const wanted = new Set(keys);
-    rows = rows.filter((row) => wanted.has(row.key));
-    const missing = [...wanted].filter((key) => !rows.some((row) => row.key === key));
-    if (missing.length > 0) throw new Error(`Unknown taxonomy key(s): ${missing.join(", ")}`);
-  }
+export function buildUkVenueQuery(bbox, scope = "all", { timeout = 90 } = {}) {
   const box = bbox.map((n) => roundCoord(n)).join(",");
   const lines = [];
-  for (const row of rows) {
+  for (const row of taxonomyForScope(scope)) {
     for (const selector of row.selectors) {
       lines.push(`  node${selector}(area.uk)(${box});`);
       lines.push(`  way${selector}(area.uk)(${box});`);
@@ -345,42 +366,6 @@ export function normalizeVenueElements(elements) {
  * Count venues by kind and by taxonomy key.
  * @param {Array<Record<string, any>>} venues
  */
-/**
- * Rows a supplement may append. An id already in the pack stays as it was.
- * A venue outside `inWindow`, or whose taxonomy key this supplement did not
- * ask for, is counted and dropped.
- *
- * @param {Array<Record<string, any>>} existingVenues
- * @param {Array<Record<string, any>>} incoming
- * @param {{ keys: readonly string[], inWindow?: (venue: Record<string, any>) => boolean }} options
- */
-export function venuesToAdd(existingVenues, incoming, { keys, inWindow }) {
-  const seen = new Set(existingVenues.map((venue) => venue.osmId));
-  const wanted = new Set(keys);
-  /** @type {Array<Record<string, any>>} */
-  const added = [];
-  let skippedExisting = 0;
-  let outsideWindow = 0;
-  let wrongKey = 0;
-  for (const venue of incoming) {
-    if (!wanted.has(venue.taxonomyKey)) {
-      wrongKey += 1;
-      continue;
-    }
-    if (inWindow && !inWindow(venue)) {
-      outsideWindow += 1;
-      continue;
-    }
-    if (seen.has(venue.osmId)) {
-      skippedExisting += 1;
-      continue;
-    }
-    seen.add(venue.osmId);
-    added.push(venue);
-  }
-  return { added, skippedExisting, outsideWindow, wrongKey };
-}
-
 export function countVenues(venues) {
   /** @type {Record<string, number>} */
   const byKind = {};

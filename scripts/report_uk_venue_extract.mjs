@@ -105,31 +105,6 @@ async function main() {
     `- Elements the taxonomy did not claim: ${manifest.unclassifiedElements}`,
     `- Elements with no name: ${manifest.unnamedElements}`,
     "",
-    ...(Array.isArray(counts.supplements) && counts.supplements.length > 0
-      ? [
-          "## Later supplement",
-          "",
-          "The counts below include rows appended after the grid run. Each block is",
-          "the supplement record on `venue_counts.json`, not a figure typed here.",
-          "",
-          ...counts.supplements.flatMap((row) => [
-            `- Asked at: \`${row.askedAt ?? "unknown"}\``,
-            `- OSM snapshot: \`${row.snapshotAt ?? "unknown"}\``,
-            `- Window: \`${JSON.stringify(row.bbox ?? null)}\``,
-            `- Keys: ${(row.keys ?? []).map((key) => `\`${key}\``).join(", ") || "none"}`,
-            `- Elements returned: ${row.elements ?? "unknown"}`,
-            `- Added: ${row.added ?? "unknown"}`,
-            `- Added by kind: \`${JSON.stringify(row.addedByKind ?? {})}\``,
-            `- Added by taxonomy key: \`${JSON.stringify(row.addedByTaxonomyKey ?? {})}\``,
-            `- Skipped, already in the pack: ${row.skippedExisting ?? "unknown"}`,
-            `- Dropped, outside the window: ${row.outsideWindow ?? "unknown"}`,
-            `- Unclassified: ${row.unclassified ?? "unknown"}`,
-            `- Unnamed: ${row.unnamed ?? "unknown"}`,
-            `- ${row.note ?? ""}`,
-            "",
-          ]),
-        ]
-      : []),
     "An unnamed element is dropped by design: a pin with no name is not a place a",
     "reader can be sent to. An unclassified element came back from a neighbouring",
     "selector and is counted rather than silently discarded.",
@@ -266,11 +241,7 @@ async function main() {
     `- Source: ${manifest.source}`,
     `- Licence: ${manifest.license}`,
     `- Attribution: ${manifest.attribution}`,
-    Array.isArray(counts.supplements) && counts.supplements.length > 0
-      ? `- Grid rows carry the run timestamp above. Supplement rows were asked at ${counts.supplements
-          .map((row) => `\`${row.askedAt ?? "unknown"}\``)
-          .join(", ")}.`
-      : `- \`observedAt\` for every row is the run timestamp above.`,
+    `- \`observedAt\` for every row is the run timestamp above.`,
     "",
     "Nothing in these packs is a price source. No row may reach a price band, a",
     "pin figure, a cheapest bucket or the Pint Index.",

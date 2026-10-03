@@ -20,25 +20,6 @@ pack's size on disk). Do not edit the figures by hand.
 - Elements the taxonomy did not claim: 0
 - Elements with no name: 2848
 
-## Later supplement
-
-The counts below include rows appended after the grid run. Each block is
-the supplement record on `venue_counts.json`, not a figure typed here.
-
-- Asked at: `2026-10-03T16:28:22.249Z`
-- OSM snapshot: `2026-10-03T16:26:41Z`
-- Window: `[51.28,-0.53,51.7,0.34]`
-- Keys: `nightclub`, `restaurant_bar`
-- Elements returned: 333
-- Added: 173
-- Added by kind: `{"club":160,"restaurant":13}`
-- Added by taxonomy key: `{"nightclub":160,"restaurant_bar":13}`
-- Skipped, already in the pack: 158
-- Dropped, outside the window: 0
-- Unclassified: 0
-- Unnamed: 2
-- One Overpass request over the Greater London bbox. Existing pack rows were kept. Nightclubs in the UK totals are this window only. Restaurants already in the pack stay UK-wide; only the restaurants this request added are Greater London.
-
 An unnamed element is dropped by design: a pin with no name is not a place a
 reader can be sent to. An unclassified element came back from a neighbouring
 selector and is counted rather than silently discarded.
@@ -53,15 +34,14 @@ It is never a claim that a venue is inside a borough.
 | --- | --- | --- |
 | bar | 1246 | 7195 |
 | cafe | 7203 | 38266 |
-| club | 160 | 160 |
 | coworking | 154 | 458 |
 | food | 46 | 319 |
 | hotel_lounge | 43 | 296 |
 | library | 463 | 3601 |
 | other | 513 | 2572 |
 | pub | 3650 | 38207 |
-| restaurant | 172 | 530 |
-| **total** | **13650** | **91604** |
+| restaurant | 159 | 517 |
+| **total** | **13477** | **91431** |
 
 ## Counts by taxonomy key
 
@@ -70,8 +50,7 @@ It is never a claim that a venue is inside a borough.
 | `pub` | pub | 3650 | 38207 | amenity=pub - the layer the pub pack already carries |
 | `bar` | bar | 1236 | 7168 | amenity=bar |
 | `biergarten` | bar | 10 | 27 | amenity=biergarten |
-| `nightclub` | club | 160 | 160 | amenity=nightclub |
-| `restaurant_bar` | restaurant | 172 | 530 | amenity=restaurant only where OSM states a bar, a microbrewery, real ale, alcohol=yes|served, drink=<alcoholic name>, or an alcoholic drink:* key as yes, served, draught or bottled |
+| `restaurant_bar` | restaurant | 159 | 517 | amenity=restaurant only where OSM states a bar, a microbrewery or real ale |
 | `hotel_bar` | hotel_lounge | 43 | 296 | tourism=hotel only where OSM states a bar; a hotel with no stated bar is not a lounge |
 | `off_licence` | other | 503 | 2465 | shop=alcohol / shop=off_licence |
 | `cafe` | cafe | 7133 | 37897 | amenity=cafe |
@@ -89,10 +68,10 @@ blindly.
 
 | Pack | Venues | Size |
 | --- | --- | --- |
-| `uk_osm_venues_drink.json` | 48853 | 21.1 MB |
+| `uk_osm_venues_drink.json` | 48680 | 21.1 MB |
 | `uk_osm_venues_food.json` | 38585 | 16.9 MB |
 | `uk_osm_venues_work.json` | 4166 | 2.0 MB |
-| **total** | **91604** | **40.0 MB** |
+| **total** | **91431** | **39.9 MB** |
 
 Committed budget: 100.0 MB. Within budget.
 
@@ -110,14 +89,13 @@ promise about one fetch, so the grid is what gives.
 | --- | --- |
 | bar | 1246 |
 | cafe | 7203 |
-| club | 160 |
 | coworking | 154 |
 | food | 46 |
 | hotel_lounge | 43 |
 | library | 463 |
 | other | 513 |
 | pub | 3650 |
-| restaurant | 172 |
+| restaurant | 159 |
 
 No UI reads these shards yet. The layer is published and kind-tagged so a
 work-spot surface can be built against real data; `lib/londonVenueShards.ts`
@@ -200,7 +178,7 @@ nothing.
 - Source: OpenStreetMap Overpass
 - Licence: ODbL
 - Attribution: © OpenStreetMap contributors
-- Grid rows carry the run timestamp above. Supplement rows were asked at `2026-10-03T16:28:22.249Z`.
+- `observedAt` for every row is the run timestamp above.
 
 Nothing in these packs is a price source. No row may reach a price band, a
 pin figure, a cheapest bucket or the Pint Index.

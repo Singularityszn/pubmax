@@ -1,9 +1,9 @@
 # London venue shards
 
 Everywhere in Greater London a drinker or a laptop could sit - pubs, bars, beer
-gardens, nightclubs, restaurants that state alcohol, late fast food, cafes, coffee shops,
-coworking desks, libraries, community centres with wifi, hotel bars and
-off-licences - cut into one file per grid cell so a map can stream the layer a
+gardens, nightclubs, music venues, restaurants, clubs and casinos that state
+alcohol, late fast food, cafes, coffee shops, coworking desks, libraries,
+community centres with wifi, hotel bars and off-licences - cut into one file per grid cell so a map can stream the layer a
 viewport at a time.
 
 Shard JSON is generated. This README is hand-written and survives rebuilds.

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Fetch every place in the United Kingdom a drinker or a laptop could sit in -
-// pubs, bars, beer gardens, nightclubs, restaurants that state alcohol, late fast food, cafes,
-// coffee shops, coworking desks, libraries, community centres with wifi, hotel
-// bars and off-licences - from Overpass, one grid chunk at a time, then write:
+// pubs, bars, beer gardens, nightclubs, music venues, restaurants, clubs and
+// casinos that state alcohol, late fast food, cafes, coffee shops, coworking
+// desks, libraries, community centres with wifi, hotel bars and off-licences -
+// from Overpass, one grid chunk at a time, then write:
 //   data/osm/uk/raw_venues/<scope>/chunk_<lat>_<lon>.json  (raw, GITIGNORED)
 //   data/osm/uk/venue_chunks.json                          (grid + per-chunk manifest)
 //   data/osm/uk/uk_osm_venues_<group>.json                 (normalized pack, ODbL)
@@ -14,9 +15,6 @@
 //   npm run fetch:uk-venues -- --refresh        # refetch every chunk
 //   npm run fetch:uk-venues -- --from-raw       # re-normalize, no network
 //   npm run fetch:uk-venues -- --list           # print the grid and exit
-//   npm run fetch:uk-venues -- --supplement-london
-//       # ONE Overpass request for Greater London nightclubs and alcohol-stating
-//       # restaurants, appended to the drink pack. Does not refetch the grid.
 //
 // The grid, the UK area clip and the Overpass etiquette are the pub fetcher's
 // (scripts/fetch_uk_osm_pubs.mjs) unchanged: same 1° × 1° cells over the same
@@ -65,7 +63,6 @@ import {
   chunkFileName,
 } from "./lib/ukOsmSeed.mjs";
 import {
-  LONDON_DRINK_SUPPLEMENT_KEYS,
   UK_VENUE_GROUPS,
   UK_VENUE_KINDS,
   UK_VENUE_QUERY_SCOPES,
@@ -74,7 +71,6 @@ import {
   countVenues,
   normalizeVenueElements,
   taxonomyForScope,
-  venuesToAdd,
 } from "./lib/ukOsmVenueSeed.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -141,18 +137,9 @@ export function inGreaterLondon(venue) {
 }
 
 function parseArgs(argv) {
-  const options = {
-    fromRaw: false,
-    refresh: false,
-    list: false,
-    chunk: null,
-    scope: "all",
-    allowStale: false,
-    supplementLondon: false,
-  };
+  const options = { fromRaw: false, refresh: false, list: false, chunk: null, scope: "all", allowStale: false };
   for (const arg of argv) {
     if (arg === "--from-raw") options.fromRaw = true;
-    else if (arg === "--supplement-london") options.supplementLondon = true;
     else if (arg === "--skip-if-present") continue; // resume is already the default
     else if (arg === "--refresh") options.refresh = true;
     else if (arg === "--allow-stale") options.allowStale = true;
@@ -292,103 +279,8 @@ async function collect(scope, grid, targets, options) {
   return { byGroup, chunkStats, failures, missing, unclassified, unnamed };
 }
 
-function addCountMaps(into, from) {
-  for (const [key, n] of Object.entries(from)) into[key] = (into[key] ?? 0) + n;
-}
-
-/**
- * One Overpass request for the Greater London window, asking only for
- * nightclubs and restaurants the taxonomy now treats as drink-serving.
- * Existing drink-pack rows are not rewritten: a full grid refresh remains
- * `npm run fetch:uk-venues`. UK totals for the new rows are this window only.
- */
-async function runLondonDrinkSupplement() {
-  const packPath = venuePackPath("drink");
-  const pack = JSON.parse(await readFile(packPath, "utf8"));
-  if (!Array.isArray(pack.venues)) throw new Error(`${packPath} has no venues array`);
-
-  const askedAt = new Date().toISOString();
-  const query = buildUkVenueQuery(GREATER_LONDON_BBOX, "drink", {
-    timeout: QUERY_TIMEOUT_S,
-    keys: LONDON_DRINK_SUPPLEMENT_KEYS,
-  });
-  console.log("=== London drink supplement: one Overpass request ===");
-  const raw = await fetchOverpass(query);
-  const elements = Array.isArray(raw.elements) ? raw.elements : [];
-  const normalized = normalizeVenueElements(elements);
-  const { added, skippedExisting, outsideWindow, wrongKey } = venuesToAdd(
-    pack.venues,
-    normalized.venues,
-    { keys: LONDON_DRINK_SUPPLEMENT_KEYS, inWindow: inGreaterLondon },
-  );
-  const addedCounts = countVenues(added);
-  pack.venues.push(...added);
-  const packCounts = countVenues(pack.venues);
-  pack.count = pack.venues.length;
-  pack.countsByKind = packCounts.byKind;
-  pack.countsByTaxonomyKey = packCounts.byTaxonomyKey;
-  pack.taxonomy = UK_VENUE_TAXONOMY.filter((row) => row.group === "drink").map(
-    ({ key, kind, selectors, note }) => ({ key, kind, selectors, note }),
-  );
-  const supplement = {
-    askedAt,
-    snapshotAt: raw?.osm3s?.timestamp_osm_base ?? null,
-    bbox: GREATER_LONDON_BBOX,
-    keys: [...LONDON_DRINK_SUPPLEMENT_KEYS],
-    elements: elements.length,
-    unclassified: normalized.unclassified,
-    unnamed: normalized.unnamed,
-    added: added.length,
-    addedByKind: addedCounts.byKind,
-    addedByTaxonomyKey: addedCounts.byTaxonomyKey,
-    skippedExisting,
-    outsideWindow,
-    wrongKey,
-    note:
-      "One Overpass request over the Greater London bbox. Existing pack rows were kept. " +
-      "Nightclubs in the UK totals are this window only. Restaurants already in the pack stay UK-wide; " +
-      "only the restaurants this request added are Greater London.",
-  };
-  pack.supplements = [...(Array.isArray(pack.supplements) ? pack.supplements : []), supplement];
-  await writeCompact(packPath, pack);
-
-  const counts = JSON.parse(await readFile(COUNTS_PATH, "utf8"));
-  addCountMaps(counts.uk.byKind, addedCounts.byKind);
-  addCountMaps(counts.uk.byTaxonomyKey, addedCounts.byTaxonomyKey);
-  addCountMaps(counts.london.byKind, addedCounts.byKind);
-  addCountMaps(counts.london.byTaxonomyKey, addedCounts.byTaxonomyKey);
-  counts.uk.total = (counts.uk.total ?? 0) + added.length;
-  counts.london.total = (counts.london.total ?? 0) + added.length;
-  counts.kinds = UK_VENUE_KINDS;
-  const bytes = (await stat(packPath)).size;
-  const drinkGroup = (counts.groups ?? []).find((row) => row.group === "drink");
-  if (drinkGroup) {
-    drinkGroup.venues = pack.venues.length;
-    drinkGroup.bytes = bytes;
-  }
-  counts.supplements = [...(Array.isArray(counts.supplements) ? counts.supplements : []), supplement];
-  await writePretty(COUNTS_PATH, counts);
-
-  console.log(
-    [
-      `added ${added.length} venues (${formatMb(bytes)} drink pack)`,
-      ...Object.entries(addedCounts.byKind)
-        .sort()
-        .map(([kind, n]) => `  ${kind}: ${n}`),
-      `skipped existing: ${skippedExisting}`,
-      `outside window: ${outsideWindow}`,
-      `unclassified: ${normalized.unclassified}`,
-      `unnamed: ${normalized.unnamed}`,
-    ].join("\n"),
-  );
-}
-
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  if (options.supplementLondon) {
-    await runLondonDrinkSupplement();
-    return;
-  }
   const grid = buildGrid();
 
   if (options.list) {
