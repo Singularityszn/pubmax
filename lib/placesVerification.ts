@@ -1,10 +1,11 @@
 /**
- * Google Places is used only to verify our own OSM venues.
+ * Google Places is used only to verify our own OSM venues, never copied.
  *
  * A committed row may hold our venue id, the Google place id, a boolean we
- * derived for permanent closure, weekly hours we derived, and the day we
- * checked. It must not hold Google's names, addresses, hours text, ratings
- * or reviews (Maps Platform terms).
+ * derived (a pub's permanent closure, or whether a cafe's OSM hours agree
+ * with Google), and the day we checked. Google's hours are compared in
+ * memory and dropped. Nothing Google returned beyond the place id is stored
+ * or shown (Maps Platform terms).
  */
 
 import type { WeeklyOpeningHours } from "@/lib/busyness";
@@ -21,8 +22,8 @@ export const PLACES_TEXT_SEARCH_FIELD_MASK = "places.id";
 export const PLACES_PUB_DETAILS_FIELD_MASK = "businessStatus";
 
 /**
- * Place Details Enterprise, and only the period list. The weekday sentences
- * stay off the mask so they never arrive to be stored.
+ * Place Details Enterprise, and only the period list. The periods are read in
+ * memory to check our OSM hours; the weekday sentences stay off the mask.
  */
 export const PLACES_CAFE_DETAILS_FIELD_MASK =
   "businessStatus,regularOpeningHours.periods";
@@ -44,12 +45,6 @@ const UK_POSTCODE = /\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i;
 const LAYER_VENUE_ID = /^venue-(?:uk|osm)-([nwr]\d+)$/;
 const PLACE_ID = /^[A-Za-z0-9_-]{10,}$/;
 
-export type IdOnlyCandidate = {
-  placeId: string;
-  /** Null when the search circle already enforced the radius. */
-  distanceMeters: number | null;
-};
-
 export type IdOnlyMatch =
   | { outcome: "matched"; placeId: string }
   | { outcome: "skipped"; reason: "no_result" | "ambiguous" };
@@ -64,9 +59,8 @@ export type PlacesPubVerification = {
 export type PlacesCafeVerification = {
   venueId: string;
   googlePlaceId: string;
+  osmHoursAgree: boolean;
   verifiedAt: string;
-  closedPermanently?: true;
-  openingHours?: WeeklyOpeningHours;
 };
 
 type ClockPoint = { day: number; hour: number; minute: number };
@@ -131,30 +125,14 @@ export function matchRectangle(
   };
 }
 
-export function placeWithinMatchRadius(
-  distanceMeters: number,
-  radiusMeters = PLACES_MATCH_RADIUS_METERS,
-): boolean {
-  return Number.isFinite(distanceMeters) && distanceMeters >= 0 && distanceMeters <= radiusMeters;
-}
-
 /**
- * One distinct place id inside the radius matches. None, or more than one,
- * is skipped. A measured distance outside the radius never counts.
+ * One distinct place id from the search rectangle matches. None, or more
+ * than one, is skipped.
  */
-export function decideIdOnlyPlaceMatch(
-  candidates: readonly IdOnlyCandidate[],
-  radiusMeters = PLACES_MATCH_RADIUS_METERS,
-): IdOnlyMatch {
+export function decideIdOnlyPlaceMatch(placeIds: readonly string[]): IdOnlyMatch {
   const ids = new Set<string>();
-  for (const candidate of candidates) {
-    if (
-      candidate.distanceMeters !== null
-      && !placeWithinMatchRadius(candidate.distanceMeters, radiusMeters)
-    ) {
-      continue;
-    }
-    const id = normalizeGooglePlaceId(candidate.placeId);
+  for (const raw of placeIds) {
+    const id = normalizeGooglePlaceId(raw);
     if (id) ids.add(id);
   }
   if (ids.size === 0) return { outcome: "skipped", reason: "no_result" };
@@ -162,21 +140,6 @@ export function decideIdOnlyPlaceMatch(
   const placeId = [...ids][0];
   if (!placeId) return { outcome: "skipped", reason: "no_result" };
   return { outcome: "matched", placeId };
-}
-
-/**
- * Drop pubs Google has verified as permanently closed. The OSM row stays in
- * the shard; this only decides what the existing map loader may draw.
- */
-export function omitVerifiedClosedPubs<T extends { id: string }>(
-  pubs: readonly T[],
-  closedOsmRefs: ReadonlySet<string>,
-): T[] {
-  if (closedOsmRefs.size === 0) return [...pubs];
-  return pubs.filter((pub) => {
-    const ref = osmRefFromLayerId(pub.id);
-    return ref === null || !closedOsmRefs.has(ref);
-  });
 }
 
 function isClockPoint(value: unknown): value is ClockPoint {
@@ -202,10 +165,9 @@ function clockText(point: ClockPoint): string | null {
 }
 
 /**
- * Turn Places `regularOpeningHours.periods` into our weekly windows.
- * A period we cannot read rejects the whole week rather than publishing a
- * partial door. Closed days Google omitted stay empty, which this codebase
- * already reads as closed.
+ * Turn Places `regularOpeningHours.periods` into weekly windows for the
+ * in-memory comparison. A period we cannot read rejects the whole week.
+ * Closed days Google omitted stay empty.
  */
 export function weeklyHoursFromPlacesPeriods(periods: unknown): WeeklyOpeningHours | null {
   if (!Array.isArray(periods) || periods.length === 0) return null;
@@ -243,28 +205,35 @@ export function pubVerificationRow(
   return { venueId, googlePlaceId, closedPermanently, verifiedAt };
 }
 
-export function cafeVerificationRow(input: {
-  venueId: string;
-  googlePlaceId: string;
-  verifiedAt: string;
-  closedPermanently: boolean;
-  openingHours: WeeklyOpeningHours | null;
-}): PlacesCafeVerification | null {
-  if (input.closedPermanently) {
-    return {
-      venueId: input.venueId,
-      googlePlaceId: input.googlePlaceId,
-      verifiedAt: input.verifiedAt,
-      closedPermanently: true,
-    };
+function dayKey(hours: WeeklyOpeningHours, day: number): string {
+  return (hours[day] ?? [])
+    .map(({ opens, closes }) => `${opens}-${closes === "00:00" ? "24:00" : closes}`)
+    .sort()
+    .join(",");
+}
+
+/**
+ * Our own verdict: does every day of the OSM week match Google's week?
+ * Missing OSM hours never agree.
+ */
+export function osmHoursAgreeWithPlaces(
+  osmHours: WeeklyOpeningHours | null,
+  placesHours: WeeklyOpeningHours,
+): boolean {
+  if (!osmHours) return false;
+  for (let day = 0; day < 7; day += 1) {
+    if (dayKey(osmHours, day) !== dayKey(placesHours, day)) return false;
   }
-  if (!input.openingHours) return null;
-  return {
-    venueId: input.venueId,
-    googlePlaceId: input.googlePlaceId,
-    verifiedAt: input.verifiedAt,
-    openingHours: input.openingHours,
-  };
+  return true;
+}
+
+export function cafeVerificationRow(
+  venueId: string,
+  googlePlaceId: string,
+  osmHoursAgree: boolean,
+  verifiedAt: string,
+): PlacesCafeVerification {
+  return { venueId, googlePlaceId, osmHoursAgree, verifiedAt };
 }
 
 /** USD for this job after the free monthly caps. Text Search IDs Only is free. */

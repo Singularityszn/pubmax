@@ -27,7 +27,6 @@ import {
   type DeskPoint,
 } from "@/lib/nearDesk";
 import { londonVenueIdFor } from "@/lib/londonVenueShards";
-import { applyVerifiedCafeHours } from "@/lib/verifiedCafeHours";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
 
 export const DESK_PACK_PATH = "/data/london_desks/desks.json";
@@ -134,9 +133,7 @@ export async function loadDeskVenues(): Promise<DeskVenueLoad> {
       return { status: "failed", venues: [], observedAt: null, source: "osm" };
     }
     const data: unknown = await response.json();
-    const parsed = parseDeskPack(data);
-    if (parsed.status !== "ready") return parsed;
-    return { ...parsed, venues: applyVerifiedCafeHours(parsed.venues) };
+    return parseDeskPack(data);
   } catch {
     return { status: "failed", venues: [], observedAt: null, source: "osm" };
   }

@@ -5,7 +5,7 @@
 
 import closedPubs from "@/data/places_verification/closed_pubs.json";
 
-import { omitVerifiedClosedPubs } from "@/lib/placesVerification";
+import { osmRefFromLayerId } from "@/lib/placesVerification";
 
 const OSM_REF = /^[nwr]\d+$/;
 
@@ -18,9 +18,17 @@ function closedRefSet(value: unknown): ReadonlySet<string> {
 
 export const VERIFIED_CLOSED_OSM_REFS: ReadonlySet<string> = closedRefSet(closedPubs);
 
-export function hideVerifiedClosedPubs<T extends { id: string }>(
+/**
+ * Drop pubs Google has verified as permanently closed. The OSM row stays in
+ * the shard; this only decides what the existing map loader may draw.
+ */
+export function omitVerifiedClosedPubs<T extends { id: string }>(
   pubs: readonly T[],
   closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
 ): T[] {
-  return omitVerifiedClosedPubs(pubs, closedOsmRefs);
+  if (closedOsmRefs.size === 0) return [...pubs];
+  return pubs.filter((pub) => {
+    const ref = osmRefFromLayerId(pub.id);
+    return ref === null || !closedOsmRefs.has(ref);
+  });
 }

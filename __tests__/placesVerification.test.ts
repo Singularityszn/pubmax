@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import type { WeeklyOpeningHours } from "@/lib/busyness";
 import { haversineMeters } from "@/lib/greatCircle.mjs";
-import { applyVerifiedCafeHours } from "@/lib/verifiedCafeHours";
-import { hideVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
+import { parseOsmOpeningHours } from "@/lib/nearDesk";
+import { omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 import {
   PLACES_CAFE_DETAILS_FIELD_MASK,
   PLACES_MATCH_RADIUS_METERS,
@@ -17,9 +17,8 @@ import {
   decideIdOnlyPlaceMatch,
   matchRectangle,
   isInShoreditchCoffeeBox,
-  omitVerifiedClosedPubs,
+  osmHoursAgreeWithPlaces,
   osmRefFromLayerId,
-  placeWithinMatchRadius,
   projectedPlacesSpendUsd,
   textQueryForOsmVenue,
   weeklyHoursFromPlacesPeriods,
@@ -32,6 +31,8 @@ const FORBIDDEN_KEYS = [
   "weekdayDescriptions",
   "businessStatus",
   "regularOpeningHours",
+  "openingHours",
+  "periods",
   "rating",
   "reviews",
   "userRatingCount",
@@ -57,7 +58,7 @@ function forbiddenKeys(value: unknown, found: string[] = []): string[] {
 describe("Places id-only match", () => {
   it("matches the single place id inside the search radius", () => {
     expect(
-      decideIdOnlyPlaceMatch([{ placeId: "places/ChIJabcdefghij123456", distanceMeters: null }]),
+      decideIdOnlyPlaceMatch(["places/ChIJabcdefghij123456"]),
     ).toEqual({ outcome: "matched", placeId: "ChIJabcdefghij123456" });
   });
 
@@ -67,19 +68,13 @@ describe("Places id-only match", () => {
 
   it("skips two different place ids instead of guessing", () => {
     expect(
-      decideIdOnlyPlaceMatch([
-        { placeId: "ChIJabcdefghij123456", distanceMeters: 20 },
-        { placeId: "ChIJzyxwvutsrq123456", distanceMeters: 40 },
-      ]),
+      decideIdOnlyPlaceMatch(["ChIJabcdefghij123456", "ChIJzyxwvutsrq123456"]),
     ).toEqual({ outcome: "skipped", reason: "ambiguous" });
   });
 
   it("treats the same place id twice as one match", () => {
     expect(
-      decideIdOnlyPlaceMatch([
-        { placeId: "ChIJabcdefghij123456", distanceMeters: 10 },
-        { placeId: "places/ChIJabcdefghij123456", distanceMeters: 10 },
-      ]),
+      decideIdOnlyPlaceMatch(["ChIJabcdefghij123456", "places/ChIJabcdefghij123456"]),
     ).toEqual({ outcome: "matched", placeId: "ChIJabcdefghij123456" });
   });
 
@@ -98,16 +93,6 @@ describe("Places id-only match", () => {
         PLACES_MATCH_RADIUS_METERS + 0.05,
       );
     }
-  });
-
-  it("rejects a place past the match radius", () => {
-    expect(placeWithinMatchRadius(PLACES_MATCH_RADIUS_METERS)).toBe(true);
-    expect(placeWithinMatchRadius(PLACES_MATCH_RADIUS_METERS + 1)).toBe(false);
-    expect(
-      decideIdOnlyPlaceMatch([
-        { placeId: "ChIJabcdefghij123456", distanceMeters: PLACES_MATCH_RADIUS_METERS + 1 },
-      ]),
-    ).toEqual({ outcome: "skipped", reason: "no_result" });
   });
 
   it("queries by name and postcode, and by coordinates when OSM has no postcode", () => {
@@ -138,7 +123,7 @@ describe("verified closed pubs stay out of the drawable set", () => {
   ];
 
   it("hides permanently closed refs and leaves every other row", () => {
-    const hidden = hideVerifiedClosedPubs(pubs, new Set(["n222", "w333"]));
+    const hidden = omitVerifiedClosedPubs(pubs, new Set(["n222", "w333"]));
     expect(hidden.map((pub) => pub.id)).toEqual(["venue-uk-n111"]);
     expect(pubs).toHaveLength(3);
     expect(osmRefFromLayerId("venue-osm-n222")).toBe("n222");
@@ -146,11 +131,12 @@ describe("verified closed pubs stay out of the drawable set", () => {
 
   it("does not hide a pub the verification skipped", () => {
     expect(omitVerifiedClosedPubs(pubs, new Set())).toEqual(pubs);
+    expect(omitVerifiedClosedPubs(pubs)).toEqual(pubs);
   });
 });
 
-describe("derived cafe hours", () => {
-  it("turns period points into our weekly windows and drops hours text", () => {
+describe("cafe hours are checked, never copied", () => {
+  it("reads period points into weekly windows for the comparison", () => {
     const hours = weeklyHoursFromPlacesPeriods([
       {
         open: { day: 1, hour: 8, minute: 0 },
@@ -164,7 +150,6 @@ describe("derived cafe hours", () => {
     expect(hours?.[1]).toEqual([{ opens: "08:00", closes: "17:30" }]);
     expect(hours?.[5]).toEqual([{ opens: "18:00", closes: "00:30" }]);
     expect(hours?.[0]).toEqual([]);
-    expect(JSON.stringify(hours)).not.toContain("weekday");
   });
 
   it("refuses a period that spans more than overnight", () => {
@@ -178,50 +163,38 @@ describe("derived cafe hours", () => {
     ).toBeNull();
   });
 
-  it("stores hours for an open cafe and only the closure flag when it has gone", () => {
-    const open = cafeVerificationRow({
-      venueId: "venue-osm-n9",
-      googlePlaceId: "ChIJabcdefghij123456",
-      verifiedAt: "2026-10-03",
-      closedPermanently: false,
-      openingHours: { 1: [{ opens: "08:00", closes: "17:00" }] },
-    });
-    expect(open?.openingHours?.[1]).toEqual([{ opens: "08:00", closes: "17:00" }]);
-    expect(open).not.toHaveProperty("closedPermanently");
+  it("agrees when every OSM day matches Google, including a midnight close", () => {
+    const places = weeklyHoursFromPlacesPeriods(
+      [1, 2, 3, 4, 5].map((day) => ({
+        open: { day, hour: 8, minute: 0 },
+        close: { day: (day + 1) % 7, hour: 0, minute: 0 },
+      })),
+    );
+    expect(places).not.toBeNull();
     expect(
-      cafeVerificationRow({
-        venueId: "venue-osm-n9",
-        googlePlaceId: "ChIJabcdefghij123456",
-        verifiedAt: "2026-10-03",
-        closedPermanently: true,
-        openingHours: null,
-      }),
-    ).toEqual({
-      venueId: "venue-osm-n9",
-      googlePlaceId: "ChIJabcdefghij123456",
-      verifiedAt: "2026-10-03",
-      closedPermanently: true,
-    });
-    expect(
-      cafeVerificationRow({
-        venueId: "venue-osm-n9",
-        googlePlaceId: "ChIJabcdefghij123456",
-        verifiedAt: "2026-10-03",
-        closedPermanently: false,
-        openingHours: null,
-      }),
-    ).toBeNull();
+      osmHoursAgreeWithPlaces(parseOsmOpeningHours("Mo-Fr 08:00-24:00"), places as WeeklyOpeningHours),
+    ).toBe(true);
   });
 
-  it("overlays verified hours onto the matching desk venue only", () => {
-    const hours: WeeklyOpeningHours = { 1: [{ opens: "08:00", closes: "16:00" }] };
-    const venues = [
-      { id: "venue-osm-n1", openingHours: null },
-      { id: "venue-osm-n2", openingHours: { 2: [{ opens: "09:00", closes: "12:00" }] } },
-    ];
-    const next = applyVerifiedCafeHours(venues, new Map([["venue-osm-n1", hours]]));
-    expect(next[0]?.openingHours).toEqual(hours);
-    expect(next[1]?.openingHours).toEqual(venues[1]?.openingHours);
+  it("disagrees when one day differs or OSM has no hours", () => {
+    const places: WeeklyOpeningHours = {
+      0: [{ opens: "07:30", closes: "16:30" }],
+      1: [{ opens: "06:30", closes: "18:00" }],
+    };
+    expect(osmHoursAgreeWithPlaces(parseOsmOpeningHours("Mo 06:30-18:00"), places)).toBe(false);
+    expect(
+      osmHoursAgreeWithPlaces(parseOsmOpeningHours("Mo 06:30-18:00; Su 07:30-16:30"), places),
+    ).toBe(true);
+    expect(osmHoursAgreeWithPlaces(parseOsmOpeningHours(""), places)).toBe(false);
+  });
+
+  it("stores only the place id, our verdict and the day", () => {
+    expect(cafeVerificationRow("venue-osm-n9", "ChIJabcdefghij123456", false, "2026-10-03")).toEqual({
+      venueId: "venue-osm-n9",
+      googlePlaceId: "ChIJabcdefghij123456",
+      osmHoursAgree: false,
+      verifiedAt: "2026-10-03",
+    });
   });
 });
 
@@ -267,6 +240,17 @@ describe("committed Places verification files", () => {
     ]) {
       const parsed = JSON.parse(readFileSync(path.join(ROOT, file), "utf8")) as unknown;
       expect(forbiddenKeys(parsed), file).toEqual([]);
+    }
+  });
+
+  it("keeps each cafe row to the place id, our hours verdict and the day", () => {
+    const cafes = JSON.parse(
+      readFileSync(path.join(ROOT, "data/places_verification/shoreditch_cafes.json"), "utf8"),
+    ) as { rows: Record<string, unknown>[] };
+    expect(cafes.rows.length).toBeGreaterThan(0);
+    for (const row of cafes.rows) {
+      expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "osmHoursAgree", "venueId", "verifiedAt"]);
+      expect(typeof row.osmHoursAgree).toBe("boolean");
     }
   });
 

@@ -37,7 +37,7 @@ import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
-import { hideVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
+import { omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 
 export const UK_BASE_MANIFEST_PATH = "/data/uk_base/manifest.json";
 export const UK_BASE_SHARD_VERSION = 1;
@@ -438,7 +438,7 @@ export function createUkBaseLoader(options?: {
         if (!pubs) throw new Error("Invalid UK base shard");
         // Shard rows stay on disk. A pub verified permanently closed is
         // omitted from the drawable set the map already reads.
-        const visible = hideVerifiedClosedPubs(pubs, options?.closedOsmRefs);
+        const visible = omitVerifiedClosedPubs(pubs, options?.closedOsmRefs);
         touch(entry.url, visible);
         return { status: "ready" as const, pubs: visible };
       })

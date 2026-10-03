@@ -4,2224 +4,290 @@
     {
       "venueId": "venue-osm-n10138850146",
       "googlePlaceId": "ChIJee_NWiIddkgRkOmT87ZjiIc",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "19:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "12:00",
-            "closes": "20:30"
-          }
-        ],
-        "2": [
-          {
-            "opens": "12:00",
-            "closes": "20:30"
-          }
-        ],
-        "3": [
-          {
-            "opens": "12:00",
-            "closes": "20:30"
-          }
-        ],
-        "4": [
-          {
-            "opens": "12:00",
-            "closes": "20:30"
-          }
-        ],
-        "5": [
-          {
-            "opens": "12:00",
-            "closes": "20:30"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "19:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n10826849767",
       "googlePlaceId": "ChIJtZ23J7AddkgRph9DdjGwt40",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "15:30"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "15:30"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "15:30"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "15:30"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "15:30"
-          }
-        ],
-        "6": []
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n11552223069",
       "googlePlaceId": "ChIJ8dCGKfwddkgRtwTr9GurFL8",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "12:00",
-            "closes": "22:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "12:00",
-            "closes": "22:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "12:00",
-            "closes": "22:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "12:00",
-            "closes": "22:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "12:00",
-            "closes": "22:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n11959060817",
       "googlePlaceId": "ChIJV_Via7ccdkgRvCItLvUmrNw",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n12110401801",
       "googlePlaceId": "ChIJndjMy18ddkgRHrxhQX0DJ2o",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n12122304901",
       "googlePlaceId": "ChIJVdTjLvsddkgRa8E_wFTOVhc",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "6": []
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n12570863801",
       "googlePlaceId": "ChIJebGxeWMddkgR2TH2OQIG2X4",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": true,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n12761894258",
       "googlePlaceId": "ChIJzV9rK60ddkgRdL8ZLoeZFHo",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": true,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n13646215319",
       "googlePlaceId": "ChIJYfMbhogddkgRUoKVsVJ5yuU",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n13684996801",
       "googlePlaceId": "ChIJ5TF2-xQddkgRsPDhxt3FM2s",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n13687915701",
       "googlePlaceId": "ChIJ5c8Nu7ocdkgRh0_YbQ7mWLU",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n13904591185",
       "googlePlaceId": "ChIJY8nL5c0ddkgROSJ7m1VaDvI",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "10:00",
-            "closes": "19:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "20:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n14022302823",
       "googlePlaceId": "ChIJjf_4t-IddkgRiD4u_uPs878",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n1631413548",
       "googlePlaceId": "ChIJt6Dp97kcdkgRBSVMQvdBdhw",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [],
-        "2": [
-          {
-            "opens": "12:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "12:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "12:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "12:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "10:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n244056695",
       "googlePlaceId": "ChIJ70ylFy0ddkgRd35YkY2v_lE",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "07:00",
-            "closes": "22:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "22:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "22:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "22:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "22:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "22:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "07:00",
-            "closes": "22:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n2457229991",
       "googlePlaceId": "ChIJrXkVG7ocdkgR1hK-Wo8g4ao",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "11:00",
-            "closes": "17:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "10:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": true,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n4405653400",
       "googlePlaceId": "ChIJlakcf7ocdkgRZvDdCZh-FQU",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n470285837",
       "googlePlaceId": "ChIJJaU_3pIddkgRvzYLHzmKYPo",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [],
-        "2": [
-          {
-            "opens": "16:00",
-            "closes": "23:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n4959842421",
       "googlePlaceId": "ChIJP2Xq_7ccdkgRwRiylXF_TMg",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:30",
-            "closes": "17:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:30",
-            "closes": "17:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:30",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:30",
-            "closes": "17:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:30",
-            "closes": "17:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n6247140622",
       "googlePlaceId": "ChIJH2GppLEcdkgRFcWbIbc2_Fc",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "07:30",
-            "closes": "16:30"
-          }
-        ],
-        "1": [
-          {
-            "opens": "06:30",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "06:30",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "06:30",
-            "closes": "18:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "06:30",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "06:30",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "07:00",
-            "closes": "16:30"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n648517568",
       "googlePlaceId": "ChIJJdCSc7ocdkgRqOofbAUhpgs",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "14:00",
-            "closes": "00:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "16:00",
-            "closes": "00:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "16:00",
-            "closes": "00:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "16:00",
-            "closes": "00:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "16:00",
-            "closes": "02:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "12:00",
-            "closes": "02:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "12:00",
-            "closes": "02:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n6897473422",
       "googlePlaceId": "ChIJy5fOK7kcdkgRBOMv88Dbooc",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "07:30",
-            "closes": "17:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n7141974123",
       "googlePlaceId": "ChIJx40_YpwddkgR8FRAHuFU9lI",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n7204531712",
       "googlePlaceId": "ChIJ7zG_EbocdkgRV8rlCH8QgRc",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": true,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n7538108749",
       "googlePlaceId": "ChIJlRfWg7gcdkgR1yMnyFYFpBA",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:30",
-            "closes": "17:00"
-          }
-        ],
-        "1": [],
-        "2": [],
-        "3": [],
-        "4": [],
-        "5": [],
-        "6": [
-          {
-            "opens": "13:00",
-            "closes": "17:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n9956702917",
       "googlePlaceId": "ChIJv7QrL7ocdkgREa8ALcZKrG8",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "17:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-n9999352719",
       "googlePlaceId": "ChIJFXsgIdoddkgRjytvD-5Z49E",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "07:30",
-            "closes": "13:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "06:30",
-            "closes": "15:30"
-          }
-        ],
-        "2": [
-          {
-            "opens": "06:30",
-            "closes": "15:30"
-          }
-        ],
-        "3": [
-          {
-            "opens": "06:30",
-            "closes": "15:30"
-          }
-        ],
-        "4": [
-          {
-            "opens": "06:30",
-            "closes": "15:30"
-          }
-        ],
-        "5": [
-          {
-            "opens": "06:30",
-            "closes": "15:30"
-          }
-        ],
-        "6": [
-          {
-            "opens": "07:30",
-            "closes": "13:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w157221878",
       "googlePlaceId": "ChIJu6Q-HrEcdkgRf1UwkapNL3c",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "00:00",
-            "closes": "24:00"
-          }
-        ],
-        "1": [],
-        "2": [],
-        "3": [],
-        "4": [],
-        "5": [],
-        "6": []
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w157236283",
       "googlePlaceId": "ChIJJ40qrr4ddkgRt9qNrGHQ6E4",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "12:00",
-            "closes": "22:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "17:00",
-            "closes": "23:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w157314582",
       "googlePlaceId": "ChIJQb40l58ddkgRFbn9VWcLMJA",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w164245932",
       "googlePlaceId": "ChIJBWJib7ocdkgRXylaqXyg4OA",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w164523831",
       "googlePlaceId": "ChIJwVv_1a8cdkgRaiqtKG4Bmso",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "23:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "23:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "23:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "23:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "23:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "12:00",
-            "closes": "23:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w164753252",
       "googlePlaceId": "ChIJhWm70a8cdkgRdMHaYAY54t0",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [
-          {
-            "opens": "06:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "06:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "06:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "06:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "06:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": []
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w164753260",
       "googlePlaceId": "ChIJ5XXX0T4bdkgRMuUY0NgGXR0",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [
-          {
-            "opens": "10:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "10:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "10:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "10:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "10:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": []
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w164759611",
       "googlePlaceId": "ChIJ-4ZUsvMddkgRouWJ_7RBthI",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [],
-        "1": [
-          {
-            "opens": "06:30",
-            "closes": "15:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "06:30",
-            "closes": "15:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "06:30",
-            "closes": "15:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "06:30",
-            "closes": "15:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "06:30",
-            "closes": "15:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "06:30",
-            "closes": "15:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w165491345",
       "googlePlaceId": "ChIJnwc1dZ8ddkgRzZ8re9FDtqs",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "16:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w165511908",
       "googlePlaceId": "ChIJLWUWE4MddkgRYQ4WoG2hfYQ",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w166688584",
       "googlePlaceId": "ChIJmXB8mrocdkgR0vBdVhhiIRk",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w271614190",
       "googlePlaceId": "ChIJA1cEG30ddkgRggIMZiOY-h8",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "18:30"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "17:30"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "17:30"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "17:30"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "17:30"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "17:30"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "18:30"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w271641403",
       "googlePlaceId": "ChIJmRJplxoddkgRHgqVjw7qXHA",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:30",
-            "closes": "17:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:30",
-            "closes": "16:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:30",
-            "closes": "16:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:30",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:30",
-            "closes": "19:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:30",
-            "closes": "19:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:30",
-            "closes": "21:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w271641406",
       "googlePlaceId": "ChIJ_zjp67ccdkgRYl2KF-QMsuI",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:00",
-            "closes": "22:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "22:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "22:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "22:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "22:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "22:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:00",
-            "closes": "22:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w271641416",
       "googlePlaceId": "ChIJh-SF8jcddkgRGdDZIbnRp34",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "11:00",
-            "closes": "20:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "11:00",
-            "closes": "20:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "11:00",
-            "closes": "20:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "11:00",
-            "closes": "20:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "11:00",
-            "closes": "20:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "11:00",
-            "closes": "20:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "11:00",
-            "closes": "20:00"
-          }
-        ]
-      }
+      "osmHoursAgree": true,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w271645800",
       "googlePlaceId": "ChIJofUBxLccdkgRn7NmBS9ItzM",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "08:30",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w373118151",
       "googlePlaceId": "ChIJU-Cj0CYddkgRtCgKPGBWPws",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "07:30",
-            "closes": "20:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "07:00",
-            "closes": "19:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "07:30",
-            "closes": "20:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w373262256",
       "googlePlaceId": "ChIJV2sbjrccdkgRKOT9Cj2SydE",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w373262261",
       "googlePlaceId": "ChIJOcQXvssddkgR8954UQ-FlPs",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "09:00",
-            "closes": "18:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "09:00",
-            "closes": "17:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "09:00",
-            "closes": "19:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "09:00",
-            "closes": "19:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w637312549",
       "googlePlaceId": "ChIJ5x6XUAAddkgRXXtB2NI_6Dc",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "11:00",
-            "closes": "19:00"
-          }
-        ],
-        "1": [
-          {
-            "opens": "11:00",
-            "closes": "19:00"
-          }
-        ],
-        "2": [
-          {
-            "opens": "11:00",
-            "closes": "19:00"
-          }
-        ],
-        "3": [
-          {
-            "opens": "11:00",
-            "closes": "19:00"
-          }
-        ],
-        "4": [
-          {
-            "opens": "11:00",
-            "closes": "19:00"
-          }
-        ],
-        "5": [
-          {
-            "opens": "11:00",
-            "closes": "19:00"
-          }
-        ],
-        "6": [
-          {
-            "opens": "11:00",
-            "closes": "19:00"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     },
     {
       "venueId": "venue-osm-w637312561",
       "googlePlaceId": "ChIJ6dQAtugddkgRZjSl5rAlA60",
-      "verifiedAt": "2026-10-03",
-      "openingHours": {
-        "0": [
-          {
-            "opens": "13:00",
-            "closes": "23:15"
-          }
-        ],
-        "1": [
-          {
-            "opens": "13:30",
-            "closes": "23:15"
-          }
-        ],
-        "2": [
-          {
-            "opens": "13:30",
-            "closes": "23:15"
-          }
-        ],
-        "3": [
-          {
-            "opens": "13:30",
-            "closes": "23:15"
-          }
-        ],
-        "4": [
-          {
-            "opens": "13:30",
-            "closes": "23:15"
-          }
-        ],
-        "5": [
-          {
-            "opens": "13:00",
-            "closes": "00:15"
-          }
-        ],
-        "6": [
-          {
-            "opens": "13:00",
-            "closes": "00:15"
-          }
-        ]
-      }
+      "osmHoursAgree": false,
+      "verifiedAt": "2026-10-03"
     }
   ]
 }
