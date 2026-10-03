@@ -40,10 +40,10 @@ assertServerEnv();
 const MAX_VENUE_ID = 64;
 
 const SAVE_HANDLE_LIMIT = 8;
-const SAVE_ACTOR_LIMIT = 40;
+const SAVE_ACTOR_LIMIT = 8;
 const SAVE_RATE_WINDOW_MS = 60_000;
 const LIST_HANDLE_LIMIT = 8;
-const LIST_ACTOR_LIMIT = 40;
+const LIST_ACTOR_LIMIT = 8;
 const LIST_RATE_WINDOW_MS = 60_000;
 
 export async function GET(request: Request): Promise<Response> {
@@ -146,8 +146,8 @@ export async function POST(request: Request): Promise<Response> {
   const note = cleanNote(body.note);
 
   // Rate-limit per handle AND per actor (two independent budgets). The handle
-  // cap stops one profile flooding; the actor cap is generous for normal toggles
-  // across venues. 429 when either budget is exhausted.
+  // cap stops one profile flooding; the actor cap stops one device spamming
+  // across handles. 429 when either budget is exhausted.
   const actorHash = hashIp(clientIp(request));
   if (
     (await isLimited(

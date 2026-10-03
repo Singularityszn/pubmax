@@ -237,10 +237,10 @@ describe("POST /api/saved-pubs (toggle)", () => {
     expect(await last!.json()).toEqual({ error: "Too many saves, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 
-  it("429s the 41st save from one device across handles", async () => {
+  it("429s the 9th save from one device across handles", async () => {
     const headers = { "x-forwarded-for": "192.0.2.55" };
     let last: Response | undefined;
-    for (let i = 0; i < 41; i++) {
+    for (let i = 0; i < 9; i++) {
       last = await post(
         { handle: `device-${i}`, venueId: REAL_VENUE_ID, listType: "Historic" },
         headers,

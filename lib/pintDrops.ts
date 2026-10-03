@@ -249,8 +249,6 @@ export function isRateLimited(
   windowMs = RATE_WINDOW_MS,
 ): boolean {
   const key = handle.toLowerCase();
-  const stale = rateWindow.get(key);
-  if (stale !== undefined && stale.length === 0) rateWindow.delete(key);
   const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < windowMs);
   if (hits.length === 0) rateWindow.delete(key);
   hits.push(now);
@@ -269,12 +267,9 @@ export function consumeRateLimit(
   windowMs: number,
 ): boolean {
   const key = handle.toLowerCase();
-  const stale = rateWindow.get(key);
-  if (stale !== undefined && stale.length === 0) rateWindow.delete(key);
   const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < windowMs);
   if (hits.length >= limit) {
-    if (hits.length === 0) rateWindow.delete(key);
-    else rateWindow.set(key, hits);
+    rateWindow.set(key, hits);
     return true;
   }
   hits.push(now);
