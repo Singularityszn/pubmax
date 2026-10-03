@@ -2,10 +2,10 @@
 //   GET  ?handle=<handle>  (or ?actor=<anonId>)  → { saved: SavedPubDTO[] }
 //   POST { handle, venueId, listType, note }      → { saved: SavedPubDTO[] }  (toggles)
 //
-// A save is filed under a self-asserted `handle` (no auth yet): the durable store
-// bootstraps a profile row for that handle and keys saves by its profile_id
-// (public.saved_pubs — see lib/savedPubsStore.ts). The response DTOs carry the
-// resolved venue NAME + "open on the map" url (server-side via lib/venueIndex) so
+// A save is filed under a handle. The durable store keys saves by the profile_id
+// of a row that already exists (public.saved_pubs, see lib/savedPubsStore.ts)
+// and does not mint one. The response DTOs carry the resolved venue NAME and
+// "open on the map" url (server-side via lib/venueIndex) so
 // the profile never renders a raw "venue-…" id.
 //
 // Store choice is the usual seam: Supabase when configured, process-memory
@@ -18,7 +18,8 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
-import { callerOwnedWithdrawnHandle, gateHandleAction } from "@/lib/profileOwnership";
+import { callerOwnedWithdrawnHandle, gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
+import { profileStore } from "@/lib/profileStore";
 import { isLimited } from "@/lib/pintDrops";
 import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -28,7 +29,7 @@ import {
   savedListsStore,
   savedPubsStore,
 } from "@/lib/savedPubsStore";
-import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { resolveVenue } from "@/lib/venueIndex";
 
@@ -77,6 +78,19 @@ export async function POST(request: Request): Promise<Response> {
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
+  }
+
+  // A durable save hangs off a profile row. A signed-in author's row was
+  // created, owned, by the gate. An anonymous save may only use a row that
+  // already exists: minting one would leave it unowned, and an unowned row is
+  // frozen against the account that later claims the handle. Keyless dev keeps
+  // the memory store, which has no profile row to mint.
+  if (
+    isSupabaseConfigured() &&
+    !gateHasVerifiedActor(ownership) &&
+    !(await profileStore().getByHandle(ownership.handle))
+  ) {
+    return publicApiError("Profile not found.", "NOT_FOUND", 404);
   }
 
   // createList action (story 33): register a custom list name for this handle so

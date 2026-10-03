@@ -21,7 +21,7 @@ function readHandle(): string {
 
 export default function NotificationBell(): React.JSX.Element {
   const router = useRouter();
-  const { handle: authHandle } = useAuth();
+  const { user, handle: authHandle } = useAuth();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [handle, setHandle] = useState("");
   const [unread, setUnread] = useState(0);
@@ -42,6 +42,10 @@ export default function NotificationBell(): React.JSX.Element {
 
   const refresh = useCallback(async () => {
     if (!socialFriendsLaunchEnabled) return;
+    if (!user) {
+      setUnread(0);
+      return;
+    }
     const h = normalizeHandle(authHandle ?? "") || handle.trim();
     if (!h) return;
     abortRef.current?.abort();
@@ -60,10 +64,15 @@ export default function NotificationBell(): React.JSX.Element {
     } catch {
       // Aborted / offline — leave the badge as-is; the nav never breaks on this.
     }
-  }, [handle, authHandle, socialFriendsLaunchEnabled]);
+  }, [handle, authHandle, socialFriendsLaunchEnabled, user]);
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled) return;
+    // A signed-out visitor has nothing to poll: the inbox refuses them.
+    if (!user) {
+      void Promise.resolve().then(() => setUnread(0));
+      return;
+    }
     if (!handle.trim() && !authHandle) return;
     void Promise.resolve().then(() => refresh());
     const onFocus = () => void refresh();
@@ -74,7 +83,7 @@ export default function NotificationBell(): React.JSX.Element {
       window.clearInterval(interval);
       abortRef.current?.abort();
     };
-  }, [handle, refresh, authHandle, socialFriendsLaunchEnabled]);
+  }, [handle, refresh, authHandle, socialFriendsLaunchEnabled, user]);
 
   const label = !socialFriendsLaunchEnabled
     ? "Social preview"
