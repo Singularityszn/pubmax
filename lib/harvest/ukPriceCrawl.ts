@@ -34,6 +34,7 @@
 
 import {
   COFFEE_HARVEST_WORD_PATTERN,
+  canonicalCoffeePilotDrink,
   coffeePriceLabelExcluded,
 } from "@/lib/coffeePricePilot";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -393,13 +394,30 @@ export function drinkLabelFromPriceContext(
   return normalizeHarvestDrinkLabel(raw);
 }
 
-/** Dedup key for site-harvest rows: category, printed name and explicit serving. */
+/**
+ * Tea, water and affogato never file as coffee. The priced item's own line
+ * decides, so a "Tea & Coffee" heading cannot drop the coffee printed under it.
+ */
+export function coffeePriceExcludedAt(
+  text: string,
+  at: number,
+  drinkLabel?: string | null,
+): boolean {
+  return coffeePriceLabelExcluded(printedItemName(text, at)?.own || drinkLabel);
+}
+
+/**
+ * Dedup key for site-harvest rows: category, printed name and explicit serving.
+ * A coffee that opens with a pilot drink keys by that drink, so flat white,
+ * latte and matcha latte each keep their own figure.
+ */
 export function siteHarvestPriceKey(
   category: DrinkCategory,
   drinkLabel?: string | null,
   servingSize?: string | null,
 ): string {
-  const label = typeof drinkLabel === "string" ? drinkLabel.trim().toLowerCase() : "";
+  const name = category === "coffee" ? canonicalCoffeePilotDrink(drinkLabel) ?? drinkLabel : drinkLabel;
+  const label = typeof name === "string" ? name.trim().toLowerCase() : "";
   const serving = typeof servingSize === "string" ? servingSize.trim().toLowerCase() : "";
   return `${category}\0${label}\0${serving}`;
 }
@@ -802,8 +820,7 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
-  const printedName = drinkLabel ?? printedItemName(text, at)?.own;
-  if (category === "coffee" && coffeePriceLabelExcluded(printedName)) {
+  if (category === "coffee" && coffeePriceExcludedAt(text, at, drinkLabel)) {
     return { drop: "no-category-word-nearby" };
   }
   const drop = keylessPriceDropReason(category, priceGbp, context);

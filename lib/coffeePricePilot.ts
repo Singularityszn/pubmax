@@ -19,14 +19,10 @@ const PILOT_DRINK_ORDER: ReadonlyArray<{
   id: CoffeePilotNamedDrink;
   pattern: RegExp;
 }> = [
-  { id: "matcha latte", pattern: /\bmatcha\s+latte\b/i },
-  { id: "flat white", pattern: /\bflat\s+white\b/i },
-  // After matcha latte so "matcha latte" does not read as plain latte.
-  { id: "latte", pattern: /\blatte\b/i },
+  { id: "matcha latte", pattern: /^matcha\s+latte\b/i },
+  { id: "flat white", pattern: /^flat\s+white\b/i },
+  { id: "latte", pattern: /^latte\b/i },
 ];
-
-const COFFEE_WORDS_BESIDE_TEA_OR_WATER =
-  /\b(espresso|americano|cappuccino|latte|flat\s+white|mocha|macchiato|cortado|matcha)\b/i;
 
 /**
  * Vocabulary for ukPriceCrawl and drinkCategoryFromText. Matcha is a coffee
@@ -36,8 +32,8 @@ export const COFFEE_HARVEST_WORD_PATTERN =
   /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha|matcha|macchiato|cortado)\b/i;
 
 /**
- * A printed menu line that must never become a coffee price, even when a
- * neighbouring line or the word "espresso" appears in the same context window.
+ * A printed menu line that must never become a coffee price. Pass the priced
+ * item's own line, not a label joined with the section heading above it.
  */
 export function coffeePriceLabelExcluded(label: string | null | undefined): boolean {
   if (typeof label !== "string") return false;
@@ -45,10 +41,13 @@ export function coffeePriceLabelExcluded(label: string | null | undefined): bool
   if (!normalized) return false;
   if (/\baffogato\b/.test(normalized)) return true;
   if (!/\b(?:tea|water)\b/.test(normalized)) return false;
-  return !COFFEE_WORDS_BESIDE_TEA_OR_WATER.test(normalized);
+  return !COFFEE_HARVEST_WORD_PATTERN.test(normalized);
 }
 
-/** Map a printed name onto one pilot drink id, or null when it names none of them. */
+/**
+ * Map a printed name onto one pilot drink id, or null when it does not open
+ * with one, so "Chai latte" or "Iced latte" never stands in for a latte.
+ */
 export function canonicalCoffeePilotDrink(
   label: string | null | undefined,
 ): CoffeePilotNamedDrink | null {

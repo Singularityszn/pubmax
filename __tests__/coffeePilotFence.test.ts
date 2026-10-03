@@ -84,6 +84,50 @@ describe("coffee pilot harvest fence", () => {
     expect(rows).toHaveLength(4);
   });
 
+  it("keys each pilot drink once, cheapest wins, without folding in other drinks", () => {
+    const html = `
+      <p>Flat white £3.50</p>
+      <p>Flat white (oat) £3.90</p>
+      <p>Latte £3.80</p>
+      <p>Latte (oat) £4.10</p>
+      <p>Chai latte £3.20</p>
+      <p>Matcha latte £4.00</p>
+      <p>Matcha latte (oat) £4.40</p>`;
+    const rows = cheapestPerCategory(readVenueDrinkPrices(html)).filter(
+      (row) => row.category === "coffee",
+    );
+    const byPilot = new Map(
+      rows.map((row) => [canonicalCoffeePilotDrink(row.drinkLabel), row.priceGbp]),
+    );
+    expect(byPilot.get("flat white")).toBe(3.5);
+    expect(byPilot.get("latte")).toBe(3.8);
+    expect(byPilot.get("matcha latte")).toBe(4);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ drinkLabel: "Chai latte", priceGbp: 3.2 }),
+      ]),
+    );
+    expect(rows).toHaveLength(4);
+  });
+
+  it("judges tea and water on the priced line, not a joined heading", () => {
+    const html = `
+      <h2>Tea &amp; Coffee</h2>
+      <p>Tea £2.00</p>
+      <p>Coffee £2.50</p>
+      <p>Filter coffee, brewed with filtered water £3.00</p>`;
+    const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
+    expect(coffee.map((row) => row.priceGbp)).toEqual([2.5, 3]);
+  });
+
+  it.each([
+    ["<h2>Tea &amp; Coffee</h2><p>Coffee £2.50</p>", 2.5],
+    ["<p>Filter coffee, brewed with filtered water £3.00</p>", 3],
+  ])("keeps the coffee in %s", (html, priceGbp) => {
+    const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
+    expect(coffee.map((row) => row.priceGbp)).toEqual([priceGbp]);
+  });
+
   it("does not collapse two pilot drinks that share a line but state two prices", () => {
     const html = "<p>Flat white Latte £3.50 £3.80</p>";
     const rows = cheapestPerCategory(readVenueDrinkPrices(html)).filter(
