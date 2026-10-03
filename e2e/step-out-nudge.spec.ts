@@ -1,7 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 test.use({ viewport: { width: 390, height: 844 } });
+
+const SHOTS = runnerShotDir("pubmax-step-out-nudge");
 
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000094";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
@@ -215,7 +219,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     await expect(page.getByTestId("step-out-ios-install-note")).toHaveCount(0);
 
     await page.screenshot({
-      path: path.join("/tmp", "step-out-nudge-opt-in-390.png"),
+      path: path.join(SHOTS, "step-out-nudge-opt-in-390.png"),
       fullPage: true,
     });
 
@@ -228,7 +232,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     expect(state.enabled).toBe(false);
 
     await page.screenshot({
-      path: path.join("/tmp", "step-out-nudge-withdrawn-390.png"),
+      path: path.join(SHOTS, "step-out-nudge-withdrawn-390.png"),
       fullPage: true,
     });
   });
@@ -244,7 +248,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
       page.getByText(/web push needs the Home Screen install/i),
     ).toBeVisible();
     await page.screenshot({
-      path: path.join("/tmp", "step-out-nudge-ios-note-390.png"),
+      path: path.join(SHOTS, "step-out-nudge-ios-note-390.png"),
       fullPage: true,
     });
   });
