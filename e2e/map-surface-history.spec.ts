@@ -117,10 +117,16 @@ test.describe("one Map surface history owner", () => {
       await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
 
+    // Plan an outing is a toggle that relabels itself "Close plan" once the
+    // planner opens, so a retry may tap it only while the planner is still
+    // closed. The sole-drawer wait below owns the drawers settling, which a
+    // loaded runner can stretch past one try.
     const planOuting = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
     await expect(async () => {
-      await planOuting.click();
-      await expectSoleDrawer(page, "planner", 2_000);
+      if ((await planner(page).getAttribute("aria-hidden")) !== "false") {
+        await planOuting.click();
+      }
+      await expect(planner(page)).toHaveAttribute("aria-hidden", "false", { timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
     await expectSoleDrawer(page, "planner");
   });
