@@ -2,10 +2,12 @@
 //
 // Before this migration a signed-in role can still write tables the app
 // only writes through the service role, anon can write two messaging tables
-// the later SELECT grant never revoked, and report_pint_drop is an invoker
-// that a signed-in call cannot run after 0171. After 0172 those writes are
-// refused, the kept reads still answer, a service-role call reports a drop,
-// and the rollback puts the writes back.
+// the later SELECT grant never revoked, a new public table takes every
+// browser-role grant by default, and report_pint_drop is an invoker that a
+// signed-in call cannot run after 0171. After 0172 those writes are refused,
+// the kept reads still answer, a new table, sequence or function holds no
+// browser-role grant, only the service role may execute the invoker and its
+// call reports a drop, and the rollback puts the writes back.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -88,6 +90,34 @@ function functionPriv(role: string): string {
   );
 }
 
+function sequencePriv(role: string, sequence: string): string {
+  return requireDatabase().sql(
+    `select has_sequence_privilege('${role}', 'public.${sequence}', 'usage');`,
+  );
+}
+
+function functionBrowserGrants(name: string): string {
+  return requireDatabase().sql(
+    `select count(*)
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      cross join lateral aclexplode(p.proacl) a
+      where n.nspname = 'public'
+        and p.proname = '${name}'
+        and a.grantee in ('anon'::regrole, 'authenticated'::regrole);`,
+  );
+}
+
+function createProbes(suffix: string): void {
+  requireDatabase().sql(
+    [
+      `create table public.grant_probe_${suffix} (id int);`,
+      `create sequence public.grant_probe_${suffix}_seq;`,
+      `create function public.grant_probe_${suffix}_fn() returns int language sql as 'select 1';`,
+    ].join("\n"),
+  );
+}
+
 function definer(): string {
   return requireDatabase().sql(
     `select p.prosecdef::text
@@ -111,6 +141,10 @@ beforeAll(async () => {
       `insert into public.pint_drops (id, venue_id, handle, price_gbp, status, visibility, created_at)`,
       `values ('${DROP}', 'venue-sweep', 'doorsweep', 4.20, 'visible', 'public', '2026-10-03 06:00:00+01');`,
       `grant truncate on table public.wanteds to authenticated;`,
+      `grant all on sequence public.plan_stops_id_seq to anon, authenticated;`,
+      `alter default privileges in schema public grant all on tables to anon, authenticated;`,
+      `alter default privileges in schema public grant all on sequences to anon, authenticated;`,
+      `alter default privileges in schema public grant all on functions to anon, authenticated;`,
     ].join("\n"),
   );
 }, 300_000);
@@ -132,8 +166,15 @@ describe.skipIf(skipReason !== null)("0172 public grant sweep", () => {
     expect(tablePriv("authenticated", "pint_drops", "select")).toBe("f");
     expect(columnPriv("authenticated", "plan_crew_members", "id")).toBe("t");
     expect(columnPriv("authenticated", "plan_crew_members", "token_hash")).toBe("f");
+    expect(sequencePriv("anon", "plan_stops_id_seq")).toBe("t");
     expect(definer()).toBe("false");
     expect(functionPriv("authenticated")).toBe("t");
+
+    createProbes("before");
+    expect(tablePriv("anon", "grant_probe_before", "insert")).toBe("t");
+    expect(tablePriv("authenticated", "grant_probe_before", "truncate")).toBe("t");
+    expect(sequencePriv("anon", "grant_probe_before_seq")).toBe("t");
+    expect(functionBrowserGrants("grant_probe_before_fn")).toBe("2");
 
     const refusal = requireDatabase().expectRefusal(
       [
@@ -147,7 +188,7 @@ describe.skipIf(skipReason !== null)("0172 public grant sweep", () => {
     expect(refusal).toMatch(/permission denied/i);
   });
 
-  it("closes client writes, keeps the reads, and lets the service role report", () => {
+  it("closes client writes and the new-object default, keeps the reads, and lets the service role report", () => {
     const session = requireDatabase();
     session.applyFile(FORWARD);
 
@@ -179,6 +220,19 @@ describe.skipIf(skipReason !== null)("0172 public grant sweep", () => {
     expect(columnPriv("authenticated", "community_prices", "price_pennies")).toBe("t");
     expect(columnPriv("authenticated", "community_prices", "contributor_handle")).toBe("f");
     expect(columnPriv("anon", "night_signal_claims", "claim")).toBe("t");
+    expect(tablePriv("anon", "grant_probe_before", "select")).toBe("f");
+    expect(sequencePriv("anon", "plan_stops_id_seq")).toBe("f");
+    expect(sequencePriv("authenticated", "grant_probe_before_seq")).toBe("f");
+
+    createProbes("after");
+    for (const role of ["anon", "authenticated"]) {
+      for (const privilege of ["select", "insert", "update", "delete", "truncate", "references", "trigger"]) {
+        expect(tablePriv(role, "grant_probe_after", privilege), `${role} ${privilege}`).toBe("f");
+      }
+      expect(sequencePriv(role, "grant_probe_after_seq"), role).toBe("f");
+    }
+    expect(functionBrowserGrants("grant_probe_after_fn")).toBe("0");
+    expect(tablePriv("service_role", "grant_probe_after", "insert")).toBe("t");
 
     const ownProfile = lastLine(
       session.sql(
@@ -203,7 +257,7 @@ describe.skipIf(skipReason !== null)("0172 public grant sweep", () => {
     );
     expect(writeRefusal).toMatch(/permission denied/i);
 
-    expect(definer()).toBe("true");
+    expect(definer()).toBe("false");
     expect(functionPriv("anon")).toBe("f");
     expect(functionPriv("authenticated")).toBe("f");
     expect(functionPriv("public")).toBe("f");
@@ -233,7 +287,7 @@ describe.skipIf(skipReason !== null)("0172 public grant sweep", () => {
     expect(signedIn).toMatch(/permission denied/i);
   });
 
-  it("rolls the writes and the invoker function back, and leaves truncate closed", () => {
+  it("rolls the writes and the public execute back, and leaves truncate and the new-object default closed", () => {
     const session = requireDatabase();
     session.applyFile(ROLLBACK);
 
@@ -245,5 +299,10 @@ describe.skipIf(skipReason !== null)("0172 public grant sweep", () => {
     expect(definer()).toBe("false");
     expect(functionPriv("authenticated")).toBe("t");
     expect(columnPriv("authenticated", "plan_crew_members", "token_hash")).toBe("f");
+
+    createProbes("rollback");
+    expect(tablePriv("anon", "grant_probe_rollback", "insert")).toBe("f");
+    expect(sequencePriv("anon", "grant_probe_rollback_seq")).toBe("f");
+    expect(functionBrowserGrants("grant_probe_rollback_fn")).toBe("0");
   });
 });

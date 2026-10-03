@@ -1,4 +1,7 @@
--- Puts back the client writes 0172 removed.
+-- Puts back the client writes 0172 removed from the tables that still
+-- carry an owner write policy or took a default write grant, and PUBLIC
+-- execute on report_pint_drop. It does not put back every grant 0172
+-- revoked.
 --
 -- Cost: anon can again insert, update and delete conversation_members,
 -- message_poll_votes and crawl_stories, and authenticated can again write
@@ -7,11 +10,29 @@
 -- two messaging tables). Row policy is the only check on those writes.
 -- SELECT grants 0172 kept are left as they are.
 --
--- TRUNCATE, REFERENCES and TRIGGER stay revoked. Granting them back is the
--- wipe 0172 exists to close; the session-fixture replay never had them.
+-- Not restored, on purpose. Each is a grant no client path or policy
+-- serves, and putting it back reopens the hole 0172 closes.
+--   • TRUNCATE, REFERENCES and TRIGGER on every public table. TRUNCATE
+--     wipes a table under any row policy. The session-fixture replay never
+--     had them.
+--   • anon SELECT on conversation_members and message_poll_votes. No
+--     policy admits anon there, so the grant answered zero rows.
+--   • Any other browser-role grant on a public table that a hosted catalog
+--     held outside the migration history. The replay shows none: before
+--     0172 every browser-role table grant is on a table 0172 keeps a SELECT
+--     on or writes back below. A hosted grant no migration wrote is not
+--     recorded anywhere, so this file cannot name it.
+--   • Browser-role grants on public sequences. The replay shows none; the
+--     platform default granted them, and no client path calls nextval.
+--   • The default privileges 0172 revoked. They act only on objects a
+--     later migration creates, so leaving them revoked breaks nothing that
+--     exists, and restoring them reopens the default that produced 0170
+--     and 0171.
+-- pub_presence SELECT is not on this list because 0172 did not take it:
+-- 0068 revoked it and nothing granted it back.
 --
--- report_pint_drop goes back to SECURITY INVOKER with PUBLIC execute, so a
--- signed-in call depends on a pint_drops grant again and fails while 0171
+-- report_pint_drop gets PUBLIC execute back. It stayed SECURITY INVOKER, so
+-- a signed-in call depends on a pint_drops grant again and fails while 0171
 -- stays applied.
 --
 -- service_role is untouched.
@@ -33,29 +54,6 @@ grant insert, update, delete on table public.saved_lists to authenticated;
 grant insert, update, delete on table public.saved_pubs to authenticated;
 grant insert, update, delete on table public.step_out_nudge_prefs to authenticated;
 grant insert, update, delete on table public.wanteds to authenticated;
-
-create or replace function public.report_pint_drop(
-  p_id uuid,
-  p_reason text,
-  p_hide_threshold int
-)
-returns int
-language sql
-security invoker
-set search_path = ''
-as $$
-  update public.pint_drops
-     set report_count = coalesce(report_count, 0) + 1,
-         reported_at = now(),
-         report_reason = coalesce(nullif(p_reason, ''), report_reason),
-         status = case
-                    when coalesce(report_count, 0) + 1 >= p_hide_threshold
-                      then 'hidden'
-                    else status
-                  end
-   where id = p_id
-   returning report_count;
-$$;
 
 grant execute on function public.report_pint_drop(uuid, text, int) to public;
 
