@@ -152,9 +152,31 @@ async function verifyClaimsLocally(
   return { status: "verified", identity: { id, email, createdAt: null } };
 }
 
-export async function verifyCallerAuth(
+const verificationByRequest = new WeakMap<Request, Promise<CallerAuthVerification>>();
+
+/**
+ * One default verification per Request. `resolveMessageHandle`,
+ * `gateHandleAction`, `resolveContributionIdentity` and any other caller on
+ * that same object share the in-flight promise, so a signed-in route asks
+ * `auth.getUser` once. The settled answer, including a failure, stays with
+ * that Request. The next Request verifies again. `localOnly` is never shared:
+ * it is a weaker answer and its one caller asks for it once.
+ */
+export function verifyCallerAuth(
   request: Request,
   options: VerifyCallerAuthOptions = {},
+): Promise<CallerAuthVerification> {
+  if (options.localOnly) return verifyBearer(request, true);
+  const cached = verificationByRequest.get(request);
+  if (cached) return cached;
+  const pending = verifyBearer(request, false);
+  verificationByRequest.set(request, pending);
+  return pending;
+}
+
+async function verifyBearer(
+  request: Request,
+  localOnly: boolean,
 ): Promise<CallerAuthVerification> {
   const token = bearerToken(request);
   if (!token) return { status: "absent" };
@@ -163,7 +185,7 @@ export async function verifyCallerAuth(
   if (!admin) return { status: "unavailable" };
 
   try {
-    if (options.localOnly) {
+    if (localOnly) {
       const local = await verifyClaimsLocally(admin, token);
       if (local) return local;
     }
@@ -190,24 +212,17 @@ export async function verifyCallerAuth(
 }
 
 /**
- * One verification per Request. `resolveMessageHandle` and `gateHandleAction`
- * (and any other caller on that same object) share the in-flight promise, so
- * a signed-in route asks `auth.getUser` once. The settled answer, including a
- * failure, stays with that Request. The next Request verifies again.
+ * Resolve the caller's authenticated user id from their request, or null when
+ * the request is anonymous / the token is invalid / auth is unconfigured.
  *
  * Fail-CLOSED for identity: any doubt (no token, bad token, no admin client, a
  * verification error) resolves to null. A null caller can still take the
  * anonymous demo path for an UNLINKED handle, but can never satisfy the owner
  * check for a LINKED one — so an invalid token can't impersonate an owner.
  */
-const callerUserIdByRequest = new WeakMap<Request, Promise<string | null>>();
-
-export function callerUserId(request: Request): Promise<string | null> {
-  const cached = callerUserIdByRequest.get(request);
-  if (cached) return cached;
-  const pending = callerAuthIdentity(request).then((identity) => identity?.id ?? null);
-  callerUserIdByRequest.set(request, pending);
-  return pending;
+export async function callerUserId(request: Request): Promise<string | null> {
+  const identity = await callerAuthIdentity(request);
+  return identity?.id ?? null;
 }
 
 /**

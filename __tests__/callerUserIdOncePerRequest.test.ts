@@ -21,17 +21,31 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { POST as postCheckIn } from "@/app/api/check-ins/route";
+import { POST as postRoundAction } from "@/app/api/rounds/[code]/route";
+import { POST as postRound } from "@/app/api/rounds/route";
 import { POST as postSavedPub } from "@/app/api/saved-pubs/route";
 import { callerUserId } from "@/lib/authServer";
 import { __resetMemoryCheckIns } from "@/lib/checkInStore";
+import { __resetCommunityPrices } from "@/lib/communityPriceStore";
+import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
+import {
+  __resetMemoryPrivateIdentities,
+  memoryPrivateIdentityStore,
+} from "@/lib/privateIdentityStore";
 import { __resetMemoryProfiles } from "@/lib/profileStore";
+import type { RoundState } from "@/lib/rounds";
+import { __resetMemoryRounds } from "@/lib/roundsStore";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 const CHECK_INS = "http://localhost/api/check-ins";
+const ROUNDS = "http://localhost/api/rounds";
 const SAVED_PUBS = "http://localhost/api/saved-pubs";
 
 let venueId = "";
+let pubId = "";
 
 function verifiedUser(id: string) {
   return {
@@ -56,11 +70,17 @@ function bearer(url: string, token: string, body: unknown): Request {
 beforeAll(async () => {
   const index = await getVenueIndex();
   venueId = [...index.keys()][0] ?? "";
+  pubId = [...index.values()].find((venue) => isPubVenueKind(venue.kind))?.id ?? "";
 });
 
 beforeEach(() => {
   __resetMemoryCheckIns();
+  __resetCommunityPrices();
+  __resetMemoryIdentityHandles();
+  __resetPintDrops();
+  __resetMemoryPrivateIdentities();
   __resetMemoryProfiles();
+  __resetMemoryRounds();
   __resetMemorySavedPubs();
   authState.getUser.mockReset();
 });
@@ -89,6 +109,52 @@ describe("one auth.getUser per Request", () => {
     expect(saved.status).toBe(200);
     expect(authState.getUser).toHaveBeenCalledTimes(1);
     expect(authState.getUser).toHaveBeenCalledWith("token-save");
+  });
+
+  it("verifies a signed-in priced Round spend once", async () => {
+    authState.getUser.mockResolvedValue(verifiedUser("user-round"));
+    await expect(
+      memoryPrivateIdentityStore.completeOnboarding({
+        userId: "user-round",
+        handle: "q2round",
+        dateOfBirth: "1990-01-01",
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    const created = await postRound(
+      bearer(ROUNDS, "token-round", { handle: "q2round" }),
+    );
+    expect(created.status).toBe(201);
+    const { round } = (await created.json()) as RoundState;
+    const roundUrl = `${ROUNDS}/${round.code}`;
+    const ctx = { params: Promise.resolve({ code: round.code }) };
+    const stop = await postRoundAction(
+      bearer(roundUrl, "token-round", {
+        action: "addStop",
+        handle: "q2round",
+        venueId: pubId,
+      }),
+      ctx,
+    );
+    expect(stop.status).toBe(200);
+
+    authState.getUser.mockClear();
+    const spend = await postRoundAction(
+      bearer(roundUrl, "token-round", {
+        action: "recordSpend",
+        handle: "q2round",
+        payerHandle: "q2round",
+        venueId: pubId,
+        clientRef: "q2-round-spend",
+        items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      }),
+      ctx,
+    );
+    expect(spend.status).toBe(200);
+    expect(
+      ((await spend.json()) as RoundState).spends[0]?.items[0],
+    ).toMatchObject({ promotionStatus: "promoted" });
+    expect(authState.getUser).toHaveBeenCalledTimes(1);
+    expect(authState.getUser).toHaveBeenCalledWith("token-round");
   });
 
   it("verifies two different Requests even when they carry the same token", async () => {
