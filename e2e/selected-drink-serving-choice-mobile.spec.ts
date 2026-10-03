@@ -135,3 +135,43 @@ test("White wine 175ml changes to 250ml and stays selected after Drink closes", 
   await expect(page.locator('.mobileSheetPortal[data-sheet-kind="drink"]')).toHaveCount(0);
   await expect(page).toHaveURL(selected250);
 });
+
+test("Pints stays selected after leaving Gin through the Drink sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.clock.setFixedTime(new Date("2026-10-03T12:00:00.000Z"));
+  await installDeterministicMapBasemap(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+
+  expect((await page.goto("/map?drink=gin&sub=gin-london-dry&serving=25ml"))?.status()).toBe(200);
+  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+
+  const chip = page.locator(".mobileMapChrome .mobileMapDrinkChip");
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]:visible');
+  await chip.click();
+  await expect(sheet).toBeVisible();
+
+  const pints = sheet
+    .getByRole("group", { name: "Drink prices shown on the map" })
+    .getByRole("button", { name: "Pints", exact: true });
+  await expect(pints).toBeVisible();
+  await pints.click();
+  const defaultMap = (url: URL) =>
+    url.pathname === "/map"
+      && !url.searchParams.has("drink")
+      && !url.searchParams.has("sub")
+      && !url.searchParams.has("serving");
+  await expect(pints).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(defaultMap);
+
+  await sheet.getByRole("button", { name: "Close Drink", exact: true }).click();
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="drink"]')).toHaveCount(0);
+  await expect(page).toHaveURL(defaultMap);
+  await expect(chip).toHaveAccessibleName("Drink shown on the map: Pints. Choose another drink");
+});
