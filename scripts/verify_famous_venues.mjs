@@ -255,9 +255,10 @@ async function main() {
   if (limit != null) {
     const priorArtifacts = loadVerificationArtifacts();
     const today = priorArtifacts.find((artifact) => artifact.verifiedAt === verifiedDay) ?? null;
-    const room = remainingBatchSize(limit, artifactChecks(today).length);
+    const checkedToday = artifactChecks(today).length;
+    const room = remainingBatchSize(limit, checkedToday);
     if (room === 0) {
-      console.log(`Today's batch already has ${limit} checks; not calling Places again`);
+      console.log(`Today's batch already has ${checkedToday} checks; not calling Places again`);
       return;
     }
     skipIds = idsCoveredByPartialVerifications(
