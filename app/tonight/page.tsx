@@ -107,6 +107,8 @@ export default async function TonightPage() {
     now,
   });
 
+  const hypedForPage = hypedPubsForPage(hyped.rows);
+
   return (
     <TonightClient
       quietPint={quietPint}
@@ -114,7 +116,8 @@ export default async function TonightPage() {
       mapSelectableVenueIds={
         mapSelectableVenueIds ? [...mapSelectableVenueIds] : null
       }
-      hypedPubs={hypedPubsForPage(hyped.rows)}
+      hypedPubs={hypedForPage}
+      hypedPubCount={hypedForPage.length}
       // What a quiet night answers with: real pubs at a listed price, composed
       // from the dataset this page already read for the quiet-pint module.
       cheapPints={tonightCheapPints(

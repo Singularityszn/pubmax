@@ -203,6 +203,7 @@ export default function TonightClient({
   softPlansWindow = false,
   mapSelectableVenueIds,
   hypedPubs,
+  hypedPubCount = 0,
   cheapPints,
 }: {
   /** Server-composed quiet-pint module; null outside a quiet window. */
@@ -213,6 +214,8 @@ export default function TonightClient({
   mapSelectableVenueIds?: readonly string[] | null;
   /** The pubs people are talking about, read at build from the committed pack. */
   hypedPubs?: readonly HypedPub[];
+  /** How many hyped rows ship in the document; reserves lede height before hydration. */
+  hypedPubCount?: number;
   /** Cheapest listed pints, for the nights nothing is on. */
   cheapPints?: readonly TonightCheapPint[];
 }) {
@@ -573,8 +576,16 @@ export default function TonightClient({
           sentence, and nothing else may stand inside it. The chain blocks and
           the cheap pints follow it in the DOM, so the reading order, the tab
           order and the paint order stay one order (#1575). */}
-      <div className="tonightLedeRegion" data-testid="tonight-lede">
-      <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
+      <div
+        className="tonightLedeRegion"
+        data-testid="tonight-lede"
+        data-hyped-reserve={hypedPubCount > 0 ? "true" : undefined}
+      >
+      <TonightHypedPubs
+        rows={hypedPubs}
+        reserveCount={hypedPubCount}
+        selectableVenueIds={selectableVenueIds}
+      />
       <TonightListingsNotice
         state={listingsState}
         note={listingsNote}
