@@ -18,7 +18,8 @@ import {
   decideIdOnlyPlaceMatch,
   matchRectangle,
   isInShoreditchCoffeeBox,
-  osmHoursAgreeWithPlaces,
+  OSM_HOURS_VERDICTS,
+  osmHoursVerdict,
   osmRefFromLayerId,
   projectedPlacesSpendUsd,
   textQueryForOsmVenue,
@@ -158,7 +159,7 @@ describe("cafe hours are checked, never copied", () => {
     for (let day = 0; day < 7; day += 1) {
       expect(places?.[day]).toEqual([{ opens: "00:00", closes: "24:00" }]);
     }
-    expect(osmHoursAgreeWithPlaces(parseOsmOpeningHours("24/7"), places as WeeklyOpeningHours)).toBe(true);
+    expect(osmHoursVerdict(parseOsmOpeningHours("24/7"), places as WeeklyOpeningHours)).toBe("agree");
   });
 
   it("refuses an unclosed period that is not the always-open shape", () => {
@@ -191,27 +192,32 @@ describe("cafe hours are checked, never copied", () => {
     );
     expect(places).not.toBeNull();
     expect(
-      osmHoursAgreeWithPlaces(parseOsmOpeningHours("Mo-Fr 08:00-24:00"), places as WeeklyOpeningHours),
-    ).toBe(true);
+      osmHoursVerdict(parseOsmOpeningHours("Mo-Fr 08:00-24:00"), places as WeeklyOpeningHours),
+    ).toBe("agree");
   });
 
-  it("disagrees when one day differs or OSM has no hours", () => {
+  it("disagrees only when OSM has readable hours that differ on a day", () => {
     const places: WeeklyOpeningHours = {
       0: [{ opens: "07:30", closes: "16:30" }],
       1: [{ opens: "06:30", closes: "18:00" }],
     };
-    expect(osmHoursAgreeWithPlaces(parseOsmOpeningHours("Mo 06:30-18:00"), places)).toBe(false);
+    expect(osmHoursVerdict(parseOsmOpeningHours("Mo 06:30-18:00"), places)).toBe("disagree");
     expect(
-      osmHoursAgreeWithPlaces(parseOsmOpeningHours("Mo 06:30-18:00; Su 07:30-16:30"), places),
-    ).toBe(true);
-    expect(osmHoursAgreeWithPlaces(parseOsmOpeningHours(""), places)).toBe(false);
+      osmHoursVerdict(parseOsmOpeningHours("Mo 06:30-18:00; Su 07:30-16:30"), places),
+    ).toBe("agree");
+  });
+
+  it("keeps a cafe with no readable OSM hours out of the disagreements", () => {
+    const places: WeeklyOpeningHours = { 1: [{ opens: "06:30", closes: "18:00" }] };
+    expect(osmHoursVerdict(parseOsmOpeningHours(""), places)).toBe("no_osm_hours");
+    expect(osmHoursVerdict(parseOsmOpeningHours("by appointment"), places)).toBe("no_osm_hours");
   });
 
   it("stores only the place id, our verdict and the day", () => {
-    expect(cafeVerificationRow("venue-osm-n9", "ChIJabcdefghij123456", false, "2026-10-03")).toEqual({
+    expect(cafeVerificationRow("venue-osm-n9", "ChIJabcdefghij123456", "disagree", "2026-10-03")).toEqual({
       venueId: "venue-osm-n9",
       googlePlaceId: "ChIJabcdefghij123456",
-      osmHoursAgree: false,
+      osmHoursVerdict: "disagree",
       verifiedAt: "2026-10-03",
     });
   });
@@ -283,9 +289,24 @@ describe("committed Places verification files", () => {
     ) as { rows: Record<string, unknown>[] };
     expect(cafes.rows.length).toBeGreaterThan(0);
     for (const row of cafes.rows) {
-      expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "osmHoursAgree", "venueId", "verifiedAt"]);
-      expect(typeof row.osmHoursAgree).toBe("boolean");
+      expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "osmHoursVerdict", "venueId", "verifiedAt"]);
+      expect(OSM_HOURS_VERDICTS).toContain(row.osmHoursVerdict);
     }
+  });
+
+  it("commits cafe verdicts once and keeps only their counts in the ledger", () => {
+    const ledger = JSON.parse(
+      readFileSync(path.join(ROOT, "data/places_verification/london.json"), "utf8"),
+    ) as { cafes?: unknown; summary: Record<string, number> };
+    const cafes = JSON.parse(
+      readFileSync(path.join(ROOT, "data/places_verification/shoreditch_cafes.json"), "utf8"),
+    ) as { rows: { osmHoursVerdict: string }[] };
+    const count = (verdict: string) => cafes.rows.filter((row) => row.osmHoursVerdict === verdict).length;
+    expect(ledger).not.toHaveProperty("cafes");
+    expect(ledger.summary.cafesVerified).toBe(cafes.rows.length);
+    expect(ledger.summary.cafesOsmHoursAgree).toBe(count("agree"));
+    expect(ledger.summary.cafesOsmHoursDisagree).toBe(count("disagree"));
+    expect(ledger.summary.cafesNoOsmHours).toBe(count("no_osm_hours"));
   });
 
   it("lists exactly the pubs marked permanently closed", () => {

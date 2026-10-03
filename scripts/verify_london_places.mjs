@@ -5,8 +5,9 @@
  * for pubs and, for those cafes, the opening period list, which is compared
  * in memory with the cafe's OSM hours and dropped. The files this writes
  * store our venue id, the place id, our closure boolean (pubs) or our
- * OSM-hours-agree boolean (cafes), and the day. Nothing else Google returned
- * is written. Cafes whose OSM hours disagree are printed for human review.
+ * OSM-hours verdict (cafes: agree, disagree or no_osm_hours), and the day.
+ * Nothing else Google returned is written. Cafes whose OSM hours disagree are
+ * printed for human review.
  *
  * Daily quota overrides are raised for this process and put back to the
  * values read at the start. The job stops before any paid call when the
@@ -33,7 +34,8 @@ import {
   decideIdOnlyPlaceMatch,
   isInShoreditchCoffeeBox,
   matchRectangle,
-  osmHoursAgreeWithPlaces,
+  OSM_HOURS_VERDICTS,
+  osmHoursVerdict,
   osmRefFromLayerId,
   projectedPlacesSpendUsd,
   pubVerificationRow,
@@ -331,21 +333,31 @@ function cafeDetail(read, osmHours) {
   if (read.status === "CLOSED_PERMANENTLY") return { skipped: "closed_permanently" };
   const placesHours = weeklyHoursFromPlacesPeriods(read.periods);
   if (!placesHours) return { skipped: "hours_unreadable" };
-  return { osmHoursAgree: osmHoursAgreeWithPlaces(osmHours, placesHours) };
+  return { osmHoursVerdict: osmHoursVerdict(osmHours, placesHours) };
 }
 
-function collectCafe(venue, progress, day, cafes, hoursForReview) {
+function collectCafe(venue, progress, day, cafes, cafesForReview) {
   const detail = progress.details[venue.id];
   const search = progress.searches[venue.id];
   if (detail?.skipped === "closed_permanently") {
-    hoursForReview.push(`${venue.id} ${venue.name}: Google marks it permanently closed`);
+    cafesForReview.push(`${venue.id} ${venue.name}: Google marks it permanently closed`);
   }
   if (!detail || detail.skipped || !search || search.outcome !== "matched") return;
-  if (typeof detail.osmHoursAgree !== "boolean") return;
-  cafes.push(cafeVerificationRow(venue.id, search.placeId, detail.osmHoursAgree, day));
-  if (!detail.osmHoursAgree) {
-    hoursForReview.push(`${venue.id} ${venue.name}: OSM hours disagree with Google`);
+  if (!OSM_HOURS_VERDICTS.includes(detail.osmHoursVerdict)) return;
+  cafes.push(cafeVerificationRow(venue.id, search.placeId, detail.osmHoursVerdict, day));
+  if (detail.osmHoursVerdict === "disagree") {
+    cafesForReview.push(`${venue.id} ${venue.name}: OSM hours disagree with Google`);
   }
+}
+
+function cafeVerdictCounts(cafes) {
+  const counts = { agree: 0, disagree: 0, no_osm_hours: 0 };
+  for (const row of cafes) counts[row.osmHoursVerdict] += 1;
+  return {
+    cafesOsmHoursAgree: counts.agree,
+    cafesOsmHoursDisagree: counts.disagree,
+    cafesNoOsmHours: counts.no_osm_hours,
+  };
 }
 
 function verifiedDay() {
@@ -490,7 +502,7 @@ async function main() {
     const pubs = [];
     const cafes = [];
     const closedForReview = [];
-    const hoursForReview = [];
+    const cafesForReview = [];
     for (const venue of venues.pubs) {
       const detail = progress.details[venue.id];
       const search = progress.searches[venue.id];
@@ -506,7 +518,7 @@ async function main() {
       }
     }
     for (const venue of venues.cafes) {
-      collectCafe(venue, progress, day, cafes, hoursForReview);
+      collectCafe(venue, progress, day, cafes, cafesForReview);
     }
     pubs.sort((a, b) => a.venueId.localeCompare(b.venueId));
     cafes.sort((a, b) => a.venueId.localeCompare(b.venueId));
@@ -573,12 +585,12 @@ async function main() {
         cafesConsidered: venues.cafes.length,
         pubsVerified: pubs.length,
         cafesVerified: cafes.length,
+        ...cafeVerdictCounts(cafes),
         skippedNoResult,
         skippedAmbiguous,
         closedPermanently: closedForReview.length,
       },
       pubs,
-      cafes,
       closedForReview,
     });
     writeJson(join(OUT_DIR, "closed_pubs.json"), { verifiedAt: day, osmRefs: closedRefs });
@@ -587,9 +599,9 @@ async function main() {
     console.log(
       `wrote verification: ${pubs.length} pubs, ${cafes.length} cafes, ${closedForReview.length} permanently closed`,
     );
-    hoursForReview.sort();
-    console.log(`cafes for human review (${hoursForReview.length}):`);
-    for (const line of hoursForReview) console.log(`  ${line}`);
+    cafesForReview.sort();
+    console.log(`cafes for human review (${cafesForReview.length}):`);
+    for (const line of cafesForReview) console.log(`  ${line}`);
   } finally {
     await restore();
   }

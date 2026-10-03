@@ -1,7 +1,7 @@
 /**
  * Google Places is used only to verify our own OSM venues, never copied.
  *
- * A committed row may hold our venue id, the Google place id, a boolean we
+ * A committed row may hold our venue id, the Google place id, a verdict we
  * derived (a pub's permanent closure, or whether a cafe's OSM hours agree
  * with Google), and the day we checked. Google's hours are compared in
  * memory and dropped. Nothing Google returned beyond the place id is stored
@@ -56,10 +56,13 @@ export type PlacesPubVerification = {
   verifiedAt: string;
 };
 
+export const OSM_HOURS_VERDICTS = ["agree", "disagree", "no_osm_hours"] as const;
+export type OsmHoursVerdict = (typeof OSM_HOURS_VERDICTS)[number];
+
 export type PlacesCafeVerification = {
   venueId: string;
   googlePlaceId: string;
-  osmHoursAgree: boolean;
+  osmHoursVerdict: OsmHoursVerdict;
   verifiedAt: string;
 };
 
@@ -219,26 +222,27 @@ function dayKey(hours: WeeklyOpeningHours, day: number): string {
 
 /**
  * Our own verdict: does every day of the OSM week match Google's week?
- * Missing OSM hours never agree.
+ * OSM hours that are absent or that our parser cannot read are
+ * `no_osm_hours`, never a disagreement.
  */
-export function osmHoursAgreeWithPlaces(
+export function osmHoursVerdict(
   osmHours: WeeklyOpeningHours | null,
   placesHours: WeeklyOpeningHours,
-): boolean {
-  if (!osmHours) return false;
+): OsmHoursVerdict {
+  if (!osmHours) return "no_osm_hours";
   for (let day = 0; day < 7; day += 1) {
-    if (dayKey(osmHours, day) !== dayKey(placesHours, day)) return false;
+    if (dayKey(osmHours, day) !== dayKey(placesHours, day)) return "disagree";
   }
-  return true;
+  return "agree";
 }
 
 export function cafeVerificationRow(
   venueId: string,
   googlePlaceId: string,
-  osmHoursAgree: boolean,
+  verdict: OsmHoursVerdict,
   verifiedAt: string,
 ): PlacesCafeVerification {
-  return { venueId, googlePlaceId, osmHoursAgree, verifiedAt };
+  return { venueId, googlePlaceId, osmHoursVerdict: verdict, verifiedAt };
 }
 
 /** USD for this job after the free monthly caps. Text Search IDs Only is free. */
