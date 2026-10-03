@@ -126,7 +126,7 @@ function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, servingChoi
 const CRAWL_CONTEXT_PARAMS = [
   "mode", "style", "max", "stops", "win", "drops", "low",
   "cocktails", "food", "q", "drink", "brand", "sub", "topshelf",
-  "zone", "pubs", "band", "alt", "crawl", "routeDrink", "routeLow",
+  "zone", "pubs", "band", "alt", "crawl", "routeDrink", "routeLow", "routeSub", "routeServing",
 ] as const;
 
 function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean, servingChoice?: CrawlServingChoice | null): void {

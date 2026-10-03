@@ -14,6 +14,7 @@
 
 import { drinkCategoriesInText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import type { DrinkCategory } from "@/lib/drinks";
+import { drinkSubtypeFromText } from "@/lib/drinkSubtypes";
 
 const CLAUSE_BREAK = /\b(?:while|whilst|but|whereas|although|though)\b|[,;!?]|\.(?!\d)/;
 
@@ -98,7 +99,7 @@ function withoutRefusals(text: string): string {
   return request;
 }
 
-function requestedCategories(clause: string): Set<DrinkCategory> {
+function requestedText(clause: string): string {
   const request = clause
     .replace(ORDER_FOR_COMPANION, " ")
     .replace(COMPANION_ORDER, " ")
@@ -108,7 +109,7 @@ function requestedCategories(clause: string): Set<DrinkCategory> {
     .split(/\s+/)
     .map(singular)
     .join(" ");
-  return drinkCategoriesInText(withoutRefusals(request).replace(AMBIGUOUS_BARE_WORD, " "));
+  return withoutRefusals(request).replace(AMBIGUOUS_BARE_WORD, " ");
 }
 
 function singleCategory(categories: Set<DrinkCategory>): DrinkCategory | null {
@@ -116,17 +117,35 @@ function singleCategory(categories: Set<DrinkCategory>): DrinkCategory | null {
 }
 
 /** The single drink lane a Plan query requests, or null when it names none or several. */
-export function planRequestedDrinkCategory(query: string): DrinkCategory | null {
+export function planRequestedDrink(query: string): { category: DrinkCategory; subtype: string | null } | null {
   const text = query
     .replace(/[‘’]/g, "'")
     .toLocaleLowerCase()
     .replace(FIRST_PERSON_ON, "$1 drinking");
   const consumed = new Set<DrinkCategory>();
   const requested = new Set<DrinkCategory>();
+  const consumedText: string[] = [];
+  const requestedTextParts: string[] = [];
   for (const clause of text.split(CLAUSE_BREAK)) {
     const ownClause = clause.replace(ORDER_FOR_COMPANION, " ").replace(COMPANION_ORDER, " ");
     const target = FIRST_PERSON_CONSUMPTION.test(ownClause) ? consumed : requested;
-    for (const category of requestedCategories(clause)) target.add(category);
+    const request = requestedText(clause);
+    const categories = drinkCategoriesInText(request);
+    for (const category of categories) target.add(category);
+    if (categories.size > 0) (target === consumed ? consumedText : requestedTextParts).push(request);
   }
-  return consumed.size > 0 ? singleCategory(consumed) : singleCategory(requested);
+  const category = consumed.size > 0 ? singleCategory(consumed) : singleCategory(requested);
+  if (!category) return null;
+  const request = (consumed.size > 0 ? consumedText : requestedTextParts).join(" ");
+  const subtypes = new Set<string>();
+  for (const span of drinkKeywordSpans(request)) {
+    const subtype = drinkSubtypeFromText(request.slice(span.start, span.end), category);
+    if (subtype) subtypes.add(subtype.id);
+  }
+  return { category, subtype: subtypes.size === 1 ? [...subtypes][0] : null };
+}
+
+/** Compatibility category read uses the same masked, owned request clauses. */
+export function planRequestedDrinkCategory(query: string): DrinkCategory | null {
+  return planRequestedDrink(query)?.category ?? null;
 }

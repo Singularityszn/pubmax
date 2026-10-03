@@ -1,6 +1,7 @@
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { isDrinkCategory } from "@/lib/drinks";
 import {
+  cleanPublicDrinkRequest,
   isBudget,
   isDaypart,
   isNightAreaSlug,
@@ -41,6 +42,8 @@ const CONTEXT_KEYS = [
   "budgetLimitPence",
   "zeroProof",
   "drinkCategory",
+  "drinkSubtype",
+  "drinkServing",
   "wetherspoonsPreferred",
   "atmosphere",
   "foodNeeds",
@@ -214,6 +217,11 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         if (item !== null && !isDrinkCategory(item)) return undefined;
         result.drinkCategory = item as NightContext["drinkCategory"];
         break;
+      case "drinkSubtype":
+      case "drinkServing":
+        if (item !== null && typeof item !== "string") return undefined;
+        result[key] = item;
+        break;
       case "wetherspoonsPreferred":
         if (typeof item !== "boolean") return undefined;
         result.wetherspoonsPreferred = item;
@@ -228,6 +236,13 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         break;
       }
     }
+  }
+  if (Object.hasOwn(result, "drinkSubtype") || Object.hasOwn(result, "drinkServing")) {
+    if (result.zeroProof && (result.drinkSubtype || result.drinkServing)) return undefined;
+    const refinement = cleanPublicDrinkRequest({ drinkCategory: result.drinkCategory,
+      ...(result.drinkSubtype !== undefined ? { drinkSubtype: result.drinkSubtype } : {}),
+      ...(result.drinkServing !== undefined ? { drinkServing: result.drinkServing } : {}) });
+    if (!refinement && (result.drinkSubtype != null || result.drinkServing != null)) return undefined;
   }
   return result;
 }

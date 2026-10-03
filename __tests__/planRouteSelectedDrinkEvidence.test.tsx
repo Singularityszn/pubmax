@@ -60,3 +60,27 @@ describe("single-stop Plan map link", () => {
     expect(html).not.toContain('class="planRoute__walk"');
   });
 });
+
+
+describe("real saved Cider PlanRoute public map links", () => {
+  it.each([null, "pint", "500ml"])("serializes whole-route and per-stop Cider intent with %s", async (drinkServing) => {
+    const { routeDrinkIntentFromSearch } = await import("@/lib/crawlUrl");
+    const stops = [base, { venueId: "venue-b", venueName: "The Swan", position: 1 }];
+    const html = renderToStaticMarkup(<PlanRoute
+      planId="6ab5ca40-836b-4970-9477-d1779fdd31ab"
+      startTime="2026-09-30T18:00:00.000Z"
+      stops={stops}
+      routeDrinkIntent={{ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing, zeroProof: false }}
+    />);
+    const hrefs = [...html.matchAll(/href="(\/map\?[^\"]+)"/g)].map((match) => match[1]!.replaceAll("&amp;", "&"));
+    expect(hrefs).toHaveLength(3);
+    for (const href of hrefs) {
+      const search = href.split("?")[1]!;
+      expect(routeDrinkIntentFromSearch(search)).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", zeroProof: false });
+      expect(new URLSearchParams(search).get("routeServing")).toBe(drinkServing);
+      expect(new URLSearchParams(search).get("pubs")).toBe("venue-a,venue-b");
+      expect(href).not.toMatch(/pence|sourceUrl|observedAt|drinkLabel|nightArea|memberToken|lat=|lng=/);
+    }
+    expect(hrefs.filter((href) => new URLSearchParams(href.split("?")[1]!).has("sel"))).toHaveLength(2);
+  });
+});

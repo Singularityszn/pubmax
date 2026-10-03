@@ -137,3 +137,32 @@ describe("exact selected route requests", () => {
     expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST", status: 400 });
   });
 });
+
+
+describe("Cider bounded generation context", () => {
+  it.each([null, "pint", "500ml"])("admits Cider request with selected measure %s", async (drinkServing) => {
+    const context = { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing, zeroProof: false };
+    const result = await parsePlanGenerationRequest(request({ query: "quiet in Clapham", context }), NOW);
+    expect(result).toMatchObject({ ok: true, value: { context } });
+  });
+
+  it("admits the actual own named-eight Cider quote with unknown source serving", async () => {
+    const selectedDrinkPriceEvidence = { category: "beer", pence: 365, serving: null, source: "listed",
+      sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", observedAt: "2026-09-21T18:27:31.674Z",
+      drinkLabel: "Aspall 4.5%", drinkSubtype: "beer-cider" };
+    const result = await parsePlanGenerationRequest(request({ context: { drinkCategory: "beer", drinkSubtype: "beer-cider" },
+      anchor: { venueId: "venue-13xdb1p", source: "map-search", acceptedArea: null, startsAt: null, selectedDrinkPriceEvidence } }),
+    new Date("2026-10-03T12:00:00.000Z"));
+    expect(result).toMatchObject({ ok: true, value: { anchor: { venueId: "venue-13xdb1p", selectedDrinkPriceEvidence } } });
+  });
+
+  it.each([
+    { drinkCategory: "wine", drinkSubtype: "beer-cider" },
+    { drinkCategory: "beer", drinkSubtype: "beer-not-real" },
+    { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "large bottle" },
+    { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "500ml", zeroProof: true },
+    { drinkCategory: "beer", drinkSubtype: "beer-cider", servingPence: 365 },
+  ])("rejects malformed or incompatible refinement %j", async (context) => {
+    expect(await parsePlanGenerationRequest(request({ context }), NOW)).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
+  });
+});

@@ -1,3 +1,4 @@
+import { cleanPublicDrinkRequest, type PublicDrinkRequest } from "@/lib/nightPlanning";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { CITIES, type CityId } from "@/lib/cities";
@@ -53,6 +54,7 @@ export type PlanningIntentV1 = {
     kind: PlanningIntentEvidenceKind;
     observedAt: string | null;
   };
+  drinkRequest?: PublicDrinkRequest;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   acceptedAt: string;
   expiresAt: string;
@@ -227,8 +229,12 @@ export function parsePlanningIntent(
     return null;
   }
 
-  if (!isPlainRecord(value) || (!hasExactKeys(value, INTENT_KEYS)
-    && !hasExactKeys(value, [...INTENT_KEYS, "selectedDrinkPriceEvidence"]))) return null;
+  if (!isPlainRecord(value) || !hasExactKeys(value, [...INTENT_KEYS,
+    ...(Object.hasOwn(value, "drinkRequest") ? ["drinkRequest"] : []),
+    ...(Object.hasOwn(value, "selectedDrinkPriceEvidence") ? ["selectedDrinkPriceEvidence"] : []),
+  ])) return null;
+  const drinkRequest = cleanPublicDrinkRequest(value.drinkRequest);
+  if (Object.hasOwn(value, "drinkRequest") && !drinkRequest) return null;
   if (value.version !== 1) return null;
   if (!isOneOf(value.source, PLANNING_INTENT_SOURCES)) return null;
   if (!isCityId(value.cityId)) return null;
@@ -285,6 +291,7 @@ export function parsePlanningIntent(
       kind: value.displayEvidence.kind,
       observedAt,
     },
+    ...(drinkRequest ? { drinkRequest } : {}),
     ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
     acceptedAt: acceptedAt.value,
     expiresAt: expiresAt.value,

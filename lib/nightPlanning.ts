@@ -2,7 +2,9 @@ import { formatGbp } from "@/lib/formatGbp";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
-import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
+import { planRequestedDrink } from "@/lib/planDrinkRequest";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+import { listedServingGroup } from "@/lib/listedPriceComparison";
 import { cleanText } from "@/lib/textClean";
 import {
   DEFAULT_PLAN_STOP_COUNT,
@@ -19,6 +21,13 @@ export type PartyType = (typeof PARTY_TYPES)[number];
 const BUDGETS = ["value", "standard", "treat"] as const;
 export type Budget = (typeof BUDGETS)[number];
 
+/** Public drink choice. A request carries no price, provenance or private context. */
+export type PublicDrinkRequest = {
+  drinkCategory: DrinkCategory;
+  drinkSubtype?: string | null;
+  drinkServing?: string | null;
+};
+
 export type NightContext = {
   nightArea: NightAreaSlug | null;
   daypart: Daypart;
@@ -32,6 +41,9 @@ export type NightContext = {
   zeroProof: boolean;
   /** Requested priced drink lane; null means no specific category was requested. */
   drinkCategory?: DrinkCategory | null;
+  drinkSubtype?: string | null;
+  /** Requested measure, never a claim about a source row's serving. */
+  drinkServing?: string | null;
   /**
    * Soft-prefer pubs that join the first-party J D Wetherspoon directory.
    * Never a hard filter: areas with few Spoons must still return three stops.
@@ -67,13 +79,49 @@ const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4
 /** Names the chain in free text (Wetherspoon / Wetherspoons / Spoons). */
 const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
 
-function requestedDrinkCategory(query: string, zeroProof: boolean, reasons: ContextReason[]): DrinkCategory | null {
-  if (zeroProof) return null;
-  const category = planRequestedDrinkCategory(query);
-  if (category) {
-    reasons.push({ field: "drinkCategory", evidence: category, explanation: "Matched the requested drink category." });
+/** Strict optional request envelope shared by acceptance and local recovery. */
+export function cleanPublicDrinkRequest(value: unknown): PublicDrinkRequest | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return null;
+  const row = value as Record<string, unknown>;
+  if (!Object.keys(row).every((key) => ["drinkCategory", "drinkSubtype", "drinkServing"].includes(key))
+    || !isDrinkCategory(row.drinkCategory)) return null;
+  const subtype = typeof row.drinkSubtype === "string"
+    ? parseDrinkSubtypeParam(row.drinkSubtype, row.drinkCategory) : null;
+  if (row.drinkSubtype !== undefined && row.drinkSubtype !== null
+    && (!subtype || subtype.id !== row.drinkSubtype)) return null;
+  const serving = typeof row.drinkServing === "string"
+    ? listedServingGroup(row.drinkCategory, row.drinkServing, subtype?.id) : null;
+  if (row.drinkServing !== undefined && row.drinkServing !== null
+    && (!serving || serving !== row.drinkServing)) return null;
+  return {
+    drinkCategory: row.drinkCategory,
+    ...(row.drinkSubtype !== undefined ? { drinkSubtype: subtype?.id ?? null } : {}),
+    ...(row.drinkServing !== undefined ? { drinkServing: serving } : {}),
+  };
+}
+
+/** Apply a drink edit as one choice, so a new generic lane cannot retain old refinements. */
+export function mergeNightContext(current: NightContext, patch: Partial<NightContext>): NightContext;
+export function mergeNightContext(current: Partial<NightContext>, patch: Partial<NightContext>): Partial<NightContext>;
+export function mergeNightContext(current: Partial<NightContext>, patch: Partial<NightContext>): Partial<NightContext> {
+  const merged = { ...current, ...patch };
+  if (Object.hasOwn(patch, "drinkCategory") && !Object.hasOwn(patch, "drinkSubtype")) {
+    delete merged.drinkSubtype;
+    if (!Object.hasOwn(patch, "drinkServing")) delete merged.drinkServing;
+  } else if (Object.hasOwn(patch, "drinkSubtype") && !Object.hasOwn(patch, "drinkServing")) {
+    delete merged.drinkServing;
   }
-  return category;
+  const subtype = parseDrinkSubtypeParam(merged.drinkSubtype, merged.drinkCategory);
+  if (merged.zeroProof || (merged.drinkSubtype && (!merged.drinkCategory || !subtype))) {
+    delete merged.drinkSubtype;
+    delete merged.drinkServing;
+  } else if (merged.drinkServing && (!merged.drinkCategory
+    || listedServingGroup(merged.drinkCategory, merged.drinkServing, subtype?.id) !== merged.drinkServing)) {
+    delete merged.drinkServing;
+  }
+  return merged;
 }
 
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
@@ -144,7 +192,12 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
   const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
-  const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);
+  const drinkRequest = zeroProof ? null : planRequestedDrink(query);
+  const drinkCategory = drinkRequest?.category ?? null;
+  // This handoff adds Cider continuity; other existing typed lanes keep their category shape.
+  const drinkSubtype = drinkRequest?.subtype === "beer-cider" ? drinkRequest.subtype : null;
+  if (drinkCategory) reasons.push({ field: "drinkCategory", evidence: drinkCategory, explanation: "Matched the requested drink category." });
+  if (drinkSubtype) reasons.push({ field: "drinkSubtype", evidence: drinkSubtype, explanation: "Matched the requested drink subtype." });
   const wetherspoonsPreferred = spoonsMentioned;
   if (wetherspoonsPreferred) {
     reasons.push({
@@ -165,6 +218,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
       budgetLimitPence,
       zeroProof,
       drinkCategory,
+      ...(drinkSubtype ? { drinkSubtype } : {}),
       wetherspoonsPreferred,
       atmosphere,
       foodNeeds,
@@ -208,6 +262,9 @@ export function cleanNightContextPatch(value: unknown): Partial<NightContext> | 
   const foodNeeds = cleanContextList(row.foodNeeds);
   const accessibility = cleanContextList(row.accessibility);
   const transportConstraints = cleanContextList(row.transportConstraints);
+  const drinkRequest = cleanPublicDrinkRequest({ drinkCategory: row.drinkCategory,
+    ...(row.drinkSubtype !== undefined ? { drinkSubtype: row.drinkSubtype } : {}),
+    ...(row.drinkServing !== undefined ? { drinkServing: row.drinkServing } : {}) });
 
   return {
     ...(row.nightArea === null || isNightAreaSlug(row.nightArea) ? { nightArea: row.nightArea } : {}),
@@ -229,6 +286,7 @@ export function cleanNightContextPatch(value: unknown): Partial<NightContext> | 
         : {}),
     ...(typeof row.zeroProof === "boolean" ? { zeroProof: row.zeroProof } : {}),
     ...(row.drinkCategory === null || isDrinkCategory(row.drinkCategory) ? { drinkCategory: row.drinkCategory } : {}),
+    ...(!row.zeroProof && drinkRequest ? drinkRequest : {}),
     ...(typeof row.wetherspoonsPreferred === "boolean" ? { wetherspoonsPreferred: row.wetherspoonsPreferred } : {}),
     ...(atmosphere ? { atmosphere } : {}),
     ...(foodNeeds ? { foodNeeds } : {}),
@@ -255,6 +313,9 @@ export function cleanNightContext(value: unknown): NightContext | null {
       : null,
     zeroProof: row.zeroProof === true,
     drinkCategory: isDrinkCategory(row.drinkCategory) ? row.drinkCategory : null,
+    ...(!row.zeroProof ? cleanPublicDrinkRequest({ drinkCategory: row.drinkCategory,
+      ...(row.drinkSubtype !== undefined ? { drinkSubtype: row.drinkSubtype } : {}),
+      ...(row.drinkServing !== undefined ? { drinkServing: row.drinkServing } : {}) }) ?? {} : {}),
     wetherspoonsPreferred: row.wetherspoonsPreferred === true,
     atmosphere: cleanContextList(row.atmosphere) ?? [],
     foodNeeds: cleanContextList(row.foodNeeds) ?? [],

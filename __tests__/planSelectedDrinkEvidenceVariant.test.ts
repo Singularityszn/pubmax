@@ -64,3 +64,43 @@ describe("Plan selected drink evidence variants", () => {
     ).toBeNull();
   });
 });
+
+
+describe("Cider accepted named quote", () => {
+  const cider = { category: "beer", pence: 365, serving: null, source: "listed",
+    sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/",
+    observedAt: "2026-09-21T18:27:31.674Z", drinkLabel: "Aspall 4.5%", drinkSubtype: "beer-cider" } as const;
+
+  it("admits the actual Plough named-eight tuple and labels its serving unknown", () => {
+    expect(cleanSelectedDrinkPriceEvidence(cider)).toEqual(cider);
+    expect(Object.keys(cleanSelectedDrinkPriceEvidence(cider) ?? {})).toHaveLength(8);
+    expect(selectedDrinkPriceDescription(cider)).toContain("Aspall 4.5%");
+    expect(selectedDrinkPriceDescription(cider)).toContain("£3.65");
+    expect(selectedDrinkPriceDescription(cider)).toContain("Serving size not recorded");
+    expect(selectedDrinkPriceDescription(cider)).not.toMatch(/pint|current price/i);
+  });
+
+  it.each([
+    ["generic legacy Beer", { category: "beer", pence: 365, serving: null, source: "listed",
+      sourceUrl: cider.sourceUrl, observedAt: cider.observedAt }],
+    ["Beer community aggregate", { category: "beer", pence: 365, serving: null, source: "community", reportedAt: cider.observedAt }],
+    ["sibling lager", { ...cider, drinkLabel: "Pravha lager", drinkSubtype: "beer-lager" }],
+    ["forged label/subtype", { ...cider, drinkLabel: "Pravha lager" }],
+    ["forged cross-category subtype", { ...cider, drinkSubtype: "wine-red" }],
+    ["missing paired label", { ...cider, drinkLabel: undefined }],
+  ])("keeps %s outside the narrow Cider evidence contract", (_label, evidence) => {
+    expect(cleanSelectedDrinkPriceEvidence(evidence)).toBeNull();
+  });
+
+  it("keeps Cider display evidence separate from requested pint measure", async () => {
+    const { selectedDrinkPriceEvidenceForPrice } = await import("@/lib/planSelectedDrinkPriceEvidence");
+    const price = { venueId: "venue-13xdb1p", category: "beer" as const, categoryLabel: "Beer",
+      priceGbp: 3.65, source: "listed" as const, servingSize: null, drinkLabel: "Aspall 4.5%",
+      sourceUrl: cider.sourceUrl, observedAt: cider.observedAt };
+    const allServings = { drinkCategory: "beer" as const, zeroProof: false, drinkSubtype: "beer-cider", drinkServing: null };
+    expect(selectedDrinkPriceEvidenceForPrice(price, allServings)).toEqual(cider);
+    const pintOnly = { ...allServings, drinkServing: "pint" };
+    expect(selectedDrinkPriceEvidenceForPrice(price, pintOnly)).toBeNull();
+    expect(selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: "beer", zeroProof: false })).toBeNull();
+  });
+});

@@ -7,7 +7,7 @@ import { cleanNightContext } from "@/lib/nightPlanning";
 import type { PlanStopTarget } from "@/lib/planRoute";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
-import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, selectedDrinkPriceEvidenceMatchesContext, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 
@@ -23,12 +23,11 @@ async function resolvePriceEvidence(
   const category = context?.zeroProof ? null : context?.drinkCategory;
   // A manual Plan may carry a listed display hint without inventing Night Context.
   // An explicit context still owns category/zero-proof; malformed context cannot fall back.
-  if (!contextAbsent && (!category || category === "beer")) return targets;
+  if (!contextAbsent && (!category || (category === "beer" && context?.drinkSubtype !== "beer-cider"))) return targets;
   const requested = submitted.map((raw) => cleanSelectedDrinkPriceEvidence(
     raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null,
   ));
-  if (!requested.some((evidence) => contextAbsent
-    ? evidence?.source === "listed" : evidence?.category === category)) return targets;
+  if (!requested.some((evidence) => evidence && selectedDrinkPriceEvidenceMatchesContext(evidence, context))) return targets;
 
   const now = Date.now();
   const communityRequested = requested.some((evidence) => evidence?.source === "community" && evidence.category === category);
@@ -63,6 +62,7 @@ async function resolvePriceEvidence(
     if (existing) return existing;
     const pending = ukPriceBundleRowsFor(venueId)
       .then((bundle) => bundle.status === "ready" ? listedCategoryPrices(bundle.rows, now, {
+        includeBeer: hint.category === "beer" && named && hint.drinkSubtype === "beer-cider",
         serving: hint.serving,
         ...(named ? { drinkLabel: hint.drinkLabel, drinkSubtype: hint.drinkSubtype } : {}),
       }) : [])
@@ -73,7 +73,7 @@ async function resolvePriceEvidence(
 
   return Promise.all(targets.map(async (stop, position) => {
     const hint = requested[position];
-    if (!hint || (contextAbsent ? hint.source !== "listed" : hint.category !== category)) return { ...stop };
+    if (!hint || !selectedDrinkPriceEvidenceMatchesContext(hint, context)) return { ...stop };
     if (hint.source === "community") {
       const price = trustedCommunity.get(stop.venueId);
       if (!price || price.source !== "community" || typeof price.submittedAt !== "number") return { ...stop };

@@ -6,7 +6,7 @@ import {
 } from "@/lib/planningIntent";
 import { DAY_MS } from "@/lib/dayMs";
 import { isPlanStopCount } from "@/lib/planStopCount";
-import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceMatchesContext, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 export const PLAN_ROUTE_DRAFT_V2_KEY = "pubmax:plan-route-draft:v2";
@@ -167,7 +167,7 @@ function cleanStringList(value: unknown, maxItems = 12, maxLength = 240): string
 
 function matchingSelectedDrinkPriceEvidence(value: unknown, context: NightContext | null): SelectedDrinkPriceEvidence | null {
   const price = cleanSelectedDrinkPriceEvidence(value);
-  return price && context && !context.zeroProof && price.category === context.drinkCategory ? price : null;
+  return price && context && selectedDrinkPriceEvidenceMatchesContext(price, context) ? price : null;
 }
 
 function cleanAlternative(value: unknown, exactKeys: boolean, context: NightContext | null): StoredRouteAlternative | null {

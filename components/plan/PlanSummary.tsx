@@ -15,6 +15,7 @@ import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/u
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { cleanPublicDrinkRequest } from "@/lib/nightPlanning";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
@@ -740,10 +741,14 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   }
 
   // Map links carry only the saved public drink request, never private planning context.
+  const publicDrinkRequest = state.context ? cleanPublicDrinkRequest({
+    drinkCategory: state.context.drinkCategory, drinkSubtype: state.context.drinkSubtype,
+    drinkServing: state.context.drinkServing,
+  }) : null;
   const routeDrinkIntent = state.context?.zeroProof === true
     ? { zeroProof: true }
-    : state.context?.drinkCategory && state.context.drinkCategory !== "beer"
-      ? { drinkCategory: state.context.drinkCategory, zeroProof: false }
+    : publicDrinkRequest
+      ? { ...publicDrinkRequest, zeroProof: false }
       : null;
 
   return (

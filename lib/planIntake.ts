@@ -1,4 +1,5 @@
-import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanPublicDrinkRequest, mergeNightContext, type PublicDrinkRequest } from "@/lib/nightPlanning";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceMatchesContext, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
   NIGHT_PATCHES,
   resolveNightPatch,
@@ -668,6 +669,7 @@ export type PlanGenerationIntakeBody = {
 
 export type PlanGenerationAnchorInput = PlanGenerationWireAnchor & {
   cityId?: CityId | null;
+  drinkRequest?: PublicDrinkRequest;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
@@ -704,13 +706,13 @@ export function buildPlanGenerationIntakeBody(
   const selected = cleanSelectedDrinkPriceEvidence(anchor?.selectedDrinkPriceEvidence);
   // A recovered night or a deliberate edit owns its category; the acceptance
   // seeds only an unanswered choice, never replaces an existing one.
-  const context = {
-    ...(selected && !explicitContext.zeroProof && !currentContext?.zeroProof
-      ? { drinkCategory: selected.category } : {}),
-    ...stripPlanIntakeOwnedContext(currentContext),
-    ...explicitContext,
-    ...planIntakeNightContextPatch(draft),
-  };
+  const drinkRequest = cleanPublicDrinkRequest(anchor?.drinkRequest);
+  const acceptedChoice: Partial<NightContext> = !explicitContext.zeroProof && !currentContext?.zeroProof
+    ? drinkRequest ?? (selected ? { drinkCategory: selected.category } : {}) : {};
+  const context = mergeNightContext(
+    mergeNightContext(mergeNightContext(acceptedChoice, stripPlanIntakeOwnedContext(currentContext)), explicitContext),
+    planIntakeNightContextPatch(draft),
+  );
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
     ...(Object.keys(context).length > 0 ? { context } : {}),
@@ -723,7 +725,7 @@ export function buildPlanGenerationIntakeBody(
         source: anchor.source,
         acceptedArea: anchor.acceptedArea,
         startsAt: anchor.startsAt,
-        ...(selected && !context.zeroProof && context.drinkCategory === selected.category
+        ...(selected && selectedDrinkPriceEvidenceMatchesContext(selected, context)
           ? { selectedDrinkPriceEvidence: selected } : {}),
       },
     } : {}),

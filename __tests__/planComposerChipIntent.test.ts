@@ -333,3 +333,40 @@ describe("PlanDescribeFirst chip intent", () => {
     expect(fillEmptyText("Camden", "Quiet in Clapham")).toBe("Camden");
   });
 });
+
+
+describe("Cider later choice reconciliation", () => {
+  it("recognizes a newer Cider query while generic geography leaves choice alone", () => {
+    expect(newQuerySupersedesDrinkChoice("Wine in Clapham", "Cider in Clapham")).toBe(true);
+    expect(newQuerySupersedesDrinkChoice("Cider in Clapham", "Quiet in Clapham")).toBe(false);
+  });
+
+  it("clears stale Cider refinement when explicit choice changes within Beer category", () => {
+    const inferred = { nightArea: "clapham" as const, daypart: "after_work" as const, partyType: "friends" as const,
+      groupSize: 2, budget: "standard" as const, budgetLimitPence: null, zeroProof: false,
+      drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: "500ml",
+      wetherspoonsPreferred: false, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [] };
+    const generic = mergeInferredNightContext(inferred, { drinkCategory: "beer" });
+    expect(generic).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(generic).not.toHaveProperty("drinkServing", "500ml");
+    const zeroProof = mergeInferredNightContext(inferred, { zeroProof: true });
+    expect(zeroProof).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(zeroProof).not.toHaveProperty("drinkServing", "500ml");
+  });
+});
+
+
+describe("explicit generic wine measure reconciliation", () => {
+  it("keeps the new choice's own 175ml measure while clearing an older Cider subtype", () => {
+    const current: NightContext = {
+      nightArea: "clapham", daypart: "evening", partyType: "friends", groupSize: 2,
+      budget: "standard", budgetLimitPence: null, zeroProof: false,
+      drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "500ml",
+      wetherspoonsPreferred: false, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [],
+    };
+    const merged = mergeInferredNightContext(current, { drinkCategory: "wine", drinkServing: "175ml" });
+    expect(merged).toMatchObject({ drinkCategory: "wine", drinkServing: "175ml" });
+    expect(merged).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(merged).not.toHaveProperty("drinkServing", "500ml");
+  });
+});

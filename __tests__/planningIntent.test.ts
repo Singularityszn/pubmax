@@ -399,3 +399,29 @@ describe("selected published offer PlanningIntent handoff", () => {
     expect(parsePlanningIntent(validRaw(), NOW)).not.toHaveProperty("selectedDrinkPriceEvidence");
   });
 });
+
+
+describe("Cider independent public PlanningIntent request", () => {
+  const drinkRequest = { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: null };
+
+  it("round-trips a Cider request without requiring a price tuple", () => {
+    const accepted = parsePlanningIntent(validRaw({ drinkRequest }), NOW);
+    expect(accepted).toHaveProperty("drinkRequest", drinkRequest);
+    expect(accepted).not.toHaveProperty("selectedDrinkPriceEvidence");
+    const input = { ...INPUT, drinkRequest };
+    expect(createPlanningIntent(input, NOW)).toHaveProperty("drinkRequest", drinkRequest);
+  });
+
+  it.each([
+    { ...drinkRequest, drinkCategory: "wine" },
+    { ...drinkRequest, drinkSubtype: "beer-not-real" },
+    { ...drinkRequest, drinkServing: "a big one" },
+    { ...drinkRequest, zeroProof: true },
+    { ...drinkRequest, price: 365 },
+    { ...drinkRequest, sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/" },
+    { ...drinkRequest, lat: 51.4615 },
+    { ...drinkRequest, memberToken: "private-capability-canary" },
+  ])("rejects malformed or authority-bearing public drink request %j", (invalid) => {
+    expect(parsePlanningIntent(validRaw({ drinkRequest: invalid }), NOW)).toBeNull();
+  });
+});

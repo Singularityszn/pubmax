@@ -77,20 +77,22 @@ function venueDistanceKm(left: PlanGenerationDtoVenue, right: PlanGenerationDtoV
 }
 
 /**
- * Pint evidence prices only a beer (or unspecified) night. An alcohol-free or
- * other selected-drink night never borrows it: a pint price is not the price of
- * what that crew will drink, so a stated per-person ceiling on such a night
- * fails closed (422, budgetEvidence) rather than passing on alcoholic prices.
+ * Generic pint evidence cannot price a Cider, alcohol-free or other
+ * selected-drink night. A stated per-person ceiling on such a night fails
+ * closed (422, budgetEvidence) rather than borrowing a generic pint price.
  */
-export function planUsesPintPrices(context: Pick<NightContext, "drinkCategory" | "zeroProof">): boolean {
-  return !context.zeroProof && (!context.drinkCategory || context.drinkCategory === "beer");
+export function planUsesPintPrices(
+  context: Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">,
+): boolean {
+  return !context.zeroProof && context.drinkSubtype !== "beer-cider"
+    && (!context.drinkCategory || context.drinkCategory === "beer");
 }
 
 function planAlternativeDto(
   origin: PlanGenerationDtoVenue,
   candidate: PlanGenerationDtoCandidate,
   grounded: PlanGenerationDtoGroundedStop | null,
-  priceContext: Pick<NightContext, "drinkCategory" | "zeroProof">,
+  priceContext: Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">,
 ) {
   const alternative = candidate.venue;
   const usesPintPrices = planUsesPintPrices(priceContext);
@@ -131,7 +133,7 @@ export function buildPlanGenerationStops(params: {
   walkingEstimate: PlanGenerationDtoWalking;
   area: { name: string; lastReviewedAt: string | null };
   planningWeather: PlanGenerationDtoWeather | null;
-  priceContext: Pick<NightContext, "drinkCategory" | "zeroProof">;
+  priceContext: Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">;
 }) {
   const {
     chosen,

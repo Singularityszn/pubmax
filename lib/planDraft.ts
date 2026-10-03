@@ -1,3 +1,4 @@
+import { cleanPublicDrinkRequest, type PublicDrinkRequest } from "@/lib/nightPlanning";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { DAY_MS } from "@/lib/dayMs";
 import { CITIES, type CityId } from "@/lib/cities";
@@ -33,6 +34,7 @@ export type StoredPlanDraft = {
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
     expiresAt: string;
+    drinkRequest?: PublicDrinkRequest;
     selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   };
 };
@@ -141,8 +143,12 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         stops: stops as StoredPlanDraft["stops"],
       };
     }
-    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)
-      && !hasExactKeys(anchor, [...ACCEPTED_ANCHOR_KEYS, "selectedDrinkPriceEvidence"])) return null;
+    if (!hasExactKeys(anchor, [...ACCEPTED_ANCHOR_KEYS,
+      ...(Object.hasOwn(anchor, "drinkRequest") ? ["drinkRequest"] : []),
+      ...(Object.hasOwn(anchor, "selectedDrinkPriceEvidence") ? ["selectedDrinkPriceEvidence"] : []),
+    ])) return null;
+    const drinkRequest = cleanPublicDrinkRequest(anchor.drinkRequest);
+    if (Object.hasOwn(anchor, "drinkRequest") && !drinkRequest) return null;
     const venueId = boundedText(anchor.venueId, 200);
     const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
       ? anchor.source as PlanningIntentSource
@@ -166,6 +172,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(anchor.selectedDrinkPriceEvidence);
     if (anchor.selectedDrinkPriceEvidence !== undefined && !selectedDrinkPriceEvidence) return null;
     acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt,
+      ...(drinkRequest ? { drinkRequest } : {}),
       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
     };
   }

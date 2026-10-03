@@ -419,7 +419,13 @@ export function crawlShareMapHref(input: {
     const routeLow = encoded.get("routeLow");
     const routeDrink = encoded.get("routeDrink");
     if (routeLow) params.set("routeLow", routeLow);
-    else if (routeDrink) params.set("routeDrink", routeDrink);
+    else if (routeDrink) {
+      params.set("routeDrink", routeDrink);
+      for (const key of ["routeSub", "routeServing"] as const) {
+        const value = encoded.get(key);
+        if (value) params.set(key, value);
+      }
+    }
   }
   const crawlId = input.crawlId?.trim();
   if (crawlId) params.set("crawl", crawlId);

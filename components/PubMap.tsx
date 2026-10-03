@@ -1961,9 +1961,18 @@ export default function PubMap({
   );
   const restoredRouteCategory = generatedPricing?.readCurrentQuotes && !generatedPricing.context.zeroProof
     ? generatedPricing.context.drinkCategory ?? null : null;
+  const restoredRouteSubtype = restoredRouteCategory
+    ? parseDrinkSubtypeParam(generatedPricing?.context.drinkSubtype, restoredRouteCategory)?.id ?? null : null;
+  const restoredRouteServing = restoredRouteCategory
+    ? generatedPricing?.context.drinkServing ?? null : null;
+  const restoredRouteIndexKey = restoredRouteCategory
+    ? drinkCategoryIndexKey(restoredRouteCategory, restoredRouteServing, restoredRouteSubtype) : null;
   useEffect(() => {
-    if (restoredRouteCategory) loadDrinkCategoryIndex(restoredRouteCategory);
-  }, [loadDrinkCategoryIndex, restoredRouteCategory]);
+    if (restoredRouteCategory) {
+      loadDrinkCategoryIndex(restoredRouteCategory, null, restoredRouteSubtype);
+      if (restoredRouteServing) loadDrinkCategoryIndex(restoredRouteCategory, restoredRouteServing, restoredRouteSubtype);
+    }
+  }, [loadDrinkCategoryIndex, restoredRouteCategory, restoredRouteServing, restoredRouteSubtype]);
   // Cached observations keep their source dates, but a newly chosen view
   // checks their authority at this read, rather than at the map's mount.
   useEffect(() => {
@@ -1978,6 +1987,8 @@ export default function PubMap({
     drinkServingGroup,
     drinkPriceSubtype,
     restoredRouteCategory,
+    restoredRouteServing,
+    restoredRouteSubtype,
     spoonsValueOn,
     communityPrices.byVenueId,
     communityPrices.listedDrinkPrices,
@@ -1987,11 +1998,16 @@ export default function PubMap({
     generatedPricing,
     restoredRouteCategory ? discoveryDrinkLensPrices(
       communityPrices.byVenueId, restoredRouteCategory,
-      communityPrices.listedDrinkPrices.get(restoredRouteCategory) ?? [], experiencePolicyNow,
+      [
+        ...(communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(restoredRouteCategory, null, restoredRouteSubtype)) ?? []),
+        ...(restoredRouteServing && restoredRouteIndexKey
+          ? communityPrices.listedDrinkPrices.get(restoredRouteIndexKey) ?? [] : []),
+      ], experiencePolicyNow, restoredRouteServing, restoredRouteSubtype,
     ) : new Map(),
-  ), [generatedPricing, restoredRouteCategory, communityPrices.byVenueId, communityPrices.listedDrinkPrices, experiencePolicyNow]);
-  const restoredRoutePriceStatus = restoredRouteCategory
-    ? communityPrices.drinkCategoryIndexStatus.get(restoredRouteCategory) ?? "idle" : null;
+  ), [generatedPricing, restoredRouteCategory, restoredRouteServing, restoredRouteSubtype, restoredRouteIndexKey,
+    communityPrices.byVenueId, communityPrices.listedDrinkPrices, experiencePolicyNow]);
+  const restoredRoutePriceStatus = restoredRouteIndexKey
+    ? communityPrices.drinkCategoryIndexStatus.get(restoredRouteIndexKey) ?? "idle" : null;
   const noAlcoholLensPrices = useMemo(
     () =>
       trustedNoAlcoholLensPrices(
@@ -3306,13 +3322,7 @@ export default function PubMap({
       () => ({
         mode,
         filters,
-        routeDrinkIntent: generatedPricing
-          ? generatedPricing.context.zeroProof
-            ? { zeroProof: true }
-            : generatedPricing.context.drinkCategory && generatedPricing.context.drinkCategory !== "beer"
-              ? { drinkCategory: generatedPricing.context.drinkCategory, zeroProof: false }
-              : null
-          : null,
+        routeDrinkIntent: generatedPricing?.context ?? null,
         builtIds,
         selectedVenueId,
         bandId: activeBandId,
@@ -3479,11 +3489,17 @@ export default function PubMap({
     const selectedEvidence = mapDrinkLensCategory
       && (!drinkServingGroup || (price?.source === "listed"
         && listedServingGroup(mapDrinkLensCategory, price.servingSize, drinkPriceSubtype) === drinkServingGroup))
-      ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: mapDrinkLensCategory, zeroProof: false }) : null;
+      ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: mapDrinkLensCategory, zeroProof: false,
+        drinkSubtype: drinkPriceSubtype, drinkServing: drinkServingGroup }) : null;
     const result = acceptMapVenue({
       cityId,
       acceptedVenueId: venue.id,
       search: currentSearch(),
+      ...(mapDrinkLensCategory ? { drinkRequest: {
+        drinkCategory: mapDrinkLensCategory,
+        ...(drinkPriceSubtype ? { drinkSubtype: drinkPriceSubtype } : {}),
+        drinkServing: drinkServingGroup,
+      } } : {}),
       ...(selectedEvidence ? { selectedDrinkPriceEvidence: selectedEvidence } : {}),
     });
     if (!result.accepted || !result.telemetry || !result.destination) {

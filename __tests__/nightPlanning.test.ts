@@ -316,3 +316,30 @@ describe("DESCRIBE_FIRST_CHIPS occasion parsing", () => {
     });
   });
 });
+
+
+describe("Cider canonical planning request", () => {
+  it("keeps a real typed Cider request refined within Beer category", () => {
+    expect(inferNightContext("Quiet Cider in Clapham for 2, keep my first stop", EVENING).context)
+      .toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", zeroProof: false });
+  });
+
+  it.each([
+    "no cider, pints in Soho",
+    "pints for me, my mate wants cider in Soho",
+    "pints near The Cider House in Soho",
+  ])("does not infer Cider subtype from excluded phrase in %s", (query) => {
+    expect(inferNightContext(query, EVENING).context).not.toHaveProperty("drinkSubtype", "beer-cider");
+  });
+
+  it("cleans optional refinement through full and patch context without inventing measure", () => {
+    const selected = { ...inferNightContext("quiet in Clapham for 2", EVENING).context,
+      drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: null, zeroProof: false };
+    expect(cleanNightContext(selected)).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: null });
+    expect(cleanNightContextPatch({ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "500ml" }))
+      .toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "500ml" });
+    for (const incompatible of [{ ...selected, drinkCategory: "wine" }, { ...selected, zeroProof: true }]) {
+      expect(cleanNightContext(incompatible)).not.toHaveProperty("drinkSubtype", "beer-cider");
+    }
+  });
+});

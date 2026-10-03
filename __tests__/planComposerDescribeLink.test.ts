@@ -2082,3 +2082,97 @@ describe("accepted base-pub name hydration", () => {
     expect(document.querySelector(".planComposer__accepted")?.textContent).toContain("The Other Arms");
   });
 });
+
+
+describe("Cider accepted request component wire and later choice", () => {
+  it("transmits accepted Cider with no quote, then clears its refinement for a newer Wine query", async () => {
+    const drinkRequest = { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: "500ml" };
+    const acceptance = { source: "map-search" as const, cityId: "london" as const,
+      acceptedVenueId: "venue-13xdb1p", acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory" as const, observedAt: null }, drinkRequest };
+    expect(writePlanningIntent(acceptance, { storage: sessionStorage })).not.toBeNull();
+    const generated: Array<{ context?: Record<string, unknown>; anchor?: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([{ id: "venue-13xdb1p", name: "The Plough", kind: "pub" }]);
+      const body = JSON.parse(String(init?.body));
+      generated.push(body);
+      // Response follows the actual emitted request through real parser/reconciler.
+      // This controlled wire test proves no route eligibility, signed proof or server price.
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(body),
+      }));
+      if (!parsed.ok) return Response.json({ error: { code: parsed.code, message: parsed.message } }, { status: parsed.status });
+      const resolved = reconcilePlanContext(parsed.value.query, parsed.value.context, parsed.value.intake, new Date());
+      return Response.json({ ...DEFAULT_GENERATE_BODY,
+        stops: [{ venueId: "venue-13xdb1p", venueName: "The Plough" }, ...DEFAULT_GENERATE_BODY.stops.slice(1)],
+        inferredContext: resolved.context });
+    }));
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Quiet in Clapham for 2");
+      clickButton("Make a plan");
+    });
+    await settleComposerEffects();
+    expect(generated).toHaveLength(1);
+    expect(generated[0]?.context).toMatchObject(drinkRequest);
+    expect(generated[0]?.anchor).toMatchObject({ venueId: "venue-13xdb1p", source: "map-search" });
+    expect(generated[0]?.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Wine in Clapham for 2");
+      clickButton("Sort it again");
+    });
+    await settleComposerEffects();
+    expect(generated).toHaveLength(2);
+    expect(generated[1]?.context ?? {}).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(generated[1]?.context ?? {}).not.toHaveProperty("drinkServing", "500ml");
+    expect(generated[1]?.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(generated[1]?.anchor).toMatchObject({ venueId: "venue-13xdb1p" });
+  });
+});
+
+
+describe("accepted Cider first typed query priority", () => {
+  it("uses first typed Wine request before any generated route instead of accepted Cider choice", async () => {
+    const acceptance = {
+      source: "map-search" as const, cityId: "london" as const,
+      acceptedVenueId: "venue-13xdb1p", acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory" as const, observedAt: null },
+      drinkRequest: { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: "500ml" },
+    };
+    expect(writePlanningIntent(acceptance, { storage: sessionStorage })).not.toBeNull();
+    const generated: Array<{ context?: Record<string, unknown>; anchor?: Record<string, unknown> }> = [];
+    const reconciled: Array<{ drinkCategory?: string | null; drinkSubtype?: string | null; drinkServing?: string | null }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([{ id: "venue-13xdb1p", name: "The Plough", kind: "pub" }]);
+      const body = JSON.parse(String(init?.body));
+      generated.push(body);
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(body),
+      }));
+      if (!parsed.ok) return Response.json({ error: { code: parsed.code, message: parsed.message } }, { status: parsed.status });
+      const resolved = reconcilePlanContext(parsed.value.query, parsed.value.context, parsed.value.intake, new Date());
+      reconciled.push(resolved.context);
+      return Response.json({ ...DEFAULT_GENERATE_BODY,
+        stops: [{ venueId: "venue-13xdb1p", venueName: "The Plough" }, ...DEFAULT_GENERATE_BODY.stops.slice(1)],
+        inferredContext: resolved.context });
+    }));
+    await mountComposer();
+    expect(generated).toHaveLength(0);
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Wine in Clapham for 2");
+      clickButton("Make a plan");
+    });
+    await settleComposerEffects();
+    expect(generated).toHaveLength(1);
+    expect(generated[0]?.context ?? {}).not.toHaveProperty("drinkCategory", "beer");
+    expect(generated[0]?.context ?? {}).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(generated[0]?.context ?? {}).not.toHaveProperty("drinkServing", "500ml");
+    expect(generated[0]?.anchor).toMatchObject({ venueId: "venue-13xdb1p", source: "map-search" });
+    expect(generated[0]?.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0]).toMatchObject({ drinkCategory: "wine", zeroProof: false });
+    expect(reconciled[0]).not.toHaveProperty("drinkSubtype", "beer-cider");
+  });
+});

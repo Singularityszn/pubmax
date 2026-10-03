@@ -39,10 +39,10 @@ vi.mock("@/lib/planSessionCapability", () => ({
 }));
 // The children are not what these two rules are about; the route list is.
 vi.mock("@/components/plan/PlanRoute", () => ({
-  default: ({ stops }: { stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: { category: string; pence: number } }> }) =>
+  default: ({ stops, routeDrinkIntent }: { stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: { category: string; pence: number } }>; routeDrinkIntent?: unknown }) =>
     createElement(
       "ol",
-      { "data-testid": "plan-route" },
+      { "data-testid": "plan-route", "data-route-intent": JSON.stringify(routeDrinkIntent ?? null) },
       stops.map((stop) => createElement("li", { key: stop.venueId },
         stop.venueName,
         stop.selectedDrinkPriceEvidence
@@ -392,5 +392,34 @@ describe("saved refresh anchor evidence boundaries", () => {
       } } : {}),
     });
     expect(JSON.stringify(state)).toBe(before);
+  });
+});
+
+
+describe("saved Summary public Cider map handoff", () => {
+  // PlanRoute is the existing child boundary double above. Observe the real
+  // Summary prop, then independently call the real public URL serializer.
+  it.each([null, "pint", "500ml"])("passes saved Cider request with %s while excluding private saved context", async (drinkServing) => {
+    const base = memberState(["The George", "The Swan", "The Crown"], 9, { drinkCategory: "beer", zeroProof: false });
+    const state = { ...base, context: { ...base.context, drinkSubtype: "beer-cider", drinkServing,
+      memberToken: "private-member-canary", lat: 51.4615, lng: -0.173227 } };
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(state))));
+    await mountWithMemberRead(null);
+    const intent = JSON.parse(container.querySelector('[data-testid="plan-route"]')?.getAttribute("data-route-intent") ?? "null");
+    expect(intent).toEqual({ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing, zeroProof: false });
+    const { buildCrawlMapHref, routeDrinkIntentFromSearch } = await import("@/lib/crawlUrl");
+    const href = buildCrawlMapHref(state.stops.map((stop) => stop.venueId), intent)!;
+    expect(routeDrinkIntentFromSearch(href.split("?")[1]!)).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", zeroProof: false });
+    expect(new URLSearchParams(href.split("?")[1]!).get("routeServing")).toBe(drinkServing);
+    expect(href).not.toMatch(/private-member-canary|51\.4615|-0\.173227|nightArea|memberToken|pence|sourceUrl/);
+  });
+
+  it("zero-proof saved choice wins over stale alcoholic subtype and serving", async () => {
+    const base = memberState(["The George", "The Swan", "The Crown"], 9, { drinkCategory: "beer", zeroProof: true });
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({ ...base,
+      context: { ...base.context, drinkSubtype: "beer-cider", drinkServing: "pint" } }))));
+    await mountWithMemberRead(null);
+    expect(JSON.parse(container.querySelector('[data-testid="plan-route"]')?.getAttribute("data-route-intent") ?? "null"))
+      .toEqual({ zeroProof: true });
   });
 });
