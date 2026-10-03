@@ -25,6 +25,7 @@ import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
 import { loadSlimVenuesFromPathResult, type SlimVenue } from "@/lib/venuesSlim";
 import { WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
+import { EXPECTED_MAP_DATA_REVISION, MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 /** [minLng, minLat, maxLng, maxLat] — GeoJSON bbox order (matches the build). */
 export type ShardBbox = [number, number, number, number];
@@ -61,20 +62,6 @@ type SlimShardLoadResult = {
 
 const LEGACY_SHARD_MANIFEST_VERSION = 1;
 const SPATIAL_SHARD_MANIFEST_VERSION = 2;
-const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() ||
-  (process.env.NODE_ENV === "production"
-    ? (() => {
-        throw new Error("A deploy revision is required for production map data");
-      })()
-    : "local");
-// The revision match is a production cache-busting guard. `next dev` serves
-// whatever packs public/data holds, committed `local`, restamped with HEAD or a
-// mix, so outside production every pack is accepted.
-const EXPECTED_MAP_DATA_REVISION =
-  process.env.NODE_ENV === "production" && MAP_DATA_REVISION !== "local"
-    ? MAP_DATA_REVISION
-    : undefined;
-
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
 function isBbox(value: unknown): value is ShardBbox {

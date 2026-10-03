@@ -44,7 +44,7 @@ export function nightMomentObjectPrefix(ownerId: string, memoryId?: string): str
  */
 export function nightMomentKeyBelongsToOwner(ownerId: string, key: string): boolean {
   if (typeof ownerId !== "string" || typeof key !== "string") return false;
-  if (!ownerId || /[\\/\0]/.test(ownerId)) return false;
+  if (!ownerId || ownerId === "." || ownerId === ".." || /[\\/\0]/.test(ownerId)) return false;
   const prefix = `${nightMomentObjectPrefix(ownerId)}/`;
   if (!key.startsWith(prefix) || /[\\%\0]/.test(key)) return false;
   const parts = key.slice(prefix.length).split("/");

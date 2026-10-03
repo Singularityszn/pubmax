@@ -10,11 +10,11 @@
 import {
   eventIdentityKey,
   isCalendarDate as isCalendarDateShape,
-  isHttpUrl as isHttpUrlShape,
   isValidIso as isValidIsoShape,
   isValidObservedAt as isValidObservedAtShape,
   isValidWhatsOnRow as isValidWhatsOnRowShape,
 } from "@/lib/whatsOnRowShape.mjs";
+import { isHttpUrl } from "@/lib/httpUrl";
 
 export type WhatsOnListedWindow = "tonight" | "tomorrow_night" | "this_weekend";
 
@@ -66,11 +66,7 @@ export type WhatsOnRow = {
   confidence: WhatsOnConfidence;
 };
 
-// http(s) URL guard — a source must be a real, absolute link the UI can
-// attribute to.
-export function isHttpUrl(value: unknown): value is string {
-  return isHttpUrlShape(value);
-}
+export { isHttpUrl };
 
 // A parseable ISO timestamp (no future constraint — startsAt may be future).
 export function isValidIso(value: unknown): value is string {

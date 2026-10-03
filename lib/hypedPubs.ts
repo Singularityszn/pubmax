@@ -21,6 +21,7 @@
 //      measurement.
 
 import { isHttpUrl } from "@/lib/httpUrl";
+import { isNonBlankString } from "@/lib/priceUpdateRowShape";
 
 /** One place the talk was found, and the day it was read. */
 export type HypedPubSource = {
@@ -76,18 +77,14 @@ export const HYPED_PUBS_VISIBLE = 5;
  */
 export const HYPED_PUBS_PAGE_LIMIT = 12;
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
 function isDatedIso(value: unknown): value is string {
-  return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
+  return isNonBlankString(value) && Number.isFinite(Date.parse(value));
 }
 
 function parseSource(value: unknown): HypedPubSource | null {
   if (typeof value !== "object" || value === null) return null;
   const raw = value as Record<string, unknown>;
-  if (!isNonEmptyString(raw.label)) return null;
+  if (!isNonBlankString(raw.label)) return null;
   if (!isHttpUrl(raw.url, { allowWhitespace: true })) return null;
   if (!isDatedIso(raw.observedAt)) return null;
   return {
@@ -100,9 +97,9 @@ function parseSource(value: unknown): HypedPubSource | null {
 function parseRow(value: unknown): HypedPub | null {
   if (typeof value !== "object" || value === null) return null;
   const raw = value as Record<string, unknown>;
-  if (!isNonEmptyString(raw.name)) return null;
-  if (!isNonEmptyString(raw.area)) return null;
-  if (!isNonEmptyString(raw.whyLine)) return null;
+  if (!isNonBlankString(raw.name)) return null;
+  if (!isNonBlankString(raw.area)) return null;
+  if (!isNonBlankString(raw.whyLine)) return null;
   const sources = Array.isArray(raw.sources)
     ? raw.sources
         .map(parseSource)
@@ -117,7 +114,7 @@ function parseRow(value: unknown): HypedPub | null {
   return {
     name: raw.name.trim(),
     area: raw.area.trim(),
-    venueId: isNonEmptyString(raw.venueId) ? raw.venueId.trim() : null,
+    venueId: isNonBlankString(raw.venueId) ? raw.venueId.trim() : null,
     whyLine: raw.whyLine.trim(),
     sources,
     score,

@@ -640,10 +640,13 @@ export function usePintDrops(
     const submittedVenueFile = venuePhoto?.file ?? null;
     const submittedReceiptFile = receiptPhoto?.file ?? null;
     clearPintDropDraft(safeSessionStorage(), venueId);
-    try {
-      window.localStorage.setItem("pubmax_handle", submittedHandle);
-    } catch {
-      // Storage blocked — handle can be re-entered later.
+    const local = safeLocalStorage();
+    if (local) {
+      try {
+        local.setItem("pubmax_handle", submittedHandle);
+      } catch {
+        // Storage blocked — handle can be re-entered later.
+      }
     }
     resetComposer();
     setComposerOpen(false);
