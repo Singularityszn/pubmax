@@ -7,6 +7,7 @@ import {
   parsePubPalToolWebhookBody,
 } from "@/lib/pubPalToolInvoke.server";
 import { isLimited } from "@/lib/pintDrops";
+import { PubPalRoutePreferencesUnavailableError } from "@/lib/pubPalRouteProposalPolicy.server";
 import {
   PUB_PAL_WEBHOOK_RATE_LIMIT,
   PUB_PAL_WEBHOOK_RATE_WINDOW_MS,
@@ -51,10 +52,15 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       retryable: true,
     });
   }
-  const outcome = await invokePubPalAskTool({
-    toolName: normalized,
-    args,
-    conversationId,
-  });
-  return jsonNoStore(outcome);
+  try {
+    const outcome = await invokePubPalAskTool({
+      toolName: normalized,
+      args,
+      conversationId,
+    });
+    return jsonNoStore(outcome);
+  } catch (error) {
+    if (!(error instanceof PubPalRoutePreferencesUnavailableError)) throw error;
+    return publicApiError(error.message, "UNAVAILABLE", 503, { retryable: true });
+  }
 }

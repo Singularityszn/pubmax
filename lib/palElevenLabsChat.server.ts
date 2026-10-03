@@ -109,6 +109,39 @@ export type PalElevenLabsChatOutcome =
     }
   | { ok: false; code: "UNAVAILABLE" | "TIMEOUT" | "PROVIDER_UNAVAILABLE" };
 
+/** Shared by the provider turn and a route-off refusal; both keep sticky safety. */
+export async function resolvePalElevenLabsChatPrelude(
+  input: PalElevenLabsChatInput,
+  deadline: number,
+): Promise<
+  | { ok: true; turns: PubPalFenceTurn[]; fenceIntent: Awaited<ReturnType<typeof resolvePubPalFenceIntent>> }
+  | { ok: false; code: "UNAVAILABLE" | "TIMEOUT" }
+> {
+  let preludeTimer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const preludeExpiry = new Promise<null>((resolve) => {
+      preludeTimer = setTimeout(() => resolve(null), Math.max(0, deadline - Date.now()));
+    });
+    const ownedAsks = await Promise.race([
+      priorOwnedAsks(input.threadId, input.ownerId),
+      preludeExpiry,
+    ]);
+    if (ownedAsks === null || Date.now() >= deadline) return { ok: false, code: "TIMEOUT" };
+    const turns = ownedAsks;
+    const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
+    const resolvedFence = await Promise.race([
+      resolvePubPalFenceIntent(input.query, [...fenceTurns, ...turns]),
+      preludeExpiry,
+    ]);
+    if (resolvedFence === null || Date.now() >= deadline) return { ok: false, code: "TIMEOUT" };
+    return { ok: true, turns, fenceIntent: resolvedFence };
+  } catch {
+    return { ok: false, code: "UNAVAILABLE" };
+  } finally {
+    clearTimeout(preludeTimer);
+  }
+}
+
 export async function runPalElevenLabsChatTurn(
   input: PalElevenLabsChatInput,
 ): Promise<PalElevenLabsChatOutcome> {
@@ -121,31 +154,9 @@ export async function runPalElevenLabsChatTurn(
   const deadline = Date.now() + PAL_CHAT_SERVER_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
-  let turns: PubPalFenceTurn[];
-  let fenceIntent: Awaited<ReturnType<typeof resolvePubPalFenceIntent>>;
-  let preludeTimer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const preludeExpiry = new Promise<null>((resolve) => {
-      preludeTimer = setTimeout(() => resolve(null), Math.max(0, deadline - Date.now()));
-    });
-    const ownedAsks = await Promise.race([
-      priorOwnedAsks(input.threadId, input.ownerId),
-      preludeExpiry,
-    ]);
-    if (ownedAsks === null || Date.now() >= deadline) return { ok: false, code: "TIMEOUT" };
-    turns = ownedAsks;
-    const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
-    const resolvedFence = await Promise.race([
-      resolvePubPalFenceIntent(query, [...fenceTurns, ...turns]),
-      preludeExpiry,
-    ]);
-    if (resolvedFence === null || Date.now() >= deadline) return { ok: false, code: "TIMEOUT" };
-    fenceIntent = resolvedFence;
-  } catch {
-    return { ok: false, code: "UNAVAILABLE" };
-  } finally {
-    clearTimeout(preludeTimer);
-  }
+  const prelude = await resolvePalElevenLabsChatPrelude({ ...input, query }, deadline);
+  if (!prelude.ok) return prelude;
+  const { turns, fenceIntent } = prelude;
   const { fenced, sobrietyOnly } = fenceIntent;
   if (fenced) {
     return {
