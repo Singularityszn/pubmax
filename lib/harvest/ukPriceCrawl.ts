@@ -32,6 +32,11 @@
 // lib/harvest/sourcePolicy.ts and lib/harvest/robots.ts, asked live, before
 // anything here runs.
 
+import {
+  COFFEE_HARVEST_WORD_PATTERN,
+  coffeePriceLabelExcluded,
+  coffeeSiteHarvestDedupeKey,
+} from "@/lib/coffeePricePilot";
 import type { DrinkCategory } from "@/lib/drinks";
 import { parse, parseFragment, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
 
@@ -178,9 +183,10 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   { category: "shot", pattern: /\b(shot|shots|tequila|sambuca|jagerbomb|j[aä]germeister)\b/i },
   {
     category: "soft-drink",
-    pattern: /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|juice|squash|still water|sparkling water)\b/i,
+    pattern:
+      /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|juice|squash|still water|sparkling water|bottled water|spring water)\b/i,
   },
-  { category: "coffee", pattern: /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha)\b/i },
+  { category: "coffee", pattern: COFFEE_HARVEST_WORD_PATTERN },
 ];
 
 /**
@@ -797,6 +803,10 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
+  const printedName = drinkLabel ?? printedItemName(text, at)?.own;
+  if (category === "coffee" && coffeePriceLabelExcluded(printedName)) {
+    return { drop: "no-category-word-nearby" };
+  }
   const drop = keylessPriceDropReason(category, priceGbp, context);
   if (drop) return { drop };
   // A preceding item's printed measure cannot turn this item's pint into a
@@ -940,7 +950,7 @@ export function cheapestPerCategory(reading: UkPriceReading): ReadonlyArray<UkPr
   const low = new Map<string, UkPriceCategoryRow>();
   for (const row of reading.kept) {
     const drinkLabel = row.drinkLabel;
-    const key = siteHarvestPriceKey(row.category, drinkLabel, row.servingSize);
+    const key = coffeeSiteHarvestDedupeKey(row.category, drinkLabel, row.servingSize);
     const seen = low.get(key);
     if (!seen || row.priceGbp < seen.priceGbp) {
       low.set(key, {
