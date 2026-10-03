@@ -13,7 +13,6 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  isMigrationApplied,
   labelOf,
   listMigrations,
   parseAppliedLabels,
@@ -119,7 +118,6 @@ describe("migration-apply-list", () => {
     const labels = parseAppliedLabels(appliedText);
 
     expect(versions.has("20261002210000")).toBe(false);
-    expect(isMigrationApplied(filename, versions, labels)).toBe(true);
     expect(unappliedMigrations([filename, "20260929120000_0161_plan_selected_drink_evidence.sql"], versions, labels)).toEqual([
       "20260929120000_0161_plan_selected_drink_evidence.sql",
     ]);
@@ -139,7 +137,6 @@ describe("migration-apply-list", () => {
 
     expect(labels.has("0127")).toBe(false);
     expect(names.has("plan_membership_account_claim")).toBe(true);
-    expect(isMigrationApplied(filename, versions, labels, names)).toBe(true);
     expect(
       unappliedMigrations(
         [filename, "20260831142000_0131_social_crew_membership_reuse_capacity.sql"],
@@ -148,5 +145,55 @@ describe("migration-apply-list", () => {
         names,
       ),
     ).toEqual(["20260831142000_0131_social_crew_membership_reuse_capacity.sql"]);
+  });
+
+  it("does not let a label two migrations share mark the other one applied", () => {
+    const migrations = [
+      "20260828120000_0123_harvest_venue_overlays.sql",
+      "20260829120000_0123_social_admin_moderation.sql",
+    ];
+    const appliedText = "20260828120000\t0123_harvest_venue_overlays\n";
+
+    expect(
+      unappliedMigrations(
+        migrations,
+        parseAppliedVersions(appliedText),
+        parseAppliedLabels(appliedText),
+        parseAppliedNames(appliedText),
+      ),
+    ).toEqual(["20260829120000_0123_social_admin_moderation.sql"]);
+
+    const renamedText = "20260901000000\t0123_social_admin_moderation\n0123\n";
+    expect(
+      unappliedMigrations(
+        migrations,
+        parseAppliedVersions(renamedText),
+        parseAppliedLabels(renamedText),
+        parseAppliedNames(renamedText),
+      ),
+    ).toEqual(["20260828120000_0123_harvest_venue_overlays.sql"]);
+  });
+
+  it("does not count a pasted CLI row as applied when its Remote column is blank", () => {
+    const migrations = [
+      "20260806160000_0076_plan_member_group_prefs.sql",
+      "20260806162000_0077_pending_plan_recaps.sql",
+    ];
+    const appliedText = [
+      "   Local          | Remote         | Time (UTC)",
+      "  ----------------|----------------|---------------------",
+      "   20260806160000 | 20260806160000 | 2026-08-06 16:00:00",
+      "   20260806162000 |                | 2026-08-06 16:20:00",
+      "",
+    ].join("\n");
+
+    expect(
+      unappliedMigrations(
+        migrations,
+        parseAppliedVersions(appliedText),
+        parseAppliedLabels(appliedText),
+        parseAppliedNames(appliedText),
+      ),
+    ).toEqual(["20260806162000_0077_pending_plan_recaps.sql"]);
   });
 });

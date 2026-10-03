@@ -12,13 +12,6 @@ export function parseAppliedLabels(text: string): Set<string>;
 
 export function parseAppliedNames(text: string): Set<string>;
 
-export function isMigrationApplied(
-  filename: string,
-  appliedVersions: ReadonlySet<string>,
-  appliedLabels?: ReadonlySet<string>,
-  appliedNames?: ReadonlySet<string>,
-): boolean;
-
 export function unappliedMigrations(
   migrations: readonly string[],
   appliedVersions: ReadonlySet<string>,

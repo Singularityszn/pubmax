@@ -10,18 +10,22 @@
 //     `version` and `name` from supabase_migrations.schema_migrations.
 //     A name like 0170_profiles_table_door counts as label 0170. A name that
 //     dropped the label, plan_membership_account_claim, still counts as the
-//     repo file that ends in that name. The version need not match.
+//     repo file that ends in that name. The version need not match. A
+//     `supabase migration list` row counts only when its Remote column is
+//     filled.
 //
 //   node scripts/qa/schema-level-report.mjs --fetch
 //     Reads that same ledger with one read-only select. The connection
-//     string is SCHEMA_LEVEL_DATABASE_URL, SUPABASE_DB_URL, or DATABASE_URL.
-//     The session is default_transaction_read_only. Nothing is written.
+//     string is SCHEMA_LEVEL_DATABASE_URL, a postgres:// URL. The session is
+//     default_transaction_read_only. Nothing is written. The report opens
+//     with the target host, without credentials.
 //
 // Prints two lists, missing first, then out-of-order. A label is missing
-// when no applied row carries its label, its descriptive name, or one of its
-// repo files' versions. A label is out of order when it is applied and an
-// earlier label, in timestamp apply order, is missing. Exit 0 after a report.
-// Exit 1 when the invocation itself is wrong.
+// when one of the migrations it carries is unapplied, by the rules in
+// migration-apply-list.mjs. Two files with the same label and name are one
+// migration, re-timestamped. A label is out of order when it is applied and
+// an earlier label, in timestamp apply order, is missing. Exit 0 after a
+// report. Exit 1 when the invocation itself is wrong.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -29,12 +33,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  isMigrationApplied,
+  descriptiveNameOf,
   labelOf,
   listMigrations,
   parseAppliedLabels,
   parseAppliedNames,
   parseAppliedVersions,
+  unappliedMigrations,
 } from "./migration-apply-list.mjs";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
@@ -43,41 +48,35 @@ const MIGRATIONS_DIR = path.join(REPO_ROOT, "supabase", "migrations");
 export const APPLIED_LIST_SQL =
   "select version, coalesce(name, '') as name from supabase_migrations.schema_migrations order by version";
 
-const DATABASE_URL_KEYS = ["SCHEMA_LEVEL_DATABASE_URL", "SUPABASE_DB_URL", "DATABASE_URL"];
-
-export function databaseUrlFrom(env) {
-  for (const key of DATABASE_URL_KEYS) {
-    const value = env[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return null;
-}
-
 // Compares repo filenames, oldest timestamp first, with a pasted or fetched
 // applied list. Labels are reported once, in the order their first file appears.
 export function compareSchemaLevel(migrations, appliedText) {
-  const appliedVersions = parseAppliedVersions(appliedText);
-  const appliedLabels = parseAppliedLabels(appliedText);
-  const appliedNames = parseAppliedNames(appliedText);
-  const filesByLabel = new Map();
+  const unapplied = new Set(
+    unappliedMigrations(
+      migrations,
+      parseAppliedVersions(appliedText),
+      parseAppliedLabels(appliedText),
+      parseAppliedNames(appliedText),
+    ),
+  );
+  const migrationsByLabel = new Map();
   const order = [];
 
-  for (const name of migrations) {
-    const label = labelOf(name);
+  for (const filename of migrations) {
+    const label = labelOf(filename);
     if (!label) continue;
-    if (!filesByLabel.has(label)) {
-      filesByLabel.set(label, []);
+    if (!migrationsByLabel.has(label)) {
+      migrationsByLabel.set(label, new Map());
       order.push(label);
     }
-    filesByLabel.get(label).push(name);
+    const byName = migrationsByLabel.get(label);
+    const name = descriptiveNameOf(filename);
+    byName.set(name, byName.get(name) === true || !unapplied.has(filename));
   }
 
   const applied = new Set();
   for (const label of order) {
-    const recorded = filesByLabel
-      .get(label)
-      .some((name) => isMigrationApplied(name, appliedVersions, appliedLabels, appliedNames));
-    if (recorded) applied.add(label);
+    if ([...migrationsByLabel.get(label).values()].every(Boolean)) applied.add(label);
   }
 
   const missing = [];
@@ -95,25 +94,42 @@ export function compareSchemaLevel(migrations, appliedText) {
   return { missing, outOfOrder };
 }
 
-export function formatSchemaLevelReport({ missing, outOfOrder }) {
-  return ["missing:", ...missing, "out-of-order:", ...outOfOrder, ""].join("\n");
+// `target` is the database host the applied list came from, when known.
+export function formatSchemaLevelReport({ target, missing, outOfOrder }) {
+  const header = target ? [`target: ${target}`] : [];
+  return [...header, "missing:", ...missing, "out-of-order:", ...outOfOrder, ""].join("\n");
 }
 
-// Runs the fixed select. `execFile` is injectable so a test can see the
-// arguments without a database. The connection string is an argument to psql
-// and is stripped from any error this function throws.
-export function fetchAppliedList(env, execFile = execFileSync) {
-  const url = databaseUrlFrom(env);
-  if (!url) {
-    throw new Error(
-      "--fetch needs SCHEMA_LEVEL_DATABASE_URL, SUPABASE_DB_URL, or DATABASE_URL",
-    );
-  }
-  const psql = env.PSQL || "psql";
-  const previousOptions = env.PGOPTIONS ? `${env.PGOPTIONS} ` : "";
+// The host and port of a postgres:// URL. The user, password, database and
+// query never leave this function.
+function targetHostOf(url) {
+  let parsed;
   try {
-    return execFile(
-      psql,
+    parsed = new URL(url);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed || !/^postgres(?:ql)?:$/.test(parsed.protocol) || !parsed.host) {
+    throw new Error("SCHEMA_LEVEL_DATABASE_URL must be a postgres:// URL with a host");
+  }
+  return parsed.host;
+}
+
+// Runs the fixed select and returns the ledger text with the host it came
+// from. `execFile` is injectable so a test can see the arguments without a
+// database. The connection string is an argument to psql and is stripped
+// from any error this function throws.
+export function fetchAppliedList(env, execFile = execFileSync) {
+  const url = env.SCHEMA_LEVEL_DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error("--fetch needs SCHEMA_LEVEL_DATABASE_URL");
+  }
+  const target = targetHostOf(url);
+  const previousOptions = env.PGOPTIONS ? `${env.PGOPTIONS} ` : "";
+  let text;
+  try {
+    text = execFile(
+      "psql",
       [url, "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "\t", "-c", APPLIED_LIST_SQL],
       {
         encoding: "utf8",
@@ -130,6 +146,7 @@ export function fetchAppliedList(env, execFile = execFileSync) {
     }
     throw error;
   }
+  return { target, text };
 }
 
 function main() {
@@ -145,9 +162,10 @@ function main() {
   }
 
   let appliedText;
+  let target;
   if (fetch) {
     try {
-      appliedText = fetchAppliedList(process.env);
+      ({ target, text: appliedText } = fetchAppliedList(process.env));
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
@@ -164,7 +182,7 @@ function main() {
   }
 
   const report = compareSchemaLevel(listMigrations(MIGRATIONS_DIR), appliedText);
-  process.stdout.write(formatSchemaLevelReport(report));
+  process.stdout.write(formatSchemaLevelReport({ target, ...report }));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

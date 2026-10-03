@@ -17,7 +17,6 @@ import {
 import {
   APPLIED_LIST_SQL,
   compareSchemaLevel,
-  databaseUrlFrom,
   fetchAppliedList,
   formatSchemaLevelReport,
 } from "../scripts/qa/schema-level-report.mjs";
@@ -84,7 +83,7 @@ describe("schema-level report", () => {
     });
   });
 
-  it("counts a label applied when any of its files matches by version", () => {
+  it("counts a label applied when a re-timestamped file of the same name matches by version", () => {
     const migrations = [
       "20260707010745_0013_comment_replies.sql",
       "20260707053307_0013_comment_replies.sql",
@@ -98,32 +97,85 @@ describe("schema-level report", () => {
     });
   });
 
-  it("prints missing labels, then out-of-order labels", () => {
+  it("calls a shared label missing when one of its differently named migrations is unapplied", () => {
+    const migrations = [
+      "20260828120000_0123_harvest_venue_overlays.sql",
+      "20260829120000_0123_social_admin_moderation.sql",
+      "20260830120000_0125_later.sql",
+    ];
+    const appliedText = [
+      "20260828120000\t0123_harvest_venue_overlays",
+      "20260830120000\t0125_later",
+    ].join("\n");
+
+    expect(compareSchemaLevel(migrations, appliedText)).toEqual({
+      missing: ["0123"],
+      outOfOrder: ["0125"],
+    });
+  });
+
+  it("reports a Local-only row of a pasted supabase migration list as missing", () => {
+    const migrations = [
+      "20260927120000_0159_supabase_hygiene.sql",
+      "20260929120000_0161_plan_selected_drink_evidence.sql",
+      "20261002120000_0169_pub_pal_tool_turn_owner.sql",
+    ];
+    const appliedText = [
+      "   Local          | Remote         | Time (UTC)",
+      "  ----------------|----------------|---------------------",
+      "   20260927120000 | 20260927120000 | 2026-09-27 12:00:00",
+      "   20260929120000 |                | 2026-09-29 12:00:00",
+      "   20261002120000 | 20261002120000 | 2026-10-02 12:00:00",
+    ].join("\n");
+
+    expect(compareSchemaLevel(migrations, appliedText)).toEqual({
+      missing: ["0161"],
+      outOfOrder: ["0169"],
+    });
+  });
+
+  it("prints the target first when known, then missing labels, then out-of-order labels", () => {
     expect(
       formatSchemaLevelReport({ missing: ["0161", "0162"], outOfOrder: ["0169"] }),
     ).toBe("missing:\n0161\n0162\nout-of-order:\n0169\n");
+    expect(
+      formatSchemaLevelReport({ target: "db.example:5432", missing: [], outOfOrder: [] }),
+    ).toBe("target: db.example:5432\nmissing:\nout-of-order:\n");
   });
 
   it("fetches with one read-only select and does not repeat the connection string", () => {
     const url = "postgres://report:secret@db.example:5432/postgres";
-    expect(databaseUrlFrom({})).toBeNull();
-    expect(() => fetchAppliedList({})).toThrow(/SCHEMA_LEVEL_DATABASE_URL/);
+    const neverRun = () => {
+      throw new Error("psql must not run");
+    };
+    expect(() => fetchAppliedList({}, neverRun)).toThrow(/SCHEMA_LEVEL_DATABASE_URL/);
+    expect(() =>
+      fetchAppliedList({ SUPABASE_DB_URL: url, DATABASE_URL: url }, neverRun),
+    ).toThrow(/SCHEMA_LEVEL_DATABASE_URL/);
+    expect(() =>
+      fetchAppliedList({ SCHEMA_LEVEL_DATABASE_URL: "host=db.example password=secret" }, neverRun),
+    ).toThrow(/postgres:\/\/ URL/);
 
     let seen: { args: readonly string[]; pgoptions: string | undefined } | undefined;
-    const text = fetchAppliedList({ SCHEMA_LEVEL_DATABASE_URL: url }, (file, args, options) => {
-      seen = { args, pgoptions: options.env.PGOPTIONS };
-      expect(file).toBe("psql");
-      return "20261003050416\t0170_profiles_table_door\n";
-    });
+    const fetched = fetchAppliedList(
+      { SCHEMA_LEVEL_DATABASE_URL: url, PSQL: "/not/psql" },
+      (file, args, options) => {
+        seen = { args, pgoptions: options.env.PGOPTIONS };
+        expect(file).toBe("psql");
+        return "20261003050416\t0170_profiles_table_door\n";
+      },
+    );
 
-    expect(text).toContain("0170_profiles_table_door");
+    expect(fetched.text).toContain("0170_profiles_table_door");
+    expect(fetched.target).toBe("db.example:5432");
+    expect(fetched.target).not.toContain("secret");
     expect(seen?.args[0]).toBe(url);
     expect(seen?.args).toContain(APPLIED_LIST_SQL);
     expect(APPLIED_LIST_SQL.startsWith("select ")).toBe(true);
     expect(seen?.pgoptions).toContain("default_transaction_read_only=on");
 
     expect(() =>
-      fetchAppliedList({ DATABASE_URL: url }, () => {
+      fetchAppliedList({ SCHEMA_LEVEL_DATABASE_URL: url }, () => {
         throw new Error(`connection failed for ${url}`);
       }),
     ).toThrow("--fetch failed");
