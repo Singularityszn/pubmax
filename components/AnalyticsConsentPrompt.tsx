@@ -48,13 +48,61 @@ function useConsentReserve(card: RefObject<HTMLElement | null>): void {
       );
     };
     publish();
+    const onFocusIn = (event: FocusEvent) => {
+      const focused = event.target;
+      if (!(focused instanceof HTMLElement)) return;
+      clearFocusedFieldAboveConsentCard(element, focused);
+    };
+    document.addEventListener("focusin", onFocusIn);
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publish);
     observer?.observe(element);
     return () => {
+      document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       root.style.removeProperty("--analytics-consent-reserve");
     };
   }, [card]);
+}
+
+type Box = { top: number; bottom: number; height: number; width: number };
+
+/** Pixels to scroll so a focused box finishes fully above the consent card. */
+export function consentFocusScrollDelta(box: Box, lane: { top: number; bottom: number }): number {
+  if (box.height <= 0 || box.width <= 0) return 0;
+  if (box.bottom <= lane.top || box.top >= lane.bottom) return 0;
+  return box.bottom - lane.top;
+}
+
+function scrollingAncestor(node: HTMLElement): HTMLElement | null {
+  let parent = node.parentElement;
+  while (parent) {
+    const overflow = getComputedStyle(parent).overflowY;
+    if (
+      (overflow === "auto" || overflow === "scroll")
+      && parent.scrollHeight > parent.clientHeight + 1
+    ) {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+function clearFocusedFieldAboveConsentCard(card: HTMLElement, focused: HTMLElement): void {
+  if (card.contains(focused) || focused.closest(".mobileTabBar")) return;
+  const lane = card.getBoundingClientRect();
+  const delta = Math.ceil(consentFocusScrollDelta(focused.getBoundingClientRect(), lane));
+  if (delta <= 0) return;
+  // The root scroll-padding already names this lane. Chromium's own focus
+  // scroll still leaves a field under the card, so the field is moved by the
+  // overlap itself. The card is fixed, so the lane does not move with the page.
+  window.scrollBy(0, delta);
+  const remaining = Math.ceil(
+    consentFocusScrollDelta(focused.getBoundingClientRect(), lane),
+  );
+  if (remaining <= 0) return;
+  const scroller = scrollingAncestor(focused);
+  if (scroller) scroller.scrollTop += remaining;
 }
 
 export function AnalyticsConsentPromptContent({
