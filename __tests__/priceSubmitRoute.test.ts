@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally and fail
@@ -230,9 +232,11 @@ type PriceBody = {
   }>;
 };
 
-/** A tiny, real JPEG: the two markers `magicBytesOk` sniffs for. */
+const BILL_BYTES = readFileSync(new URL("../e2e/fixtures/bill.jpg", import.meta.url));
+
+/** A real bill image so priced submissions exercise decoding as well as MIME. */
 function jpegFile(name: string): File {
-  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], name, { type: "image/jpeg" });
+  return new File([new Uint8Array(BILL_BYTES)], name, { type: "image/jpeg" });
 }
 
 /**

@@ -77,6 +77,7 @@ import type {
   ContributionRecordReadResult,
 } from "@/lib/contributorLeaderboard";
 import { normalizeHandle } from "@/lib/profiles";
+import { log } from "@/lib/log";
 import type { RoundPriceSource } from "@/lib/rounds";
 import {
   markRoundPriceSourcePromoted,
@@ -104,6 +105,8 @@ export type CommunityPriceWrite = CommunityPriceInput & {
    */
   contributorHandle?: string;
   roundSource?: RoundPriceSource;
+  /** Server-only output of preparePhoto; never part of a public price DTO. */
+  preparedReceipt?: Buffer;
 };
 
 export type CommunityPriceWriteResult = {
@@ -1341,6 +1344,115 @@ function contributorCountRows(rows: unknown): CommunityContributorCount[] {
   return counts;
 }
 
+type AttributedPriceArgs = {
+  p_actor: string;
+  p_contributor_handle: string | null;
+  p_drink_category: DrinkCategory;
+  p_price_pennies: number;
+  p_round_line_index: number | null;
+  p_round_spend_id: string | null;
+  p_submitted_at: string;
+  p_venue_id: string;
+};
+
+const ATTRIBUTED_PRICE_RPC = "upsert_attributed_community_price_if_newer";
+
+function receiptRow(data: unknown): Record<string, unknown> | null {
+  if (!Array.isArray(data) || data.length !== 1) return null;
+  const row: unknown = data[0];
+  return row !== null && typeof row === "object"
+    ? row as Record<string, unknown>
+    : null;
+}
+
+function isMissingReceiptRpc(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { code, message } = error as { code?: string; message?: string };
+  const text = typeof message === "string" ? message.toLowerCase() : "";
+  if (code === "PGRST202" || code === "42883") {
+    return text.includes(ATTRIBUTED_PRICE_RPC) && text.includes("p_receipt_photo_key");
+  }
+  return (code === "42703" || code === "PGRST204") && text.includes("receipt_photo_key");
+}
+
+function hasStoredReceipt(row: Record<string, unknown> | null): row is Record<string, unknown> {
+  if (!row) return false;
+  return typeof row.id === "string" && row.id !== "" &&
+    Number.isInteger(row.price_pennies) &&
+    typeof row.submitted_at === "string" && Number.isFinite(Date.parse(row.submitted_at)) &&
+    (row.receipt_photo_key === null || typeof row.receipt_photo_key === "string");
+}
+
+function hasReceiptResult(row: Record<string, unknown> | null): row is Record<string, unknown> {
+  return hasStoredReceipt(row) && typeof row.receipt_became_owner === "boolean" &&
+    (row.previous_receipt_photo_key === null || typeof row.previous_receipt_photo_key === "string");
+}
+
+/** Undefined means we could not look; null means the canonical row is absent. */
+async function readReceiptOwner(args: AttributedPriceArgs): Promise<Record<string, unknown> | null | undefined> {
+  try {
+    const { data, error } = await admin().from("community_prices")
+      .select("id,price_pennies,submitted_at,round_spend_id,round_line_index,receipt_photo_key")
+      .eq("actor", args.p_actor)
+      .eq("venue_id", args.p_venue_id)
+      .eq("drink_category", args.p_drink_category)
+      .limit(1);
+    if (error || !Array.isArray(data)) return undefined;
+    if (data.length === 0) return null;
+    const row = receiptRow(data);
+    return hasStoredReceipt(row) ? row : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Receipt keys stay inside the durable writer, never in its public result. */
+async function submitPriceWithReceipt(args: AttributedPriceArgs, processed: Buffer): Promise<Record<string, unknown> | null> {
+  // Read-only price routes do not eagerly load the image encoder/store.
+  const { uploadPreparedPhoto, deletePhotos, PhotoProcessingError } = await import("@/lib/pintDropsStore");
+  let candidate: string | null = null;
+  try {
+    candidate = await uploadPreparedPhoto("receipt", args.p_venue_id, `community-receipt-${randomUUID()}`, processed);
+  } catch (error) {
+    if (error instanceof PhotoProcessingError) return null;
+    log("warn", "community_prices.receipt_upload_failed", { venueId: args.p_venue_id });
+  }
+
+  try {
+    const { data, error } = await admin().rpc(ATTRIBUTED_PRICE_RPC, {
+      ...args, p_receipt_photo_key: candidate,
+    });
+    if (isMissingReceiptRpc(error)) {
+      // The old overload cannot retain this generation, even on a lost reply.
+      if (candidate) await deletePhotos([candidate]);
+      const legacy = await admin().rpc(ATTRIBUTED_PRICE_RPC, args);
+      return legacy.error ? null : receiptRow(legacy.data);
+    }
+    const saved = receiptRow(data);
+    if (!error && hasReceiptResult(saved) &&
+      (!saved.receipt_became_owner || (candidate !== null && saved.receipt_photo_key === candidate))) {
+      const retained = saved.receipt_photo_key;
+      const displaced = saved.previous_receipt_photo_key;
+      if (candidate && retained !== candidate) await deletePhotos([candidate]);
+      if (typeof displaced === "string" && displaced !== retained && displaced !== candidate) {
+        await deletePhotos([displaced]);
+      }
+      return saved;
+    }
+  } catch {
+    // The database may have committed before its response was lost.
+  }
+
+  const owner = await readReceiptOwner(args);
+  if (candidate && owner?.receipt_photo_key === candidate) return owner;
+  if (candidate && owner !== undefined) await deletePhotos([candidate]);
+  log("warn", "community_prices.receipt_write_unconfirmed", {
+    venueId: args.p_venue_id,
+    ownership: owner === undefined ? "unknown" : "not_retained",
+  });
+  return null;
+}
+
 export const supabaseCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
     const key = normalize(input);
@@ -1350,6 +1462,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     // attributed ones upsert over that contributor's own earlier entry for the
     // same drink. Matches the memory store's replace-your-own rule.
     const actor = input.actor ?? null;
+    if (input.preparedReceipt && !actor) return { price: null, failed: true as const };
     const roundSource = cleanRoundPriceSource(input.roundSource);
     // Pinned to the store's public result type: `run` returns a stored price on
     // the happy path, but the schema-miss and error paths legitimately resolve
@@ -1381,22 +1494,28 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         // `.select("id")` so the submitter's own receipt carries the handle it
         // would need to be reported by - and so a correction (the upsert) hands
         // back the surviving row's id, not the replaced one's.
-        const { data, error } = actor
-          ? await admin().rpc(
-              "upsert_attributed_community_price_if_newer",
-              {
-                p_actor: actor,
-                p_contributor_handle: row.contributor_handle,
-                p_drink_category: row.drink_category,
-                p_price_pennies: row.price_pennies,
-                p_round_line_index: row.round_line_index,
-                p_round_spend_id: row.round_spend_id,
-                p_submitted_at: row.submitted_at,
-                p_venue_id: row.venue_id,
-              },
-            )
-          : await admin().from("community_prices").insert(row).select("id");
-        if (error) throw new Error(error.message);
+        const args = actor ? {
+          p_actor: actor,
+          p_contributor_handle: row.contributor_handle,
+          p_drink_category: row.drink_category,
+          p_price_pennies: row.price_pennies,
+          p_round_line_index: row.round_line_index,
+          p_round_spend_id: row.round_spend_id,
+          p_submitted_at: row.submitted_at,
+          p_venue_id: row.venue_id,
+        } : null;
+        let data: unknown;
+        if (args && input.preparedReceipt) {
+          const saved = await submitPriceWithReceipt(args, input.preparedReceipt);
+          if (!saved) return { price: null, failed: true as const };
+          data = [saved];
+        } else {
+          const result = args
+            ? await admin().rpc(ATTRIBUTED_PRICE_RPC, args)
+            : await admin().from("community_prices").insert(row).select("id");
+          if (result.error) throw new Error(result.error.message);
+          data = result.data;
+        }
         const saved =
           Array.isArray(data) && data[0] && typeof data[0] === "object"
             ? (data[0] as Record<string, unknown>)

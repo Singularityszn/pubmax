@@ -85,7 +85,7 @@ import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
-import type { PintDropPhotos } from "@/lib/pintDropsStore";
+import { PhotoRefusalError, preparePhoto, type PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
 import { log } from "@/lib/log";
@@ -162,6 +162,18 @@ async function reportObservation(request: Request, body: Record<string, unknown>
     return publicApiError("We cannot find that report.", "NOT_FOUND", 404);
   }
   return jsonNoStore({ ok: true }, { status: 200 });
+}
+
+async function prepareCommunityReceipt(venueId: string, file: File): Promise<Buffer | Response> {
+  try {
+    return await preparePhoto("receipt", venueId, "community-price", file);
+  } catch (error) {
+    if (error instanceof PhotoRefusalError) {
+      return publicApiError(error.message, "INVALID_REQUEST", 400);
+    }
+    log("error", "community_prices.receipt_processing_failed", { venueId });
+    return publicApiError("Could not process that bill right now.", "UNAVAILABLE", 503, { retryable: true });
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -266,12 +278,20 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
+  let preparedReceipt: Buffer | undefined;
+  if (!pairsPintDrop && pintDropPhotos.receipt) {
+    const prepared = await prepareCommunityReceipt(submission.venueId, pintDropPhotos.receipt);
+    if (prepared instanceof Response) return prepared;
+    preparedReceipt = prepared;
+  }
+
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const { price, failed } = await submitCommunityPrice({
     ...submission,
     actor: contributor.actor,
     contributorHandle: contributor.handle,
+    ...(preparedReceipt ? { preparedReceipt } : {}),
   });
   if (failed || !price) {
     return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });

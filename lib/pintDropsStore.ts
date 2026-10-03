@@ -1487,7 +1487,7 @@ export class PhotoRefusalError extends Error {}
 
 // The file was valid but Storage returned different bytes. This is a server
 // processing failure, not an outage we can ignore or an invalid-file 400.
-class PhotoProcessingError extends Error {}
+export class PhotoProcessingError extends Error {}
 
 /**
  * What an image the normaliser cannot open is refused with.
@@ -1500,13 +1500,14 @@ class PhotoProcessingError extends Error {}
 export const UNREADABLE_PHOTO_REFUSAL =
   "That photo could not be read. Choose a different image.";
 
-export async function uploadPhoto(
+/** Prepare once; the same bytes can then be stored beside either price lane. */
+export async function preparePhoto(
   slot: "pint" | "venue" | "receipt",
   venueId: string,
   dropId: string,
   file: File,
   maxBytes = MAX_PHOTO_BYTES,
-): Promise<string> {
+): Promise<Buffer> {
   const invalid = validatePhoto(file.type, file.size, maxBytes);
   if (invalid) throw new PhotoRefusalError(invalid);
 
@@ -1566,6 +1567,27 @@ export async function uploadPhoto(
     throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
+  return processed;
+}
+
+export async function uploadPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  file: File,
+  maxBytes = MAX_PHOTO_BYTES,
+): Promise<string> {
+  const processed = await preparePhoto(slot, venueId, dropId, file, maxBytes);
+  return uploadPreparedPhoto(slot, venueId, dropId, processed);
+}
+
+/** Store the output of preparePhoto without decoding or normalizing it again. */
+export async function uploadPreparedPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  processed: Buffer,
+): Promise<string> {
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
 
   const error = await uploadUploadedImageObject(
@@ -1601,14 +1623,13 @@ export async function deletePhotos(keys: string[]): Promise<void> {
   const present = keys.filter(Boolean);
   if (!present.length) return;
   try {
-    await admin().storage.from(STORAGE_BUCKET).remove(present);
-  } catch (err) {
-    // Never re-throw — cleanup must not mask the original failure. But log a
-    // warning (safe fields only: a count, not the keys) so orphaned objects are
-    // observable rather than silently accumulating.
-    log("warn", "pint_drops.photo_cleanup_failed", {
-      keyCount: present.length,
-      error: err instanceof Error ? err.message : String(err),
-    });
+    const { error } = await admin().storage.from(STORAGE_BUCKET).remove(present);
+    if (!error) return;
+  } catch {
+    // Cleanup failures cannot mask the write outcome.
   }
+  log("warn", "pint_drops.photo_cleanup_failed", {
+    keyCount: present.length,
+    reason: "storage_remove_failed",
+  });
 }
