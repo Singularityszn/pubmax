@@ -37,7 +37,7 @@ export const PLACE_DETAILS_ENTERPRISE_USD_PER_THOUSAND = 20;
 export const PLACE_DETAILS_ENTERPRISE_FREE_MONTHLY = 1_000;
 export const PLACES_VERIFY_JOB_CAP_USD = 12;
 
-export const SHOREDITCH_COFFEE_BOX = {
+const SHOREDITCH_COFFEE_BOX = {
   minLat: 51.5215,
   maxLat: 51.5305,
   minLng: -0.0835,
@@ -85,7 +85,7 @@ export function isInShoreditchCoffeeBox(lat: number, lng: number): boolean {
   );
 }
 
-export function extractUkPostcode(address: string): string | null {
+function extractUkPostcode(address: string): string | null {
   const match = UK_POSTCODE.exec(address);
   if (!match?.[1]) return null;
   return match[1].replace(/\s+/g, " ").toUpperCase();
@@ -103,7 +103,7 @@ export function textQueryForOsmVenue(venue: {
   return `${venue.name} ${venue.lat.toFixed(5)} ${venue.lng.toFixed(5)}`;
 }
 
-export function normalizeGooglePlaceId(raw: string): string | null {
+function normalizeGooglePlaceId(raw: string): string | null {
   const trimmed = raw.trim();
   const id = trimmed.startsWith("places/") ? trimmed.slice("places/".length) : trimmed;
   return PLACE_ID.test(id) ? id : null;
