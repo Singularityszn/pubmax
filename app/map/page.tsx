@@ -1,6 +1,7 @@
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import { MAPLIBRE_GL_URL } from "@/lib/maplibreWorkerAssets";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 //
@@ -43,6 +44,10 @@ export default function MapPage() {
           SCHEDULE a warm is that same trade. It still runs long before the
           event it waits for, and document.currentScript is set for a deferred
           classic script, so the ?v= revision read is unchanged. */}
+      {/* The engine is otherwise undiscoverable until PubMaxingShell evaluates
+          and imports the canvas. Same URL the canvas then imports, so this
+          fetch is the one copy, started with the document. */}
+      <link rel="modulepreload" href={MAPLIBRE_GL_URL} />
       <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       <PubMaxingShell cityId="london" />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and

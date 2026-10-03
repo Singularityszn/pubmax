@@ -6,6 +6,9 @@ const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const sourceDir = join(projectRoot, "node_modules", "maplibre-gl", "dist");
 const targetDir = join(projectRoot, "public", "vendor", "maplibre");
 const workerFiles = [
+  // The main module, so /map can modulepreload a stable URL. It statically
+  // imports the shared sibling, which is why that file is copied beside it.
+  "maplibre-gl.mjs",
   "maplibre-gl-worker.mjs",
   "maplibre-gl-shared.mjs",
 ];
