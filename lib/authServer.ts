@@ -152,9 +152,31 @@ async function verifyClaimsLocally(
   return { status: "verified", identity: { id, email, createdAt: null } };
 }
 
-export async function verifyCallerAuth(
+const verificationByRequest = new WeakMap<Request, Promise<CallerAuthVerification>>();
+
+/**
+ * One default verification per Request. `resolveMessageHandle`,
+ * `gateHandleAction`, `resolveContributionIdentity` and any other caller on
+ * that same object share the in-flight promise, so a signed-in route asks
+ * `auth.getUser` once. The settled answer, including a failure, stays with
+ * that Request. The next Request verifies again. `localOnly` is never shared:
+ * it is a weaker answer and its one caller asks for it once.
+ */
+export function verifyCallerAuth(
   request: Request,
   options: VerifyCallerAuthOptions = {},
+): Promise<CallerAuthVerification> {
+  if (options.localOnly) return verifyBearer(request, true);
+  const cached = verificationByRequest.get(request);
+  if (cached) return cached;
+  const pending = verifyBearer(request, false);
+  verificationByRequest.set(request, pending);
+  return pending;
+}
+
+async function verifyBearer(
+  request: Request,
+  localOnly: boolean,
 ): Promise<CallerAuthVerification> {
   const token = bearerToken(request);
   if (!token) return { status: "absent" };
@@ -163,7 +185,7 @@ export async function verifyCallerAuth(
   if (!admin) return { status: "unavailable" };
 
   try {
-    if (options.localOnly) {
+    if (localOnly) {
       const local = await verifyClaimsLocally(admin, token);
       if (local) return local;
     }
