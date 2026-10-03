@@ -278,9 +278,9 @@ for spec in "${RUNNERS[@]}"; do
     change sudo -u "$user" tar -xzf "$TARBALL" -C "$dir"
     if [ "$APPLY" -eq 1 ]; then
       token="$(gh api -X POST "repos/${REPO}/actions/runners/registration-token" --jq .token)"
-      (cd "$dir" && "${as_user[@]}" ./config.sh --unattended --replace \
+      "${as_user[@]}" sh -c 'cd "$1" && shift && exec ./config.sh "$@"' sh "$dir" --unattended --replace \
         --url "https://github.com/${REPO}" --token "$token" \
-        --name "$name" --labels "$label" --work _work)
+        --name "$name" --labels "$label" --work _work
     else
       note "would register ${name} with labels self-hosted,macOS,ARM64,${label}"
     fi

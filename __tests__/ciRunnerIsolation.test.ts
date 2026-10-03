@@ -218,6 +218,21 @@ describe("runner labels", () => {
   });
 });
 
+describe("the dedicated runner setup", () => {
+  it("registers a runner only from that user's own shell", () => {
+    const script = readFileSync(join(ROOT, "scripts/ci/setup-dedicated-runner-user.sh"), "utf8");
+    const registration = script.split('for spec in "${RUNNERS[@]}"')[1];
+    expect(registration, "registration loop").toBeDefined();
+    // Retired runners live in the console home, where this user can cd. A new
+    // runner lives in a 700 home this user cannot enter, so the registration
+    // loop has no console-user cd at all.
+    expect(registration).not.toMatch(/\(cd /);
+    expect(registration).toContain(
+      `"\${as_user[@]}" sh -c 'cd "$1" && shift && exec ./config.sh "$@"' sh "$dir"`,
+    );
+  });
+});
+
 describe("the runner identity check", () => {
   it("is the first thing every job runs after its checkout", () => {
     for (const { file, parsed } of workflows) {
