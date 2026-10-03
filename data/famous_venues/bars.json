@@ -483,7 +483,7 @@
       }
     ],
     "sourceUrl": "https://www.threesheets-bar.com/soho",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Three Sheets seasonal cocktail",
@@ -504,7 +504,7 @@
       "lng": -0.13085
     },
     "sourceName": "threesheets-bar.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -573,7 +573,7 @@
       }
     ],
     "sourceUrl": "https://www.barswift.com/soho",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Swift seasonal cocktail",
@@ -594,7 +594,7 @@
       "lng": -0.13184
     },
     "sourceName": "barswift.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -618,7 +618,7 @@
       }
     ],
     "sourceUrl": "https://www.barswift.com/borough",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Swift seasonal cocktail",
@@ -639,7 +639,7 @@
       "lng": -0.08985
     },
     "sourceName": "barswift.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -708,7 +708,7 @@
       }
     ],
     "sourceUrl": "https://www.threesheets-bar.com/",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Three Sheets seasonal cocktail",
@@ -729,7 +729,7 @@
       "lng": -0.07558
     },
     "sourceName": "threesheets-bar.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -978,7 +978,7 @@
       }
     ],
     "sourceUrl": "https://viajante87.com/",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Viajante87 cocktail",
@@ -999,7 +999,7 @@
       "lng": -0.19725
     },
     "sourceName": "viajante87.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1113,7 +1113,7 @@
       }
     ],
     "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Side Hustle agave cocktail",
@@ -1134,7 +1134,7 @@
       "lng": -0.12185
     },
     "sourceName": "hilton.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1383,7 +1383,7 @@
       }
     ],
     "sourceUrl": "https://milroys.co.uk/pages/the-vault",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Vault cocktail",
@@ -1404,7 +1404,7 @@
       "lng": -0.13037
     },
     "sourceName": "milroys.co.uk",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -1431,7 +1431,7 @@
       }
     ],
     "sourceUrl": "https://somasoho.com/",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "SOMA cocktail",
@@ -1452,7 +1452,7 @@
       "lng": -0.13429
     },
     "sourceName": "somasoho.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1521,7 +1521,7 @@
       }
     ],
     "sourceUrl": "https://www.trailerh.com/",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Rum cocktail",
@@ -1542,7 +1542,7 @@
       "lng": -0.20434
     },
     "sourceName": "trailerh.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1709,7 +1709,7 @@
       }
     ],
     "sourceUrl": "https://www.frenchhousesoho.com/",
-    "observedAt": "2026-09-25",
+    "observedAt": "2026-10-03",
     "anchor": {
       "kind": "pint",
       "label": "Half pint house lager",
@@ -1730,7 +1730,7 @@
       "lng": -0.13196
     },
     "sourceName": "frenchhousesoho.com",
-    "expiresAt": "2026-10-25",
+    "expiresAt": "2026-11-02",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   }
