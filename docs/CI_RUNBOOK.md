@@ -65,6 +65,14 @@ scripts/ci/setup-dedicated-runner-user.sh --apply   # makes them
 
 The script is idempotent; a second `--apply` reports each step as done. It
 refuses to start while a runner is busy (add `--force` to cancel those jobs).
+Evidence shots used to land in fixed `/tmp/pubmax-*` directories owned by the
+console user. A runner cannot write those, so delete the leftovers once, as
+the console user, before the first job:
+
+```sh
+rm -rf /tmp/pubmax-*
+```
+
 In order, it:
 
 1. creates `ghrunner` and `ghrefresh` with their groups and homes;
