@@ -182,8 +182,8 @@ type PinRevealCoordinatorOptions = {
    * frames; two frames confirm the paint. 0 reveals on that render.
    */
   compositeConfirmFrames?: number;
-  scheduleFrame?: (callback: () => void) => number;
-  cancelFrame?: (handle: number) => void;
+  scheduleFrame: (callback: () => void) => number;
+  cancelFrame: (handle: number) => void;
   setPinsVisible: (visible: boolean) => void;
   subscribeRender: (listener: () => void) => () => void;
   subscribeIdle: (listener: () => void) => () => void;
@@ -218,8 +218,8 @@ export function createPinRevealCoordinator({
   requiresBasemapPaint = true,
   confirmVisibleFrameBeforeReveal = false,
   compositeConfirmFrames = 0,
-  scheduleFrame = (callback) => requestAnimationFrame(callback),
-  cancelFrame = (handle) => cancelAnimationFrame(handle),
+  scheduleFrame,
+  cancelFrame,
   setPinsVisible,
   subscribeRender,
   subscribeIdle,
