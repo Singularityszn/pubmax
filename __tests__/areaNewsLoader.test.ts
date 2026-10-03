@@ -121,4 +121,30 @@ describe("area-news dataset loader", () => {
 
     await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [CURRENT_ENTRY] });
   });
+
+  it("keeps a fact accepted before the year rolled over", async () => {
+    vi.setSystemTime(Date.parse("2027-01-02T12:00:00Z"));
+    const reopened = {
+      ...VALID_ENTRY,
+      id: "area-news-rollover",
+      title: "Golden Lion (Soho) reopens in Soho",
+      detail: "Golden Lion (Soho) pub reopened in Soho on 18 December 2026 after closing in 2025.",
+      observedAt: "2026-12-20",
+    };
+    readFile.mockResolvedValue(dataset([reopened]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [reopened] });
+  });
+
+  it("still rejects a fact naming a year outside every harvest window", async () => {
+    vi.setSystemTime(Date.parse("2027-01-02T12:00:00Z"));
+    readFile.mockResolvedValue(dataset([{
+      ...VALID_ENTRY,
+      title: "Golden Lion (Soho) reopens in Soho",
+      detail: "Golden Lion (Soho) pub reopened in Soho on 18 December 2026 after closing in 2024.",
+      observedAt: "2026-12-20",
+    }]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "unavailable" });
+  });
 });

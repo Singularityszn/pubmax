@@ -11,23 +11,25 @@ export type AreaNewsLoadResult =
   | { status: "unavailable"; version: 1; generatedAt: ""; entries: [] };
 
 let cachedDataset: AreaNewsDataset | null = null;
+let cachedProjection: { day: number; result: AreaNewsLoadResult } | null = null;
 
-function projectAreaNews(dataset: AreaNewsDataset, now: number): AreaNewsLoadResult {
-  const nowDay = new Date(now);
-  nowDay.setUTCHours(0, 0, 0, 0);
-  const oldestAllowed = nowDay.getTime() - 21 * 24 * 60 * 60 * 1000;
-  const currentYear = nowDay.getUTCFullYear();
+function projectAreaNews(dataset: AreaNewsDataset, day: number): AreaNewsLoadResult {
+  const oldestAllowed = day - 21 * 24 * 60 * 60 * 1000;
+  const currentYear = new Date(day).getUTCFullYear();
   const entries: AreaNewsDataset["entries"] = [];
 
   for (const entry of dataset.entries) {
     const observedAt = Date.parse(`${entry.observedAt}T00:00:00Z`);
-    if (observedAt < oldestAllowed || observedAt > nowDay.getTime()) continue;
+    if (observedAt < oldestAllowed || observedAt > day) continue;
 
-    const classification = classifyExtractedFact({ content: JSON.stringify(entry) }, {
-      knownAreas: KNOWN_AREA_SLUGS,
-      currentYear,
-      now: nowDay.getTime(),
-    });
+    const harvestYears = new Set([new Date(observedAt).getUTCFullYear(), currentYear]);
+    const classification = [...harvestYears]
+      .map((year) => classifyExtractedFact({ content: JSON.stringify(entry) }, {
+        knownAreas: KNOWN_AREA_SLUGS,
+        currentYear: year,
+        now: day,
+      }))
+      .find(({ status }) => status !== "invalid") ?? { status: "invalid" as const };
     if (classification.status === "invalid") {
       throw new Error("Area news dataset current fact is invalid.");
     }
@@ -42,7 +44,7 @@ function projectAreaNews(dataset: AreaNewsDataset, now: number): AreaNewsLoadRes
   };
 }
 
-/** Cache the validated source rows, then project current facts on every read. */
+/** Cache the validated source rows, then project current facts once per UTC day. */
 export async function loadAreaNews(): Promise<AreaNewsLoadResult> {
   try {
     if (!cachedDataset) {
@@ -62,9 +64,16 @@ export async function loadAreaNews(): Promise<AreaNewsLoadResult> {
         entries: parsed.entries,
       };
     }
-    return projectAreaNews(cachedDataset, Date.now());
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const day = today.getTime();
+    if (cachedProjection?.day !== day) {
+      cachedProjection = { day, result: projectAreaNews(cachedDataset, day) };
+    }
+    return cachedProjection.result;
   } catch {
     cachedDataset = null;
+    cachedProjection = null;
     return { status: "unavailable", version: 1, generatedAt: "", entries: [] };
   }
 }
@@ -72,4 +81,5 @@ export async function loadAreaNews(): Promise<AreaNewsLoadResult> {
 /** Test-only: drop the in-memory cache between cases. */
 export function __resetAreaNewsCache(): void {
   cachedDataset = null;
+  cachedProjection = null;
 }
