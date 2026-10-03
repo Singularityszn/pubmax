@@ -369,6 +369,37 @@ export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftSt
   );
 }
 
+function clearSupersededConciergeDrink(requestBody: ReturnType<typeof buildPlanGenerationIntakeBody>): void {
+  // Earlier context and an accepted quote can both carry the old drink.
+  // Keep the venue and other constraints; the server reads the new query.
+  delete requestBody.context?.drinkCategory;
+  delete requestBody.context?.drinkSubtype;
+  delete requestBody.context?.drinkServing;
+  delete requestBody.context?.zeroProof;
+  delete requestBody.anchor?.selectedDrinkPriceEvidence;
+}
+
+function assertConciergeRouteSelection(
+  body: { outcome?: unknown; operationKey?: unknown },
+  suggested: readonly DraftStop[],
+  grounded: boolean,
+  routeVenueIds: readonly string[] | undefined,
+  heldVenueId: string | null,
+): void {
+  if (routeVenueIds && (
+    !grounded
+    || body.outcome === "anchor-only"
+    || typeof body.operationKey !== "string" || !body.operationKey.trim()
+    || suggested.length !== routeVenueIds.length
+    || suggested.some((stop, index) => stop.venueId !== routeVenueIds[index])
+  )) {
+    throw new Error("Those chosen stops could not be rechecked in the same order. Your preview is still here.");
+  }
+  if (heldVenueId && suggested[0]?.venueId !== heldVenueId) {
+    throw new Error("The accepted pub must stay as Stop 1. Your preview is still here.");
+  }
+}
+
 function cleanRouteRevision(value: unknown): RouteRevision | null {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" && Number.isInteger(value) && value >= 0) return value;
@@ -1831,16 +1862,12 @@ function PlanComposerForm({
     );
   }
 
-  async function sortWithConcierge(
-    queryOverride?: string,
+  function prepareConciergeSubmission(
+    query: string,
+    queryOverride: string | undefined,
     intakeOverride?: PlanIntakeDraft,
     explicitContextOverride?: Partial<NightContext>,
-    preserveSelectedRoute = false,
   ) {
-    // Both overrides (from the describe-first entry surface) are threaded
-    // through explicitly before React re-renders, so state reads here cannot
-    // send the pre-skip intake to the server.
-    const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
     const previousDrinkQuery = lastGeneratedQueryRef.current
       ?? (handoff?.acceptedAnchor?.drinkRequest ? "" : null);
@@ -1892,6 +1919,21 @@ function PlanComposerForm({
         ? resolveNightPatch(queryArea.patchId)
         : null;
     const blockedUnsupportedPatch = intakeUnsupportedPatch ?? queryUnsupportedPatchForSort;
+    return { queryArea, supersedesDrinkChoice, explicitContext, intake, intakeContextForSort, blockedUnsupportedPatch };
+  }
+
+  async function sortWithConcierge(
+    queryOverride?: string,
+    intakeOverride?: PlanIntakeDraft,
+    explicitContextOverride?: Partial<NightContext>,
+    preserveSelectedRoute = false,
+  ) {
+    // Both overrides (from the describe-first entry surface) are threaded
+    // through explicitly before React re-renders, so state reads here cannot
+    // send the pre-skip intake to the server.
+    const query = queryOverride ?? conciergeQuery;
+    const { queryArea, supersedesDrinkChoice, explicitContext, intake, intakeContextForSort, blockedUnsupportedPatch } =
+      prepareConciergeSubmission(query, queryOverride, intakeOverride, explicitContextOverride);
     if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
     if (blockedUnsupportedPatch) {
       setConciergeNote(conciergeStatusText(false, blockedUnsupportedPatch, ""));
@@ -1927,15 +1969,7 @@ function PlanComposerForm({
         handoff?.acceptedAnchor,
         routeVenueIds,
       );
-      if (supersedesDrinkChoice) {
-        // Earlier context and an accepted quote can both carry the old drink.
-        // Keep the venue and other constraints; the server reads the new query.
-        delete requestBody.context?.drinkCategory;
-        delete requestBody.context?.drinkSubtype;
-        delete requestBody.context?.drinkServing;
-        delete requestBody.context?.zeroProof;
-        delete requestBody.anchor?.selectedDrinkPriceEvidence;
-      }
+      if (supersedesDrinkChoice) clearSupersededConciergeDrink(requestBody);
       const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -1979,18 +2013,7 @@ function PlanComposerForm({
         return;
       }
       const grounded = isGroundedGeneratedRoute(body, suggested);
-      if (routeVenueIds && (
-        !grounded
-        || body.outcome === "anchor-only"
-        || typeof body.operationKey !== "string" || !body.operationKey.trim()
-        || suggested.length !== routeVenueIds.length
-        || suggested.some((stop, index) => stop.venueId !== routeVenueIds[index])
-      )) {
-        throw new Error("Those chosen stops could not be rechecked in the same order. Your preview is still here.");
-      }
-      if (heldVenueId && suggested[0]?.venueId !== heldVenueId) {
-        throw new Error("The accepted pub must stay as Stop 1. Your preview is still here.");
-      }
+      assertConciergeRouteSelection(body, suggested, grounded, routeVenueIds, heldVenueId);
       setStops(suggested);
       if (!routeVenueIds) setHasSelectedRouteEdits(false);
       lastGeneratedQueryRef.current = query.trim();
