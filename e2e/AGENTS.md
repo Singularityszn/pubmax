@@ -6,7 +6,7 @@ Repo-wide laws and the index of every other area file are in the root [AGENTS.md
 
 ## Driving the browser suite
 
-- **A real pack change still needs `PUBMAX_TRACKED_OUTPUTS=public/data`.** Browser builds and `scripts/run-with-restored-next-env.mjs` restore generated trees listed in that allowlist after verify or build. Playwright's `webServer.env` sets it in CI (`playwright.config.ts`); a hand-started e2e server or local production build that rewrites `public/data` must export the same value or the wrapper will refuse the dirty worktree.
+- **`PUBMAX_TRACKED_OUTPUTS=public/data` allows a build's revision-stamp churn; it never keeps a pack change.** `scripts/run-with-restored-next-env.mjs` fails a wrapped command that changes a tracked file outside that comma-separated allowlist. When the allowlist names `public/data`, the wrapper also git-restores `public/data` from HEAD on exit, so commit a real pack change before a wrapped build or e2e run or it is discarded. Other allowlisted paths are only excluded from the dirty-tree check, never restored. Playwright's `webServer.env` sets it in CI (`playwright.config.ts`); a hand-started e2e server or local production build that rewrites `public/data` must export the same value or the wrapper fails on the stamped packs.
 
 - **`npm run test:e2e`** (Playwright) needs browsers installed first: `npx playwright install --with-deps chromium`. The e2e config builds and starts the app itself.
 
