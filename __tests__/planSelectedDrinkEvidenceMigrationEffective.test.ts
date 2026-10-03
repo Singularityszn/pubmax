@@ -259,3 +259,178 @@ describe.skipIf(skipReason !== null)("0161 selected drink evidence storage", () 
     expect(db().sql(`select to_jsonb(s)::text from public.plan_stops s where plan_id = '${planId}'`)).toBe(routeBefore);
   });
 });
+
+describe.skipIf(skipReason !== null)("0185 named listed quote storage", () => {
+  const migration = "20261003031818_0185_plan_named_listed_drink_evidence.sql";
+  const undo = join(migrations, "rollback", migration.replace(/\.sql$/, "_rollback.sql"));
+  const legacy = {
+    category: "wine", pence: 550, serving: "125ml", source: "listed",
+    sourceUrl: "https://www.sydneyarmschelsea.com/menu/", observedAt: "2026-09-29T10:40:17.846Z",
+  };
+  const named = { ...legacy, drinkLabel: "Chardonnay, Pays D’oc, France", drinkSubtype: "wine-white" };
+  const community = JSON.parse(evidence);
+  const literal = (value: unknown): string => `'${JSON.stringify(value).replaceAll("'", "''")}'::jsonb`;
+  const plan = (suffix: string): string => `10000000-0000-4000-8000-00000000185${suffix}`;
+  const member = (suffix: string): string => `20000000-0000-4000-8000-00000000185${suffix}`;
+  let namedSession: PostgresSession | null = null;
+  let oldCheck = "";
+  let oldAccess = "";
+
+  function namedDb(): PostgresSession {
+    if (!namedSession) throw new Error("Named quote PostgreSQL session unavailable");
+    return namedSession;
+  }
+  function checkDefinition(): string {
+    return namedDb().sql(`select pg_get_constraintdef(oid) from pg_constraint
+      where conrelid = 'public.plan_stops'::regclass
+      and conname = 'plan_stops_selected_drink_price_evidence_check'`);
+  }
+  function access(): string {
+    return namedDb().sql(`select jsonb_build_object(
+      'policies', (select jsonb_agg(to_jsonb(p) order by policyname) from pg_policies p
+        where schemaname = 'public' and tablename = 'plan_stops'),
+      'acl', (select relacl::text from pg_class where oid = 'public.plan_stops'::regclass),
+      'columnAcl', (select attacl::text from pg_attribute where attrelid = 'public.plan_stops'::regclass
+        and attname = 'selected_drink_price_evidence'))::text`);
+  }
+  function route(value: unknown): Array<Record<string, unknown>> {
+    return [
+      { venueId: "venue-uk-n8308248176", venueName: "The Sydney Arms", selectedDrinkPriceEvidence: value },
+      { venueId: "venue-b", venueName: "B", selectedDrinkPriceEvidence: legacy },
+      { venueId: "venue-c", venueName: "C", selectedDrinkPriceEvidence: community },
+    ];
+  }
+  function create(suffix: string, value: unknown): string {
+    return namedDb().sql(`select public.create_plan_with_context_idempotent_atomic(
+      '${plan(suffix)}'::uuid, 'Named wine', '2026-10-03T19:00:00Z', ${literal(route(value))},
+      '${member(suffix)}'::uuid, 'Host', '${suffix.repeat(64)}', '2026-10-03T12:00:00Z',
+      '${suffix.repeat(64)}', '${suffix.repeat(64)}', null, null, null, null)`);
+  }
+  function saved(suffix: string): unknown[] {
+    return JSON.parse(namedDb().sql(`select jsonb_agg(selected_drink_price_evidence order by position)::text
+      from public.plan_stops where plan_id = '${plan(suffix)}'`));
+  }
+  function write(value: unknown): string {
+    return `update public.plan_stops set selected_drink_price_evidence = ${literal(value)}
+      where plan_id = '${plan("1")}' and position = 0`;
+  }
+
+  beforeAll(async () => {
+    if (skipReason) return;
+    namedSession = await startPostgres({ label: "named-quote-0185", database: "pubmax_named_quote" });
+    try {
+      namedDb().applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
+      for (const entry of readdirSync(migrations).filter((entry) => entry.endsWith(".sql") && entry < migration).sort()) {
+        namedDb().applyFile(join(migrations, entry));
+      }
+      oldCheck = checkDefinition();
+      oldAccess = access();
+      expect(create("1", legacy)).toBe("created");
+    } catch (error) {
+      await namedSession.stop();
+      namedSession = null;
+      throw error;
+    }
+  }, 600_000);
+  afterAll(async () => { await namedSession?.stop(); namedSession = null; });
+
+  it("reproduces the existing CHECK refusing named fields while legacy citations persist", () => {
+    expect(saved("1")).toEqual([legacy, legacy, community]);
+    expect(namedDb().expectRefusal(write(named))).toContain("plan_stops_selected_drink_price_evidence_check");
+    expect(saved("1")).toEqual([legacy, legacy, community]);
+  });
+
+  it("admits named quotes and explicit unknown subtype without changing existing evidence or access", () => {
+    namedDb().applyFile(join(migrations, migration));
+    expect(access()).toBe(oldAccess);
+    expect(saved("1")).toEqual([legacy, legacy, community]);
+    namedDb().sql(`update public.plan_stops set selected_drink_price_evidence = null
+      where plan_id = '${plan("1")}' and position = 0`);
+    expect(saved("1")).toEqual([null, legacy, community]);
+    namedDb().sql(write(named));
+    expect(saved("1")).toEqual([named, legacy, community]);
+    const unknown = { ...legacy, category: "other", drinkLabel: "House special", drinkSubtype: null };
+    namedDb().sql(write(unknown));
+    expect(saved("1")).toEqual([unknown, legacy, community]);
+    namedDb().sql(write(named));
+  });
+
+  it("keeps the SQL subtype vocabulary aligned with every eligible canonical category", async () => {
+    const { DRINK_SUBTYPES } = await import("@/lib/drinkSubtypes");
+    for (const subtype of DRINK_SUBTYPES.filter((entry) => entry.category !== "beer")) {
+      const value = { ...named, category: subtype.category, drinkSubtype: subtype.id };
+      namedDb().sql(write(value));
+      expect(saved("1")[0]).toEqual(value);
+    }
+    namedDb().sql(write(named));
+  });
+
+  it("refuses malformed identity and citations without replacing the stored quote", () => {
+    const invalid = [
+      null, {}, [],
+      ...["category", "pence", "serving", "source", "sourceUrl", "observedAt"]
+        .map((key) => ({ ...named, [key]: undefined })),
+      { ...legacy, drinkLabel: named.drinkLabel }, { ...legacy, drinkSubtype: "wine-white" },
+      { ...named, drinkLabel: "" }, { ...named, drinkLabel: " x" },
+      { ...named, drinkLabel: "x\n" }, { ...named, drinkLabel: "x".repeat(81) },
+      { ...named, drinkLabel: null }, { ...named, drinkSubtype: 4 },
+      { ...named, drinkSubtype: "wine-invented" }, { ...named, drinkSubtype: "gin-london-dry" },
+      { ...named, category: "beer", drinkSubtype: "beer-ipa" },
+      { ...named, extra: "private" }, { ...named, pence: 0 }, { ...named, pence: 100_001 },
+      { ...named, pence: 550.5 },
+      { ...named, sourceUrl: "https://user:secret@example.org/menu" },
+      { ...named, sourceUrl: "javascript:alert(1)" }, { ...named, observedAt: "2026-09-29" },
+      { ...named, source: "community", reportedAt: community.reportedAt },
+    ];
+    for (const value of invalid) {
+      expect(namedDb().expectRefusal(write(value))).toContain("plan_stops_selected_drink_price_evidence_check");
+      expect(saved("1")[0]).toEqual(named);
+    }
+  });
+
+  it("preserves all eight fields through creation, replay and proposal acceptance", () => {
+    expect(create("2", named)).toBe("created");
+    expect(saved("2")).toEqual([named, legacy, community]);
+    expect(create("2", named)).toBe("replayed");
+    expect(saved("2")).toEqual([named, legacy, community]);
+    const proposed = route(named).map((stop, position) => ({ ...stop, position }));
+    namedDb().sql(`insert into public.plan_route_proposals
+      (id, plan_id, proposed_by_member_id, expected_route_revision, stops, reason, idempotency_key, created_at)
+      values ('30000000-0000-4000-8000-000000001852', '${plan("2")}', '${member("2")}',
+        1, ${literal(proposed)}, 'Route', 'named-0185', now())`);
+    const decide = `select public.decide_plan_route_proposal_atomic('${plan("2")}'::uuid,
+      '30000000-0000-4000-8000-000000001852'::uuid, '${"2".repeat(64)}', 'accepted', 'named-decision', now())`;
+    expect(namedDb().sql(decide)).toBe("decided");
+    expect(saved("2")).toEqual([named, legacy, community]);
+    expect(namedDb().sql(decide)).toBe("already_decided");
+    expect(saved("2")).toEqual([named, legacy, community]);
+    expect(access()).toBe(oldAccess);
+  });
+
+  it("captures saved named identity in completion and refuses rollback without data loss", () => {
+    namedDb().sql(`insert into public.plan_actions (id, plan_id, actor_member_id, type, stop_position, created_at)
+      values ('30000000-0000-4000-8000-000000001851', '${plan("1")}', '${member("1")}',
+        'arrived', 0, '2026-10-03T12:10:00Z')`);
+    expect(namedDb().sql(`select public.complete_plan_atomic('${plan("1")}'::uuid, '${"1".repeat(64)}', 1,
+      '40000000-0000-4000-8000-000000001851'::uuid, '50000000-0000-4000-8000-000000001851'::uuid,
+      'get_home', null, '{"kind":"get_home","optionId":"transport:nearest-station","evidenceSnapshot":{"label":"Station"}}'::jsonb,
+      '2026-10-03T13:00:00Z')`)).toBe("completed");
+    const snapshot = namedDb().sql(`select route_snapshot::text from public.plan_completions where plan_id = '${plan("1")}'`);
+    expect(JSON.parse(snapshot)[0].selectedDrinkPriceEvidence).toEqual(named);
+    const currentCheck = checkDefinition();
+    expect(() => namedDb().applyFileTransactional(undo)).toThrow("Named selected-price rows remain");
+    expect(checkDefinition()).toBe(currentCheck);
+    expect(saved("1")[0]).toEqual(named);
+    expect(namedDb().sql(`select route_snapshot::text from public.plan_completions where plan_id = '${plan("1")}'`)).toBe(snapshot);
+    // A local fixture downgrades only its own active rows to exercise the old
+    // CHECK. Production data needs a separate explicit captain decision.
+    namedDb().sql(`update public.plan_stops set selected_drink_price_evidence =
+      selected_drink_price_evidence - array['drinkLabel','drinkSubtype']
+      where selected_drink_price_evidence ? 'drinkLabel'`);
+    namedDb().applyFileTransactional(undo);
+    expect(checkDefinition()).toBe(oldCheck);
+    expect(access()).toBe(oldAccess);
+    expect(namedDb().expectRefusal(write(named))).toContain("plan_stops_selected_drink_price_evidence_check");
+    expect(namedDb().sql(`select route_snapshot::text from public.plan_completions where plan_id = '${plan("1")}'`)).toBe(snapshot);
+  });
+});
