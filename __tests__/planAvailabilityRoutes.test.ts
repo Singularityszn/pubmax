@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 const seams = vi.hoisted(() => ({
   state: vi.fn(),
   completion: vi.fn(),
+  identity: vi.fn(),
   update: vi.fn(),
 }));
 
@@ -12,6 +13,7 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => undefined }));
 vi.mock("@/lib/planStore", () => ({
   planStateResult: seams.state,
   planCompletionResult: seams.completion,
+  planMemberIdentityResult: seams.identity,
   planStore: () => ({ update: seams.update }),
 }));
 
@@ -24,6 +26,7 @@ const context = { params: Promise.resolve({ id: ID }) };
 beforeEach(() => {
   seams.state.mockReset();
   seams.completion.mockReset();
+  seams.identity.mockReset();
   seams.update.mockReset();
 });
 
@@ -41,6 +44,8 @@ describe("configured Plan availability errors", () => {
     const response = await GET_COMPLETION(new Request(`http://localhost/api/plans/${ID}/complete`), context);
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ code: "PLAN_COMPLETION_UNAVAILABLE", retryable: true });
+    expect(seams.identity).not.toHaveBeenCalled();
+    expect(seams.completion).not.toHaveBeenCalled();
   });
 
   it("does not collapse a configured update failure into a 400", async () => {

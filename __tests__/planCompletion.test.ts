@@ -161,9 +161,15 @@ describe("Plan Completion", () => {
     expect(retry.status).toBe(200);
     expect(await retry.json()).toMatchObject({ created: false, completion: firstBody.completion, eventTokens: firstBody.eventTokens });
 
-    const get = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const get = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), ctx(id));
     expect(get.status).toBe(200);
     expect(await get.json()).toEqual({ completion: firstBody.completion });
+    const anonymousGet = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    expect(anonymousGet.status).toBe(200);
+    expect(anonymousGet.headers.get("cache-control")).toBe("no-store");
+    expect(await anonymousGet.json()).toEqual({ completion: null });
   });
 
   it("fails before completion and succeeds cleanly after event-token signing recovers", async () => {
@@ -194,7 +200,9 @@ describe("Plan Completion", () => {
     expect(unavailable.status).toBe(503);
     expect(unavailable.headers.get("retry-after")).toBe("60");
     expect(await unavailable.json()).toMatchObject({ code: "PLAN_SIGNING_UNAVAILABLE", retryable: true });
-    const beforeRetry = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const beforeRetry = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), ctx(id));
     expect(await beforeRetry.json()).toEqual({ completion: null });
 
     process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET!;
@@ -225,7 +233,9 @@ describe("Plan Completion", () => {
     }), ctx(id));
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: expect.any(String) });
-    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
   });
 
@@ -239,7 +249,9 @@ describe("Plan Completion", () => {
     }), ctx(id));
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ code: "PLAN_ENDING_SELECTION_INVALID" });
-    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
   });
 
@@ -261,10 +273,11 @@ describe("Plan Completion", () => {
     }), ctx(id));
     expect(response.status).toBe(409);
 
-    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
-    // The privacy boundary redacts an anonymous GET, so read the underlying
-    // state as the plan member to assert no partial write.
+    // Authenticated null proves the failed POST did not write a completion.
     const plan = await GET_PLAN(
       new Request(`http://localhost/api/plans/${id}`, {
         headers: { authorization: `Bearer ${created.memberToken}` },

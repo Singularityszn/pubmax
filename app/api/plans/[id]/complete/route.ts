@@ -60,12 +60,26 @@ function verifiedCompletionResponse(
   }
 }
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
+export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  const [planLookup, completionLookup] = await Promise.all([planStateResult(id), planCompletionResult(id)]);
-  if (!planLookup.ok || !completionLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
+  const planLookup = await planStateResult(id);
+  if (!planLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
   if (!planLookup.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+
+  const memberToken = planMemberCapability(request, undefined);
+  if (!memberToken) return jsonNoStore({ completion: null });
+  let identityLookup: Awaited<ReturnType<typeof planMemberIdentityResult>>;
+  try {
+    identityLookup = await planMemberIdentityResult(id, memberToken);
+  } catch {
+    return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
+  }
+  if (!identityLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
+  if (!identityLookup.identity) return jsonNoStore({ completion: null });
+
+  const completionLookup = await planCompletionResult(id);
+  if (!completionLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
   return jsonNoStore({ completion: completionLookup.completion });
 }
 
