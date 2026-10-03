@@ -7,6 +7,8 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
+import { createHash } from "node:crypto";
+
 import sharp from "sharp";
 
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
@@ -71,6 +73,11 @@ import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
+import {
+  proveUploadedImageWrite,
+  readUploadedImageObject,
+  uploadUploadedImageObject,
+} from "@/lib/uploadedImage.server";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
@@ -1012,7 +1019,7 @@ export const supabasePintDropStore: PintDropStore = {
           );
           uploaded.push(persistable.receiptPhotoKey);
         } catch (err) {
-          if (err instanceof PhotoRefusalError) throw err;
+          if (err instanceof PhotoRefusalError || err instanceof PhotoProcessingError) throw err;
           log("warn", "pint_drops.receipt_upload_failed", {
             venueId: drop.venueId,
             dropId: drop.id,
@@ -1081,6 +1088,7 @@ export const supabasePintDropStore: PintDropStore = {
         );
         const { receipt_photo_key: _omitReceipt, ...rowWithoutReceipt } = row;
         void _omitReceipt;
+        if (persistable.receiptPhotoKey) await deletePhotos([persistable.receiptPhotoKey]);
         delete persistable.receiptPhotoKey;
         row = rowWithoutReceipt as typeof row;
         error = await insert(row);
@@ -1477,6 +1485,10 @@ async function normalizeImage(input: Uint8Array): Promise<Buffer> {
  */
 export class PhotoRefusalError extends Error {}
 
+// The file was valid but Storage returned different bytes. This is a server
+// processing failure, not an outage we can ignore or an invalid-file 400.
+class PhotoProcessingError extends Error {}
+
 /**
  * What an image the normaliser cannot open is refused with.
  *
@@ -1556,17 +1568,28 @@ export async function uploadPhoto(
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
 
-  const { error } = await admin()
-    .storage.from(STORAGE_BUCKET)
-    .upload(key, processed, { contentType: NORMALIZED_CONTENT_TYPE, upsert: false });
+  const error = await uploadUploadedImageObject(
+    key,
+    processed,
+    NORMALIZED_CONTENT_TYPE,
+    { upsert: false },
+  );
   if (error) {
     log("error", "pint_drops.photo_upload_failed", {
       slot,
       venueId,
       dropId,
-      error: error.message,
+      error,
     });
-    throw new Error(error.message);
+    throw new Error(error);
+  }
+  const proof = await proveUploadedImageWrite(key, {
+    sha256: createHash("sha256").update(processed).digest("hex"),
+    byteSize: processed.byteLength,
+  }, readUploadedImageObject);
+  if (proof === "corrupt") {
+    await deletePhotos([key]);
+    throw new PhotoProcessingError("Photo storage returned different bytes.");
   }
   return key;
 }
