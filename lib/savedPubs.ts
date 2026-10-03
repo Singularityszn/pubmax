@@ -10,6 +10,7 @@
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { cleanText } from "@/lib/textClean";
 import type { VenueKind } from "@/lib/venues";
 import { authedFetch } from "@/lib/authedFetch";
@@ -91,11 +92,13 @@ export function groupByList(list: readonly SavedPub[]): Partial<Record<ListType,
 }
 
 // ── localStorage-backed store (SSR-safe) ─────────────────────────────────────
-// Every entry point guards `window`, so importing/calling on the server is safe
+// Every entry point guards storage, so importing/calling on the server is safe
 // (getSaved returns [], writers are no-ops). The store is only meaningful in the
-// browser — that's the demo boundary.
+// browser — that's the demo boundary. The localStorage getter itself throws
+// SecurityError when site data is blocked, so the check goes through
+// safeLocalStorage rather than reading the property bare.
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 // A list type is now free text (built-in OR custom), so any non-empty, sanely

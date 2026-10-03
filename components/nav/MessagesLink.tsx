@@ -10,13 +10,13 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 60_000;
 
 function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+  return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
 export default function MessagesLink(): React.JSX.Element {
