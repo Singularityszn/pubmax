@@ -73,6 +73,20 @@ describe("ShareBar content_shared surface", () => {
   });
 });
 
+describe("ShareBar copied flash", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("leaves no reset timer running once the bar unmounts", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await render("/plan/abc");
+    await copyLink();
+    expect(container.querySelector('button[aria-label="Link copied"]')).not.toBeNull();
+    act(() => root.unmount());
+    root = createRoot(container);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe("ShareBar intent shares", () => {
   // Per the HTML spec, window.open returns null whenever "noopener" is in the
   // features, and only a blocked popup returns null otherwise.
