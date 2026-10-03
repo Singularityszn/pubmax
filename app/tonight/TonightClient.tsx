@@ -386,10 +386,10 @@ export default function TonightClient({
   const ready = listingsStatus === "ready";
   const listingLede = useMemo(
     () =>
-      listingsStatus === "ready" ? (
-        tonightListingLede(listingsStatus, primaryListingRows, selectableVenueIds)
-      ) : (
+      listingsStatus === "idle" ? (
         <span className="tonightLedeHold" aria-hidden="true" />
+      ) : (
+        tonightListingLede(listingsStatus, primaryListingRows, selectableVenueIds)
       ),
     [primaryListingRows, listingsStatus, selectableVenueIds],
   );

@@ -16,7 +16,7 @@
    load, about 320em at the page's 16px. Sized in em so it follows the type
    scale, and released once the read settles so a shorter answer leaves no
    empty tail. */
-.discoverPage.discoverPageEmbeddedReserved[data-embed-load="loading"] {
+.discoverPage.discoverPageEmbedded[data-embed-load="loading"] {
   min-height: 320em;
 }
 

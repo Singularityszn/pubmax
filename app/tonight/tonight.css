@@ -808,10 +808,10 @@
 
 /* The head's lede waits on the listings read, and it sits above
    the hyped pubs, so landing it on ready pushed the whole lede down the page
-   (CLS 0.10 on throttled cold loads, 3 Oct 2026 remeasure). Until the read
-   is ready the head holds an empty line box for it, sized in lines so it
-   follows the type scale: three lines at 390px, two once the lede reaches its
-   34rem measure. Ready releases it to the real sentence. */
+   (CLS 0.10 on throttled cold loads, 3 Oct 2026 remeasure). While the read
+   runs the head holds an empty line box for it, sized in lines so it follows
+   the type scale: three lines at 390px, two once the lede reaches its 34rem
+   measure. Any answer releases it: the real sentence, or nothing at all. */
 .tonightLedeHold {
   display: block;
   min-height: 3lh;

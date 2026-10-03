@@ -439,11 +439,7 @@ export function DiscoverBody({
   return (
     <Root
       id={embedded ? undefined : "main"}
-      className={
-        embedded
-          ? "discoverPage discoverPageEmbedded discoverPageEmbeddedReserved"
-          : "discoverPage"
-      }
+      className={embedded ? "discoverPage discoverPageEmbedded" : "discoverPage"}
       data-embed-load={embedded ? status : undefined}
       ref={setRevealRoot}
     >
