@@ -156,8 +156,11 @@ An unowned callback, including an email link opened in another browser, shows **
 
 Google, Apple, and Microsoft buttons follow the live public provider flags from
 Supabase Auth's `/auth/v1/settings` endpoint (`google`, `apple`, and `azure`
-respectively). Disabled or unreadable providers stay hidden, and each provider
-is checked again before OAuth starts. Email magic-link sign-in remains the
+respectively). The server reads them and the browser asks the same-origin
+`GET /api/auth/providers`, which the edge caches for five minutes, so a
+dashboard toggle can take that long to show or hide a button. Disabled or
+unreadable providers stay hidden, and each provider is checked again with an
+uncached `?fresh=1` read before OAuth starts. Email magic-link sign-in remains the
 complete primary path when no social provider is enabled.
 
 As of 29 July 2026, neither Google nor Apple is enabled in production. Their
