@@ -284,6 +284,12 @@ function isDeferredCancelledAuthEvent(
   );
 }
 
+/** auth-js re-announces a stored session; during an explicit sign-out that is the departing account, not a login. */
+function isDepartingAccountEvent(event: AuthChangeEvent, session: Session | null, departingUserId: string | null): boolean {
+  return Boolean(session && departingUserId === session.user.id &&
+    (event === "SIGNED_IN" || event === "TOKEN_REFRESHED"));
+}
+
 function mayPrepareCallback(
   captured: CapturedAuthCallback | null,
   attempt: AuthCallbackAttempt | null,
@@ -394,6 +400,7 @@ export function AuthProvider({
   const callbackCancellationSignedInVersion = useRef(0);
   const explicitSignOutAwaitingConfirmation = useRef(false);
   const signedInEventVersion = useRef(0);
+  const signOutDepartingUserId = useRef<string | null>(null);
   const latestSignedInSession = useRef<Session | null>(null);
   const canonicalAuth = useRef<AccountAuthSnapshot | null>(null);
   const updateSession = useCallback(
@@ -717,6 +724,7 @@ export function AuthProvider({
           deferredCancelledAuthEvents.current.push(nextSession);
           return;
         }
+        if (isDepartingAccountEvent(event, nextSession, signOutDepartingUserId.current)) return;
         if (event === "SIGNED_IN" && nextSession) {
           signedInEventVersion.current += 1;
           latestSignedInSession.current = nextSession;
@@ -1295,80 +1303,85 @@ export function AuthProvider({
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
       const departing = sessionTransitions.current.currentUserId();
-      const signedInVersionAtLogout = signedInEventVersion.current;
-      explicitSignOutAwaitingConfirmation.current = true;
-      callbackConfirmationCancelled.current = true;
-      callbackCancellationSignedInVersion.current = signedInVersionAtLogout;
-      setAuthCallbackConfirmation(null);
-      bootstrapAbort.current?.abort();
-      if (pendingBootstrapInstall.current) {
-        pendingBootstrapInstall.current.cancelled = true;
-        pendingBootstrapInstall.current.signedOut = true;
-        pendingBootstrapInstall.current.buffered = [];
-      }
-      updateSession(null, "SIGNED_OUT");
-      setSessionLoading(false);
-      // An accepted callback may already be installing its session. Let that
-      // installation settle before the explicit logout clears the live SDK.
-      await locallyOwnedCallbackInstall.current?.catch(() => {});
-      await callbackConfirmationInFlight.current?.catch(() => {});
-      explicitSignOutAwaitingConfirmation.current = false;
-      const supabase = await ensureSupabaseBrowser();
-      if (!supabase) return;
-      const restoreNewerLogin = async () => {
-        const newer = latestSignedInSession.current;
-        if (newer) {
-          await supabase.auth.setSession({
-            access_token: newer.access_token,
-            refresh_token: newer.refresh_token,
-          });
+      if (departing) signOutDepartingUserId.current = departing;
+      try {
+        const signedInVersionAtLogout = signedInEventVersion.current;
+        explicitSignOutAwaitingConfirmation.current = true;
+        callbackConfirmationCancelled.current = true;
+        callbackCancellationSignedInVersion.current = signedInVersionAtLogout;
+        setAuthCallbackConfirmation(null);
+        bootstrapAbort.current?.abort();
+        if (pendingBootstrapInstall.current) {
+          pendingBootstrapInstall.current.cancelled = true;
+          pendingBootstrapInstall.current.signedOut = true;
+          pendingBootstrapInstall.current.buffered = [];
         }
-      };
-      if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
-        await restoreNewerLogin();
-        return;
+        updateSession(null, "SIGNED_OUT");
+        setSessionLoading(false);
+        // An accepted callback may already be installing its session. Let that
+        // installation settle before the explicit logout clears the live SDK.
+        await locallyOwnedCallbackInstall.current?.catch(() => {});
+        await callbackConfirmationInFlight.current?.catch(() => {});
+        explicitSignOutAwaitingConfirmation.current = false;
+        const supabase = await ensureSupabaseBrowser();
+        if (!supabase) return;
+        const restoreNewerLogin = async () => {
+          const newer = latestSignedInSession.current;
+          if (newer) {
+            await supabase.auth.setSession({
+              access_token: newer.access_token,
+              refresh_token: newer.refresh_token,
+            });
+          }
+        };
+        if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
+          await restoreNewerLogin();
+          return;
+        }
+        // Explicit sign-out is the one place the durable resume cookie dies too —
+        // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+        // AWAITED, because an account sign-out may hand the device straight to the
+        // next remembered account: a DELETE still in flight would land after that
+        // account's persist and leave the device with no durable session at all.
+        await clearPersistedSession();
+        if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
+          await restoreNewerLogin();
+          return;
+        }
+        // The same set the account boundary clears, and the owner stamp with it.
+        // Leaving the handle behind is what let the next account inherit it: the
+        // session went and its name stayed.
+        releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+        emitDeviceIdentityChanged();
+        // The account that is leaving takes its stored refresh token with it, and
+        // "all accounts" takes the whole lane. Neither is a capability: they are
+        // the same act at two scopes, and the second only exists because a device
+        // can hold more than one account.
+        if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
+        else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
+        emitDeviceAccountSessionsChanged();
+        setWelcomeBack(null);
+        await supabase.auth.signOut();
+        if (signedInEventVersion.current !== signedInVersionAtLogout) {
+          if (latestSignedInSession.current) await restoreNewerLogin();
+          return;
+        }
+        // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
+        if (scope === "device") return;
+        // The person asked to leave ONE account on a device that still holds
+        // another signed-in one. Leaving it signed out would strand a session
+        // nothing on this page can reach, so the next remembered account takes
+        // over through the one switch path. Its own arrival line names it, so
+        // nobody is quietly renamed. A refusal simply leaves the device signed out.
+        const next = nextSignedInDeviceAccount(
+          readDeviceAccounts(browserLocalStorage()),
+          departing,
+        );
+        if (!next) return;
+        await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
+      } finally {
+        if (signOutDepartingUserId.current === departing) signOutDepartingUserId.current = null;
       }
-      // Explicit sign-out is the one place the durable resume cookie dies too —
-      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
-      // AWAITED, because an account sign-out may hand the device straight to the
-      // next remembered account: a DELETE still in flight would land after that
-      // account's persist and leave the device with no durable session at all.
-      await clearPersistedSession();
-      if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
-        await restoreNewerLogin();
-        return;
-      }
-      // The same set the account boundary clears, and the owner stamp with it.
-      // Leaving the handle behind is what let the next account inherit it: the
-      // session went and its name stayed.
-      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
-      emitDeviceIdentityChanged();
-      // The account that is leaving takes its stored refresh token with it, and
-      // "all accounts" takes the whole lane. Neither is a capability: they are
-      // the same act at two scopes, and the second only exists because a device
-      // can hold more than one account.
-      if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
-      else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
-      emitDeviceAccountSessionsChanged();
-      setWelcomeBack(null);
-      await supabase.auth.signOut();
-      if (signedInEventVersion.current !== signedInVersionAtLogout) {
-        if (latestSignedInSession.current) await restoreNewerLogin();
-        return;
-      }
-      // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
-      if (scope === "device") return;
-      // The person asked to leave ONE account on a device that still holds
-      // another signed-in one. Leaving it signed out would strand a session
-      // nothing on this page can reach, so the next remembered account takes
-      // over through the one switch path. Its own arrival line names it, so
-      // nobody is quietly renamed. A refusal simply leaves the device signed out.
-      const next = nextSignedInDeviceAccount(
-        readDeviceAccounts(browserLocalStorage()),
-        departing,
-      );
-      if (!next) return;
-      await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
     [updateSession],
   );

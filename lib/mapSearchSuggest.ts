@@ -409,7 +409,7 @@ function buildPubSuggestion(
     } else if (lensPrice.source === "sourced-anchor" && anchor) {
       priceLabel = formatGbp(lensPrice.priceGbp);
     } else {
-      const serving = lensPrice.category && lensPrice.category !== "beer"
+      const serving = lensPrice.category
         ? ` · ${lensPrice.servingSize ?? "Serving not recorded"}` : "";
       priceLabel = `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}${serving}`;
       priceAnchor = null;

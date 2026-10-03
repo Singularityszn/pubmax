@@ -1,5 +1,5 @@
 -- Restore the literal pre-0186 CHECK, context helper and creation wrapper.
--- Refuse active Cider primary/backup evidence before any catalog change.
+-- Refuse active or pending-proposal Cider primary/backup evidence before any catalog change.
 -- No row, proposal receipt or immutable completion snapshot is erased.
 -- Downgrading active evidence needs an explicit captain data decision first.
 
@@ -8,6 +8,7 @@ begin;
 -- ALTER needs this same lock. Take it before reading the refusal guard so an
 -- uncommitted backup writer cannot become invisible evidence we then retain.
 lock table public.plan_stops in access exclusive mode;
+lock table public.plan_route_proposals in share mode;
 
 do $$
 begin
@@ -20,6 +21,24 @@ begin
     cross join lateral jsonb_array_elements(stop.alternatives) backup
     where backup->'selectedDrinkPriceEvidence'->>'category' = 'beer'
       and backup->'selectedDrinkPriceEvidence'->>'drinkSubtype' = 'beer-cider'
+  ) or exists (
+    select 1 from public.plan_route_proposals proposal
+    cross join lateral jsonb_array_elements(
+      case when jsonb_typeof(proposal.stops) = 'array' then proposal.stops else '[]'::jsonb end
+    ) stop
+    where proposal.status = 'pending'
+      and (
+        (
+          stop->'selectedDrinkPriceEvidence'->>'category' = 'beer'
+          and stop->'selectedDrinkPriceEvidence'->>'drinkSubtype' = 'beer-cider'
+        ) or exists (
+          select 1 from jsonb_array_elements(
+            case when jsonb_typeof(stop->'alternatives') = 'array' then stop->'alternatives' else '[]'::jsonb end
+          ) backup
+          where backup->'selectedDrinkPriceEvidence'->>'category' = 'beer'
+            and backup->'selectedDrinkPriceEvidence'->>'drinkSubtype' = 'beer-cider'
+        )
+      )
   ) then
     raise exception 'Cider selected-price rows remain; explicit data rollback required';
   end if;

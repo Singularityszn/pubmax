@@ -111,8 +111,6 @@ function planningIntentInput(intent: PlanningIntentV1): PlanningIntentInput {
     acceptedArea: intent.acceptedArea,
     startsAt: intent.startsAt,
     displayEvidence: intent.displayEvidence,
-    ...(intent.drinkRequest ? { drinkRequest: intent.drinkRequest } : {}),
-    ...(intent.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: intent.selectedDrinkPriceEvidence } : {}),
   };
 }
 

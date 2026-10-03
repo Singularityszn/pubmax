@@ -234,7 +234,7 @@
     {
       "path": "/drinks",
       "readySelector": "main.socialPage",
-      "why": "Retired discovery URL answers a permanent redirect. Its destination is measured separately at /social?tab=discover.",
+      "why": "Retired drink-lanes URL answers a permanent redirect. Its destination is measured separately at /social?tab=discover.",
       "serverRenderMs": 150,
       "jsDecodedKB": 0,
       "requests": 1,

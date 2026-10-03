@@ -1,6 +1,7 @@
 -- Restore the 0176 CHECK without deleting named evidence.
--- Refuse while active named rows remain. Proposal, backup and completion
--- snapshots retain their identity; an older application may omit those fields.
+-- Refuse while active or pending-proposal named rows remain. Backup, decided
+-- proposal and completion snapshots retain their identity; an older
+-- application may omit those fields.
 
 begin;
 
@@ -9,6 +10,13 @@ begin
   if exists (
     select 1 from public.plan_stops
     where selected_drink_price_evidence ?| array['drinkLabel', 'drinkSubtype']
+  ) or exists (
+    select 1 from public.plan_route_proposals proposal
+    cross join lateral jsonb_array_elements(
+      case when jsonb_typeof(proposal.stops) = 'array' then proposal.stops else '[]'::jsonb end
+    ) stop
+    where proposal.status = 'pending'
+      and stop->'selectedDrinkPriceEvidence' ?| array['drinkLabel', 'drinkSubtype']
   ) then
     raise exception 'Named selected-price rows remain; explicit data rollback required';
   end if;

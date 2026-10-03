@@ -269,6 +269,11 @@ function approvedDrinkSelection(approved: SelectedDrinkPriceEvidence, venueId: s
 	return { selectedServing, selectedDrinkSubtype, acceptedNamedPrice };
 }
 
+/** The night's own subtype and measure narrow every listed quote before any anchor does. */
+function requestedDrinkSelection(context: NightContext): { selectedServing: string | null; selectedDrinkSubtype: string | null } {
+	return { selectedServing: context.drinkServing ?? null, selectedDrinkSubtype: context.drinkSubtype ?? null };
+}
+
 export async function preparePlanGeneration(
 	request: Request,
 	requestNow: number = Date.now(),
@@ -350,8 +355,7 @@ export async function preparePlanGeneration(
 		tonightByVenue.set(row.venueId, current);
 	}
 	const acceptedHint = parsedRequest.value.anchor?.selectedDrinkPriceEvidence;
-	let selectedServing: string | null = null;
-	let selectedDrinkSubtype: string | null = null;
+	let { selectedServing, selectedDrinkSubtype } = requestedDrinkSelection(context);
 	let acceptedNamedPrice: MapLensPrice | null = null;
 	if (acceptedHint && !context.zeroProof && acceptedHint.category === context.drinkCategory) {
 		const anchor = parsedRequest.value.anchor!;
@@ -448,7 +452,7 @@ export async function preparePlanGeneration(
 				...scored,
 				selectedDrinkPrice: acceptedNamedPrice?.venueId === venue.id
 					? acceptedNamedPrice
-					: selectedServing || acceptedNamedPrice
+					: selectedServing || selectedDrinkSubtype || acceptedNamedPrice
 					? listedDrinkPricesByVenue.get(venue.id) ?? null
 					: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
 			};

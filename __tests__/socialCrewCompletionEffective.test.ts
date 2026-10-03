@@ -28,11 +28,12 @@ const member = id("f2");
 const removed = id("f3");
 const stranger = id("f4");
 
-function complete(actor: string, revision = 1, arrival = 0): string {
+function complete(actor: string, revision = 1, arrival = 0,
+  selection = '{"kind":"get_home","optionId":"transport:home","evidenceSnapshot":{}}'): string {
   return pg().sql(`select public.complete_social_crew_plan_atomic(
     '${actor}', '${crewId}', ${revision}, '${id("c0")}', '${id("d0")}', '${id("d1")}',
     ${arrival}, 'get_home', null,
-    '{"kind":"get_home","optionId":"transport:home","evidenceSnapshot":{}}'::jsonb,
+    '${selection}'::jsonb,
     '2030-03-06 21:00:00+00'::timestamptz)`);
 }
 
@@ -84,6 +85,8 @@ describe.skipIf(skipReason !== null)("Social Crew completion through authorized 
     for (const actor of [member, removed, stranger]) expect(complete(actor)).toBe("not_found");
     expect(complete(host, 2)).toBe("conflict");
     expect(complete(host, 1, 7)).toBe("invalid");
+    expect(complete(host, 1, 0, '{"optionId":"transport:home","evidenceSnapshot":{}}')).toBe("invalid");
+    expect(complete(host, 1, 0, '{"kind":"get_home","optionId":"transport:home"}')).toBe("invalid");
     expect(pg().sql(`select count(*) from public.plan_completions where plan_id='${planId}'`)).toBe("0");
     expect(pg().sql(`select count(*) from public.plan_actions where plan_id='${planId}'`)).toBe("0");
   });

@@ -24,6 +24,7 @@ function Probe() {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   auth.accountRevision = 0;
+  auth.session = { access_token: "disposable-unit-token" };
   vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -56,4 +57,19 @@ it("clears private memory and cancels the old controller on provider account rev
   expect(previous.getSnapshot().friends).toEqual([]);
   expect(latest.state.friends).toEqual([]);
   expect(request).toHaveBeenCalledTimes(2);
+});
+
+it("keeps the same account's client across a token refresh and sends the refreshed token", async () => {
+  const request = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () =>
+    Response.json({ ok: true, generation: 0, own: null, mutuals: [], friends: [] }));
+  vi.stubGlobal("fetch", request);
+  await act(async () => { root.render(createElement(Probe)); });
+  const previous = latest.client;
+  auth.session = { access_token: "disposable-refreshed-token" };
+  await act(async () => { root.render(createElement(Probe)); });
+  expect(latest.client).toBe(previous);
+  await act(async () => { await latest.client.refresh(); });
+  const headers = request.mock.calls.map(([, init]) => new Headers(init?.headers).get("authorization"));
+  expect(headers[0]).toBe("Bearer disposable-unit-token");
+  expect(headers.at(-1)).toBe("Bearer disposable-refreshed-token");
 });

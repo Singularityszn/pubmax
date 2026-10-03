@@ -138,6 +138,15 @@ export function applyDrinkLane(filters: Filters, next: DrinkCategory): Filters {
   };
 }
 
+/**
+ * A tap on a lane button. Another lane switches to it; the pressed lane steps
+ * back from its refinement (Cider to pints); a plain pressed lane is unchanged.
+ */
+export function tapDrinkLane(filters: Filters, next: DrinkCategory): Filters | null {
+  if (activeDrinkLane(filters.drinkCategory) !== next) return applyDrinkLane(filters, next);
+  return filters.drinkSubtype ? { ...filters, drinkSubtype: "" } : null;
+}
+
 /** One pub's freshest community price for one drink, with its own tag. */
 export type VenueDrinkPriceRow = {
   category: DrinkCategory;

@@ -12,6 +12,7 @@ import {
   MAP_DRINK_LANES,
   orderVenueDrinkPrices,
   submitCategoriesForLane,
+  tapDrinkLane,
 } from "@/lib/drinkLanes";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
@@ -94,6 +95,23 @@ describe("activeDrinkLane", () => {
 
   it("reads a lensable category as its own lane", () => {
     expect(activeDrinkLane("cocktail")).toBe("cocktail");
+  });
+});
+
+describe("tapDrinkLane", () => {
+  it("keeps the pressed plain lane, so its chosen measure stays", () => {
+    expect(tapDrinkLane(filters({ drinkCategory: "wine" }), "wine")).toBeNull();
+    expect(tapDrinkLane(filters(), DEFAULT_DRINK_LANE)).toBeNull();
+  });
+
+  it("steps the pressed Cider lane back to pints", () => {
+    expect(tapDrinkLane(filters({ drinkCategory: "", drinkSubtype: "beer-cider" }), "beer"))
+      .toMatchObject({ drinkCategory: "", drinkSubtype: "" });
+  });
+
+  it("switches to another lane exactly as applyDrinkLane does", () => {
+    const current = filters({ drinkCategory: "", drinkSubtype: "beer-cider" });
+    expect(tapDrinkLane(current, "wine")).toEqual(applyDrinkLane(current, "wine"));
   });
 });
 

@@ -672,6 +672,29 @@ describe("Cider public request at Map acceptance", () => {
     }
   });
 
+  it.each([
+    ["the resting pint lane", {}],
+    ["a Wine choice", { drinkRequest: { drinkCategory: "wine" as const } }],
+  ])("re-accepting an arrival with %s replaces the stored Cider choice and quote", (_label, current) => {
+    const storage = memoryStorage();
+    const seeded = createPlanningIntent({
+      source: "near", cityId: "london", acceptedVenueId: "venue-13xdb1p",
+      acceptedArea: { kind: "borough", name: "Islington" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+      drinkRequest, selectedDrinkPriceEvidence,
+    }, ciderNow);
+    expect(seeded).toMatchObject({ drinkRequest, selectedDrinkPriceEvidence });
+    storage.map.set(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(seeded));
+    const result = acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-13xdb1p",
+      search: "?sel=venue-13xdb1p&accept=1&src=near", ...current }, { storage, now: ciderNow });
+    expect(result.telemetry?.source).toBe("near");
+    const accepted = parsePlanningIntent(storage.map.get(PLANNING_INTENT_STORAGE_KEY)!, ciderNow + 1_000);
+    expect(accepted).toMatchObject({ source: "near", acceptedArea: { kind: "borough", name: "Islington" } });
+    expect(accepted).not.toHaveProperty("selectedDrinkPriceEvidence");
+    if ("drinkRequest" in current) expect(accepted?.drinkRequest).toEqual(current.drinkRequest);
+    else expect(accepted).not.toHaveProperty("drinkRequest");
+  });
+
   it("keeps selected drink request subject to the existing failed-storage door", () => {
     const input = { cityId: "london" as const, acceptedVenueId: "venue-13xdb1p", drinkRequest };
     expect(acceptMapVenue(input, { storage: throwingStorage(), now: ciderNow })).toEqual({

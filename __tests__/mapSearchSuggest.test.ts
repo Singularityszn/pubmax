@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
 import {
   buildMapPlaceSuggestions,
@@ -223,6 +224,23 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     const unpriced = result.pubs.find((p) => p.id === "unpriced");
     expect(priced?.priceLabel).toBe("£5.20");
     expect(unpriced?.priceLabel).toBeNull();
+  });
+
+  it("labels a Cider lens quote with its own source-stated measure", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "arms",
+      venues: [venue({ id: "half", name: "Half Arms", cheapestPrice: 5.2 }), venue({ id: "unknown", name: "Unknown Arms", cheapestPrice: 5.2 })],
+      userLocation: null,
+      mapCenter: CENTRE,
+      lensCategoryLabel: "Cider",
+      lensPrices: new Map<string, MapLensPrice>([
+        ["half", { venueId: "half", category: "beer", categoryLabel: "Cider", priceGbp: 3.2, source: "listed", servingSize: "Half pint" }],
+        ["unknown", { venueId: "unknown", category: "beer", categoryLabel: "Cider", priceGbp: 3.6, source: "listed", servingSize: null }],
+      ]),
+    });
+    expect(result.pubs.find((p) => p.id === "half")?.priceLabel).toBe("Cider · £3.20 · Half pint");
+    expect(result.pubs.find((p) => p.id === "unknown")?.priceLabel).toBe("Cider · £3.60 · Serving not recorded");
   });
 
   it("carries venue kind labels and keeps non-pub anchors independent of Pint Drops", () => {

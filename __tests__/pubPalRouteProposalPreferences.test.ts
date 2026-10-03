@@ -264,6 +264,14 @@ describe("Pub Pal saved route proposal preference", () => {
     assertRouteOff((await response.json()).result, "answerHint");
   });
 
+  it("fails closed for a voice crawl whose conversation owner no longer resolves", async () => {
+    await savePreference(OWNER_A, false);
+    const response = await ownedWebhook();
+    expect(response.status).toBe(200);
+    assertRouteOff((await response.json()).result, "answerHint");
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_A)).toBeNull();
+  });
+
   it("uses a newly saved route-off preference during an already owned voice conversation", async () => {
     await savePreference(OWNER_A, true);
     await bindOwnedAsk(OWNER_A);
@@ -520,6 +528,40 @@ describe("Pub Pal route preference projection and availability", () => {
       expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_A)).toEqual(before);
     },
   );
+});
+
+
+describe("Pub Pal voice receipt write conflict", () => {
+  beforeEach(() => {
+    __resetPubPalStore();
+    __resetPubPalToolTurnStore();
+    vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", WEBHOOK_SECRET);
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    __resetPubPalStore();
+    __resetPubPalToolTurnStore();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("answers a typed retryable conflict instead of an unpersisted crawl", async () => {
+    await savePreference(OWNER_A, true);
+    await bindOwnedAsk(OWNER_A);
+    const before = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_A);
+    const store = await import("@/lib/pubPalToolTurnStore");
+    vi.spyOn(store, "appendPubPalToolTurn").mockRejectedValue(new store.PubPalToolTurnWriteConflictError());
+    const response = await ownedWebhook();
+    expect(response.status).toBe(409);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = await response.json();
+    expect(body).toMatchObject({ code: "CONFLICT", retryable: true, error: expect.any(String) });
+    expect(body.result).toBeUndefined();
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_A)).toEqual(before);
+  });
 });
 
 

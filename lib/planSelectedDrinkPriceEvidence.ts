@@ -5,7 +5,7 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
 import { drinkSubtypeFromText, parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
-import { listedServingGroup } from "@/lib/listedPriceComparison";
+import { listedDrinkMatchesSubtype, listedServingGroup } from "@/lib/listedPriceComparison";
 
 type CommunitySelectedDrinkPriceEvidence = {
   category: DrinkCategory;
@@ -110,17 +110,18 @@ export function cleanListedDrinkPriceEvidence(value: unknown): ListedSelectedDri
   return identity ? { ...evidence, ...identity } : null;
 }
 
-/** Cider evidence belongs only to an explicit Cider choice and its chosen measure. */
+/** Evidence belongs only to its explicit drink choice, named subtype and chosen measure; Beer only as Cider. */
 export function selectedDrinkPriceEvidenceMatchesContext(
   evidence: SelectedDrinkPriceEvidence,
   context: Partial<Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">> | null | undefined,
 ): boolean {
   if (!context) return evidence.source === "listed" && evidence.category !== "beer";
   if (context.zeroProof || evidence.category !== context.drinkCategory) return false;
-  if (evidence.category !== "beer") return true;
-  return evidence.source === "listed" && "drinkLabel" in evidence && evidence.drinkSubtype === "beer-cider"
-    && context.drinkSubtype === "beer-cider"
-    && (!context.drinkServing || listedServingGroup("beer", evidence.serving, "beer-cider") === context.drinkServing);
+  if (evidence.category === "beer" && context.drinkSubtype !== "beer-cider") return false;
+  if (context.drinkSubtype && (evidence.source !== "listed" || !("drinkLabel" in evidence)
+    || !listedDrinkMatchesSubtype(evidence.category, evidence.drinkLabel, context.drinkSubtype))) return false;
+  return !context.drinkServing || (evidence.source === "listed"
+    && listedServingGroup(evidence.category, evidence.serving, context.drinkSubtype) === context.drinkServing);
 }
 
 export function selectedDrinkPriceEvidenceForPrice(

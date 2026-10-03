@@ -303,6 +303,43 @@ it("does not resurrect a signed-out account when an older bootstrap settles", as
   expect(state.bootstrapSignal?.aborted).toBe(true);
 });
 
+it("finishes sign-out when the SDK re-announces the departing account while the cookie clears", async () => {
+  const session = {
+    access_token: "account-a-access",
+    refresh_token: "account-a-refresh",
+    user: { id: "account-a", email: "a@example.test" },
+  } as Session;
+  const container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () => root?.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Viewer))));
+  await vi.waitFor(() => expect(state.authEvent).toBeTypeOf("function"));
+  await act(async () => {
+    state.sdkSession = session;
+    state.authEvent?.("SIGNED_IN", session);
+  });
+  const viewer = container.querySelector("[data-testid=viewer]");
+  expect(viewer?.textContent).toBe("account-a");
+  state.holdCookieClear = true;
+  try {
+    await act(async () => { container.querySelector("button")?.click(); });
+    await vi.waitFor(() => expect(state.releaseCookieClear).toBeTypeOf("function"));
+    expect(viewer?.textContent).toBe("signed-out");
+    const persistedAfterLogout = state.persistedTokens.length;
+    await act(async () => { state.authEvent?.("SIGNED_IN", session); });
+    state.releaseCookieClear?.();
+    await act(async () => { await state.signOutPromise; });
+
+    expect(viewer?.textContent).toBe("signed-out");
+    expect(state.sdkSignOutCalls).toBe(1);
+    expect(state.sdkSession).toBeNull();
+    expect(state.cookieSession).toBeNull();
+    expect(state.persistedTokens.slice(persistedAfterLogout)).toEqual([]);
+  } finally {
+    state.releaseCookieClear?.();
+    await act(async () => { await state.signOutPromise; });
+  }
+});
+
 it("cancels cookie restoration when the reader signs out during cold bootstrap", async () => {
   const container = document.createElement("div");
   root = createRoot(container);

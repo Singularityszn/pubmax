@@ -220,7 +220,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/price-submit/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { readCommunityPrices } from "@/lib/communityPriceStore";
+import { communityPriceStore, readCommunityPrices } from "@/lib/communityPriceStore";
 import { __resetMemoryProfileWithdrawals } from "@/lib/accountPublicAccess.server";
 import { STORAGE_BUCKET } from "@/lib/supabase";
 import { readUploadedImageObject } from "@/lib/uploadedImage.server";
@@ -471,15 +471,28 @@ describe("non-beer bill retention through failures and corrections", () => {
     expect(service.removedKeys).toEqual([]);
   });
 
-  it.each([false, true])("preserves or removes uncertain candidate using actual ownership knowledge (unknown=%s)", async (unknown) => {
+  it.each([false, true])("never deletes a candidate a lost reply may still commit (owner unknown=%s)", async (unknown) => {
     service.rpcMode = "throw-before";
     service.ownerReadUnavailable = unknown;
     await refused(await POST(request("wine", await bill())));
     expect(service.ownerReads).toBeGreaterThan(0);
     expect(service.prices).toEqual([]);
     expect(service.acceptedUploads).toBe(1);
-    expect(service.objects.size).toBe(unknown ? 1 : 0);
-    expect(service.removedKeys).toHaveLength(unknown ? 0 : 1);
+    expect(service.objects.size).toBe(1);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it("removes the displaced bill when a receipt-less write replaces its own observation", async () => {
+    const old = await seedObservation();
+    vi.setSystemTime(new Date(LATER));
+    const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5,
+      actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner" });
+    expect(result.price).toMatchObject({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5 });
+    noPublicKeys(result);
+    expect(service.rpcCalls.at(-1)).toMatchObject({ p_receipt_photo_key: null });
+    expect(service.prices[0]).toMatchObject({ id: "prior-owned-observation", price_pennies: 650, receipt_photo_key: null });
+    expect(service.removedKeys).toEqual([old]);
+    expect(service.objects.size).toBe(0);
   });
 
   it("keeps prior price and bill on SQL refusal, cleaning only this candidate", async () => {

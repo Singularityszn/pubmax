@@ -1375,6 +1375,13 @@ function isMissingReceiptRpc(error: unknown): boolean {
   return (code === "42703" || code === "PGRST204") && text.includes("receipt_photo_key");
 }
 
+/** A SQLSTATE answer means the statement itself rolled back; a lost connection proves nothing. */
+function isStatementRefusal(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { code } = error as { code?: unknown };
+  return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) && !code.startsWith("08");
+}
+
 function hasStoredReceipt(row: Record<string, unknown> | null): row is Record<string, unknown> {
   if (!row) return false;
   return typeof row.id === "string" && row.id !== "" &&
@@ -1418,6 +1425,7 @@ async function submitPriceWithReceipt(args: AttributedPriceArgs, processed: Buff
     log("warn", "community_prices.receipt_upload_failed", { venueId: args.p_venue_id });
   }
 
+  let settled = false;
   try {
     const { data, error } = await admin().rpc(ATTRIBUTED_PRICE_RPC, {
       ...args, p_receipt_photo_key: candidate,
@@ -1439,18 +1447,37 @@ async function submitPriceWithReceipt(args: AttributedPriceArgs, processed: Buff
       }
       return saved;
     }
+    settled = !error || isStatementRefusal(error);
   } catch {
     // The database may have committed before its response was lost.
   }
 
   const owner = await readReceiptOwner(args);
   if (candidate && owner?.receipt_photo_key === candidate) return owner;
-  if (candidate && owner !== undefined) await deletePhotos([candidate]);
+  if (candidate && settled && owner !== undefined) await deletePhotos([candidate]);
   log("warn", "community_prices.receipt_write_unconfirmed", {
     venueId: args.p_venue_id,
     ownership: owner === undefined ? "unknown" : "not_retained",
   });
   return null;
+}
+
+/** A receipt-less write clears this contributor's bill, so its displaced object goes too. */
+async function submitPriceWithoutReceipt(args: AttributedPriceArgs): Promise<unknown> {
+  const result = await admin().rpc(ATTRIBUTED_PRICE_RPC, { ...args, p_receipt_photo_key: null });
+  if (isMissingReceiptRpc(result.error)) {
+    const legacy = await admin().rpc(ATTRIBUTED_PRICE_RPC, args);
+    if (legacy.error) throw new Error(legacy.error.message);
+    return legacy.data;
+  }
+  if (result.error) throw new Error(result.error.message);
+  const saved = receiptRow(result.data);
+  const displaced = saved?.previous_receipt_photo_key;
+  if (typeof displaced === "string" && displaced !== saved?.receipt_photo_key) {
+    const { deletePhotos } = await import("@/lib/uploadedImage.server");
+    await deletePhotos([displaced]);
+  }
+  return result.data;
 }
 
 export const supabaseCommunityPriceStore: CommunityPriceStore = {
@@ -1509,10 +1536,10 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           const saved = await submitPriceWithReceipt(args, input.preparedReceipt);
           if (!saved) return { price: null, failed: true as const };
           data = [saved];
+        } else if (args) {
+          data = await submitPriceWithoutReceipt(args);
         } else {
-          const result = args
-            ? await admin().rpc(ATTRIBUTED_PRICE_RPC, args)
-            : await admin().from("community_prices").insert(row).select("id");
+          const result = await admin().from("community_prices").insert(row).select("id");
           if (result.error) throw new Error(result.error.message);
           data = result.data;
         }

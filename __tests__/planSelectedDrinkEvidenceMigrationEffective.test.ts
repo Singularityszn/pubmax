@@ -427,6 +427,14 @@ describe.skipIf(skipReason !== null)("0185 named listed quote storage", () => {
     namedDb().sql(`update public.plan_stops set selected_drink_price_evidence =
       selected_drink_price_evidence - array['drinkLabel','drinkSubtype']
       where selected_drink_price_evidence ? 'drinkLabel'`);
+    namedDb().sql(`insert into public.plan_route_proposals
+      (id, plan_id, proposed_by_member_id, expected_route_revision, stops, reason, idempotency_key, created_at)
+      values ('30000000-0000-4000-8000-000000001853', '${plan("1")}', '${member("1")}',
+        1, ${literal(route(named).map((stop, position) => ({ ...stop, position })))}, 'Route', 'named-0185-pending', now())`);
+    expect(() => namedDb().applyFileTransactional(undo)).toThrow("Named selected-price rows remain");
+    expect(checkDefinition()).toBe(currentCheck);
+    namedDb().sql(`update public.plan_route_proposals set status = 'rejected', decided_at = now()
+      where id = '30000000-0000-4000-8000-000000001853'`);
     namedDb().applyFileTransactional(undo);
     expect(checkDefinition()).toBe(oldCheck);
     expect(access()).toBe(oldAccess);
@@ -702,6 +710,23 @@ describe.skipIf(skipReason !== null)("0186 Cider evidence over durable RPCs", ()
     }
   });
 
+  it.each([
+    ["another measure", wine, { drinkCategory: "wine", drinkServing: "175ml" }, false],
+    ["its own measure", wine, { drinkCategory: "wine", drinkServing: "125ml" }, true],
+    ["an unnamed quote under a subtype", wine, { drinkCategory: "wine", drinkSubtype: "wine-white" }, false],
+    ["named White under White", { ...wine, drinkLabel: "Chardonnay", drinkSubtype: "wine-white" },
+      { drinkCategory: "wine", drinkSubtype: "wine-white", drinkServing: "125ml" }, true],
+    ["named White under Red", { ...wine, drinkLabel: "Chardonnay", drinkSubtype: "wine-white" },
+      { drinkCategory: "wine", drinkSubtype: "wine-red" }, false],
+    ["a community quote under a measure", { category: "wine", pence: 550, serving: null, source: "community",
+      reportedAt: wine.observedAt }, { drinkCategory: "wine", drinkServing: "125ml" }, false],
+  ])("shared context RPC keeps non-Cider evidence only under its named subtype and measure: %s", async (_label, value, selectedContext, kept) => {
+    for (const position of [0, 1]) {
+      expect(await rpc("plan_stop_evidence_for_context", { p_stop: route(value)[position], p_context: selectedContext }))
+        .toEqual({ status: 200, body: route(kept ? value : null)[position] });
+    }
+  });
+
   it("keeps legacy six-key Beer, community five-key Beer and malformed named Beer outside the CHECK", async () => {
     expect(await create0186(20, null, route(null))).toEqual({ status: 200, body: "created" });
     const legacyBeer = { category: "beer", pence: 365, serving: null, source: "listed",
@@ -902,6 +927,19 @@ describe.skipIf(skipReason !== null)("0186 Cider evidence over durable RPCs", ()
       update public.plan_stops set alternatives=(select coalesce(jsonb_agg(case
         when item->'selectedDrinkPriceEvidence'->>'category'='beer' then item - 'selectedDrinkPriceEvidence' else item end),'[]'::jsonb)
         from jsonb_array_elements(alternatives) item)`);
+    sql0186(`insert into public.plan_route_proposals
+      (id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,idempotency_key,created_at)
+      values('${id(3, 51)}','${id(1, 51)}','${id(2, 51)}',1,
+        ${literal(route(null).map((stop, position) => ({ ...stop, position, ...(position === 0 ? { selectedDrinkPriceEvidence: cider } : {}) })))},
+        'Pending Cider route','cider-proposal-51',now())`);
+    expect(() => session0186().sqlFile(undo)).toThrow("Cider selected-price rows remain");
+    expect(catalog0186()).toBe(currentCatalog);
+    sql0186(`update public.plan_route_proposals set stops=${literal([route(null)[0], { ...route(null)[1],
+      alternatives: [{ venueId: "venue-13xdb1p", venueName: "The Plough", selectedDrinkPriceEvidence: cider }] }]
+      .map((stop, position) => ({ ...stop, position })))} where id='${id(3, 51)}'`);
+    expect(() => session0186().sqlFile(undo)).toThrow("Cider selected-price rows remain");
+    expect(catalog0186()).toBe(currentCatalog);
+    sql0186(`update public.plan_route_proposals set status='rejected', decided_at=now() where id='${id(3, 51)}'`);
     session0186().sqlFile(undo);
     expect(catalog0186()).toBe(priorCatalog);
     expect(access0186()).toBe(priorAccess);

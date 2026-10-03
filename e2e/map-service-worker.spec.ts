@@ -227,9 +227,10 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   const cdp = await context.newCDPSession(page);
   const origin = new URL(page.url()).origin;
   const usage = await cdp.send("Storage.getUsageAndQuota", { origin });
+  expect(usage.usage).toBeGreaterThan(0);
   await cdp.send("Storage.overrideQuotaForOrigin", {
     origin,
-    quotaSize: Math.ceil(usage.usage + 1),
+    quotaSize: Math.floor(usage.usage / 2),
   });
 
   const uncachedTileUrl = `${tileUrl}?quota-miss=${Date.now()}`;
@@ -248,6 +249,10 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   ).toBe("errored");
 
   await context.unroute(workerRoute);
+  await context.route(workerRoute, (route) =>
+    new URL(route.request().url()).searchParams.get("v")?.startsWith("rollout-target-")
+      ? route.continue()
+      : route.abort("blockedbyclient"));
   const targetWorkerUrl =
     `/sw.js?v=rollout-target-${Date.now()}` +
     "&cache-policy=plan-preview-safe-v2";
@@ -407,6 +412,26 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   // serialization and authenticated account switching need separate proof.
   await context.setOffline(true);
   try {
+    await expect
+      .poll(
+        () =>
+          page.evaluate(async () => {
+            const registration = await navigator.serviceWorker.getRegistration();
+            return {
+              online: navigator.onLine,
+              controller: navigator.serviceWorker.controller?.scriptURL ?? null,
+              active: registration?.active?.scriptURL ?? null,
+              pending: Boolean(registration?.installing || registration?.waiting),
+            };
+          }),
+        { timeout: 15_000 },
+      )
+      .toEqual({
+        online: false,
+        controller: expect.stringContaining("rollout-target-"),
+        active: expect.stringContaining("rollout-target-"),
+        pending: false,
+      });
     const oldPlan = await page.goto("/plan/legacy-private?account=B");
     expect(oldPlan).not.toBeNull();
     expect(await oldPlan!.text()).not.toContain("venue-private-old-plan-cache");

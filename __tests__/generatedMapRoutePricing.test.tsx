@@ -103,14 +103,17 @@ function generatedPlan({
 function Harness({
   generated = generatedPlan(), activationIds = ORIGINAL_IDS,
   suggestedIds = ["a", "b", "d"], currentPrices = new Map(),
+  builtIds = ORIGINAL_IDS, venueById = VENUE_BY_ID,
 }: {
   generated?: GeneratedMobilePlan;
   activationIds?: string[];
   suggestedIds?: string[];
   currentPrices?: ReadonlyMap<string, MapLensPrice>;
+  builtIds?: string[];
+  venueById?: ReadonlyMap<string, Venue>;
 }) {
   const coordinator = useMapPlanCoordinator({
-    mode: "build", builtIds: ORIGINAL_IDS, routeMapped: true,
+    mode: "build", builtIds, routeMapped: true,
     routeDrinkIntent: routeDrinkIntentFromSearch(window.location.search),
     planningOpen: false, nightArea: "piccadilly-soho",
   });
@@ -119,7 +122,7 @@ function Harness({
     mode: coordinator.mode, builtIds: coordinator.builtIds,
     routeMapped: coordinator.routeMapped,
     suggestedRoute: suggestedIds.map((id) => VENUE_BY_ID.get(id)!),
-    activePlanRoute: [], venueById: VENUE_BY_ID,
+    activePlanRoute: [], venueById,
   });
   return <>
     <nav aria-label="Pricing fixture actions">
@@ -132,7 +135,7 @@ function Harness({
     <RoutePanel
       mode={coordinator.mode} crawlStyle="cheapest" altStyle={altStyle}
       onAltStyleChange={setAltStyle} route={presentation.route}
-      generatedPricing={currentMapRoutePricing(coordinator.generatedPricing, currentPrices)} filteredVenues={VENUES}
+      generatedPricing={currentMapRoutePricing(coordinator.generatedPricing, currentPrices, venueById)} filteredVenues={VENUES}
       builtIds={coordinator.builtIds} activeVenueId={undefined}
       venueSignals={SELECTED_SIGNALS} routeMapped={coordinator.routeMapped}
       poisPath={null} onMapRoute={() => coordinator.setRouteMapped(true)}
@@ -260,8 +263,9 @@ describe("generated map route pricing rendered lifecycle", () => {
       actions.find((button) => button.textContent === "Show suggested route")!.click();
     });
     expect(stopRows()).toHaveLength(3);
-    expect(metricText()).toContain("Not recordedround total");
-    expect(metricText()).not.toMatch(/£7\.00|£16\.50/);
+    expect(metricText()).not.toContain("£7.00");
+    expect(metricText()).toContain("£16.50estimated round");
+    expect(metricText()).toContain("pint stops");
   });
 
   it("preserves manual pint money, original stop noun and style picker", async () => {
@@ -289,9 +293,11 @@ describe("generated map route pricing rendered lifecycle", () => {
     await click("Show suggested route");
     expect(stopRows().map((row) => row.querySelector("strong")?.textContent))
       .toEqual(["Fixture pub a", "Fixture pub b", "Fixture pub d"]);
-    expectUnknownRound("gin stops");
+    expect(host.querySelector("h2")?.textContent).not.toBe("Gin plan");
+    expect(host.textContent).not.toMatch(/gin stops|Gin price not recorded/);
     expectNoQuotes();
     await click("Show built route");
+    expect(host.querySelector("h2")?.textContent).toBe("Gin plan");
     expect(rowFor("a").querySelector("p")?.textContent).toContain("published menu 29 Sept 2026");
   });
 
@@ -305,7 +311,8 @@ describe("generated map route pricing rendered lifecycle", () => {
       actions.find((button) => button.textContent === "Show suggested route")!.click();
     });
     expect(stopRows()).toHaveLength(3);
-    expectUnknownRound("gin stops");
+    expect(metricText()).toContain("pint stops");
+    expect(host.textContent).not.toMatch(/gin stops|Gin price not recorded/);
     expectNoQuotes();
   });
 
@@ -398,6 +405,15 @@ describe("restored public route drink intent", () => {
     await mount({ currentPrices: new Map() });
     expectNoQuotes();
     expect(rowFor("a").querySelector("p")?.textContent).toBe("Gin price not recorded");
+  });
+
+  it("prices a stop named by an old link ID under its canonical pub", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=old-a,b,c&routeDrink=gin");
+    const aliased = new Map(VENUE_BY_ID);
+    aliased.set("old-a", VENUE_BY_ID.get("a")!);
+    await mount({ currentPrices, builtIds: ["old-a", "b", "c"], venueById: aliased });
+    expect(rowFor("a").querySelector("p")?.textContent).toBe("Gin £7.00, published menu 29 Sept 2026. Serving size not recorded.");
+    expect(rowFor("b").querySelector("p")?.textContent).toBe("Gin price not recorded");
   });
 
   it("never reapplies reread quotes after a live add/remove edit", async () => {

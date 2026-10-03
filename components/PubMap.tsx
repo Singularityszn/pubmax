@@ -481,6 +481,7 @@ import {
   MAP_EXPERIENCE_LENS_URL_PARAM,
   type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
+  type MapLensPrice,
 } from "@/lib/mapExperienceLens";
 import { loadSpoonsValueLane } from "@/lib/spoonsValueLane";
 import {
@@ -493,7 +494,7 @@ import {
 import { type DrinkCategory } from "@/lib/drinks";
 import {
   activeDrinkLane,
-  applyDrinkLane,
+  tapDrinkLane,
   DEFAULT_DRINK_LANE,
   drinkLaneLabel,
   venueDrinkPriceView,
@@ -709,6 +710,20 @@ function subscribeAcceptedArrival(
     cancelExpiry();
     for (const name of ACCEPTED_ARRIVAL_EVENTS) window.removeEventListener(name, notify);
   };
+}
+
+/** A drink lens quote names its own source-stated serving, or says it has none. */
+function lensPriceCaption(price: MapLensPrice | null, drinkLens: boolean): string | null {
+  if (!price) return null;
+  return drinkLens ? `${price.categoryLabel} · ${price.servingSize ?? "Serving not recorded"}` : price.categoryLabel;
+}
+
+/** A restored route's drink-price read speaks only while its Build route is shown. */
+function restoredRoutePriceNoticeFor(buildRoute: boolean, status: CategoryPriceIndexStatus | null): string | null {
+  if (!buildRoute || !status || status === "ready") return null;
+  if (status === "degraded") return "Current drink prices could not be read. Try again by reopening this route.";
+  if (status === "partial") return "Some current drink prices could not be read. Prices shown keep their source and date.";
+  return "Checking current drink prices. The round total is not recorded.";
 }
 
 function noAcceptedArrivalSource(): null {
@@ -1994,20 +2009,8 @@ export default function PubMap({
     communityPrices.listedDrinkPrices,
     communityPrices.listedNoAlcoholPrices,
   ]);
-  const currentRoutePricing = useMemo(() => currentMapRoutePricing(
-    generatedPricing,
-    restoredRouteCategory ? discoveryDrinkLensPrices(
-      communityPrices.byVenueId, restoredRouteCategory,
-      [
-        ...(communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(restoredRouteCategory, null, restoredRouteSubtype)) ?? []),
-        ...(restoredRouteServing && restoredRouteIndexKey
-          ? communityPrices.listedDrinkPrices.get(restoredRouteIndexKey) ?? [] : []),
-      ], experiencePolicyNow, restoredRouteServing, restoredRouteSubtype,
-    ) : new Map(),
-  ), [generatedPricing, restoredRouteCategory, restoredRouteServing, restoredRouteSubtype, restoredRouteIndexKey,
-    communityPrices.byVenueId, communityPrices.listedDrinkPrices, experiencePolicyNow]);
-  const restoredRoutePriceStatus = restoredRouteIndexKey
-    ? communityPrices.drinkCategoryIndexStatus.get(restoredRouteIndexKey) ?? "idle" : null;
+  const restoredRoutePriceNotice = restoredRoutePriceNoticeFor(mode === "build", restoredRouteIndexKey
+    ? communityPrices.drinkCategoryIndexStatus.get(restoredRouteIndexKey) ?? "idle" : null);
   const noAlcoholLensPrices = useMemo(
     () =>
       trustedNoAlcoholLensPrices(
@@ -2914,6 +2917,19 @@ export default function PubMap({
     }
     return byId;
   }, [builtIds, venues]);
+  const currentRoutePricing = useMemo(() => currentMapRoutePricing(
+    generatedPricing,
+    restoredRouteCategory ? discoveryDrinkLensPrices(
+      communityPrices.byVenueId, restoredRouteCategory,
+      [
+        ...(communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(restoredRouteCategory, null, restoredRouteSubtype)) ?? []),
+        ...(restoredRouteServing && restoredRouteIndexKey
+          ? communityPrices.listedDrinkPrices.get(restoredRouteIndexKey) ?? [] : []),
+      ], experiencePolicyNow, restoredRouteServing, restoredRouteSubtype,
+    ) : new Map(),
+    venueById,
+  ), [generatedPricing, venueById, restoredRouteCategory, restoredRouteServing, restoredRouteSubtype, restoredRouteIndexKey,
+    communityPrices.byVenueId, communityPrices.listedDrinkPrices, experiencePolicyNow]);
   // Controls compare resolved pub identities; the shared route keeps its raw IDs.
   const builtVenueIds = useMemo(
     () => builtIds.map((id) => venueById.get(id)?.id ?? id),
@@ -3322,7 +3338,7 @@ export default function PubMap({
       () => ({
         mode,
         filters,
-        routeDrinkIntent: generatedPricing?.context ?? null,
+        routeDrinkIntent: mode === "build" ? generatedPricing?.context ?? null : null,
         builtIds,
         selectedVenueId,
         bandId: activeBandId,
@@ -3709,11 +3725,13 @@ export default function PubMap({
   // clears the favourite too rather than leaving it set and inert.
   const changeDrinkLane = useCallback(
     (lane: DrinkCategory) => {
+      const next = tapDrinkLane(filters, lane);
+      if (!next) return;
       changeDrinkServingGroup(null);
-      setFilters((current) => applyDrinkLane(current, lane));
+      setFilters(next);
       if (lane !== DEFAULT_DRINK_LANE) changeFavoritePint(null);
     },
-    [changeFavoritePint, setFilters, changeDrinkServingGroup],
+    [changeFavoritePint, filters, setFilters, changeDrinkServingGroup],
   );
 
   // The brand refinement inside the pint lane. It names the lane explicitly so
@@ -5549,11 +5567,7 @@ export default function PubMap({
         poisPath={city.poisPath}
         onRoundStarted={setActiveRoundStartedCode}
       >
-        {restoredRoutePriceStatus && restoredRoutePriceStatus !== "ready" ? <p role="status">
-          {restoredRoutePriceStatus === "degraded" ? "Current drink prices could not be read. Try again by reopening this route."
-            : restoredRoutePriceStatus === "partial" ? "Some current drink prices could not be read. Prices shown keep their source and date."
-              : "Checking current drink prices. The round total is not recorded."}
-        </p> : null}
+        {restoredRoutePriceNotice ? <p role="status">{restoredRoutePriceNotice}</p> : null}
         {renderPlannerEmptyState()}
       </RoutePanel>
       {plannerFoot}
@@ -5607,7 +5621,7 @@ export default function PubMap({
               <strong>Unknown</strong>
             )}
             <small>
-              {selectedLensPrice?.categoryLabel ??
+              {lensPriceCaption(selectedLensPrice, mapDrinkLensCategory !== null) ??
                 drinkLensUnknownRowLabel(
                   activeLensNoun?.toLowerCase() ?? "this view",
                   drinkIndexStatus,

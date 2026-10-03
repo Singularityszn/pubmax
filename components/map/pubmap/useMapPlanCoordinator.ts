@@ -22,19 +22,22 @@ export type GeneratedMapRoutePricing = {
   quotes: ReadonlyMap<string, SelectedDrinkPriceEvidence>;
 };
 
-/** Restored intent never restores a generated budget or server proof. */
+/** Restored intent never restores a generated budget or server proof. Link IDs resolve like the route's. */
 export function currentMapRoutePricing(
   pricing: GeneratedMapRoutePricing | null,
   currentPrices: ReadonlyMap<string, MapLensPrice>,
+  venueById: ReadonlyMap<string, Pick<Venue, "id">>,
 ): GeneratedMapRoutePricing | null {
-  if (!pricing?.readCurrentQuotes) return pricing;
+  if (!pricing) return null;
+  const venueIds = pricing.venueIds.map((id) => venueById.get(id)?.id ?? id);
+  if (!pricing.readCurrentQuotes) return { ...pricing, venueIds };
   const quotes = new Map<string, SelectedDrinkPriceEvidence>();
-  for (const id of pricing.venueIds) {
+  for (const id of venueIds) {
     const price = currentPrices.get(id);
     const quote = price?.venueId === id ? selectedDrinkPriceEvidenceForPrice(price, pricing.context) : null;
     if (quote) quotes.set(id, quote);
   }
-  return { ...pricing, budget: null, quotes };
+  return { ...pricing, venueIds, budget: null, quotes };
 }
 
 type InitialPlanState = {

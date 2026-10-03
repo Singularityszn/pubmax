@@ -1,6 +1,7 @@
 -- Admit exact named listed Cider evidence under its explicit current choice.
 -- Storage shape only: the existing API corroborates venue/menu authority.
 -- Unknown serving never becomes a pint or a comparable volume.
+-- Every category's evidence also follows the current named subtype and measure.
 -- Existing create delegate, non-Cider rows and permission surfaces stay intact.
 -- Captain applies; rollback refuses active Cider primary or backup evidence.
 
@@ -126,6 +127,37 @@ returns jsonb language sql immutable set search_path = '' as $$
         p_context is not null and (
           p_context->>'zeroProof' = 'true'
           or stop->'selectedDrinkPriceEvidence'->>'category' is distinct from p_context->>'drinkCategory'
+          or (
+            p_context->>'drinkSubtype' is not null
+            and (
+              stop->'selectedDrinkPriceEvidence'->>'source' is distinct from 'listed'
+              or not (stop->'selectedDrinkPriceEvidence' ? 'drinkLabel')
+              or (
+                stop->'selectedDrinkPriceEvidence'->>'drinkSubtype' = p_context->>'drinkSubtype'
+                or (
+                  p_context->>'drinkSubtype' = 'soft-drink-zero-sugar-cola'
+                  and stop->'selectedDrinkPriceEvidence'->>'drinkSubtype' in (
+                    'soft-drink-coke-zero', 'soft-drink-diet-coke', 'soft-drink-pepsi-max', 'soft-drink-diet-pepsi'
+                  )
+                )
+              ) is not true
+            )
+          )
+          or (
+            p_context->>'drinkServing' is not null
+            and (
+              stop->'selectedDrinkPriceEvidence'->>'source' is distinct from 'listed'
+              or case
+                when stop->'selectedDrinkPriceEvidence'->>'category' = 'beer'
+                  and lower(btrim(stop->'selectedDrinkPriceEvidence'->>'serving')) = 'pint' then 'pint'
+                when lower(btrim(stop->'selectedDrinkPriceEvidence'->>'serving'))
+                  ~ '^[1-9][0-9]{0,3}[[:space:]]*ml([[:space:]]+(glass|shot))?$'
+                then (substring(lower(btrim(stop->'selectedDrinkPriceEvidence'->>'serving'))
+                  from '^[1-9][0-9]{0,3}')::integer)::text || 'ml'
+                else null
+              end is distinct from p_context->>'drinkServing'
+            )
+          )
         )
       ) or (
         stop->'selectedDrinkPriceEvidence'->>'category' = 'beer'
@@ -142,17 +174,6 @@ returns jsonb language sql immutable set search_path = '' as $$
             'category', 'pence', 'serving', 'source', 'sourceUrl', 'observedAt', 'drinkLabel', 'drinkSubtype'
           ] = '{}'::jsonb
           and jsonb_typeof(stop->'selectedDrinkPriceEvidence'->'drinkLabel') = 'string'
-          and (
-            p_context->>'drinkServing' is null
-            or case
-              when lower(btrim(stop->'selectedDrinkPriceEvidence'->>'serving')) = 'pint' then 'pint'
-              when lower(btrim(stop->'selectedDrinkPriceEvidence'->>'serving'))
-                ~ '^[1-9][0-9]{0,3}[[:space:]]*ml([[:space:]]+(glass|shot))?$'
-              then (substring(lower(btrim(stop->'selectedDrinkPriceEvidence'->>'serving'))
-                from '^[1-9][0-9]{0,3}')::integer)::text || 'ml'
-              else null
-            end = p_context->>'drinkServing'
-          )
         ) is not true
       ) then stop - 'selectedDrinkPriceEvidence' else stop end as stop
     from slots

@@ -19,6 +19,14 @@ const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
 const DURABLE_WRITE_ATTEMPTS = 3;
 const WRITE_CONFLICT_MESSAGE = "Pub Pal conversation changed while saving. Try again.";
 
+/** A compare-and-swap lost every attempt; nothing from this write was persisted. */
+export class PubPalToolTurnWriteConflictError extends Error {
+  constructor() {
+    super(WRITE_CONFLICT_MESSAGE);
+    this.name = "PubPalToolTurnWriteConflictError";
+  }
+}
+
 export class PubPalToolTurnAccessError extends Error {
   constructor() {
     super("Pub Pal conversation is not available to this account.");
@@ -433,7 +441,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
             ownerId,
           })) return;
         }
-        throw new Error(WRITE_CONFLICT_MESSAGE);
+        throw new PubPalToolTurnWriteConflictError();
       },
     });
   },
@@ -468,7 +476,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
             if (await insertStoredRow(conversationId, next)) return;
           }
         }
-        throw new Error(WRITE_CONFLICT_MESSAGE);
+        throw new PubPalToolTurnWriteConflictError();
       },
     });
   },
@@ -598,7 +606,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           }
           if (await updateStoredRow(conversationId, existing, next)) return true;
         }
-        throw new Error(WRITE_CONFLICT_MESSAGE);
+        throw new PubPalToolTurnWriteConflictError();
       },
     });
   },
@@ -632,7 +640,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           }
           if (await updateStoredRow(conversationId, existing, next)) return;
         }
-        throw new Error(WRITE_CONFLICT_MESSAGE);
+        throw new PubPalToolTurnWriteConflictError();
       },
     });
   },

@@ -141,9 +141,11 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const ownerId = invocation?.origin.ownerId ?? null;
+  const routesAllowed = async () => input.conversationId && !invocation
+    ? false
+    : pubPalRouteProposalsAllowed(invocation?.origin.ownerId ?? null);
   const routeTool = input.toolName === "propose_plan";
-  let toolResult = routeTool && !await pubPalRouteProposalsAllowed(ownerId)
+  let toolResult = routeTool && !await routesAllowed()
     ? routeProposalsOffResult()
     : await runAskTool(input.toolName as AskToolName, args, {
       cityId,
@@ -152,7 +154,7 @@ export async function invokePubPalAskTool(input: {
     });
   if (
     (routeTool || toolResult.proposals.some((proposal) => proposal.kind === "draft_plan")) &&
-    !await pubPalRouteProposalsAllowed(ownerId)
+    !await routesAllowed()
   ) {
     toolResult = routeProposalsOffResult();
   }

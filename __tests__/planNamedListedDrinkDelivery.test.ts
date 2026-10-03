@@ -70,7 +70,7 @@ import { readPlanningIntent, writePlanningIntent, type PlanningIntentStorage } f
 import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { buildPlanGenerationStops } from "@/lib/planGenerationDto";
 import { preparePlanGeneration } from "@/lib/planGeneration.server";
-import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
+import { planStopEvidenceForContext, selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { __resetPlanCollaboration, planCollaborationStore } from "@/lib/planCollaborationStore";
 import type { PlanState } from "@/lib/plan";
@@ -442,5 +442,31 @@ describe("named listed drink delivery", () => {
     const reloaded = await memoryPlanStore.get(saved.plan.plan.id);
     expect(reloaded?.stops[0]?.selectedDrinkPriceEvidence).toEqual(WHITE);
     expect(reloaded?.stops[1]?.selectedDrinkPriceEvidence).toEqual(NEXT);
+  });
+
+  it("prices each pub only with its own quote for the requested White subtype and measure", async () => {
+    const generate = async (operationKey: string, choice: Record<string, unknown>) => {
+      const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", { method: "POST",
+        body: JSON.stringify({ context: { ...wineContext(), ...choice }, operationKey }) }), NOW);
+      if (!("prepared" in result)) throw new Error(`Generation refused: ${await result.response.text()}`);
+      const byVenue = new Map(result.prepared.candidates.map((candidate) => [candidate.venue.id, candidate]));
+      return (venueId: string) => {
+        const candidate = byVenue.get(venueId);
+        return candidate ? selectedDrinkPriceEvidenceForPrice(candidate.selectedDrinkPrice, result.prepared.context) : undefined;
+      };
+    };
+    const white = await generate("white-125", { drinkSubtype: "wine-white", drinkServing: "125ml" });
+    expect(white(SYDNEY)).toEqual(WHITE);
+    expect(white("next-pub")).toEqual(NEXT);
+    expect(white("red-only")).toBeNull();
+    const otherMeasure = await generate("wine-175", { drinkServing: "175ml" });
+    for (const venueId of [SYDNEY, "next-pub", "red-only"]) expect(otherMeasure(venueId)).toBeNull();
+    const saved = { venueId: SYDNEY, venueName: "The Sydney Arms", position: 0, selectedDrinkPriceEvidence: WHITE,
+      alternatives: [{ venueId: "next-pub", venueName: "Controlled next pub", selectedDrinkPriceEvidence: NEXT }] };
+    expect(planStopEvidenceForContext(saved, { ...wineContext(), drinkSubtype: "wine-red" })).toEqual({
+      venueId: SYDNEY, venueName: "The Sydney Arms", position: 0,
+      alternatives: [{ venueId: "next-pub", venueName: "Controlled next pub" }],
+    });
+    expect(planStopEvidenceForContext(saved, { ...wineContext(), drinkServing: "175ml" })).not.toHaveProperty("selectedDrinkPriceEvidence");
   });
 });

@@ -62,9 +62,9 @@ begin
   ) then return 'invalid'; end if;
   if p_ending_selection is null or (
     jsonb_typeof(p_ending_selection) <> 'object'
-    or p_ending_selection->>'kind' <> p_ending
+    or p_ending_selection->>'kind' is distinct from p_ending
     or coalesce(p_ending_selection->>'optionId', '') = ''
-    or jsonb_typeof(p_ending_selection->'evidenceSnapshot') <> 'object'
+    or jsonb_typeof(p_ending_selection->'evidenceSnapshot') is distinct from 'object'
     or (p_ending = 'food' and coalesce(p_ending_selection->>'externalPlaceId', '') = '')
     or (p_ending = 'keep_going' and coalesce(p_ending_selection->>'venueId', '') = '')
   ) then return 'invalid'; end if;

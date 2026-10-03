@@ -151,8 +151,8 @@ export default function RoutePanel({
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
   const generatedPresentation = useMemo(
-    () => generatedRoutePricePresentation(route, generatedPricing),
-    [route, generatedPricing],
+    () => generatedRoutePricePresentation(route, mode === "build" ? generatedPricing : null),
+    [mode, route, generatedPricing],
   );
   const generatedDrinkLabel = generatedPresentation?.drinkLabel ?? null;
   const roundTotal = generatedPresentation ? generatedPresentation.roundTotal : summary.total;
