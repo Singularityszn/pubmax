@@ -69,7 +69,10 @@ type WireRequest = {
 const OWNER_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OWNER_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const TOKEN_A = "test-owner-a-token";
+const TOKEN_A_REFRESHED = "test-owner-a-refreshed-token";
 const TOKEN_B = "test-owner-b-token";
+const VOICE_OWNER_PROOF_A = "synthetic-owner-a-voice-proof";
+const VOICE_OWNER_PROOF_B = "synthetic-owner-b-voice-proof";
 let host: HTMLDivElement;
 let root: Root | null;
 let wire: WireRequest[];
@@ -168,17 +171,33 @@ function releases(): WireRequest[] {
   return wire.filter((request) => request.body?.action === "release");
 }
 
+function voiceOwnerProofForToken(token: string): string {
+  const proofByToken: Record<string, string> = {
+    [TOKEN_A]: VOICE_OWNER_PROOF_A,
+    [TOKEN_A_REFRESHED]: VOICE_OWNER_PROOF_A,
+    [TOKEN_B]: VOICE_OWNER_PROOF_B,
+  };
+  const proof = proofByToken[token];
+  if (typeof proof !== "string") throw new Error(`Unexpected voice token in test fixture: ${token}`);
+  return proof;
+}
+
 function expectedTurn(
   token: string,
   conversationId: string,
-  threadTurn?: { role: "user" | "assistant"; content: string },
+  threadTurn?: { role: "user"; content: string },
 ): WireRequest {
   return {
     url: "/api/pub-pal/tool-turn",
     method: "POST",
     authorization: `Bearer ${token}`,
     contentType: "application/json",
-    body: { conversationId, cityId: "london", ...(threadTurn ? { threadTurn } : {}) },
+    body: {
+      conversationId,
+      cityId: "london",
+      voiceOwnerProof: voiceOwnerProofForToken(token),
+      ...(threadTurn ? { threadTurn } : {}),
+    },
   };
 }
 
@@ -210,7 +229,13 @@ beforeEach(() => {
     if (request.url === "/api/pub-pal/tool-turn") return Response.json({ ok: true });
     if (request.url === "/api/pub-pal/voice-token") {
       if (request.body?.action === "release") return Response.json({ released: true });
-      return Response.json({ signedUrl: "wss://voice.example/test-session", maxSessionSeconds: 180 });
+      const token = request.authorization?.replace(/^Bearer /, "") ?? "";
+      const voiceOwnerProof = voiceOwnerProofForToken(token);
+      return Response.json({
+        signedUrl: "wss://voice.example/test-session",
+        voiceOwnerProof,
+        maxSessionSeconds: 180,
+      });
     }
     throw new Error(`Unexpected voice request: ${request.url}`);
   }));
@@ -232,7 +257,7 @@ afterEach(async () => {
 });
 
 describe("Pub Pal voice request ownership", () => {
-  it("syncs the current owner's connected conversation and normalized turns", async () => {
+  it("syncs only this owner's normalized user turns after connect", async () => {
     await renderSession();
     const callbacks = await startSession();
     await connect(callbacks, "conversation-a");
@@ -251,7 +276,6 @@ describe("Pub Pal voice request ownership", () => {
     expect(toolTurns()).toEqual([
       expectedTurn(TOKEN_A, "conversation-a"),
       expectedTurn(TOKEN_A, "conversation-a", { role: "user", content: "A quiet pub in Soho" }),
-      expectedTurn(TOKEN_A, "conversation-a", { role: "assistant", content: "Let us check the listed options." }),
     ]);
     expect(stopProbe).toHaveBeenCalledOnce();
   });
@@ -471,8 +495,7 @@ describe("voice ownership without caller remounts", () => {
     const current = await startSession();
     await connectInPlace(current, "conversation-a");
     const accountSignal = readProviderAccountSignal();
-    const refreshedToken = "test-owner-a-refreshed-token";
-    setAccount(OWNER_A, refreshedToken);
+    setAccount(OWNER_A, TOKEN_A_REFRESHED);
     expect(readProviderAccountSignal()).toBe(accountSignal);
     expect(accountSignal.aborted).toBe(false);
     await renderSession(stableKey);
@@ -482,7 +505,7 @@ describe("voice ownership without caller remounts", () => {
 
     expect(toolTurns()).toEqual([
       expectedTurn(TOKEN_A, "conversation-a"),
-      expectedTurn(refreshedToken, "conversation-a", { role: "user", content: "A's current request" }),
+      expectedTurn(TOKEN_A_REFRESHED, "conversation-a", { role: "user", content: "A's current request" }),
     ]);
     expect(sdk.startSession).toHaveBeenCalledOnce();
     expect(sdk.endSession).not.toHaveBeenCalled();

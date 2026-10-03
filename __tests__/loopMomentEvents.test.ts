@@ -257,8 +257,15 @@ describe("where each moment is emitted, and nowhere else", () => {
     expect(connect).toBeGreaterThan(-1);
     expect(emitted).toBeGreaterThan(connect);
     expect(emitted).toBeLessThan(failure);
-    // One report per attempt: connectedAt is null until the first connect.
-    expect(session).toContain('if (attempt.connectedAt === null) trackEvent("voice_started");');
+    // The event belongs to the actual braced connect callback, not a tap or
+    // nearby callback. One report per attempt: connectedAt is the latch.
+    const onConnectBody = session.match(
+      /onConnect:\s*\([^)]*\)\s*=>\s*\{([\s\S]*?)\n\s*\},\s*onDisconnect:/,
+    )?.[1];
+    expect(onConnectBody).toBeDefined();
+    expect(onConnectBody).toMatch(
+      /if \(attempt\.connectedAt === null\)\s*\{\s*trackEvent\("voice_started"\);\s*attempt\.connectedAt = Date\.now\(\);/,
+    );
   });
 
   it("reports a recap read from the PUBLISHED page, and never from the private one", () => {
