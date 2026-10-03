@@ -27,7 +27,7 @@ import {
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
-import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
+import { selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
 import { listedServingGroup } from "@/lib/listedPriceComparison";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
@@ -243,6 +243,32 @@ type PlanGenerationPreparation = {
 	routeVenueIds?: string[];
 };
 
+function approvedDrinkSelection(approved: SelectedDrinkPriceEvidence, venueId: string): {
+	selectedServing: string | null;
+	selectedDrinkSubtype: string | null;
+	acceptedNamedPrice: MapLensPrice | null;
+} {
+	let selectedDrinkSubtype: string | null = null;
+	let acceptedNamedPrice: MapLensPrice | null = null;
+	if (approved.source === "listed" && "drinkLabel" in approved) {
+		selectedDrinkSubtype = approved.drinkSubtype;
+		acceptedNamedPrice = {
+			venueId,
+			category: approved.category,
+			categoryLabel: CATEGORY_META[approved.category].label,
+			priceGbp: approved.pence / 100,
+			source: "listed",
+			servingSize: approved.serving,
+			sourceUrl: approved.sourceUrl,
+			observedAt: approved.observedAt,
+			drinkLabel: approved.drinkLabel,
+		};
+	}
+	const selectedServing = approved.source === "listed"
+		? listedServingGroup(approved.category, approved.serving, selectedDrinkSubtype) : null;
+	return { selectedServing, selectedDrinkSubtype, acceptedNamedPrice };
+}
+
 export async function preparePlanGeneration(
 	request: Request,
 	requestNow: number = Date.now(),
@@ -325,6 +351,8 @@ export async function preparePlanGeneration(
 	}
 	const acceptedHint = parsedRequest.value.anchor?.selectedDrinkPriceEvidence;
 	let selectedServing: string | null = null;
+	let selectedDrinkSubtype: string | null = null;
+	let acceptedNamedPrice: MapLensPrice | null = null;
 	if (acceptedHint && !context.zeroProof && acceptedHint.category === context.drinkCategory) {
 		const anchor = parsedRequest.value.anchor!;
 		const canonical = await resolvePlanningAnchor({ cityId, venueId: anchor.venueId,
@@ -340,8 +368,10 @@ export async function preparePlanGeneration(
 		const approved = verified?.selectedDrinkPriceEvidence;
 		if (!approved) return rejectHint("ANCHOR_ROUTE_CONFLICT",
 			"That accepted menu price could not be checked. Open the pub and choose its current offer again.");
-		selectedServing = approved.source === "listed"
-			? listedServingGroup(approved.category, approved.serving) : null;
+		const selection = approvedDrinkSelection(approved, canonical.canonical.venueId);
+		selectedDrinkSubtype = selection.selectedDrinkSubtype;
+		acceptedNamedPrice = selection.acceptedNamedPrice;
+		selectedServing = selection.selectedServing;
 	}
 	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
 		? context.drinkCategory
@@ -352,7 +382,7 @@ export async function preparePlanGeneration(
 			requestNow,
 		).catch(() => ({ prices: [] as CommunityPrice[], truncated: false, degraded: true })),
 		requestedCategory
-			? ukPriceBundleCategoryIndex(requestedCategory, requestNow, selectedServing).catch(() => ({ prices: [], truncated: false, degraded: true }))
+			? ukPriceBundleCategoryIndex(requestedCategory, requestNow, selectedServing, selectedDrinkSubtype).catch(() => ({ prices: [], truncated: false, degraded: true }))
 			: Promise.resolve(null),
 	]);
 	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
@@ -367,13 +397,16 @@ export async function preparePlanGeneration(
 		: undefined;
 	const listedDrinkPricesByVenue = new Map<string, MapLensPrice>();
 	if (requestedCategory && listedPriceIndex) {
-		for (const price of readListedDrinkIndex(listedPriceIndex.prices, requestedCategory)) {
+		for (const price of readListedDrinkIndex(listedPriceIndex.prices, requestedCategory, selectedDrinkSubtype)) {
 			if ((!selectedServing || listedServingGroup(requestedCategory, price.servingSize) === selectedServing)
 				&& !listedDrinkPricesByVenue.has(price.venueId)) {
 				listedDrinkPricesByVenue.set(price.venueId, price);
 			}
 		}
 	}
+	// Accepted anchor keeps its own verified quote; another venue receives only
+	// its own subtype/serving-compatible listing, never this venue-local label.
+	if (acceptedNamedPrice) listedDrinkPricesByVenue.set(acceptedNamedPrice.venueId, acceptedNamedPrice);
 	const drinkPriceCoverageNote = requestedCategory
 		? drinkLensCoverageNote(
 			CATEGORY_META[requestedCategory].label.toLowerCase(),
@@ -413,7 +446,9 @@ export async function preparePlanGeneration(
 				tonightEvents,
 				signalClaims,
 				...scored,
-				selectedDrinkPrice: selectedServing
+				selectedDrinkPrice: acceptedNamedPrice?.venueId === venue.id
+					? acceptedNamedPrice
+					: selectedServing || acceptedNamedPrice
 					? listedDrinkPricesByVenue.get(venue.id) ?? null
 					: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
 			};

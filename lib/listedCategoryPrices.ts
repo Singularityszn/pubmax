@@ -9,6 +9,7 @@ import {
   listedDrinkMatchesSubtype,
 } from "@/lib/listedPriceComparison";
 import { priceStandingFor } from "@/lib/priceTier";
+import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
 import {
   authoritativeBundleRows,
   bundleRowServingSize,
@@ -89,11 +90,13 @@ export function listedCategoryPrices(
     includeBeer = false,
     serving,
     drinkSubtype,
+    drinkLabel,
     onServingGroup,
   }: {
     includeBeer?: boolean;
     serving?: string | null;
     drinkSubtype?: string | null;
+    drinkLabel?: string;
     onServingGroup?: (category: DrinkCategory, group: string) => void;
   } = {},
 ): ListedCategoryPrice[] {
@@ -130,7 +133,11 @@ export function listedCategoryPrices(
 
   // A stated, identical serving can be compared by price. Unknown and mixed
   // servings retain source order by recency, never a price rank.
-  const current = [...currentByDrink.values(), ...unnamed];
+  // Exact named acceptance follows supersession, so a new source spelling
+  // cannot leave an older same-name price alive. Restrict before min/cap.
+  const current = [...currentByDrink.values(), ...unnamed].filter(({ quote }) =>
+    drinkLabel === undefined || normalizeUkPriceBundleDrinkLabel(quote.drinkLabel) === drinkLabel,
+  );
   current.sort(
     (left, right) =>
       right.quote.observedAt.localeCompare(left.quote.observedAt) ||

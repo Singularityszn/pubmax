@@ -202,6 +202,13 @@ function bestEffortRemove(storage: PlanningIntentStorage | null): void {
   }
 }
 
+function selectedDrinkEvidenceKeys(hint: Record<string, unknown>): string[] {
+  return hint.source === "listed"
+    ? ["category", "pence", "serving", "source", "sourceUrl", "observedAt",
+      ...("drinkLabel" in hint || "drinkSubtype" in hint ? ["drinkLabel", "drinkSubtype"] : [])]
+    : ["category", "pence", "serving", "source", "reportedAt"];
+}
+
 /**
  * Parse one strict PlanningIntent envelope. The function is pure: callers that
  * own storage decide whether a rejected value should be removed.
@@ -234,9 +241,7 @@ export function parsePlanningIntent(
   if (value.selectedDrinkPriceEvidence !== undefined) {
     const hint = value.selectedDrinkPriceEvidence;
     if (!isPlainRecord(hint)) return null;
-    const keys = hint.source === "listed"
-      ? ["category", "pence", "serving", "source", "sourceUrl", "observedAt"]
-      : ["category", "pence", "serving", "source", "reportedAt"];
+    const keys = selectedDrinkEvidenceKeys(hint);
     if (!hasExactKeys(hint, keys)) return null;
     selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(hint);
     if (!selectedDrinkPriceEvidence) return null;

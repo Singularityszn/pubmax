@@ -3,6 +3,8 @@ import type { NightContext } from "@/lib/nightPlanning";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
+import { drinkSubtypeFromText, parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 
 type CommunitySelectedDrinkPriceEvidence = {
   category: DrinkCategory;
@@ -12,7 +14,7 @@ type CommunitySelectedDrinkPriceEvidence = {
   reportedAt: string;
 };
 
-type ListedSelectedDrinkPriceEvidence = {
+type LegacyListedSelectedDrinkPriceEvidence = {
   category: DrinkCategory;
   pence: number;
   serving: string | null;
@@ -21,12 +23,32 @@ type ListedSelectedDrinkPriceEvidence = {
   observedAt: string;
 };
 
+type NamedListedSelectedDrinkPriceEvidence = LegacyListedSelectedDrinkPriceEvidence & {
+  drinkLabel: string;
+  drinkSubtype: string | null;
+};
+
+type ListedSelectedDrinkPriceEvidence = LegacyListedSelectedDrinkPriceEvidence | NamedListedSelectedDrinkPriceEvidence;
+
 export type SelectedDrinkPriceEvidence = CommunitySelectedDrinkPriceEvidence | ListedSelectedDrinkPriceEvidence;
 
 function canonicalTimestamp(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const time = Date.parse(value);
   return Number.isFinite(time) && new Date(time).toISOString() === value;
+}
+
+function cleanNamedIdentity(row: Record<string, unknown>): Pick<NamedListedSelectedDrinkPriceEvidence, "drinkLabel" | "drinkSubtype"> | null {
+  if (!Object.hasOwn(row, "drinkLabel") || !Object.hasOwn(row, "drinkSubtype")
+    || typeof row.drinkLabel !== "string"
+    || row.drinkLabel !== normalizeUkPriceBundleDrinkLabel(row.drinkLabel)
+    || /\p{Cc}/u.test(row.drinkLabel)) return null;
+  const category = row.category as DrinkCategory;
+  const subtype = drinkSubtypeFromText(row.drinkLabel, category)?.id ?? null;
+  if (row.drinkSubtype !== null && typeof row.drinkSubtype !== "string") return null;
+  if (row.drinkSubtype !== subtype || (row.drinkSubtype !== null
+    && parseDrinkSubtypeParam(row.drinkSubtype, category)?.id !== row.drinkSubtype)) return null;
+  return { drinkLabel: row.drinkLabel, drinkSubtype: subtype };
 }
 
 export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPriceEvidence | null {
@@ -67,7 +89,7 @@ export function cleanListedDrinkPriceEvidence(value: unknown): ListedSelectedDri
   } catch {
     return null;
   }
-  return {
+  const evidence: LegacyListedSelectedDrinkPriceEvidence = {
     category: row.category,
     pence: row.pence as number,
     serving: row.serving,
@@ -75,6 +97,9 @@ export function cleanListedDrinkPriceEvidence(value: unknown): ListedSelectedDri
     sourceUrl: row.sourceUrl,
     observedAt: row.observedAt,
   };
+  if (!("drinkLabel" in row) && !("drinkSubtype" in row)) return evidence;
+  const identity = cleanNamedIdentity(row);
+  return identity ? { ...evidence, ...identity } : null;
 }
 
 export function selectedDrinkPriceEvidenceForPrice(
@@ -94,6 +119,7 @@ export function selectedDrinkPriceEvidenceForPrice(
     });
   }
   if (price.source !== "listed") return null;
+  const drinkLabel = normalizeUkPriceBundleDrinkLabel(price.drinkLabel);
   return cleanSelectedDrinkPriceEvidence({
     category: context.drinkCategory,
     pence: Math.round(price.priceGbp * 100),
@@ -101,6 +127,7 @@ export function selectedDrinkPriceEvidenceForPrice(
     source: "listed",
     sourceUrl: price.sourceUrl,
     observedAt: price.observedAt,
+    ...(drinkLabel ? { drinkLabel, drinkSubtype: drinkSubtypeFromText(drinkLabel, context.drinkCategory)?.id ?? null } : {}),
   });
 }
 
@@ -110,7 +137,8 @@ export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEviden
     day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
   });
   const serving = evidence.serving ? `Serving ${evidence.serving}.` : "Serving size not recorded.";
-  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, ${evidence.source === "community" ? "community report" : "published menu"} ${reported}. ${serving}`;
+  const drink = "drinkLabel" in evidence ? evidence.drinkLabel : categoryLabel(evidence.category);
+  return `${drink} £${(evidence.pence / 100).toFixed(2)}, ${evidence.source === "community" ? "community report" : "published menu"} ${reported}. ${serving}`;
 }
 
 /** Context changes apply to the selected venue and its saved backups alike. */

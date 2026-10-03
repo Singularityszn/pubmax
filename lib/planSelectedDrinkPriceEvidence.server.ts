@@ -6,6 +6,7 @@ import { trustedDrinkLensPrices, type MapLensPrice } from "@/lib/mapExperienceLe
 import { cleanNightContext } from "@/lib/nightPlanning";
 import type { PlanStopTarget } from "@/lib/planRoute";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
 import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
@@ -53,12 +54,18 @@ async function resolvePriceEvidence(
   }
 
   const listedByVenue = new Map<string, Promise<ReturnType<typeof listedCategoryPrices>>>();
-  const listedForVenue = (venueId: string, serving: string | null): Promise<ReturnType<typeof listedCategoryPrices>> => {
-    const key = JSON.stringify([venueId, serving]);
+  const listedForVenue = (venueId: string, hint: Extract<SelectedDrinkPriceEvidence, { source: "listed" }>): Promise<ReturnType<typeof listedCategoryPrices>> => {
+    const named = "drinkLabel" in hint;
+    const key = JSON.stringify(named
+      ? [venueId, hint.category, hint.serving, hint.drinkLabel, hint.drinkSubtype]
+      : [venueId, hint.serving]);
     const existing = listedByVenue.get(key);
     if (existing) return existing;
     const pending = ukPriceBundleRowsFor(venueId)
-      .then((bundle) => bundle.status === "ready" ? listedCategoryPrices(bundle.rows, now, { serving }) : [])
+      .then((bundle) => bundle.status === "ready" ? listedCategoryPrices(bundle.rows, now, {
+        serving: hint.serving,
+        ...(named ? { drinkLabel: hint.drinkLabel, drinkSubtype: hint.drinkSubtype } : {}),
+      }) : [])
       .catch(() => []);
     listedByVenue.set(key, pending);
     return pending;
@@ -77,7 +84,7 @@ async function resolvePriceEvidence(
     }
     if (!listedRequested || hint.source !== "listed") return { ...stop };
 
-    const quote = (await listedForVenue(stop.venueId, hint.serving)).find((candidate) =>
+    const quote = (await listedForVenue(stop.venueId, hint)).find((candidate) =>
       candidate.category === hint.category
       && Math.round(candidate.priceGbp * 100) === hint.pence
       && candidate.servingSize === hint.serving
@@ -85,6 +92,10 @@ async function resolvePriceEvidence(
       && candidate.observedAt === hint.observedAt,
     );
     if (!quote) return { ...stop };
+    const named = "drinkLabel" in hint;
+    const identity = named ? bundleDrinkFieldsFromPrintedName(quote.drinkLabel, quote.category) : null;
+    if (named && (!identity?.drinkLabel || identity.drinkLabel !== hint.drinkLabel
+      || (identity.drinkSubtype ?? null) !== hint.drinkSubtype)) return { ...stop };
     const serverEvidence = cleanSelectedDrinkPriceEvidence({
       category: quote.category,
       pence: Math.round(quote.priceGbp * 100),
@@ -92,6 +103,7 @@ async function resolvePriceEvidence(
       source: "listed",
       sourceUrl: quote.sourceUrl,
       observedAt: quote.observedAt,
+      ...(identity?.drinkLabel ? { drinkLabel: identity.drinkLabel, drinkSubtype: identity.drinkSubtype ?? null } : {}),
     });
     return serverEvidence?.source === "listed"
       ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
