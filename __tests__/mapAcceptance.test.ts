@@ -644,3 +644,38 @@ describe("Map acceptance selected published offer", () => {
     });
   });
 });
+
+
+describe("Cider public request at Map acceptance", () => {
+  const ciderNow = Date.parse("2026-10-03T12:00:00.000Z");
+  const drinkRequest = { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: null };
+  const selectedDrinkPriceEvidence = { category: "beer" as const, pence: 365, serving: null, source: "listed" as const,
+    sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", observedAt: "2026-09-21T18:27:31.674Z",
+    drinkLabel: "Aspall 4.5%", drinkSubtype: "beer-cider" };
+
+  it.each([false, true])("keeps independent Cider choice with listed quote present=%s", (withQuote) => {
+    const storage = memoryStorage();
+    const input = { cityId: "london" as const, acceptedVenueId: "venue-13xdb1p",
+      search: "?drink=beer&sub=beer-cider&sel=venue-13xdb1p&uk=1", drinkRequest,
+      ...(withQuote ? { selectedDrinkPriceEvidence } : {}) };
+    const result = acceptMapVenue(input, { storage, now: ciderNow });
+    expect(result.accepted).toBe(true);
+    expect(result.destination).toBe("/plan");
+    const raw = storage.map.get(PLANNING_INTENT_STORAGE_KEY);
+    expect(raw).toBeTruthy();
+    const accepted = parsePlanningIntent(raw!, ciderNow + 1_000);
+    expect(accepted).toMatchObject({ acceptedVenueId: "venue-13xdb1p", drinkRequest });
+    if (withQuote) expect(accepted).toHaveProperty("selectedDrinkPriceEvidence", selectedDrinkPriceEvidence);
+    else expect(accepted).not.toHaveProperty("selectedDrinkPriceEvidence");
+    for (const privateKey of ["drinkRequest", "drinkSubtype", "drinkServing", "selectedDrinkPriceEvidence", "sourceUrl", "pence"]) {
+      expect(result.telemetry).not.toHaveProperty(privateKey);
+    }
+  });
+
+  it("keeps selected drink request subject to the existing failed-storage door", () => {
+    const input = { cityId: "london" as const, acceptedVenueId: "venue-13xdb1p", drinkRequest };
+    expect(acceptMapVenue(input, { storage: throwingStorage(), now: ciderNow })).toEqual({
+      accepted: false, destination: null, telemetry: null,
+    });
+  });
+});

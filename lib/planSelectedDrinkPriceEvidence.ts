@@ -5,6 +5,7 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
 import { drinkSubtypeFromText, parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+import { listedServingGroup } from "@/lib/listedPriceComparison";
 
 type CommunitySelectedDrinkPriceEvidence = {
   category: DrinkCategory;
@@ -54,10 +55,11 @@ function cleanNamedIdentity(row: Record<string, unknown>): Pick<NamedListedSelec
 export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPriceEvidence | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  if (!isDrinkCategory(row.category) || row.category === "beer"
+  if (!isDrinkCategory(row.category)
     || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
     || (row.pence as number) > 100_000) return null;
   if (row.source === "community") {
+    if (row.category === "beer") return null;
     if (row.serving !== null || !canonicalTimestamp(row.reportedAt)) return null;
     return {
       category: row.category,
@@ -67,7 +69,13 @@ export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPr
       reportedAt: row.reportedAt,
     };
   }
-  return cleanListedDrinkPriceEvidence(row);
+  const listed = cleanListedDrinkPriceEvidence(row);
+  if (row.category === "beer") {
+    const keys = ["category", "pence", "serving", "source", "sourceUrl", "observedAt", "drinkLabel", "drinkSubtype"];
+    if (!listed || !("drinkLabel" in listed) || listed.drinkSubtype !== "beer-cider"
+      || Object.keys(row).length !== keys.length || !Object.keys(row).every((key) => keys.includes(key))) return null;
+  }
+  return listed;
 }
 
 /** Published quote validation shared with discovery; Plan applies its own category policy. */
@@ -102,11 +110,25 @@ export function cleanListedDrinkPriceEvidence(value: unknown): ListedSelectedDri
   return identity ? { ...evidence, ...identity } : null;
 }
 
+/** Cider evidence belongs only to an explicit Cider choice and its chosen measure. */
+export function selectedDrinkPriceEvidenceMatchesContext(
+  evidence: SelectedDrinkPriceEvidence,
+  context: Partial<Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">> | null | undefined,
+): boolean {
+  if (!context) return evidence.source === "listed" && evidence.category !== "beer";
+  if (context.zeroProof || evidence.category !== context.drinkCategory) return false;
+  if (evidence.category !== "beer") return true;
+  return evidence.source === "listed" && "drinkLabel" in evidence && evidence.drinkSubtype === "beer-cider"
+    && context.drinkSubtype === "beer-cider"
+    && (!context.drinkServing || listedServingGroup("beer", evidence.serving, "beer-cider") === context.drinkServing);
+}
+
 export function selectedDrinkPriceEvidenceForPrice(
   price: MapLensPrice | null | undefined,
-  context: Pick<NightContext, "drinkCategory" | "zeroProof">,
+  context: Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">,
 ): SelectedDrinkPriceEvidence | null {
-  if (context.zeroProof || !context.drinkCategory || context.drinkCategory === "beer"
+  if (context.zeroProof || !context.drinkCategory
+    || (context.drinkCategory === "beer" && context.drinkSubtype !== "beer-cider")
     || price?.category !== context.drinkCategory
     || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0) return null;
   if (price.source === "community") {
@@ -120,7 +142,7 @@ export function selectedDrinkPriceEvidenceForPrice(
   }
   if (price.source !== "listed") return null;
   const drinkLabel = normalizeUkPriceBundleDrinkLabel(price.drinkLabel);
-  return cleanSelectedDrinkPriceEvidence({
+  const evidence = cleanSelectedDrinkPriceEvidence({
     category: context.drinkCategory,
     pence: Math.round(price.priceGbp * 100),
     serving: price.servingSize ?? null,
@@ -129,6 +151,7 @@ export function selectedDrinkPriceEvidenceForPrice(
     observedAt: price.observedAt,
     ...(drinkLabel ? { drinkLabel, drinkSubtype: drinkSubtypeFromText(drinkLabel, context.drinkCategory)?.id ?? null } : {}),
   });
+  return evidence && selectedDrinkPriceEvidenceMatchesContext(evidence, context) ? evidence : null;
 }
 
 export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
@@ -146,8 +169,7 @@ export function planStopEvidenceForContext(stop: PlanStopDTO, context: NightCont
   const filter = (value: { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence }) => {
     const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
     return { venueId: value.venueId, venueName: value.venueName,
-      ...(evidence && (!context ? evidence.source === "listed"
-        : !context.zeroProof && evidence.category === context.drinkCategory)
+      ...(evidence && selectedDrinkPriceEvidenceMatchesContext(evidence, context)
         ? { selectedDrinkPriceEvidence: evidence } : {}) };
   };
   return { ...filter(stop), position: stop.position,

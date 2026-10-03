@@ -1,3 +1,4 @@
+import type { PublicDrinkRequest } from "@/lib/nightPlanning";
 import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 // Map-originated Venue acceptance (trusted-handoff §4.8).
 //
@@ -79,6 +80,7 @@ export type MapAcceptanceInput = {
   acceptedVenueId: string;
   /** The frozen Map arrival search, used to recognise an accepted handoff. */
   search?: string;
+  drinkRequest?: PublicDrinkRequest;
   /** Public display hint, revalidated against server-owned prices when a Plan is written. */
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
@@ -109,6 +111,7 @@ function planningIntentInput(intent: PlanningIntentV1): PlanningIntentInput {
     acceptedArea: intent.acceptedArea,
     startsAt: intent.startsAt,
     displayEvidence: intent.displayEvidence,
+    ...(intent.drinkRequest ? { drinkRequest: intent.drinkRequest } : {}),
     ...(intent.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: intent.selectedDrinkPriceEvidence } : {}),
   };
 }
@@ -303,6 +306,7 @@ export function acceptMapVenue(
 
   const intent = writePlanningIntent({
     ...intentInput,
+    ...(input.drinkRequest ? { drinkRequest: input.drinkRequest } : {}),
     ...(input.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: input.selectedDrinkPriceEvidence } : {}),
   }, options);
   if (!intent) {

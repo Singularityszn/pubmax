@@ -430,3 +430,87 @@ describe("restored public route drink intent", () => {
     expectNoQuotes();
   });
 });
+
+
+describe("Cider generated and restored public Map handoff", () => {
+  // Synthetic exact-ID public quote fixture. This exercises transport and
+  // rendering, not publisher or production-store corroboration.
+  const ciderQuote: SelectedDrinkPriceEvidence = {
+    category: "beer", pence: 490, serving: null, source: "listed",
+    sourceUrl: "https://pub.example/cider/menu",
+    observedAt: "2026-09-29T12:00:00.000Z",
+    drinkLabel: "Appleshed Premium Cider", drinkSubtype: "beer-cider",
+  };
+
+  function ciderPlan(drinkServing: string | null = null): GeneratedMobilePlan {
+    const plan = generatedPlan({ category: "beer", quote: ciderQuote });
+    return { ...plan,
+      context: { ...plan.context, drinkSubtype: "beer-cider", drinkServing },
+      budget: { ...plan.budget, basis: "selected-drink-price-unavailable" },
+    };
+  }
+
+  function currentCider(servingSize: string | null = null): MapLensPrice {
+    return { venueId: "a", category: "beer", categoryLabel: "Cider",
+      priceGbp: 4.9, source: "listed", servingSize,
+      sourceUrl: "https://pub.example/cider/menu",
+      observedAt: "2026-09-29T12:00:00.000Z", drinkLabel: "Appleshed Premium Cider" };
+  }
+
+  it("retains generated Cider through a real reverse/edit/completion share without carrying quote authority", async () => {
+    await mount({ generated: ciderPlan() });
+    await click("Activate generated plan");
+    expect(host.querySelector("h2")?.textContent).toBe("Cider plan");
+    expectUnknownRound("cider stops");
+    expect(rowFor("a").querySelector("p")?.textContent)
+      .toBe("Appleshed Premium Cider £4.90, published menu 29 Sept 2026. Serving size not recorded.");
+    await click("Reverse route");
+    expect(rowFor("a").querySelector("p")?.textContent).toContain("Appleshed Premium Cider £4.90");
+    await click("Fixture pub d£5.50 · WestminsterAdd", host.querySelector(".venuePicker")!);
+    expectUnknownRound("cider stops");
+    expect(host.querySelector(".routeList")?.textContent).not.toContain("Appleshed Premium Cider £4.90");
+    await click("Start this crawl");
+    await click("Mark complete");
+    const url = new URL(host.querySelector<HTMLAnchorElement>('[data-testid="crawl-share-open"]')!.href);
+    expect(url.searchParams.get("pubs")?.split(",")).toEqual(["c", "b", "a", "d"]);
+    expect(routeDrinkIntentFromSearch(url.search)).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", zeroProof: false });
+    expect(Array.from(url.searchParams.keys())).toEqual(["mode", "pubs", "routeDrink", "routeSub"]);
+    expect(url.href).not.toMatch(/4\.9|490|pub\.example|Appleshed|observedAt|memberToken|lat=|lng=/);
+  });
+
+  it.each(["pint", "500ml"])("clears an incompatible same-category generated quote while retaining requested %s", async (drinkServing) => {
+    await mount({ generated: ciderPlan(drinkServing) });
+    await click("Activate generated plan");
+    expect(rowFor("a").querySelector("p")?.textContent).not.toContain("Appleshed Premium Cider £4.90");
+    expect(host.querySelector('a[href="https://pub.example/cider/menu"]')).toBeNull();
+    expectUnknownRound("cider stops");
+    await click("Start this crawl");
+    await click("Mark complete");
+    const url = new URL(host.querySelector<HTMLAnchorElement>('[data-testid="crawl-share-open"]')!.href);
+    expect(routeDrinkIntentFromSearch(url.search)).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing, zeroProof: false });
+    expect(url.searchParams.get("routeServing")).toBe(drinkServing);
+  });
+
+  it("restores Cider and reads only a current exact-ID quote without assigning its unknown serving a budget", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeDrink=beer&routeSub=beer-cider&drink=wine");
+    await mount({ currentPrices: new Map([["a", currentCider()], ["b", { ...currentCider(), venueId: "outside-route" }]]) });
+    expect(host.querySelector("h2")?.textContent).toBe("Cider plan");
+    expectUnknownRound("cider stops");
+    expect(rowFor("a").querySelector("p")?.textContent).toContain("Appleshed Premium Cider £4.90");
+    expect(rowFor("b").querySelector("p")?.textContent).toBe("Cider price not recorded");
+  });
+
+  it("restored explicit serving rejects unknown quote and accepts only supplied matching public measure", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=a,b,c&routeDrink=beer&routeSub=beer-cider&routeServing=500ml");
+    await mount({ currentPrices: new Map([["a", currentCider()]]) });
+    expect(rowFor("a").querySelector("p")?.textContent).not.toContain("Appleshed Premium Cider £4.90");
+    await mount({ currentPrices: new Map([["a", currentCider("500ml")]]) });
+    expect(rowFor("a").querySelector("p")?.textContent)
+      .toBe("Appleshed Premium Cider £4.90, published menu 29 Sept 2026. Serving 500ml.");
+    expectUnknownRound("cider stops");
+    await click("Start this crawl");
+    await click("Mark complete");
+    const url = new URL(host.querySelector<HTMLAnchorElement>('[data-testid="crawl-share-open"]')!.href);
+    expect(routeDrinkIntentFromSearch(url.search)).toMatchObject({ drinkSubtype: "beer-cider", drinkServing: "500ml" });
+  });
+});

@@ -741,3 +741,35 @@ describe("accepted published offer composer hydration", () => {
     expect(rehydrated.acceptedAnchor).toHaveProperty("selectedDrinkPriceEvidence", selected);
   });
 });
+
+
+describe("Cider independent request composer hydration", () => {
+  const ciderNow = Date.parse("2026-10-03T12:00:00.000Z");
+  const drinkRequest = { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: null };
+
+  it("keeps choice on held anchor and draft reload without a selected price", () => {
+    const input = { source: "map-search" as const, cityId: "london" as const,
+      acceptedVenueId: "venue-13xdb1p", acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory" as const, observedAt: null }, drinkRequest };
+    const accepted = createPlanningIntent(input, ciderNow);
+    expect(accepted).not.toBeNull();
+    const hydration = resolveComposerHydration({ planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: accepted, rememberedArea: null });
+    expect(hydration.heldVenueId).toBe("venue-13xdb1p");
+    expect(hydration.acceptedAnchor).toHaveProperty("drinkRequest", drinkRequest);
+    expect(hydration.acceptedAnchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+    const anchor = hydration.acceptedAnchor;
+    if (!anchor || typeof anchor.expiresAt !== "string") {
+      throw new Error("Expected accepted Cider anchor with canonical draft expiry");
+    }
+    const storage = memoryStorage();
+    writePlanDraftEnvelope(storedPlan({ startTime: "2026-10-03T19:00:00.000Z",
+      stops: [{ key: 1, venueId: "venue-13xdb1p", venueName: "The Plough" }],
+      acceptedAnchor: { ...anchor, expiresAt: anchor.expiresAt } }), "planning-intent", storage, ciderNow);
+    const restored = readPlanDraftEnvelope(storage, ciderNow + 1_000);
+    expect(restored?.draft.acceptedAnchor).toHaveProperty("drinkRequest", drinkRequest);
+    const recovered = resolveComposerHydration({ planDraft: restored, routeDraft: null, intakeDraft: null,
+      planningIntent: null, rememberedArea: null });
+    expect(recovered.acceptedAnchor).toHaveProperty("drinkRequest", drinkRequest);
+  });
+});

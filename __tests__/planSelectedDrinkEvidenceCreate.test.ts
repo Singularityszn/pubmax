@@ -571,3 +571,133 @@ describe("Plan listed-price authority and persistence", () => {
     expect(changed.status).toBe(409);
   });
 });
+
+
+describe("Cider actual own quote save and context compatibility", () => {
+  const now = Date.parse("2026-10-03T12:00:00.000Z");
+  const evidence = { category: "beer" as const, pence: 365, serving: null, source: "listed" as const,
+    sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", observedAt: "2026-09-21T18:27:31.674Z",
+    drinkLabel: "Aspall 4.5%", drinkSubtype: "beer-cider" };
+  const context = { ...inferNightContext("quiet in Clapham for 2", new Date(now)).context,
+    drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: null as string | null, zeroProof: false };
+  let restoreClock: () => void;
+  let restoreVenueLoader = () => {};
+
+  beforeEach(async () => {
+    __resetMemoryPlans();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    restoreClock = () => clock.mockRestore();
+    categoryIndexMock.mockReset();
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: false, truncated: false });
+    // Null uses the real committed bundle parser/rows, not an invented price fixture.
+    listedBundleFixture.rows = null;
+    listedBundleFixture.status = "ready";
+    const venueModule = await import("@/lib/concierge/venues.server");
+    const existingFixtureVenues = await venueModule.loadConciergeVenues("london");
+    const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+    const plough = (await actual.loadConciergeVenues("london")).find((venue) => venue.id === "venue-13xdb1p");
+    expect(plough).toBeDefined();
+    // Extend only this describe's canonical-id seam with the real committed venue.
+    const loader = vi.spyOn(venueModule, "loadConciergeVenues").mockResolvedValue([...existingFixtureVenues, plough!]);
+    restoreVenueLoader = () => loader.mockRestore();
+  });
+  afterEach(() => { restoreVenueLoader(); restoreClock(); __resetMemoryPlans(); listedBundleFixture.rows = null; });
+
+  async function save(hint: unknown = evidence, selectedContext: typeof context = context, venueId = "venue-13xdb1p", asBackup = false) {
+    const response = await POST(new Request("http://localhost/api/plans", {
+      method: "POST", headers: { "idempotency-key": `cider-own-${++sequence}`, "content-type": "application/json" },
+      body: JSON.stringify({ title: "Cider choice", creatorName: "Host", startTime: "2026-10-03T19:00:00.000Z",
+        context: selectedContext, stops: [asBackup
+          ? { venueId: "venue-a", venueName: "Untrusted submitted name", alternatives: [{ venueId, venueName: "Untrusted backup name", selectedDrinkPriceEvidence: hint }] }
+          : { venueId, venueName: "Untrusted submitted name", selectedDrinkPriceEvidence: hint }] }),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(201);
+    return body;
+  }
+
+  it("corroborates actual Plough named-eight tuple at save and member reload, preserving unknown serving", async () => {
+    const created = await save();
+    expect(created.plan.stops[0]).toMatchObject({ venueId: "venue-13xdb1p", venueName: "The Plough", selectedDrinkPriceEvidence: evidence });
+    expect(created.plan.context).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: null });
+    const reloaded = await GET(new Request(`http://localhost/api/plans/${created.plan.plan.id}`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(reloaded.status).toBe(200);
+    const member = await reloaded.json();
+    expect(member.stops[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    expect(member.context).toMatchObject({ drinkSubtype: "beer-cider", drinkServing: null });
+    expect(JSON.stringify(buildPlanPrivacyPreview(member))).not.toContain(evidence.sourceUrl);
+    expect(categoryIndexMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["forged amount", { ...evidence, pence: 100 }, "venue-13xdb1p"],
+    ["forged source", { ...evidence, sourceUrl: "https://other.example/menu" }, "venue-13xdb1p"],
+    ["forged observation", { ...evidence, observedAt: "2026-09-22T18:27:31.674Z" }, "venue-13xdb1p"],
+    ["other printed cider", { ...evidence, drinkLabel: "Thatchers cider" }, "venue-13xdb1p"],
+    ["same tuple on sibling pub", evidence, "venue-b"],
+  ] as const)("never saves %s as this venue's own quote", async (_label, hint, venueId) => {
+    const created = await save(hint, context, venueId);
+    expect(created.plan.stops[0]).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(created.plan.context).toHaveProperty("drinkSubtype", "beer-cider");
+  });
+
+  it("keeps requested Cider after current quote becomes unavailable without saving a stale hint", async () => {
+    listedBundleFixture.rows = [];
+    listedBundleFixture.status = "unavailable";
+    const created = await save();
+    expect(created.plan.stops[0]).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(created.plan.context).toHaveProperty("drinkSubtype", "beer-cider");
+  });
+
+  it("does not reinterpret the unknown source serving as a requested pint", async () => {
+    const created = await save(evidence, { ...context, drinkServing: "pint" });
+    expect(created.plan.stops[0]).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(created.plan.context).toMatchObject({ drinkSubtype: "beer-cider", drinkServing: "pint" });
+  });
+
+  it.each([
+    { drinkCategory: "beer", drinkSubtype: null, drinkServing: null, zeroProof: false },
+    { drinkCategory: "beer", drinkSubtype: "beer-lager", drinkServing: null, zeroProof: false },
+    { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "pint", zeroProof: false },
+    { drinkCategory: null, drinkSubtype: null, drinkServing: null, zeroProof: true },
+  ])("clears saved primary quote when current choice changes to %j", async (change) => {
+    const created = await save();
+    expect(created.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    const response = await PATCH(new Request(`http://localhost/api/plans/${created.plan.plan.id}`, {
+      method: "PATCH", headers: { authorization: `Bearer ${created.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ context: { ...created.plan.context, ...change } }),
+    }), { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(response.status).toBe(200);
+    const saved = await memoryPlanStore.get(created.plan.plan.id);
+    expect(saved?.stops[0]).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(saved?.context).toMatchObject({ zeroProof: change.zeroProof });
+  });
+
+
+  it("clears an actually saved own Cider backup after a same-category generic Beer edit", async () => {
+    const created = await save(evidence, context, "venue-13xdb1p", true);
+    expect(created.plan.stops[0]?.alternatives?.[0]).toMatchObject({ venueId: "venue-13xdb1p", selectedDrinkPriceEvidence: evidence });
+    const response = await PATCH(new Request(`http://localhost/api/plans/${created.plan.plan.id}`, {
+      method: "PATCH", headers: { authorization: `Bearer ${created.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ context: { ...created.plan.context, drinkCategory: "beer", drinkSubtype: null, drinkServing: null, zeroProof: false } }),
+    }), { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(response.status).toBe(200);
+    const saved = await memoryPlanStore.get(created.plan.plan.id);
+    expect(saved?.stops[0]?.alternatives?.[0]).toMatchObject({ venueId: "venue-13xdb1p" });
+    expect(saved?.stops[0]?.alternatives?.[0]).not.toHaveProperty("selectedDrinkPriceEvidence");
+  });
+
+
+  it("keeps Cider request when a controlled expired copy of its own published row cannot corroborate a stale hint", async () => {
+    const expiredAt = "2025-09-21T18:27:31.674Z";
+    // Controlled freshness negative derived from the exact captured row; not a new published observation.
+    listedBundleFixture.rows = [{ venueId: "venue-13xdb1p", name: "The Plough", category: "beer",
+      priceGbp: 3.65, drinkLabel: "Aspall 4.5%", sourceUrl: evidence.sourceUrl, observedAt: expiredAt,
+      lane: "site-harvest", standing: "listed", publisher: "theploughstjohnshill.co.uk", basis: null, sampleSize: null }];
+    const created = await save({ ...evidence, observedAt: expiredAt });
+    expect(created.plan.stops[0]).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(created.plan.context).toHaveProperty("drinkSubtype", "beer-cider");
+  });
+});

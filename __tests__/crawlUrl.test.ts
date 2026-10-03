@@ -409,3 +409,47 @@ describe("public route drink intent", () => {
       .not.toMatch(/routeDrink|routeLow/);
   });
 });
+
+
+describe("Cider saved route public refinements", () => {
+  it.each([null, "pint", "500ml"])("restores Cider route with selected measure %s", (drinkServing) => {
+    const intent = { drinkCategory: "beer" as const, zeroProof: false, drinkSubtype: "beer-cider", drinkServing };
+    const href = buildCrawlMapHref(["venue-13xdb1p", "venue-companion"], intent);
+    expect(href).not.toBeNull();
+    const search = href!.split("?")[1]!;
+    expect(routeDrinkIntentFromSearch(search)).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", zeroProof: false });
+    expect(new URLSearchParams(search).get("routeDrink")).toBe("beer");
+    expect(new URLSearchParams(search).get("routeSub")).toBe("beer-cider");
+    expect(new URLSearchParams(search).get("routeServing")).toBe(drinkServing);
+    expect(decodeCrawl(new URLSearchParams(search))).toHaveProperty("routeDrinkIntent", expect.objectContaining({ drinkSubtype: "beer-cider" }));
+    expect(seedCrawlState(`?${search}`).routeDrinkIntent).toHaveProperty("drinkSubtype", "beer-cider");
+    for (const privateKey of ["pence", "sourceUrl", "observedAt", "drinkLabel", "nightArea", "memberToken", "lat", "lng"]) {
+      expect(new URLSearchParams(search).has(privateKey)).toBe(false);
+    }
+  });
+
+  it("never encodes borrowed price or private context carried beside public request", () => {
+    const overloaded = { drinkCategory: "beer" as const, zeroProof: false, drinkSubtype: "beer-cider", drinkServing: null,
+      pence: 365, sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", observedAt: "2026-09-21T18:27:31.674Z",
+      drinkLabel: "Aspall 4.5%", nightArea: "clapham", memberToken: "private-capability-canary", lat: 51.4615, lng: -0.173227 };
+    const href = buildCrawlMapHref(["venue-13xdb1p", "venue-companion"], overloaded)!;
+    expect(routeDrinkIntentFromSearch(href.split("?")[1]!)).toHaveProperty("drinkSubtype", "beer-cider");
+    for (const value of ["365", "theploughstjohnshill", "Aspall", "clapham", "private-capability-canary", "51.4615", "-0.173227"]) {
+      expect(href).not.toContain(value);
+    }
+  });
+
+  it.each([
+    "pubs=a,b&routeDrink=wine&routeSub=beer-cider",
+    "pubs=a,b&routeDrink=beer&routeSub=beer-not-real",
+    "pubs=a,b&routeDrink=beer&routeSub=beer-cider&routeServing=large-bottle",
+    "routeDrink=beer&routeSub=beer-cider",
+  ])("does not restore malformed Cider route request %s", (search) => {
+    expect(routeDrinkIntentFromSearch(search) ?? {}).not.toHaveProperty("drinkSubtype", "beer-cider");
+  });
+
+  it("keeps generic Beer route on existing omitted-intent path", () => {
+    expect(routeDrinkIntentFromSearch("pubs=a,b&routeDrink=beer")).toBeNull();
+    expect(buildCrawlMapHref(["a", "b"], { drinkCategory: "beer", zeroProof: false })).not.toContain("routeDrink");
+  });
+});

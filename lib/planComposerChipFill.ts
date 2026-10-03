@@ -1,4 +1,4 @@
-import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
+import { inferNightContext, mergeNightContext, type NightContext } from "@/lib/nightPlanning";
 import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
 import { applyTemplate } from "@/lib/planComposerHandoff";
 import {
@@ -108,7 +108,7 @@ export function mergeInferredNightContext(
   inferred: NightContext,
   explicit: Partial<NightContext>,
 ): NightContext {
-  return { ...inferred, ...explicit };
+  return mergeNightContext(inferred, explicit);
 }
 
 export function mergeSubmittedNightContext(

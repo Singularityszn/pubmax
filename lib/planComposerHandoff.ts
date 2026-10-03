@@ -1,3 +1,4 @@
+import type { PublicDrinkRequest } from "@/lib/nightPlanning";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
   arbitratePlanDrafts,
@@ -76,6 +77,7 @@ export type ComposerHydration = {
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
     expiresAt: string | null;
+    drinkRequest?: PublicDrinkRequest;
     selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   } | null;
   area: PlanningIntentArea;
@@ -145,6 +147,8 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
         startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
           ? input.planningIntent.startsAt
           : result.startsAt.value,
+        ...(result.acceptedVenueId.source === "planning-intent" && input.planningIntent?.drinkRequest
+          ? { drinkRequest: input.planningIntent.drinkRequest } : {}),
         ...(result.acceptedVenueId.source === "planning-intent" && input.planningIntent?.selectedDrinkPriceEvidence
           ? { selectedDrinkPriceEvidence: input.planningIntent.selectedDrinkPriceEvidence } : {}),
         expiresAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent

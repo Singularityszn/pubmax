@@ -8,7 +8,7 @@ import type { NightAreaSlug } from "@/lib/nightAreas";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
-import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, selectedDrinkPriceEvidenceMatchesContext, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 import type { RouteDrinkIntent } from "@/lib/crawlUrl";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
@@ -16,7 +16,7 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 export type GeneratedMapRoutePricing = {
   /** Only explicit shared/restored intent rereads current public price authority. */
   readCurrentQuotes?: boolean;
-  context: Pick<GeneratedMobilePlan["context"], "drinkCategory" | "zeroProof">;
+  context: Pick<GeneratedMobilePlan["context"], "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">;
   budget: GeneratedMobilePlan["budget"] | null;
   venueIds: readonly string[];
   quotes: ReadonlyMap<string, SelectedDrinkPriceEvidence>;
@@ -79,12 +79,13 @@ export function useMapPlanCoordinator(initial: InitialPlanState) {
     const quotes = new Map<string, SelectedDrinkPriceEvidence>();
     for (const stop of generated?.stops ?? []) {
       const quote = cleanSelectedDrinkPriceEvidence(stop.selectedDrinkPriceEvidence);
-      if (quote && !generated?.context.zeroProof && quote.category === generated?.context.drinkCategory) {
+      if (quote && selectedDrinkPriceEvidenceMatchesContext(quote, generated?.context)) {
         quotes.set(stop.venueId, quote);
       }
     }
     setGeneratedPricing(generated ? {
-      context: { drinkCategory: generated.context.drinkCategory, zeroProof: generated.context.zeroProof },
+      context: { drinkCategory: generated.context.drinkCategory, drinkSubtype: generated.context.drinkSubtype,
+        drinkServing: generated.context.drinkServing, zeroProof: generated.context.zeroProof },
       budget: { ...generated.budget }, venueIds: [...venueIds], quotes,
     } : null);
   }, []);

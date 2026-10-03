@@ -44,7 +44,7 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, mergeNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
@@ -488,6 +488,8 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.budgetLimitPence !== after.budgetLimitPence
     || before.zeroProof !== after.zeroProof
     || before.drinkCategory !== after.drinkCategory
+    || before.drinkSubtype !== after.drinkSubtype
+    || before.drinkServing !== after.drinkServing
     || before.wetherspoonsPreferred !== after.wetherspoonsPreferred
     || normalizePlanStopCount(before.stopCount) !== normalizePlanStopCount(after.stopCount)
     || !sameList(before.atmosphere, after.atmosphere)
@@ -1318,8 +1320,11 @@ function PlanComposerForm({
         : undefined);
     return {
       ...(isPlanStopCount(recoveredCount) ? { stopCount: recoveredCount } : {}),
-      ...(!routeDraftFields.nightContext && handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
-        ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {}),
+      ...(!routeDraftFields.nightContext
+        ? handoff?.acceptedAnchor?.drinkRequest
+          ?? (handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
+            ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {})
+        : {}),
     };
   });
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
@@ -1774,7 +1779,7 @@ function PlanComposerForm({
 
   function updateNightContext(patch: Partial<NightContext>) {
     if (!nightContext) return;
-    const next = { ...nightContext, ...patch };
+    const next = mergeNightContext(nightContext, patch);
     if (nightContextChanged(nightContext, next)) {
       generationDraftRevisionRef.current += 1;
       setRouteStale(true);
@@ -1785,7 +1790,7 @@ function PlanComposerForm({
       : applyPlanStopCount(planIntake, next, next.stopCount);
     setNightContext(reconciled.context);
     setPlanIntake(reconciled.draft);
-    setExplicitNightContext((current) => ({ ...current, ...patch }));
+    setExplicitNightContext((current) => mergeNightContext(current, patch));
     if (!user) writeDeviceNightContext(reconciled.context ?? next);
   }
 
@@ -1815,16 +1820,22 @@ function PlanComposerForm({
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
-    const supersedesDrinkChoice = newQuerySupersedesDrinkChoice(lastGeneratedQueryRef.current, query);
+    const previousDrinkQuery = lastGeneratedQueryRef.current
+      ?? (handoff?.acceptedAnchor?.drinkRequest ? "" : null);
+    const supersedesDrinkChoice = newQuerySupersedesDrinkChoice(previousDrinkQuery, query);
     const explicitContextBase = explicitContextOverride
-      ? { ...explicitNightContext, ...explicitContextOverride }
+      ? mergeNightContext(explicitNightContext, explicitContextOverride)
       : { ...explicitNightContext };
     if (supersedesDrinkChoice) {
       delete explicitContextBase.drinkCategory;
+      delete explicitContextBase.drinkSubtype;
+      delete explicitContextBase.drinkServing;
       delete explicitContextBase.zeroProof;
       setExplicitNightContext((current) => {
         const next = { ...current };
         delete next.drinkCategory;
+        delete next.drinkSubtype;
+        delete next.drinkServing;
         delete next.zeroProof;
         return next;
       });
@@ -1898,6 +1909,8 @@ function PlanComposerForm({
         // Earlier context and an accepted quote can both carry the old drink.
         // Keep the venue and other constraints; the server reads the new query.
         delete requestBody.context?.drinkCategory;
+        delete requestBody.context?.drinkSubtype;
+        delete requestBody.context?.drinkServing;
         delete requestBody.context?.zeroProof;
         delete requestBody.anchor?.selectedDrinkPriceEvidence;
       }

@@ -35,7 +35,9 @@ import { useRoutePois } from "@/components/map/route/useRoutePois";
 import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
 import "@/components/map/routePanel.css";
 import type { GeneratedMapRoutePricing } from "@/components/map/pubmap/useMapPlanCoordinator";
-import { categoryLabel, isMapLensDrinkCategory } from "@/lib/drinks";
+import { categoryLabel } from "@/lib/drinks";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 
 type VenueSignals = Map<
   string,
@@ -91,9 +93,10 @@ type RoutePanelProps = {
 /** Generated totals and quotes belong to the exact stop set, even after a reverse. */
 function generatedRoutePricePresentation(route: readonly Venue[], pricing: GeneratedMapRoutePricing | null) {
   if (!pricing) return null;
-  const nonPint = pricing.context.zeroProof
-    || Boolean(pricing.context.drinkCategory && pricing.context.drinkCategory !== "beer");
+  const nonPint = !planUsesPintPrices(pricing.context);
+  const subtype = parseDrinkSubtypeParam(pricing.context.drinkSubtype, pricing.context.drinkCategory);
   const drinkLabel = pricing.context.zeroProof ? "Alcohol-free"
+    : subtype?.id === "beer-cider" ? subtype.longLabel
     : pricing.context.drinkCategory && pricing.context.drinkCategory !== "beer"
       ? categoryLabel(pricing.context.drinkCategory) : null;
   const matches = new Set(pricing.venueIds).size === route.length
@@ -102,12 +105,7 @@ function generatedRoutePricePresentation(route: readonly Venue[], pricing: Gener
     && route.every((venue) => pricing.venueIds.includes(venue.id));
   // Public drink choice follows the active generated context after a stop edit.
   // Quotes and totals still belong only to their exact original stop set.
-  const routeDrinkIntent = pricing.context.zeroProof
-    ? { zeroProof: true }
-    : isMapLensDrinkCategory(pricing.context.drinkCategory)
-        && pricing.context.drinkCategory !== "beer"
-      ? { drinkCategory: pricing.context.drinkCategory, zeroProof: false }
-      : null;
+  const routeDrinkIntent = pricing.context;
   const pence = matches ? pricing.budget?.estimatedPerPersonPence : null;
   const roundTotal = !nonPint && typeof pence === "number" && Number.isSafeInteger(pence) && pence >= 0
     ? pence / 100 : null;
