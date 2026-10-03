@@ -215,6 +215,12 @@ async function main() {
   };
   writeFileSync(outPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(`Wrote ${outPath}`);
+  if (closed.length) {
+    console.log(
+      `Next: add ${closed.map((c) => c.id).join(", ")} to data/famous_venues/removed.json`,
+    );
+  }
+  console.log("Next: run npm run refresh:slim, then commit the slim");
   if (unverified.length) {
     console.error(`Still withheld: ${unverified.map((c) => c.id).join(", ")}`);
     process.exit(1);

@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
+import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   THEME_STORAGE_KEY,
   resolveThemePreference,
@@ -13,8 +14,7 @@ import {
 type Theme = ThemePreference;
 
 function storedTheme(): Theme | null {
-  if (typeof localStorage === "undefined") return null;
-  return storedThemePreference(localStorage);
+  return storedThemePreference(safeLocalStorage());
 }
 
 function domTheme(): Theme {
@@ -66,7 +66,11 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
   function toggle() {
     const next: Theme = domTheme() === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    localStorage.setItem(THEME_STORAGE_KEY, next);
+    try {
+      safeLocalStorage()?.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // Site data blocked: the attribute still flips for this view.
+    }
   }
 
   return (

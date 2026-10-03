@@ -20,6 +20,7 @@ import {
 } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
+import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { reconcilePriceTrustForObservation } from "@/lib/priceTrustImpact.server";
 
 export type OneTapPintDropInput = Readonly<{
@@ -238,6 +239,7 @@ export async function writeOneTapPintDrop(
       return { ok: true, drop: duplicate };
     }
     const drop = await store.create(built, photos);
+    signalPintDropLanded();
     void ensureProfileForHandle(handle);
     return { ok: true, drop };
   } catch (err) {

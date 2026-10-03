@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { isUkBaseVenueId } from "@/lib/wanted";
 import type { Venue } from "@/lib/venues";
 
@@ -61,8 +62,7 @@ export function usePresence(venue: Venue) {
     const requestUserId = user?.id ?? null;
     const requestAccountRevision = accountRevision;
     const requestAccountSignal = readProviderAccountSignal();
-    const handle =
-      typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? "").trim();
+    const handle = (safeLocalStorage()?.getItem("pubmax_handle") ?? "").trim();
     if (!handle) {
       setPresenceState("no-handle");
       return;

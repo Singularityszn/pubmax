@@ -8,6 +8,9 @@
 // visibility is `anonymous`, and `friends`/`legacy` rows that #29's server-side
 // filter would withhold from this viewer entirely. Rendering straight from the
 // payload would BYPASS every visibility/anonymity guarantee shipped in #29.
+// Migration 0171 therefore does not subscribe to the table at all. The server
+// posts a payload-free private Broadcast (lib/pintDropsBroadcast.server.ts) and
+// this module listens for that signal only.
 //
 // Therefore this module treats every realtime event as a bare SIGNAL: "something
 // changed, go refetch." The `onDrop` / `onComment` callbacks receive NOTHING
@@ -31,7 +34,7 @@
 // (lib/supabase.ts) must NEVER be used for subscriptions.
 
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
-import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
+import { PINT_DROPS_LIVE_EVENT, PINT_DROPS_LIVE_TOPIC } from "@/lib/pintDropsTopics";
 
 // ── "X spilling right now" — a pure counter ──────────────────────────────────
 // The strip's number is derived, NOT streamed: count the drops created in the
@@ -106,17 +109,17 @@ function subscribeByPolling(
   return () => clearInterval(id);
 }
 
-// Core subscription primitive. Opens ONE channel bound to a single INSERT event
-// on `table` (optionally row-filtered), and:
+// Core subscription primitive. Opens ONE private broadcast channel on the
+// Pint Drop topic, and:
 //   1. arms a join watchdog — if the channel isn't SUBSCRIBED within
 //      JOIN_TIMEOUT_MS, tears it down and starts polling;
 //   2. on CHANNEL_ERROR/TIMED_OUT/CLOSED, likewise falls back to polling;
-//   3. on every INSERT, fires `onSignal()` — NEVER passing the payload.
+//   3. on every broadcast, fires `onSignal()` — NEVER passing the payload.
 // Returns an Unsubscribe that removes the channel and clears every timer.
-function subscribeInsert(
-  channelName: string,
-  table: string,
-  filter: string | undefined,
+// `private: true` must match the server (migration 0171). A public channel
+// would authorise on the anon key alone, and a channel opened public here
+// would hear nothing from a private send.
+function subscribePintDropSignal(
   onSignal: LiveSignal,
   options: SubscribeOptions | undefined,
 ): Unsubscribe {
@@ -172,16 +175,14 @@ function subscribeInsert(
   }
 
   try {
-    channel = supabase.channel(channelName);
+    channel = supabase.channel(PINT_DROPS_LIVE_TOPIC, { config: { private: true } });
     channel.on(
-      // supabase-js overloads `.on('postgres_changes', ...)` with a string
-      // literal the base types don't model; cast keeps this helper self-contained.
-      "postgres_changes" as never,
-      filter
-        ? { event: "INSERT", schema: "public", table, filter }
-        : { event: "INSERT", schema: "public", table },
+      // supabase-js overloads `.on('broadcast', ...)` with a string literal the
+      // base types don't model; cast keeps this helper self-contained.
+      "broadcast" as never,
+      { event: PINT_DROPS_LIVE_EVENT } as never,
       () => {
-        // SIGNAL ONLY. We deliberately ignore the payload row — see the header.
+        // SIGNAL ONLY. We deliberately ignore the payload — see the header.
         if (!disposed) onSignal();
       },
     );
@@ -235,17 +236,17 @@ function subscribeInsert(
  * row is never surfaced. Falls back to `options.poll` on a 30s interval if the
  * channel can't join or drops. Returns a safe Unsubscribe.
  *
- * NOTE: Pint Drops are stored in `pint_drops` - that table must be in the
- * `supabase_realtime` publication for INSERT events to fire (see 0013 header).
- * Deny-all RLS may also block INSERT
- * events for the publishable-key client; polling via `options.poll` is the
- * intentional fallback — do not re-open public SELECT to "fix" realtime.
+ * NOTE: Pint Drops are stored in `pint_drops`, which migration 0171 takes OUT
+ * of the `supabase_realtime` publication and closes to browser SELECT. Do not
+ * put the table back, and do not re-open SELECT, to "fix" realtime. The nudge
+ * is the private broadcast above. Polling via `options.poll` is the fallback
+ * when the channel cannot join, including for a browser with no session.
  */
 export function subscribeToNewDrops(
   onDrop: LiveSignal,
   options?: SubscribeOptions,
 ): Unsubscribe {
-  return subscribeInsert("live:pint-drops", PINT_DROPS_TABLE, undefined, onDrop, options);
+  return subscribePintDropSignal(onDrop, options);
 }
 
 /**

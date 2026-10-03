@@ -152,6 +152,9 @@ const ALICE_MOMENT = "d1000000-0000-4000-8000-000000000006";
 const ALICE_MOMENT_OBJECT = `night-moments/${ALICE}/${ALICE_MEMORY}/venue.jpg`;
 const HIDDEN_DROP = "e0000000-0000-4000-8000-000000000007";
 const HIDDEN_PRICE = "e1000000-0000-4000-8000-000000000008";
+const ANON_DROP = "e2000000-0000-4000-8000-000000000009";
+const VISIBLE_PRICE = "e3000000-0000-4000-8000-00000000000a";
+const VISIT_REPORT = "e4000000-0000-4000-8000-00000000000b";
 const MODERATOR_TOKEN = "pm-moderator-token-for-this-process-only";
 const ROUTE = [
   { venueId: "venue-1f5ygjb" },
@@ -164,6 +167,8 @@ const PRICE_VENUE = "venue-xjf3n0";
 const SECOND_PRICE_VENUE = "venue-1f5ygjb";
 /** A third pub only A reports at, so the drop the moderator cell confirms is unconfirmed by construction. */
 const MODERATOR_VENUE = "venue-3h52h";
+/** The table-door rows live alone, so no price lane counts the seeded anonymous drop as a second reporter. */
+const DOOR_VENUE = "venue-door-0171";
 
 type Session = {
   sqlFile(path: string): void;
@@ -533,6 +538,22 @@ beforeAll(async () => {
       values ('${HIDDEN_DROP}', '${PRICE_VENUE}', 'alicepm', 3.10, 'hidden', 'public');
     insert into public.community_prices (id, venue_id, drink_category, price_pennies, actor, contributor_handle, hidden_at)
       values ('${HIDDEN_PRICE}', '${PRICE_VENUE}', 'beer', 310, 'profile:${ALICE_PROFILE}', 'alicepm', now());
+    insert into public.pint_drops (
+      id, venue_id, handle, price_gbp, status, visibility, moderator_note, report_reason, receipt_photo_key
+    ) values (
+      '${ANON_DROP}', '${DOOR_VENUE}', 'secret_author', 4.20, 'visible', 'anonymous',
+      'staff-only-note', 'reported-in-private', 'receipts/secret_author/bill.jpg'
+    );
+    insert into public.community_prices (
+      id, venue_id, drink_category, price_pennies, actor, contributor_handle
+    ) values (
+      '${VISIBLE_PRICE}', '${DOOR_VENUE}', 'wine', 450, 'profile:${BOB_PROFILE}', 'secret_author'
+    );
+    insert into public.structured_visit_reports (
+      id, venue_id, handle, visited_at, note, status, moderator_note
+    ) values (
+      '${VISIT_REPORT}', '${DOOR_VENUE}', 'secret_author', '2026-09-01', 'how the night felt', 'visible', 'staff-only-note'
+    );
   `);
   if (!seeded.ok) throw new Error(`Could not seed the permission matrix: ${seeded.err}`);
 }, 180_000);
@@ -1336,16 +1357,51 @@ describe("price observation and its confirmation", () => {
     }
   });
 
-  it("at the table: hidden rows and the actor column stay out of every browser read", async () => {
-    const drops = await requireSession().rest(`/pint_drops?select=id&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });
-    expect(drops.status).toBe(200);
-    expect((drops.body as Array<{ id: string }>).map((row) => row.id)).not.toContain(HIDDEN_DROP);
-    const anonymousDrops = await requireSession().rest(`/pint_drops?select=id&venue_id=eq.${PRICE_VENUE}`);
-    expect(anonymousDrops.status === 200 ? anonymousDrops.body : []).toEqual([]);
+  it("at the table: a browser cannot read a Pint Drop, a visit report, or a contributor handle", async () => {
+    expect(truth(`select handle from public.pint_drops where id = '${ANON_DROP}'`)).toBe("secret_author");
 
-    const prices = await requireSession().rest(`/community_prices?select=id&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });
+    const drops = await requireSession().rest(
+      `/pint_drops?select=handle,moderator_note,receipt_photo_key&id=eq.${ANON_DROP}`,
+      { sub: BOB },
+    );
+    expect(drops.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(drops.body)).not.toContain("secret_author");
+    expect(JSON.stringify(drops.body)).not.toContain("staff-only-note");
+    const anonymousDrops = await requireSession().rest(`/pint_drops?select=handle&id=eq.${ANON_DROP}`);
+    expect(anonymousDrops.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(anonymousDrops.body)).not.toContain("secret_author");
+
+    const tableRead = attemptAsRole(
+      "authenticated",
+      BOB,
+      `select handle from public.pint_drops where id = '${ANON_DROP}'`,
+    );
+    expect(tableRead.ok, tableRead.err).toBe(false);
+    expect(tableRead.err).toMatch(/permission denied/i);
+
+    const reports = await requireSession().rest(
+      `/structured_visit_reports?select=handle,moderator_note&id=eq.${VISIT_REPORT}`,
+      { sub: BOB },
+    );
+    expect(reports.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(reports.body)).not.toContain("secret_author");
+    expect(JSON.stringify(reports.body)).not.toContain("staff-only-note");
+
+    const contributor = await requireSession().rest(
+      `/community_prices?select=contributor_handle&id=eq.${VISIBLE_PRICE}`,
+      { sub: BOB },
+    );
+    expect(contributor.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(contributor.body)).not.toContain("secret_author");
+
+    const prices = await requireSession().rest(
+      `/community_prices?select=id,price_pennies&venue_id=in.(${PRICE_VENUE},${DOOR_VENUE})`,
+      { sub: BOB },
+    );
     expect(prices.status).toBe(200);
-    expect((prices.body as Array<{ id: string }>).map((row) => row.id)).not.toContain(HIDDEN_PRICE);
+    const priceRows = prices.body as Array<{ id: string; price_pennies: number }>;
+    expect(priceRows.map((row) => row.id)).not.toContain(HIDDEN_PRICE);
+    expect(priceRows).toContainEqual({ id: VISIBLE_PRICE, price_pennies: 450 });
     const actorColumn = await requireSession().rest(`/community_prices?select=actor&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });
     expect(actorColumn.status).toBeGreaterThanOrEqual(400);
     const hiddenColumn = await requireSession().rest(`/community_prices?select=hidden_at&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });

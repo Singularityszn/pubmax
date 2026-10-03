@@ -22,6 +22,7 @@ import {
   missionAnalyticsProps,
   type PriceEvidenceMission,
 } from "@/lib/priceEvidenceMissions";
+import { safeSessionStorage } from "@/lib/safeStorage";
 
 type PriceEvidenceMissionView =
   | { status: "idle" }
@@ -45,7 +46,7 @@ export function usePriceEvidenceMission(input: {
   useEffect(() => {
     // Session storage is the only owner of skip state across this tab.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDismissed(readDismissedMissions(window.sessionStorage));
+    setDismissed(readDismissedMissions(safeSessionStorage()));
   }, []);
   const requestIds = useMemo(() => {
     const skipped = dismissedVenueIds(dismissed);
@@ -117,7 +118,7 @@ export function usePriceEvidenceMission(input: {
     (current: PriceEvidenceMission) => {
       const next = dismissPriceEvidenceMission(
         current,
-        typeof window === "undefined" ? null : window.sessionStorage,
+        safeSessionStorage(),
       );
       setDismissed(next);
       trackEvent(
@@ -137,7 +138,7 @@ export function usePriceEvidenceMission(input: {
     setDismissed(
       completePriceEvidenceMission(
         current,
-        typeof window === "undefined" ? null : window.sessionStorage,
+        safeSessionStorage(),
       ),
     );
   }, []);

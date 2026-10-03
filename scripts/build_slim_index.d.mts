@@ -33,6 +33,21 @@ export function assertCurrentFamousVenueRows<
   },
 >(rows: T[], now: Date | number): T[];
 
+export function famousRowsForRebuild<
+  T extends {
+    id: string;
+    observedAt: string;
+    expiresAt: string;
+  },
+>(
+  seedRows: T[],
+  options: {
+    lastSlim: { generatedAt?: unknown; rows?: unknown } | null;
+    removedIds: readonly string[];
+    refreshAt: Date | null;
+  },
+): { builtAt: Date; rows: T[] };
+
 export function typeRelativePriceBands<
   T extends {
     id: string;

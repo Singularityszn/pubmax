@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { toggleSaveDurable } from "@/lib/savedPubs";
 import {
   eligibleBuiltInListTypes,
@@ -24,8 +25,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 const HANDLE_KEY = "pubmax_handle";
 
 function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim();
+  return (safeLocalStorage()?.getItem(HANDLE_KEY) ?? "").trim();
 }
 
 export default function SaveToListControl({
