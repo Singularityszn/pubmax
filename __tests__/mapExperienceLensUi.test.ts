@@ -55,7 +55,7 @@ describe("MapExperienceLens", () => {
     // report on, so it uses their helper rather than a fifth sentence that
     // could settle a partial or unread index as "none logged".
     expect(pubMap).toMatch(
-      /selectedLensPrice\?\.categoryLabel \?\?\s*\n?\s*drinkLensUnknownRowLabel\(/,
+      /lensPriceCaption\(selectedLensPrice, [^)]*\) \?\?\s*\n?\s*drinkLensUnknownRowLabel\(/,
     );
     expect(pubMap).not.toContain("No price logged");
     expect(pubMap).toContain("experienceLens={experienceLens}");
