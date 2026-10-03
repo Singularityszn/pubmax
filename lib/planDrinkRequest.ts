@@ -144,8 +144,3 @@ export function planRequestedDrink(query: string): { category: DrinkCategory; su
   }
   return { category, subtype: subtypes.size === 1 ? [...subtypes][0] : null };
 }
-
-/** Compatibility category read uses the same masked, owned request clauses. */
-export function planRequestedDrinkCategory(query: string): DrinkCategory | null {
-  return planRequestedDrink(query)?.category ?? null;
-}
