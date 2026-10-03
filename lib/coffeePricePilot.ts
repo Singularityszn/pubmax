@@ -58,8 +58,8 @@ export function coffeePriceLabelExcluded(label: string | null | undefined): bool
   if (/\baffogato\b/.test(normalized)) return true;
   if (
     /\b(?:still|sparkling|bottled)\s+water\b/.test(normalized) ||
-    /\bwater\b/.test(normalized) &&
-      /\b(?:highland|spring|bottled|sparkling|still)\b/.test(normalized)
+    (/\bwater\b/.test(normalized) &&
+      /\b(?:highland|spring|bottled|sparkling|still)\b/.test(normalized))
   ) {
     return true;
   }
