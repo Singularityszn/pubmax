@@ -61,11 +61,14 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
  * the page is one coral call to action, and a second coral circle beside it
  * offers three unrelated compositions. `/pal/chat` keeps it.
  *
+ * The sign-in, sign-up and add-account surfaces share `/login`, where the
+ * floating control overlaps the form's terms link.
+ *
  * The 404 is the other page that hides it, and it cannot be named here: it
  * renders under whatever address was mistyped, so it carries the
  * `pageHidesCreateFab` marker class instead (createFab.css).
  */
-const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal"];
+const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal", "/login"];
 
 export function createFabVisible(pathname: string): boolean {
   return !CREATE_FAB_HIDDEN_PATHS.includes(pathname);
