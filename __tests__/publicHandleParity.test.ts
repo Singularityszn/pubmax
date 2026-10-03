@@ -47,7 +47,7 @@ import {
 } from "@/lib/accountPublicAccess.server";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
-import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile, profileStore } from "@/lib/profileStore";
 import {
   __resetMemorySavedListFollows,
   __resetMemorySavedLists,
@@ -70,8 +70,9 @@ async function answered(response: Response): Promise<{ status: number; body: unk
   return { status: response.status, body: await response.json() };
 }
 
-function profile(handle: string): Promise<Response> {
-  return getProfile(new Request(`http://localhost/api/profiles/${handle}`), {
+function profile(handle: string, viewer?: string): Promise<Response> {
+  const query = viewer ? `?viewer=${encodeURIComponent(viewer)}` : "";
+  return getProfile(new Request(`http://localhost/api/profiles/${handle}${query}`), {
     params: Promise.resolve({ handle }),
   });
 }
@@ -208,6 +209,20 @@ describe("public handle parity", () => {
     expect(await answered(await following(handle))).toEqual(await answered(await following(UNKNOWN)));
   });
 
+  it.each(["suspendedbob", "bannedbob"])(
+    "answers a %s viewer on a live profile like a viewer who never existed",
+    async (handle) => {
+      const unknown = await answered(await profile("alice", UNKNOWN));
+      const withdrawn = await answered(await profile("alice", handle));
+      const flags = (body: unknown) => {
+        const card = body as { viewerFollowing?: boolean; followsViewer?: boolean };
+        return { viewerFollowing: card.viewerFollowing, followsViewer: card.followsViewer };
+      };
+      expect(flags(unknown.body)).toEqual({ viewerFollowing: false, followsViewer: false });
+      expect(flags(withdrawn.body)).toEqual(flags(unknown.body));
+    },
+  );
+
   it("omits a banned or withdrawn mutual from a live lot", async () => {
     const body = (await (await lot("alice")).json()) as { lot: string[] };
     expect(body.lot).toEqual(["sam"]);
@@ -232,8 +247,10 @@ describe("public profile page parity", () => {
 });
 
 describe("handle claim parity", () => {
-  it("lets a stranger claim a handle nobody owns", async () => {
-    expect((await claimAnonymously(UNKNOWN)).status).toBe(200);
+  it("answers an anonymous write on a handle nobody owns with 404 and stores nothing", async () => {
+    const result = await answered(await claimAnonymously(UNKNOWN));
+    expect(result.status).toBe(404);
+    expect(await profileStore().getByHandle(UNKNOWN)).toBeNull();
   });
 
   it.each(["suspendedbob", "bannedbob"])(
