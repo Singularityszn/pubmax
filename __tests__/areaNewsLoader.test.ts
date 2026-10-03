@@ -17,6 +17,24 @@ const VALID_ENTRY = {
   observedAt: "2026-08-27",
 };
 
+const EXPIRING_ENTRY = {
+  ...VALID_ENTRY,
+  id: "area-news-expiring",
+  detail: "Golden Lion (Soho) pub opened in Soho on 11 September 2026.",
+  observedAt: "2026-09-15",
+};
+
+const CURRENT_ENTRY = {
+  ...VALID_ENTRY,
+  id: "area-news-current",
+  detail: "Golden Lion (Soho) pub opened in Soho on 1 October 2026.",
+  observedAt: "2026-10-01",
+};
+
+function dataset(entries: unknown[]) {
+  return JSON.stringify({ version: 1, generatedAt: "2026-10-01T00:00:00Z", entries });
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ now: Date.parse("2026-08-28T12:00:00Z") });
   __resetAreaNewsCache();
@@ -55,5 +73,52 @@ describe("area-news dataset loader", () => {
     }));
 
     await expect(loadAreaNews()).resolves.toMatchObject({ status: "unavailable" });
+  });
+
+  it("does not retain an unavailable semantic validation result after the dataset recovers", async () => {
+    readFile
+      .mockResolvedValueOnce(dataset([{
+        ...VALID_ENTRY,
+        title: "John Smith said the pub opened in Soho",
+        detail: "John Smith said the pub opened in Soho on 27 August 2026.",
+      }]))
+      .mockResolvedValueOnce(dataset([VALID_ENTRY]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "unavailable" });
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [VALID_ENTRY] });
+    expect(readFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps an exact event date through its 21-day boundary", async () => {
+    vi.setSystemTime(Date.parse("2026-10-02T12:00:00Z"));
+    readFile.mockResolvedValue(dataset([EXPIRING_ENTRY]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [EXPIRING_ENTRY] });
+    expect(readFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits an expired event without making the dataset unavailable", async () => {
+    vi.setSystemTime(Date.parse("2026-10-03T12:00:00Z"));
+    readFile.mockResolvedValue(dataset([EXPIRING_ENTRY]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [] });
+    expect(readFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("reprojects cached entries when an event expires", async () => {
+    vi.setSystemTime(Date.parse("2026-10-02T12:00:00Z"));
+    readFile.mockResolvedValue(dataset([EXPIRING_ENTRY]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [EXPIRING_ENTRY] });
+    vi.setSystemTime(Date.parse("2026-10-03T12:00:00Z"));
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [] });
+    expect(readFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps current facts when another valid fact has expired", async () => {
+    vi.setSystemTime(Date.parse("2026-10-03T12:00:00Z"));
+    readFile.mockResolvedValue(dataset([EXPIRING_ENTRY, CURRENT_ENTRY]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [CURRENT_ENTRY] });
   });
 });
