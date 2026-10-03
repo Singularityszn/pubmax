@@ -55,6 +55,10 @@ vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
 
 import LoginPage from "@/components/auth/LoginPage";
 
+// The skeleton only stands when a session hint says a card may be coming.
+// These tests are about that skeleton, so the hint is on.
+const hinted = { sessionHint: true };
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -100,7 +104,7 @@ describe("the sign-in skeleton's screen-reader line", () => {
     });
 
     await act(async () => {
-      root.render(createElement(LoginPage));
+      root.render(createElement(LoginPage, hinted));
     });
     observer.disconnect();
 
@@ -115,7 +119,7 @@ describe("the sign-in skeleton's screen-reader line", () => {
   // spoken however the text arrives. No ancestor of the region may be busy.
   it("keeps every aria-busy container off the live region's ancestry", () => {
     act(() => {
-      root.render(createElement(LoginPage));
+      root.render(createElement(LoginPage, hinted));
     });
 
     const region = statusRegion();
@@ -145,7 +149,7 @@ describe("the sign-in skeleton's screen-reader line", () => {
   // A live region an ancestor has hidden is not read either.
   it("keeps the live region out of every aria-hidden subtree", () => {
     act(() => {
-      root.render(createElement(LoginPage));
+      root.render(createElement(LoginPage, hinted));
     });
 
     const region = statusRegion();
@@ -160,13 +164,13 @@ describe("the sign-in skeleton's screen-reader line", () => {
 
   it("takes the whole region away once the session answers", () => {
     act(() => {
-      root.render(createElement(LoginPage));
+      root.render(createElement(LoginPage, hinted));
     });
     expect(statusRegion()).not.toBeNull();
 
     authState.loading = false;
     act(() => {
-      root.render(createElement(LoginPage));
+      root.render(createElement(LoginPage, hinted));
     });
 
     expect(statusRegion()).toBeNull();
