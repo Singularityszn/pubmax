@@ -1,5 +1,5 @@
 // Liverpool landmarks for the map's history layer — static, curated, sourced.
-// Same Landmark shape as London (lib/landmarks.ts); selected via landmarksForCity.
+// Same Landmark shape as London (lib/landmarks.ts); selected via landmarksForCityAsync.
 // Match-day landmarks are orientation / logistics POIs only — not tribal bait.
 
 import type { Landmark } from "@/lib/landmarks";
