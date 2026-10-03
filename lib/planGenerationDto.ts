@@ -79,7 +79,7 @@ function venueDistanceKm(left: PlanGenerationDtoVenue, right: PlanGenerationDtoV
 /**
  * Generic pint evidence cannot price a Cider, alcohol-free or other
  * selected-drink night. A stated per-person ceiling on such a night fails
- * closed (422, budgetEvidence) rather than borrowing a generic pint price.
+ * closed rather than borrowing a generic pint price.
  */
 export function planUsesPintPrices(
   context: Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">,
