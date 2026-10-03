@@ -167,7 +167,8 @@ function clockText(point: ClockPoint): string | null {
 /**
  * Turn Places `regularOpeningHours.periods` into weekly windows for the
  * in-memory comparison. A period we cannot read rejects the whole week.
- * Closed days Google omitted stay empty.
+ * Closed days Google omitted stay empty. Places writes always-open as one
+ * period opening Sunday 00:00 with no close.
  */
 export function weeklyHoursFromPlacesPeriods(periods: unknown): WeeklyOpeningHours | null {
   if (!Array.isArray(periods) || periods.length === 0) return null;
@@ -178,9 +179,13 @@ export function weeklyHoursFromPlacesPeriods(periods: unknown): WeeklyOpeningHou
     const record = period as { open?: unknown; close?: unknown };
     if (!isClockPoint(record.open)) return null;
     if (record.close === undefined) {
-      if (record.open.hour !== 0 || record.open.minute !== 0) return null;
-      hours[record.open.day] = [{ opens: "00:00", closes: "24:00" }];
-      continue;
+      const alwaysOpen = periods.length === 1
+        && record.open.day === 0
+        && record.open.hour === 0
+        && record.open.minute === 0;
+      if (!alwaysOpen) return null;
+      for (let day = 0; day < 7; day += 1) hours[day] = [{ opens: "00:00", closes: "24:00" }];
+      return hours;
     }
     if (!isClockPoint(record.close)) return null;
     const opens = clockText(record.open);

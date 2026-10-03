@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -152,6 +153,24 @@ describe("cafe hours are checked, never copied", () => {
     expect(hours?.[0]).toEqual([]);
   });
 
+  it("reads Google's always-open shape as open all seven days", () => {
+    const places = weeklyHoursFromPlacesPeriods([{ open: { day: 0, hour: 0, minute: 0 } }]);
+    for (let day = 0; day < 7; day += 1) {
+      expect(places?.[day]).toEqual([{ opens: "00:00", closes: "24:00" }]);
+    }
+    expect(osmHoursAgreeWithPlaces(parseOsmOpeningHours("24/7"), places as WeeklyOpeningHours)).toBe(true);
+  });
+
+  it("refuses an unclosed period that is not the always-open shape", () => {
+    expect(weeklyHoursFromPlacesPeriods([{ open: { day: 2, hour: 0, minute: 0 } }])).toBeNull();
+    expect(
+      weeklyHoursFromPlacesPeriods([
+        { open: { day: 0, hour: 0, minute: 0 } },
+        { open: { day: 1, hour: 8, minute: 0 }, close: { day: 1, hour: 17, minute: 0 } },
+      ]),
+    ).toBeNull();
+  });
+
   it("refuses a period that spans more than overnight", () => {
     expect(
       weeklyHoursFromPlacesPeriods([
@@ -232,6 +251,21 @@ describe("Shoreditch coffee box and spend cap", () => {
 });
 
 describe("committed Places verification files", () => {
+  it("keeps the resumable checkpoint and temp writes out of git", () => {
+    const ignored = execFileSync(
+      "git",
+      [
+        "check-ignore",
+        "--no-index",
+        "data/places_verification/progress.json",
+        "data/places_verification/progress.json.tmp",
+        "data/places_verification/london.json.tmp",
+      ],
+      { cwd: ROOT, encoding: "utf8" },
+    );
+    expect(ignored.trim().split("\n")).toHaveLength(3);
+  });
+
   it("stores our fields only", () => {
     for (const file of [
       "data/places_verification/london.json",
