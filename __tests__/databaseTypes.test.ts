@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+
 import { describe, expect, it } from "vitest";
 
 import { renderDatabaseTypes } from "@/scripts/db/renderDatabaseTypes.mjs";
@@ -172,5 +174,31 @@ describe("generated database types", () => {
     expect(rendered).toContain(
       "read_media: {\n        Args: {\n          p_post_id: string | null;\n        };\n        Returns: {\n          object_key: string;\n        }[];",
     );
+  });
+});
+
+describe("db:types:check without PostgreSQL 16", () => {
+  function check(env: Record<string, string>) {
+    return spawnSync(process.execPath, ["scripts/db/generate-database-types.mjs", "--check"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: { ...process.env, PUBMAX_RLS_ALLOW_SKIP: "", ...env },
+    });
+  }
+
+  it("fails loudly when the skip is not admitted", () => {
+    const result = check({ PUBMAX_RLS_NO_PG: "1" });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("DATABASE TYPES CHECK SKIPPED - THIS IS NOT A PASS");
+    expect(result.stdout).toContain("This run FAILS");
+  });
+
+  it("passes only when a host admits the skip on purpose", () => {
+    const result = check({ PUBMAX_RLS_NO_PG: "1", PUBMAX_RLS_ALLOW_SKIP: "1" });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("THIS IS NOT A PASS");
+    expect(result.stdout).toContain("admitted this skip");
   });
 });

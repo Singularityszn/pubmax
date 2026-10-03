@@ -169,13 +169,18 @@ async function startCluster() {
   }
 
   registerHarnessCluster(dataDir);
-  runPsql(psql, [
-    "-h", "127.0.0.1",
-    "-p", String(port),
-    "-U", "postgres",
-    "-d", "postgres",
-    "-c", "create database pubmax_types",
-  ]);
+  try {
+    runPsql(psql, [
+      "-h", "127.0.0.1",
+      "-p", String(port),
+      "-U", "postgres",
+      "-d", "postgres",
+      "-c", "create database pubmax_types",
+    ]);
+  } catch (error) {
+    stop();
+    throw error;
+  }
 
   return { psql, port, stop };
 }
@@ -215,12 +220,51 @@ export async function generateDatabaseTypes() {
   }
 }
 
+function box(line) {
+  return `║  ${line.padEnd(68)}║`;
+}
+
+function printLoudSkip(reason, admitted) {
+  const reasonLines = reason.split(/\s+/).reduce((lines, word) => {
+    const current = lines.at(-1) ?? "";
+    if (!current || `${current} ${word}`.length > 58) lines.push(word);
+    else lines[lines.length - 1] = `${current} ${word}`;
+    return lines;
+  }, []);
+  const lines = [
+    "",
+    "╔══════════════════════════════════════════════════════════════════════╗",
+    box("DATABASE TYPES CHECK SKIPPED - THIS IS NOT A PASS"),
+    "╠══════════════════════════════════════════════════════════════════════╣",
+    box("types/database.ts was NOT compared with the migrated schema."),
+    box("A green step with this banner still means drift was not checked."),
+    "╠══════════════════════════════════════════════════════════════════════╣",
+    ...reasonLines.map((line, index) => box(`${index === 0 ? "Reason: " : "        "}${line}`)),
+    "╠══════════════════════════════════════════════════════════════════════╣",
+    box("Provision PostgreSQL 16, then rerun locally."),
+    box(
+      admitted
+        ? "PUBMAX_RLS_ALLOW_SKIP=1 admitted this skip, so the exit code is 0."
+        : "This run FAILS. Set PUBMAX_RLS_ALLOW_SKIP=1 to admit the skip.",
+    ),
+    "╚══════════════════════════════════════════════════════════════════════╝",
+    "",
+  ];
+  process.stdout.write(lines.join("\n") + "\n");
+}
+
 async function main() {
   const check = process.argv.includes("--check");
   const missing = missingPostgresReason();
   if (missing) {
-    console.error(missing);
-    process.exitCode = 1;
+    if (!check) {
+      console.error(missing);
+      process.exitCode = 1;
+      return;
+    }
+    const admitted = process.env.PUBMAX_RLS_ALLOW_SKIP === "1";
+    printLoudSkip(missing, admitted);
+    process.exitCode = admitted ? 0 : 1;
     return;
   }
   const generated = await generateDatabaseTypes();
