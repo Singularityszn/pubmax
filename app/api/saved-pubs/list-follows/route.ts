@@ -120,6 +120,9 @@ export async function POST(request: Request): Promise<Response> {
     const following = unfollow
       ? !(await s.unfollowList(ownership.handle, owner, listType))
       : await s.followList(ownership.handle, owner, listType);
+    if (!unfollow && !following) {
+      return publicApiError("That account isn't here any more.", "PROFILE_NOT_FOUND", 404);
+    }
     const counts = await s.counts(owner, listType);
     return jsonNoStore({ following, counts }, { status: 200 });
   } catch {

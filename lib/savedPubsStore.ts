@@ -650,7 +650,7 @@ type FollowedSavedListDTO = {
 };
 
 export type SavedListFollowsStore = {
-  /** Follow another handle's named list (idempotent). False for invalid/self follows. */
+  /** Follow another handle's named list (idempotent). False for invalid/self follows and for an owner nobody can follow. */
   followList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
   /** Remove a followed-list edge (idempotent). */
   unfollowList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
@@ -730,7 +730,7 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
     if (!follower || !owner || !listType || isSelfListFollow(follower, owner)) return false;
 
     const followerId = await profileIdForHandle(supabaseProfileStore, follower, true);
-    const ownerId = await profileIdForHandle(supabaseProfileStore, owner, true);
+    const ownerId = await profileIdForHandle(supabaseProfileStore, owner, false);
     if (!followerId || !ownerId) return false;
 
     const { error } = await admin().from(LIST_FOLLOWS_TABLE).insert({
@@ -943,7 +943,10 @@ function withoutWithdrawnListFollows(
   ownHandle?: string,
 ): SavedListFollowsStore {
   return {
-    followList: (follower, owner, listType) => store.followList(follower, owner, listType),
+    async followList(follower, owner, listType) {
+      if (await isWithdrawnHandle(owner, ownHandle)) return false;
+      return store.followList(follower, owner, listType);
+    },
     unfollowList: (follower, owner, listType) => store.unfollowList(follower, owner, listType),
     async isFollowingList(follower, owner, listType) {
       if (

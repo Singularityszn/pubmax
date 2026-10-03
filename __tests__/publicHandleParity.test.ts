@@ -135,8 +135,6 @@ beforeEach(async () => {
   const banned = __seedMemoryOwnedProfile("bannedbob", "user-banned");
   __seedMemoryOwnedProfile("alice", "user-alice");
   __seedMemoryOwnedProfile("sam", "user-sam");
-  __setMemoryProfileWithdrawn(suspended.id, true);
-  __setMemoryAuthUserBanned(banned.userId ?? "user-banned", true);
 
   const follows = followStore();
   await follows.follow("alice", "suspendedbob");
@@ -158,6 +156,8 @@ beforeEach(async () => {
   await listFollows.followList("alice", "sam", LIST);
   await listFollows.followList("suspendedbob", "sam", LIST);
   await listFollows.followList("bannedbob", "sam", LIST);
+  __setMemoryProfileWithdrawn(suspended.id, true);
+  __setMemoryAuthUserBanned(banned.userId ?? "user-banned", true);
 });
 
 function get(handler: (request: Request) => Promise<Response>, path: string): Promise<Response> {
