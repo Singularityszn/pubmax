@@ -59,13 +59,11 @@ describe("ownedObjectFolders", () => {
   });
 });
 
-
 describe("nightMomentKeyBelongsToOwner", () => {
   it("rejects dot-segment owner ids", () => {
-    const key = `night-moments/${USER}/mem-1/photo.jpg`;
-    expect(nightMomentKeyBelongsToOwner(".", key)).toBe(false);
-    expect(nightMomentKeyBelongsToOwner("..", key)).toBe(false);
-    expect(nightMomentKeyBelongsToOwner(USER, key)).toBe(true);
+    expect(nightMomentKeyBelongsToOwner(".", `night-moments/./${USER}/photo.jpg`)).toBe(false);
+    expect(nightMomentKeyBelongsToOwner("..", "night-moments/../victim/photo.jpg")).toBe(false);
+    expect(nightMomentKeyBelongsToOwner(USER, `night-moments/${USER}/mem-1/photo.jpg`)).toBe(true);
   });
 });
 

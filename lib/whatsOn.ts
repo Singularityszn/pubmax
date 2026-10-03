@@ -10,11 +10,11 @@
 import {
   eventIdentityKey,
   isCalendarDate as isCalendarDateShape,
+  isHttpUrl,
   isValidIso as isValidIsoShape,
   isValidObservedAt as isValidObservedAtShape,
   isValidWhatsOnRow as isValidWhatsOnRowShape,
 } from "@/lib/whatsOnRowShape.mjs";
-import { isHttpUrl } from "@/lib/httpUrl";
 
 export type WhatsOnListedWindow = "tonight" | "tomorrow_night" | "this_weekend";
 

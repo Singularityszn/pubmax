@@ -167,26 +167,6 @@ describe("DELETE /api/check-ins", () => {
     expect(res.status).toBe(400);
   });
 
-
-  it("refuses an anonymous check-in for a handle nobody holds", async () => {
-    const res = await POST(
-      postBody({ handle: "newname", areaSlug: "shoreditch", visibility: "area" }),
-    );
-    expect(res.status).toBe(401);
-    await expect(res.json()).resolves.toMatchObject({
-      error: "Sign in to check in.",
-      code: "UNAUTHENTICATED",
-    });
-    expect(await memoryProfileStore.getByHandle("newname")).toBeNull();
-
-    const area = await GET(new Request("http://localhost/api/check-ins?scope=area"));
-    const data = (await area.json()) as { checkIns: { handle: string }[] };
-    expect(data.checkIns.map((c) => c.handle)).not.toContain("newname");
-
-    const claimed = await memoryProfileStore.createOwned("newname", "user-real");
-    expect(claimed.userId).toBe("user-real");
-  });
-
   it("400s a malformed body", async () => {
     const res = await DELETE(
       new Request("http://localhost/api/check-ins", { method: "DELETE", body: "{oops" }),

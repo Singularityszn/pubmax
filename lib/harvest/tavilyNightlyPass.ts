@@ -926,7 +926,7 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
 const FORBIDDEN_VENUE_KEYS = ["cheapestPrice", "contributorId", "contributor", "communityPrice", "confirmed"];
 
 function isHttpUrlWithoutUserInfo(value: unknown): value is string {
-  if (!isHttpUrl(value)) return false;
+  if (!isHttpUrl(value, { allowWhitespace: true })) return false;
   try {
     const url = new URL(value);
     return !url.username && !url.password;
