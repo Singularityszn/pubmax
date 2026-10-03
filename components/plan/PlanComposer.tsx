@@ -2482,7 +2482,7 @@ function PlanComposerForm({
           card (components/nav/createFab.css). */}
       <div className="planComposer__lock">
         <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
-        <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
+        <p className="planComposer__trust">Share a preview. Joining only asks for a name.</p>
       </div>
         </>
       ) : null}
