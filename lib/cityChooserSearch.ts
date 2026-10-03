@@ -36,81 +36,6 @@ export type CityChooserSearchResult =
 const UNCOVERED_DESCRIPTION =
   "No prices logged here yet. Open the pub map and you could be first.";
 
-const SMALL_COUNT_WORDS = [
-  "zero",
-  "one",
-  "two",
-  "three",
-  "four",
-  "five",
-  "six",
-  "seven",
-  "eight",
-  "nine",
-  "ten",
-  "eleven",
-  "twelve",
-  "thirteen",
-  "fourteen",
-  "fifteen",
-  "sixteen",
-  "seventeen",
-  "eighteen",
-  "nineteen",
-  "twenty",
-] as const;
-
-/** The list length, in words a reader can hear. Never a typed city count. */
-export function cityGuideCountWord(count: number): string {
-  return count >= 0 && count < SMALL_COUNT_WORDS.length
-    ? SMALL_COUNT_WORDS[count]
-    : String(count);
-}
-
-function countedNoun(
-  count: number,
-  singular: string,
-  plural = `${singular}s`,
-): string {
-  return `${cityGuideCountWord(count)} ${count === 1 ? singular : plural}`;
-}
-
-function sentenceCase(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-export function cityGuidesCoverageLine(
-  cities: readonly CityConfig[],
-): string {
-  const capabilities = cities.map((city) => ({
-    city,
-    profile: getCityCapabilityProfile(city.id),
-  }));
-  const mapCount = capabilities.filter(
-    ({ profile }) => profile.map.availability !== "unavailable",
-  ).length;
-  const previewCount = capabilities.filter(
-    ({ profile }) => profile.releaseTier === "preview",
-  ).length;
-  const pricedCities = capabilities.filter(
-    ({ profile }) => profile.prices.availability === "available",
-  );
-  const crawlCount = capabilities.filter(
-    ({ profile }) => profile.routes.availability === "available",
-  ).length;
-
-  const mapSummary = sentenceCase(countedNoun(mapCount, "city map"));
-  const previewSummary =
-    previewCount > 0 ? `, including ${countedNoun(previewCount, "preview")}` : "";
-  const priceSummary =
-    pricedCities.length === 1
-      ? `${pricedCities[0].city.displayName} has pint prices`
-      : `${sentenceCase(countedNoun(pricedCities.length, "city", "cities"))} have pint prices`;
-  const crawlSummary = `${countedNoun(crawlCount, "city", "cities")} ${crawlCount === 1 ? "has" : "have"} crawls`;
-
-  return `${mapSummary}${previewSummary}. ${priceSummary}; ${crawlSummary}.`;
-}
-
 /**
  * The badge one result wears, and the line a surface prints while it reads the
  * place index.
@@ -154,17 +79,13 @@ export const PLACE_INDEX_PENDING_LINE = "Looking across the UK pub map…";
 export const TOWN_SEARCH_UNAVAILABLE_LEAD =
   "Town search isn’t available right now.";
 
-export function cityGuidesSearchUnavailableLine(count: number): string {
-  return `${TOWN_SEARCH_UNAVAILABLE_LEAD} The ${cityGuideCountWord(count)} city maps are below.`;
-}
-
 /**
  * What a place inside a curated city gets by being part of it. The line names
  * only what that city actually ships: a pack that is the map and nothing else
  * says so, because promising prices and crawls to somebody who taps through to
  * neither is a broken destination rather than a warm welcome.
  */
-export function cityGuideMembershipLine(city: CityConfig): string {
+function cityGuideMembershipLine(city: CityConfig): string {
   const profile = getCityCapabilityProfile(city.id);
   const has: string[] = [];
   if (profile.prices.availability === "available") has.push("prices");

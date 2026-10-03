@@ -69,7 +69,11 @@ describe("maplibre cold-open code split", () => {
 
   it("configures the MapLibre 6 module worker for webpack", () => {
     expect(MAPLIBRE_WORKER_URL).toBe("/vendor/maplibre/maplibre-gl-worker.mjs");
-    expect(packageJson.scripts.dev).toMatch(/^npm run prepare:maplibre-worker && /);
+    // ignore-scripts skips predev/prebuild, so both steps live in the commands
+    // npm actually runs. The fresh check stays ahead of next dev.
+    expect(packageJson.scripts.dev).toBe(
+      "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && next dev --webpack",
+    );
     expect(packageJson.scripts.build).toMatch(/^npm run prepare:maplibre-worker && /);
     expect(workerCopy).toContain('"maplibre-gl-worker.mjs"');
     expect(workerCopy).toContain('"maplibre-gl-shared.mjs"');

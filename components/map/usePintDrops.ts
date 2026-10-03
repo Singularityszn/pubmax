@@ -40,6 +40,7 @@ import {
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
@@ -102,14 +103,6 @@ export type DropMsg = {
 // the browser's whole half of that rule, quoting lib/uploadBodyLimit.ts's own
 // figure, and both composers ask it rather than each keeping a copy.
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
-
-function localStorageSafe(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Best-effort: append this venue as a stop on the open Round. Fail-soft — a
@@ -276,7 +269,7 @@ export function usePintDrops(
     [authLoading, session, user?.id],
   );
   const [handle, setHandle] = useState(() =>
-    typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
+    safeLocalStorage()?.getItem("pubmax_handle") ?? "",
   );
   // WHERE EACH PER-VENUE DROP READ GOT TO (review finding F-8). Same three-way
   // shape as `venuePriceStatus` in useCommunityPrices: a surface may only word a
@@ -504,9 +497,10 @@ export function usePintDrops(
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
   ) {
-    if (typeof window === "undefined") return;
-    const next = update(readOptimisticSpills(window.localStorage));
-    writeOptimisticSpills(window.localStorage, next);
+    const storage = safeLocalStorage();
+    if (!storage) return;
+    const next = update(readOptimisticSpills(storage));
+    writeOptimisticSpills(storage, next);
     emitOptimisticSpillChange();
   }
 
@@ -537,7 +531,7 @@ export function usePintDrops(
       roundIdentity,
       accountHandle,
       readActiveRoundCode(),
-      localStorageSafe(),
+      safeLocalStorage(),
     );
     setSubmitting(true);
     setDropMsg(null);
@@ -645,14 +639,14 @@ export function usePintDrops(
     const submittedPintFile = pintPhoto?.file ?? null;
     const submittedVenueFile = venuePhoto?.file ?? null;
     const submittedReceiptFile = receiptPhoto?.file ?? null;
-    clearPintDropDraft(
-      typeof window === "undefined" ? null : window.sessionStorage,
-      venueId,
-    );
-    try {
-      window.localStorage.setItem("pubmax_handle", submittedHandle);
-    } catch {
-      // Storage blocked — handle can be re-entered later.
+    clearPintDropDraft(safeSessionStorage(), venueId);
+    const local = safeLocalStorage();
+    if (local) {
+      try {
+        local.setItem("pubmax_handle", submittedHandle);
+      } catch {
+        // Storage blocked — handle can be re-entered later.
+      }
     }
     resetComposer();
     setComposerOpen(false);

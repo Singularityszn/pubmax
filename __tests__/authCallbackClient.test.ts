@@ -49,7 +49,7 @@ describe("explicit implicit-flow callback completion", () => {
       error: null,
     });
     const getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "account-a", email: "person@example.com" } },
+      data: { user: { id: "account-a", email: "person@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
       error: null,
     });
     const auth = { setSession };
@@ -65,6 +65,24 @@ describe("explicit implicit-flow callback completion", () => {
     if (pending.status !== "confirmation-required") throw new Error("Expected confirmation");
     await pending.confirm();
     expect(setSession).toHaveBeenCalledOnce();
+  });
+
+  it("does not label an unowned confirmation with an unverified email", async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "account-a", email: "victim@example.com", emailConfirmedAt: null } },
+      error: null,
+    });
+    const pending = await prepareAuthCallbackSession(
+      { setSession: vi.fn() },
+      { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
+      false,
+      mintMatchingSession,
+      getUser,
+    );
+    expect(pending).toMatchObject({
+      status: "confirmation-required",
+      identity: { userId: "account-a", label: null },
+    });
   });
 
   it("rejects an unowned callback whose refresh token mints another account", async () => {
@@ -131,7 +149,7 @@ describe("explicit implicit-flow callback completion", () => {
     const expiredAccess = `header.${btoa(JSON.stringify({ sub: "account-a", exp: 1 }))}.signature`;
     const getUser = vi.fn(async (accessToken: string) => accessToken === expiredAccess
       ? { data: { user: null }, error: { status: 403, code: "bad_jwt", message: "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired" } }
-      : { data: { user: { id: "account-a", email: "a@example.com" } }, error: null });
+      : { data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } }, error: null });
     const mintSession = vi.fn().mockResolvedValue({
       status: "minted",
       session: { access_token: "fresh-access-a", refresh_token: "fresh-refresh-a" },
@@ -330,7 +348,7 @@ describe("callback identity verification failures", () => {
     const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
     const getUser = vi.fn(async (token: string) => token === accessToken
       ? { data: { user: null }, error: { status: 403, code: "bad_jwt", message: expiryMessage } }
-      : { data: { user: { id: refreshedId, email: `${refreshedId}@example.com` } }, error: null });
+      : { data: { user: { id: refreshedId, email: `${refreshedId}@example.com`, emailConfirmedAt: "2026-01-01T00:00:00.000Z" } }, error: null });
     try {
       const prepared = await prepareAuthCallbackSession(
         { setSession }, { accessToken, refreshToken: "refresh-a" }, false,
@@ -375,7 +393,11 @@ describe("callback identity verification failures", () => {
           ? { code, message: expiryMessage }
           : { code: status, error_code: code, msg: expiryMessage }), { status });
       }
-      return new Response(JSON.stringify({ id: refreshedId, email: `${refreshedId}@example.com` }));
+      return new Response(JSON.stringify({
+        id: refreshedId,
+        email: `${refreshedId}@example.com`,
+        email_confirmed_at: "2026-01-01T00:00:00.000Z",
+      }));
     });
     const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
     const prepared = await prepareAuthCallbackSession(
@@ -403,7 +425,10 @@ describe("callback identity verification failures", () => {
     })));
     await expect(fetchAuthCallbackUser("access-a", {
       authConfig: { url: "https://provider.example", key: "public-key" }, fetchImpl,
-    })).resolves.toEqual({ data: { user: { id: "account-a", email: "a@example.com" } }, error: null });
+    })).resolves.toEqual({
+      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: null } },
+      error: null,
+    });
     expect(fetchImpl).toHaveBeenCalledWith("https://provider.example/auth/v1/user", expect.objectContaining({
       credentials: "omit", cache: "no-store", redirect: "error",
       headers: {

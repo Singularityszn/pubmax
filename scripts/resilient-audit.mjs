@@ -17,13 +17,29 @@ import { pathToFileURL } from "node:url";
 const AUDIT_LEVELS = ["high", "critical"];
 
 // Advisories knowingly tolerated, keyed by GitHub advisory URL.
-// Empty on purpose after the eslint 10 bump removed the only prior entry
-// (GHSA-mh99-v99m-4gvg via eslint 9 -> minimatch@3 -> brace-expansion@1).
 // Add an entry only after upgrades and overrides are exhausted; never raise
 // --audit-level or omit dev deps to hide a finding. Each entry needs an
 // inline rationale and a removal condition, and only while a second
 // production-only audit proves the chain is dev-only.
-export const WAIVED_ADVISORIES = new Map();
+//
+// GHSA-vfj7-8cjw-p6xm (high): braces <=3.0.3 stack exhaustion on deeply
+// nested patterns. Reached only through the lint toolchain:
+// eslint-config-next -> @next/eslint-plugin-next -> fast-glob@3.3.1 ->
+// micromatch@4.0.8 -> braces@3.0.3. `npm audit --omit=dev` is clean.
+//   - No patched braces exists: 3.0.3 is the latest release, so there is no
+//     version an `overrides` entry could pin.
+//   - micromatch 4.0.8 (latest) still depends on braces ^3.0.3, and
+//     @next/eslint-plugin-next 16.3.8 (latest) pins fast-glob 3.3.1.
+//   - npm's suggested fix is eslint-config-next 14.2.35, a downgrade that
+//     does not match Next 16.
+//   REVISIT AND REMOVE THIS ENTRY when either lands:
+//   (a) a braces release past 3.0.3 (then bump or override to it), or
+//   (b) an eslint-config-next whose chain no longer reaches braces <=3.0.3.
+//   osv-scanner.toml ignores the same advisory with its own ignoreUntil.
+//   Re-checked: 2026-10-03.
+export const WAIVED_ADVISORIES = new Map([
+  ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm", "high"],
+]);
 
 function runAudit(extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {

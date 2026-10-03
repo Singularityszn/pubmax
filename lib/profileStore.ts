@@ -26,8 +26,8 @@ import {
   type ProfileImageSlot,
 } from "@/lib/profileImageSlots";
 import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
-import { admin, selectStore } from "@/lib/storeBackend";
-import { cleanText, isHttpUrl } from "@/lib/textClean";
+import { admin, isUniqueViolation, selectStore } from "@/lib/storeBackend";
+import { cleanHttpUrl, cleanText } from "@/lib/textClean";
 
 /** Owned-image moderation states persisted on profiles (migrations 0089/0096). */
 type ProfileAvatarModerationState =
@@ -377,10 +377,10 @@ function cleanField(value: string | null | undefined, cap: number): string | nul
 // javascript:/data: schemes, a bare string, an over-long URL — is dropped to
 // null rather than stored, so nothing that isn't a real remote image URL ever
 // reaches the header's <Image src>. Delegates the URL check to the shared
-// isHttpUrl (lib/textClean); an invalid/empty value becomes null.
+// cleanHttpUrl (lib/textClean); an invalid/empty value becomes null.
 function cleanAvatar(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
-  return isHttpUrl(value, MAX_AVATAR_URL) ?? null;
+  return cleanHttpUrl(value, MAX_AVATAR_URL) ?? null;
 }
 
 // Clean + cap a raw patch. Only keys present on the input survive, so an edit
@@ -761,12 +761,6 @@ export class ProfileVisibilityUnavailableError extends Error {
     super("Who can see your profile cannot be changed yet. Try again shortly.");
     this.name = "ProfileVisibilityUnavailableError";
   }
-}
-
-// A Postgres unique_violation — two concurrent ensure() inserts race on the
-// handle unique index; the loser re-selects the winner's row.
-function isUniqueViolation(error: { code?: string } | null): boolean {
-  return error?.code === "23505";
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────

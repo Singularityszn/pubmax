@@ -144,6 +144,9 @@ const ALICE_MOMENT = "d1000000-0000-4000-8000-000000000006";
 const ALICE_MOMENT_OBJECT = `night-moments/${ALICE}/${ALICE_MEMORY}/venue.jpg`;
 const HIDDEN_DROP = "e0000000-0000-4000-8000-000000000007";
 const HIDDEN_PRICE = "e1000000-0000-4000-8000-000000000008";
+const ANON_DROP = "e2000000-0000-4000-8000-000000000009";
+const VISIBLE_PRICE = "e3000000-0000-4000-8000-00000000000a";
+const VISIT_REPORT = "e4000000-0000-4000-8000-00000000000b";
 const MODERATOR_TOKEN = "pm-moderator-token-for-this-process-only";
 const ROUTE = [
   { venueId: "venue-1f5ygjb" },
@@ -156,6 +159,8 @@ const PRICE_VENUE = "venue-xjf3n0";
 const SECOND_PRICE_VENUE = "venue-1f5ygjb";
 /** A third pub only A reports at, so the drop the moderator cell confirms is unconfirmed by construction. */
 const MODERATOR_VENUE = "venue-3h52h";
+/** The table-door rows live alone, so no price lane counts the seeded anonymous drop as a second reporter. */
+const DOOR_VENUE = "venue-door-0171";
 
 type Session = {
   sqlFile(path: string): void;
@@ -525,6 +530,22 @@ beforeAll(async () => {
       values ('${HIDDEN_DROP}', '${PRICE_VENUE}', 'alicepm', 3.10, 'hidden', 'public');
     insert into public.community_prices (id, venue_id, drink_category, price_pennies, actor, contributor_handle, hidden_at)
       values ('${HIDDEN_PRICE}', '${PRICE_VENUE}', 'beer', 310, 'profile:${ALICE_PROFILE}', 'alicepm', now());
+    insert into public.pint_drops (
+      id, venue_id, handle, price_gbp, status, visibility, moderator_note, report_reason, receipt_photo_key
+    ) values (
+      '${ANON_DROP}', '${DOOR_VENUE}', 'secret_author', 4.20, 'visible', 'anonymous',
+      'staff-only-note', 'reported-in-private', 'receipts/secret_author/bill.jpg'
+    );
+    insert into public.community_prices (
+      id, venue_id, drink_category, price_pennies, actor, contributor_handle
+    ) values (
+      '${VISIBLE_PRICE}', '${DOOR_VENUE}', 'wine', 450, 'profile:${BOB_PROFILE}', 'secret_author'
+    );
+    insert into public.structured_visit_reports (
+      id, venue_id, handle, visited_at, note, status, moderator_note
+    ) values (
+      '${VISIT_REPORT}', '${DOOR_VENUE}', 'secret_author', '2026-09-01', 'how the night felt', 'visible', 'staff-only-note'
+    );
   `);
   if (!seeded.ok) throw new Error(`Could not seed the permission matrix: ${seeded.err}`);
 }, 180_000);
@@ -1167,6 +1188,56 @@ describe("private profile card: read", () => {
     ).toBe(1);
   });
 
+  it("at the table: a user JWT cannot insert a profile or rewrite a server-owned column, and the route still can", async () => {
+    const stamp = `
+      select handle || '|' || coalesce(founding_member_number::text, '') || '|' ||
+        coalesce(avatar_moderation_state, '') || '|' || avatar_report_count::text || '|' ||
+        coalesce(avatar_moderator_note, '')
+      from public.profiles where id = '${ALICE_PROFILE}'
+    `;
+    const before = truth(stamp);
+    const writes = [
+      `update public.profiles set handle = 'support' where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set founding_member_number = 7 where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set avatar_moderation_state = 'approved' where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set avatar_report_count = 99 where id = '${ALICE_PROFILE}'`,
+      `update public.profiles set avatar_moderator_note = 'cleared' where id = '${ALICE_PROFILE}'`,
+      `delete from public.profiles where id = '${ALICE_PROFILE}'`,
+    ];
+    for (const [role, sub] of [["anon", null], ["authenticated", DAVE], ["authenticated", ALICE]] as const) {
+      for (const statement of writes) {
+        const attempted = attemptAsRole(role, sub, statement);
+        expect(attempted.ok, attempted.err).toBe(false);
+        expect(attempted.err).toMatch(/permission denied/i);
+      }
+      const inserted = attemptAsRole(
+        role,
+        sub,
+        `insert into public.profiles (id, handle) values ('e5e5e5e5-e5e5-4e5e-8e5e-e5e5e5e5e5e5', 'burneddoor')`,
+      );
+      expect(inserted.ok, inserted.err).toBe(false);
+      expect(inserted.err).toMatch(/permission denied/i);
+    }
+    expect(truth(`select count(*) from public.profiles where handle = 'burneddoor'`)).toBe("0");
+    expect(truth(stamp)).toBe(before);
+
+    const server = requireSession().sql(
+      `update public.profiles set bio = bio where id = '${ALICE_PROFILE}'`,
+      { asRole: "service_role" },
+    );
+    expect(server.ok, server.err).toBe(true);
+
+    const routed = await handlers.writeProfile(
+      request(`/api/profiles/${PROFILE_HANDLE}`, {
+        bearer: BEARER_ALICE,
+        method: "PATCH",
+        body: { bio: "Alice-withheld-bio" },
+      }),
+      context({ handle: PROFILE_HANDLE }),
+    );
+    expect(routed.status).toBe(200);
+  });
+
   it("A can turn it back, and the card is whole again", async () => {
     const restored = await handlers.writeProfile(
       request(`/api/profiles/${PROFILE_HANDLE}`, {
@@ -1280,16 +1351,51 @@ describe("price observation and its confirmation", () => {
     }
   });
 
-  it("at the table: hidden rows and the actor column stay out of every browser read", async () => {
-    const drops = await requireSession().rest(`/pint_drops?select=id&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });
-    expect(drops.status).toBe(200);
-    expect((drops.body as Array<{ id: string }>).map((row) => row.id)).not.toContain(HIDDEN_DROP);
-    const anonymousDrops = await requireSession().rest(`/pint_drops?select=id&venue_id=eq.${PRICE_VENUE}`);
-    expect(anonymousDrops.status === 200 ? anonymousDrops.body : []).toEqual([]);
+  it("at the table: a browser cannot read a Pint Drop, a visit report, or a contributor handle", async () => {
+    expect(truth(`select handle from public.pint_drops where id = '${ANON_DROP}'`)).toBe("secret_author");
 
-    const prices = await requireSession().rest(`/community_prices?select=id&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });
+    const drops = await requireSession().rest(
+      `/pint_drops?select=handle,moderator_note,receipt_photo_key&id=eq.${ANON_DROP}`,
+      { sub: BOB },
+    );
+    expect(drops.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(drops.body)).not.toContain("secret_author");
+    expect(JSON.stringify(drops.body)).not.toContain("staff-only-note");
+    const anonymousDrops = await requireSession().rest(`/pint_drops?select=handle&id=eq.${ANON_DROP}`);
+    expect(anonymousDrops.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(anonymousDrops.body)).not.toContain("secret_author");
+
+    const tableRead = attemptAsRole(
+      "authenticated",
+      BOB,
+      `select handle from public.pint_drops where id = '${ANON_DROP}'`,
+    );
+    expect(tableRead.ok, tableRead.err).toBe(false);
+    expect(tableRead.err).toMatch(/permission denied/i);
+
+    const reports = await requireSession().rest(
+      `/structured_visit_reports?select=handle,moderator_note&id=eq.${VISIT_REPORT}`,
+      { sub: BOB },
+    );
+    expect(reports.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(reports.body)).not.toContain("secret_author");
+    expect(JSON.stringify(reports.body)).not.toContain("staff-only-note");
+
+    const contributor = await requireSession().rest(
+      `/community_prices?select=contributor_handle&id=eq.${VISIBLE_PRICE}`,
+      { sub: BOB },
+    );
+    expect(contributor.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(contributor.body)).not.toContain("secret_author");
+
+    const prices = await requireSession().rest(
+      `/community_prices?select=id,price_pennies&venue_id=in.(${PRICE_VENUE},${DOOR_VENUE})`,
+      { sub: BOB },
+    );
     expect(prices.status).toBe(200);
-    expect((prices.body as Array<{ id: string }>).map((row) => row.id)).not.toContain(HIDDEN_PRICE);
+    const priceRows = prices.body as Array<{ id: string; price_pennies: number }>;
+    expect(priceRows.map((row) => row.id)).not.toContain(HIDDEN_PRICE);
+    expect(priceRows).toContainEqual({ id: VISIBLE_PRICE, price_pennies: 450 });
     const actorColumn = await requireSession().rest(`/community_prices?select=actor&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });
     expect(actorColumn.status).toBeGreaterThanOrEqual(400);
     const hiddenColumn = await requireSession().rest(`/community_prices?select=hidden_at&venue_id=eq.${PRICE_VENUE}`, { sub: BOB });
@@ -1935,7 +2041,7 @@ describe("saves: two lanes, two promises", () => {
     expect(stranger.status).toBe(200);
   });
 
-  it("at the table: a save answers its owner alone, and a stranger's write matches no row", () => {
+  it("at the table: a save answers its owner alone, and every browser write is refused at the grant", () => {
     expect(visibleRows("anon", null, "select count(*) from public.saved_pubs")).toBe(0);
     expect(
       visibleRows(
@@ -1952,13 +2058,17 @@ describe("saves: two lanes, two promises", () => {
       ),
     ).toBe(0);
 
-    // The owner policy filters the statement rather than erroring it, so the
-    // proof is that nothing MOVED, never that the statement failed.
-    attemptAsRole(
-      "authenticated",
-      DAVE,
-      `update public.saved_pubs set note = 'moved at the table' where profile_id = '${ALICE_PROFILE}'`,
-    );
+    // 0172 took every browser write grant, so the owner's own update is
+    // refused at the grant as well as a stranger's, and nothing MOVED.
+    for (const sub of [DAVE, ALICE]) {
+      const attempted = attemptAsRole(
+        "authenticated",
+        sub,
+        `update public.saved_pubs set note = 'moved at the table' where profile_id = '${ALICE_PROFILE}'`,
+      );
+      expect(attempted.ok, attempted.err).toBe(false);
+      expect(attempted.err).toMatch(/permission denied/i);
+    }
     expect(
       truth(`select count(*) from public.saved_pubs where note = 'moved at the table'`),
     ).toBe("0");

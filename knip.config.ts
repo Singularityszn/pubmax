@@ -108,6 +108,8 @@ const config: KnipConfig = {
     // App code imports the .ts wrapper through @/lib/siteContact; knip
     // resolves the bare specifier to the .mjs leaf and loses the wrapper.
     "lib/siteContact.ts",
+    // Same shape: app code imports @/lib/httpUrl, the leaf is lib/httpUrl.mjs.
+    "lib/httpUrl.ts",
 
     // Fence tests import these leaves to pin a published number; no runtime
     // caller is the point of them.

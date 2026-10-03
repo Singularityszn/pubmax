@@ -22,7 +22,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
   return jsonNoStore({
     moments: await Promise.all(moments.map(async (moment) => ({
       ...moment,
-      mediaUrl: await signedNightMomentPhotoUrl(moment.mediaObjectKey),
+      mediaUrl: await signedNightMomentPhotoUrl(moment.mediaObjectKey, moment.ownerId),
     }))),
   });
 }
@@ -56,7 +56,6 @@ export async function POST(request: Request, context: Context): Promise<Response
         caption: form.get("caption"),
         venueId: form.get("venueId"),
         occurredAt: form.get("occurredAt"),
-        mediaObjectKey: uploadedKey,
         // Author-written photo description from the capture surface. Optional at
         // save time (a photo can be kept privately without one); it only becomes
         // REQUIRED at publication (the publish gate), never for a private save.
@@ -66,7 +65,7 @@ export async function POST(request: Request, context: Context): Promise<Response
       body = await request.json();
     }
   } catch (error) {
-    if (uploadedKey) await removeNightMomentPhoto(uploadedKey);
+    if (uploadedKey) await removeNightMomentPhoto(uploadedKey, ownerId);
     const message = error instanceof Error ? error.message : "That photo could not be saved.";
     const status = contentType.includes("multipart/form-data") && /unavailable|storage|configure/i.test(message)
       ? 503
@@ -74,17 +73,19 @@ export async function POST(request: Request, context: Context): Promise<Response
     return publicApiErrorFromStatus(message, status);
   }
   let writeFailed = false;
-  const moment = await addNightMoment(ownerId, id, body).catch(async () => {
+  const moment = await addNightMoment(ownerId, id, body, {
+    mediaObjectKey: uploadedKey,
+  }).catch(async () => {
     writeFailed = true;
-    if (uploadedKey) await removeNightMomentPhoto(uploadedKey);
+    if (uploadedKey) await removeNightMomentPhoto(uploadedKey, ownerId);
     return null;
   });
-  if (!moment && uploadedKey) await removeNightMomentPhoto(uploadedKey);
+  if (!moment && uploadedKey) await removeNightMomentPhoto(uploadedKey, ownerId);
   return moment
     ? jsonNoStore({
         moment: {
           ...moment,
-          mediaUrl: await signedNightMomentPhotoUrl(moment.mediaObjectKey),
+          mediaUrl: await signedNightMomentPhotoUrl(moment.mediaObjectKey, moment.ownerId),
         },
       }, { status: 201 })
     : writeFailed

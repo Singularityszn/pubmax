@@ -46,7 +46,7 @@ export async function GET(request: Request): Promise<Response> {
       degraded = true;
       continue;
     }
-    if (read.value.status === "missing") continue;
+    if (read.value.status !== "found") continue;
     const evidence = resolveNearPriceTrust(read.value.venue);
     if (evidence) results.push(evidence);
   }

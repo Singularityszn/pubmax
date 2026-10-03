@@ -23,7 +23,7 @@ its detail file and keep the area file's title line in step, never in this file.
 | [`lib/AGENTS.md`](lib/AGENTS.md) | The policy leaves, the closed vocabularies and the stores. |
 | [`lib/harvest/AGENTS.md`](lib/harvest/AGENTS.md) | Pointer to scripts/AGENTS.md, which owns the harvest rules. |
 | [`__tests__/AGENTS.md`](__tests__/AGENTS.md) | The unit suite: the PostgreSQL harness, jsdom and the launch fences. |
-| [`e2e/AGENTS.md`](e2e/AGENTS.md) | The Playwright suite: the server it drives and the idioms that stop a spec lying. |
+| [`e2e/AGENTS.md`](e2e/AGENTS.md) | Driving the app in a browser: evidence shots and page checks (`npm run e2e:cli`), a private-port server, and the Playwright suite. |
 | [`scripts/AGENTS.md`](scripts/AGENTS.md) | The CLIs: harvest, builders, quality gates and deploys. |
 | [`supabase/AGENTS.md`](supabase/AGENTS.md) | Migration labels, rollbacks, RLS and the permission matrix. |
 | [`ios/AGENTS.md`](ios/AGENTS.md) | The Capacitor shell seams and the iOS capabilities. |

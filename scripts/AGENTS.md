@@ -36,6 +36,7 @@ Full rules: [`docs/rules/scripts-builders-and-publishers.md`](../docs/rules/scri
 
 - [THE HYPED-PUBS PUBLISH IS ONE COMMAND, AND IT FETCHES NOTHING.](../docs/rules/scripts-builders-and-publishers.md#the-hyped-pubs-publish-is-one-command-and-it-fetches-nothing)
 - [The Pint Index PUBLISHES what drinkers confirmed, and the producer is a script.](../docs/rules/scripts-builders-and-publishers.md#the-pint-index-publishes-what-drinkers-confirmed-and-the-producer-is-a-script)
+- [A SLIM REBUILD THAT DROPS A SHIPPED FAMOUS VENUE FAILS.](../docs/rules/scripts-builders-and-publishers.md#a-slim-rebuild-that-drops-a-shipped-famous-venue-fails)
 - [THE HISTORIC DIRECTORY PUBLISHES THROUGH THREE GATES, AND EACH ONE REFUSES RATHER THAN REWRITES.](../docs/rules/scripts-builders-and-publishers.md#the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather)
 
 ## Deploys and uploads

@@ -10,6 +10,7 @@
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { cleanText } from "@/lib/textClean";
 import type { VenueKind } from "@/lib/venues";
 import { authedFetch } from "@/lib/authedFetch";
@@ -91,11 +92,13 @@ export function groupByList(list: readonly SavedPub[]): Partial<Record<ListType,
 }
 
 // ── localStorage-backed store (SSR-safe) ─────────────────────────────────────
-// Every entry point guards `window`, so importing/calling on the server is safe
+// Every entry point guards storage, so importing/calling on the server is safe
 // (getSaved returns [], writers are no-ops). The store is only meaningful in the
-// browser — that's the demo boundary.
+// browser — that's the demo boundary. The localStorage getter itself throws
+// SecurityError when site data is blocked, so the check goes through
+// safeLocalStorage rather than reading the property bare.
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 // A list type is now free text (built-in OR custom), so any non-empty, sanely
@@ -186,6 +189,35 @@ function toggleSave(
         savedAt: new Date().toISOString(),
       });
   write(next);
+  return next;
+}
+
+/**
+ * The same saves, each under the id its venue carries now. A venue whose id was
+ * merged or superseded keeps one save per list, never two, so the "Saved only"
+ * filter, the sheet's toggle and the profile list all see one save for it.
+ * Pure: the first save per (venue, list) wins.
+ */
+export function canonicalizeSaved(
+  list: readonly SavedPub[],
+  canonical: (venueId: string) => string,
+): SavedPub[] {
+  let next: SavedPub[] = [];
+  for (const entry of list) {
+    const venueId = canonical(entry.venueId);
+    if (isSaved(next, venueId, entry.listType)) continue;
+    next = [...next, venueId === entry.venueId ? entry : { ...entry, venueId }];
+  }
+  return next;
+}
+
+/** Rewrite this device's saves under their venues' current ids. Returns the list held. */
+export function canonicalizeStoredSaved(canonical: (venueId: string) => string): SavedPub[] {
+  const current = getSaved();
+  const next = canonicalizeSaved(current, canonical);
+  if (next.length !== current.length || next.some((entry, index) => entry !== current[index])) {
+    write(next);
+  }
   return next;
 }
 
@@ -319,7 +351,11 @@ export async function fetchSavedForHandle(
   const h = handle.trim();
   if (!h) return null;
   try {
-    const res = await fetch(`/api/saved-pubs?handle=${encodeURIComponent(h)}`, { signal });
+    const res = await authedFetch(
+      `/api/saved-pubs?handle=${encodeURIComponent(h)}`,
+      { signal },
+      { requiresIdentity: true },
+    );
     if (!res.ok) {
       discardBody(res);
       return null;
@@ -338,9 +374,11 @@ export async function fetchFollowedListsForHandle(
   const h = handle.trim();
   if (!h) return [];
   try {
-    const res = await fetch(`/api/saved-pubs/list-follows?follower=${encodeURIComponent(h)}`, {
-      signal,
-    });
+    const res = await authedFetch(
+      `/api/saved-pubs/list-follows?follower=${encodeURIComponent(h)}`,
+      { signal },
+      { requiresIdentity: true },
+    );
     if (!res.ok) {
       discardBody(res);
       return [];

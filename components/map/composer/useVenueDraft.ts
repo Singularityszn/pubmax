@@ -8,6 +8,7 @@ import {
 } from "@/lib/pintDropDraft";
 import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { safeSessionStorage } from "@/lib/safeStorage";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 type UseVenueDraftArgs = {
@@ -59,15 +60,12 @@ export function useVenueDraft({
   useEffect(() => {
     let active = true;
     async function hydrateVenueDraft() {
-      const draft = readPintDropDraft(
-        typeof window === "undefined" ? null : window.sessionStorage,
-        venueId,
-      );
+      const draft = readPintDropDraft(safeSessionStorage(), venueId);
       if (!active) return;
       resetComposer();
       const seeded = seededPintDropDraftForm(draft?.form ?? null, priceSeed);
       if (draft) {
-        writePintDropDraft(window.sessionStorage, venueId, draft);
+        writePintDropDraft(safeSessionStorage(), venueId, draft);
         if (seeded) setDropForm(seeded);
         setVisibility(draft.visibility);
         setVibeTags(draft.vibeTags);
@@ -86,7 +84,7 @@ export function useVenueDraft({
   useEffect(() => {
     if (draftReadyVenueId !== venueId) return;
     writePintDropDraft(
-      typeof window === "undefined" ? null : window.sessionStorage,
+      safeSessionStorage(),
       venueId,
       pintDropDraftForPersistence({
         form: dropForm,

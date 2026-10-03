@@ -37,7 +37,7 @@ import { DELETE, GET, POST } from "@/app/api/check-ins/route";
 import { __resetMemoryCheckIns } from "@/lib/checkInStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 function postBody(body: unknown): Request {
   return new Request("http://localhost/api/check-ins", {
@@ -55,13 +55,16 @@ function deleteBody(body: unknown): Request {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryCheckIns();
   __resetMemoryFollows();
   __resetMemoryProfiles();
+  for (const handle of ["reader", "amy", "stranger"]) {
+    await memoryProfileStore.ensure(handle);
+  }
   vi.mocked(resolveViewerFromRequest).mockResolvedValue({
     handle: null,
     authenticated: false,
@@ -94,6 +97,25 @@ describe("POST /api/check-ins", () => {
     const data = (await res.json()) as { checkIn?: { handle: string; areaSlug: string } };
     expect(data.checkIn?.handle).toBe("reader");
     expect(data.checkIn?.areaSlug).toBe("shoreditch");
+  });
+
+  it("stores no profile row when an anonymous check-in names a handle nobody holds", async () => {
+    const res = await POST(
+      postBody({ handle: "newname", areaSlug: "shoreditch", visibility: "area" }),
+    );
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toMatchObject({
+      error: "Sign in to check in.",
+      code: "UNAUTHENTICATED",
+    });
+    expect(await memoryProfileStore.getByHandle("newname")).toBeNull();
+
+    const area = await GET(new Request("http://localhost/api/check-ins?scope=area"));
+    const data = (await area.json()) as { checkIns: { handle: string }[] };
+    expect(data.checkIns.map((c) => c.handle)).not.toContain("newname");
+
+    const claimed = await memoryProfileStore.createOwned("newname", "user-real");
+    expect(claimed.userId).toBe("user-real");
   });
 
   it("400s a malformed body", async () => {

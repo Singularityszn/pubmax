@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:40:59Z",
+    "timestamp_osm_base": "2026-10-02T10:22:05Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -196,9 +196,12 @@
         "addr:housenumber": "27",
         "addr:postcode": "CR0 4TG",
         "addr:street": "Beddington Lane",
+        "addr:suburb": "Beddington",
         "amenity": "pub",
+        "fhrs:id": "1224714",
         "live_sport": "yes",
-        "name": "Harvest Home"
+        "name": "Harvest Home",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -257,7 +260,7 @@
         "amenity": "pub",
         "brewery": "Charles Wells",
         "fhrs:authority": "Croydon",
-        "fhrs:id": "570886",
+        "fhrs:id": "1734469",
         "live_sport": "yes",
         "name": "The Plough",
         "not:addr:street": "Croydon Road",
@@ -632,7 +635,8 @@
         "operator:wikidata": "Q7619176",
         "phone": "+44 20 8660 6396",
         "source:addr": "FHRS Open Data",
-        "website": "https://www.greatukpubs.co.uk/pear-tree-purley"
+        "website": "https://www.greatukpubs.co.uk/pear-tree-purley",
+        "wikidata": "Q136721132"
       }
     },
     {
@@ -730,7 +734,8 @@
         "fhrs:authority": "Croydon",
         "fhrs:id": "7097",
         "name": "The Hare and Hounds",
-        "source": "survey;https://ratings.food.gov.uk/OpenDataFiles/FHRS507en-GB.xml"
+        "source": "survey;https://ratings.food.gov.uk/OpenDataFiles/FHRS507en-GB.xml",
+        "wikidata": "Q136645328"
       }
     },
     {
@@ -775,9 +780,41 @@
         "addr:housenumber": "14",
         "addr:postcode": "CR0 4QR",
         "addr:street": "The Broadway",
+        "addr:suburb": "Beddington",
         "amenity": "bar",
         "contact:facebook": "https://www.facebook.com/p/The-Dog-House-100085210053235/",
-        "name": "The Dog House"
+        "fhrs:id": "1831354",
+        "name": "The Dog House",
+        "source:addr": "FHRS Open Data"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14054873138,
+      "lat": 51.3800762,
+      "lon": -0.2444316,
+      "tags": {
+        "addr:city": "Worcester Park",
+        "addr:country": "GB",
+        "addr:housenumber": "181",
+        "addr:postcode": "KT4 8DR",
+        "addr:street": "Central Road",
+        "amenity": "pub",
+        "name": "The Brook"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14054873203,
+      "lat": 51.377162,
+      "lon": -0.2390937,
+      "tags": {
+        "addr:city": "Worcester Park",
+        "addr:housenumber": "25",
+        "addr:postcode": "KT4 8EG",
+        "addr:street": "Central Road",
+        "amenity": "bar",
+        "name": "Rumours Bar"
       }
     },
     {
@@ -827,8 +864,8 @@
       "type": "way",
       "id": 97425688,
       "center": {
-        "lat": 51.3670483,
-        "lon": -0.167107
+        "lat": 51.3670496,
+        "lon": -0.1670711
       },
       "tags": {
         "addr:city": "Carshalton",
@@ -1064,7 +1101,8 @@
         "live_sport": "yes",
         "name": "Jolly Farmers",
         "phone": "+44 20 8660 2076",
-        "website": "https://jollyfarmers-purley.co.uk/"
+        "website": "https://jollyfarmers-purley.co.uk/",
+        "wikidata": "Q135902765"
       }
     },
     {
@@ -1117,7 +1155,7 @@
         "building": "retail",
         "building:levels": "1",
         "fhrs:authority": "Croydon",
-        "fhrs:id": "26114",
+        "fhrs:id": "1947282",
         "fhrs:local_authority_id": "08/00200/COMM",
         "live_sport": "yes",
         "name": "The Pembroke",
@@ -1128,9 +1166,11 @@
         "phone": "+44 20 8763 0800",
         "ref:GB:uprn": "100023534280",
         "smoking": "outside",
+        "source:addr": "FHRS Open Data",
         "toilets": "yes",
         "toilets:access": "customers",
-        "website": "https://www.greatukpubs.co.uk/pembroke-coulsdon"
+        "website": "https://www.greatukpubs.co.uk/pembroke-coulsdon",
+        "wikidata": "Q136721124"
       }
     },
     {
@@ -1166,18 +1206,20 @@
       },
       "tags": {
         "addr:city": "Wallington",
+        "addr:housename": "The Star",
         "addr:housenumber": "89",
         "addr:postcode": "SM6 0DE",
         "addr:street": "Melbourne Road",
         "amenity": "pub",
         "building": "retail",
         "fhrs:authority": "Sutton",
-        "fhrs:id": "1035454",
+        "fhrs:id": "1622333",
         "live_sport": "yes",
         "name": "The Star",
         "operator": "Stonegate",
         "operator:wikidata": "Q7619176",
         "source": "survey",
+        "source:addr": "FHRS Open Data",
         "survey:date": "2018-11-18",
         "website": "https://www.craftunionpubs.com/star-wallington"
       }
@@ -1209,42 +1251,6 @@
     },
     {
       "type": "way",
-      "id": 901272257,
-      "center": {
-        "lat": 51.3800772,
-        "lon": -0.2444446
-      },
-      "tags": {
-        "addr:city": "Worcester Park",
-        "addr:country": "GB",
-        "addr:housenumber": "181",
-        "addr:postcode": "KT4 8DR",
-        "addr:street": "Central Road",
-        "amenity": "pub",
-        "building": "commercial",
-        "name": "The Brook",
-        "ref:GB:uprn": "5870007530;5870120922"
-      }
-    },
-    {
-      "type": "way",
-      "id": 907797527,
-      "center": {
-        "lat": 51.3771123,
-        "lon": -0.2391622
-      },
-      "tags": {
-        "addr:city": "Worcester Park",
-        "addr:housenumber": "25",
-        "addr:postcode": "KT4 8EG",
-        "addr:street": "Central Road",
-        "amenity": "bar",
-        "building": "yes",
-        "name": "Rumours Bar"
-      }
-    },
-    {
-      "type": "way",
       "id": 1257722890,
       "center": {
         "lat": 51.386691,
@@ -1262,7 +1268,8 @@
         "live_sport": "yes",
         "name": "Golden Lion",
         "source": "survey",
-        "source:addr": "FHRS Open Data"
+        "source:addr": "FHRS Open Data",
+        "wikidata": "Q136645388"
       }
     },
     {

@@ -5,30 +5,33 @@ import {
   __setMemoryProfileWithdrawn,
 } from "@/lib/accountPublicAccess.server";
 import { publicProfileRouteWithholdsNotFound } from "@/lib/profilePublicRoute.server";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 
 describe("public profile route withholding", () => {
   beforeEach(() => {
+    __resetMemoryProfiles();
     __resetMemoryProfileWithdrawals();
   });
 
-  it("withholds identity-policy blocks such as karansdad", async () => {
-    await expect(publicProfileRouteWithholdsNotFound("karansdad")).resolves.toBe(true);
+  it("withholds identity-policy blocks such as karansdad", () => {
+    expect(publicProfileRouteWithholdsNotFound("karansdad")).toBe(true);
   });
 
-  it("withholds moderation-withdrawn handles", async () => {
-    __setMemoryProfileWithdrawn("11111111-1111-4111-8111-111111111111", true, ["karansdad"]);
-    await expect(publicProfileRouteWithholdsNotFound("karansdad")).resolves.toBe(true);
+  it("does not withhold a moderation-withdrawn handle", () => {
+    const withdrawn = __seedMemoryOwnedProfile("suspendedbob", "user-suspended");
+    __setMemoryProfileWithdrawn(withdrawn.id, true);
+    expect(publicProfileRouteWithholdsNotFound("suspendedbob")).toBe(false);
   });
 
-  it("allows a founder contributor handle with a live profile", async () => {
-    await expect(publicProfileRouteWithholdsNotFound("karan")).resolves.toBe(false);
+  it("allows a founder contributor handle with a live profile", () => {
+    expect(publicProfileRouteWithholdsNotFound("karan")).toBe(false);
   });
 
-  it("allows a normal unused handle", async () => {
-    await expect(publicProfileRouteWithholdsNotFound("never_existed_qa9")).resolves.toBe(false);
+  it("allows a normal unused handle", () => {
+    expect(publicProfileRouteWithholdsNotFound("never_existed_qa9")).toBe(false);
   });
 
-  it("does not withhold the you sentinel", async () => {
-    await expect(publicProfileRouteWithholdsNotFound("you")).resolves.toBe(false);
+  it("does not withhold the you sentinel", () => {
+    expect(publicProfileRouteWithholdsNotFound("you")).toBe(false);
   });
 });

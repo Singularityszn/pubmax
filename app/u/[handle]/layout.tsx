@@ -18,7 +18,7 @@ export default async function ProfileHandleLayout({ children, params }: LayoutPr
   if (
     requestedHandle &&
     requestedHandle !== YOU_SENTINEL &&
-    (await publicProfileRouteWithholdsNotFound(requestedHandle))
+    publicProfileRouteWithholdsNotFound(requestedHandle)
   ) {
     notFound();
   }

@@ -17,7 +17,7 @@ reviews:
   path_instructions:
     - path: "app/api/**"
       instructions: |
-        - Prefer auth-resolved handles (resolveMessageHandle / JWT-linked profile) before gateHandleAction; do not trust body/query handle alone when auth is present. Keep unlinked/demo paths working.
+        - Prefer auth-resolved handles (resolveMessageHandle / JWT-linked profile) before gateHandleAction; do not trust body/query handle alone when auth is present. Keep unlinked/demo paths working, except messages and notifications reads, which require the caller's account to own the handle (requireAccountOwner).
         - Map durable store write failures to 503 (degraded dependency), not 400/500. Reserve 400 for validation.
         - Avoid silent no-op filters — failed filters should error or be explicit.
         - App Router outputFileTracingIncludes keys must use dynamic segments like `/api/venue/[id]`, not wildcards.

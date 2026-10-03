@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:26:40Z",
+    "timestamp_osm_base": "2026-10-02T10:17:06Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -463,7 +463,9 @@
         "addr:street": "West End Lane",
         "amenity": "pub",
         "check_date": "2025-12-11",
+        "indoor_seating": "yes",
         "name": "Alice House",
+        "outdoor_seating": "yes",
         "phone": "+44 20 7431 8818",
         "toilets": "yes",
         "toilets:access": "customers"
@@ -539,6 +541,7 @@
         "brand": "Wetherspoon",
         "brand:wikidata": "Q6109362",
         "check_date": "2025-03-01",
+        "dog": "no",
         "fhrs:id": "1029505",
         "indoor_seating": "yes",
         "name": "The Moon on the Hill",
@@ -1038,6 +1041,15 @@
     },
     {
       "type": "node",
+      "id": 12426031527,
+      "lat": 51.5485661,
+      "lon": -0.1908679,
+      "tags": {
+        "amenity": "bar"
+      }
+    },
+    {
+      "type": "node",
       "id": 12561097383,
       "lat": 51.5283283,
       "lon": -0.2011983,
@@ -1198,7 +1210,9 @@
         "amenity": "bar",
         "building": "yes",
         "contact:email": "brondesage@aol.com",
+        "indoor_seating": "yes",
         "name": "Brondes Age",
+        "outdoor_seating": "yes",
         "phone": "+44 20 7624 9010",
         "ref:GB:uprn": "5075133",
         "toilets": "yes",
@@ -1218,41 +1232,38 @@
         "addr:housenumber": "375",
         "addr:postcode": "NW6 7QB",
         "addr:street": "Kilburn High Road",
+        "air_conditioning": "yes",
         "amenity": "pub",
         "brand": "Greene King",
         "brand:wikidata": "Q5564162",
         "brewery": "various",
         "building": "yes",
+        "building:levels": "3",
+        "check_date": "2026-10-01",
+        "diet:vegan": "yes",
+        "diet:vegetarian": "yes",
+        "dog": "yes",
         "fhrs:id": "532172",
+        "food": "yes",
+        "indoor_seating": "yes",
         "internet_access": "wlan",
         "live_sport": "yes",
         "name": "North London Tavern",
         "opening_hours": "Mo-Th 11:00-23:00; Fr-Sa 11:00-00:00; Su 11:00-22:30",
         "operator": "Greene King",
+        "outdoor_seating": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
         "phone": "+44 20 7625 6634",
         "real_ale": "yes",
         "ref:GB:uprn": "202149478;202079081",
+        "reservation": "yes",
+        "roof:levels": "1",
         "smoking": "outside",
+        "sport": "darts",
         "toilets:wheelchair": "yes",
         "website": "https://www.greeneking.co.uk/pubs/greater-london/north-london-tavern",
         "wheelchair": "limited"
-      }
-    },
-    {
-      "type": "way",
-      "id": 75640208,
-      "center": {
-        "lat": 51.5455878,
-        "lon": -0.201976
-      },
-      "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "332",
-        "addr:street": "Kilburn High Road",
-        "amenity": "bar",
-        "building": "yes",
-        "name": "Wingmans",
-        "website": "http://wingmans.co.uk/"
       }
     },
     {
@@ -1375,7 +1386,8 @@
         "ref:GB:uprn": "5012288",
         "toilets": "yes",
         "toilets:access": "customers",
-        "website": "https://www.greatukpubs.co.uk/old-bell-kilburn"
+        "website": "https://www.greatukpubs.co.uk/old-bell-kilburn",
+        "wikidata": "Q136483617"
       }
     },
     {
@@ -1441,55 +1453,6 @@
         "amenity": "pub",
         "building": "yes",
         "name": "The Salusbury"
-      }
-    },
-    {
-      "type": "way",
-      "id": 107710473,
-      "center": {
-        "lat": 51.5375437,
-        "lon": -0.1934264
-      },
-      "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "77",
-        "addr:postcode": "NW6 6HY",
-        "addr:street": "Kilburn High Road",
-        "amenity": "pub",
-        "building": "yes",
-        "building:levels": "1",
-        "check_date": "2025-02-20",
-        "name": "Kilburn Bridge",
-        "ref:GB:uprn": "202003188;202079329;202149475"
-      }
-    },
-    {
-      "type": "way",
-      "id": 107755382,
-      "center": {
-        "lat": 51.5384106,
-        "lon": -0.1912867
-      },
-      "tags": {
-        "addr:city": "London",
-        "addr:housenumber": "250",
-        "addr:postcode": "NW6 4BT",
-        "addr:street": "Belsize Road",
-        "amenity": "pub",
-        "building": "yes",
-        "check_date": "2026-02-11",
-        "contact:email": "bookings@priorytavern.co.uk",
-        "contact:phone": "+44 20 7624 8044",
-        "contact:website": "https://priorytavern.co.uk/",
-        "name": "The Priory Tavern",
-        "opening_hours": "Tu-Th 17:00-23:00; Fr-Sa 14:00-00:00; Su 13:00-00:00",
-        "payment:apple_pay": "yes",
-        "payment:cash": "no",
-        "payment:contactless": "yes",
-        "payment:credit_cards": "yes",
-        "payment:debit_cards": "yes",
-        "payment:google_pay": "yes",
-        "ref:GB:uprn": "5116978;10091957529;10092046589;5087234"
       }
     },
     {
@@ -1688,8 +1651,13 @@
         "amenity": "pub",
         "building": "yes",
         "cuisine": "indian",
+        "fhrs:id": "1922642",
+        "food": "yes",
+        "indoor_seating": "yes",
         "name": "The Black Lion",
         "opening_hours": "Mo-Fr 16:00-00:00; Sa 12:00-00:00; Su 12:00-23:00",
+        "outdoor_seating": "yes",
+        "phone": "+44 20 4559 9143",
         "real_ale": "yes",
         "real_fire": "fireplace",
         "ref:GB:uprn": "5001231",

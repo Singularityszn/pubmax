@@ -5,6 +5,8 @@ import {
   type FoodItem,
   type FoodProvenance,
 } from "@/lib/food";
+import { isHttpUrl } from "@/lib/httpUrl";
+import { isFiniteNumber, isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
 
 export type FoodPriceUpdate = {
   venueKey: string;
@@ -16,30 +18,6 @@ export type FoodPriceUpdate = {
   source: { label: string; url: string; licence: string };
   observedAt: string;
 };
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function isHttpUrl(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function isValidObservedAt(value: unknown, now: number): value is string {
-  if (!isNonEmptyString(value)) return false;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) && ms <= now;
-}
 
 const DIETARY_SET = new Set<string>(["vegan", "vegetarian", "gluten-free"]);
 
@@ -65,7 +43,7 @@ function isValidFoodPriceUpdate(
   if (typeof source !== "object" || source === null) return false;
   const src = source as Record<string, unknown>;
   if (!isNonEmptyString(src.label)) return false;
-  if (!isHttpUrl(src.url)) return false;
+  if (!isHttpUrl(src.url, { allowWhitespace: true })) return false;
   if (!isNonEmptyString(src.licence)) return false;
   if (!isValidObservedAt(row.observedAt, now)) return false;
   return true;

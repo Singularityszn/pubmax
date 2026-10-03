@@ -78,6 +78,7 @@ function userBody(account: Account) {
     aud: "authenticated",
     role: "authenticated",
     email: account.email,
+    email_confirmed_at: "2026-01-01T00:00:00.000Z",
     app_metadata: {},
     user_metadata: { full_name: account.name },
   };

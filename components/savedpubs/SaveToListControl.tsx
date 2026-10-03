@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { toggleSaveDurable } from "@/lib/savedPubs";
 import {
   eligibleBuiltInListTypes,
@@ -11,7 +12,7 @@ import {
 import type { VenueKind } from "@/lib/venues";
 
 import "./saveToList.css";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 
 // Save-a-venue-to-a-list control with CUSTOM LIST support (story 33). A small,
 // self-contained island: it shows the eligible built-in lists PLUS the viewer's
@@ -24,8 +25,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 const HANDLE_KEY = "pubmax_handle";
 
 function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim();
+  return (safeLocalStorage()?.getItem(HANDLE_KEY) ?? "").trim();
 }
 
 export default function SaveToListControl({
@@ -50,7 +50,11 @@ export default function SaveToListControl({
     const h = handle.trim();
     if (!h) return;
     try {
-      const res = await fetch(`/api/saved-pubs?handle=${encodeURIComponent(h)}&lists=1`);
+      const res = await authedFetch(
+        `/api/saved-pubs?handle=${encodeURIComponent(h)}&lists=1`,
+        {},
+        { requiresIdentity: true },
+      );
       if (!res.ok) {
         discardBody(res);
         return;

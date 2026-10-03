@@ -150,7 +150,7 @@ The app calls Supabase Auth with `signInWithOtp` for passwordless email and `sig
 
 App fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID. It restores them only for a claimed local attempt and matching return path, because Plan invite fragments contain one-use capabilities. The Web Locks API coordinates one live attempt across tabs, and the initiating tab records its attempt in `sessionStorage` to allow an explicit retry. Starting an attempt requires persistent browser storage and Web Locks; an incoming token callback without a local claim follows the confirmation path below. Secrets stay in the Supabase dashboard. The Next.js app only needs the public URL and publishable key above.
 
-An unowned callback, including an email link opened in another browser, shows **Sign in as [verified identity]?** before installing a session. Check the displayed email address, or account ID if no email is available. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. A callback claimed by this browser's local attempt completes automatically.
+An unowned callback, including an email link opened in another browser, shows **Sign in as [verified email]?** before installing a session. The prompt names an email only when the provider reports it confirmed, because the sender of a crafted token link can choose an unverified one; otherwise it reads **Sign in to this account?**. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. A callback claimed by this browser's local attempt completes automatically.
 
 [`lib/authCallbackClient.ts`](../lib/authCallbackClient.ts) owns callback verification. It reads identity directly from the provider without letting lookup errors mutate the live browser session. It verifies the refreshed identity and rejects mismatched access and refresh identities. The expired-access exception requires the provider's specific expiry response and a parsed subject matching the freshly verified identity; browser time does not decide expiry. Other verification failures reject the callback. `AuthProvider` finishes session restoration and publishes its result before offering confirmation, and reuses pending work across StrictMode effect replay. Regression coverage lives in `__tests__/authCallbackClient.test.ts`, `__tests__/authCallbackConfirmation.test.tsx`, and `e2e/auth-callback-confirmation.spec.ts`.
 
@@ -331,20 +331,13 @@ dev/test.
 
 **Every Vercel deploy runs the data validation gate and the Next build only.** It does not run lint, typecheck, tests, or coverage. PR [#748](https://github.com/Singularityszn/pubmax/pull/748) narrowed the build command on 2026-08-06 to cut Vercel build-minute cost. Lint, typecheck, and tests moved to GitHub Actions (`.github/workflows/ci.yml`).
 
-GitHub Actions is configured for `push`, `pull_request`, and `workflow_dispatch`, but GitHub-hosted runs are currently failing before job allocation on this private repo (`startup_failure` with zero jobs and no logs). That is a runner/account allocation problem, not a product-code problem. The fix, PR [#747](https://github.com/Singularityszn/pubmax/pull/747) (migrate to Blacksmith runners), is open and unmerged.
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) owns CI triggers and
+commands. The [CI runbook](CI_RUNBOOK.md) owns runner prerequisites, configuration,
+and recovery. Check the current run before treating CI as release evidence.
 
-**Result: nothing automated currently checks lint, typecheck, or tests before a deploy reaches production.** See `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.1 for the operator consequence: run `npm run ci` locally before every push until #747 lands.
-
-When GitHub Actions runner allocation is fixed, the existing triggers should start producing useful first-party checks. The workflow itself is intentionally boring:
-
-- `npm ci`
-- `npm run validate-data`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run coverage` (fails if coverage drops below the vitest.config.mts thresholds)
-- `npm run build`
-
-The workflow supports `workflow_dispatch`, so it can be rerun manually from GitHub Actions after account/runners are fixed.
+Run `npm run ci` locally before every push. A Vercel build alone does not prove
+the full gate passed. If Actions fails before job allocation, restore runner or
+account allocation before calling the release gate green.
 
 ### Manual deploy and promote
 

@@ -1,0 +1,11 @@
+# GHSA-vfj7-8cjw-p6xm (CVE-2026-93687) covers braces through 3.0.3.
+# npm has no later braces release. micromatch 4.0.8, the latest, still
+# depends on braces ^3.0.3, and fast-glob 3.3.3 still depends on that
+# micromatch. The lockfile reaches braces only from devDependencies:
+# eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch.
+# ignoreUntil is about 30 days out so the finding comes back for another look.
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-11-02
+reason = "Dev-only path eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch -> braces 3.0.3. No patched braces release exists (advisory last affected 3.0.3)."

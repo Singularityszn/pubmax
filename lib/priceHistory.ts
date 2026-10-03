@@ -25,6 +25,8 @@
 // so it is dropped rather than shown.
 
 import { DAY_MS } from "@/lib/dayMs";
+import { isHttpUrl } from "@/lib/httpUrl";
+import { isFiniteNumber, isNonBlankString } from "@/lib/priceUpdateRowShape";
 
 /** One dated historical price for a venue, as published by a citable source. */
 export type PriceHistoryObservation = {
@@ -46,30 +48,12 @@ export type PriceHistoryObservation = {
   };
 };
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function isHttpUrl(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 /**
  * A calendar day, `YYYY-MM-DD`, that really exists and is not in the future.
  * A future historical price is a data error by definition.
  */
 export function isValidObservedOn(value: unknown, now: number = Date.now()): value is string {
-  if (!isNonEmptyString(value)) return false;
+  if (!isNonBlankString(value)) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const ms = Date.parse(`${value}T00:00:00.000Z`);
   if (!Number.isFinite(ms)) return false;
@@ -85,16 +69,16 @@ export function isValidPriceHistoryObservation(
 ): value is PriceHistoryObservation {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
-  if (!isNonEmptyString(row.venueId)) return false;
-  if (!isNonEmptyString(row.venueName)) return false;
+  if (!isNonBlankString(row.venueId)) return false;
+  if (!isNonBlankString(row.venueName)) return false;
   if (!isFiniteNumber(row.priceGbp) || row.priceGbp <= 0) return false;
   if (!isValidObservedOn(row.observedOn, now)) return false;
   const source = row.source;
   if (typeof source !== "object" || source === null) return false;
   const src = source as Record<string, unknown>;
-  if (!isNonEmptyString(src.label)) return false;
-  if (!isHttpUrl(src.url)) return false;
-  if (!isNonEmptyString(src.licence)) return false;
+  if (!isNonBlankString(src.label)) return false;
+  if (!isHttpUrl(src.url, { allowWhitespace: true })) return false;
+  if (!isNonBlankString(src.licence)) return false;
   return true;
 }
 
@@ -114,8 +98,8 @@ export function parsePriceHistory(raw: unknown, now: number = Date.now()): Price
       venueName: r.venueName,
       priceGbp: r.priceGbp,
       observedOn: r.observedOn,
-      ...(isNonEmptyString(r.drink) ? { drink: r.drink } : {}),
-      ...(isNonEmptyString(r.quote) ? { quote: r.quote } : {}),
+      ...(isNonBlankString(r.drink) ? { drink: r.drink } : {}),
+      ...(isNonBlankString(r.quote) ? { quote: r.quote } : {}),
       source: { label: r.source.label, url: r.source.url, licence: r.source.licence },
     });
   }

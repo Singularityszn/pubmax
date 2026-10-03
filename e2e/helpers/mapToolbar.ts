@@ -59,15 +59,6 @@ export async function expectMapToolbarReady(
   }).toPass({ timeout });
 }
 
-async function focusAreaForQuery(page: Page, query: string): Promise<void> {
-  const areaOption = page
-    .getByRole("group", { name: "Areas", exact: true })
-    .getByRole("option", { name: new RegExp(query, "i") })
-    .first();
-  if (!(await areaOption.isVisible().catch(() => false))) return;
-  await areaOption.click();
-}
-
 export async function selectFirstToolbarVenue(
   page: Page,
   query: string,
@@ -77,19 +68,16 @@ export async function selectFirstToolbarVenue(
   // Exact group names only: "Venues across city maps" is a different lane whose
   // first "Soho" row can be a Birmingham tavern that opens another city's map.
   await waitForVenueIndexReady(page, timeout);
+  // Suggestions render from a deferred query, which a loaded runner can hold for
+  // seconds. Wait on the venue row itself; refilling the same text keeps the
+  // query, whereas picking an Area clears it and restarts that render.
   await expect(async () => {
     await dismissVenueIndexRetryIfPresent(page);
     await search.click();
     await search.fill(query);
-    await expect(searchSuggestionsListbox(page)).toBeVisible({ timeout: 2_000 });
-    const option = mapVenueSuggestionGroup(page).getByRole("option").first();
-    if (!(await option.isVisible().catch(() => false))) {
-      await focusAreaForQuery(page, query);
-      await search.click();
-      await search.fill(query);
-      await expect(searchSuggestionsListbox(page)).toBeVisible({ timeout: 2_000 });
-    }
-    await expect(option).toBeVisible({ timeout: 2_000 });
+    await expect(mapVenueSuggestionGroup(page).getByRole("option").first()).toBeVisible({
+      timeout: 15_000,
+    });
   }).toPass({ timeout });
   await expect(async () => {
     const option = mapVenueSuggestionGroup(page).getByRole("option").first();

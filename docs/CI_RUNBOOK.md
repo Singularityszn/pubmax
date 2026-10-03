@@ -109,7 +109,8 @@ Delete the `.retired-*` directories once the new runners have run for a week.
 Install once on the runner Mac, as the console user:
 
 ```sh
-brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # or another Node 22 install
+brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # Node must satisfy engines.node in package.json
+npx playwright install chromium   # or let CI cache under ~/Library/Caches/ms-playwright
 ```
 
 Each runner user downloads its own Playwright Chromium into its own
@@ -176,8 +177,15 @@ Playwright jobs take `PW_PORT` from `.github/actions/pubmax-playwright-port`. Th
 
 Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node_modules` on `pubmax-mac` jobs. Restoring those caches from GitHub's cache service can stall ~20 minutes and fail authentication on self-hosted runners; each runner user already keeps npm tarballs under its own `~/.npm`. Setup Node steps use `timeout-minutes: 5` so a stuck restore fails fast.
 
-`ci.yml` also chains jobs (`production-build` after lint + freshness, unit
-shards `max-parallel: 1`, coverage after unit tests).
+`ci.yml` chains the code jobs (`production-build` after lint, unit shards
+`max-parallel: 1`, coverage after unit tests). The freshness job runs on its
+own: a calendar breach is that job's red mark and does not skip the build,
+the unit shards or coverage.
+
+The lint-and-types job runs `npx tsc --noEmit`. Next resolves the TypeScript 6
+compiler API at build time. The merge bar `npm run verify` runs
+[`npm run typecheck`](../package.json) (TypeScript 7 native); see
+[`next.config.mjs`](../next.config.mjs) for why both exist.
 
 ### Register a runner by hand
 

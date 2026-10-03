@@ -29,18 +29,6 @@ export function isAuthUserBannedUntil(
   return Number.isFinite(until) && until > now;
 }
 
-export function isOAuthBanSignal(
-  error: string | null | undefined,
-  errorCode: string | null | undefined,
-  errorDescription: string | null | undefined,
-): boolean {
-  const parts = [error, errorCode, errorDescription]
-    .filter((part): part is string => typeof part === "string" && part.length > 0)
-    .join(" ");
-  if (!parts) return false;
-  return isGoTrueUserBannedError({ code: errorCode ?? undefined, message: parts });
-}
-
 export function authAccountBanMessageFromError(error: unknown): string | null {
   return isGoTrueUserBannedError(error) ? AUTH_ACCOUNT_BANNED_MESSAGE : null;
 }

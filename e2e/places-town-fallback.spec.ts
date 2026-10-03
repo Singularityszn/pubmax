@@ -1,4 +1,22 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
+
+// The served UK place index is the contract the arrival href is built from, so
+// the expected coordinates are read from it rather than copied in. A data
+// refresh that moves a locality's point must not turn this walk red.
+async function indexedArrivalHref(
+  request: APIRequestContext,
+  name: string,
+): Promise<string> {
+  const response = await request.get("/data/uk_base/places.json");
+  expect(response.ok()).toBe(true);
+  const index = (await response.json()) as {
+    places: [string, number, number, string, string][];
+  };
+  const rows = index.places.filter(([placeName]) => placeName === name);
+  expect(rows).toHaveLength(1);
+  const [, lat, lng] = rows[0];
+  return `/map?place=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}`;
+}
 
 // The consolidation moved the picker to /places and retired /choose-city. The
 // old address answered a town nobody prices by reading the UK place index and
@@ -34,7 +52,7 @@ test("a town typed at the picker still opens its own arrival", async ({ page }) 
   });
   await expect(chester).toHaveCount(1);
   await expect(chester).toHaveAttribute(
-    "href", "/map?place=Chester&lat=53.1923027&lng=-2.8882727",
+    "href", await indexedArrivalHref(page.request, "Chester"),
   );
 
   // Sheffield is nobody's city pack, so it lands on the base map at its own
@@ -42,8 +60,7 @@ test("a town typed at the picker still opens its own arrival", async ({ page }) 
   await field.fill("Sheffield");
   const sheffield = townList.locator("a").first();
   await expect(sheffield).toHaveAttribute(
-    "href",
-    "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213",
+    "href", await indexedArrivalHref(page.request, "Sheffield"),
   );
   await expect(sheffield).toContainText("No prices logged here yet");
 });

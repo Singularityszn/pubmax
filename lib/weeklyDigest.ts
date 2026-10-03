@@ -18,6 +18,7 @@
 
 import { DAY_MS } from "@/lib/dayMs";
 import { formatGbp } from "@/lib/formatGbp";
+import { isHttpUrl } from "@/lib/httpUrl";
 
 /** Days in the digest window, ending at `now`. */
 export const DEFAULT_WINDOW_DAYS = 7;
@@ -518,16 +519,6 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
  *  per-recipient URL before a message may leave this module. */
 const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
 
-function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string" || value.trim().length === 0) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Fail-closed guard: no rendered message may ship with an unresolved template
  * placeholder. Catches the unsubscribe token (if substitution was skipped) and
@@ -559,7 +550,7 @@ export function toEmailMessage(
   text: string;
 } {
   const { unsubscribeUrl } = options;
-  if (!isHttpUrl(unsubscribeUrl)) {
+  if (!isHttpUrl(unsubscribeUrl, { allowWhitespace: true })) {
     throw new Error(
       "toEmailMessage: unsubscribeUrl is required and must be an absolute http(s) URL.",
     );

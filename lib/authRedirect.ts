@@ -1,4 +1,3 @@
-import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { canonicalAuthStartUrl, siteOrigin } from "@/lib/siteUrl";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 
@@ -31,7 +30,7 @@ const AUTH_ATTEMPT_TTL_MS = 60 * 60 * 1000;
 const AUTH_ATTEMPT_ID_PATTERN = /^[0-9a-f]{32}$/;
 
 export const AUTH_CALLBACK_MARKER = "_authCallback";
-export const AUTH_ACCOUNT_BANNED_PARAM = "authBanned";
+const AUTH_ACCOUNT_BANNED_PARAM = "authBanned";
 export const AUTH_ATTEMPT_PARAM = "_authAttempt";
 export const REFERRAL_SIGNUP_PROOF_PARAM = "_referralSignupProof";
 export const AUTH_ATTEMPT_IN_PROGRESS_MESSAGE =
@@ -99,7 +98,6 @@ export type AuthCallbackAttempt = {
   attemptId: string | null;
   tokens: AuthCallbackTokens | null;
   providerError: boolean;
-  accountBanned?: boolean;
   signupProof?: string;
 };
 
@@ -539,16 +537,12 @@ function cleanAuthCallbackUrl(currentUrl: string): string | null {
   }
 }
 
-function rejectedAuthCallback(
-  parsedAttempt: AuthCallbackAttempt,
-  cleanUrl: string,
-): CapturedAuthCallback {
+function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
   return {
     attempt: {
       attemptId: null,
       tokens: null,
       providerError: true,
-      ...(parsedAttempt.accountBanned ? { accountBanned: true } : {}),
     },
     cleanUrl,
     localAttemptOwned: false,
@@ -568,7 +562,7 @@ function fallbackAuthCallback(
   parsedAttempt: AuthCallbackAttempt,
   cleanUrl: string,
 ): CapturedAuthCallback {
-  if (!parsedAttempt.tokens) return rejectedAuthCallback(parsedAttempt, cleanUrl);
+  if (!parsedAttempt.tokens) return rejectedAuthCallback(cleanUrl);
   return {
     attempt: parsedAttempt,
     cleanUrl,
@@ -687,18 +681,11 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
     // The marker scopes provider errors to a callback landing on any page;
     // it does not prove local attempt ownership. An unmarked bare signal
     // only counts on an auth page (anti-spoof scoping).
-    const accountBanned =
-      (marked || authPage) &&
-      (current.searchParams.get(AUTH_ACCOUNT_BANNED_PARAM) === "1" ||
-        (fragment?.kind === "error" &&
-          isGoTrueUserBannedError({
-            code: fragment.errorCode ?? undefined,
-            message: fragment.errorDescription ?? undefined,
-          })));
+    // A ban notice is shown only after the auth server confirms one. A query
+    // flag or an error fragment is something anybody can put on a URL.
     const providerError =
-      accountBanned ||
-      ((marked || authPage) &&
-        (current.searchParams.get("authError") === "1" || fragment?.kind === "error"));
+      (marked || authPage) &&
+      (current.searchParams.get("authError") === "1" || fragment?.kind === "error");
     if (!marked && !providerError && fragment?.kind !== "tokens") return null;
     const rawAttemptId = current.searchParams.get(AUTH_ATTEMPT_PARAM);
     const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
@@ -714,7 +701,6 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
       // With neither a valid attempt id nor tokens there is nothing to
       // establish, so the callback reads as a failure and the banner shows.
       providerError: providerError || (!attemptId && !tokens),
-      ...(accountBanned ? { accountBanned: true } : {}),
       ...(signupProof ? { signupProof } : {}),
     };
   } catch {

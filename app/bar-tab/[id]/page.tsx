@@ -111,7 +111,7 @@ export default async function BarTabPage({ params }: PageProps) {
     await headers();
     return <TabReadUnavailable id={id} />;
   }
-  if (read.status === "missing") return <NotInTheTab />;
+  if (read.status !== "found") return <NotInTheTab />;
   const { venue } = read;
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same drops/ratings,

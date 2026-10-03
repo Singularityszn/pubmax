@@ -95,6 +95,8 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Edit own price observation | n/a | newer-wins under own actor | newer-wins under own actor | n/a |
 | Edit another's price row at the table | denied | denied | denied | n/a |
 | Hidden rows and `actor` or `hidden_at` columns at the table | denied | denied | denied | n/a |
+| Pint Drop and structured visit rows at the table, including an anonymous author's handle and moderator notes | denied | denied | denied | n/a |
+| `community_prices.contributor_handle` at the table | denied | denied | denied | n/a |
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |
@@ -102,6 +104,8 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Read A's PRIVATE profile card | limited card | full for a mate, limited for anybody else | full: she owns it | n/a |
 | Set who can see A's profile (`PATCH` `visibility`) | denied | 403, and the stored choice does not move | allowed | n/a |
 | A's `profiles` row at the table, the choice included | denied | no rows | own row | n/a |
+| Write A's `profiles` row at the table (handle, founding number, avatar moderation, report count, moderator note, or delete) | denied | denied | denied | n/a |
+| Insert an ownerless `profiles` row at the table | denied | denied | denied | n/a |
 
 ## Cells added for the wider roles
 
@@ -125,8 +129,8 @@ no side effect, as above.
 | Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
-| Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle | writes to their OWN list, never the named one ||||| allowed |
-| `saved_pubs` at the table | denied | owner rows only, a stranger's write matches nothing ||||| own rows |
+| Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
+| `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
 | A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
 
 ## Findings from the first run
@@ -165,7 +169,11 @@ no side effect, as above.
    they act on their OWN list. Only a caller with no linked profile falls back
    to the asserted handle, and an anonymous caller asserting a CLAIMED handle is
    403. The cells assert both halves, because "refused" would have been the
-   wrong claim and "allowed" alone would have hidden which list moved.
+   wrong claim and "allowed" alone would have hidden which list moved. A
+   messages or notifications read refuses that fallback unless the caller's
+   account owns the handle (`requireAccountOwner` in
+   `lib/profileOwnership.ts`), so an unowned or deleted account's handle is
+   nobody's inbox.
 3. **`conversations` and `messages` are no longer deny-all.** Migration 0019
    created them RLS-on with no policy and says so in its own comment; 0066 then
    granted SELECT to `authenticated` behind two participant policies. The cell
@@ -173,8 +181,11 @@ no side effect, as above.
    reads nothing, and SELECT is the whole grant, so the route stays the only way
    a message is written. The 0019 comment is now the older half of the story.
 4. **An owner policy filters a statement, it does not error it.** A stranger's
-   `update` on somebody's saves succeeds against zero rows. A table cell must
+   `update` on somebody's saves succeeded against zero rows. A table cell must
    therefore assert that nothing MOVED rather than that the statement failed.
+   Since `0172` no browser role holds a write grant on `saved_pubs`, so the
+   same `update` is refused at the grant, for the owner too, and the cell
+   asserts the refusal as well as that nothing moved.
 
 ## The private profile card (migration 0154)
 

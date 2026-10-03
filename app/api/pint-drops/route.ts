@@ -43,10 +43,12 @@ import {
 } from "@/lib/pintDropConfirm.server";
 import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
-import { profileStore } from "@/lib/profileStore";
+import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -56,21 +58,6 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 // time, so the route never comes up half-broken. No-op outside production, where
 // the in-memory store is the intended dev/demo backend.
 assertServerEnv();
-
-// A pint drop is also the moment a handle first "exists" socially, so we lazily
-// create its profile row (foundation for follows / saved lists / a public
-// /u/[handle]). Best-effort and non-blocking: a profile hiccup must never fail
-// an otherwise-good drop, so failures are logged, not thrown.
-async function ensureProfileForHandle(handle: string): Promise<void> {
-  try {
-    await profileStore().ensure(handle);
-  } catch (err) {
-    console.warn(
-      "[pint-drops] could not ensure profile for handle (drop still saved):",
-      err instanceof Error ? err.message : err,
-    );
-  }
-}
 
 // The friendly label a card shows when an id has no resolvable pub name — kept
 // in step with lib/feed.ts VENUE_FALLBACK_LABEL so server and client agree.
@@ -87,17 +74,24 @@ const DAILY_PRICE_CAP_REFUSAL =
 // `venueMapUrl`, resolved server-side from the bundled venue index, so no public
 // feed/profile/permalink card ever surfaces the raw content-hashed `venue-…` id.
 // Batched over the whole page against the one memoized index (a single Map read
-// per drop). Never throws: an unreadable index yields the friendly fallback for
-// every id, and the drops still render.
+// per drop). A drop stored under a merged or superseded venue id is answered
+// under the id that venue carries now, so its name, its map link and every
+// client join on `venueId` find the pub. Never throws: an unreadable index
+// yields the friendly fallback for every id, and the drops still render.
 async function withVenueNames<T extends { venueId: string }>(
   drops: T[],
 ): Promise<(T & { venueName: string; venueMapUrl: string })[]> {
-  const index = await getVenueIndex();
-  return drops.map((drop) => ({
-    ...drop,
-    venueName: index.get(drop.venueId)?.name ?? VENUE_FALLBACK_LABEL,
-    venueMapUrl: venueMapUrl(drop.venueId),
-  }));
+  const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
+  return drops.map((drop) => {
+    const venueId = aliases.canonical(drop.venueId);
+    const venue = storedVenueRef(index, aliases, venueId);
+    return {
+      ...drop,
+      venueId,
+      venueName: venue ? storedVenueName(venue) : VENUE_FALLBACK_LABEL,
+      venueMapUrl: venueMapUrl(venueId),
+    };
+  });
 }
 
 // Resolve the requester's verified viewer identity for friends-gated reads
@@ -520,6 +514,7 @@ export async function POST(request: Request): Promise<Response> {
     const drop = await pintDropsStore().create(dropPayload, photos, {
       underDailyPriceCap: true,
     });
+    signalPintDropLanded();
     // The second-reporter pass, awaited so the drinker's own answer carries the
     // standing their report just earned. It never throws and never fails the
     // drop: when it cannot read or write, the pill stays grey and the drop
@@ -529,10 +524,6 @@ export async function POST(request: Request): Promise<Response> {
       dropPayload.priceGbp,
       dropPayload.authorityKey,
     );
-    // Fire-and-forget: the profile bootstrap must never delay or fail the drop
-    // response (an awaited Supabase upsert here blocks every submission and hangs
-    // unmocked tests). It never rejects — the inner try/catch swallows failures.
-    void ensureProfileForHandle(ownership.handle);
     if (ownership.callerUserId) {
       void qualifyCheapPintForAccountId(ownership.callerUserId);
     }

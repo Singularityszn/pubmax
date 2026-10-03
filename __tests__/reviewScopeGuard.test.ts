@@ -8,6 +8,7 @@ import {
   changedFilesFromGit,
   MAX_REVIEW_FILES,
   MAX_RUNTIME_DOMAINS,
+  REVIEW_SCOPE_HINTS,
   summarizeReviewScope,
 } from "../scripts/check_review_scope.mjs";
 
@@ -177,6 +178,41 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["venues_slim"]);
   });
 
+  it("permits city slim packs when the diff carries a city OSM pack", () => {
+    const report = summarizeReviewScope([
+      "data/cities/leeds/osm_pubs.json",
+      "public/data/cities/leeds/venues_slim.json",
+      "public/data/cities/leeds/venues_slim.core.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categoryCounts).toEqual({ other: 1, regenerated: 2 });
+    expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
+  });
+
+  it("permits the UK pub search index when the diff carries the UK OSM pack", () => {
+    const report = summarizeReviewScope([
+      "data/osm/uk/uk_osm_pubs.json",
+      "data/generated/uk_pub_search.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.regeneratedLanes).toEqual(["uk_pub_search"]);
+  });
+
+  it("keeps city slim packs and the UK search index forbidden without their inputs", () => {
+    const report = summarizeReviewScope([
+      "public/data/pint_prices_app_dataset.json",
+      "public/data/cities/leeds/venues_slim.json",
+      "data/generated/uk_pub_search.json",
+    ]);
+
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "data/generated/uk_pub_search.json" },
+      { category: "generated", path: "public/data/cities/leeds/venues_slim.json" },
+    ]);
+  });
+
   it("keeps a lane forbidden when nothing in the diff produced it", () => {
     const report = summarizeReviewScope([
       "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",
@@ -342,6 +378,89 @@ describe("review scope guard", () => {
       const files = changedFilesFromGit("0".repeat(40), head, repo);
       expect(files).toEqual([{ path: "public/data/venues_slim.json", status: "A" }]);
       expect(summarizeReviewScope(files).ok).toBe(false);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("prints the hint for each forbidden category on stderr", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-hint-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+    const runCli = (base: string, head: string) => {
+      try {
+        const stdout = execFileSync(
+          process.execPath,
+          [
+            join(process.cwd(), "scripts/check_review_scope.mjs"),
+            "--base",
+            base,
+            "--head",
+            head,
+            "--repo",
+            repo,
+          ],
+          { encoding: "utf8", stdio: "pipe" },
+        );
+        return { status: 0, stdout, stderr: "" };
+      } catch (error) {
+        const failed = error as { status?: number; stdout?: string; stderr?: string };
+        return {
+          status: failed.status ?? 1,
+          stdout: failed.stdout ?? "",
+          stderr: failed.stderr ?? "",
+        };
+      }
+    };
+
+    try {
+      git("init", "-q");
+      git("config", "user.email", "review-scope@example.invalid");
+      git("config", "user.name", "Review Scope Test");
+      writeFileSync(join(repo, "README.md"), "before\n");
+      git("add", ".");
+      git("commit", "-qm", "seed readme");
+      const readmeBase = git("rev-parse", "HEAD");
+      writeFileSync(join(repo, "README.md"), "after\n");
+      git("add", ".");
+      git("commit", "-qm", "edit readme");
+      const readmeHead = git("rev-parse", "HEAD");
+      const clean = runCli(readmeBase, readmeHead);
+      expect(clean.status).toBe(0);
+      expect(clean.stderr).toBe("");
+      expect(JSON.parse(clean.stdout).ok).toBe(true);
+
+      mkdirSync(join(repo, "public/data"), { recursive: true });
+      writeFileSync(join(repo, "public/data/venues_slim.json"), "{}\n");
+      git("add", ".");
+      git("commit", "-qm", "add generated pack");
+      const generatedHead = git("rev-parse", "HEAD");
+      const failed = runCli(readmeHead, generatedHead);
+      expect(failed.status).toBe(1);
+      expect(JSON.parse(failed.stdout).ok).toBe(false);
+      expect(failed.stderr).toBe(`${REVIEW_SCOPE_HINTS.generated}\n`);
+      expect(REVIEW_SCOPE_HINTS.generated).toBe(
+        "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+      );
+
+      mkdirSync(join(repo, "skills/example"), { recursive: true });
+      writeFileSync(join(repo, "skills/example/SKILL.md"), "# example\n");
+      git("add", ".");
+      git("commit", "-qm", "add skill pack");
+      const skillHead = git("rev-parse", "HEAD");
+      const skillOnly = runCli(generatedHead, skillHead);
+      expect(skillOnly.status).toBe(1);
+      expect(JSON.parse(skillOnly.stdout).ok).toBe(false);
+      expect(skillOnly.stderr).toBe(`${REVIEW_SCOPE_HINTS["skill-pack"]}\n`);
+      expect(REVIEW_SCOPE_HINTS["skill-pack"]).toBe(
+        "A skill pack in this diff sits outside the project skill root. Move it under .agents/skills/; rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+      );
+
+      const both = runCli(readmeHead, skillHead);
+      expect(both.status).toBe(1);
+      expect(both.stderr).toBe(
+        `${REVIEW_SCOPE_HINTS.generated}\n${REVIEW_SCOPE_HINTS["skill-pack"]}\n`,
+      );
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

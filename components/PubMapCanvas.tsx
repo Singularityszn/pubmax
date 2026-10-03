@@ -371,7 +371,7 @@ type PubMapCanvasProps = {
    */
   transitLinesPath?: string | null;
   /**
-   * City landmark catalog (from landmarksForCity). Defaults to London.
+   * City landmark catalog (from landmarksForCityAsync). Defaults to London.
    * Empty array skips the landmark layer entirely.
    */
   cityLandmarks?: Landmark[];
