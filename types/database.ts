@@ -7064,7 +7064,9 @@ export type Database = {
           p_viewer: string | null;
           p_post_id: string | null;
         };
-        Returns: string[];
+        Returns: {
+          current_status: string;
+        }[];
       };
       read_social_interaction_summary: {
         Args: {
@@ -7129,14 +7131,18 @@ export type Database = {
           p_viewer: string | null;
           p_media_id: string | null;
         };
-        Returns: string[];
+        Returns: {
+          object_key: string;
+        }[];
       };
       read_social_post_media_admin: {
         Args: {
           p_staff_role_id: string | null;
           p_media_id: string | null;
         };
-        Returns: string[];
+        Returns: {
+          object_key: string;
+        }[];
       };
       read_social_post_moderation_queue: {
         Args: {

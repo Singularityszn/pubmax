@@ -142,13 +142,13 @@ type GenerationRow = {
 };
 
 function toReplaceInput(row: WhatsOnRow): Json {
-  return JSON.parse(JSON.stringify({
+  return {
     id: row.id,
     kind: row.kind,
     payload: row,
     observed_at: row.observedAt,
     city: "london",
-  }));
+  };
 }
 
 function fromRow(row: ListingRow): WhatsOnRow | null {

@@ -233,7 +233,7 @@ function renderReturns(fn, args, ctx) {
     const row = `Database["public"]["${bucket}"][${JSON.stringify(fn.returnRelation)}]["Row"]`;
     return fn.setof ? `${row}[]` : row;
   }
-  if (fn.returnType?.udt === "record") {
+  if (fn.returnType?.udt === "record" || args.some((arg) => arg.mode === "t")) {
     const record = renderReturnColumns(args, ctx);
     if (record) return fn.setof ? `${record}[]` : record;
     return fn.setof ? "Json[]" : "Json";

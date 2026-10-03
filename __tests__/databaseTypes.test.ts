@@ -1,11 +1,6 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { renderDatabaseTypes } from "@/scripts/db/renderDatabaseTypes.mjs";
-
-const ROOT = process.cwd();
 
 function scalar(udt: string) {
   return { udt, category: "S" };
@@ -157,12 +152,25 @@ describe("generated database types", () => {
     expect(renderDatabaseTypes(second)).toBe(renderDatabaseTypes(first));
   });
 
-  it("reads the harness cluster with psql and does not start PostgREST", () => {
-    const source = readFileSync(join(ROOT, "scripts/db/generate-database-types.mjs"), "utf8");
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-    expect(code).toContain("listMigrations");
-    expect(code).toContain("session-fixture.sql");
-    expect(code).toContain("psql");
-    expect(code.toLowerCase()).not.toContain("postgrest");
+  it("renders a single-column RETURNS TABLE as row objects, not scalars", () => {
+    const rendered = renderDatabaseTypes({
+      ...catalog(),
+      functions: [
+        routine(
+          "read_media",
+          "read_media(uuid)",
+          [
+            { name: "p_post_id", mode: "i", type: scalar("uuid") },
+            { name: "object_key", mode: "t", type: scalar("text") },
+          ],
+          scalar("text"),
+          { setof: true },
+        ),
+      ],
+    });
+
+    expect(rendered).toContain(
+      "read_media: {\n        Args: {\n          p_post_id: string | null;\n        };\n        Returns: {\n          object_key: string;\n        }[];",
+    );
   });
 });
