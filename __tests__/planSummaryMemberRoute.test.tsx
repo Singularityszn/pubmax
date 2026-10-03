@@ -282,3 +282,115 @@ describe("a fresher canonical route", () => {
     expect(container.querySelector(".planSummary__editor")).not.toBeNull();
   });
 });
+
+describe("saved named Stop 1 refresh request", () => {
+  // Synthetic saved member-state boundary, not a fresh publisher observation.
+  const namedEvidence = {
+    category: "wine",
+    pence: 550,
+    serving: "125ml",
+    source: "listed",
+    sourceUrl: "https://pub.example/menu",
+    observedAt: "2026-09-29T10:40:17.846Z",
+    drinkLabel: "Chardonnay, Pays D’oc, France",
+    drinkSubtype: "wine-white",
+  } as const;
+
+  it.each([
+    { label: "named White wine", selectedEvidence: namedEvidence },
+    { label: "generic wine control", selectedEvidence: undefined },
+  ])("keeps $label intent in the actual Edit generation POST", async ({ selectedEvidence }) => {
+    const saved = memberState(["The George", "The Swan", "The Crown"], 7, { drinkCategory: "wine" });
+    const anchorVenueId = saved.stops[0].venueId;
+    const state = {
+      ...saved,
+      context: { ...saved.context, nightArea: "piccadilly-soho" },
+      plan: { ...saved.plan, anchorVenueId, anchorSource: "map-search" },
+      stops: saved.stops.map((stop, index) => ({
+        ...stop,
+        ...(index === 0 && selectedEvidence ? { selectedDrinkPriceEvidence: selectedEvidence } : {}),
+      })),
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/plans/generate") {
+        // Only inspect the outgoing request. A controlled refusal avoids
+        // inventing generation authority or persisting a pending route.
+        return Promise.resolve({
+          ...jsonResponse({ error: "Controlled generation refusal." }),
+          ok: false,
+          status: 503,
+        });
+      }
+      expect(init?.method ?? "GET").toBe("GET");
+      expect(String(input)).toBe(`/api/plans/${PLAN}`);
+      return Promise.resolve(jsonResponse(state));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await mountWithMemberRead(state);
+    expect(renderedStops()).toEqual([
+      selectedEvidence ? "The Georgewine:550" : "The George",
+      "The Swan",
+      "The Crown",
+    ]);
+    const control = editControl();
+    expect(control.disabled).toBe(false);
+    await act(async () => {
+      control.click();
+      await Promise.resolve();
+    });
+
+    const generationRequests = fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans/generate");
+    expect(generationRequests).toHaveLength(1);
+    const request = generationRequests[0][1];
+    expect(request).toMatchObject({ method: "POST", headers: { "content-type": "application/json" } });
+    expect(JSON.parse(String(request?.body))).toEqual({
+      context: state.context,
+      cityId: "london",
+      anchor: {
+        venueId: anchorVenueId, source: "map-search", acceptedArea: null, startsAt: state.plan.startTime,
+        ...(selectedEvidence ? { selectedDrinkPriceEvidence: namedEvidence } : {}),
+      },
+    });
+    expect(window.localStorage.getItem(`${PLAN_PENDING_ROUTE_PREFIX}${PLAN}`)).toBeNull();
+  });
+});
+
+describe("saved refresh anchor evidence boundaries", () => {
+  const evidence = {
+    category: "wine", pence: 550, serving: "125ml", source: "listed",
+    sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T10:40:17.846Z",
+    drinkLabel: "Chardonnay, Pays D’oc, France", drinkSubtype: "wine-white",
+  } as const;
+
+  it.each([
+    { label: "ordered Stop 1 despite reversed DTO array", anchorIndex: 0, expectEvidence: true },
+    { label: "different anchor from ordered Stop 1", anchorIndex: 1, expectEvidence: false },
+    { label: "no anchor", anchorIndex: null, expectEvidence: false },
+  ])("qualifies $label without borrowing another stop's quote", async ({ anchorIndex, expectEvidence }) => {
+    // Direct DTO controls complement the mounted POST cases above. They do not
+    // prove browser rendering, server approval or persistence of these fixtures.
+    const { planSummaryGenerationBody } = await import("@/components/plan/PlanSummary");
+    const saved = memberState(["The George", "The Swan", "The Crown"], 7, { drinkCategory: "wine" });
+    const anchorVenueId = anchorIndex === null ? null : saved.stops[anchorIndex].venueId;
+    const state = {
+      ...saved,
+      context: { ...saved.context, nightArea: "piccadilly-soho" },
+      plan: { ...saved.plan, anchorVenueId, anchorSource: anchorVenueId ? "map-search" : null },
+      stops: saved.stops.map((stop, index) => ({
+        ...stop,
+        ...(index === 0 ? { selectedDrinkPriceEvidence: evidence } : {}),
+      })).reverse(),
+    };
+    const before = JSON.stringify(state);
+    expect(planSummaryGenerationBody(state as unknown as import("@/lib/plan").PlanState)).toEqual({
+      context: state.context,
+      cityId: "london",
+      ...(anchorVenueId ? { anchor: {
+        venueId: anchorVenueId, source: "map-search", acceptedArea: null, startsAt: state.plan.startTime,
+        ...(expectEvidence ? { selectedDrinkPriceEvidence: evidence } : {}),
+      } } : {}),
+    });
+    expect(JSON.stringify(state)).toBe(before);
+  });
+});

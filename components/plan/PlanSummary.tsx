@@ -232,12 +232,17 @@ function routeGenerationAuthority(value: unknown): RouteGenerationAuthority | nu
 }
 
 export function planSummaryGenerationBody(state: PlanState): Record<string, unknown> {
+  const firstStop = orderedRouteStops(state.stops)[0];
+  const selectedDrinkPriceEvidence = firstStop && firstStop.venueId === state.plan.anchorVenueId
+    ? cleanSelectedDrinkPriceEvidence(firstStop.selectedDrinkPriceEvidence)
+    : null;
   const anchor = state.plan.anchorVenueId && state.plan.anchorSource
     ? {
         venueId: state.plan.anchorVenueId,
         source: state.plan.anchorSource,
         acceptedArea: null,
         startsAt: state.plan.startTime,
+        ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
       }
     : null;
   const cityId = state.context?.nightArea
