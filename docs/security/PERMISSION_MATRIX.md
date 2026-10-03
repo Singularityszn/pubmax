@@ -95,6 +95,8 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Edit own price observation | n/a | newer-wins under own actor | newer-wins under own actor | n/a |
 | Edit another's price row at the table | denied | denied | denied | n/a |
 | Hidden rows and `actor` or `hidden_at` columns at the table | denied | denied | denied | n/a |
+| Pint Drop and structured visit rows at the table, including an anonymous author's handle and moderator notes | denied | denied | denied | n/a |
+| `community_prices.contributor_handle` at the table | denied | denied | denied | n/a |
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |
