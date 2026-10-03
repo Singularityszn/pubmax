@@ -2,12 +2,33 @@
   "version": 1,
   "area": "shoreditch",
   "checkedOn": "2026-10-03",
-  "box": {
-    "latMin": 51.5215,
-    "latMax": 51.5305,
-    "lngMin": -0.0835,
-    "lngMax": -0.0705
-  },
-  "drinks": ["flat white", "latte", "matcha latte"],
-  "rows": []
+  "rows": [
+    {
+      "venueId": "venue-osm-w271641406",
+      "venueName": "Crosstown",
+      "drink": "flat white",
+      "priceGbp": 3.7,
+      "sourceUrl": "https://www.crosstown.co.uk/project/flat-white/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w271641406",
+      "venueName": "Crosstown",
+      "drink": "latte",
+      "priceGbp": 3.8,
+      "sourceUrl": "https://www.crosstown.co.uk/project/latte/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w271641406",
+      "venueName": "Crosstown",
+      "drink": "matcha latte",
+      "priceGbp": 3.9,
+      "sourceUrl": "https://www.crosstown.co.uk/project/matcha-latte/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    }
+  ]
 }

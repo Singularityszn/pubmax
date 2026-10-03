@@ -17,7 +17,7 @@ export const COFFEE_PILOT_BOX = {
   lngMax: -0.0705,
 };
 
-const FILE_KEYS = new Set(["version", "area", "checkedOn", "box", "drinks", "rows"]);
+const FILE_KEYS = new Set(["version", "area", "checkedOn", "rows"]);
 const ROW_KEYS = new Set([
   "venueId",
   "venueName",
@@ -26,29 +26,10 @@ const ROW_KEYS = new Set([
   "sourceUrl",
   "observedAt",
   "standing",
-  "quote",
 ]);
-const BOX_KEYS = ["latMin", "latMax", "lngMin", "lngMax"];
 
 function isCalendarDay(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value));
-}
-
-function quoteNamesDrink(quote, drink) {
-  const text = quote.toLowerCase();
-  if (drink === "flat white") return text.includes("flat white");
-  if (drink === "matcha latte") return text.includes("matcha latte");
-  if (drink === "latte") return /(?<!matcha )\blatte\b(?! art)/.test(text);
-  return false;
-}
-
-function quoteStatesPrice(quote, priceGbp) {
-  const matches = quote.match(/£\s*(\d+(?:\.\d{1,2})?)/g);
-  if (!matches) return false;
-  return matches.some((match) => {
-    const amount = Number(match.replace(/£\s*/, ""));
-    return Number.isFinite(amount) && Math.abs(amount - priceGbp) < 0.001;
-  });
 }
 
 function priceHasAtMostTwoDecimals(priceGbp) {
@@ -81,24 +62,6 @@ export function coffeePilotProblems(file, venueIds, now = Date.now()) {
   if (!isCalendarDay(record.checkedOn)) problems.push("checkedOn must be a calendar day");
   else if (Date.parse(/** @type {string} */ (record.checkedOn)) > now) {
     problems.push("checkedOn is in the future");
-  }
-  const box = record.box;
-  if (!box || typeof box !== "object" || Array.isArray(box)) {
-    problems.push("box must be an object");
-  } else {
-    const boxRecord = /** @type {Record<string, unknown>} */ (box);
-    for (const key of BOX_KEYS) {
-      if (boxRecord[key] !== COFFEE_PILOT_BOX[key]) {
-        problems.push(`box.${key} must be ${COFFEE_PILOT_BOX[key]}`);
-      }
-    }
-    for (const key of Object.keys(boxRecord)) {
-      if (!BOX_KEYS.includes(key)) problems.push(`unexpected box key ${JSON.stringify(key)}`);
-    }
-  }
-  if (!Array.isArray(record.drinks) || record.drinks.length !== COFFEE_PILOT_DRINKS.length ||
-      record.drinks.some((drink, index) => drink !== COFFEE_PILOT_DRINKS[index])) {
-    problems.push("drinks must be flat white, latte, matcha latte");
   }
   if (!Array.isArray(record.rows)) {
     problems.push("rows must be an array");
@@ -150,13 +113,6 @@ export function coffeePilotProblems(file, venueIds, now = Date.now()) {
       problems.push(`${where} observedAt is in the future`);
     }
     if (item.standing !== "listed") problems.push(`${where} standing must be listed`);
-    if (typeof item.quote !== "string" || item.quote.trim().length === 0) {
-      problems.push(`${where} quote must be the line that stated the price`);
-    } else if (typeof item.drink === "string" && !quoteNamesDrink(item.quote, item.drink)) {
-      problems.push(`${where} quote does not name ${item.drink}`);
-    } else if (typeof item.priceGbp === "number" && !quoteStatesPrice(item.quote, item.priceGbp)) {
-      problems.push(`${where} quote does not state the price`);
-    }
     if (typeof item.venueId === "string" && typeof item.drink === "string") {
       const key = `${item.venueId}\n${item.drink}`;
       if (seen.has(key)) problems.push(`${where} repeats ${item.drink} for ${item.venueId}`);

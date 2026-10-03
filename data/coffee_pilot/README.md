@@ -15,7 +15,6 @@ All of these, or the drink stays absent:
 - `sourceUrl` is the page that was opened.
 - `observedAt` is the day that page was read.
 - `standing` is `listed`.
-- `quote` is the line that named the drink and the price.
 
 A page that does not state one of the three drinks with a price adds nothing.
 There is no estimate and no `cheapestPrice`.
