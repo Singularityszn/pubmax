@@ -169,7 +169,11 @@ no side effect, as above.
    they act on their OWN list. Only a caller with no linked profile falls back
    to the asserted handle, and an anonymous caller asserting a CLAIMED handle is
    403. The cells assert both halves, because "refused" would have been the
-   wrong claim and "allowed" alone would have hidden which list moved.
+   wrong claim and "allowed" alone would have hidden which list moved. A
+   messages or notifications read refuses that fallback unless the caller's
+   account owns the handle (`requireAccountOwner` in
+   `lib/profileOwnership.ts`), so an unowned or deleted account's handle is
+   nobody's inbox.
 3. **`conversations` and `messages` are no longer deny-all.** Migration 0019
    created them RLS-on with no policy and says so in its own comment; 0066 then
    granted SELECT to `authenticated` behind two participant policies. The cell

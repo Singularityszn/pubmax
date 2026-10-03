@@ -117,6 +117,9 @@ export default function MessagesInboxClient({
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  // The server refused this handle's inbox (403): the account does not own it.
+  // Asking again cannot change that, so it is not `failed` and has no retry.
+  const [handleNotOwned, setHandleNotOwned] = useState(false);
   const [failed, setFailed] = useState(false);
   // A read that ANSWERED but could not run one of the reads behind it. The rows
   // are real; a count or a preview may be missing. Kept apart from `failed`,
@@ -173,6 +176,7 @@ export default function MessagesInboxClient({
         if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
+        setHandleNotOwned(false);
         setFailed(false);
         setPartial(false);
         setLoadedRevision(requestRevision);
@@ -183,6 +187,7 @@ export default function MessagesInboxClient({
         if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
+        setHandleNotOwned(false);
         setFailed(false);
         setPartial(false);
         setLoadedRevision(requestRevision);
@@ -198,9 +203,10 @@ export default function MessagesInboxClient({
             discardBody(res);
             return;
           }
-          if (res.status === 401) {
+          setHandleNotOwned(res.status === 403);
+          if (res.status === 401 || res.status === 403) {
             discardBody(res);
-            setNeedsSignIn(true);
+            setNeedsSignIn(res.status === 401);
             setConversations([]);
             setFailed(false);
             setPartial(false);
@@ -231,6 +237,7 @@ export default function MessagesInboxClient({
             signal?.aborted || (err instanceof Error && err.name === "AbortError");
           if (!aborted && stillCurrent()) {
             setNeedsSignIn(false);
+            setHandleNotOwned(false);
             setFailed(true);
             setPartial(false);
           }
@@ -287,9 +294,9 @@ export default function MessagesInboxClient({
   // The subscription owns the poll: fallback cadence without a socket, a slow
   // safety poll with one, nothing while the tab is hidden.
   useEffect(() => {
-    if (paneHidden || !handle) return;
+    if (paneHidden || !handle || handleNotOwned) return;
     return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
-  }, [refresh, handle, paneHidden]);
+  }, [refresh, handle, paneHidden, handleNotOwned]);
 
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured
@@ -311,7 +318,7 @@ export default function MessagesInboxClient({
         viewerSession.signedOut ? (
           <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
         ) : (
-          <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle}>
+          <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
             <SquarePen size={25} aria-hidden="true" />
           </button>
         )
@@ -365,6 +372,13 @@ export default function MessagesInboxClient({
         <EmptyState title="Sign in to message">
           Private messages need a signed-in account, so each message is tied to
           the right handle.
+        </EmptyState>
+      ) : handleNotOwned ? (
+        <EmptyState
+          title={`@${handle} isn\u2019t linked to your account.`}
+          action={<Link href="/u/you#account-settings">Claim a handle</Link>}
+        >
+          Messages open for the handle your account claims.
         </EmptyState>
       ) : failed && conversations.length === 0 ? (
         <div role="alert">

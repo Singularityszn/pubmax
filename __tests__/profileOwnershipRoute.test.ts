@@ -72,11 +72,22 @@ afterEach(() => {
 });
 
 describe("PATCH /api/profiles/[handle] — ownership gate", () => {
-  it("allows an anonymous edit of an UNLINKED handle (demo path stands)", async () => {
+  it("stores no row when an anonymous PATCH names a handle nobody holds", async () => {
+    const res = await patch("ken", { displayName: "Cheap Pint Ken" });
+    expect(res.status).toBe(404);
+    expect(await memoryProfileStore.getByHandle("ken")).toBeNull();
+
+    const claimed = await memoryProfileStore.createOwned("ken", "user-real");
+    expect(claimed.userId).toBe("user-real");
+  });
+
+  it("still edits an existing unlinked row without minting another", async () => {
+    await memoryProfileStore.ensure("ken");
     const res = await patch("ken", { displayName: "Cheap Pint Ken" });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.profile.displayName).toBe("Cheap Pint Ken");
+    expect((await memoryProfileStore.getByHandle("ken"))?.userId).toBeUndefined();
   });
 
   it.each(["karan", "admin"])(
@@ -122,6 +133,7 @@ describe("PATCH /api/profiles/[handle] — ownership gate", () => {
   });
 
   it("never leaks the internal user_id on the write response", async () => {
+    await memoryProfileStore.ensure("sam");
     const res = await patch("sam", { bio: "hello" });
     const blob = JSON.stringify(await res.json());
     expect(blob).not.toMatch(/user_?id/i);

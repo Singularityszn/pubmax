@@ -78,7 +78,9 @@ export async function handleMessagePhotoServe(
   // The same ownership gate the thread takes, collapsing 403 to the shared
   // refusal so the endpoint never confirms a private photo exists to an
   // outsider.
-  const ownership = await gateHandleAction(request, handle);
+  const ownership = await gateHandleAction(request, handle, actor.userId, {
+    requireAccountOwner: true,
+  });
   if (!ownership.allowed) {
     if (ownership.status === 403) return notFound();
     return publicApiErrorFromStatus(ownership.error, ownership.status);

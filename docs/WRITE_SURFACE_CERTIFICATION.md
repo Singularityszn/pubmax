@@ -528,9 +528,11 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 - **Auth stance:** the author is the self-asserted handle resolved through
   `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
   `gateHandleAction` — the same demo identity boundary as a pint drop, on both
-  POST and DELETE. A follow no longer shares it: both follow lanes refuse a
-  caller with no bearer (401 `UNAUTHENTICATED`), because an add link needs an
-  account.
+  POST and DELETE. An anonymous POST may only author as a handle whose profile
+  row already exists (404 otherwise): it never mints a row, because an unowned
+  row freezes that handle against the account that later claims it. A follow
+  no longer shares it: both follow lanes refuse a caller with no bearer (401
+  `UNAUTHENTICATED`), because an add link needs an account.
 - **DELETE stance:** deliberately skips `socialFreezeResponse()` — turning off is
   safety-reducing, so a solo-operator emergency freeze of social writes must
   never block it. It hard-deletes every check-in the caller authored

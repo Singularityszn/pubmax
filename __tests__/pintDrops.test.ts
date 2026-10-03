@@ -546,6 +546,18 @@ describe("POST /api/pint-drops (create)", () => {
     expect(res.status).toBe(201);
   });
 
+  it("stores no profile row for a signed-out demo drop", async () => {
+    gateActor.userId = null;
+    const res = await post({
+      venueId: VENUE,
+      handle: "demo_drinker",
+      passedDownNote: "The back bar is the original 1904 mahogany.",
+    });
+    expect(res.status).toBe(201);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(await memoryProfileStore.getByHandle("demo_drinker")).toBeNull();
+  });
+
   it("confirms an anonymous price against a second account's public one", async () => {
     reportAuth.userId = "account-anon-payer";
     await memoryProfileStore.createOwned("quiet_drinker", reportAuth.userId);

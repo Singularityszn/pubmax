@@ -23,11 +23,13 @@ import {
   GET as GET_THREAD,
   POST as POST_THREAD,
 } from "@/app/api/messages/[id]/route";
-import { __resetMemoryMessages } from "@/lib/messagesStore";
+import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
   __seedMemoryOwnedProfile,
+  __tombstoneMemoryProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
 
@@ -90,6 +92,39 @@ describe("GET /api/messages — inbox", () => {
   it("401s when a handle is asserted without a signed-in actor (Wave I2)", async () => {
     const res = await getInbox("handle=ken");
     expect(res.status).toBe(401);
+  });
+
+  it("refuses a stranger the same way for an owned handle, an unowned handle and a tombstone", async () => {
+    const stranger = "user-stranger";
+
+    async function refusal(handle: string): Promise<{ status: number; body: unknown }> {
+      asUser(stranger);
+      const res = await getInbox(`handle=${handle}`);
+      return { status: res.status, body: await res.json() };
+    }
+
+    const owned = await refusal("sam");
+
+    __seedMemoryLegacyProfile("quietfox");
+    const unownedId = await memoryMessagesStore.openConversation("quietfox", "sam");
+    await memoryMessagesStore.send(unownedId!, "sam", "for the unowned inbox");
+    const unowned = await refusal("quietfox");
+
+    __seedMemoryOwnedProfile("departed", "user-departed");
+    const tombId = await memoryMessagesStore.openConversation("departed", "sam");
+    await memoryMessagesStore.send(tombId!, "departed", "still here");
+    await memoryMessagesStore.send(tombId!, "sam", "see you");
+    __tombstoneMemoryProfile("departed");
+    const tombstoned = await refusal("departed");
+
+    expect(owned.status).toBe(403);
+    expect(unowned).toEqual(owned);
+    expect(tombstoned).toEqual(owned);
+    expect(JSON.stringify(unowned.body)).not.toContain("for the unowned inbox");
+    expect(JSON.stringify(tombstoned.body)).not.toContain("still here");
+
+    asUser("user-sam");
+    expect((await getInbox("handle=sam")).status).toBe(200);
   });
 });
 
@@ -239,6 +274,39 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
     expect(res.status).toBe(404);
     expectNoStore(res);
     expect(await res.json()).not.toHaveProperty("messages");
+  });
+
+  it("refuses a stranger the thread the same way for an owned handle, an unowned handle and a tombstone", async () => {
+    const stranger = "user-stranger";
+    asUser("user-sam");
+    const ownedId = await seed();
+
+    __seedMemoryLegacyProfile("quietfox");
+    const unownedId = await memoryMessagesStore.openConversation("quietfox", "sam");
+    await memoryMessagesStore.send(unownedId!, "quietfox", "unowned side");
+    await memoryMessagesStore.send(unownedId!, "sam", "sam side");
+
+    __seedMemoryOwnedProfile("departed", "user-departed");
+    const tombId = await memoryMessagesStore.openConversation("departed", "sam");
+    await memoryMessagesStore.send(tombId!, "departed", "gone side");
+    await memoryMessagesStore.send(tombId!, "sam", "still sam");
+    __tombstoneMemoryProfile("departed");
+
+    async function refusal(id: string, handle: string): Promise<{ status: number; body: unknown }> {
+      asUser(stranger);
+      const res = await getThread(id, `handle=${handle}`);
+      return { status: res.status, body: await res.json() };
+    }
+
+    const owned = await refusal(ownedId, "ken");
+    const unowned = await refusal(unownedId!, "quietfox");
+    const tombstoned = await refusal(tombId!, "departed");
+
+    expect(owned.status).toBe(404);
+    expect(unowned).toEqual(owned);
+    expect(tombstoned).toEqual(owned);
+    expect(JSON.stringify(unowned.body)).not.toContain("unowned side");
+    expect(JSON.stringify(tombstoned.body)).not.toContain("gone side");
   });
 
   it("returns 404 for an unknown conversation and 401 without sign-in", async () => {
