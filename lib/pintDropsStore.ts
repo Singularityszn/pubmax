@@ -7,8 +7,6 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
-import { createHash } from "node:crypto";
-
 import sharp from "sharp";
 
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
@@ -74,10 +72,12 @@ import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLi
 import { admin, selectStore } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
 import {
-  proveUploadedImageWrite,
-  readUploadedImageObject,
-  uploadUploadedImageObject,
+  deletePhotos,
+  PhotoProcessingError,
+  uploadPreparedPhoto,
 } from "@/lib/uploadedImage.server";
+
+export { deletePhotos } from "@/lib/uploadedImage.server";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
@@ -1428,8 +1428,6 @@ export const supabasePintDropStore: PintDropStore = {
 // format-specific metadata quirks; JPEG q80 at ≤1200px is plenty for a pint
 // photo. (If we ever want format-preserving output, branch here and in the
 // sharp pipeline together.)
-const NORMALIZED_EXT = "jpg";
-const NORMALIZED_CONTENT_TYPE = "image/jpeg";
 const MAX_IMAGE_DIMENSION = 1200;
 const JPEG_QUALITY = 80;
 
@@ -1485,9 +1483,6 @@ async function normalizeImage(input: Uint8Array): Promise<Buffer> {
  */
 export class PhotoRefusalError extends Error {}
 
-// The file was valid but Storage returned different bytes. This is a server
-// processing failure, not an outage we can ignore or an invalid-file 400.
-export class PhotoProcessingError extends Error {}
 
 /**
  * What an image the normaliser cannot open is refused with.
@@ -1579,57 +1574,4 @@ export async function uploadPhoto(
 ): Promise<string> {
   const processed = await preparePhoto(slot, venueId, dropId, file, maxBytes);
   return uploadPreparedPhoto(slot, venueId, dropId, processed);
-}
-
-/** Store the output of preparePhoto without decoding or normalizing it again. */
-export async function uploadPreparedPhoto(
-  slot: "pint" | "venue" | "receipt",
-  venueId: string,
-  dropId: string,
-  processed: Buffer,
-): Promise<string> {
-  const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
-
-  const error = await uploadUploadedImageObject(
-    key,
-    processed,
-    NORMALIZED_CONTENT_TYPE,
-    { upsert: false },
-  );
-  if (error) {
-    log("error", "pint_drops.photo_upload_failed", {
-      slot,
-      venueId,
-      dropId,
-      error,
-    });
-    throw new Error(error);
-  }
-  const proof = await proveUploadedImageWrite(key, {
-    sha256: createHash("sha256").update(processed).digest("hex"),
-    byteSize: processed.byteLength,
-  }, readUploadedImageObject);
-  if (proof === "corrupt") {
-    await deletePhotos([key]);
-    throw new PhotoProcessingError("Photo storage returned different bytes.");
-  }
-  return key;
-}
-
-/** Best-effort delete of uploaded objects — called to undo orphans when the
- *  DB insert fails after upload. Never throws: cleanup must not mask the
- *  original 503. */
-export async function deletePhotos(keys: string[]): Promise<void> {
-  const present = keys.filter(Boolean);
-  if (!present.length) return;
-  try {
-    const { error } = await admin().storage.from(STORAGE_BUCKET).remove(present);
-    if (!error) return;
-  } catch {
-    // Cleanup failures cannot mask the write outcome.
-  }
-  log("warn", "pint_drops.photo_cleanup_failed", {
-    keyCount: present.length,
-    reason: "storage_remove_failed",
-  });
 }

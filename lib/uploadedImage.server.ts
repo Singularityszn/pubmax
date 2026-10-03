@@ -386,3 +386,61 @@ export async function prepareUploadedImage(
     );
   }
 }
+
+const NORMALIZED_EXT = "jpg";
+const NORMALIZED_CONTENT_TYPE = "image/jpeg";
+
+// The file was valid but Storage returned different bytes. This is a server
+// processing failure, not an outage we can ignore or an invalid-file 400.
+export class PhotoProcessingError extends Error {}
+
+/** Store the output of preparePhoto without decoding or normalizing it again. */
+export async function uploadPreparedPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  processed: Buffer,
+): Promise<string> {
+  const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
+
+  const error = await uploadUploadedImageObject(
+    key,
+    processed,
+    NORMALIZED_CONTENT_TYPE,
+    { upsert: false },
+  );
+  if (error) {
+    log("error", "pint_drops.photo_upload_failed", {
+      slot,
+      venueId,
+      dropId,
+      error,
+    });
+    throw new Error(error);
+  }
+  const proof = await proveUploadedImageWrite(key, {
+    sha256: createHash("sha256").update(processed).digest("hex"),
+    byteSize: processed.byteLength,
+  }, readUploadedImageObject);
+  if (proof === "corrupt") {
+    await deletePhotos([key]);
+    throw new PhotoProcessingError("Photo storage returned different bytes.");
+  }
+  return key;
+}
+
+/** Delete upload orphans after a failed write. Cleanup never masks that failure. */
+export async function deletePhotos(keys: string[]): Promise<void> {
+  const present = keys.filter(Boolean);
+  if (!present.length) return;
+  try {
+    const { error } = await requireSupabaseAdmin().storage.from(STORAGE_BUCKET).remove(present);
+    if (!error) return;
+  } catch {
+    // Cleanup failures cannot mask the write outcome.
+  }
+  log("warn", "pint_drops.photo_cleanup_failed", {
+    keyCount: present.length,
+    reason: "storage_remove_failed",
+  });
+}
