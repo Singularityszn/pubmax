@@ -30,9 +30,15 @@ const TEA_OR_WATER_ITEM = new RegExp(
   String.raw`^(?:(?!(?:with|in|into|using|over|from)\b)[\w'-]+\s+){0,3}` + TEA_OR_WATER.source,
   "i",
 );
-/** Up to two leading words before a coffee word: "Flat white", "Iced oat latte". */
-const COFFEE_ITEM = new RegExp(
-  String.raw`^(?:[\w'-]+\s+){0,2}` + COFFEE_HARVEST_WORD_PATTERN.source,
+/**
+ * A line that is just a coffee name: up to two leading words, the coffee word
+ * last, then only tags in brackets or a separator. "Flat white", "Iced oat
+ * latte", "Latte (oat)"; not "Espresso over vanilla gelato".
+ */
+const COFFEE_NAME = new RegExp(
+  String.raw`^(?:[\w'-]+\s+){0,2}` +
+    COFFEE_HARVEST_WORD_PATTERN.source +
+    String.raw`(?:\s*\([^)]*\))*\s*[:|\u2013\u2014-]?$`,
   "i",
 );
 
@@ -44,12 +50,15 @@ const COFFEE_ITEM = new RegExp(
  * - Affogato on the own line is refused.
  * - An own line that names tea, chai or water as the item, before any coffee
  *   word, is refused: "Chai tea latte", "Hot water", "Earl Grey Tea".
- * - An own line that names a coffee item is kept, whatever the copy around it:
- *   "Flat white" under "Affogato available on request" or an Affogato section.
- * - Otherwise the own line is a description. Under an "Affogato" item name it
- *   is refused; naming water it is kept only under a coffee name, so "Filter
- *   coffee" over "Brewed with filtered water" stays coffee.
- * - A description naming nothing is refused under a tea or water name.
+ * - An own line that is just a coffee name is kept, whatever the copy around
+ *   it: "Flat white" under "Affogato available on request" or "Affogato".
+ * - Any other line under an "Affogato" item name is that dessert's
+ *   description and is refused, even when it opens with espresso.
+ * - An own line that names coffee is kept: "Filter coffee, brewed with water".
+ * - Otherwise the nearest line above that names a drink is the item's name and
+ *   decides: a coffee name keeps it ("Filter coffee" over "Brewed with
+ *   filtered water"), a tea or water name refuses it. With no such name, a
+ *   description that mentions tea or water is refused.
  */
 export function coffeePriceLabelExcluded(
   ownLine: string | null | undefined,
@@ -62,14 +71,15 @@ export function coffeePriceLabelExcluded(
   if (TEA_OR_WATER_ITEM.test(own) && (coffeeAt < 0 || own.search(TEA_OR_WATER) < coffeeAt)) {
     return true;
   }
-  if (COFFEE_ITEM.test(own)) return false;
+  if (COFFEE_NAME.test(own)) return false;
   if (lines.some((line) => AFFOGATO_ITEM_HEADING.test(line))) return true;
-  if (TEA_OR_WATER.test(own)) {
-    return !lines.some((line) => COFFEE_HARVEST_WORD_PATTERN.test(line));
-  }
   if (coffeeAt >= 0) return false;
-  const heading = lines.at(-1) ?? "";
-  return TEA_OR_WATER.test(heading) && !COFFEE_HARVEST_WORD_PATTERN.test(heading);
+  const name =
+    lines.findLast(
+      (line) => TEA_OR_WATER.test(line) || COFFEE_HARVEST_WORD_PATTERN.test(line),
+    ) ?? "";
+  if (COFFEE_HARVEST_WORD_PATTERN.test(name)) return false;
+  return TEA_OR_WATER.test(name) || TEA_OR_WATER.test(own);
 }
 
 /**
