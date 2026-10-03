@@ -121,6 +121,7 @@ type Reconciliation = {
       beforeObservedAt: string; currentObservedAt: string;
     }>;
   };
+  publicationHistory?: Array<Reconciliation["currentPublication"]>;
   accounting: {
     refusedNicholsonRows: number;
     knownMisclassifiedWithdrawals: number;
@@ -176,6 +177,31 @@ function hostOf(value: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+function ledgerBundleClaim(row: SiteHarvestLedgerRow): unknown {
+  return {
+    venueId: row.venueId,
+    name: row.name ?? null,
+    category: row.category,
+    priceGbp: row.priceGbp,
+    lane: "site-harvest",
+    standing: "listed",
+    sourceUrl: row.sourceUrl ?? null,
+    publisher: row.host ?? null,
+    observedAt: row.observedAt,
+    basis: null,
+    sampleSize: null,
+    ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
+    ...bundleDrinkFieldsFromPrintedName(row.drinkLabel ?? row.drinkName ?? null, row.category ?? ""),
+  };
+}
+
+function claimIdentity(row: UkPriceBundleRow): string {
+  return JSON.stringify([
+    row.sourceUrl, row.category, row.priceGbp, row.drinkLabel ?? null,
+    row.observedAt, row.servingSize ?? null,
+  ]);
 }
 
 describe("site-harvest withdrawal reconciliation", () => {
@@ -353,8 +379,11 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(audit.held).toBe(0);
     expect(audit.retained + audit.withdrawn + audit.held).toBe(audit.rowCount);
     expect(audit.unexplainedLosses).toBe(0);
+    const publications = [
+      ...(reconciliation.publicationHistory ?? []), reconciliation.currentPublication,
+    ];
     const laterSupersessions = new Set(
-      reconciliation.currentPublication.supersededRows.map((row) => row.beforeSha256),
+      publications.flatMap((publication) => publication.supersededRows.map((row) => row.beforeSha256)),
     );
     for (const hash of retainedHashes) {
       expect(currentIdentityHashes.has(hash)).toBe(
@@ -365,6 +394,25 @@ describe("site-harvest withdrawal reconciliation", () => {
     for (const row of audit.rows.filter((item) => item.disposition === "retain")) {
       expect(isHarvestableDrinkUpdateUrl(row.sourceUrl)).toBe(true);
     }
+    const bundleRows = JSON.parse(
+      readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+    ) as UkPriceBundleRow[];
+    const publishedClaims = bundleRows.filter((row) => row.lane === "site-harvest").map(claimIdentity);
+    const quarantinedSourceHashes = new Set<string>();
+    for (const publication of publications) {
+      const sourceText = readFileSync(join(ROOT, publication.sourceLedger.path), "utf8");
+      expect(sha256(sourceText)).toBe(publication.sourceLedger.sha256);
+      for (const raw of parseSiteHarvestLedgerText(sourceText)) {
+        const claim = ledgerBundleClaim(raw);
+        expect(isValidUkPriceBundleRow(claim)).toBe(true);
+        if (!isValidUkPriceBundleRow(claim) || !isCategoryQuarantined(claim)) continue;
+        const hash = rowIdentitySha256(raw);
+        quarantinedSourceHashes.add(hash);
+        expect(currentIdentityHashes.has(hash)).toBe(!laterSupersessions.has(hash));
+        expect(publishedClaims).not.toContain(claimIdentity(claim));
+      }
+    }
+    expect(quarantinedSourceHashes.size).toBeGreaterThan(0);
     for (const hash of withdrawnHashes) {
       expect(currentIdentityHashes.has(hash)).toBe(false);
     }
@@ -498,45 +546,55 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(bundledSourceRows.map(identity).sort()).toEqual(sourceRows.map(identity).sort());
     // This records the September 29 publication, not every later bundle build.
     expect(publication.currentBundle).toEqual({ rowCount: 7607, siteHarvestRows: 3087 });
-    const ledgerBundleRows: unknown[] = rows.map((row) => ({
-      venueId: row.venueId,
-      name: row.name ?? null,
-      category: row.category,
-      priceGbp: row.priceGbp,
-      lane: "site-harvest",
-      standing: "listed",
-      sourceUrl: row.sourceUrl ?? null,
-      publisher: row.host ?? null,
-      observedAt: row.observedAt,
-      basis: null,
-      sampleSize: null,
-      ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
-      ...bundleDrinkFieldsFromPrintedName(row.drinkLabel ?? row.drinkName ?? null, row.category ?? ""),
-    }));
+    const ledgerBundleRows: unknown[] = rows.map(ledgerBundleClaim);
     const validLedgerRows = ledgerBundleRows.filter(isValidUkPriceBundleRow);
     expect(validLedgerRows).toHaveLength(rows.length);
     const quarantined = validLedgerRows.filter(isCategoryQuarantined);
     const current = reconciliation.currentPublication;
-    expect(quarantined).toHaveLength(current.currentLedger.rowCount - current.currentBundle.siteHarvestRows);
+    const unresolvedVenueRows = validLedgerRows.filter((row) => row.venueId === "venue-uk-n25496840");
+    expect(unresolvedVenueRows.map(claimIdentity).sort()).toEqual([
+      JSON.stringify(["https://www.26furnivalstreet.com", "cocktail", 7.5, null, "2026-09-21T18:44:08.866Z", null]),
+      JSON.stringify(["https://www.26furnivalstreet.com", "wine", 7.6, "175ml:", "2026-09-21T18:44:08.866Z", null]),
+    ].sort());
+    expect(unresolvedVenueRows.every((row) => !isCategoryQuarantined(row))).toBe(true);
+    expect(loadCuratedUkBaseOwners(ROOT).has("n25496840")).toBe(false);
+    for (const row of unresolvedVenueRows) {
+      expect(bundleRows.filter((published) => published.lane === "site-harvest").map(claimIdentity))
+        .not.toContain(claimIdentity(row));
+    }
+    expect(quarantined.length + unresolvedVenueRows.length)
+      .toBe(current.currentLedger.rowCount - current.currentBundle.siteHarvestRows);
     const historicalQuarantineCount = publication.currentLedger.rowCount - publication.currentBundle.siteHarvestRows;
     expect(historicalQuarantineCount).toBe(19);
     const additionalQuarantines = quarantined.length - historicalQuarantineCount;
     const addedCanonicalRows = rows.length - historicalRows.length;
     const publishedSiteRows = bundleRows.filter((row) => row.lane === "site-harvest");
-    expect(bundleRows).toHaveLength(publication.currentBundle.rowCount + addedCanonicalRows - additionalQuarantines);
-    expect(publishedSiteRows).toHaveLength(publication.currentBundle.siteHarvestRows + addedCanonicalRows - additionalQuarantines);
+    const expectedSiteRows = publication.currentBundle.siteHarvestRows + addedCanonicalRows
+      - additionalQuarantines - unresolvedVenueRows.length;
+    expect(publishedSiteRows).toHaveLength(expectedSiteRows);
+    // The October 2 base refresh changed estimates before this publication.
+    // Both other lanes must retain their complete pre-publication contents.
+    const otherLanes = [
+      { lane: "estimate", count: 2950, sha256: "196037f89905bb0d611221677c095d6a6a2e6c91925432a48c40d04141bb4489" },
+      { lane: "drink-price-update", count: 1560, sha256: "66c5b9eb3eb5589ffb89811cfc1f8be0ff4ea095b4947a52eaa3cfc3a4b62e13" },
+    ];
+    for (const lane of otherLanes) {
+      const laneRows = bundleRows.filter((row) => row.lane === lane.lane);
+      expect(laneRows).toHaveLength(lane.count);
+      expect(sha256(laneRows.map((row) => JSON.stringify(row)).sort().join("\n"))).toBe(lane.sha256);
+    }
+    expect(bundleRows).toHaveLength(expectedSiteRows + otherLanes.reduce((sum, lane) => sum + lane.count, 0));
 
     // Curated aliases change venue IDs. Every other published claim must still
     // match its source, including the literal serving recovered by the builder.
-    const claimIdentity = (row: UkPriceBundleRow) => JSON.stringify([
-      row.sourceUrl, row.category, row.priceGbp, row.drinkLabel ?? null,
-      row.observedAt, row.servingSize ?? null,
-    ]);
     const publishedClaims = publishedSiteRows.map(claimIdentity).sort();
     for (const row of quarantined) {
       expect(publishedClaims).not.toContain(claimIdentity(row));
     }
-    const retainedClaims = validLedgerRows.filter((row) => !isCategoryQuarantined(row))
+    const unresolvedClaims = new Set(unresolvedVenueRows.map(claimIdentity));
+    const retainedClaims = validLedgerRows.filter((row) =>
+      !isCategoryQuarantined(row) && !unresolvedClaims.has(claimIdentity(row)),
+    )
       .map((row) => {
         const normalized = normalizeSiteHarvestLedgerRow({
           category: row.category, drinkLabel: row.drinkLabel, servingSize: row.servingSize,
@@ -552,7 +610,13 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(publishedClaims).toEqual(retainedClaims);
   });
   it("binds every Albion refresh observation to current publication or an archived newer same-key quote", () => {
-    const publication = reconciliation.currentPublication;
+    const publications = [
+      ...(reconciliation.publicationHistory ?? []), reconciliation.currentPublication,
+    ].filter((publication) =>
+      publication.sourceLedger.sha256 === "c309a158dc5bff241518cb826b679bc3725fdd7bc762691207b7300739ad9599",
+    );
+    expect(publications).toHaveLength(1);
+    const publication = publications[0];
     const rawText = readFileSync(join(ROOT, publication.sourceLedger.path), "utf8");
     const rawRows = parseSiteHarvestLedgerText(rawText);
     expect(publication.sourceLedger).toEqual({
@@ -562,10 +626,15 @@ describe("site-harvest withdrawal reconciliation", () => {
     });
     expect(sha256(rawText)).toBe(publication.sourceLedger.sha256);
     expect(rawRows).toHaveLength(3282);
+    const publicationLedgerText = publication.currentLedger.sha256 === sha256(ledgerText)
+      ? ledgerText
+      : readFileSync(join(ROOT, "data/uk_prices/observations", `${publication.currentLedger.sha256}.jsonl`), "utf8");
+    const publicationRows = parseSiteHarvestLedgerText(publicationLedgerText);
     expect(publication.currentLedger).toEqual({
-      path: "data/uk_prices/site_harvest.jsonl", sha256: sha256(ledgerText),
-      rowCount: 3200, rowIdentitySetSha256: identitySetSha256(rows),
+      path: "data/uk_prices/site_harvest.jsonl", sha256: sha256(publicationLedgerText),
+      rowCount: 3200, rowIdentitySetSha256: identitySetSha256(publicationRows),
     });
+    expect(identitySetSha256(rows)).toBe(publication.currentLedger.rowIdentitySetSha256);
     expect(publication.accounting).toEqual({ sourceRows: 3282, canonicalRows: 3200, supersededRows: 82, unexplainedLosses: 0 });
     expect(publication.supersededRows).toHaveLength(82);
     const owners = loadCuratedUkBaseOwners(ROOT);
@@ -596,9 +665,15 @@ describe("site-harvest withdrawal reconciliation", () => {
     const lines = rawText.split(/(?<=\n)/);
     expect(sha256(lines.slice(0, 3198).join(""))).toBe("88bc1995f82ad87a6ebd715d18f0b12a37214b15036127d33d92e6070ec5d3f1");
     expect(sha256(lines.slice(3198).join(""))).toBe("85a7546d5eb684a2b72bf126140c7a30ec9d61bd25a7b6839935b1f828962d34");
-    const bundleText = readFileSync(join(ROOT, publication.currentBundle.path), "utf8");
-    const bundleRows = JSON.parse(bundleText) as UkPriceBundleRow[];
     expect(publication.currentBundle).toEqual({
+      path: "public/data/uk_prices/rows.json",
+      sha256: "c85d4bfb582a5e766ee72607e1e3111485aeb88799c7aee1e299819c2f672c8c",
+      rowCount: 7674, siteHarvestRows: 3154,
+    });
+    const current = reconciliation.currentPublication;
+    const bundleText = readFileSync(join(ROOT, current.currentBundle.path), "utf8");
+    const bundleRows = JSON.parse(bundleText) as UkPriceBundleRow[];
+    expect(current.currentBundle).toEqual({
       path: "public/data/uk_prices/rows.json", sha256: sha256(bundleText), rowCount: bundleRows.length,
       siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
     });

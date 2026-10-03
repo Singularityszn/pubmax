@@ -22,8 +22,8 @@
       "rowIdentitySetSha256": "685286bb4c197ef95568be98c0d933017867f220754c9c098543a21c38c49320"
     },
     "currentBundle": {
-      "rowCount": 7595,
-      "siteHarvestRows": 3085
+      "rowCount": 7607,
+      "siteHarvestRows": 3087
     }
   },
   "accounting": {
@@ -9127,22 +9127,22 @@
   },
   "currentPublication": {
     "sourceLedger": {
-      "path": "data/uk_prices/observations/c309a158dc5bff241518cb826b679bc3725fdd7bc762691207b7300739ad9599.jsonl",
-      "sha256": "c309a158dc5bff241518cb826b679bc3725fdd7bc762691207b7300739ad9599",
-      "rowCount": 3282,
-      "rowIdentitySetSha256": "1dc31c8ea770b9df3e5a6884dc6189afbb334c28a7017fdf0d3c843b7ec550a5"
+      "path": "data/uk_prices/observations/bc3ebaedc587c1a662bc6050c89ae9baaf88653bb30741e3011f27df85a00c04.jsonl",
+      "sha256": "bc3ebaedc587c1a662bc6050c89ae9baaf88653bb30741e3011f27df85a00c04",
+      "rowCount": 3200,
+      "rowIdentitySetSha256": "511b56b978fa823186322d1c7d52762a1545e7379e258fb7ea359fa81aee7ab7"
     },
     "currentLedger": {
       "path": "data/uk_prices/site_harvest.jsonl",
-      "sha256": "bc3ebaedc587c1a662bc6050c89ae9baaf88653bb30741e3011f27df85a00c04",
+      "sha256": "3d35b16de893405a70bb2d2830e6a87a4b51be362dcebe8a7eb54329472a0b07",
       "rowCount": 3200,
       "rowIdentitySetSha256": "511b56b978fa823186322d1c7d52762a1545e7379e258fb7ea359fa81aee7ab7"
     },
     "currentBundle": {
       "path": "public/data/uk_prices/rows.json",
-      "sha256": "c85d4bfb582a5e766ee72607e1e3111485aeb88799c7aee1e299819c2f672c8c",
-      "rowCount": 7674,
-      "siteHarvestRows": 3154
+      "sha256": "bd21a512941ceb3dc0782cc37573d448148e56412086752bbaceff6f035165a2",
+      "rowCount": 7662,
+      "siteHarvestRows": 3152
     },
     "historicalLedgers": [
       {
@@ -9153,668 +9153,705 @@
       }
     ],
     "accounting": {
-      "sourceRows": 3282,
+      "sourceRows": 3200,
       "canonicalRows": 3200,
-      "supersededRows": 82,
+      "supersededRows": 0,
       "unexplainedLosses": 0
     },
-    "supersededRows": [
-      {
-        "sourceRowNumber": 296,
-        "collectKey": "venue-1qge8u vodka \u0000 site-harvest",
-        "beforeSha256": "b6857ce0558ce035e79674e39b810582c433ab57d57cbceabdd740f7aabbaeda",
-        "currentSha256": "0d3a88318f2922b5d757ac4e3debeab1b98e5740d5964a49a5a172b8f2827fea",
-        "beforeObservedAt": "2026-09-21T18:35:11.734Z",
-        "currentObservedAt": "2026-10-01T13:19:29.334Z"
-      },
-      {
-        "sourceRowNumber": 3107,
-        "collectKey": "venue-1qge8u alcohol-free guinness 0%\u0000 site-harvest",
-        "beforeSha256": "2265f9092a90e95841078aecfb0e4e60887bf6c7c49d315b286976022a368b4c",
-        "currentSha256": "a366510c1d47c174d85f15823bf68dc370e008aa2d57f38d6883882f13b43a25",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3108,
-        "collectKey": "venue-1qge8u alcohol-free heineken 0.0\u0000 site-harvest",
-        "beforeSha256": "08185f07f54895937325680dd6ab637dd8edb154dd25f96d9fb6fcecfa427596",
-        "currentSha256": "d0dab7da0df630d3111ea83a19ea5e54ada6456de321f10b80175074330f5db8",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3109,
-        "collectKey": "venue-1qge8u alcohol-free moretti 0.0\u0000 site-harvest",
-        "beforeSha256": "7ab83aebff950fafc96761d4a22ac092950611639b56241232f00785041ce11c",
-        "currentSha256": "5a251ac72049e2d4855288948790e52f08318ac3abec110a364586107d095a73",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3110,
-        "collectKey": "venue-1qge8u alcohol-free old mout 0%\u0000 site-harvest",
-        "beforeSha256": "6db1597f3c69dd5015212fb466197e5d116732ac8135dade87e71850c8bf3a58",
-        "currentSha256": "d9c01429f64d1b8d6dbf638ecc3497667c56368e87b5887d4f07e9ae48210ddf",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3111,
-        "collectKey": "venue-1qge8u alcohol-free paulaner weissbier .\u0000 site-harvest",
-        "beforeSha256": "5eb4fadeaf42e18aa3c8c911e8e49f05640cff978fd015a9b9fc799147f51d7a",
-        "currentSha256": "95123f634330eb99c5e83b5bff35ffb8ce60463477d4fb73a56f5ac18fcfc74f",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3112,
-        "collectKey": "venue-1qge8u beer / 3.20 cider/england/abv 4.5% amstel\u0000 site-harvest",
-        "beforeSha256": "445cc29447dd8f6ea78ca24aafd34a212fe4dace6c8d5b7d55f246cf575cc471",
-        "currentSha256": "7cd842cf1d7a2b9667b71866a92f7a345f4affc70b1d8a038873cb7e79406d67",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3113,
-        "collectKey": "venue-1qge8u beer / 3.20 lager/nederlands/abv 4.1% neck oil\u0000 site-harvest",
-        "beforeSha256": "e325e908246fff937fd456b9a0aeba9c012eff193d6909d9497d5905305db0a6",
-        "currentSha256": "58ffc128ecfcc1079c4911548c5b05f2a92565efd4fad1a809e67bc381dc609d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3114,
-        "collectKey": "venue-1qge8u beer / 3.50 ale/england/abv 4.1% |timothy taylor tribute\u0000 site-harvest",
-        "beforeSha256": "a7b0fa9ae22d6600636c92bd7472c795fbaa098ee652a58421d320f41018e57b",
-        "currentSha256": "ae01e83bb145d9d7921817a5382030caa24b9a8bf9583cfe76bcf0465b5b4dd9",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3115,
-        "collectKey": "venue-1qge8u beer / 3.70 lager/nederlands/abv 5% moretti\u0000 site-harvest",
-        "beforeSha256": "70bc90fb7b777d33bdaa62795565964ab1d84453bb9cd9b41db0b73e30796099",
-        "currentSha256": "83e52a8ed19f94aa7a943798e5cc969fb9ff52a923cffb065a4a9a1d627de1d2",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3116,
-        "collectKey": "venue-1qge8u beer / 3.80 lager/italy/abv 4.6% guinness\u0000 site-harvest",
-        "beforeSha256": "221e1ba339f4c381ab968f2558ed99cb1e972164c22f164a7287007c70abc6b2",
-        "currentSha256": "b80b259bb9a8b83bee0e60e4335630a889a1b5edbfb3244db18accf5cb4a9062",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3117,
-        "collectKey": "venue-1qge8u beer / 4.00 stout/ireland/abv 4.1% reliance pale ale\u0000 site-harvest",
-        "beforeSha256": "441bcafbe4b2b9e333d5bc6cda2e29ed1d9fd99e2cfe8b7fcca3b8fae7b4561d",
-        "currentSha256": "1034478ddf1055e0088eeb095e067e6ee56c9c96477a032f08e7d6d1b2a50ad6",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3118,
-        "collectKey": "venue-1qge8u beer / 4.10 ale/england/abv 4.2% landlord\u0000 site-harvest",
-        "beforeSha256": "e47550bc0f94fa7eb999a7194f7fa6ce1bdce14a39091364475e945f7a3d5249",
-        "currentSha256": "e8f0c475ded290b92092cc1b8fb585282f1ef7c4f9019bc0e82ab9b85a32352d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3119,
-        "collectKey": "venue-1qge8u beer / 4.10 lager/england/abv 4.4% heineken\u0000 site-harvest",
-        "beforeSha256": "bd2060cc5950be620da7748a3a73ef19657a29d2e999bfcfae6d7b901bae58de",
-        "currentSha256": "995db5a756e8c06e173c42ff7b650f22a1b1b3b32d51282d2e5ded48738e8c6c",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3120,
-        "collectKey": "venue-1qge8u beer / 4.20 ipa/england /abv 4.3% brixton\u0000 site-harvest",
-        "beforeSha256": "a91a2bae413df47f241fa14345f532989b8f27cc6cd1484c5e3efc50a870a475",
-        "currentSha256": "e2ac6c3b43d3510df7a0d0cb9af5c6c23213a27ab58707ae59ba1677bc2e8283",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3121,
-        "collectKey": "venue-1qge8u beer lager/germany/abv 5.3% old mout\u0000 site-harvest",
-        "beforeSha256": "a923318c7839e63e4b2bf48b34a3cbe064f1eb5bd68282899a3d1870e4e45c76",
-        "currentSha256": "f5e704a7b15f7afcc41418508da502cfa10f4fb97e2b180306cb2490e8d87185",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3122,
-        "collectKey": "venue-1qge8u beer lager/italy/abv 4.8% tiger\u0000 site-harvest",
-        "beforeSha256": "c50114078152afb77ca42078eff2a6cbe5230cf478569d883478ed7d8373ffe5",
-        "currentSha256": "18bba472f420cb50c7eb0965ec70e027f71e141156fb0d51a3c252a4ccb0c6ae",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3123,
-        "collectKey": "venue-1qge8u beer lager/nederlands/abv 5% moretti\u0000 site-harvest",
-        "beforeSha256": "2d4aeee583b0cf8c945ed8ec6f7c19d0118b7bd21254141c28b792803d22c615",
-        "currentSha256": "372efac30c91d436193941f488a3dfb6643b12958b68e2e31cf4d47c311f85c5",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3124,
-        "collectKey": "venue-1qge8u beer lager/singapore/abv 4.8% estrella\u0000 site-harvest",
-        "beforeSha256": "7670f7a061893ea9f56a05994ced610d298d4fdb8618fd72d611b6d5e979e019",
-        "currentSha256": "f14f0895cddeb0c5c164a7d6f13fdfe90fddb3946c6a4c388161ec7b61d924c5",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3125,
-        "collectKey": "venue-1qge8u beer lager/spain/abw 4.6% erdinger\u0000 site-harvest",
-        "beforeSha256": "40505aadffa71217493caaa39a80a6b904d88622e291321652ef56a4ca3e982a",
-        "currentSha256": "3930ea8db98975df6e890aa487244fed90ee63e55d1977ec0224bf53afb1462d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3126,
-        "collectKey": "venue-1qge8u gin bombay\u000025ml site-harvest",
-        "beforeSha256": "bf36f5109d535979465559327301a5972be40b28dd70ab593b361209d4cd5ebe",
-        "currentSha256": "acaf6784965ade0c2011ff41367f3918a6280e6c587628c6a03f1fbd3588bf1f",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3127,
-        "collectKey": "venue-1qge8u gin bombay star\u000025ml site-harvest",
-        "beforeSha256": "f58ca686208d9ee5677b357aeba9132fc5f053e6419449974dd7087b7b30bc90",
-        "currentSha256": "dc4c9063530333644b2372eec8262d3bc777c78435bf328d5da54a805f891ac5",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3128,
-        "collectKey": "venue-1qge8u gin brockmans\u000025ml site-harvest",
-        "beforeSha256": "e8a82cc8061a9d9781707161ff894ffe0e45aca0135605812bb78b75b1642ad1",
-        "currentSha256": "a939fd19c04f2d8741d30d1d68825f720e3b442869e233194130edd32477175a",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3129,
-        "collectKey": "venue-1qge8u gin edinburgh gin\u000025ml site-harvest",
-        "beforeSha256": "1f3529b26442902a5aba7f1423adcbeedb3e2e8e9ed7e6a188fcb872c2c06b38",
-        "currentSha256": "b9f2f89f8fd2a8c3c1c23303cf599377386b20050ad308846043cb670f98e5ee",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3130,
-        "collectKey": "venue-1qge8u gin elephant\u000025ml site-harvest",
-        "beforeSha256": "ab505c38dcfab520fa738bf5c5ee73eb0e3a4b16612f01aaabea3f67993e5907",
-        "currentSha256": "0b7f9f5e501fa06b06528adf04b1694d5249e9cb72c028d7203ea176ece5a160",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3131,
-        "collectKey": "venue-1qge8u gin gordons\u000025ml site-harvest",
-        "beforeSha256": "133c2ea88e0c10cc4f9ed82db5298f5b48e6c669a5227633450d624396451d14",
-        "currentSha256": "adf37f7d28e9566d7d66f69461e9a1ff9ce4e037bce77bdf95b4a8b58504a26a",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3132,
-        "collectKey": "venue-1qge8u gin hendricks\u000025ml site-harvest",
-        "beforeSha256": "cf8bd3faee59adfd67248e89b044ed9365df84f532dcde02aa3e43d4009e0927",
-        "currentSha256": "b04e00c27880c2b8dfb2ae347c94e1449ffc32917f2ee04fac33e0722c995597",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3133,
-        "collectKey": "venue-1qge8u gin malfy orange\u000025ml site-harvest",
-        "beforeSha256": "022cba7cf22ec2248c1672e0650f3be6ecc3033b01ab47a63c2f56b474982725",
-        "currentSha256": "9d4f651d5b9f9f841c0ac15fa9f6f310238c3872fd2f8ee9f6b568d200444762",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3134,
-        "collectKey": "venue-1qge8u gin no .3\u000025ml site-harvest",
-        "beforeSha256": "95825f1ba95083fe4cab583eed7e760df40c713dd84b7f2f1e8302fee88ebe4e",
-        "currentSha256": "1285c921775bef33ee19a01af771cec009ba8c069de541526747b9498a2216cd",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3135,
-        "collectKey": "venue-1qge8u gin plymouth\u000025ml site-harvest",
-        "beforeSha256": "52e8dff1a7da3f8e6f36b4232126f0522e51ec0cdf9686677cc94b2390f56ea2",
-        "currentSha256": "615f517940ecea96cbee25e705c45e1cf31be2dd1a5699da48b80a65a9de7837",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3136,
-        "collectKey": "venue-1qge8u gin portobello road\u000025ml site-harvest",
-        "beforeSha256": "b7eac8508412b5599aba113b546b0ae2806f1f453aca2adf58cf6e2a13a8642a",
-        "currentSha256": "7a7473474d225c47d55e07d25048a94ab2a22f49be1376110d88541b78ba5f5f",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3137,
-        "collectKey": "venue-1qge8u gin sipsmith\u000025ml site-harvest",
-        "beforeSha256": "447c30d7d2f562628433549597d889110fb6ca31ff3d10ae9af43228d1aa1fb1",
-        "currentSha256": "dbcc64ab250c7a658d9d10da395113c62a1e628b8540f83895c80a7f0171e9e0",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3138,
-        "collectKey": "venue-1qge8u gin tanqueray\u000025ml site-harvest",
-        "beforeSha256": "da5139a9408a410f7a4a6d5696bdd0f2b41997206fae58d8d2acb829778e991e",
-        "currentSha256": "f3c8b6362cabf80cfdf213e8bafe67760fea52f104a5edc5162a78d8d33b6867",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3139,
-        "collectKey": "venue-1qge8u gin tarquin’s\u000025ml site-harvest",
-        "beforeSha256": "2bc4407e58ef6d47de0286a8e8ec1f09622740a295c56f41c48c3522699a1790",
-        "currentSha256": "639f64906078b63c65955d93565cc9d925b7365cc73cb5b71dea1be3cebe9833",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3140,
-        "collectKey": "venue-1qge8u gin the botanist\u000025ml site-harvest",
-        "beforeSha256": "3d51e0d60d7327b599f005ec50cf3dc90993a5864323ea8181446326a55f3cb5",
-        "currentSha256": "662ba361b4534af057d92bd918ccb5a0712a435f6a30b0da461345612dd42eaa",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3141,
-        "collectKey": "venue-1qge8u rum bacardi\u000025ml site-harvest",
-        "beforeSha256": "9df5e61a71b5217b7d60c8f29c6dd003def33b6db448c2062a046743b5458069",
-        "currentSha256": "0c507b9b7a0e2218c57c4f2672e9870621d5001ed1b6e2e05667bdaf705e4ce9",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3142,
-        "collectKey": "venue-1qge8u rum captain morgan\u000025ml site-harvest",
-        "beforeSha256": "9f92387b2fda53f879be22c6385e0325253ceb6d6734832fa2515be8b83aaa02",
-        "currentSha256": "6a16b98913eb92bddadb03303471d11423d84116a61cccb8185cca48632e1280",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3143,
-        "collectKey": "venue-1qge8u rum crusty juggler\u000025ml site-harvest",
-        "beforeSha256": "1332baea8df1584a36225f31381f11cf461ff006a5b667f24cb453c9061b73f5",
-        "currentSha256": "aa808e0d96ace53f389af300b33cb69cba4cf4a6cf24fe325044daeeccc3f895",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3144,
-        "collectKey": "venue-1qge8u rum havana club 7\u000025ml site-harvest",
-        "beforeSha256": "d7ed57a7df89d3546cce72f0eb409c996aa13bc542a0b2c0c72ba4075e224818",
-        "currentSha256": "b6155547aa6b84f0f0701e91002b3cf4c6e9b7e37264ebed502839bde7b1ec97",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3145,
-        "collectKey": "venue-1qge8u rum kraken\u000025ml site-harvest",
-        "beforeSha256": "d7a82414035dc3303dcff13038185ca20295ec16aed535c74145ea01aa943127",
-        "currentSha256": "20665dded87914bebf5fe6e77c9350633dabf8fd5bc015d2599fa626307ea5fb",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3146,
-        "collectKey": "venue-1qge8u rum pineapple grenade\u000025ml site-harvest",
-        "beforeSha256": "34ac6c4e0c0dd97aad92522dd2d5faf48b4f1ee988bc866ad4f6150b98707891",
-        "currentSha256": "01055f4b62fe0aac917e13fafd547f5871a8b924ee50b9fd3a2a2060b25dc94c",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3147,
-        "collectKey": "venue-1qge8u rum sailor jerry\u000025ml site-harvest",
-        "beforeSha256": "a78e56bfb1614c7e5efe719172e67dfe15e7933843a53b2dca28c4c57ccf696a",
-        "currentSha256": "1b11d450379575102557a8a12d7b4756052f83fe37bb49e66a5a9253f2d43b1d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3148,
-        "collectKey": "venue-1qge8u shot cazablel\u000025ml site-harvest",
-        "beforeSha256": "0a50a7cc833f04f683c6a905bc2a26d711b3d873f23f4fc9a19a9b37f7c74654",
-        "currentSha256": "99a84dd1d41c2f7ad95615d4f75fb48f53f856b1a8969ef60ed1a92bb9a416c9",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3153,
-        "collectKey": "venue-1qge8u shot jose cuervo\u000025ml site-harvest",
-        "beforeSha256": "69fe97428a4ce2a9efb474d0516092ae5c1a183700b8d0b6a038ceb95a830242",
-        "currentSha256": "33af36082744d05b2ae0eff6aa6ae153433eee323da6393096c79a3262912f11",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3154,
-        "collectKey": "venue-1qge8u shot monte alban\u000025ml site-harvest",
-        "beforeSha256": "2d1cea8d9182087ed43f6278db0b58d19af2c401cfabcd68df09889301e633bc",
-        "currentSha256": "fcab77816feec40b4444122ae3c76e0f170552a4cd4ccaa49a32950cdf059e7a",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3155,
-        "collectKey": "venue-1qge8u shot olmeca\u000025ml site-harvest",
-        "beforeSha256": "236d7f59fcf0c492d81866fb0129b0822ddeb622c1dab97ad36aedff44fd0761",
-        "currentSha256": "1324e0782176af8cd03cc85e7f9b77038506c675081fe6a98df173280d2d7f24",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3157,
-        "collectKey": "venue-1qge8u shot rooster rojo\u000025ml site-harvest",
-        "beforeSha256": "bd2d96d53bced5123713f3f75b311e60d41c0aab612be5a6cf4fa683cdb91877",
-        "currentSha256": "6ac397328d854a3f7138ac926d5722ae5ee795967e4718ce63bcd96833664f56",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3161,
-        "collectKey": "venue-1qge8u soft-drink cola\u0000 site-harvest",
-        "beforeSha256": "457bfdf4d32a7427cdbacc8bb621630c65fbdce46ae99354b36aad28d7ca3d3e",
-        "currentSha256": "9868e1f154dd703a8e644639871c78b89145597ef51e8250196961e41a735d5d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3162,
-        "collectKey": "venue-1qge8u soft-drink cranberry 200 ml water\u0000 site-harvest",
-        "beforeSha256": "69c32b9a0868089b8f58e02529caf09fad3d6201e58713e364ca7d171365eb1c",
-        "currentSha256": "1637752af09f19354db2758fb6f5e45fa9e720dddccb3ad7b950c5334ff3ae44",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3163,
-        "collectKey": "venue-1qge8u soft-drink juice\u0000 site-harvest",
-        "beforeSha256": "5c2b48a80600b68b0c79320d70853476d9eb4d27936e257797c3d8ca1bedd949",
-        "currentSha256": "5e8e9faaacd4c19a6d09336d6e85755940d25cf8b7cf8ed61b1bcc7adfacec0d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3164,
-        "collectKey": "venue-1qge8u soft-drink mix your spirits with draft coke , coke zero , lemonade or a soda water\u0000 site-harvest",
-        "beforeSha256": "fc738adc45487c9f0d6926094c4bbe8bcbb2aa1a50c7340fd74b4acb4cd29e53",
-        "currentSha256": "fd79e7f0fca938ea6d5e4daef6fbcec9cdcdd4344fde52d270287d43ce16c8a1",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3165,
-        "collectKey": "venue-1qge8u soft-drink still or sparkling 330 ml fever tree\u0000 site-harvest",
-        "beforeSha256": "34d454c3eef39ffb5cc002f3b8e6ccdb64e669d9f27cd509255c86de73f6b911",
-        "currentSha256": "e7c8d16eec5a15b278eb3cb62a9eda4837792f6245dfa3cd59c76bb58b16e6b8",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3168,
-        "collectKey": "venue-1qge8u vodka grey goose\u000025ml site-harvest",
-        "beforeSha256": "2c63eef51a0cc8a39b6cf971b310e36ac956ac7bcef2ac7eb8ade403a01e9447",
-        "currentSha256": "71dc41110378435ed123c4f3512b239615ebd1dc3738697a5a56b196330e560d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3169,
-        "collectKey": "venue-1qge8u vodka sipsmith\u000025ml site-harvest",
-        "beforeSha256": "3e83a405892f49eab573afe36f26d502a3f518c122ea50be570269f2d77b107b",
-        "currentSha256": "569d446714d8d4ff62092d2b953359da745e0a814ed737d3c753f3af8773412e",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3170,
-        "collectKey": "venue-1qge8u vodka smirnoff\u000025ml site-harvest",
-        "beforeSha256": "76f4bb71fb395229bf0091aae37920c9509c657b88b92c84148282248f71d890",
-        "currentSha256": "28c35bdb79b27083ee43536dff0d73e0e2c692084e4fea59e0e8107164cab607",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3171,
-        "collectKey": "venue-1qge8u whisky ballantines\u000025ml site-harvest",
-        "beforeSha256": "62f7a277f42980a28c196d670fe55f1c9f829d037309e1bb3754f496138b36d8",
-        "currentSha256": "1153c942827e5b3d494f7cf3e62d6066a400c01e2069a133fecc6767bd4662fb",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3172,
-        "collectKey": "venue-1qge8u whisky bells\u000025ml site-harvest",
-        "beforeSha256": "37d83f7c683552ac88e30865315fafe0a7903a46fd86c83d1b6f28f44dbc021a",
-        "currentSha256": "6dd546620dd8406aaeb54d944287365e890cc38af6b2c082215bc6eb8de7a8c0",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3173,
-        "collectKey": "venue-1qge8u whisky chivas regal\u000025ml site-harvest",
-        "beforeSha256": "78bb353e52e3d471a3f49468c33801c5655d033833e886e39f33387d733bac3b",
-        "currentSha256": "1fb7775a20350db68ea6855e8b632ecf86d002629964b9b75bf4f19de5b0863e",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3174,
-        "collectKey": "venue-1qge8u whisky cragganmore\u000025ml site-harvest",
-        "beforeSha256": "7387be013ae2e8402d778c469087cbc25510a160c654944ff3c786f12668e668",
-        "currentSha256": "6f66b4544dd28e329a10debfd00e865ad1ccc101a453cb5d6329e7cbc9ab0a24",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3175,
-        "collectKey": "venue-1qge8u whisky dalmore\u000025ml site-harvest",
-        "beforeSha256": "0aa0f3156f822c28d1860a68fcc49eb44bb37fbbe74b602b88cbfb22e3f45a84",
-        "currentSha256": "eb4427e94afc8f0a6b4fed8acc8632766818e113d88c80b0a6fbb0b986e553bc",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3176,
-        "collectKey": "venue-1qge8u whisky dalwhinnie\u000025ml site-harvest",
-        "beforeSha256": "f124e4d807bc15e1e68e1adf6eeb28117b3c20b00718ba16115250e75a3ebfa1",
-        "currentSha256": "3abbfc93f87f986b30a0babaec7f8ae2da81d3f8d9c0138006e3a74cdae8e3b1",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3177,
-        "collectKey": "venue-1qge8u whisky glenfiddich\u000025ml site-harvest",
-        "beforeSha256": "0f88ee9c2158dfb7315ef9574fd09df3c66d06889eb8f1bb683c547accf3f562",
-        "currentSha256": "2ceb00859aa02dc526d28d612dc58b2121647ead861f244c97d2af5ff0f21446",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3178,
-        "collectKey": "venue-1qge8u whisky glenkinchie\u000025ml site-harvest",
-        "beforeSha256": "c5c8bb985158bfe7f4cead3910ff52faceeb4da744414830878d8426cc81c281",
-        "currentSha256": "9aa1caa075a68f6446b940bc6abdf0d7a12b134ed3cc5ced1147ca21fde933fc",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3179,
-        "collectKey": "venue-1qge8u whisky glenmorangie\u000025ml site-harvest",
-        "beforeSha256": "f5785f0232c5bf29762bc8284313dc8371c1adeebd773ca31450ffe4495d3a57",
-        "currentSha256": "41ac06b18e764e38cd46ef7958cd952a348f3dcc334c18e37fd74627f0564e86",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3180,
-        "collectKey": "venue-1qge8u whisky hibiki\u000025ml site-harvest",
-        "beforeSha256": "69bc95ef5fb71a5104cdccd13b50986ecb8487689d37687c2667f143659be47f",
-        "currentSha256": "345ce617cfa03fc6a495da84feeb40f0d546f6dcc22074a764ba823e97e4f184",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3181,
-        "collectKey": "venue-1qge8u whisky jack daniels\u000025ml site-harvest",
-        "beforeSha256": "84320318a526e621cd711df0749f5160897836b29e3fee2e5e4c4fddb6ea73ff",
-        "currentSha256": "ea1a020a688e2550442e3a3bcf5fb4bc6c9da1f68e079b9e91e7d7cc556f1407",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3182,
-        "collectKey": "venue-1qge8u whisky jameson\u000025ml site-harvest",
-        "beforeSha256": "cb1506059a8a234d1a4dfdfeca87b3c439f1eb10f1d65da1bf39c3929dd8d216",
-        "currentSha256": "efbaa562442a08d8c1e9b3c8d7eb0db14f2b5106c3f103e98157897ac88dfbf4",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3183,
-        "collectKey": "venue-1qge8u whisky jim beam\u000025ml site-harvest",
-        "beforeSha256": "297f382c50c1c40552eafa8c9cd36ce6f133c27ba85bd5d681e9eda85620c678",
-        "currentSha256": "2a0759de2c1a8bba81fdbe03090f3728a4f103eb82463c45792f2802d3e140ee",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3184,
-        "collectKey": "venue-1qge8u whisky johnnie walker\u000025ml site-harvest",
-        "beforeSha256": "d1f986496935232b1a195d701b443c55cabd76149df83dd88fc2ab25dd75f785",
-        "currentSha256": "d1088508b2f6300b4f8b7c63f168f4d72d800c04f17ba345a3c6670508bb2c37",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3185,
-        "collectKey": "venue-1qge8u whisky jura\u000025ml site-harvest",
-        "beforeSha256": "f1e7edcf83bb49ac28b4c2dc2f845e22a6c73fc5ddded37783f25136b3b8507d",
-        "currentSha256": "e976e07ef9c02096576b15c7cf577487c709fda6dd0def394f64918a6e0c33c6",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3186,
-        "collectKey": "venue-1qge8u whisky knockando\u000025ml site-harvest",
-        "beforeSha256": "2b94aa9d21325679419450ac066263f00102f6b5f29084b1a5a81b3da2f37ad2",
-        "currentSha256": "ef0ee083514bb69a50e7b98fe426cd2fdadb2be7f8f3a4b7f3292308ed8f8429",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3187,
-        "collectKey": "venue-1qge8u whisky lagavulin\u000025ml site-harvest",
-        "beforeSha256": "364cfb62e671343a6c77d2d2e4a792ed5509dd31110cbe7fa1d452b0741028b3",
-        "currentSha256": "1b8644fc1ea285e6f7c9157c925517b14519c6fe36c095d13d925cff6727e850",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3188,
-        "collectKey": "venue-1qge8u whisky laphroaig\u000025ml site-harvest",
-        "beforeSha256": "6a391b908b6b3ce1875aa624ce3da01bdcf277c5b12291ba33ea5bd8c47b0511",
-        "currentSha256": "3daea6d7a160a093a8cb2ff1f2407e1d7b0ddfd586b2b359fdd7e6811ef6737e",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3189,
-        "collectKey": "venue-1qge8u whisky macallan\u000025ml site-harvest",
-        "beforeSha256": "7d8cf2b9fa5f7aa0734755e6076945dce0f19365e30690cdef460681b9261b99",
-        "currentSha256": "740c1f78e8375a3b33baae3835804121c50dcd177f9500fba3ad01e3950a32de",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3190,
-        "collectKey": "venue-1qge8u whisky maker’s mark\u000025ml site-harvest",
-        "beforeSha256": "f260a51d74cb0cefc49f1e2215a959f9b9d431d631891df129a54ab54a289c45",
-        "currentSha256": "ce80bf1c5b3b6f4d4633c08fc29e90c94c31ef06368b9cb078c523070655de74",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3191,
-        "collectKey": "venue-1qge8u whisky monkey shoulder\u000025ml site-harvest",
-        "beforeSha256": "ab5535b2526f7886f08261fe0e9d301c80f7cb7e100608555db102044ca21f14",
-        "currentSha256": "69b8d43d0308fcbb5ce48121d7a446962a21aa0448a301cd34fee610db315e88",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3192,
-        "collectKey": "venue-1qge8u whisky oban\u000025ml site-harvest",
-        "beforeSha256": "4f0f99782c9e3f84c70df95a3e7ca1c489725011d4cec0b9c4a5720608718219",
-        "currentSha256": "c5f241480c3a3e9d83df225b72471d5c2b46b20ab7902f2ce0bdf565e7786f3f",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3193,
-        "collectKey": "venue-1qge8u whisky talisker\u000025ml site-harvest",
-        "beforeSha256": "8d84c1e9520b25fca3b4f059d20bf1c6683b2aa91e4ec1f41957e86a4ed6435e",
-        "currentSha256": "59596393e52fc49c87c4ad383d875d82378ca5c0494ebab1863b232a6844209a",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3194,
-        "collectKey": "venue-1qge8u whisky the balvenie\u000025ml site-harvest",
-        "beforeSha256": "b113477a8db35e1d37aa373239ae75618a765f9ff9790a126cc88ac51501027f",
-        "currentSha256": "f4ebfdfc27838a85bf622261a0d7f96681e061975144681d52c95ae4bf5fd568",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3195,
-        "collectKey": "venue-1qge8u whisky the glenlivet\u000025ml site-harvest",
-        "beforeSha256": "3a8d4e6672f29072db2eb78ef5c5df394e548ec2ec69de1c7c0bd66a528a742f",
-        "currentSha256": "9d43ed9146312dcb8548f1edb9b414c4ba1bfb867bdd40b1a226a4ac04e59552",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3196,
-        "collectKey": "venue-1qge8u whisky tobermory\u000025ml site-harvest",
-        "beforeSha256": "c4c3c8df7e8aa5590cca3e6eb4746251c458ba5bef1b2d72356f6785dac0e5a5",
-        "currentSha256": "a28bcf40913b521c51385d4156db1dcb1f0bd76fb3f4495a54c0c17d0e0b453d",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      },
-      {
-        "sourceRowNumber": 3197,
-        "collectKey": "venue-1qge8u whisky tullamore dew\u000025ml site-harvest",
-        "beforeSha256": "224ac0c46ecd4845c7b610f060e907ba178b24aefa69842f193b6a793130fefe",
-        "currentSha256": "b928d0d1f4b583238c834e87d0d46d739b071f85ed2262e95dfb9b7085bd14d8",
-        "beforeObservedAt": "2026-10-01T13:19:29.334Z",
-        "currentObservedAt": "2026-10-01T14:16:36.325Z"
-      }
-    ]
-  }
+    "supersededRows": []
+  },
+  "publicationHistory": [
+    {
+      "sourceLedger": {
+        "path": "data/uk_prices/observations/c309a158dc5bff241518cb826b679bc3725fdd7bc762691207b7300739ad9599.jsonl",
+        "sha256": "c309a158dc5bff241518cb826b679bc3725fdd7bc762691207b7300739ad9599",
+        "rowCount": 3282,
+        "rowIdentitySetSha256": "1dc31c8ea770b9df3e5a6884dc6189afbb334c28a7017fdf0d3c843b7ec550a5"
+      },
+      "currentLedger": {
+        "path": "data/uk_prices/site_harvest.jsonl",
+        "sha256": "bc3ebaedc587c1a662bc6050c89ae9baaf88653bb30741e3011f27df85a00c04",
+        "rowCount": 3200,
+        "rowIdentitySetSha256": "511b56b978fa823186322d1c7d52762a1545e7379e258fb7ea359fa81aee7ab7"
+      },
+      "currentBundle": {
+        "path": "public/data/uk_prices/rows.json",
+        "sha256": "c85d4bfb582a5e766ee72607e1e3111485aeb88799c7aee1e299819c2f672c8c",
+        "rowCount": 7674,
+        "siteHarvestRows": 3154
+      },
+      "historicalLedgers": [
+        {
+          "path": "data/uk_prices/observations/aaf43a4dccda3eb3cf9b6ef9bd37b080932ad31751f8dd9211ef2511d9c8b660.jsonl",
+          "sha256": "aaf43a4dccda3eb3cf9b6ef9bd37b080932ad31751f8dd9211ef2511d9c8b660",
+          "rowCount": 3106,
+          "rowIdentitySetSha256": "685286bb4c197ef95568be98c0d933017867f220754c9c098543a21c38c49320"
+        }
+      ],
+      "accounting": {
+        "sourceRows": 3282,
+        "canonicalRows": 3200,
+        "supersededRows": 82,
+        "unexplainedLosses": 0
+      },
+      "supersededRows": [
+        {
+          "sourceRowNumber": 296,
+          "collectKey": "venue-1qge8u vodka \u0000 site-harvest",
+          "beforeSha256": "b6857ce0558ce035e79674e39b810582c433ab57d57cbceabdd740f7aabbaeda",
+          "currentSha256": "0d3a88318f2922b5d757ac4e3debeab1b98e5740d5964a49a5a172b8f2827fea",
+          "beforeObservedAt": "2026-09-21T18:35:11.734Z",
+          "currentObservedAt": "2026-10-01T13:19:29.334Z"
+        },
+        {
+          "sourceRowNumber": 3107,
+          "collectKey": "venue-1qge8u alcohol-free guinness 0%\u0000 site-harvest",
+          "beforeSha256": "2265f9092a90e95841078aecfb0e4e60887bf6c7c49d315b286976022a368b4c",
+          "currentSha256": "a366510c1d47c174d85f15823bf68dc370e008aa2d57f38d6883882f13b43a25",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3108,
+          "collectKey": "venue-1qge8u alcohol-free heineken 0.0\u0000 site-harvest",
+          "beforeSha256": "08185f07f54895937325680dd6ab637dd8edb154dd25f96d9fb6fcecfa427596",
+          "currentSha256": "d0dab7da0df630d3111ea83a19ea5e54ada6456de321f10b80175074330f5db8",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3109,
+          "collectKey": "venue-1qge8u alcohol-free moretti 0.0\u0000 site-harvest",
+          "beforeSha256": "7ab83aebff950fafc96761d4a22ac092950611639b56241232f00785041ce11c",
+          "currentSha256": "5a251ac72049e2d4855288948790e52f08318ac3abec110a364586107d095a73",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3110,
+          "collectKey": "venue-1qge8u alcohol-free old mout 0%\u0000 site-harvest",
+          "beforeSha256": "6db1597f3c69dd5015212fb466197e5d116732ac8135dade87e71850c8bf3a58",
+          "currentSha256": "d9c01429f64d1b8d6dbf638ecc3497667c56368e87b5887d4f07e9ae48210ddf",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3111,
+          "collectKey": "venue-1qge8u alcohol-free paulaner weissbier .\u0000 site-harvest",
+          "beforeSha256": "5eb4fadeaf42e18aa3c8c911e8e49f05640cff978fd015a9b9fc799147f51d7a",
+          "currentSha256": "95123f634330eb99c5e83b5bff35ffb8ce60463477d4fb73a56f5ac18fcfc74f",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3112,
+          "collectKey": "venue-1qge8u beer / 3.20 cider/england/abv 4.5% amstel\u0000 site-harvest",
+          "beforeSha256": "445cc29447dd8f6ea78ca24aafd34a212fe4dace6c8d5b7d55f246cf575cc471",
+          "currentSha256": "7cd842cf1d7a2b9667b71866a92f7a345f4affc70b1d8a038873cb7e79406d67",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3113,
+          "collectKey": "venue-1qge8u beer / 3.20 lager/nederlands/abv 4.1% neck oil\u0000 site-harvest",
+          "beforeSha256": "e325e908246fff937fd456b9a0aeba9c012eff193d6909d9497d5905305db0a6",
+          "currentSha256": "58ffc128ecfcc1079c4911548c5b05f2a92565efd4fad1a809e67bc381dc609d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3114,
+          "collectKey": "venue-1qge8u beer / 3.50 ale/england/abv 4.1% |timothy taylor tribute\u0000 site-harvest",
+          "beforeSha256": "a7b0fa9ae22d6600636c92bd7472c795fbaa098ee652a58421d320f41018e57b",
+          "currentSha256": "ae01e83bb145d9d7921817a5382030caa24b9a8bf9583cfe76bcf0465b5b4dd9",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3115,
+          "collectKey": "venue-1qge8u beer / 3.70 lager/nederlands/abv 5% moretti\u0000 site-harvest",
+          "beforeSha256": "70bc90fb7b777d33bdaa62795565964ab1d84453bb9cd9b41db0b73e30796099",
+          "currentSha256": "83e52a8ed19f94aa7a943798e5cc969fb9ff52a923cffb065a4a9a1d627de1d2",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3116,
+          "collectKey": "venue-1qge8u beer / 3.80 lager/italy/abv 4.6% guinness\u0000 site-harvest",
+          "beforeSha256": "221e1ba339f4c381ab968f2558ed99cb1e972164c22f164a7287007c70abc6b2",
+          "currentSha256": "b80b259bb9a8b83bee0e60e4335630a889a1b5edbfb3244db18accf5cb4a9062",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3117,
+          "collectKey": "venue-1qge8u beer / 4.00 stout/ireland/abv 4.1% reliance pale ale\u0000 site-harvest",
+          "beforeSha256": "441bcafbe4b2b9e333d5bc6cda2e29ed1d9fd99e2cfe8b7fcca3b8fae7b4561d",
+          "currentSha256": "1034478ddf1055e0088eeb095e067e6ee56c9c96477a032f08e7d6d1b2a50ad6",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3118,
+          "collectKey": "venue-1qge8u beer / 4.10 ale/england/abv 4.2% landlord\u0000 site-harvest",
+          "beforeSha256": "e47550bc0f94fa7eb999a7194f7fa6ce1bdce14a39091364475e945f7a3d5249",
+          "currentSha256": "e8f0c475ded290b92092cc1b8fb585282f1ef7c4f9019bc0e82ab9b85a32352d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3119,
+          "collectKey": "venue-1qge8u beer / 4.10 lager/england/abv 4.4% heineken\u0000 site-harvest",
+          "beforeSha256": "bd2060cc5950be620da7748a3a73ef19657a29d2e999bfcfae6d7b901bae58de",
+          "currentSha256": "995db5a756e8c06e173c42ff7b650f22a1b1b3b32d51282d2e5ded48738e8c6c",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3120,
+          "collectKey": "venue-1qge8u beer / 4.20 ipa/england /abv 4.3% brixton\u0000 site-harvest",
+          "beforeSha256": "a91a2bae413df47f241fa14345f532989b8f27cc6cd1484c5e3efc50a870a475",
+          "currentSha256": "e2ac6c3b43d3510df7a0d0cb9af5c6c23213a27ab58707ae59ba1677bc2e8283",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3121,
+          "collectKey": "venue-1qge8u beer lager/germany/abv 5.3% old mout\u0000 site-harvest",
+          "beforeSha256": "a923318c7839e63e4b2bf48b34a3cbe064f1eb5bd68282899a3d1870e4e45c76",
+          "currentSha256": "f5e704a7b15f7afcc41418508da502cfa10f4fb97e2b180306cb2490e8d87185",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3122,
+          "collectKey": "venue-1qge8u beer lager/italy/abv 4.8% tiger\u0000 site-harvest",
+          "beforeSha256": "c50114078152afb77ca42078eff2a6cbe5230cf478569d883478ed7d8373ffe5",
+          "currentSha256": "18bba472f420cb50c7eb0965ec70e027f71e141156fb0d51a3c252a4ccb0c6ae",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3123,
+          "collectKey": "venue-1qge8u beer lager/nederlands/abv 5% moretti\u0000 site-harvest",
+          "beforeSha256": "2d4aeee583b0cf8c945ed8ec6f7c19d0118b7bd21254141c28b792803d22c615",
+          "currentSha256": "372efac30c91d436193941f488a3dfb6643b12958b68e2e31cf4d47c311f85c5",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3124,
+          "collectKey": "venue-1qge8u beer lager/singapore/abv 4.8% estrella\u0000 site-harvest",
+          "beforeSha256": "7670f7a061893ea9f56a05994ced610d298d4fdb8618fd72d611b6d5e979e019",
+          "currentSha256": "f14f0895cddeb0c5c164a7d6f13fdfe90fddb3946c6a4c388161ec7b61d924c5",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3125,
+          "collectKey": "venue-1qge8u beer lager/spain/abw 4.6% erdinger\u0000 site-harvest",
+          "beforeSha256": "40505aadffa71217493caaa39a80a6b904d88622e291321652ef56a4ca3e982a",
+          "currentSha256": "3930ea8db98975df6e890aa487244fed90ee63e55d1977ec0224bf53afb1462d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3126,
+          "collectKey": "venue-1qge8u gin bombay\u000025ml site-harvest",
+          "beforeSha256": "bf36f5109d535979465559327301a5972be40b28dd70ab593b361209d4cd5ebe",
+          "currentSha256": "acaf6784965ade0c2011ff41367f3918a6280e6c587628c6a03f1fbd3588bf1f",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3127,
+          "collectKey": "venue-1qge8u gin bombay star\u000025ml site-harvest",
+          "beforeSha256": "f58ca686208d9ee5677b357aeba9132fc5f053e6419449974dd7087b7b30bc90",
+          "currentSha256": "dc4c9063530333644b2372eec8262d3bc777c78435bf328d5da54a805f891ac5",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3128,
+          "collectKey": "venue-1qge8u gin brockmans\u000025ml site-harvest",
+          "beforeSha256": "e8a82cc8061a9d9781707161ff894ffe0e45aca0135605812bb78b75b1642ad1",
+          "currentSha256": "a939fd19c04f2d8741d30d1d68825f720e3b442869e233194130edd32477175a",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3129,
+          "collectKey": "venue-1qge8u gin edinburgh gin\u000025ml site-harvest",
+          "beforeSha256": "1f3529b26442902a5aba7f1423adcbeedb3e2e8e9ed7e6a188fcb872c2c06b38",
+          "currentSha256": "b9f2f89f8fd2a8c3c1c23303cf599377386b20050ad308846043cb670f98e5ee",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3130,
+          "collectKey": "venue-1qge8u gin elephant\u000025ml site-harvest",
+          "beforeSha256": "ab505c38dcfab520fa738bf5c5ee73eb0e3a4b16612f01aaabea3f67993e5907",
+          "currentSha256": "0b7f9f5e501fa06b06528adf04b1694d5249e9cb72c028d7203ea176ece5a160",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3131,
+          "collectKey": "venue-1qge8u gin gordons\u000025ml site-harvest",
+          "beforeSha256": "133c2ea88e0c10cc4f9ed82db5298f5b48e6c669a5227633450d624396451d14",
+          "currentSha256": "adf37f7d28e9566d7d66f69461e9a1ff9ce4e037bce77bdf95b4a8b58504a26a",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3132,
+          "collectKey": "venue-1qge8u gin hendricks\u000025ml site-harvest",
+          "beforeSha256": "cf8bd3faee59adfd67248e89b044ed9365df84f532dcde02aa3e43d4009e0927",
+          "currentSha256": "b04e00c27880c2b8dfb2ae347c94e1449ffc32917f2ee04fac33e0722c995597",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3133,
+          "collectKey": "venue-1qge8u gin malfy orange\u000025ml site-harvest",
+          "beforeSha256": "022cba7cf22ec2248c1672e0650f3be6ecc3033b01ab47a63c2f56b474982725",
+          "currentSha256": "9d4f651d5b9f9f841c0ac15fa9f6f310238c3872fd2f8ee9f6b568d200444762",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3134,
+          "collectKey": "venue-1qge8u gin no .3\u000025ml site-harvest",
+          "beforeSha256": "95825f1ba95083fe4cab583eed7e760df40c713dd84b7f2f1e8302fee88ebe4e",
+          "currentSha256": "1285c921775bef33ee19a01af771cec009ba8c069de541526747b9498a2216cd",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3135,
+          "collectKey": "venue-1qge8u gin plymouth\u000025ml site-harvest",
+          "beforeSha256": "52e8dff1a7da3f8e6f36b4232126f0522e51ec0cdf9686677cc94b2390f56ea2",
+          "currentSha256": "615f517940ecea96cbee25e705c45e1cf31be2dd1a5699da48b80a65a9de7837",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3136,
+          "collectKey": "venue-1qge8u gin portobello road\u000025ml site-harvest",
+          "beforeSha256": "b7eac8508412b5599aba113b546b0ae2806f1f453aca2adf58cf6e2a13a8642a",
+          "currentSha256": "7a7473474d225c47d55e07d25048a94ab2a22f49be1376110d88541b78ba5f5f",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3137,
+          "collectKey": "venue-1qge8u gin sipsmith\u000025ml site-harvest",
+          "beforeSha256": "447c30d7d2f562628433549597d889110fb6ca31ff3d10ae9af43228d1aa1fb1",
+          "currentSha256": "dbcc64ab250c7a658d9d10da395113c62a1e628b8540f83895c80a7f0171e9e0",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3138,
+          "collectKey": "venue-1qge8u gin tanqueray\u000025ml site-harvest",
+          "beforeSha256": "da5139a9408a410f7a4a6d5696bdd0f2b41997206fae58d8d2acb829778e991e",
+          "currentSha256": "f3c8b6362cabf80cfdf213e8bafe67760fea52f104a5edc5162a78d8d33b6867",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3139,
+          "collectKey": "venue-1qge8u gin tarquin’s\u000025ml site-harvest",
+          "beforeSha256": "2bc4407e58ef6d47de0286a8e8ec1f09622740a295c56f41c48c3522699a1790",
+          "currentSha256": "639f64906078b63c65955d93565cc9d925b7365cc73cb5b71dea1be3cebe9833",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3140,
+          "collectKey": "venue-1qge8u gin the botanist\u000025ml site-harvest",
+          "beforeSha256": "3d51e0d60d7327b599f005ec50cf3dc90993a5864323ea8181446326a55f3cb5",
+          "currentSha256": "662ba361b4534af057d92bd918ccb5a0712a435f6a30b0da461345612dd42eaa",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3141,
+          "collectKey": "venue-1qge8u rum bacardi\u000025ml site-harvest",
+          "beforeSha256": "9df5e61a71b5217b7d60c8f29c6dd003def33b6db448c2062a046743b5458069",
+          "currentSha256": "0c507b9b7a0e2218c57c4f2672e9870621d5001ed1b6e2e05667bdaf705e4ce9",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3142,
+          "collectKey": "venue-1qge8u rum captain morgan\u000025ml site-harvest",
+          "beforeSha256": "9f92387b2fda53f879be22c6385e0325253ceb6d6734832fa2515be8b83aaa02",
+          "currentSha256": "6a16b98913eb92bddadb03303471d11423d84116a61cccb8185cca48632e1280",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3143,
+          "collectKey": "venue-1qge8u rum crusty juggler\u000025ml site-harvest",
+          "beforeSha256": "1332baea8df1584a36225f31381f11cf461ff006a5b667f24cb453c9061b73f5",
+          "currentSha256": "aa808e0d96ace53f389af300b33cb69cba4cf4a6cf24fe325044daeeccc3f895",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3144,
+          "collectKey": "venue-1qge8u rum havana club 7\u000025ml site-harvest",
+          "beforeSha256": "d7ed57a7df89d3546cce72f0eb409c996aa13bc542a0b2c0c72ba4075e224818",
+          "currentSha256": "b6155547aa6b84f0f0701e91002b3cf4c6e9b7e37264ebed502839bde7b1ec97",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3145,
+          "collectKey": "venue-1qge8u rum kraken\u000025ml site-harvest",
+          "beforeSha256": "d7a82414035dc3303dcff13038185ca20295ec16aed535c74145ea01aa943127",
+          "currentSha256": "20665dded87914bebf5fe6e77c9350633dabf8fd5bc015d2599fa626307ea5fb",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3146,
+          "collectKey": "venue-1qge8u rum pineapple grenade\u000025ml site-harvest",
+          "beforeSha256": "34ac6c4e0c0dd97aad92522dd2d5faf48b4f1ee988bc866ad4f6150b98707891",
+          "currentSha256": "01055f4b62fe0aac917e13fafd547f5871a8b924ee50b9fd3a2a2060b25dc94c",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3147,
+          "collectKey": "venue-1qge8u rum sailor jerry\u000025ml site-harvest",
+          "beforeSha256": "a78e56bfb1614c7e5efe719172e67dfe15e7933843a53b2dca28c4c57ccf696a",
+          "currentSha256": "1b11d450379575102557a8a12d7b4756052f83fe37bb49e66a5a9253f2d43b1d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3148,
+          "collectKey": "venue-1qge8u shot cazablel\u000025ml site-harvest",
+          "beforeSha256": "0a50a7cc833f04f683c6a905bc2a26d711b3d873f23f4fc9a19a9b37f7c74654",
+          "currentSha256": "99a84dd1d41c2f7ad95615d4f75fb48f53f856b1a8969ef60ed1a92bb9a416c9",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3153,
+          "collectKey": "venue-1qge8u shot jose cuervo\u000025ml site-harvest",
+          "beforeSha256": "69fe97428a4ce2a9efb474d0516092ae5c1a183700b8d0b6a038ceb95a830242",
+          "currentSha256": "33af36082744d05b2ae0eff6aa6ae153433eee323da6393096c79a3262912f11",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3154,
+          "collectKey": "venue-1qge8u shot monte alban\u000025ml site-harvest",
+          "beforeSha256": "2d1cea8d9182087ed43f6278db0b58d19af2c401cfabcd68df09889301e633bc",
+          "currentSha256": "fcab77816feec40b4444122ae3c76e0f170552a4cd4ccaa49a32950cdf059e7a",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3155,
+          "collectKey": "venue-1qge8u shot olmeca\u000025ml site-harvest",
+          "beforeSha256": "236d7f59fcf0c492d81866fb0129b0822ddeb622c1dab97ad36aedff44fd0761",
+          "currentSha256": "1324e0782176af8cd03cc85e7f9b77038506c675081fe6a98df173280d2d7f24",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3157,
+          "collectKey": "venue-1qge8u shot rooster rojo\u000025ml site-harvest",
+          "beforeSha256": "bd2d96d53bced5123713f3f75b311e60d41c0aab612be5a6cf4fa683cdb91877",
+          "currentSha256": "6ac397328d854a3f7138ac926d5722ae5ee795967e4718ce63bcd96833664f56",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3161,
+          "collectKey": "venue-1qge8u soft-drink cola\u0000 site-harvest",
+          "beforeSha256": "457bfdf4d32a7427cdbacc8bb621630c65fbdce46ae99354b36aad28d7ca3d3e",
+          "currentSha256": "9868e1f154dd703a8e644639871c78b89145597ef51e8250196961e41a735d5d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3162,
+          "collectKey": "venue-1qge8u soft-drink cranberry 200 ml water\u0000 site-harvest",
+          "beforeSha256": "69c32b9a0868089b8f58e02529caf09fad3d6201e58713e364ca7d171365eb1c",
+          "currentSha256": "1637752af09f19354db2758fb6f5e45fa9e720dddccb3ad7b950c5334ff3ae44",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3163,
+          "collectKey": "venue-1qge8u soft-drink juice\u0000 site-harvest",
+          "beforeSha256": "5c2b48a80600b68b0c79320d70853476d9eb4d27936e257797c3d8ca1bedd949",
+          "currentSha256": "5e8e9faaacd4c19a6d09336d6e85755940d25cf8b7cf8ed61b1bcc7adfacec0d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3164,
+          "collectKey": "venue-1qge8u soft-drink mix your spirits with draft coke , coke zero , lemonade or a soda water\u0000 site-harvest",
+          "beforeSha256": "fc738adc45487c9f0d6926094c4bbe8bcbb2aa1a50c7340fd74b4acb4cd29e53",
+          "currentSha256": "fd79e7f0fca938ea6d5e4daef6fbcec9cdcdd4344fde52d270287d43ce16c8a1",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3165,
+          "collectKey": "venue-1qge8u soft-drink still or sparkling 330 ml fever tree\u0000 site-harvest",
+          "beforeSha256": "34d454c3eef39ffb5cc002f3b8e6ccdb64e669d9f27cd509255c86de73f6b911",
+          "currentSha256": "e7c8d16eec5a15b278eb3cb62a9eda4837792f6245dfa3cd59c76bb58b16e6b8",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3168,
+          "collectKey": "venue-1qge8u vodka grey goose\u000025ml site-harvest",
+          "beforeSha256": "2c63eef51a0cc8a39b6cf971b310e36ac956ac7bcef2ac7eb8ade403a01e9447",
+          "currentSha256": "71dc41110378435ed123c4f3512b239615ebd1dc3738697a5a56b196330e560d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3169,
+          "collectKey": "venue-1qge8u vodka sipsmith\u000025ml site-harvest",
+          "beforeSha256": "3e83a405892f49eab573afe36f26d502a3f518c122ea50be570269f2d77b107b",
+          "currentSha256": "569d446714d8d4ff62092d2b953359da745e0a814ed737d3c753f3af8773412e",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3170,
+          "collectKey": "venue-1qge8u vodka smirnoff\u000025ml site-harvest",
+          "beforeSha256": "76f4bb71fb395229bf0091aae37920c9509c657b88b92c84148282248f71d890",
+          "currentSha256": "28c35bdb79b27083ee43536dff0d73e0e2c692084e4fea59e0e8107164cab607",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3171,
+          "collectKey": "venue-1qge8u whisky ballantines\u000025ml site-harvest",
+          "beforeSha256": "62f7a277f42980a28c196d670fe55f1c9f829d037309e1bb3754f496138b36d8",
+          "currentSha256": "1153c942827e5b3d494f7cf3e62d6066a400c01e2069a133fecc6767bd4662fb",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3172,
+          "collectKey": "venue-1qge8u whisky bells\u000025ml site-harvest",
+          "beforeSha256": "37d83f7c683552ac88e30865315fafe0a7903a46fd86c83d1b6f28f44dbc021a",
+          "currentSha256": "6dd546620dd8406aaeb54d944287365e890cc38af6b2c082215bc6eb8de7a8c0",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3173,
+          "collectKey": "venue-1qge8u whisky chivas regal\u000025ml site-harvest",
+          "beforeSha256": "78bb353e52e3d471a3f49468c33801c5655d033833e886e39f33387d733bac3b",
+          "currentSha256": "1fb7775a20350db68ea6855e8b632ecf86d002629964b9b75bf4f19de5b0863e",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3174,
+          "collectKey": "venue-1qge8u whisky cragganmore\u000025ml site-harvest",
+          "beforeSha256": "7387be013ae2e8402d778c469087cbc25510a160c654944ff3c786f12668e668",
+          "currentSha256": "6f66b4544dd28e329a10debfd00e865ad1ccc101a453cb5d6329e7cbc9ab0a24",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3175,
+          "collectKey": "venue-1qge8u whisky dalmore\u000025ml site-harvest",
+          "beforeSha256": "0aa0f3156f822c28d1860a68fcc49eb44bb37fbbe74b602b88cbfb22e3f45a84",
+          "currentSha256": "eb4427e94afc8f0a6b4fed8acc8632766818e113d88c80b0a6fbb0b986e553bc",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3176,
+          "collectKey": "venue-1qge8u whisky dalwhinnie\u000025ml site-harvest",
+          "beforeSha256": "f124e4d807bc15e1e68e1adf6eeb28117b3c20b00718ba16115250e75a3ebfa1",
+          "currentSha256": "3abbfc93f87f986b30a0babaec7f8ae2da81d3f8d9c0138006e3a74cdae8e3b1",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3177,
+          "collectKey": "venue-1qge8u whisky glenfiddich\u000025ml site-harvest",
+          "beforeSha256": "0f88ee9c2158dfb7315ef9574fd09df3c66d06889eb8f1bb683c547accf3f562",
+          "currentSha256": "2ceb00859aa02dc526d28d612dc58b2121647ead861f244c97d2af5ff0f21446",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3178,
+          "collectKey": "venue-1qge8u whisky glenkinchie\u000025ml site-harvest",
+          "beforeSha256": "c5c8bb985158bfe7f4cead3910ff52faceeb4da744414830878d8426cc81c281",
+          "currentSha256": "9aa1caa075a68f6446b940bc6abdf0d7a12b134ed3cc5ced1147ca21fde933fc",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3179,
+          "collectKey": "venue-1qge8u whisky glenmorangie\u000025ml site-harvest",
+          "beforeSha256": "f5785f0232c5bf29762bc8284313dc8371c1adeebd773ca31450ffe4495d3a57",
+          "currentSha256": "41ac06b18e764e38cd46ef7958cd952a348f3dcc334c18e37fd74627f0564e86",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3180,
+          "collectKey": "venue-1qge8u whisky hibiki\u000025ml site-harvest",
+          "beforeSha256": "69bc95ef5fb71a5104cdccd13b50986ecb8487689d37687c2667f143659be47f",
+          "currentSha256": "345ce617cfa03fc6a495da84feeb40f0d546f6dcc22074a764ba823e97e4f184",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3181,
+          "collectKey": "venue-1qge8u whisky jack daniels\u000025ml site-harvest",
+          "beforeSha256": "84320318a526e621cd711df0749f5160897836b29e3fee2e5e4c4fddb6ea73ff",
+          "currentSha256": "ea1a020a688e2550442e3a3bcf5fb4bc6c9da1f68e079b9e91e7d7cc556f1407",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3182,
+          "collectKey": "venue-1qge8u whisky jameson\u000025ml site-harvest",
+          "beforeSha256": "cb1506059a8a234d1a4dfdfeca87b3c439f1eb10f1d65da1bf39c3929dd8d216",
+          "currentSha256": "efbaa562442a08d8c1e9b3c8d7eb0db14f2b5106c3f103e98157897ac88dfbf4",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3183,
+          "collectKey": "venue-1qge8u whisky jim beam\u000025ml site-harvest",
+          "beforeSha256": "297f382c50c1c40552eafa8c9cd36ce6f133c27ba85bd5d681e9eda85620c678",
+          "currentSha256": "2a0759de2c1a8bba81fdbe03090f3728a4f103eb82463c45792f2802d3e140ee",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3184,
+          "collectKey": "venue-1qge8u whisky johnnie walker\u000025ml site-harvest",
+          "beforeSha256": "d1f986496935232b1a195d701b443c55cabd76149df83dd88fc2ab25dd75f785",
+          "currentSha256": "d1088508b2f6300b4f8b7c63f168f4d72d800c04f17ba345a3c6670508bb2c37",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3185,
+          "collectKey": "venue-1qge8u whisky jura\u000025ml site-harvest",
+          "beforeSha256": "f1e7edcf83bb49ac28b4c2dc2f845e22a6c73fc5ddded37783f25136b3b8507d",
+          "currentSha256": "e976e07ef9c02096576b15c7cf577487c709fda6dd0def394f64918a6e0c33c6",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3186,
+          "collectKey": "venue-1qge8u whisky knockando\u000025ml site-harvest",
+          "beforeSha256": "2b94aa9d21325679419450ac066263f00102f6b5f29084b1a5a81b3da2f37ad2",
+          "currentSha256": "ef0ee083514bb69a50e7b98fe426cd2fdadb2be7f8f3a4b7f3292308ed8f8429",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3187,
+          "collectKey": "venue-1qge8u whisky lagavulin\u000025ml site-harvest",
+          "beforeSha256": "364cfb62e671343a6c77d2d2e4a792ed5509dd31110cbe7fa1d452b0741028b3",
+          "currentSha256": "1b8644fc1ea285e6f7c9157c925517b14519c6fe36c095d13d925cff6727e850",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3188,
+          "collectKey": "venue-1qge8u whisky laphroaig\u000025ml site-harvest",
+          "beforeSha256": "6a391b908b6b3ce1875aa624ce3da01bdcf277c5b12291ba33ea5bd8c47b0511",
+          "currentSha256": "3daea6d7a160a093a8cb2ff1f2407e1d7b0ddfd586b2b359fdd7e6811ef6737e",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3189,
+          "collectKey": "venue-1qge8u whisky macallan\u000025ml site-harvest",
+          "beforeSha256": "7d8cf2b9fa5f7aa0734755e6076945dce0f19365e30690cdef460681b9261b99",
+          "currentSha256": "740c1f78e8375a3b33baae3835804121c50dcd177f9500fba3ad01e3950a32de",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3190,
+          "collectKey": "venue-1qge8u whisky maker’s mark\u000025ml site-harvest",
+          "beforeSha256": "f260a51d74cb0cefc49f1e2215a959f9b9d431d631891df129a54ab54a289c45",
+          "currentSha256": "ce80bf1c5b3b6f4d4633c08fc29e90c94c31ef06368b9cb078c523070655de74",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3191,
+          "collectKey": "venue-1qge8u whisky monkey shoulder\u000025ml site-harvest",
+          "beforeSha256": "ab5535b2526f7886f08261fe0e9d301c80f7cb7e100608555db102044ca21f14",
+          "currentSha256": "69b8d43d0308fcbb5ce48121d7a446962a21aa0448a301cd34fee610db315e88",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3192,
+          "collectKey": "venue-1qge8u whisky oban\u000025ml site-harvest",
+          "beforeSha256": "4f0f99782c9e3f84c70df95a3e7ca1c489725011d4cec0b9c4a5720608718219",
+          "currentSha256": "c5f241480c3a3e9d83df225b72471d5c2b46b20ab7902f2ce0bdf565e7786f3f",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3193,
+          "collectKey": "venue-1qge8u whisky talisker\u000025ml site-harvest",
+          "beforeSha256": "8d84c1e9520b25fca3b4f059d20bf1c6683b2aa91e4ec1f41957e86a4ed6435e",
+          "currentSha256": "59596393e52fc49c87c4ad383d875d82378ca5c0494ebab1863b232a6844209a",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3194,
+          "collectKey": "venue-1qge8u whisky the balvenie\u000025ml site-harvest",
+          "beforeSha256": "b113477a8db35e1d37aa373239ae75618a765f9ff9790a126cc88ac51501027f",
+          "currentSha256": "f4ebfdfc27838a85bf622261a0d7f96681e061975144681d52c95ae4bf5fd568",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3195,
+          "collectKey": "venue-1qge8u whisky the glenlivet\u000025ml site-harvest",
+          "beforeSha256": "3a8d4e6672f29072db2eb78ef5c5df394e548ec2ec69de1c7c0bd66a528a742f",
+          "currentSha256": "9d43ed9146312dcb8548f1edb9b414c4ba1bfb867bdd40b1a226a4ac04e59552",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3196,
+          "collectKey": "venue-1qge8u whisky tobermory\u000025ml site-harvest",
+          "beforeSha256": "c4c3c8df7e8aa5590cca3e6eb4746251c458ba5bef1b2d72356f6785dac0e5a5",
+          "currentSha256": "a28bcf40913b521c51385d4156db1dcb1f0bd76fb3f4495a54c0c17d0e0b453d",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        },
+        {
+          "sourceRowNumber": 3197,
+          "collectKey": "venue-1qge8u whisky tullamore dew\u000025ml site-harvest",
+          "beforeSha256": "224ac0c46ecd4845c7b610f060e907ba178b24aefa69842f193b6a793130fefe",
+          "currentSha256": "b928d0d1f4b583238c834e87d0d46d739b071f85ed2262e95dfb9b7085bd14d8",
+          "beforeObservedAt": "2026-10-01T13:19:29.334Z",
+          "currentObservedAt": "2026-10-01T14:16:36.325Z"
+        }
+      ]
+    }
+  ]
 }
