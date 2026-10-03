@@ -961,7 +961,7 @@ export function AuthProvider({
     const guarded = await guardSocialAuthProvider(
       "google",
       () => startSupabaseGoogleOAuth(next),
-      loadSocialAuthProviders,
+      () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
@@ -971,7 +971,7 @@ export function AuthProvider({
     const guarded = await guardSocialAuthProvider(
       "apple",
       () => startSupabaseAppleOAuth(next),
-      loadSocialAuthProviders,
+      () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
@@ -981,7 +981,7 @@ export function AuthProvider({
     const guarded = await guardSocialAuthProvider(
       "microsoft",
       () => startSupabaseMicrosoftOAuth(next),
-      loadSocialAuthProviders,
+      () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
