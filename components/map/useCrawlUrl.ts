@@ -23,13 +23,14 @@ export type CrawlServingChoice = {
 };
 
 // Owned Map params that encodeCrawl does not model but must survive a URL sync:
-// the Drop-intent flag, planner deep link, Map-owner selection, accepted-handoff markers,
+// the Drop-intent flag and the figure it carries, planner deep link, Map-owner selection, accepted-handoff markers,
 // and a base-pub selection's `at=` location hint
 // (lib/mapSelectionHistory), and the honest UK place arrival coordinates.
 // Without this merge the debounced replaceState would silently drop them the
 // moment any crawl state changed.
 const OWNED_PASSTHROUGH_PARAMS = [
   "log",
+  "price",
   "contribute",
   "plan",
   "sel",

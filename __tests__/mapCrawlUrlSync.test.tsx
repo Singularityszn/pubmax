@@ -131,6 +131,22 @@ describe("curated crawl URL hydration hold", () => {
     expect(window.location.search).toContain("sel=venue-16pnwmm");
   });
 
+  it("keeps the log intent's price while the selected venue syncs", async () => {
+    window.history.replaceState({}, "", "/map?sel=venue-16pnwmm&log=1&price=6.50");
+    await act(async () => {
+      root.render(createElement(Harness, {
+        query: "",
+        pending: false,
+        selectedVenueId: "venue-16pnwmm",
+      }));
+    });
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("log")).toBe("1");
+    expect(params.get("price")).toBe("6.50");
+    expect(params.get("sel")).toBe("venue-16pnwmm");
+  });
+
   it("keeps crawl identity when map state changes before hydration", async () => {
     await act(async () => {
       root.render(createElement(Harness, { query: "Camden", pending: true }));
