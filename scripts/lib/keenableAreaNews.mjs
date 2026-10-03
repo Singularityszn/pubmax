@@ -365,27 +365,29 @@ function eventDateRanges(text) {
   return ranges;
 }
 
-function factDateIsCurrent(text, now) {
+function factDateStatus(eventDates, now) {
   const nowTime = typeof now === "number" ? now : Date.parse(now);
-  if (!Number.isFinite(nowTime)) return false;
+  if (!Number.isFinite(nowTime)) return "invalid";
   const nowDay = new Date(nowTime);
   nowDay.setUTCHours(0, 0, 0, 0);
   const oldestAllowed = nowDay.getTime() - 21 * DAY_MS;
-  return eventDateRanges(text).some(
+  if (eventDates.some(
     ({ start, end }) => end >= oldestAllowed && start <= nowDay.getTime(),
-  );
+  )) return "current";
+  if (eventDates.length > 0 && eventDates.every(({ end }) => end < oldestAllowed)) return "expired";
+  return "invalid";
 }
 
-function validateFact(raw, knownAreas, currentYear, now) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+function classifyFact(raw, knownAreas, currentYear, now) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { status: "invalid" };
 
   const area = cleanText(raw.area);
   const kind = cleanText(raw.kind);
   const title = cleanText(raw.title);
   const detail = cleanText(raw.detail);
-  if (!knownAreas.has(area) || !KINDS.has(kind) || !title || !detail) return null;
-  if (/[—–]/u.test(`${title} ${detail}`)) return null;
-  if (title.length > 180 || detail.length > 500) return null;
+  if (!knownAreas.has(area) || !KINDS.has(kind) || !title || !detail) return { status: "invalid" };
+  if (/[—–]/u.test(`${title} ${detail}`)) return { status: "invalid" };
+  if (title.length > 180 || detail.length > 500) return { status: "invalid" };
   const combined = `${title} ${detail}`;
   const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
   const allowedYears = new Set([currentYear, currentYear - 1]);
@@ -395,22 +397,29 @@ function validateFact(raw, knownAreas, currentYear, now) {
     years.length === 0 ||
     !eventDates.some(({ year }) => allowedYears.has(year)) ||
     years.some((year) => !allowedYears.has(year)) ||
-    !factDateIsCurrent(combined, now ?? Date.now()) ||
     !hasNamedPub(title, detail, area, knownAreas)
   ) {
-    return null;
+    return { status: "invalid" };
   }
 
-  return { area, kind, title, detail };
+  const status = factDateStatus(eventDates, now ?? Date.now());
+  if (status === "invalid") return { status };
+  const fact = { area, kind, title, detail };
+  return status === "current" ? { status, fact } : { status };
 }
 
-export function parseExtractedFact(
+export function classifyExtractedFact(
   payload,
   { knownAreas = KNOWN_AREA_SLUGS, currentYear = new Date().getUTCFullYear(), now } = {},
 ) {
   const raw = parseJsonText(payload?.content);
   const parsed = raw ?? parseMarkdownFact(payload?.content, knownAreas, payload?.title);
-  return validateFact(parsed, knownAreas, currentYear, now);
+  return classifyFact(parsed, knownAreas, currentYear, now);
+}
+
+export function parseExtractedFact(payload, options = {}) {
+  const classification = classifyExtractedFact(payload, options);
+  return classification.status === "current" ? classification.fact : null;
 }
 
 function publishedTime(value) {
