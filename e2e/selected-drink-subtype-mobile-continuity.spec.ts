@@ -123,7 +123,7 @@ test("unknown-serving Cider £8 stays neutral, and Cider chip survives Drink clo
   const { peek, venueSheet } = await openAlbionPeek(page);
   await expect(peek.locator(".priceBadge")).toHaveText("£8.00");
   await expect(peek.locator(".priceBadge")).not.toHaveClass(/priceBand-/);
-  await expect(peek.locator("small").filter({ hasText: /^Cider$/ })).toHaveText("Cider");
+  await expect(peek.locator("small").filter({ hasText: /^Cider · / })).toHaveText("Cider · Serving not recorded");
 
   await venueSheet.getByRole("button", { name: "Close and return to the map" }).click();
   const filters = await openFilters(page);
@@ -141,7 +141,7 @@ test("500ml Cider £8 remains unbanded on mobile map peek", async ({ page }) => 
   const { peek } = await openAlbionPeek(page);
   await expect(peek.locator(".priceBadge")).toHaveText("£8.00");
   await expect(peek.locator(".priceBadge")).not.toHaveClass(/priceBand-/);
-  await expect(peek.locator("small").filter({ hasText: /^Cider$/ })).toHaveText("Cider");
+  await expect(peek.locator("small").filter({ hasText: /^Cider · / })).toHaveText("Cider · 500ml");
 });
 
 test("explicit pint Cider £8 keeps its price band on mobile map peek", async ({ page }) => {
@@ -152,7 +152,7 @@ test("explicit pint Cider £8 keeps its price band on mobile map peek", async ({
   const { peek } = await openAlbionPeek(page);
   await expect(peek.locator(".priceBadge")).toHaveText("£8.00");
   await expect(peek.locator(".priceBadge")).toHaveClass(/priceBand-/);
-  await expect(peek.locator("small").filter({ hasText: /^Cider$/ })).toHaveText("Cider");
+  await expect(peek.locator("small").filter({ hasText: /^Cider · / })).toHaveText("Cider · pint");
 });
 
 test("Gin 25ml changed to Wine stays Wine with no serving when Prices closes", async ({ page }) => {

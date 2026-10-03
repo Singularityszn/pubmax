@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 const legacyWorker = readFileSync(
   join(process.cwd(), "e2e/fixtures/pre-fix-map-service-worker.js"),
@@ -410,8 +410,20 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
 
   // Real controller/CacheStorage navigation with synthetic HTML. Actual Plan
   // serialization and authenticated account switching need separate proof.
+  // context.setOffline does not reliably cut the network of a restarted
+  // service worker, so a worker fetch can still reach the live server and
+  // hang or answer 404. While offline, fail every worker-owned request as a
+  // disconnected network would, and record them so a live response cannot
+  // pass for the cached path.
+  const offlineWorkerRequests: string[] = [];
+  const failWorkerNetwork = (route: Route) => {
+    if (!route.request().serviceWorker()) return route.fallback();
+    offlineWorkerRequests.push(route.request().url());
+    return route.abort("internetdisconnected");
+  };
   await context.setOffline(true);
   try {
+    await context.route("**/*", failWorkerNetwork);
     await expect
       .poll(
         () =>
@@ -438,7 +450,14 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     const trustedPlan = await page.goto("/plan/trusted-offline?account=B");
     expect(trustedPlan).not.toBeNull();
     expect(await trustedPlan!.text()).toContain("Trusted public Plan preview");
+    expect(offlineWorkerRequests).toEqual(
+      expect.arrayContaining([
+        new URL("/plan/legacy-private?account=B", origin).href,
+        new URL("/plan/trusted-offline?account=B", origin).href,
+      ]),
+    );
   } finally {
     await context.setOffline(false);
+    await context.unroute("**/*", failWorkerNetwork);
   }
 });
