@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { stableVenueIdFromKey, venueGroupingKey, type VenuePrice } from "@/lib/venues";
 import {
   FLASH_LITE_SKU,
   JOB_SPEND_CAP_USD,
@@ -10,10 +9,8 @@ import {
   matchPubToVenue,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
-  stableVenueId,
   stampAmenityColumns,
   statedAmenities,
-  venueGroupKey,
 } from "@/lib/harvest/pubWebsiteAmenities";
 
 const PAGE = [
@@ -130,6 +127,31 @@ describe("keepEvidencedAmenities", () => {
     for (const evidence of ["Alcohol free cocktails", "low and no sales"]) {
       expect(keepEvidencedAmenities({ nonAlcoholic: { value: true, evidence } }, page)).toEqual({});
     }
+  });
+
+  it("drops a bare screen, drinks before an event elsewhere, a quiz machine and generic soft drinks", () => {
+    expect(
+      statedAmenities({
+        liveSports: "tv TV screens",
+        liveMusic: "pre/post match & concert drinks",
+        pubQuiz: "Quiz Machine",
+        nonAlcoholic: "alcoholic and non-alcoholic drinks",
+      }),
+    ).toEqual({});
+    expect(statedAmenities({ liveSports: "pre/post match & concert drinks" })).toEqual({});
+    expect(
+      statedAmenities({
+        liveSports: "We show live sport on our Sky Sports screens",
+        liveMusic: "live music every Saturday",
+        pubQuiz: "Join our pub quiz, every Wednesday",
+        nonAlcoholic: "non-alcoholic beers",
+      }),
+    ).toEqual({
+      liveSports: "We show live sport on our Sky Sports screens",
+      liveMusic: "live music every Saturday",
+      pubQuiz: "Join our pub quiz, every Wednesday",
+      nonAlcoholic: "non-alcoholic beers",
+    });
   });
 
   it("keeps a quote that names the amenity itself", () => {
@@ -260,16 +282,3 @@ describe("matchPubToVenue", () => {
   });
 });
 
-describe("stableVenueId", () => {
-  it("matches the id the rest of the app publishes for the same row", () => {
-    const row = {
-      pub_name: "The Shy Horse",
-      address: "1 High Street, London",
-      latitude: 51.5,
-      longitude: -0.1,
-    } as VenuePrice;
-    expect(stableVenueId(venueGroupKey(row))).toBe(
-      stableVenueIdFromKey(venueGroupingKey(row)),
-    );
-  });
-});

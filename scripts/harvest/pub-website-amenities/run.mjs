@@ -34,11 +34,10 @@ import {
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
   spendFromTokenCounts,
-  stableVenueId,
   statedAmenities,
   stampAmenityColumns,
-  venueGroupKey,
 } from "../../../lib/harvest/pubWebsiteAmenities.ts";
+import { stableVenueIdFromKey, venueGroupingKey } from "../../../lib/venues.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
@@ -72,6 +71,7 @@ const PROMPT = [
   "nonAlcoholic means alcohol-free or 0.0% beer, wine, cocktails or spirits. Tea, coffee, hot chocolate, soft drinks, juice, a spritz and a drink with a kids' meal do not count.",
   "darts means a dartboard to play at the pub, and pool means a pool table. Darts or pool shown on TV is liveSports, not darts or pool.",
   "liveMusic, pubQuiz, happyHour and karaoke mean those events at this pub.",
+  "A TV screen alone is not liveSports, a DJ alone is not liveMusic, and a quiz machine is not pubQuiz.",
   "Do not use site navigation, chain-wide news or seasonal promotions that do not describe this pub.",
   "Do not infer from the pub name. Do not use anything that is not on the page.",
   "",
@@ -268,7 +268,7 @@ function loadCheckpoint() {
 function columnCoverage(rows) {
   const groups = new Map();
   for (const row of rows) {
-    const id = stableVenueId(venueGroupKey(row));
+    const id = stableVenueIdFromKey(venueGroupingKey(row));
     const bucket = groups.get(id) ?? {
       food: false,
       cocktails: false,
@@ -331,8 +331,7 @@ async function main() {
   const rowsByVenue = new Map();
   for (let index = 0; index < dataset.length; index += 1) {
     const row = dataset[index];
-    const key = venueGroupKey(row);
-    const venueId = stableVenueId(key);
+    const venueId = stableVenueIdFromKey(venueGroupingKey(row));
     let bucket = rowsByVenue.get(venueId);
     if (!bucket) {
       bucket = [];

@@ -29,13 +29,13 @@
     "food": 885,
     "cocktails": 449,
     "beerGarden": 663,
-    "liveSports": 476,
-    "nonAlcoholic": 45,
-    "any": 1047,
-    "none": 869
+    "liveSports": 452,
+    "nonAlcoholic": 43,
+    "any": 1044,
+    "none": 872
   },
-  "stampedVenues": 348,
-  "stampedRows": 860,
+  "stampedVenues": 338,
+  "stampedRows": 815,
   "skipCounts": {
     "robots-unreadable": 98,
     "http-404": 60,
@@ -43,7 +43,7 @@
     "robots-unreachable": 127,
     "refused-host": 104,
     "http-403": 3,
-    "ok": 139,
+    "ok": 151,
     "quota": 53,
     "empty-page": 16,
     "model-0": 3,
@@ -122,8 +122,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Best BBQ & Burger Restaurant in Kingston Upon Thames",
-        "cocktails": "playful and delicious cocktail list",
-        "liveMusic": "Music, Comedy and more."
+        "cocktails": "playful and delicious cocktail list"
       }
     },
     {
@@ -236,8 +235,7 @@
       "sourceUrl": "https://www.thechequersbarkingside.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "we serve proper crowd-pleasers at fair prices",
-        "liveSports": "Big Screens. Big Atmosphere."
+        "food": "we serve proper crowd-pleasers at fair prices"
       }
     },
     {
@@ -404,8 +402,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -438,8 +435,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -463,8 +459,7 @@
       "sourceUrl": "https://www.werewolfbeer.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "suds, snacks and tunes",
-        "liveMusic": "plenty of music"
+        "food": "suds, snacks and tunes"
       }
     },
     {
@@ -600,7 +595,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Street Food",
-        "liveMusic": "music from renowned DJ’s",
         "darts": "Interactive Dart Lanes"
       }
     },
@@ -622,7 +616,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Street Food",
-        "liveMusic": "music from renowned DJ’s",
         "darts": "Interactive Dart Lanes"
       }
     },
@@ -789,7 +782,6 @@
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport",
         "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "Live Entertainment",
         "darts": "dart boards",
         "pool": "pool tables"
       }
@@ -841,7 +833,6 @@
         "food": "Great food, great beer, live sports, darts and great people!",
         "beerGarden": "one of Greenwich’s best beer gardens",
         "liveSports": "live sports, darts and great people!",
-        "liveMusic": "DJs every Friday",
         "pubQuiz": "Sunday quiz night"
       }
     },
@@ -1169,7 +1160,6 @@
       "amenities": {
         "food": "great food",
         "liveSports": "live sports",
-        "nonAlcoholic": "non-alcoholic beverages",
         "liveMusic": "live music performances",
         "pubQuiz": "popular pub quiz",
         "darts": "game of darts",
@@ -1185,7 +1175,6 @@
       "amenities": {
         "food": "Delicious Food Indulge in the delectable dishes served at Central Station Pub.",
         "beerGarden": "venture onto our welcoming roof terrace.",
-        "liveMusic": "Shar Cooterie Every first Wednesday of the month we have the wonderful Shar Cooterie doing a performance for us on the stage",
         "pubQuiz": "Douze Points Every Second Thursday of the month we hold a euro vision song contest quiz",
         "pool": "Free Pool Every Sunday, Monday and Tuesday we set the pool table to free",
         "karaoke": "Karaoke With DJ Chris Reardon Every Friday and Saturday from 7.30pm -11pm."
@@ -1230,8 +1219,7 @@
       "sourceUrl": "https://www.shipsoho.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food served",
-        "liveMusic": "heart of the Soho music scene"
+        "food": "Food served"
       }
     },
     {
@@ -1667,7 +1655,6 @@
       "amenities": {
         "food": "a menu full of dishes to explore",
         "liveSports": "Rugby at Sylvan Post",
-        "liveMusic": "Vinyl Nights with Stevie B",
         "pubQuiz": "Pub Quiz in Forest Hill"
       }
     },
@@ -1791,7 +1778,6 @@
       "sourceUrl": "https://georgedragon.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "liveMusic": "Cabaret/Karaoke",
         "karaoke": "Karaoke night"
       }
     },
@@ -1815,8 +1801,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "£5 pizza?",
-        "cocktails": "Buy Beer & Cocktails",
-        "liveMusic": "great music,"
+        "cocktails": "Buy Beer & Cocktails"
       }
     },
     {
@@ -2155,7 +2140,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "classic Irish bites",
-        "liveSports": "live broadcasts on big screens",
         "liveMusic": "live acts every weekends"
       }
     },
@@ -2168,7 +2152,6 @@
       "amenities": {
         "food": "serving great food",
         "beerGarden": "beautiful beer garden",
-        "liveMusic": "KENT SOUL SYNDICATE",
         "pubQuiz": "SPEED QUIZ"
       }
     },
@@ -2191,8 +2174,7 @@
       "amenities": {
         "food": "preparing, cooking and presenting food",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -2294,7 +2276,6 @@
         "food": "delicious meal",
         "cocktails": "2-for-1 cocktails",
         "beerGarden": "south-facing garden",
-        "liveMusic": "The Day & Night Party",
         "pubQuiz": "Fortnightly Pub Quiz",
         "happyHour": "Happy Hour Tuesday - Friday"
       }
@@ -2370,8 +2351,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "delicious food",
-        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "liveMusic": "live DJ sets"
+        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE"
       }
     },
     {
@@ -2396,8 +2376,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "classic British food and drinks",
-        "beerGarden": "ample outside space on the terrace",
-        "liveMusic": "music license until midnight"
+        "beerGarden": "ample outside space on the terrace"
       }
     },
     {
@@ -2407,8 +2386,7 @@
       "sourceUrl": "https://www.theloftuxbridge.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Modern pub and restaurant serving Fine Indian and Nepalese cuisine",
-        "liveMusic": "Good Music."
+        "food": "Modern pub and restaurant serving Fine Indian and Nepalese cuisine"
       }
     },
     {
@@ -2447,16 +2425,6 @@
         "liveSports": "Live sport",
         "pubQuiz": "Join our pub quiz",
         "pool": "Pool Table"
-      }
-    },
-    {
-      "osmId": "node/266819667",
-      "name": "The Richmond",
-      "venueId": null,
-      "sourceUrl": "https://therichmondhammersmith.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "sports betting"
       }
     },
     {
@@ -2587,8 +2555,7 @@
         "food": "drool-worthy pub grub",
         "cocktails": "cracking cocktails",
         "beerGarden": "Beer Garden",
-        "liveSports": "Catch the Game",
-        "liveMusic": "Live DJ's every Friday & Saturday Night"
+        "liveSports": "Catch the Game"
       }
     },
     {
@@ -2781,8 +2748,6 @@
       "sourceUrl": "https://motherkellys.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "liveSports": "US Beer Showcase: Celebrating the NFL",
-        "liveMusic": "Sofar Sounds",
         "pubQuiz": "MK N17 Pub Quiz",
         "karaoke": "Mother Kelly’s X Bearpit Karaoke"
       }
@@ -2796,8 +2761,7 @@
       "amenities": {
         "cocktails": "Cocktail Menu",
         "liveSports": "Live Sport",
-        "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "Live Entertainment"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -2833,8 +2797,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "first-class food",
-        "liveSports": "Live Sport",
-        "pubQuiz": "Quiz Machine"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -2859,16 +2822,6 @@
         "cocktails": "Summer of Spritz Cocktails",
         "beerGarden": "Our Garden",
         "liveSports": "Big screens for sport"
-      }
-    },
-    {
-      "osmId": "node/289829475",
-      "name": "Two Brewers",
-      "venueId": null,
-      "sourceUrl": "https://www.the2brewers.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveMusic": "Live Entertainment"
       }
     },
     {
@@ -2974,7 +2927,6 @@
         "food": "Settle down and enjoy a hearty pub meal",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
         "liveSports": "catch the latest live sports action on the big screen",
-        "liveMusic": "catch some live entertainment",
         "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
@@ -3031,8 +2983,7 @@
       "amenities": {
         "food": "serving good food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "beer garden clearing",
-        "liveSports": "tv screens"
+        "beerGarden": "beer garden clearing"
       }
     },
     {
@@ -3064,8 +3015,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -3196,8 +3146,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -3226,7 +3175,6 @@
         "food": "Food Sunday Roast",
         "cocktails": "£15 FOR 2 OF THE SAME COCKTAIL",
         "beerGarden": "Beer Garden",
-        "liveSports": "*LIVE SHOWING*",
         "nonAlcoholic": "alcohol free options",
         "pubQuiz": "The Foxglove Pub Quiz!",
         "happyHour": "£5 PINTS 5pm - 7pm"
@@ -3240,9 +3188,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "All our food is made with fresh ingredients",
-        "beerGarden": "Large Beer Garden",
-        "liveSports": "popular venue for pre/post match & concert drinks",
-        "liveMusic": "pre/post match & concert drinks"
+        "beerGarden": "Large Beer Garden"
       }
     },
     {
@@ -3398,7 +3344,6 @@
         "food": "delicious food and drink",
         "cocktails": "The Cocktail Social",
         "beerGarden": "biggest beer garden in London",
-        "liveSports": "Catch all the action with us",
         "liveMusic": "Live Music Jam Session",
         "pubQuiz": "Family friendly Bring your baby - Pub Quiz"
       }
@@ -3422,7 +3367,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food Pop Up World Dumpling Day",
-        "nonAlcoholic": "non alcoholic drinks",
         "pubQuiz": "Pub Quiz Night"
       }
     },
@@ -3511,7 +3455,6 @@
         "food": "excellent stone baked pizza every day",
         "beerGarden": "inside and outside",
         "liveSports": "book for all major sporting events",
-        "liveMusic": "own music, dancefloor",
         "pubQuiz": "THURSDAY PUB QUIZ",
         "karaoke": "karaoke, along with buffet"
       }
@@ -3536,8 +3479,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -3629,8 +3571,7 @@
       "amenities": {
         "food": "The Dragon Flame are serving up delicious smokehouse BBQ Wednesday - Saturday plus Sunday Roasts too.",
         "cocktails": "cider, wines, spirits, cocktails, and soft drinks.",
-        "beerGarden": "An open, welcoming space with both indoor & outdoor seating",
-        "liveMusic": "regular Friday night DJs"
+        "beerGarden": "An open, welcoming space with both indoor & outdoor seating"
       }
     },
     {
@@ -3688,8 +3629,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "serving up great food and drinks",
-        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "liveMusic": "amazing music"
+        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE"
       }
     },
     {
@@ -3736,7 +3676,6 @@
         "food": "exquisite pub classics",
         "beerGarden": "Riverside Terrace",
         "liveSports": "RUGBY WHATS ON",
-        "liveMusic": "Thursday Night Live",
         "pubQuiz": "SUNDAY NIGHT QUIZ"
       }
     },
@@ -3785,8 +3724,6 @@
         "food": "delicious food!",
         "beerGarden": "large beer garden",
         "liveSports": "live sports and events",
-        "nonAlcoholic": "non-alcoholic beverages",
-        "liveMusic": "lighting for music and events",
         "pubQuiz": "Thursday Quiz!",
         "darts": "round of darts",
         "pool": "pool tables"
@@ -3885,7 +3822,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "We have partnered up with our friends Green Mosaic to bring you fresh pizza straight to your table",
-        "liveSports": "Fury v Makhmudov - The Clement Attlee",
         "liveMusic": "Live Music at The Clement Attlee",
         "pubQuiz": "Quiz Night at The Clement Attlee",
         "karaoke": "Karoake Night at The Clement Attlee"
@@ -3944,8 +3880,7 @@
       "amenities": {
         "food": "Food and drinks Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range, a choice of nine classic and fruity recipes for all tastes.",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -3956,8 +3891,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -3994,8 +3928,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -4007,8 +3940,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -4021,7 +3953,6 @@
         "food": "Serving food Monday",
         "cocktails": "stay for cocktails!",
         "beerGarden": "London Rooftop terrace",
-        "liveMusic": "Let&#8217;s Disco!",
         "happyHour": "happy hour drinks"
       }
     },
@@ -4118,7 +4049,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Bavaria-inspired food specials from Patio Pizza",
-        "liveMusic": "music and sausages",
         "happyHour": "HOPPY HOUR"
       }
     },
@@ -4134,7 +4064,6 @@
         "beerGarden": "heated-and-covered garden",
         "liveSports": "showing the biggest rugby fixtures live",
         "nonAlcoholic": "Berry Hugo 0.00",
-        "liveMusic": "live entertainment",
         "pubQuiz": "From pub quizzes"
       }
     },
@@ -4448,8 +4377,7 @@
       "amenities": {
         "food": "Enjoy our range of delicious handmade pizzas",
         "cocktails": "evening of cocktails and conversation",
-        "beerGarden": "outdoor seating",
-        "liveMusic": "live DJ performances"
+        "beerGarden": "outdoor seating"
       }
     },
     {
@@ -4523,16 +4451,6 @@
       }
     },
     {
-      "osmId": "node/534962782",
-      "name": "The Sheaf",
-      "venueId": null,
-      "sourceUrl": "https://gamechi.space/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "Thể Thao E-sports"
-      }
-    },
-    {
       "osmId": "node/535099403",
       "name": "Railway Tavern",
       "venueId": null,
@@ -4602,7 +4520,6 @@
         "cocktails": "Our Winter cocktails",
         "beerGarden": "beer Garden",
         "liveSports": "Autumn Nations",
-        "liveMusic": "live entertainment",
         "pubQuiz": "pub quiz"
       }
     },
@@ -4882,8 +4799,6 @@
       "sourceUrl": "https://motherkellys.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "liveSports": "US Beer Showcase: Celebrating the NFL",
-        "liveMusic": "Sofar Sounds",
         "pubQuiz": "MK N17 Pub Quiz",
         "karaoke": "Mother Kelly’s X Bearpit Karaoke"
       }
@@ -4896,7 +4811,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "NOW SHOWING.. Sky and BT Sports",
-        "liveMusic": "Live events every Friday and Saturday",
         "darts": "traditional pool table and dart board",
         "pool": "traditional pool table and dart board",
         "happyHour": "Fosters £3.10 a pint 11:00 am - 5:00 pm",
@@ -5094,7 +5008,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "COME FOR THE FOOD, STAY FOR THE DRINKS",
-        "liveMusic": "community through music, dance, beer, food and good times",
         "karaoke": "KARAOKE NIGHT"
       }
     },
@@ -5215,8 +5128,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food Service Times",
-        "cocktails": "Winter Cocktails",
-        "liveSports": "All the action live"
+        "cocktails": "Winter Cocktails"
       }
     },
     {
@@ -5227,8 +5139,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -5288,8 +5199,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -5396,16 +5306,6 @@
       "amenities": {
         "food": "traditional British meals",
         "cocktails": "spritz cocktail range"
-      }
-    },
-    {
-      "osmId": "node/9522865779",
-      "name": "The Growler Stop",
-      "venueId": null,
-      "sourceUrl": "https://www.growlerstop.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "live spo"
       }
     },
     {
@@ -5642,7 +5542,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Bar Food",
-        "liveMusic": "DJs every Friday",
         "pool": "Pool Table",
         "happyHour": "Happy Hour every day",
         "karaoke": "Karaoke every Thursday"
@@ -5668,7 +5567,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "pub classics, exceptional drinks",
-        "liveMusic": "live entertainment",
         "pubQuiz": "WEEKLY QUIZ EVERY WEDNESDAY"
       }
     },
@@ -5789,8 +5687,7 @@
       "sourceUrl": "https://www.simonthetanner.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "SE1’s favourite food",
-        "liveMusic": "drink and music"
+        "food": "SE1’s favourite food"
       }
     },
     {
@@ -6023,7 +5920,6 @@
       "amenities": {
         "beerGarden": "Great outdoor facilities",
         "liveSports": "live Sky and BT Sport",
-        "liveMusic": "Regular DJs playing",
         "happyHour": "planning to launch a 'happy hour'"
       }
     },
@@ -6234,7 +6130,6 @@
         "cocktails": "cocktails and cold pints",
         "beerGarden": "our little garden in Clapham",
         "liveSports": "incredible live sport atmosphere",
-        "liveMusic": "great music, especially on Fridays and Saturdays",
         "pubQuiz": "the best quiz in Clapham"
       }
     },
@@ -6247,8 +6142,7 @@
       "amenities": {
         "food": "Delicious Food",
         "beerGarden": "Pubs with Beers Gardens",
-        "liveSports": "All major sporting events are shown",
-        "liveMusic": "we have music on a Friday night"
+        "liveSports": "All major sporting events are shown"
       }
     },
     {
@@ -6369,7 +6263,6 @@
         "food": "delicious British Pub Food",
         "cocktails": "Winter Cocktails",
         "beerGarden": "Beer Garden",
-        "liveSports": "Catch all the action this November",
         "nonAlcoholic": "Alcohol Free & Low Alcohol"
       }
     },
@@ -6637,8 +6530,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -6881,7 +6773,6 @@
       "amenities": {
         "food": "Food Served Mon – Sat 12.00 – 21.00",
         "beerGarden": "suntrap seating in the summer",
-        "liveMusic": "MNA performing tonight",
         "pubQuiz": "our Quiz Night!"
       }
     },
@@ -7194,8 +7085,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Indian and Hakka cuisine, restaurant",
-        "cocktails": "popular cocktail and wine menu",
-        "liveSports": "Giant HD LED Screen"
+        "cocktails": "popular cocktail and wine menu"
       }
     },
     {
@@ -7272,7 +7162,6 @@
         "food": "proper pub food",
         "cocktails": "Seasonal cocktails",
         "beerGarden": "huge refurbished garden",
-        "liveMusic": "option to bring your own music",
         "pubQuiz": "weekly quiz",
         "happyHour": "Happy Hour"
       }
@@ -7300,7 +7189,6 @@
       "amenities": {
         "cocktails": "classy cocktails with swanky style",
         "beerGarden": "lovely outdoor courtyard",
-        "liveSports": "fans of the beautiful game can place bets on upcoming matches, keep track of live scores",
         "liveMusic": "live music performances",
         "karaoke": "karaoke nights"
       }
@@ -7373,8 +7261,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -7749,8 +7636,7 @@
       "amenities": {
         "food": "preparing, cooking and presenting food",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -8000,8 +7886,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -8059,8 +7944,7 @@
       "sourceUrl": "https://www.crownandshuttle.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Menus Food Drink",
-        "liveMusic": "alongside life music"
+        "food": "Menus Food Drink"
       }
     },
     {
@@ -8158,7 +8042,6 @@
         "food": "Stone-baked pizzas every day.",
         "cocktails": "A full cocktail menu.",
         "liveSports": "Live sport on multiple screens.",
-        "liveMusic": "Thursday night live.",
         "darts": "a dartboard that tends to come out",
         "happyHour": "Happy hour in the City,",
         "karaoke": "Karaoke Angelic or pitchy"
@@ -8221,7 +8104,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "refined pub classics crafted from fresh, seasonal ingredients",
-        "liveSports": "Catch all the action with us",
         "darts": "Darts Board",
         "pool": "Pool Table"
       }
@@ -8337,8 +8219,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -8390,16 +8271,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food &#038; Drink"
-      }
-    },
-    {
-      "osmId": "way/164534150",
-      "name": "The Horse & Groom",
-      "venueId": null,
-      "sourceUrl": "https://www.thehorseandgroom.net/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveMusic": "finest DJs spinning"
       }
     },
     {
@@ -8536,8 +8407,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -8841,8 +8711,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -8868,8 +8737,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -8927,7 +8795,6 @@
       "amenities": {
         "food": "traditional British pub food",
         "liveSports": "Live sport",
-        "liveMusic": "live performances",
         "pubQuiz": "fun quiz nights"
       }
     },
@@ -9151,7 +9018,6 @@
         "cocktails": "secret cocktail bar",
         "beerGarden": "Beer Garden",
         "liveSports": "Live Sport",
-        "liveMusic": "Music DJs at The Clapton Hart",
         "pubQuiz": "Pub Quiz at The Clapton Hart"
       }
     },
@@ -9492,7 +9358,6 @@
       "amenities": {
         "food": "pizzas and Sunday roasts",
         "cocktails": "classic homemade cocktails",
-        "liveMusic": "live events to entertain",
         "pubQuiz": "pub quiz to pool table",
         "pool": "pool table",
         "karaoke": "Karaoke Fri 2 Oct"
@@ -9629,7 +9494,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Sharing platters and a delicious selection of pies, scotch eggs and other snacks are on offer",
-        "liveSports": "Fury v Makhmudov - The Clement Attlee",
         "liveMusic": "Live Music at The Clement Attlee",
         "pubQuiz": "Quiz Night at The Clement Attlee",
         "karaoke": "Karoake Night at The Clement Attlee"
@@ -9877,18 +9741,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "KITCHEN OPENINg",
-        "liveMusic": "VINYL DJ SETS",
         "pool": "pool tables"
-      }
-    },
-    {
-      "osmId": "way/288628918",
-      "name": "The Bloomsbury",
-      "venueId": null,
-      "sourceUrl": "https://nds.in.net/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "cá cược thể thao"
       }
     },
     {
@@ -9956,7 +9809,6 @@
         "food": "PATIO PIZZA",
         "beerGarden": "PATIO PIZZA",
         "liveSports": "sports on the screens",
-        "liveMusic": "local DJ set",
         "pubQuiz": "THE GREAT GREYHOUND PUB QUIZ"
       }
     },
@@ -10013,7 +9865,6 @@
       "amenities": {
         "food": "proper grub",
         "beerGarden": "Outside Area",
-        "liveSports": "HD Screens",
         "happyHour": "Happy Hour 3pm - 6pm"
       }
     },
@@ -10309,8 +10160,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -10396,7 +10246,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "beerGarden": "an outside seating area",
-        "liveSports": "Fury v Makhmudov - The Clement Attlee",
         "liveMusic": "regular live music",
         "pubQuiz": "Quiz Night at The Clement Attlee",
         "karaoke": "Karoake Night at The Clement Attlee"
@@ -10723,8 +10572,7 @@
       "amenities": {
         "food": "Deliciously tempting Sunday Roasts in Chelsea",
         "cocktails": "Raise a glass to our Winter Cocktails",
-        "beerGarden": "outdoor seating",
-        "liveSports": "Catch the action this November"
+        "beerGarden": "outdoor seating"
       }
     },
     {
@@ -10745,16 +10593,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "serving great food"
-      }
-    },
-    {
-      "osmId": "way/366291167",
-      "name": "The Robin Ale & Cider House",
-      "venueId": "venue-19h0d7m",
-      "sourceUrl": "https://www.therobinlondon.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "Unless we are in a final, then we might get a projector."
       }
     },
     {
@@ -10803,8 +10641,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -11139,8 +10976,7 @@
       "amenities": {
         "food": "brilliant menu filled with refined pub classics, like steaks, burgers, fish & chips and Sunday roasts",
         "beerGarden": "Sit outside and watch the world go by under our awning",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "alcoholic and non-alcoholic drinks"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -11208,8 +11044,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -11247,8 +11082,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -11391,7 +11225,6 @@
       "amenities": {
         "food": "New Menu is here with Fresh Flavours and Pub Favourites",
         "liveSports": "Watch TNT Sports on our large screen TVs",
-        "nonAlcoholic": "non-alcoholic drinks",
         "darts": "Interactive Darts"
       }
     },
@@ -11483,16 +11316,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range"
-      }
-    },
-    {
-      "osmId": "way/439037559",
-      "name": "Paradise by way of Kensal Green",
-      "venueId": "venue-1fzuz5g",
-      "sourceUrl": "https://www.theparadise.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "full sportsbook"
       }
     },
     {
@@ -11667,8 +11490,7 @@
       "amenities": {
         "food": "Food and drinks Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range, a choice of nine classic and fruity recipes for all tastes.",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -11680,8 +11502,7 @@
       "amenities": {
         "food": "Food Service Times",
         "cocktails": "Winter Cocktails",
-        "liveSports": "Watch Live Sport",
-        "liveMusic": "great music"
+        "liveSports": "Watch Live Sport"
       }
     },
     {
@@ -11719,7 +11540,6 @@
         "beerGarden": "leading straight out onto the garden",
         "liveSports": "Live Sport Football Premier League",
         "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "live entertainment",
         "darts": "darts and games night",
         "pool": "pool table",
         "karaoke": "karaoke every month"
@@ -11733,8 +11553,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Great Pizzas, Burgers, Ales, World beers, Wide Spirit Selection and Soft Drinks galore!",
-        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "liveMusic": "DJ&#x27;s all weekend"
+        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE"
       }
     },
     {
@@ -11791,8 +11610,6 @@
       "amenities": {
         "food": "A restaurant, cocktail & hi-fi bar",
         "cocktails": "refined and inventive cocktail offering",
-        "nonAlcoholic": "NON – ALCHOHOLIC PEAR GINGER TEA",
-        "liveMusic": "Moonlight Sessions kick in",
         "happyHour": "2-4-1 COCKTAILS EVERY WEDNESDAY"
       }
     },
@@ -12158,7 +11975,6 @@
         "food": "delicious and creative food traders",
         "cocktails": "£6 Margarita Monday",
         "beerGarden": "Roof Terrace",
-        "liveMusic": "DJ Alice 03.10.26",
         "pubQuiz": "Lord Napier Star Pub Quiz",
         "happyHour": "£6 Margarita Monday",
         "karaoke": "Book Karaoke"
@@ -12242,8 +12058,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "serving a variety of delectable Mediterranean dishes",
-        "beerGarden": "all year round heated and covered bear garden",
-        "liveMusic": "vibrant setting with live entertainment"
+        "beerGarden": "all year round heated and covered bear garden"
       }
     },
     {
@@ -12338,8 +12153,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -12757,8 +12571,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -12769,8 +12582,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -12831,16 +12643,6 @@
         "liveSports": "Watch Live Football at Whittington!",
         "pubQuiz": "Join our pub quiz",
         "pool": "Pool Table"
-      }
-    },
-    {
-      "osmId": "way/625338336",
-      "name": "Aldgate Tap",
-      "venueId": null,
-      "sourceUrl": "https://aldgatetap.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "nonAlcoholic": "non-alcoholic drinks"
       }
     },
     {
@@ -12948,7 +12750,6 @@
       "amenities": {
         "food": "all food, drink and fixtures are plant-based",
         "cocktails": "carefully curated cocktail list",
-        "liveMusic": "first class DJs play every weekend",
         "pubQuiz": "infamous quiz and other events"
       }
     },
@@ -13103,8 +12904,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -13137,8 +12937,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -13276,8 +13075,7 @@
       "amenities": {
         "food": "serving the local area with hot meals",
         "cocktails": "ready-made cocktails",
-        "nonAlcoholic": "non-alcoholic options",
-        "liveMusic": "with music you might not hear anywhere else"
+        "nonAlcoholic": "non-alcoholic options"
       }
     },
     {
@@ -13300,8 +13098,7 @@
       "amenities": {
         "food": "food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -13847,8 +13644,7 @@
       "amenities": {
         "food": "food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -13918,16 +13714,6 @@
         "food": "Our Chef has created a menu combining traditional classics, an extensive burger selection and many vegan options.",
         "cocktails": "That’s not even mentioning the Cocktails on tap.",
         "beerGarden": "update the indoor and outside space."
-      }
-    },
-    {
-      "osmId": "way/814956451",
-      "name": "The Hawley Arms",
-      "venueId": null,
-      "sourceUrl": "https://thehawleyarms.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveMusic": "Music has always been at the heart"
       }
     },
     {
@@ -14211,7 +13997,6 @@
         "cocktails": "freshly shaken classic cocktails",
         "beerGarden": "lovely beer garden",
         "liveSports": "major sports fixtures on projectors",
-        "liveMusic": "host some sweet DJ nights",
         "pubQuiz": "best pub quiz in Hackney"
       }
     },
@@ -14292,8 +14077,7 @@
       "amenities": {
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport",
-        "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "Live Entertainment"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -14443,8 +14227,7 @@
       "amenities": {
         "food": "delicious drinks, fantastic food",
         "cocktails": "Classic cocktails",
-        "beerGarden": "glorious garden, ideal for chilling",
-        "liveSports": "Catch the action live"
+        "beerGarden": "glorious garden, ideal for chilling"
       }
     },
     {
@@ -14577,8 +14360,7 @@
       "amenities": {
         "food": "serving simple, seasonal and sustainable food",
         "cocktails": "innovative cocktails",
-        "beerGarden": "extensive gardens",
-        "nonAlcoholic": "Non-alcoholic drinks"
+        "beerGarden": "extensive gardens"
       }
     },
     {
@@ -14632,18 +14414,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "We show live sports every day",
-        "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "music is good after 9 pm"
-      }
-    },
-    {
-      "osmId": "way/935593053",
-      "name": "Northcote Arms",
-      "venueId": "venue-mmdx19",
-      "sourceUrl": "https://itcbethandicap.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "taruhan bola"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -14849,7 +14620,6 @@
       "amenities": {
         "food": "even better food",
         "cocktails": "£7 cocktails",
-        "liveMusic": "weekend DJ set",
         "happyHour": "Happy Hour 4-7pm"
       }
     },
@@ -14888,8 +14658,7 @@
         "food": "simple, honest food",
         "cocktails": "innovative cocktails",
         "beerGarden": "elegant pub and garden",
-        "liveSports": "Garden Sport Kids",
-        "nonAlcoholic": "Non-alcoholic drinks"
+        "liveSports": "Garden Sport Kids"
       }
     },
     {
@@ -14958,7 +14727,6 @@
       "sourceUrl": "https://www.windmillbrixton.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "liveMusic": "Sun God, Fool, Phoebe Massey",
         "karaoke": "midnight karaoke"
       }
     },
@@ -15088,16 +14856,6 @@
       }
     },
     {
-      "osmId": "way/98535839",
-      "name": "The Hero",
-      "venueId": null,
-      "sourceUrl": "https://clydeinsider.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "Sports betting"
-      }
-    },
-    {
       "osmId": "way/98612270",
       "name": "The Old Bell",
       "venueId": "venue-1d9bmai",
@@ -15195,8 +14953,7 @@
       "amenities": {
         "food": "hearty food",
         "cocktails": "expertly mixed cocktails",
-        "liveSports": "LIVE SPORT",
-        "liveMusic": "Thursday DJ Nights"
+        "liveSports": "LIVE SPORT"
       }
     },
     {

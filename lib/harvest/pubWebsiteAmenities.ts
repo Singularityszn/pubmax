@@ -123,7 +123,7 @@ export function evidenceQuoteIsOnPage(pageText: string, quote: string): boolean 
 }
 
 const ALCOHOL_FREE =
-  /alch?ohol[\s-]*free|\bnon\s*[-\u2013]?\s*alch?oholic|\bno[\s-]+alch?ohol|\b(?:low|no)\s*(?:and|&|\/|or)\s*(?:low|no)[\s-]*(?:alch?ohol|abv|options?|drinks?|beers?|wines?|spritz|serves|bottles)\b|\bzero[\s-]*proof|\b0(?:\.[05])?\s*%|\b0\.0|\bmocktails?\b|\bvirgin\b/i;
+  /alch?ohol[\s-]*free|\bnon\s*[-\u2013]?\s*alch?oholic\s+(?:options?|offerings?|beers?|wines?|champagne|prosecco|cocktails?|spirits?|spritz(?:es)?|gins?|lagers?|ales?)\b|\bno[\s-]+alch?ohol|\b(?:low|no)\s*(?:and|&|\/|or)\s*(?:low|no)[\s-]*(?:alch?ohol|abv|options?|drinks?|beers?|wines?|spritz|serves|bottles)\b|\bzero[\s-]*proof|\b0(?:\.[05])?\s*%|\b0\.0|\bmocktails?\b|\bvirgin\b/i;
 const DARTS = /\bdarts?\b|dartboards?/i;
 const DARTS_PLAYED =
   /dartboards?|\b(?:boards?|lanes?|oche|interactive|smart|digital|electric|ar|games?|play|teams?|club|league|competitions?|social|party|room|set of|round of|pool|shuffleboard|try your hand)\b/i;
@@ -132,6 +132,15 @@ const TELEVISED_SPORT =
 const POOL = /\bpool\b/i;
 const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party|parties|house))\b/i;
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
+const SPORT_SHOWN =
+  /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b|\bsky\b|\btnt\b|\bbt\b|\btelevised\b|\btackle\b|\bkick\b|\bvs\b/i;
+const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?sports\b/i;
+const LIVE_MUSIC =
+  /\blive\b[^.]{0,20}\b(?:music|bands?|gigs?|jazz|folk|blues|soul|funk|country|singers?|vocals|acts?|artists)\b|\bbands?\b|\bgigs?\b|\bjazz\b|\bfolk\b|\bblues\b|\bopen mic\b|\bsingers?\b|\bsings? live\b|\bchoir\b|\bjams?\b|\bacoustic\b|\btrad\b|\bseisi|\bconcerts?\b|\btribute show\b|\bmusic venues?\b|\bmusic (?:nights?|events?)\b/i;
+/** Drinks before or after an event somewhere else say nothing about what happens inside the pub. */
+const EVENT_ELSEWHERE = /\b(?:pre|post)\b[^.]{0,12}\b(?:match|concert|gig|show)\b|\b(?:match|concert|gig)\b.*\bdrinks\b/i;
+const QUIZ = /quiz|\btrivia\b/i;
+const QUIZ_MACHINE = /\bquiz machines?\b/i;
 const HAPPY_HOUR =
   /\bh[ao]ppy\s*hours?\b|\bhappiest hours?\b|\bbogof?\b|\b(?:2|two)\s*-?\s*(?:for|4)\s*-?\s*(?:1|one|\u00a3)|\bhalf[\s-]*price|\d\s*%\s*off\b|\u00a3\s*\d/i;
 const CHAIN_NEWS = /\bfuelling growth\b|\bsales\b|\bgreene king pubs\b/i;
@@ -145,11 +154,16 @@ const SENTENCE_TAIL = /^[\w'-]+\.(?:\s|$)/;
 /**
  * What a quote must say for each amenity to stand. Tea, coffee, soft drinks and
  * a kids' meal drink are not alcohol-free beer. Darts on the television is not
- * a dartboard. A time range alone is not a happy hour. A key without an entry
- * needs only the quote.
+ * a dartboard, and a screen is not sport until something is shown on it. A
+ * time range alone is not a happy hour. A key without an entry needs only the
+ * quote.
  */
 const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) => boolean>> = {
   food: (quote) => !SITE_NAVIGATION.test(quote),
+  liveSports: (quote) =>
+    SPORT_SHOWN.test(quote) && !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote),
+  liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
+  pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
   nonAlcoholic: (quote) => ALCOHOL_FREE.test(quote),
   darts: (quote) => DARTS.test(quote) && DARTS_PLAYED.test(quote) && !TELEVISED_SPORT.test(quote),
   pool: (quote) => POOL.test(quote) && !NOT_A_POOL_TABLE.test(quote),
@@ -311,29 +325,4 @@ export function matchPubToVenue(
     if (!best || metres < best.metres) best = { venue, metres };
   }
   return best?.venue ?? null;
-}
-
-export function venueGroupKey(row: {
-  pub_name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-}): string {
-  const part = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-  return [
-    part(row.pub_name),
-    part(row.address),
-    Number(row.latitude).toFixed(5),
-    Number(row.longitude).toFixed(5),
-  ].join("|");
-}
-
-/** Same FNV-1a id the slim index and lib/venues.ts publish. */
-export function stableVenueId(key: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < key.length; i += 1) {
-    hash ^= key.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `venue-${(hash >>> 0).toString(36)}`;
 }
