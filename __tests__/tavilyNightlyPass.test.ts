@@ -434,6 +434,30 @@ describe("never Confirmed", () => {
     expect(encoded).not.toContain("contributor");
   });
 
+  it("keeps a listed price and excerpt whose source URL carries a space the URL parser encodes", () => {
+    const sourceUrl = "https://eastbrookpub.co.uk/drink menu.html";
+    const facts = factsFromPage("London Pride £5.50 /pint", { sourceUrl, seenOn: "2026-10-01" });
+    const doc = queueDocument({
+      version: 1,
+      venues: [
+        {
+          venueId: "venue-cn9acj",
+          name: "The Eastbrook",
+          postcode: "IG11 7AB",
+          borough: "Barking and Dagenham",
+          seenOn: "2026-10-01",
+          website: null,
+          drinks: facts.drinks,
+          excerpts: facts.excerpts,
+          candidates: [sourceUrl, "https://user:pass@eastbrookpub.co.uk/"],
+        },
+      ],
+    });
+    expect(doc.venues[0].drinks[0].sourceUrl).toBe(sourceUrl);
+    expect(doc.venues[0].excerpts.length).toBeGreaterThan(0);
+    expect(doc.venues[0].candidates).toEqual([sourceUrl]);
+  });
+
   it("rejects a row that tries to set standing confirmed or a community price", () => {
     expect(() =>
       queueDocument({

@@ -159,7 +159,7 @@ export async function POST(request: Request): Promise<Response> {
       !gateHasVerifiedActor(ownership) &&
       !(await profileStore().getByHandle(ownership.handle))
     ) {
-      return publicApiError("Profile not found.", "NOT_FOUND", 404);
+      return publicApiError("Sign in to check in.", "UNAUTHENTICATED", 401);
     }
     const checkIn = await checkInStore().create(validation.value);
     let wantedNote: string | undefined;

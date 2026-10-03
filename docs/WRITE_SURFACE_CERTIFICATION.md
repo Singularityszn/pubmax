@@ -529,8 +529,9 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
   `gateHandleAction` — the same demo identity boundary as a pint drop, on both
   POST and DELETE. An anonymous POST may only author as a handle whose profile
-  row already exists (404 otherwise): it never mints a row, because an unowned
-  row freezes that handle against the account that later claims it. A follow
+  row already exists; for a handle nobody holds it is 401 `UNAUTHENTICATED`
+  ("Sign in to check in."). It never mints a row, because an unowned row
+  freezes that handle against the account that later claims it. A follow
   no longer shares it: both follow lanes refuse a caller with no bearer (401
   `UNAUTHENTICATED`), because an add link needs an account.
 - **DELETE stance:** deliberately skips `socialFreezeResponse()` — turning off is

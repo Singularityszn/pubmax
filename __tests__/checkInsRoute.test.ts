@@ -103,7 +103,11 @@ describe("POST /api/check-ins", () => {
     const res = await POST(
       postBody({ handle: "newname", areaSlug: "shoreditch", visibility: "area" }),
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toMatchObject({
+      error: "Sign in to check in.",
+      code: "UNAUTHENTICATED",
+    });
     expect(await memoryProfileStore.getByHandle("newname")).toBeNull();
 
     const area = await GET(new Request("http://localhost/api/check-ins?scope=area"));
