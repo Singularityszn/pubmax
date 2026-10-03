@@ -434,3 +434,477 @@ describe.skipIf(skipReason !== null)("0185 named listed quote storage", () => {
     expect(namedDb().sql(`select route_snapshot::text from public.plan_completions where plan_id = '${plan("1")}'`)).toBe(snapshot);
   });
 });
+
+// The durable seam is the existing RPC over real local PostgREST. SQL reads
+// inspect atomic persistence/catalog restoration; no store or HTTP double.
+describe.skipIf(skipReason !== null)("0186 Cider evidence over durable RPCs", () => {
+  const migration = "20261003085500_0186_plan_cider_selected_evidence.sql";
+  const undo = join(migrations, "rollback", migration.replace(".sql", "_rollback.sql"));
+  const cider = {
+    category: "beer", pence: 365, serving: null, source: "listed",
+    sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/",
+    observedAt: "2026-09-21T18:27:31.674Z",
+    drinkLabel: "Aspall 4.5%", drinkSubtype: "beer-cider",
+  };
+  const ciderContext = { drinkCategory: "beer", drinkSubtype: "beer-cider" };
+  const wine = {
+    category: "wine", pence: 550, serving: "125ml", source: "listed",
+    sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
+    observedAt: "2026-09-29T10:40:17.846Z",
+  };
+  type DurableSession = {
+    port: number;
+    sqlFile(path: string): void;
+    sql(statement: string): { ok: boolean; out: string; err: string };
+    catalogSnapshot(): string;
+    reloadPostgrestSchema(): Promise<void>;
+    restBaseUrl: string;
+    serviceRoleKey: string;
+    stop(): Promise<void>;
+  };
+  let durable: DurableSession | null = null;
+  let priorCatalog = "";
+  let priorAccess = "";
+  const id = (kind: number, suffix: number) => `${kind}0000000-0000-4000-8000-0000000186${String(suffix).padStart(2, "0")}`;
+  const host = (suffix: number) => String(suffix).padStart(64, "0");
+  const literal = (value: unknown) => `'${JSON.stringify(value).replaceAll("'", "''")}'::jsonb`;
+  const route = (value: unknown = cider) => [
+    { venueId: "venue-13xdb1p", venueName: "The Plough", ...(value ? { selectedDrinkPriceEvidence: value } : {}), alternatives: [] },
+    { venueId: "venue-stage5-base", venueName: "Local route fixture", alternatives: [
+      { venueId: "venue-13xdb1p", venueName: "The Plough", ...(value ? { selectedDrinkPriceEvidence: value } : {}) },
+    ] },
+  ];
+  function session0186(): DurableSession {
+    if (!durable) throw new Error("Cider durable session unavailable");
+    return durable;
+  }
+  function sql0186(statement: string): string {
+    const result = session0186().sql(statement);
+    if (!result.ok) throw new Error(result.err);
+    return result.out.trim();
+  }
+  async function rpc(name: string, body: Record<string, unknown>) {
+    const current = session0186();
+    const response = await fetch(`${current.restBaseUrl}/rpc/${name}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${current.serviceRoleKey}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, body: await response.json() as unknown };
+  }
+  function createArgs(suffix: number, selectedContext: unknown = ciderContext, stops: unknown = route()) {
+    return {
+      p_id: id(1, suffix), p_title: "Durable Cider fixture", p_start_time: "2026-10-03T19:00:00Z",
+      p_stops: stops, p_member_id: id(2, suffix), p_member_name: "Host", p_token_hash: host(suffix),
+      p_joined_at: "2026-10-03T12:00:00Z", p_idempotency_key_hash: host(suffix), p_request_hash: host(suffix),
+      p_anchor_venue_id: null, p_anchor_source: null, p_outcome: null, p_context: selectedContext,
+    };
+  }
+  const create0186 = (suffix: number, selectedContext: unknown = ciderContext, stops: unknown = route()) =>
+    rpc("create_plan_with_context_idempotent_atomic", createArgs(suffix, selectedContext, stops));
+  const patchContext = (suffix: number, selectedContext: unknown, token = host(suffix)) =>
+    rpc("update_legacy_plan_status_context_atomic", {
+      p_plan_id: id(1, suffix), p_token_hash: token, p_status: null, p_context: selectedContext,
+    });
+  const replace0186 = (suffix: number, stops: unknown = route(), revision = 1, token = host(suffix), grounded = false) =>
+    rpc("replace_plan_route_atomic", {
+      p_plan_id: id(1, suffix), p_token_hash: token, p_expected_route_revision: revision,
+      p_stops: stops, p_context: null, p_grounded_upgrade: grounded,
+    });
+  function saved0186(suffix: number): Array<{ selectedDrinkPriceEvidence: unknown; alternatives: Array<Record<string, unknown>> }> {
+    return JSON.parse(sql0186(`select jsonb_agg(jsonb_build_object(
+      'selectedDrinkPriceEvidence', selected_drink_price_evidence, 'alternatives', alternatives)
+      order by position)::text from public.plan_stops where plan_id = '${id(1, suffix)}'`));
+  }
+  function quotes0186(suffix: number): unknown[] {
+    const stops = saved0186(suffix);
+    return [stops[0]?.selectedDrinkPriceEvidence ?? null, stops[1]?.alternatives[0]?.selectedDrinkPriceEvidence ?? null];
+  }
+  function catalog0186(): string {
+    return session0186().catalogSnapshot() + "\n" + sql0186(`select jsonb_agg(jsonb_build_array(
+      n.nspname, c.relname, con.conname, pg_get_constraintdef(con.oid)) order by n.nspname,c.relname,con.conname)::text
+      from pg_constraint con join pg_class c on c.oid=con.conrelid join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','pubmax_private')`);
+  }
+  function access0186(): string {
+    return sql0186(`select jsonb_build_object(
+      'defaults', (select jsonb_agg(jsonb_build_array(pg_get_userbyid(defaclrole),coalesce(n.nspname,''),defaclobjtype,defaclacl::text)
+        order by defaclrole,coalesce(n.nspname,''),defaclobjtype) from pg_default_acl d left join pg_namespace n on n.oid=d.defaclnamespace),
+      'policies', (select jsonb_agg(jsonb_build_array(schemaname,tablename,policyname,cmd,roles,qual,with_check)
+        order by schemaname,tablename,policyname) from pg_policies),
+      'rpc', (select jsonb_agg(jsonb_build_array(p.oid::regprocedure::text,coalesce(p.proacl::text,'<default>'),p.prosecdef,p.proconfig)
+        order by p.oid::regprocedure::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+        where n.nspname='public' and p.proname in ('plan_stop_evidence_for_context','create_plan_with_context_idempotent_atomic',
+          'replace_plan_route_atomic','decide_plan_route_proposal_atomic','update_legacy_plan_status_context_atomic','complete_plan_atomic'))
+    )::text`);
+  }
+  beforeAll(async () => {
+    // @ts-expect-error Executable existing MJS harness has no declaration file.
+    const { startRlsSession } = await import("../scripts/rls/session-harness.mjs") as { startRlsSession(): Promise<DurableSession> };
+    durable = await startRlsSession();
+    for (const candidate of readdirSync(migrations).filter((entry) => entry.endsWith(".sql")
+      && entry > "20260806035204_0070_v1_release_security.sql" && entry < migration).sort()) {
+      durable.sqlFile(join(migrations, candidate));
+    }
+    priorCatalog = catalog0186();
+    priorAccess = access0186();
+    // Before runs current 0185 + 0172. After uses the same frozen tests once
+    // the authorized forward file exists; absence is never a skip or a pass.
+    if (existsSync(join(migrations, migration))) durable.sqlFile(join(migrations, migration));
+    await durable.reloadPostgrestSchema();
+  }, 180_000);
+  afterAll(async () => { await durable?.stop(); }, 30_000);
+
+  it("refuses rollback after a held backup-only writer commits without changing catalog or evidence", async () => {
+    // Run before the other Cider cases: the guard must observe this writer's
+    // new backup, rather than being refused by previously committed fixtures.
+    const { spawn } = await import("node:child_process");
+    const { setTimeout: delay } = await import("node:timers/promises");
+    const { findPostgresBinary } = await import("../scripts/rls/postgresHost.mjs");
+    const psql = findPostgresBinary("psql");
+    if (!psql) throw new Error("Existing PostgreSQL harness has no psql binary");
+    expect(await create0186(65, ciderContext, route(null))).toEqual({ status: 200, body: "created" });
+    expect(sql0186(`select count(*)::text from public.plan_stops where
+      selected_drink_price_evidence->>'drinkSubtype'='beer-cider'
+      or exists (select 1 from jsonb_array_elements(alternatives) item
+        where item->'selectedDrinkPriceEvidence'->>'drinkSubtype'='beer-cider')`)).toBe("0");
+    const currentCatalog = catalog0186();
+    const args = ["-h", "127.0.0.1", "-p", String(session0186().port), "-U", "postgres", "-d", "pubmax_rls",
+      "-v", "ON_ERROR_STOP=1", "-t", "-A"];
+    const writerName = `cider-backup-writer-${process.pid}`;
+    const rollbackName = `cider-backup-rollback-${process.pid}`;
+    const writer = spawn(psql, args, {
+      stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, PGAPPNAME: writerName },
+    });
+    let writerOut = "";
+    let writerErr = "";
+    const failures: { writer: Error | null; rollback: Error | null } = { writer: null, rollback: null };
+    writer.stdout.setEncoding("utf8");
+    writer.stderr.setEncoding("utf8");
+    writer.stdout.on("data", (chunk: string) => { writerOut += chunk; });
+    writer.stderr.on("data", (chunk: string) => { writerErr += chunk; });
+    writer.stdin.on("error", (error: Error) => { failures.writer = error; });
+    writer.on("error", (error: Error) => { failures.writer = error; });
+    const writerDone = new Promise<number | null>((resolve) => writer.once("close", resolve));
+    let rollback: ReturnType<typeof spawn> | null = null;
+    let rollbackDone: Promise<number | null> | null = null;
+    let rollbackErr = "";
+    try {
+      writer.stdin.write(`begin;
+        update public.plan_stops set alternatives=${literal(route()[1].alternatives)}
+          where plan_id='${id(1, 65)}' and position=1;
+        select 'CIDER_BACKUP_WRITER_HELD';\n`);
+      for (let attempt = 0; attempt < 100 && !writerOut.includes("CIDER_BACKUP_WRITER_HELD"); attempt += 1) {
+        if (failures.writer || writer.exitCode !== null) throw new Error(`Backup writer failed: ${failures.writer?.message ?? writerErr}`);
+        await delay(25);
+      }
+      expect(writerOut, writerErr).toContain("CIDER_BACKUP_WRITER_HELD");
+      expect(sql0186(`select exists(select 1 from pg_locks l join pg_stat_activity a on a.pid=l.pid
+        where a.application_name='${writerName}' and l.relation='public.plan_stops'::regclass
+          and l.mode='RowExclusiveLock' and l.granted)::text`)).toBe("true");
+      const undoProcess = spawn(psql, [...args, "-f", undo], {
+        stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PGAPPNAME: rollbackName },
+      });
+      rollback = undoProcess;
+      undoProcess.stderr.setEncoding("utf8");
+      undoProcess.stderr.on("data", (chunk: string) => { rollbackErr += chunk; });
+      undoProcess.on("error", (error: Error) => { failures.rollback = error; });
+      rollbackDone = new Promise<number | null>((resolve) => undoProcess.once("close", resolve));
+      let waited = false;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        if (failures.rollback || undoProcess.exitCode !== null) throw new Error(`Rollback did not wait: ${failures.rollback?.message ?? rollbackErr}`);
+        if (sql0186(`select exists(select 1 from pg_stat_activity
+          where application_name='${rollbackName}' and wait_event_type='Lock')::text`) === "true") {
+          waited = true;
+          break;
+        }
+        await delay(25);
+      }
+      expect(waited).toBe(true);
+      writer.stdin.end("commit;\n");
+      expect(await writerDone, writerErr).toBe(0);
+      const rollbackExit = await rollbackDone;
+      expect(rollbackExit, rollbackErr).not.toBeNull();
+      expect(rollbackExit, rollbackErr).not.toBe(0);
+      expect(rollbackErr).toContain("Cider selected-price rows remain");
+      expect(quotes0186(65)).toEqual([null, cider]);
+      expect(catalog0186()).toBe(currentCatalog);
+    } finally {
+      // Settle only these two owned psql children. Closing the writer's stdin
+      // with ROLLBACK releases its table lock on any earlier assertion failure.
+      if (writer.exitCode === null && !writer.stdin.writableEnded && !writer.stdin.destroyed) {
+        writer.stdin.end("rollback;\n");
+      }
+      await writerDone;
+      if (rollback && rollbackDone) await rollbackDone;
+    }
+  });
+
+  it("stores the own published unknown-measure Cider tuple in primary and backup through create/read/replay", async () => {
+    expect(await create0186(1)).toEqual({ status: 200, body: "created" });
+    expect(quotes0186(1)).toEqual([cider, cider]);
+    const read = await fetch(`${session0186().restBaseUrl}/plan_stops?plan_id=eq.${id(1, 1)}&select=selected_drink_price_evidence,alternatives&order=position`, {
+      headers: { authorization: `Bearer ${session0186().serviceRoleKey}` },
+    });
+    expect(read.status).toBe(200);
+    expect(await read.json()).toEqual([
+      { selected_drink_price_evidence: cider, alternatives: [] },
+      { selected_drink_price_evidence: null, alternatives: route()[1].alternatives },
+    ]);
+    expect(await create0186(1)).toEqual({ status: 200, body: "replayed" });
+    expect(quotes0186(1)).toEqual([cider, cider]);
+    expect(sql0186(`select route_revision::text from public.plans where id='${id(1, 1)}'`)).toBe("1");
+  });
+
+  it.each([
+    ["generic Beer", { drinkCategory: "beer" }],
+    ["other Beer subtype", { drinkCategory: "beer", drinkSubtype: "beer-stout" }],
+    ["explicit pint", { ...ciderContext, drinkServing: "pint" }],
+    ["explicit volume", { ...ciderContext, drinkServing: "500ml" }],
+    ["other category", { drinkCategory: "wine" }],
+    ["zero proof", { ...ciderContext, zeroProof: true }],
+    ["missing context", null],
+  ])("does not attach Cider authority during create for %s", async (_label, selectedContext) => {
+    const suffix = 10 + ["generic Beer", "other Beer subtype", "explicit pint", "explicit volume", "other category", "zero proof", "missing context"].indexOf(_label as string);
+    expect(await create0186(suffix, selectedContext)).toEqual({ status: 200, body: "created" });
+    expect(quotes0186(suffix)).toEqual([null, null]);
+    expect(saved0186(suffix)[1]?.alternatives[0]).toEqual({ venueId: "venue-13xdb1p", venueName: "The Plough" });
+  });
+
+  it.each([
+    ["pint", "pint"], ["PINT", "pint"], ["500ml", "500ml"], ["500 ml", "500ml"], ["500 ml glass", "500ml"],
+  ])("matches source-stated serving alias %s without scaling a price", async (sourceServing, chosenServing) => {
+    // Serving-only controlled SQL fixtures, not claims about the Plough's
+    // real menu. Its actual captured Aspall row above remains serving:null.
+    const value = { ...cider, serving: sourceServing };
+    for (const position of [0, 1]) {
+      const filtered = await rpc("plan_stop_evidence_for_context", {
+        p_stop: route(value)[position], p_context: { ...ciderContext, drinkServing: chosenServing },
+      });
+      expect(filtered).toEqual({ status: 200, body: route(value)[position] });
+      const mismatch = await rpc("plan_stop_evidence_for_context", {
+        p_stop: route(value)[position], p_context: { ...ciderContext, drinkServing: chosenServing === "pint" ? "500ml" : "pint" },
+      });
+      expect(mismatch).toEqual({ status: 200, body: route(null)[position] });
+    }
+  });
+
+  it.each([
+    ["generic Beer", { drinkCategory: "beer" }],
+    ["other Beer subtype", { drinkCategory: "beer", drinkSubtype: "beer-stout" }],
+    ["pint with unknown source measure", { ...ciderContext, drinkServing: "pint" }],
+    ["volume with unknown source measure", { ...ciderContext, drinkServing: "500ml" }],
+    ["missing current context", null],
+  ])("shared context RPC clears primary and backup Cider for %s independently of the table CHECK", async (_label, selectedContext) => {
+    for (const position of [0, 1]) {
+      expect(await rpc("plan_stop_evidence_for_context", { p_stop: route()[position], p_context: selectedContext }))
+        .toEqual({ status: 200, body: route(null)[position] });
+    }
+  });
+
+  it("keeps legacy six-key Beer, community five-key Beer and malformed named Beer outside the CHECK", async () => {
+    expect(await create0186(20, null, route(null))).toEqual({ status: 200, body: "created" });
+    const legacyBeer = { category: "beer", pence: 365, serving: null, source: "listed",
+      sourceUrl: cider.sourceUrl, observedAt: cider.observedAt };
+    const invalid = [legacyBeer,
+      { category: "beer", pence: 365, serving: null, source: "community", reportedAt: cider.observedAt },
+      { ...cider, drinkSubtype: "beer-ipa" }, { ...cider, drinkSubtype: null },
+      { ...cider, drinkLabel: "" }, { ...cider, extra: "private" },
+    ];
+    for (const value of invalid) {
+      const response = await fetch(`${session0186().restBaseUrl}/plan_stops?plan_id=eq.${id(1, 20)}&position=eq.0`, {
+        method: "PATCH", headers: { authorization: `Bearer ${session0186().serviceRoleKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ selected_drink_price_evidence: value }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "23514" });
+      expect(quotes0186(20)).toEqual([null, null]);
+    }
+  });
+
+  it.each([
+    ["category", { drinkCategory: "wine" }], ["generic Beer", { drinkCategory: "beer" }],
+    ["subtype", { drinkCategory: "beer", drinkSubtype: "beer-ipa" }],
+    ["serving", { ...ciderContext, drinkServing: "pint" }], ["zero proof", { ...ciderContext, zeroProof: true }],
+  ])("context PATCH removes incompatible primary and backup identity after %s changes", async (_label, selectedContext) => {
+    const suffix = 30 + ["category", "generic Beer", "subtype", "serving", "zero proof"].indexOf(_label as string);
+    expect(await create0186(suffix)).toEqual({ status: 200, body: "created" });
+    expect(await patchContext(suffix, ciderContext)).toEqual({ status: 200, body: "ok" });
+    expect(quotes0186(suffix)).toEqual([cider, cider]);
+    expect(await patchContext(suffix, selectedContext, "wrong-token")).toEqual({ status: 200, body: "forbidden" });
+    expect(quotes0186(suffix)).toEqual([cider, cider]);
+    expect(await patchContext(suffix, selectedContext)).toEqual({ status: 200, body: "ok" });
+    expect(quotes0186(suffix)).toEqual([null, null]);
+    expect(saved0186(suffix)[1]?.alternatives[0]).toEqual({ venueId: "venue-13xdb1p", venueName: "The Plough" });
+    expect(await create0186(suffix)).toEqual({ status: 200, body: "replayed" });
+    expect(quotes0186(suffix)).toEqual([null, null]);
+    expect(JSON.parse(sql0186(`select night_context::text from public.plans where id='${id(1, suffix)}'`))).toEqual(selectedContext);
+    expect(sql0186(`select route_revision::text from public.plans where id='${id(1, suffix)}'`)).toBe("1");
+  });
+
+  it.each([
+    ["generic Beer", { drinkCategory: "beer" }],
+    ["subtype", { drinkCategory: "beer", drinkSubtype: "beer-ipa" }],
+    ["measure", { ...ciderContext, drinkServing: "500ml" }],
+  ])("context PATCH invalidates the saved Cider backup for %s even before primary CHECK admission", async (_label, selectedContext) => {
+    const suffix = 60 + ["generic Beer", "subtype", "measure"].indexOf(_label as string);
+    const backupOnly = route().map((stop, position) => position === 0 ? route(null)[0] : stop);
+    expect(await create0186(suffix, ciderContext, backupOnly)).toEqual({ status: 200, body: "created" });
+    expect(quotes0186(suffix)).toEqual([null, cider]);
+    expect(await patchContext(suffix, selectedContext)).toEqual({ status: 200, body: "ok" });
+    expect(quotes0186(suffix)).toEqual([null, null]);
+    expect(saved0186(suffix)[1]?.alternatives[0]).toEqual({ venueId: "venue-13xdb1p", venueName: "The Plough" });
+  });
+
+  it("replacement retains Cider and keeps host, revision and grounded-anchor gates", async () => {
+    expect(await create0186(40, ciderContext, route(null))).toEqual({ status: 200, body: "created" });
+    expect(await replace0186(40, route(), 1, "wrong-token")).toEqual({ status: 200, body: "forbidden" });
+    expect(await replace0186(40, route(), 2)).toEqual({ status: 200, body: "conflict" });
+    expect(quotes0186(40)).toEqual([null, null]);
+    sql0186(`update public.plans set anchor_venue_id='venue-13xdb1p',anchor_source='map-search',plan_outcome='anchor-only'
+      where id='${id(1, 40)}'`);
+    expect(await replace0186(40)).toEqual({ status: 200, body: "forbidden" });
+    expect(quotes0186(40)).toEqual([null, null]);
+    expect(await replace0186(40, route(), 1, host(40), true)).toEqual({ status: 200, body: "ok" });
+    expect(quotes0186(40)).toEqual([cider, cider]);
+    expect(await replace0186(40, route(null), 1, host(40), true)).toEqual({ status: 200, body: "conflict" });
+    expect(quotes0186(40)).toEqual([cider, cider]);
+    expect(sql0186(`select route_revision::text from public.plans where id='${id(1, 40)}'`)).toBe("2");
+  });
+
+  it("accepted proposal retains Cider only under current own context and preserves decision/revision capability", async () => {
+    expect(await create0186(41, ciderContext, route(null))).toEqual({ status: 200, body: "created" });
+    const proposed = route().map((stop, position) => ({ ...stop, position }));
+    sql0186(`insert into public.plan_route_proposals
+      (id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,idempotency_key,created_at)
+      values('${id(3, 41)}','${id(1, 41)}','${id(2, 41)}',1,${literal(proposed)},'Cider route','cider-proposal-41',now())`);
+    const decide = (token: string) => rpc("decide_plan_route_proposal_atomic", {
+      p_plan_id: id(1, 41), p_proposal_id: id(3, 41), p_token_hash: token,
+      p_decision: "accepted", p_idempotency_key: "cider-decision-41", p_decided_at: "2026-10-03T12:30:00Z",
+    });
+    expect(await decide("wrong-token")).toEqual({ status: 200, body: "forbidden" });
+    expect(quotes0186(41)).toEqual([null, null]);
+    sql0186(`update public.plans set route_revision=2 where id='${id(1, 41)}'`);
+    expect(await decide(host(41))).toEqual({ status: 200, body: "conflict" });
+    expect(quotes0186(41)).toEqual([null, null]);
+    sql0186(`update public.plans set route_revision=1 where id='${id(1, 41)}'`);
+    expect(await decide(host(41))).toEqual({ status: 200, body: "decided" });
+    expect(quotes0186(41)).toEqual([cider, cider]);
+    expect(await decide(host(41))).toEqual({ status: 200, body: "already_decided" });
+    expect(quotes0186(41)).toEqual([cider, cider]);
+    expect(sql0186(`select route_revision::text from public.plans where id='${id(1, 41)}'`)).toBe("2");
+  });
+
+  it("proposal acceptance and replacement cannot reattach an unknown-measure quote after a serving edit", async () => {
+    expect(await create0186(42, { ...ciderContext, drinkServing: "pint" }, route(null))).toEqual({ status: 200, body: "created" });
+    const proposed = route().map((stop, position) => ({ ...stop, position }));
+    sql0186(`insert into public.plan_route_proposals
+      (id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,idempotency_key,created_at)
+      values('${id(3, 42)}','${id(1, 42)}','${id(2, 42)}',1,${literal(proposed)},'Prior quote','cider-proposal-42',now())`);
+    expect(await rpc("decide_plan_route_proposal_atomic", {
+      p_plan_id: id(1, 42), p_proposal_id: id(3, 42), p_token_hash: host(42), p_decision: "accepted",
+      p_idempotency_key: "cider-decision-42", p_decided_at: "2026-10-03T12:30:00Z",
+    })).toEqual({ status: 200, body: "decided" });
+    expect(quotes0186(42)).toEqual([null, null]);
+    expect(await replace0186(42, route(), 2)).toEqual({ status: 200, body: "ok" });
+    expect(quotes0186(42)).toEqual([null, null]);
+  });
+
+  it("preserves non-Cider listed/manual evidence and the delegate's malformed-stop behavior", async () => {
+    expect(await create0186(43, null, route(wine))).toEqual({ status: 200, body: "created" });
+    expect(quotes0186(43)).toEqual([wine, wine]);
+    expect(await create0186(44, { drinkCategory: "wine" }, route(wine))).toEqual({ status: 200, body: "created" });
+    expect(quotes0186(44)).toEqual([wine, wine]);
+    // Create retains its old non-Cider persistence semantics. The existing
+    // category/zero-proof invalidation remains at PATCH/replacement/proposal.
+    expect(await create0186(63, ciderContext, route(wine))).toEqual({ status: 200, body: "created" });
+    expect(quotes0186(63)).toEqual([wine, wine]);
+    const beerBackups = [
+      { venueId: "venue-13xdb1p", venueName: "The Plough", selectedDrinkPriceEvidence: {
+        category: "beer", pence: 365, serving: null, source: "listed",
+        sourceUrl: cider.sourceUrl, observedAt: cider.observedAt,
+      } },
+      { venueId: "venue-13xdb1p", venueName: "The Plough", selectedDrinkPriceEvidence: {
+        category: "beer", pence: 365, serving: null, source: "community", reportedAt: cider.observedAt,
+      } },
+    ];
+    const siblingBackups = route(wine).map((stop, position) => position === 1 ? { ...stop, alternatives: beerBackups } : stop);
+    expect(await create0186(64, { drinkCategory: "wine" }, siblingBackups)).toEqual({ status: 200, body: "created" });
+    expect(saved0186(64)[1]?.alternatives).toEqual(beerBackups);
+    expect(await create0186(45, null, [])).toEqual({ status: 200, body: "created" });
+    expect(await create0186(46, ciderContext, null)).toEqual({ status: 200, body: "created" });
+    for (const [suffix, malformed] of [[47, {}], [48, [{}]]] as const) {
+      const response = await create0186(suffix, ciderContext, malformed);
+      expect(response.status).toBe(400);
+      expect(sql0186(`select count(*)::text from public.plans where id='${id(1, suffix)}'`)).toBe("0");
+    }
+  });
+
+  it("does not widen helper/RPC browser grants or the post-0172 catalog access", async () => {
+    expect(access0186()).toBe(priorAccess);
+    for (const signature of ["plan_stop_evidence_for_context(jsonb,jsonb)",
+      "create_plan_with_context_idempotent_atomic(uuid,text,timestamptz,jsonb,uuid,text,text,timestamptz,text,text,text,text,text,jsonb)"]) {
+      expect(sql0186(`select has_function_privilege('anon','public.${signature}','execute')::text || ':' ||
+        has_function_privilege('authenticated','public.${signature}','execute')::text || ':' ||
+        has_function_privilege('service_role','public.${signature}','execute')::text`)).toBe("false:false:true");
+    }
+    const before = sql0186("select count(*)::text from public.plans");
+    const denied = await fetch(`${session0186().restBaseUrl}/rpc/plan_stop_evidence_for_context`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ p_stop: route()[0], p_context: ciderContext }),
+    });
+    expect([401, 404]).toContain(denied.status);
+    expect(await denied.text()).not.toContain(cider.drinkLabel);
+    expect(sql0186("select count(*)::text from public.plans")).toBe(before);
+  });
+
+  it("keeps completion identity immutable and refuses rollback while active Cider rows remain", async () => {
+    expect(await create0186(50)).toEqual({ status: 200, body: "created" });
+    sql0186(`insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,created_at)
+      values('${id(3, 50)}','${id(1, 50)}','${id(2, 50)}','arrived',0,'2026-10-03T12:10:00Z')`);
+    expect(await rpc("complete_plan_atomic", {
+      p_plan_id: id(1, 50), p_token_hash: host(50), p_expected_route_revision: 1,
+      p_completion_id: id(4, 50), p_action_id: id(5, 50), p_ending: "get_home", p_terminal_venue_id: null,
+      p_ending_selection: { kind: "get_home", optionId: "transport:nearest-station", evidenceSnapshot: { label: "Station" } },
+      p_completed_at: "2026-10-03T13:00:00Z",
+    })).toEqual({ status: 200, body: "completed" });
+    const snapshot = sql0186(`select route_snapshot::text from public.plan_completions where plan_id='${id(1, 50)}'`);
+    expect(JSON.parse(snapshot)[0].selectedDrinkPriceEvidence).toEqual(cider);
+    const read = await fetch(`${session0186().restBaseUrl}/plan_completions?plan_id=eq.${id(1, 50)}&select=route_snapshot`, {
+      headers: { authorization: `Bearer ${session0186().serviceRoleKey}` },
+    });
+    expect(read.status).toBe(200);
+    expect(await read.json()).toEqual([{ route_snapshot: JSON.parse(snapshot) }]);
+    expect(await patchContext(50, { drinkCategory: "wine" })).toEqual({ status: 200, body: "ok" });
+    expect(quotes0186(50)).toEqual([null, null]);
+    expect(sql0186(`select route_snapshot::text from public.plan_completions where plan_id='${id(1, 50)}'`)).toBe(snapshot);
+    expect(await replace0186(50, route(), 1)).toEqual({ status: 200, body: "invalid" });
+    expect(await create0186(51)).toEqual({ status: 200, body: "created" });
+    const currentCatalog = catalog0186();
+    expect(existsSync(undo)).toBe(true);
+    expect(() => session0186().sqlFile(undo)).toThrow("Cider selected-price rows remain");
+    expect(catalog0186()).toBe(currentCatalog);
+    expect(quotes0186(51)).toEqual([cider, cider]);
+    // Primary admission and backup retention are separate storage paths.
+    // Remove only this disposable cluster's active primary Cider evidence;
+    // the remaining backup must still prevent a lossy compatibility rollback.
+    sql0186(`update public.plan_stops set selected_drink_price_evidence=null
+      where selected_drink_price_evidence->>'category'='beer'`);
+    expect(quotes0186(51)).toEqual([null, cider]);
+    expect(() => session0186().sqlFile(undo)).toThrow("Cider selected-price rows remain");
+    expect(catalog0186()).toBe(currentCatalog);
+    expect(quotes0186(51)).toEqual([null, cider]);
+    expect(sql0186(`select route_snapshot::text from public.plan_completions where plan_id='${id(1, 50)}'`)).toBe(snapshot);
+    // Explicit downgrade of this throwaway fixture only. Rollback performs no
+    // erasure; production rows require a separate captain data decision.
+    sql0186(`update public.plan_stops set selected_drink_price_evidence=null
+      where selected_drink_price_evidence->>'category'='beer';
+      update public.plan_stops set alternatives=(select coalesce(jsonb_agg(case
+        when item->'selectedDrinkPriceEvidence'->>'category'='beer' then item - 'selectedDrinkPriceEvidence' else item end),'[]'::jsonb)
+        from jsonb_array_elements(alternatives) item)`);
+    session0186().sqlFile(undo);
+    expect(catalog0186()).toBe(priorCatalog);
+    expect(access0186()).toBe(priorAccess);
+    expect(sql0186(`select route_snapshot::text from public.plan_completions where plan_id='${id(1, 50)}'`)).toBe(snapshot);
+  });
+});
