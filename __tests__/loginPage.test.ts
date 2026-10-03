@@ -41,6 +41,12 @@ vi.mock("next/link", () => ({
 
 const navigation = vi.hoisted(() => ({ redirect: vi.fn() }));
 
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    getAll: () => [],
+  }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   redirect: navigation.redirect,
@@ -158,13 +164,27 @@ describe("login page", () => {
     expect(html).not.toContain("Checking your session");
   });
 
-  // The body may not be empty while the session resolves: the card's shape
-  // stands in for it. `aria-busy` belongs to the region that is loading, and
-  // the screen-reader line starts EMPTY, because a live region announces a
-  // change and text already present when it mounted is never spoken.
-  it("stands the sign-in card's shape up while the session resolves", () => {
+  // No session hint: the email door is in the first HTML. The field must not
+  // wait for the live session, which is the whole of the slow paint.
+  it("paints the email door while the session is still unknown", () => {
     authState.current.loading = true;
     const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("email form");
+    expect(html).toContain("social");
+    expect(html).not.toContain("loginPageSkeleton");
+    expect(html).not.toContain('<main class="loginPage" aria-busy');
+  });
+
+  // A hint (resume cookie or stored session) keeps the card's shape up so a
+  // signed-in reader does not see the form flash. `aria-busy` belongs to the
+  // region that is loading, and the screen-reader line starts EMPTY, because a
+  // live region announces a change and text already present when it mounted is
+  // never spoken.
+  it("stands the sign-in card's shape up while a hinted session resolves", () => {
+    authState.current.loading = true;
+    const html = renderToStaticMarkup(
+      createElement(LoginPageWithProps, { sessionHint: true }),
+    );
     expect(html).toContain('class="loginPageSkeleton" aria-busy="true"');
     // The spoken line stands BESIDE the busy shape, never inside it.
     expect(html).toMatch(

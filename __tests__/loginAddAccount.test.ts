@@ -132,5 +132,9 @@ describe("the add-account door", () => {
 
     expect(route).toContain("parseAddAccount");
     expect(route).toContain("addAccount={parseAddAccount(");
+    // The resume cookie is the server's session hint, so a signed-in reader
+    // does not get the email door in the first HTML.
+    expect(route).toContain("loginPageHasSessionHint");
+    expect(route).toContain("sessionHint={loginPageHasSessionHint(");
   });
 });

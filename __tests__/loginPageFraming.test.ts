@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { AUTH_RESUME_COOKIE } from "@/lib/authSessionResume";
 import {
   LOGIN_FIRST_TIME_LEAD,
   LOGIN_FIRST_TIME_TITLE,
+  loginPageHasSessionHint,
   loginPageHeadCopy,
   loginPageShowsSkeleton,
 } from "@/lib/loginPageFraming";
@@ -60,18 +62,58 @@ describe("login page framing", () => {
     ).toEqual(SIGNUP_DOOR);
   });
 
-  it("stands the card's shape up only where a card can arrive", () => {
+  it("stands the card's shape up only for a hinted reader a card can arrive for", () => {
     expect(
-      loginPageShowsSkeleton({ sessionKnown: false, hasAuthSurface: true }),
+      loginPageShowsSkeleton({
+        sessionKnown: false,
+        hasAuthSurface: true,
+        hasSessionHint: true,
+      }),
     ).toBe(true);
+    // No hint: the email door is the first paint, not a skeleton.
+    expect(
+      loginPageShowsSkeleton({
+        sessionKnown: false,
+        hasAuthSurface: true,
+        hasSessionHint: false,
+      }),
+    ).toBe(false);
     // Keyless build: the notice is the whole answer, so nothing may promise a
     // form that is never coming.
     expect(
-      loginPageShowsSkeleton({ sessionKnown: false, hasAuthSurface: false }),
+      loginPageShowsSkeleton({
+        sessionKnown: false,
+        hasAuthSurface: false,
+        hasSessionHint: true,
+      }),
     ).toBe(false);
     expect(
-      loginPageShowsSkeleton({ sessionKnown: true, hasAuthSurface: true }),
+      loginPageShowsSkeleton({
+        sessionKnown: true,
+        hasAuthSurface: true,
+        hasSessionHint: true,
+      }),
     ).toBe(false);
+  });
+
+  it("treats the resume cookie or a stored supabase session as a hint", () => {
+    expect(
+      loginPageHasSessionHint({ cookieHeader: `${AUTH_RESUME_COOKIE}=present` }),
+    ).toBe(true);
+    expect(
+      loginPageHasSessionHint({ cookieHeader: `other=1; ${AUTH_RESUME_COOKIE}=` }),
+    ).toBe(false);
+    expect(loginPageHasSessionHint({ cookieHeader: "theme=dark" })).toBe(false);
+    expect(
+      loginPageHasSessionHint({ storageKeys: ["sb-example-auth-token"] }),
+    ).toBe(true);
+    // The PKCE verifier is not a session.
+    expect(
+      loginPageHasSessionHint({
+        storageKeys: ["sb-example-auth-token-code-verifier"],
+      }),
+    ).toBe(false);
+    expect(loginPageHasSessionHint()).toBe(false);
   });
 
   it("keeps Welcome back for a returning resume", () => {

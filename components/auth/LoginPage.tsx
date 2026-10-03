@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactElement,
 } from "react";
 import { LogIn } from "lucide-react";
@@ -35,7 +36,11 @@ import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { addLinkAwareDestination } from "@/lib/addLink";
-import { loginPageHeadCopy, loginPageShowsSkeleton } from "@/lib/loginPageFraming";
+import {
+  loginPageHasSessionHint,
+  loginPageHeadCopy,
+  loginPageShowsSkeleton,
+} from "@/lib/loginPageFraming";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 
 import "@/app/auth/auth.css";
@@ -294,6 +299,41 @@ export function PageHead({
   );
 }
 
+function readBrowserSessionHint(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const keys: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key) continue;
+      if (window.localStorage.getItem(key)) keys.push(key);
+    }
+    return loginPageHasSessionHint({
+      cookieHeader: document.cookie,
+      storageKeys: keys,
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The server hint is the resume cookie. localStorage is the browser's own
+ * copy of the same session, read on the client snapshot so a signed-in reader
+ * whose cookie was not on this document still keeps the skeleton.
+ */
+function subscribeLoginSessionHint(): () => void {
+  return () => {};
+}
+
+function useLoginSessionHint(serverHint: boolean): boolean {
+  return useSyncExternalStore(
+    subscribeLoginSessionHint,
+    () => serverHint || readBrowserSessionHint(),
+    () => serverHint,
+  );
+}
+
 /** The two doors as one control. Extracted so the page body stays readable. */
 function DoorSwitch({
   intent,
@@ -339,6 +379,7 @@ export default function LoginPage({
   initialIntent = "signin",
   from = null,
   addAccount = false,
+  sessionHint = false,
 }: {
   initialIntent?: ArrivalIntent;
   from?: string | null;
@@ -349,6 +390,12 @@ export default function LoginPage({
    * and the new sign-in becomes the active account through the one auth event.
    */
   addAccount?: boolean;
+  /**
+   * True when the server saw a resume cookie. A signed-in reader keeps the
+   * skeleton until the session answers; a reader without a hint gets the
+   * email door in the first HTML.
+   */
+  sessionHint?: boolean;
 } = {}): React.JSX.Element {
   const {
     user,
@@ -532,8 +579,22 @@ export default function LoginPage({
   });
   const showWelcomeBack =
     !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
+  // Adding an account asked for the form, so a hint must not hide it. Everyone
+  // else with a hint keeps the skeleton until the session answers.
+  const hasSessionHint = useLoginSessionHint(sessionHint) && !addAccount;
+  const showSkeleton = loginPageShowsSkeleton({
+    sessionKnown: !loading,
+    hasAuthSurface,
+    hasSessionHint,
+  });
+  // No hint: the email door is in the first paint, and a session that then
+  // appears replaces it with the signed-in card. A welcome-back cookie is
+  // itself a hint, so that card still waits out the resolve.
   const showForm =
-    !loading && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount);
+    !showSignedIn &&
+    hasAuthSurface &&
+    !showSkeleton &&
+    (loading || !welcomeBack || useDifferentAccount);
 
 
   // ONE primary for the page, decided by the same state the body is. A signed-in
@@ -544,8 +605,9 @@ export default function LoginPage({
   // a returning one the resume tap; while the FORM is on screen the head paints
   // nothing, because the form's own submit beside the field is the primary
   // (captain's ruling, 7 Sep 2026: a head door above the field and the form's
-  // submit under it were two doors for one action). While the session is still
-  // unknown the skeleton stands where the form will, and no door is painted.
+  // submit under it were two doors for one action). A reader with no session
+  // hint paints that form immediately. A hint keeps the skeleton where the
+  // card will be, and no door is painted until the session answers.
   const headPrimary: ReactElement | undefined = showSignedIn && !loading ? (
     <Link href="/map">Continue to the map</Link>
   ) : showWelcomeBack ? (
@@ -584,9 +646,7 @@ export default function LoginPage({
           </p>
         ) : null}
 
-        {loginPageShowsSkeleton({ sessionKnown: !loading, hasAuthSurface }) ? (
-          <SignInSkeleton />
-        ) : null}
+        {showSkeleton ? <SignInSkeleton /> : null}
 
         {!loading && showSignedIn && user ? (
           <SignedInCard
