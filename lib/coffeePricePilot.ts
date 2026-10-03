@@ -24,31 +24,31 @@ export const COFFEE_HARVEST_WORD_PATTERN =
 
 const TEA_OR_WATER = /\b(?:tea|water)\b/i;
 const AFFOGATO = /\baffogato\b/i;
-const AFFOGATO_ITEM_HEADING = /^affogato\b/i;
+const AFFOGATO_ITEM_HEADING = /^affogato(?:\s*\([^)]*\))*\s*[:\u2013\u2014-]?$/i;
 
 /**
  * Whether a priced item must never become a coffee price. `ownLine` is the
- * item's own printed line and decides first: affogato is refused, a coffee
- * word is kept, tea or water is refused. `itemHeading` is the unpriced line
- * just above it; it decides only an item heading that opens with affogato
- * (whose description may name espresso) or, when the own line names no drink,
- * a tea or water name. A note such as "Ask about our affogato" or a
- * "Tea & Coffee" section heading never drops the coffee printed under it.
+ * item's own printed line; `precedingLines` are the unpriced lines since the
+ * previous figure, nearest last. The item is affogato when its own line names
+ * affogato or one of those lines is an "Affogato" item name, so a description
+ * that names espresso stays affogato. A line that is exactly a pilot drink is
+ * never refused, and a note such as "Affogato available on request" is not an
+ * item name. Tea and water are judged on the own line, or on the line above
+ * when the own line names no drink, so a "Tea & Coffee" section heading never
+ * drops the coffee printed under it.
  */
 export function coffeePriceLabelExcluded(
   ownLine: string | null | undefined,
-  itemHeading?: string | null,
+  precedingLines: readonly string[] = [],
 ): boolean {
   const own = typeof ownLine === "string" ? ownLine.trim() : "";
-  const heading = typeof itemHeading === "string" ? itemHeading.trim() : "";
-  const headingIsAffogato = AFFOGATO_ITEM_HEADING.test(heading);
   if (AFFOGATO.test(own)) return true;
-  if (COFFEE_HARVEST_WORD_PATTERN.test(own)) return headingIsAffogato;
+  if (canonicalCoffeePilotDrink(own)) return false;
+  if (precedingLines.some((line) => AFFOGATO_ITEM_HEADING.test(line.trim()))) return true;
+  if (COFFEE_HARVEST_WORD_PATTERN.test(own)) return false;
   if (TEA_OR_WATER.test(own)) return true;
-  return (
-    headingIsAffogato ||
-    (TEA_OR_WATER.test(heading) && !COFFEE_HARVEST_WORD_PATTERN.test(heading))
-  );
+  const heading = precedingLines.at(-1)?.trim() ?? "";
+  return TEA_OR_WATER.test(heading) && !COFFEE_HARVEST_WORD_PATTERN.test(heading);
 }
 
 /**

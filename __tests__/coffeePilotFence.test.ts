@@ -119,6 +119,8 @@ describe("coffee pilot harvest fence", () => {
   it.each([
     "<h3>Affogato</h3><p>Vanilla ice cream, shot of hot espresso £6.00</p>",
     "<h3>Earl Grey Tea</h3><p>Pot for one £2.50</p>",
+    "<h4>Affogato</h4><p>Vanilla gelato</p><p>Shot of hot espresso £5.00</p>",
+    "<h4>Affogato (v)</h4><p>Vanilla gelato</p><p>Shot of hot espresso £5.00</p>",
   ])("refuses the item a name heading calls tea or affogato: %s", (item) => {
     const html = `${item}<p>Espresso £${ESPRESSO_GBP.toFixed(2)}</p>`;
     const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
@@ -129,6 +131,8 @@ describe("coffee pilot harvest fence", () => {
     "<p>Espresso £2.65</p><p>Ask about our affogato</p><p>Flat white £3.50</p><p>Latte £3.80</p>",
     "<p>Espresso £2.65</p><p>Any coffee can be served as an affogato</p><p>Flat white £3.50</p><p>Latte £3.80</p>",
     "<h3>Coffee &amp; Affogato</h3><p>Espresso £2.65</p><p>Flat white £3.50</p><p>Latte £3.80</p>",
+    "<p>Espresso £2.65</p><p>Affogato available on request</p><p>Flat white £3.50</p><p>Latte £3.80</p>",
+    "<p>Espresso £2.65</p><p>Affogato options</p><p>Flat white £3.50</p><p>Latte £3.80</p>",
   ])("keeps pilot drinks after an affogato note on another line: %s", (html) => {
     const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
     expect(coffee.map((row) => row.priceGbp)).toEqual([2.65, 3.5, 3.8]);
@@ -203,18 +207,21 @@ describe("coffee pilot judged harvest fence", () => {
       expect(coffee).toEqual([
         expect.objectContaining({ drinkLabel: "Flat white", priceGbp: 3.5 }),
       ]);
-      const noted = await readVenueDrinkPricesJudged(
-        "<p>Espresso £2.65</p><p>Ask about our affogato</p><p>Flat white £3.50</p>",
-        { pubName: "Shoreditch Cafe", pageUrl: "https://example.co.uk/menu" },
-      );
-      expect(
-        noted.kept.filter((row) => row.category === "coffee").map((row) => row.priceGbp),
-      ).toEqual([2.65, 3.5]);
+      for (const note of ["Ask about our affogato", "Affogato available on request"]) {
+        const noted = await readVenueDrinkPricesJudged(
+          `<p>Espresso £2.65</p><p>${note}</p><p>Flat white £3.50</p>`,
+          { pubName: "Shoreditch Cafe", pageUrl: "https://example.co.uk/menu" },
+        );
+        expect(
+          noted.kept.filter((row) => row.category === "coffee").map((row) => row.priceGbp),
+        ).toEqual([2.65, 3.5]);
+      }
       for (const item of [
         "<p>Tea - £2.00</p>",
         "<p>Water | £1.50</p>",
         "<h3>Affogato</h3><p>Vanilla ice cream, shot of hot espresso £6.00</p>",
         "<h3>Earl Grey Tea</h3><p>Pot for one £2.50</p>",
+        "<h4>Affogato</h4><p>Vanilla gelato</p><p>Shot of hot espresso £5.00</p>",
       ]) {
         const page = await readVenueDrinkPricesJudged(
           `${item}<p>Espresso - £${ESPRESSO_GBP.toFixed(2)}</p>`,
