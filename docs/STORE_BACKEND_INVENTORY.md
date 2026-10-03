@@ -79,7 +79,7 @@ silently stale.
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
 | referralStore | factory-eligible, policy-heavy | Referral identity, milestone, and proof-expiry policy. |
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
-| savedPubsStore | legacy-exception | Inline Supabase configuration branch plus profile bootstrap; needs its own selector refactor. |
+| savedPubsStore | legacy-exception | Inline Supabase configuration branch keyed by existing profile rows; needs its own selector refactor. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
