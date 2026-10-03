@@ -585,6 +585,9 @@
 .planComposer__acceptedList > div { min-width: 0; display: grid; gap: 4px; }
 .planComposer__acceptedList dt { color: var(--muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
 .planComposer__acceptedList dd { min-width: 0; margin: 0; color: var(--ink); font-weight: 800; overflow-wrap: anywhere; }
+.planComposer__acceptedList > .planComposer__acceptedQuote { grid-column: 1 / -1; }
+.planComposer__acceptedQuote dd { font-size: var(--text-sm); font-weight: 500; line-height: 1.5; }
+.planComposer__acceptedQuote a { color: var(--plan-accent-strong); text-underline-offset: 0.16em; }
 .planComposer__acceptedNote { margin: 14px 0 0; color: var(--ink-soft); font-size: 0.8rem; }
 /* The way out of a held acceptance. Quiet by weight, full 44px by touch: it is
    never the thing to do next, but it must be reachable with a thumb. */

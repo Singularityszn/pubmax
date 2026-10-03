@@ -996,8 +996,14 @@ export function AcceptedContextPanel({
             {drinkLabel && (
               <div><dt>Drink</dt><dd>{drinkLabel}{drinkRequest?.drinkServing ? ` (${drinkRequest.drinkServing} requested)` : ""}</dd></div>
             )}
+            {handoff.area && (
+              <div><dt>Area</dt><dd>{acceptedPlanAreaLabel(handoff.area)}</dd></div>
+            )}
+            {whenLabel && (
+              <div><dt>When</dt><dd>{whenLabel}</dd></div>
+            )}
             {quote && (
-              <div>
+              <div className="planComposer__acceptedQuote">
                 <dt>Quote</dt>
                 <dd>
                   {quote}
@@ -1006,12 +1012,6 @@ export function AcceptedContextPanel({
                   )}
                 </dd>
               </div>
-            )}
-            {handoff.area && (
-              <div><dt>Area</dt><dd>{acceptedPlanAreaLabel(handoff.area)}</dd></div>
-            )}
-            {whenLabel && (
-              <div><dt>When</dt><dd>{whenLabel}</dd></div>
             )}
           </dl>
           <p className="planComposer__acceptedNote">
