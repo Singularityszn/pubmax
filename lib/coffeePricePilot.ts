@@ -22,6 +22,7 @@ export type CoffeePilotNamedDrink = (typeof COFFEE_PILOT_NAMED_DRINKS)[number];
 export const COFFEE_HARVEST_WORD_PATTERN =
   /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha|matcha|macchiato|cortado)\b/i;
 
+const TEA = /\b(?:tea|chai)\b/i;
 const TEA_OR_WATER = /\b(?:tea|chai|water)\b/i;
 const AFFOGATO = /\baffogato\b/i;
 const AFFOGATO_ITEM_HEADING = /^affogato(?:\s*\([^)]*\))*\s*[:\u2013\u2014-]?$/i;
@@ -50,15 +51,17 @@ const COFFEE_NAME = new RegExp(
  * - Affogato on the own line is refused.
  * - An own line that names tea, chai or water as the item, before any coffee
  *   word, is refused: "Chai tea latte", "Hot water", "Earl Grey Tea".
+ * - The nearest line above that names a drink is the item's name. A tea or
+ *   chai name with no coffee word refuses the item, so "Earl Grey tea" over
+ *   "Latte" is tea.
  * - An own line that is just a coffee name is kept, whatever the copy around
  *   it: "Flat white" under "Affogato available on request" or "Affogato".
  * - Any other line under an "Affogato" item name is that dessert's
  *   description and is refused, even when it opens with espresso.
  * - An own line that names coffee is kept: "Filter coffee, brewed with water".
- * - Otherwise the nearest line above that names a drink is the item's name and
- *   decides: a coffee name keeps it ("Filter coffee" over "Brewed with
- *   filtered water"), a tea or water name refuses it. With no such name, a
- *   description that mentions tea or water is refused.
+ * - Otherwise the item's name decides: a coffee name keeps it ("Filter
+ *   coffee" over "Brewed with filtered water"), a water name refuses it. With
+ *   no such name, a description that mentions tea or water is refused.
  */
 export function coffeePriceLabelExcluded(
   ownLine: string | null | undefined,
@@ -71,13 +74,14 @@ export function coffeePriceLabelExcluded(
   if (TEA_OR_WATER_ITEM.test(own) && (coffeeAt < 0 || own.search(TEA_OR_WATER) < coffeeAt)) {
     return true;
   }
-  if (COFFEE_NAME.test(own)) return false;
-  if (lines.some((line) => AFFOGATO_ITEM_HEADING.test(line))) return true;
-  if (coffeeAt >= 0) return false;
   const name =
     lines.findLast(
       (line) => TEA_OR_WATER.test(line) || COFFEE_HARVEST_WORD_PATTERN.test(line),
     ) ?? "";
+  if (TEA.test(name) && !COFFEE_HARVEST_WORD_PATTERN.test(name)) return true;
+  if (COFFEE_NAME.test(own)) return false;
+  if (lines.some((line) => AFFOGATO_ITEM_HEADING.test(line))) return true;
+  if (coffeeAt >= 0) return false;
   if (COFFEE_HARVEST_WORD_PATTERN.test(name)) return false;
   return TEA_OR_WATER.test(name) || TEA_OR_WATER.test(own);
 }

@@ -131,6 +131,9 @@ describe("coffee pilot harvest fence", () => {
     "<h3>Affogato</h3><p>Double espresso poured over ice cream £5.50</p>",
     "<h2>Coffee</h2><h3>Peppermint tea</h3><p>Infused in hot water £2.20</p>",
     "<h2>Hot drinks: coffee &amp; tea</h2><h3>Fresh mint tea</h3><p>Steeped in hot water £2.50</p>",
+    "<h3>Earl Grey tea</h3><p>Latte £3.50</p>",
+    "<h3>Chai</h3><p>Latte £3.50</p>",
+    "<h3>Earl Grey tea</h3><p>Also served as a latte £3.20</p>",
   ])("refuses the item a name heading calls tea or affogato: %s", (item) => {
     const html = `${item}<p>Espresso £${ESPRESSO_GBP.toFixed(2)}</p>`;
     const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
@@ -250,6 +253,7 @@ describe("coffee pilot judged harvest fence", () => {
         "<h3>Affogato</h3><p>Espresso over vanilla gelato £5.00</p>",
         "<h3>Affogato</h3><p>Shot of espresso, vanilla ice cream £5.00</p>",
         "<h2>Coffee</h2><h3>Peppermint tea</h3><p>Infused in hot water £2.20</p>",
+        "<h3>Chai</h3><p>Latte £3.50</p>",
       ]) {
         const page = await readVenueDrinkPricesJudged(
           `${item}<p>Espresso - £${ESPRESSO_GBP.toFixed(2)}</p>`,
