@@ -1,11 +1,66 @@
+import { spawn as spawnProcess } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 
 const skipReason = postgresSkipReason();
+type HeldRollback = { writerExit: number | null; writerErr: string; rollbackExit: number | null; rollbackErr: string };
+
+/** One owned writer holds its transaction while a rollback file runs; the writer then finishes. */
+async function holdWriterAcrossRollback(input: {
+  psql: string; args: readonly string[]; probe: (statement: string) => string;
+  undo: string; label: string; hold: string; finish: string;
+}): Promise<HeldRollback> {
+  const writerName = `${input.label}-writer-${process.pid}`;
+  const rollbackName = `${input.label}-rollback-${process.pid}`;
+  const writer = spawnProcess(input.psql, [...input.args], {
+    stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, PGAPPNAME: writerName },
+  });
+  let writerOut = "";
+  let writerErr = "";
+  let rollbackErr = "";
+  writer.stdout.setEncoding("utf8");
+  writer.stderr.setEncoding("utf8");
+  writer.stdout.on("data", (chunk: string) => { writerOut += chunk; });
+  writer.stderr.on("data", (chunk: string) => { writerErr += chunk; });
+  writer.stdin.on("error", () => {});
+  const writerDone = new Promise<number | null>((resolve) => writer.once("close", resolve));
+  let rollbackDone: Promise<number | null> | null = null;
+  try {
+    writer.stdin.write(`${input.hold}\nselect 'WRITER_HELD';\n`);
+    for (let attempt = 0; attempt < 200 && !writerOut.includes("WRITER_HELD"); attempt += 1) {
+      if (writer.exitCode !== null) throw new Error(`Held writer failed: ${writerErr}`);
+      await sleep(25);
+    }
+    if (!writerOut.includes("WRITER_HELD")) throw new Error(`Held writer did not start: ${writerErr}`);
+    const undo = spawnProcess(input.psql, [...input.args, "-f", input.undo], {
+      stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PGAPPNAME: rollbackName },
+    });
+    undo.stderr.setEncoding("utf8");
+    undo.stderr.on("data", (chunk: string) => { rollbackErr += chunk; });
+    rollbackDone = new Promise<number | null>((resolve) => undo.once("close", resolve));
+    let waited = false;
+    for (let attempt = 0; attempt < 200 && !waited; attempt += 1) {
+      if (undo.exitCode !== null) throw new Error(`Rollback did not wait for the held writer: ${rollbackErr}`);
+      waited = input.probe(`select exists(select 1 from pg_stat_activity
+        where application_name='${rollbackName}' and wait_event_type='Lock')::text`) === "true";
+      if (!waited) await sleep(25);
+    }
+    if (!waited) throw new Error("Rollback never waited for the held writer");
+    writer.stdin.end(`${input.finish}\n`);
+    const writerExit = await writerDone;
+    return { writerExit, writerErr, rollbackExit: await rollbackDone, rollbackErr };
+  } finally {
+    if (writer.exitCode === null && !writer.stdin.writableEnded) writer.stdin.end("rollback;\n");
+    await writerDone;
+    if (rollbackDone) await rollbackDone;
+  }
+}
+
 const migrations = join(process.cwd(), "supabase/migrations");
 const name = "20260929120000_0161_plan_selected_drink_evidence.sql";
 const forward = join(migrations, name);
@@ -407,7 +462,7 @@ describe.skipIf(skipReason !== null)("0185 named listed quote storage", () => {
     expect(access()).toBe(oldAccess);
   });
 
-  it("captures saved named identity in completion and refuses rollback without data loss", () => {
+  it("captures saved named identity in completion and refuses rollback without data loss", async () => {
     namedDb().sql(`insert into public.plan_actions (id, plan_id, actor_member_id, type, stop_position, created_at)
       values ('30000000-0000-4000-8000-000000001851', '${plan("1")}', '${member("1")}',
         'arrived', 0, '2026-10-03T12:10:00Z')`);
@@ -427,14 +482,41 @@ describe.skipIf(skipReason !== null)("0185 named listed quote storage", () => {
     namedDb().sql(`update public.plan_stops set selected_drink_price_evidence =
       selected_drink_price_evidence - array['drinkLabel','drinkSubtype']
       where selected_drink_price_evidence ? 'drinkLabel'`);
+    const namedBackup = [{ venueId: "venue-uk-n8308248176", venueName: "The Sydney Arms", selectedDrinkPriceEvidence: named }];
+    namedDb().sql(`update public.plan_stops set alternatives = ${literal(namedBackup)}
+      where plan_id = '${plan("1")}' and position = 1`);
+    expect(() => namedDb().applyFileTransactional(undo)).toThrow("Named selected-price rows remain");
+    expect(checkDefinition()).toBe(currentCheck);
+    namedDb().sql(`update public.plan_stops set alternatives = '[]'::jsonb
+      where plan_id = '${plan("1")}' and position = 1`);
     namedDb().sql(`insert into public.plan_route_proposals
       (id, plan_id, proposed_by_member_id, expected_route_revision, stops, reason, idempotency_key, created_at)
       values ('30000000-0000-4000-8000-000000001853', '${plan("1")}', '${member("1")}',
         1, ${literal(route(named).map((stop, position) => ({ ...stop, position })))}, 'Route', 'named-0185-pending', now())`);
     expect(() => namedDb().applyFileTransactional(undo)).toThrow("Named selected-price rows remain");
     expect(checkDefinition()).toBe(currentCheck);
+    namedDb().sql(`update public.plan_route_proposals set stops = ${literal(route(legacy).map((stop, position) => ({
+      ...stop, position, ...(position === 1 ? { alternatives: namedBackup } : {}) })))}
+      where id = '30000000-0000-4000-8000-000000001853'`);
+    expect(() => namedDb().applyFileTransactional(undo)).toThrow("Named selected-price rows remain");
+    expect(checkDefinition()).toBe(currentCheck);
     namedDb().sql(`update public.plan_route_proposals set status = 'rejected', decided_at = now()
       where id = '30000000-0000-4000-8000-000000001853'`);
+    const held = await holdWriterAcrossRollback({
+      psql: namedDb().psql, args: [...namedDb().databaseArgs, "-t", "-A"], probe: (statement) => namedDb().sql(statement),
+      undo, label: "named-0185",
+      hold: `begin; insert into public.plan_route_proposals
+        (id, plan_id, proposed_by_member_id, expected_route_revision, stops, reason, idempotency_key, created_at)
+        values ('30000000-0000-4000-8000-000000001854', '${plan("1")}', '${member("1")}',
+          1, ${literal(route(named).map((stop, position) => ({ ...stop, position })))}, 'Route', 'named-0185-held', now());`,
+      finish: "commit;",
+    });
+    expect(held.writerExit, held.writerErr).toBe(0);
+    expect(held.rollbackExit, held.rollbackErr).not.toBe(0);
+    expect(held.rollbackErr).toContain("Named selected-price rows remain");
+    expect(checkDefinition()).toBe(currentCheck);
+    namedDb().sql(`update public.plan_route_proposals set status = 'rejected', decided_at = now()
+      where id = '30000000-0000-4000-8000-000000001854'`);
     namedDb().applyFileTransactional(undo);
     expect(checkDefinition()).toBe(oldCheck);
     expect(access()).toBe(oldAccess);
@@ -646,6 +728,31 @@ describe.skipIf(skipReason !== null)("0186 Cider evidence over durable RPCs", ()
       await writerDone;
       if (rollback && rollbackDone) await rollbackDone;
     }
+  });
+
+  it("waits behind a held proposal decision that then writes stops, without deadlock", async () => {
+    const { findPostgresBinary } = await import("../scripts/rls/postgresHost.mjs");
+    const psql = findPostgresBinary("psql");
+    if (!psql) throw new Error("Existing PostgreSQL harness has no psql binary");
+    expect(quotes0186(65)).toEqual([null, cider]);
+    sql0186(`insert into public.plan_route_proposals
+      (id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,idempotency_key,created_at)
+      values('${id(3, 65)}','${id(1, 65)}','${id(2, 65)}',1,
+        ${literal(route(null).map((stop, position) => ({ ...stop, position })))},'Held decision','held-decision-65',now())`);
+    const currentCatalog = catalog0186();
+    const held = await holdWriterAcrossRollback({
+      psql, args: ["-h", "127.0.0.1", "-p", String(session0186().port), "-U", "postgres", "-d", "pubmax_rls",
+        "-v", "ON_ERROR_STOP=1", "-t", "-A"],
+      probe: sql0186, undo, label: "cider-decision",
+      hold: `begin; update public.plan_route_proposals set reason='Held decision accepted' where id='${id(3, 65)}';`,
+      finish: `update public.plan_stops set venue_name=venue_name where plan_id='${id(1, 65)}'; commit;`,
+    });
+    expect(held.writerExit, held.writerErr).toBe(0);
+    expect(held.rollbackErr).not.toContain("deadlock");
+    expect(held.rollbackExit, held.rollbackErr).not.toBe(0);
+    expect(held.rollbackErr).toContain("Cider selected-price rows remain");
+    expect(catalog0186()).toBe(currentCatalog);
+    sql0186(`update public.plan_route_proposals set status='rejected', decided_at=now() where id='${id(3, 65)}'`);
   });
 
   it("stores the own published unknown-measure Cider tuple in primary and backup through create/read/replay", async () => {

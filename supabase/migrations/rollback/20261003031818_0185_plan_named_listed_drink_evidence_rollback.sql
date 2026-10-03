@@ -1,9 +1,12 @@
 -- Restore the 0176 CHECK without deleting named evidence.
--- Refuse while active or pending-proposal named rows remain. Backup, decided
--- proposal and completion snapshots retain their identity; an older
--- application may omit those fields.
+-- Refuse while active or pending-proposal named primary or backup evidence
+-- remains. Decided proposal and completion snapshots retain their identity;
+-- an older application may omit those fields.
 
 begin;
+
+lock table public.plan_route_proposals in share mode;
+lock table public.plan_stops in access exclusive mode;
 
 do $$
 begin
@@ -11,12 +14,26 @@ begin
     select 1 from public.plan_stops
     where selected_drink_price_evidence ?| array['drinkLabel', 'drinkSubtype']
   ) or exists (
+    select 1 from public.plan_stops stop
+    cross join lateral jsonb_array_elements(
+      case when jsonb_typeof(stop.alternatives) = 'array' then stop.alternatives else '[]'::jsonb end
+    ) backup
+    where backup->'selectedDrinkPriceEvidence' ?| array['drinkLabel', 'drinkSubtype']
+  ) or exists (
     select 1 from public.plan_route_proposals proposal
     cross join lateral jsonb_array_elements(
       case when jsonb_typeof(proposal.stops) = 'array' then proposal.stops else '[]'::jsonb end
     ) stop
     where proposal.status = 'pending'
-      and stop->'selectedDrinkPriceEvidence' ?| array['drinkLabel', 'drinkSubtype']
+      and (
+        stop->'selectedDrinkPriceEvidence' ?| array['drinkLabel', 'drinkSubtype']
+        or exists (
+          select 1 from jsonb_array_elements(
+            case when jsonb_typeof(stop->'alternatives') = 'array' then stop->'alternatives' else '[]'::jsonb end
+          ) backup
+          where backup->'selectedDrinkPriceEvidence' ?| array['drinkLabel', 'drinkSubtype']
+        )
+      )
   ) then
     raise exception 'Named selected-price rows remain; explicit data rollback required';
   end if;

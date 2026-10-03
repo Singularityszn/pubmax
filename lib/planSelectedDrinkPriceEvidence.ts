@@ -132,26 +132,27 @@ export function selectedDrinkPriceEvidenceForPrice(
     || (context.drinkCategory === "beer" && context.drinkSubtype !== "beer-cider")
     || price?.category !== context.drinkCategory
     || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0) return null;
+  let evidence: SelectedDrinkPriceEvidence | null = null;
   if (price.source === "community") {
     if (typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) return null;
     const reportedAt = new Date(price.submittedAt);
     if (!Number.isFinite(reportedAt.getTime())) return null;
-    return cleanSelectedDrinkPriceEvidence({
+    evidence = cleanSelectedDrinkPriceEvidence({
       category: context.drinkCategory, pence: Math.round(price.priceGbp * 100),
       serving: null, source: "community", reportedAt: reportedAt.toISOString(),
     });
+  } else if (price.source === "listed") {
+    const drinkLabel = normalizeUkPriceBundleDrinkLabel(price.drinkLabel);
+    evidence = cleanSelectedDrinkPriceEvidence({
+      category: context.drinkCategory,
+      pence: Math.round(price.priceGbp * 100),
+      serving: price.servingSize ?? null,
+      source: "listed",
+      sourceUrl: price.sourceUrl,
+      observedAt: price.observedAt,
+      ...(drinkLabel ? { drinkLabel, drinkSubtype: drinkSubtypeFromText(drinkLabel, context.drinkCategory)?.id ?? null } : {}),
+    });
   }
-  if (price.source !== "listed") return null;
-  const drinkLabel = normalizeUkPriceBundleDrinkLabel(price.drinkLabel);
-  const evidence = cleanSelectedDrinkPriceEvidence({
-    category: context.drinkCategory,
-    pence: Math.round(price.priceGbp * 100),
-    serving: price.servingSize ?? null,
-    source: "listed",
-    sourceUrl: price.sourceUrl,
-    observedAt: price.observedAt,
-    ...(drinkLabel ? { drinkLabel, drinkSubtype: drinkSubtypeFromText(drinkLabel, context.drinkCategory)?.id ?? null } : {}),
-  });
   return evidence && selectedDrinkPriceEvidenceMatchesContext(evidence, context) ? evidence : null;
 }
 

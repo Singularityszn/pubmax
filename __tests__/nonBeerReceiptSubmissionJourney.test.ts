@@ -18,7 +18,9 @@ const service = vi.hoisted(() => ({
   downloadMode: "normal" as "normal" | "corrupt" | "unavailable",
   removeFault: "none" as "none" | "returned" | "thrown",
   pointerMissing: false,
-  rpcMode: "normal" as "normal" | "refused" | "throw-before" | "commit-return-error" | "commit-throw",
+  rpcMode: "normal" as "normal" | "refused" | "throw-before" | "commit-return-error" | "commit-throw"
+    | "unknown-before" | "unknown-delayed",
+  delayedCommit: null as null | (() => Promise<unknown>),
   rpcCalls: [] as Record<string, unknown>[],
   removedKeys: [] as string[],
   ownerReadUnavailable: false,
@@ -104,6 +106,14 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     };
     return query;
   }
+  function completionUnknown(args: Record<string, unknown>) {
+    if (!Object.hasOwn(args, "p_receipt_photo_key") || !service.rpcMode.startsWith("unknown-")) return null;
+    service.rpcCalls.push({ ...args });
+    if (service.rpcMode === "unknown-delayed") {
+      service.delayedCommit = () => { service.rpcMode = "normal"; return upsertAttributedPrice(args); };
+    }
+    return { data: null, error: { code: "40003", message: "Controlled statement completion unknown" } };
+  }
   async function upsertAttributedPrice(args: Record<string, unknown>) {
     service.rpcCalls.push({ ...args });
     const nine = Object.hasOwn(args, "p_receipt_photo_key");
@@ -165,7 +175,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     async rpc(name: string, args: Record<string, unknown> = {}) {
       if (name === "check_rate_limit") return { data: false, error: null };
       if (name === "public_withdrawn_profiles") return { data: [], error: null };
-      if (name === "upsert_attributed_community_price_if_newer") return upsertAttributedPrice(args);
+      if (name === "upsert_attributed_community_price_if_newer") return completionUnknown(args) ?? upsertAttributedPrice(args);
       // Trust reconciliation is intentionally unavailable at the SDK boundary.
       // The real route must retain its documented price-save/pending behavior.
       return { data: null, error: { message: `Controlled SDK RPC unavailable: ${name}` } };
@@ -261,6 +271,7 @@ beforeEach(() => {
   service.removeFault = "none";
   service.pointerMissing = false;
   service.rpcMode = "normal";
+  service.delayedCommit = null;
   service.rpcCalls.length = 0;
   service.removedKeys.length = 0;
   service.ownerReadUnavailable = false;
@@ -479,6 +490,31 @@ describe("non-beer bill retention through failures and corrections", () => {
     expect(service.prices).toEqual([]);
     expect(service.acceptedUploads).toBe(1);
     expect(service.objects.size).toBe(1);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it("keeps the candidate when the database answers completion unknown before any commit", async () => {
+    service.rpcMode = "unknown-before";
+    await refused(await POST(request("wine", await bill())));
+    expect(service.ownerReads).toBeGreaterThan(0);
+    expect(service.prices).toEqual([]);
+    expect(service.objects.size).toBe(1);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it("keeps a completion-unknown candidate that a held transaction commits after the owner read", async () => {
+    const old = await seedObservation();
+    vi.setSystemTime(new Date(LATER));
+    service.rpcMode = "unknown-delayed";
+    await refused(await POST(request("wine", await bill(), "nonbeer-owner-token", "6.50")));
+    expect(service.prices[0]).toMatchObject({ price_pennies: 550, receipt_photo_key: old });
+    expect(service.removedKeys).toEqual([]);
+    expect(service.delayedCommit).toBeTypeOf("function");
+    await service.delayedCommit!();
+    const key = service.prices[0].receipt_photo_key;
+    expect(service.prices[0]).toMatchObject({ price_pennies: 650 });
+    expect(key).not.toBe(old);
+    expect(service.objects.has(`${STORAGE_BUCKET}/${key}`)).toBe(true);
     expect(service.removedKeys).toEqual([]);
   });
 

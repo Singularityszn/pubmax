@@ -407,6 +407,18 @@ describe("restored public route drink intent", () => {
     expect(rowFor("a").querySelector("p")?.textContent).toBe("Gin price not recorded");
   });
 
+  it("never attaches an unknown-measure community report to a chosen measure", () => {
+    const community: MapLensPrice = { venueId: "a", category: "wine", categoryLabel: "Wine", priceGbp: 7,
+      source: "community", submittedAt: Date.parse("2026-09-29T12:00:00.000Z") };
+    const restored = (drinkServing: string | null) => currentMapRoutePricing({
+      readCurrentQuotes: true, budget: null, venueIds: ["a"], quotes: new Map(),
+      context: { drinkCategory: "wine", drinkServing, zeroProof: false },
+    }, new Map([["a", community]]), VENUE_BY_ID);
+    expect(restored("175ml")?.quotes.size).toBe(0);
+    expect(restored(null)?.quotes.get("a")).toEqual({ category: "wine", pence: 700, serving: null,
+      source: "community", reportedAt: "2026-09-29T12:00:00.000Z" });
+  });
+
   it("prices a stop named by an old link ID under its canonical pub", async () => {
     window.history.replaceState({}, "", "/map?mode=build&pubs=old-a,b,c&routeDrink=gin");
     const aliased = new Map(VENUE_BY_ID);

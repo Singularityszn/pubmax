@@ -1379,7 +1379,7 @@ function isMissingReceiptRpc(error: unknown): boolean {
 function isStatementRefusal(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const { code } = error as { code?: unknown };
-  return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) && !code.startsWith("08");
+  return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) && !code.startsWith("08") && code !== "40003";
 }
 
 function hasStoredReceipt(row: Record<string, unknown> | null): row is Record<string, unknown> {

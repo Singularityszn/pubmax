@@ -7,8 +7,8 @@ begin;
 
 -- ALTER needs this same lock. Take it before reading the refusal guard so an
 -- uncommitted backup writer cannot become invisible evidence we then retain.
-lock table public.plan_stops in access exclusive mode;
 lock table public.plan_route_proposals in share mode;
+lock table public.plan_stops in access exclusive mode;
 
 do $$
 begin
