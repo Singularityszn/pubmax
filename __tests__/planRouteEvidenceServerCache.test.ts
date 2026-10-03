@@ -48,4 +48,22 @@ describe("plan price evidence cache", () => {
     });
     expect(readFileMock).toHaveBeenCalledTimes(2);
   });
+
+  it("shares one in-flight read between concurrent cold callers", async () => {
+    const actualFs = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+    readFileMock.mockImplementation(actualFs.readFile);
+
+    const { planPriceEvidenceForVenues } = await import("@/lib/planRouteEvidence.server");
+    const now = PINT_DATASET_OBSERVED_AT.getTime();
+
+    const results = await Promise.all([
+      planPriceEvidenceForVenues([ICE_WHARF], now),
+      planPriceEvidenceForVenues([ICE_WHARF], now),
+      planPriceEvidenceForVenues([ICE_WHARF], now),
+    ]);
+    for (const result of results) {
+      expect(result.get(ICE_WHARF.id)).toMatchObject({ pence: 366 });
+    }
+    expect(readFileMock).toHaveBeenCalledTimes(1);
+  });
 });

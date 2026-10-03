@@ -30,37 +30,35 @@ function canonicalGbpToPence(value: number | null): number | null {
   return Number.isSafeInteger(pence) && pence > 0 ? pence : null;
 }
 
-async function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> {
-  if (priceIndex) return priceIndex;
-  try {
-    const rows = JSON.parse(await readFile(
-      path.join(process.cwd(), "public/data/pint_prices_app_dataset.json"),
-      "utf8",
-    )) as unknown;
-    if (!Array.isArray(rows)) {
-      priceIndex = Promise.resolve(new Map());
-      return priceIndex;
-    }
-    const index = new Map(groupVenuePrices(rows as VenuePrice[]).map((venue) => {
-      const cheapest = venue.prices.find((row) => row.price_gbp === venue.cheapestPrice);
-      const attributed = cheapest && cheapest.source_datasets.trim()
-        && (cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim());
-      return [venue.id, {
-        pence: canonicalGbpToPence(venue.cheapestPrice),
-        // The label is the publisher's name alone. The raw dataset ids stay
-        // in this evidence object for anyone debugging a figure: printed,
-        // they read as plumbing beside a price on the invite stop list.
-        label: attributed ? "Pint Prices" : null,
-        url: attributed ? cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim() : null,
-        observedAt: cheapest ? legacyPintPriceObservedAt(cheapest) : null,
-        datasets: attributed ? cheapest.source_datasets : null,
-      }];
-    }));
-    priceIndex = Promise.resolve(index);
-    return index;
-  } catch {
+async function readPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> {
+  const rows = JSON.parse(await readFile(
+    path.join(process.cwd(), "public/data/pint_prices_app_dataset.json"),
+    "utf8",
+  )) as unknown;
+  if (!Array.isArray(rows)) return new Map();
+  return new Map(groupVenuePrices(rows as VenuePrice[]).map((venue) => {
+    const cheapest = venue.prices.find((row) => row.price_gbp === venue.cheapestPrice);
+    const attributed = cheapest && cheapest.source_datasets.trim()
+      && (cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim());
+    return [venue.id, {
+      pence: canonicalGbpToPence(venue.cheapestPrice),
+      // The label is the publisher's name alone. The raw dataset ids stay
+      // in this evidence object for anyone debugging a figure: printed,
+      // they read as plumbing beside a price on the invite stop list.
+      label: attributed ? "Pint Prices" : null,
+      url: attributed ? cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim() : null,
+      observedAt: cheapest ? legacyPintPriceObservedAt(cheapest) : null,
+      datasets: attributed ? cheapest.source_datasets : null,
+    }];
+  }));
+}
+
+function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> {
+  priceIndex ??= readPriceIndex().catch(() => {
+    priceIndex = null;
     return new Map();
-  }
+  });
+  return priceIndex;
 }
 
 export async function planPriceEvidenceForVenues(
