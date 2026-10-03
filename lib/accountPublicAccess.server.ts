@@ -48,6 +48,8 @@ let rpcMissedAt: number | null = null;
 const heldAuthBans = new Map<string, { banned: Promise<boolean>; readAt: number }>();
 
 const memoryWithdrawnProfiles = new Map<string, readonly string[]>();
+/** Test seam: an auth user id GoTrue would report as banned. Production ignores it when Supabase is configured. */
+const memoryBannedUserIds = new Set<string>();
 
 /** Test seam for keyless runs. Production ignores this map when Supabase is configured. */
 export function __setMemoryProfileWithdrawn(
@@ -59,8 +61,16 @@ export function __setMemoryProfileWithdrawn(
   else memoryWithdrawnProfiles.delete(profileId);
 }
 
+/** Test seam for a banned auth user. Same public withdrawal as a suspended Social account. */
+export function __setMemoryAuthUserBanned(userId: string, banned: boolean): void {
+  if (!userId) return;
+  if (banned) memoryBannedUserIds.add(userId);
+  else memoryBannedUserIds.delete(userId);
+}
+
 export function __resetMemoryProfileWithdrawals(): void {
   memoryWithdrawnProfiles.clear();
+  memoryBannedUserIds.clear();
   heldRpcRows = null;
   rpcMissedAt = null;
   heldAuthBans.clear();
@@ -68,10 +78,24 @@ export function __resetMemoryProfileWithdrawals(): void {
 
 async function readMemoryWithdrawn(): Promise<WithdrawnRow[]> {
   const rows: WithdrawnRow[] = [];
+  const seen = new Set<string>();
+  const push = (profileId: string, handle: string) => {
+    const normalized = normalizeHandle(handle);
+    if (!normalized) return;
+    const key = `${profileId}\0${normalized}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push({ profileId, handle });
+  };
   for (const [profileId, previousHandles] of memoryWithdrawnProfiles) {
     const profile = await profileStore().getById(profileId);
     if (!profile || isProfileTombstoned(profile)) continue;
-    for (const handle of [profile.handle, ...previousHandles]) rows.push({ profileId, handle });
+    for (const handle of [profile.handle, ...previousHandles]) push(profileId, handle);
+  }
+  for (const userId of memoryBannedUserIds) {
+    const profile = await profileStore().getByUserId(userId);
+    if (!profile || isProfileTombstoned(profile)) continue;
+    push(profile.id, profile.handle);
   }
   return rows;
 }

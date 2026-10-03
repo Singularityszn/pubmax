@@ -21,6 +21,7 @@ import "server-only";
 // FAIL-SOFT: a store error yields an empty list / an unchanged toggle rather than
 // throwing to the caller, so a saved-pubs outage can never break the profile page.
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
@@ -490,8 +491,34 @@ export const memorySavedPubsStore: SavedPubsStore = {
 // The single seam: Supabase when configured, process-memory otherwise. Note the
 // memory store uses the in-memory profile store implicitly (no profile id needed),
 // so dev/demo/test never touch the network.
-export function savedPubsStore(): SavedPubsStore {
-  return selectStore(memorySavedPubsStore, supabaseSavedPubsStore);
+/**
+ * `ownHandle` is the handle the verified caller owns. Withdrawal hides a handle
+ * from everybody but its owner, so that one handle is read as live.
+ */
+export function savedPubsStore(ownHandle?: string): SavedPubsStore {
+  return ownHandle
+    ? withoutWithdrawnSaves(selectStore(memorySavedPubsStore, supabaseSavedPubsStore), ownHandle)
+    : selectStore(publicMemorySavedPubsStore, publicSupabaseSavedPubsStore);
+}
+
+function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): SavedPubsStore {
+  return {
+    async listSaved(input) {
+      if (input.handle && (await isWithdrawnHandle(input.handle, ownHandle).catch(() => true))) return [];
+      return store.listSaved(input);
+    },
+    readSavedByHandles: (input) => store.readSavedByHandles(input),
+    readSaved: (input) => store.readSaved(input),
+    toggleSaved: (input) => store.toggleSaved(input),
+    ensureSaved: (input) => store.ensureSaved(input),
+  };
+}
+
+/** A banned or suspended handle reads as a handle nobody owns. Throws when the withdrawal read fails. */
+async function isWithdrawnHandle(handle: string, ownHandle?: string): Promise<boolean> {
+  const key = normalizeHandle(handle);
+  if (!key || key === ownHandle) return false;
+  return (await withdrawnHandles([key])).has(key);
 }
 
 /** Test-only: clear the in-memory saved-pub partitions between cases. */
@@ -576,8 +603,20 @@ export const memorySavedListsStore: SavedListsStore = {
   },
 };
 
-export function savedListsStore(): SavedListsStore {
-  return selectStore(memorySavedListsStore, supabaseSavedListsStore);
+export function savedListsStore(ownHandle?: string): SavedListsStore {
+  return ownHandle
+    ? withoutWithdrawnLists(selectStore(memorySavedListsStore, supabaseSavedListsStore), ownHandle)
+    : selectStore(publicMemorySavedListsStore, publicSupabaseSavedListsStore);
+}
+
+function withoutWithdrawnLists(store: SavedListsStore, ownHandle?: string): SavedListsStore {
+  return {
+    async listCustom(handle) {
+      if (await isWithdrawnHandle(handle, ownHandle).catch(() => true)) return [];
+      return store.listCustom(handle);
+    },
+    createList: (handle, name) => store.createList(handle, name),
+  };
 }
 
 /** Test-only: clear the in-memory custom-list registry between cases. */
@@ -611,7 +650,7 @@ type FollowedSavedListDTO = {
 };
 
 export type SavedListFollowsStore = {
-  /** Follow another handle's named list (idempotent). False for invalid/self follows. */
+  /** Follow another handle's named list (idempotent). False for invalid/self follows and for an owner nobody can follow. */
   followList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
   /** Remove a followed-list edge (idempotent). */
   unfollowList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
@@ -691,7 +730,7 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
     if (!follower || !owner || !listType || isSelfListFollow(follower, owner)) return false;
 
     const followerId = await profileIdForHandle(supabaseProfileStore, follower, true);
-    const ownerId = await profileIdForHandle(supabaseProfileStore, owner, true);
+    const ownerId = await profileIdForHandle(supabaseProfileStore, owner, false);
     if (!followerId || !ownerId) return false;
 
     const { error } = await admin().from(LIST_FOLLOWS_TABLE).insert({
@@ -890,11 +929,60 @@ const memorySavedListFollowsStore: SavedListFollowsStore = {
   },
 };
 
-export function savedListFollowsStore(): SavedListFollowsStore {
-  return selectStore(memorySavedListFollowsStore, supabaseSavedListFollowsStore);
+export function savedListFollowsStore(ownHandle?: string): SavedListFollowsStore {
+  return ownHandle
+    ? withoutWithdrawnListFollows(
+        selectStore(memorySavedListFollowsStore, supabaseSavedListFollowsStore),
+        ownHandle,
+      )
+    : selectStore(publicMemorySavedListFollowsStore, publicSupabaseSavedListFollowsStore);
+}
+
+function withoutWithdrawnListFollows(
+  store: SavedListFollowsStore,
+  ownHandle?: string,
+): SavedListFollowsStore {
+  return {
+    async followList(follower, owner, listType) {
+      if (await isWithdrawnHandle(owner, ownHandle)) return false;
+      return store.followList(follower, owner, listType);
+    },
+    unfollowList: (follower, owner, listType) => store.unfollowList(follower, owner, listType),
+    async isFollowingList(follower, owner, listType) {
+      if (
+        (await isWithdrawnHandle(follower, ownHandle)) ||
+        (await isWithdrawnHandle(owner, ownHandle))
+      ) {
+        return false;
+      }
+      return store.isFollowingList(follower, owner, listType);
+    },
+    async counts(owner, listType) {
+      try {
+        if (await isWithdrawnHandle(owner, ownHandle)) return { followers: 0, savedPubs: 0 };
+      } catch {
+        return { followers: null, savedPubs: 0 };
+      }
+      return store.counts(owner, listType);
+    },
+    async listFollowedBy(follower) {
+      if (await isWithdrawnHandle(follower, ownHandle)) return [];
+      const lists = await store.listFollowedBy(follower);
+      if (lists.length === 0) return lists;
+      const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));
+      return lists.filter((list) => !hidden.has(normalizeHandle(list.ownerHandle)));
+    },
+  };
 }
 
 /** Test-only: clear the in-memory saved-list follow edges between cases. */
 export function __resetMemorySavedListFollows(): void {
   memoryListFollows.clear();
 }
+
+const publicMemorySavedPubsStore = withoutWithdrawnSaves(memorySavedPubsStore);
+const publicSupabaseSavedPubsStore = withoutWithdrawnSaves(supabaseSavedPubsStore);
+const publicMemorySavedListsStore = withoutWithdrawnLists(memorySavedListsStore);
+const publicSupabaseSavedListsStore = withoutWithdrawnLists(supabaseSavedListsStore);
+const publicMemorySavedListFollowsStore = withoutWithdrawnListFollows(memorySavedListFollowsStore);
+const publicSupabaseSavedListFollowsStore = withoutWithdrawnListFollows(supabaseSavedListFollowsStore);

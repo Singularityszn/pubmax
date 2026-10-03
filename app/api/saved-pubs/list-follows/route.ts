@@ -7,7 +7,7 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { callerOwnedWithdrawnHandle, gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
   cleanListType,
@@ -25,8 +25,8 @@ import {
 
 assertServerEnv();
 
-function store(): SavedListFollowsStore {
-  return savedListFollowsStore();
+function store(ownHandle?: string): SavedListFollowsStore {
+  return savedListFollowsStore(ownHandle);
 }
 
 function isSelfListFollow(followerHandle: string, ownerHandle: string): boolean {
@@ -45,16 +45,21 @@ export async function GET(request: Request): Promise<Response> {
   const listType = cleanListType(params.get("listType"));
 
   try {
+    const ownHandle =
+      (await callerOwnedWithdrawnHandle(request, follower)) ??
+      (await callerOwnedWithdrawnHandle(request, owner));
     if (owner && listType) {
       const [following, counts] = await Promise.all([
-        follower ? store().isFollowingList(follower, owner, listType) : Promise.resolve(false),
-        store().counts(owner, listType),
+        follower
+          ? store(ownHandle).isFollowingList(follower, owner, listType)
+          : Promise.resolve(false),
+        store(ownHandle).counts(owner, listType),
       ]);
       return jsonNoStore({ following, counts }, { status: 200 });
     }
 
     if (!follower) return jsonNoStore({ followedLists: [] }, { status: 200 });
-    const followedLists = await store().listFollowedBy(follower);
+    const followedLists = await store(ownHandle).listFollowedBy(follower);
     return jsonNoStore({ followedLists }, { status: 200 });
   } catch {
     // Fail-soft read: followed lists are additive social context, not a reason to
@@ -115,6 +120,9 @@ export async function POST(request: Request): Promise<Response> {
     const following = unfollow
       ? !(await s.unfollowList(ownership.handle, owner, listType))
       : await s.followList(ownership.handle, owner, listType);
+    if (!unfollow && !following) {
+      return publicApiError("That account isn't here any more.", "PROFILE_NOT_FOUND", 404);
+    }
     const counts = await s.counts(owner, listType);
     return jsonNoStore({ following, counts }, { status: 200 });
   } catch {

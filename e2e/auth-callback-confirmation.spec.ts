@@ -86,6 +86,48 @@ test("unowned callback installs verified account A only after Continue", async (
   await expectScrubbed(page);
 });
 
+test("unowned callback for an unverified email asks without naming the address", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const stub = await installAuthDoubles(page);
+  await page.goto("/today");
+  await stub.signedInAs("B");
+  // Whoever crafts the link can set an unverified email to anything, such as
+  // the address of the person they send it to.
+  const chosenEmail = ACCOUNTS.B.email;
+  await page.route("**/auth/v1/user", async (route) => {
+    if (route.request().method() === "OPTIONS" ||
+      route.request().headers().authorization !== `Bearer ${accessJwt(ACCOUNTS.A)}`) {
+      return route.fallback();
+    }
+    await route.fulfill({
+      status: 200,
+      headers: providerHeaders,
+      json: {
+        id: ACCOUNTS.A.id,
+        aud: "authenticated",
+        role: "authenticated",
+        email: chosenEmail,
+        email_confirmed_at: null,
+        app_metadata: {},
+        user_metadata: {},
+      },
+    });
+  });
+  await page.goto(callbackUrl(accessJwt(ACCOUNTS.A), ACCOUNTS.A.refreshToken));
+
+  const prompt = page.getByRole("alert").filter({ hasText: "Sign in to this account?" });
+  await expect(prompt).toBeVisible();
+  await expect(page.getByText(chosenEmail)).toHaveCount(0);
+  await expect(page.getByRole("alert").filter({ hasText: "Sign in as" })).toHaveCount(0);
+  expect((await storedSession(page))?.user.id).toBe(ACCOUNTS.B.id);
+  await page.screenshot({ path: `${SHOTS}/390-confirmation-unverified.png` });
+
+  await prompt.getByRole("button", { name: "Cancel" }).click();
+  await expect(prompt).toHaveCount(0);
+  expect((await storedSession(page))?.user.id).toBe(ACCOUNTS.B.id);
+  await expectScrubbed(page);
+});
+
 test("mismatched access and refresh identities reject without replacing B", async ({ page }) => {
   const stub = await installAuthDoubles(page);
   await page.goto("/today");
