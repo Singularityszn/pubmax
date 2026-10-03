@@ -43,6 +43,7 @@ import {
 } from "@/lib/pintDropConfirm.server";
 import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
+import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -513,6 +514,7 @@ export async function POST(request: Request): Promise<Response> {
     const drop = await pintDropsStore().create(dropPayload, photos, {
       underDailyPriceCap: true,
     });
+    signalPintDropLanded();
     // The second-reporter pass, awaited so the drinker's own answer carries the
     // standing their report just earned. It never throws and never fails the
     // drop: when it cannot read or write, the pill stays grey and the drop

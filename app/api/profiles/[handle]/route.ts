@@ -81,7 +81,7 @@ async function publicLinksFor(profile: ProfileRecord | null): Promise<PublicSoci
 
 // Trust boundary for profile edits — the request body is untrusted. cleanText
 // (lib/textClean) strips inline HTML angle brackets + control chars, collapses
-// whitespace, and caps length; isHttpUrl validates the avatar link. Both mirror
+// whitespace, and caps length; cleanHttpUrl validates the avatar link. Both mirror
 // the shared trust boundary so every write path agrees.
 
 // Editable field caps. The handle itself is NOT editable here (it is the

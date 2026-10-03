@@ -21,7 +21,6 @@ const UNSUFFIXED_SERVER_ONLY_MODULES = [
   "reactionsStore.ts",
   "socialConnectionStore.ts",
   "supabase.ts",
-  "siteHarvestLedger.ts",
   "ukBaseIndex.ts",
 ] as const;
 
@@ -61,10 +60,10 @@ const SERVER_IO_EXEMPTIONS = {
     capabilities: ["node-runtime"],
     kind: "config",
     consumers: [
+      "scripts/build_uk_price_bundle.mjs",
       "scripts/harvest_soft_drinks_menus.mjs",
-      "lib/siteHarvestLedger.ts",
     ],
-    reason: "Plain shared ledger core lets the operator CLI and server-only facade use the same row rule.",
+    reason: "Plain shared ledger core lets the operator CLIs use the same row rule.",
     removeWhen: "Site harvest moves off the JSONL ledger.",
   },
 } as const;

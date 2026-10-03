@@ -114,7 +114,7 @@ function generatedVenue(
   };
 }
 
-function prepareWineValueSearch(now: number) {
+function prepareWineValueSearch(now: number, query = "cheap wine in Clapham for 2") {
   loadConciergeVenuesMock.mockResolvedValueOnce([
     generatedVenue("v1", { cheapestPrice: 4 }),
     generatedVenue("v2", { cheapestPrice: 6 }),
@@ -131,7 +131,7 @@ function prepareWineValueSearch(now: number) {
   });
   return preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
     method: "POST",
-    body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+    body: JSON.stringify({ query }),
   }), now);
 }
 
@@ -226,6 +226,22 @@ describe("POST /api/plans/generate", () => {
     expect("prepared" in result).toBe(true);
     if (!("prepared" in result)) return;
     expect(result.prepared.context.daypart).toBe("daytime");
+    expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
+    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+  });
+
+  it("keeps trusted wine value ordering when the query requests after work in daytime", async () => {
+    const result = await prepareWineValueSearch(
+      PLAN_GENERATION_TEST_NOW,
+      "cheap wine in Clapham for 2 after work",
+    );
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(result.prepared.context).toMatchObject({ daypart: "after_work", drinkCategory: "wine" });
     expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
     expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
     expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");

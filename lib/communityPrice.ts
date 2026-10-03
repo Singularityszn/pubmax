@@ -21,6 +21,7 @@ import {
   isMapLensDrinkCategory,
   type DrinkCategory,
 } from "@/lib/drinks";
+import { cleanVenueId } from "@/lib/cleanVenueId";
 import { DAY_MS } from "@/lib/dayMs";
 import { formatGbp } from "@/lib/formatGbp";
 import { londonDayKey } from "@/lib/pintContributions";
@@ -36,9 +37,6 @@ import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
  */
 export const COMMUNITY_PRICE_MIN_GBP = 1;
 export const COMMUNITY_PRICE_MAX_GBP = 30;
-
-/** Venue ids are the slim-index stable ids; cap them like every other writer. */
-const MAX_VENUE_ID = 64;
 
 /**
  * The categories offered on the submit surface, in tap order. A deliberate
@@ -149,14 +147,6 @@ function readNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-}
-
-function cleanVenueId(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/[\x00-\x1F\x7F]/g, "")
-    .trim()
-    .slice(0, MAX_VENUE_ID);
 }
 
 /** Round GBP to whole pennies - the only precision a price has. */

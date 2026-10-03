@@ -36,21 +36,19 @@ async function publishStoryWithFriend() {
   const hostMoment = await addNightMoment("host", memory!.id, {
     kind: "photo",
     caption: "Great night with @jordanx and the crew",
-    mediaObjectKey: "night-media/host/1.webp",
     // Photos need author-confirmed alt text to clear the 5.6 publish gate.
     altText: "The crew raising pints on a bar terrace.",
-  });
+  }, { mediaObjectKey: "night-media/host/1.webp" });
   const story = await createNightStory("host", { memoryId: memory!.id, title: "Friday orbit with Jordan" });
 
   await upsertStoryContributor("host", story!.id, { handle: "jordanx", role: "contributor" });
   await acceptStoryContribution("friend", story!.id);
-  const friendMoment = await addStoryMoment("friend", story!.id, {
+  const friendMoment = await addNightMoment("friend", memory!.id, {
     kind: "photo",
     caption: "My round at the second stop",
-    mediaObjectKey: "night-media/friend/1.webp",
     // Photos need author-confirmed alt text to clear the 5.6 publish gate.
     altText: "A tray of drinks at the second bar.",
-  });
+  }, { allowContributor: true, mediaObjectKey: "night-media/friend/1.webp" });
   await setMomentPublicationConsent("friend", story!.id, friendMoment!.id, "approved");
 
   const proposed = await proposeNightStoryPublication("host", story!.id, {

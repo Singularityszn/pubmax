@@ -35,6 +35,23 @@ export function nightMomentObjectPrefix(ownerId: string, memoryId?: string): str
 }
 
 /**
+ * Whether a storage key is an object under this owner's Night Moment prefix.
+ *
+ * A signed URL and a delete both use the service role, so a key that merely
+ * sits on a Moment row is not enough: it has to stay inside the folder the
+ * upload wrote. A `..` segment, an encoded slash, or another owner's folder
+ * fails the same way a key from a different lane does.
+ */
+export function nightMomentKeyBelongsToOwner(ownerId: string, key: string): boolean {
+  if (typeof ownerId !== "string" || typeof key !== "string") return false;
+  if (!ownerId || /[\\/\0]/.test(ownerId)) return false;
+  const prefix = `${nightMomentObjectPrefix(ownerId)}/`;
+  if (!key.startsWith(prefix) || /[\\%\0]/.test(key)) return false;
+  const parts = key.slice(prefix.length).split("/");
+  return parts.length > 0 && parts.every((part) => part.length > 0 && part !== "." && part !== "..");
+}
+
+/**
  * The bucket folders whose every object belongs to this account.
  *
  * A folder is named WITHOUT a trailing slash, the shape the Storage API's

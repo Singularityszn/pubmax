@@ -60,11 +60,10 @@ async function seedMemoryWithPhoto(owner = "host") {
   const moment = await addNightMoment(owner, memory!.id, {
     kind: "photo",
     caption: "The crew at the first stop",
-    mediaObjectKey: `night-moments/${owner}/${memory!.id}/photo.webp`,
     // Publication needs an author-confirmed description, so a Memory seeded
     // here can reach the published state the two refusals are about.
     altText: "Four of us at the bar, first stop of the night.",
-  });
+  }, { mediaObjectKey: `night-moments/${owner}/${memory!.id}/photo.webp` });
   return { memory: memory!, moment: moment! };
 }
 

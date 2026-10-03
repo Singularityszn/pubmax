@@ -1,3 +1,4 @@
+import { cleanVenueId } from "@/lib/cleanVenueId";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
@@ -105,16 +106,6 @@ export const COMMUNITY_VENUE_SIGNAL_LABELS: Record<
 const SIGNAL_KEYS = new Set<CommunityVenueSignalKey>(
   Object.keys(COMMUNITY_VENUE_SIGNAL_OPTIONS) as CommunityVenueSignalKey[],
 );
-
-const MAX_VENUE_ID = 64;
-
-function cleanVenueId(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/[\x00-\x1F\x7F]/g, "")
-    .trim()
-    .slice(0, MAX_VENUE_ID);
-}
 
 export function isCommunityVenueSignalKey(
   value: unknown,

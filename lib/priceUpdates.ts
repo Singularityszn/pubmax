@@ -18,6 +18,8 @@
 // instead of poisoning the price layer.
 
 import type { Provenance } from "@/lib/curation";
+import { isHttpUrl } from "@/lib/httpUrl";
+import { isFiniteNumber, isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
 import type { Venue } from "@/lib/venues";
 
 // One attributed price observation from a permissible source. `venueKey` is the
@@ -42,34 +44,6 @@ type PriceProvenance = {
   observedAt: string;
 };
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-// http(s) URL guard — a first-party source must be a real link the UI can
-// attribute to. Rejects anything that isn't an absolute http(s) URL.
-function isHttpUrl(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-// A valid ISO timestamp that is not in the future (a future observation is a
-// data error — you cannot have observed a price that hasn't happened yet).
-function isValidObservedAt(value: unknown, now: number): value is string {
-  if (!isNonEmptyString(value)) return false;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) && ms <= now;
-}
-
 // Hand-rolled row guard — drop malformed rows rather than throw. `now` is
 // injectable for deterministic tests.
 export function isValidPriceUpdate(value: unknown, now: number = Date.now()): value is PriceUpdate {
@@ -83,7 +57,7 @@ export function isValidPriceUpdate(value: unknown, now: number = Date.now()): va
   if (typeof source !== "object" || source === null) return false;
   const src = source as Record<string, unknown>;
   if (!isNonEmptyString(src.label)) return false;
-  if (!isHttpUrl(src.url)) return false;
+  if (!isHttpUrl(src.url, { allowWhitespace: true })) return false;
   if (!isValidObservedAt(row.observedAt, now)) return false;
   return true;
 }

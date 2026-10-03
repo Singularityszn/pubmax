@@ -5,8 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { transferMapRouteToDraft, type MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
 
-export type { MapGeneratedRouteResponse as MapRouteResponse } from "@/lib/mapRouteTransfer";
-
 const PLAN_HREF = "/plan?src=mobile-route-preview";
 const PLAN_LABEL = "Open Plan to lock it in";
 

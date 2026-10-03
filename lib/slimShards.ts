@@ -67,6 +67,13 @@ const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() ||
         throw new Error("A deploy revision is required for production map data");
       })()
     : "local");
+// The revision match is a production cache-busting guard. `next dev` serves
+// whatever packs public/data holds, committed `local`, restamped with HEAD or a
+// mix, so outside production every pack is accepted.
+const EXPECTED_MAP_DATA_REVISION =
+  process.env.NODE_ENV === "production" && MAP_DATA_REVISION !== "local"
+    ? MAP_DATA_REVISION
+    : undefined;
 
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
@@ -539,7 +546,7 @@ export function createSlimShardLoader(
       let parsed = parseShardManifest(
         payload,
         expectedManifestVersion,
-        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+        EXPECTED_MAP_DATA_REVISION,
       );
       if (!parsed && expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
         manifestRevisionRejected = true;
@@ -552,7 +559,7 @@ export function createSlimShardLoader(
               parsed = parseShardManifest(
                 await response.json(),
                 expectedManifestVersion,
-                MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+                EXPECTED_MAP_DATA_REVISION,
               );
             } else {
               discardBody(response);
@@ -570,7 +577,7 @@ export function createSlimShardLoader(
       const parsed = parseShardManifest(
         stored,
         expectedManifestVersion,
-        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+        EXPECTED_MAP_DATA_REVISION,
       );
       if (
         stored !== null &&
@@ -598,9 +605,9 @@ export function createSlimShardLoader(
   function loadWholeIndexResult(): Promise<SlimShardLoadResult> {
     const wholeIndexPath = shardRequestPath(slimVenuesPath);
     const wholeIndexOptions =
-      MAP_DATA_REVISION === "local"
+      EXPECTED_MAP_DATA_REVISION === undefined
         ? options
-        : { ...options, expectedRevision: MAP_DATA_REVISION };
+        : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
     return loadSlimVenuesFromPathResult(wholeIndexPath, wholeIndexOptions).then((result) => {
       if (result.status === "ready") wholeIndexLoaded = true;
       return result;
@@ -617,9 +624,9 @@ export function createSlimShardLoader(
     const existing = shardPromises.get(url);
     if (existing) return existing;
     const shardOptions =
-      MAP_DATA_REVISION === "local"
+      EXPECTED_MAP_DATA_REVISION === undefined
         ? options
-        : { ...options, expectedRevision: MAP_DATA_REVISION };
+        : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
     const p = loadSlimVenuesFromPathResult(shardRequestPath(url), shardOptions)
       .then((result) => {
         if (result.status === "ready") {

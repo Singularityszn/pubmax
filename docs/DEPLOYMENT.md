@@ -331,20 +331,13 @@ dev/test.
 
 **Every Vercel deploy runs the data validation gate and the Next build only.** It does not run lint, typecheck, tests, or coverage. PR [#748](https://github.com/Singularityszn/pubmax/pull/748) narrowed the build command on 2026-08-06 to cut Vercel build-minute cost. Lint, typecheck, and tests moved to GitHub Actions (`.github/workflows/ci.yml`).
 
-GitHub Actions is configured for `push`, `pull_request`, and `workflow_dispatch`, but GitHub-hosted runs are currently failing before job allocation on this private repo (`startup_failure` with zero jobs and no logs). That is a runner/account allocation problem, not a product-code problem. The fix, PR [#747](https://github.com/Singularityszn/pubmax/pull/747) (migrate to Blacksmith runners), is open and unmerged.
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) owns CI triggers and
+commands. The [CI runbook](CI_RUNBOOK.md) owns runner prerequisites, configuration,
+and recovery. Check the current run before treating CI as release evidence.
 
-**Result: nothing automated currently checks lint, typecheck, or tests before a deploy reaches production.** See `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.1 for the operator consequence: run `npm run ci` locally before every push until #747 lands.
-
-When GitHub Actions runner allocation is fixed, the existing triggers should start producing useful first-party checks. The workflow itself is intentionally boring:
-
-- `npm ci`
-- `npm run validate-data`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run coverage` (fails if coverage drops below the vitest.config.mts thresholds)
-- `npm run build`
-
-The workflow supports `workflow_dispatch`, so it can be rerun manually from GitHub Actions after account/runners are fixed.
+Run `npm run ci` locally before every push. A Vercel build alone does not prove
+the full gate passed. If Actions fails before job allocation, restore runner or
+account allocation before calling the release gate green.
 
 ### Manual deploy and promote
 

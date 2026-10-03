@@ -25,7 +25,7 @@ Cover:
 - deterministic first-row selection when exact-price rows tie
 - no evidence when the full-detail price does not match the card price
 - display states for loading, named, unrecorded, and degraded reads
-- one shared `Prices last collected 3 July 2026.` dataset stamp
+- each price dated by its own row's read, not one shared `Prices last collected 3 July 2026.` dataset stamp
 
 **Step 2: Run RED**
 
