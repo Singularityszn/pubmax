@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { createElement } from "react";
+import { createElement, type FunctionComponent } from "react";
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // A live region announces a CHANGE. Text already present when the region
@@ -53,7 +54,13 @@ vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
   default: () => createElement("div", null, "password"),
 }));
 
-import LoginPage from "@/components/auth/LoginPage";
+import LoginPageComponent from "@/components/auth/LoginPage";
+
+// The page declares every prop optional with a `= {}` default, so React's own
+// inference reads it as taking none. This names the props it really accepts.
+const LoginPage = LoginPageComponent as FunctionComponent<
+  NonNullable<Parameters<typeof LoginPageComponent>[0]>
+>;
 
 // The skeleton only stands when a session hint says a card may be coming.
 // These tests are about that skeleton, so the hint is on.
@@ -175,5 +182,55 @@ describe("the sign-in skeleton's screen-reader line", () => {
 
     expect(statusRegion()).toBeNull();
     expect(host.querySelector(".loginPageSkeleton")).toBeNull();
+  });
+});
+
+// The Supabase session in localStorage is the browser's own hint. It holds the
+// email door back on a client-side mount, but a hydrating mount keeps the
+// server's answer: an email door already painted is never swapped for a
+// skeleton.
+describe("the stored-session hint", () => {
+  beforeEach(() => {
+    window.localStorage.setItem("sb-example-auth-token", "{}");
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("keeps the skeleton on a client-side mount with a stored session", () => {
+    act(() => {
+      root.render(createElement(LoginPage));
+    });
+    expect(host.querySelector(".loginPageSkeleton")).not.toBeNull();
+    expect(host.textContent).not.toContain("email form");
+  });
+
+  it("paints the form for an added account despite a stored session", () => {
+    act(() => {
+      root.render(createElement(LoginPage, { addAccount: true }));
+    });
+    expect(host.querySelector(".loginPageSkeleton")).toBeNull();
+    expect(host.textContent).toContain("email form");
+  });
+
+  it("never replaces a hydrated email door with a skeleton", async () => {
+    const page = createElement(LoginPage);
+    const shell = document.createElement("div");
+    document.body.appendChild(shell);
+    shell.innerHTML = renderToString(page);
+    expect(shell.textContent).toContain("email form");
+
+    let hydrated: Root | undefined;
+    await act(async () => {
+      hydrated = hydrateRoot(shell, page);
+    });
+    expect(shell.querySelector(".loginPageSkeleton")).toBeNull();
+    expect(shell.textContent).toContain("email form");
+
+    act(() => {
+      hydrated?.unmount();
+    });
+    shell.remove();
   });
 });

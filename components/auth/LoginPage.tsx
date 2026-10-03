@@ -300,38 +300,39 @@ export function PageHead({
 }
 
 function readBrowserSessionHint(): boolean {
-  if (typeof window === "undefined") return false;
   try {
-    const keys: string[] = [];
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key) continue;
-      if (window.localStorage.getItem(key)) keys.push(key);
-    }
     return loginPageHasSessionHint({
-      cookieHeader: document.cookie,
-      storageKeys: keys,
+      storageKeys: Object.keys(window.localStorage),
     });
   } catch {
     return false;
   }
 }
 
-/**
- * The server hint is the resume cookie. localStorage is the browser's own
- * copy of the same session, read on the client snapshot so a signed-in reader
- * whose cookie was not on this document still keeps the skeleton.
- */
 function subscribeLoginSessionHint(): () => void {
   return () => {};
 }
 
+/**
+ * The server hint is the resume cookie or a provider callback landing.
+ * localStorage is the browser's own copy of the session, but it is read only
+ * on a client-side mount: a hydrating mount keeps the server's answer, so an
+ * email door already painted is never swapped for a skeleton.
+ */
 function useLoginSessionHint(serverHint: boolean): boolean {
-  return useSyncExternalStore(
+  const [browserHint] = useState(() => {
+    let read: boolean | undefined;
+    return {
+      onClient: () => (read ??= readBrowserSessionHint()),
+      whileHydrating: () => (read ??= false),
+    };
+  });
+  const storedSession = useSyncExternalStore(
     subscribeLoginSessionHint,
-    () => serverHint || readBrowserSessionHint(),
-    () => serverHint,
+    browserHint.onClient,
+    browserHint.whileHydrating,
   );
+  return serverHint || storedSession;
 }
 
 /** The two doors as one control. Extracted so the page body stays readable. */
@@ -391,7 +392,8 @@ export default function LoginPage({
    */
   addAccount?: boolean;
   /**
-   * True when the server saw a resume cookie. A signed-in reader keeps the
+   * True when the server saw a resume cookie or a provider callback landing.
+   * A signed-in reader keeps the
    * skeleton until the session answers; a reader without a hint gets the
    * email door in the first HTML.
    */
@@ -565,12 +567,19 @@ export default function LoginPage({
   // Adding an account is the ONE case where a live session does not get the
   // signed-in card: the person came here to bring a second account onto this
   // device, and telling them they are already in would be answering a question
-  // they did not ask.
-  const adding = addAccount && Boolean(user);
+  // they did not ask. A hinted session still resolving is read as live, so the
+  // head over the already-painted form does not change when it answers.
+  const sessionHinted = useLoginSessionHint(sessionHint);
+  const adding = addAccount && (Boolean(user) || (loading && sessionHinted));
   const showSignedIn = Boolean(user) && !adding;
   const returning = Boolean(welcomeBack) && !useDifferentAccount;
+  // Adding an account asked for the form, so a hint must not hide it. Everyone
+  // else with a hint keeps the skeleton until the session answers.
+  const hasSessionHint = sessionHinted && !addAccount;
+  // With no hint the form is the first paint, so the head above it is settled
+  // too and does not shift when the session answers.
   const head = loginPageHeadCopy({
-    sessionKnown: !loading,
+    sessionKnown: !loading || !hasSessionHint,
     adding,
     signedIn: Boolean(user),
     returning,
@@ -579,9 +588,6 @@ export default function LoginPage({
   });
   const showWelcomeBack =
     !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
-  // Adding an account asked for the form, so a hint must not hide it. Everyone
-  // else with a hint keeps the skeleton until the session answers.
-  const hasSessionHint = useLoginSessionHint(sessionHint) && !addAccount;
   const showSkeleton = loginPageShowsSkeleton({
     sessionKnown: !loading,
     hasAuthSurface,

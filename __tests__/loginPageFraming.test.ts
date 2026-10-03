@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { AUTH_RESUME_COOKIE } from "@/lib/authSessionResume";
 import {
   LOGIN_FIRST_TIME_LEAD,
   LOGIN_FIRST_TIME_TITLE,
@@ -96,14 +95,16 @@ describe("login page framing", () => {
     ).toBe(false);
   });
 
-  it("treats the resume cookie or a stored supabase session as a hint", () => {
+  it("treats the resume cookie, a callback landing or a stored session as a hint", () => {
+    expect(loginPageHasSessionHint({ resumeCookie: "present" })).toBe(true);
+    expect(loginPageHasSessionHint({ resumeCookie: "" })).toBe(false);
+    // A provider just sent this reader back with the session in the fragment.
+    expect(loginPageHasSessionHint({ authCallback: "1" })).toBe(true);
+    // A failed callback carries no session: the form is the answer.
     expect(
-      loginPageHasSessionHint({ cookieHeader: `${AUTH_RESUME_COOKIE}=present` }),
-    ).toBe(true);
-    expect(
-      loginPageHasSessionHint({ cookieHeader: `other=1; ${AUTH_RESUME_COOKIE}=` }),
+      loginPageHasSessionHint({ authCallback: "1", authError: "1" }),
     ).toBe(false);
-    expect(loginPageHasSessionHint({ cookieHeader: "theme=dark" })).toBe(false);
+    expect(loginPageHasSessionHint({ authCallback: "0" })).toBe(false);
     expect(
       loginPageHasSessionHint({ storageKeys: ["sb-example-auth-token"] }),
     ).toBe(true);
