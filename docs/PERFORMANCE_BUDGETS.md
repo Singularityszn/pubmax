@@ -182,6 +182,16 @@ deployment. A session, a caller's identity, a store read that can change
 between two requests, or a URL that can carry the viewer's own coordinates all
 disqualify it.
 
+One named exception stands, by the captain's ruling of 2026-10-03:
+`/api/auth/providers`. Its body is a store read, the Supabase Auth provider
+flags, so it fails the bar as written. It is allowed because the answer is the
+same for every caller and changes only when someone edits the Supabase
+dashboard. The shared copy is fresh for five minutes (`s-maxage=300`, plus a
+60-second `stale-while-revalidate`), so a dashboard toggle can take that long
+to show or hide a button. Before OAuth starts, the client rechecks with
+`?fresh=1`, which is never cached. The exception covers this route alone. It
+does not loosen the bar for any other remote read.
+
 | class | contract | verdict |
 | --- | --- | --- |
 | Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
