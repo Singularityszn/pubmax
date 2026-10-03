@@ -39,6 +39,10 @@ describe("coffee pilot harvest fence", () => {
     ["Mineral water", 1.8],
     ["Earl Grey Tea", 2.5],
     ["Tea", 2],
+    ["Hot water", 1],
+    ["Chai latte", 3.2],
+    ["Chai tea latte", 3.8],
+    ["Earl grey tea latte", 3.8],
     ["Affogato (vg) Vanilla ice cream, shot of hot espresso", 6],
   ])("refuses %s as a coffee price beside an espresso line", (label, priceGbp) => {
     const html = `<p>${label} £${priceGbp.toFixed(2)}</p><p>Espresso £${ESPRESSO_GBP.toFixed(2)}</p>`;
@@ -91,7 +95,7 @@ describe("coffee pilot harvest fence", () => {
       <p>Latte £3.80</p>
       <p>Latte macchiato £3.40</p>
       <p>Latte (oat) £4.10</p>
-      <p>Chai latte £3.20</p>
+      <p>Iced latte £3.20</p>
       <p>Matcha latte £4.00</p>`;
     const rows = cheapestPerCategory(readVenueDrinkPrices(html)).filter(
       (row) => row.category === "coffee",
@@ -110,7 +114,7 @@ describe("coffee pilot harvest fence", () => {
       expect.arrayContaining([
         expect.objectContaining({ drinkLabel: "Latte macchiato", priceGbp: 3.4 }),
         expect.objectContaining({ drinkLabel: "Latte (oat)", priceGbp: 4.1 }),
-        expect.objectContaining({ drinkLabel: "Chai latte", priceGbp: 3.2 }),
+        expect.objectContaining({ drinkLabel: "Iced latte", priceGbp: 3.2 }),
       ]),
     );
     expect(rows).toHaveLength(6);
@@ -121,6 +125,7 @@ describe("coffee pilot harvest fence", () => {
     "<h3>Earl Grey Tea</h3><p>Pot for one £2.50</p>",
     "<h4>Affogato</h4><p>Vanilla gelato</p><p>Shot of hot espresso £5.00</p>",
     "<h4>Affogato (v)</h4><p>Vanilla gelato</p><p>Shot of hot espresso £5.00</p>",
+    "<h3>Coffee</h3><p>Hot water £1.00</p>",
   ])("refuses the item a name heading calls tea or affogato: %s", (item) => {
     const html = `${item}<p>Espresso £${ESPRESSO_GBP.toFixed(2)}</p>`;
     const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
@@ -138,6 +143,17 @@ describe("coffee pilot harvest fence", () => {
     expect(coffee.map((row) => row.priceGbp)).toEqual([2.65, 3.5, 3.8]);
   });
 
+  it.each([
+    [
+      "<p>Espresso £2.65</p><p>Affogato</p><p>Ask for today's flavour</p><p>Cappuccino £3.20</p><p>Americano £3.00</p>",
+      [2.65, 3.2, 3],
+    ],
+    ["<p>Espresso £2.65</p><p>Affogato:</p><p>Cappuccino £3.20</p>", [2.65, 3.2]],
+  ])("keeps a named coffee under an affogato name: %s", (html, prices) => {
+    const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
+    expect(coffee.map((row) => row.priceGbp)).toEqual(prices);
+  });
+
   it("judges tea and water on the priced line, not a joined heading", () => {
     const html = `
       <h2>Tea &amp; Coffee</h2>
@@ -151,6 +167,10 @@ describe("coffee pilot harvest fence", () => {
   it.each([
     ["<h2>Tea &amp; Coffee</h2><p>Coffee £2.50</p>", 2.5],
     ["<p>Filter coffee, brewed with filtered water £3.00</p>", 3],
+    ["<h3>Filter coffee</h3><p>Brewed with filtered water £3.00</p>", 3],
+    ["<h3>Cold brew coffee</h3><p>Steeped in cold water for 18 hours £3.80</p>", 3.8],
+    ["<p>Matcha latte £4.00</p>", 4],
+    ["<p>Americano (espresso and hot water) £3.00</p>", 3],
   ])("keeps the coffee in %s", (html, priceGbp) => {
     const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
     expect(coffee.map((row) => row.priceGbp)).toEqual([priceGbp]);
