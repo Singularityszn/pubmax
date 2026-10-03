@@ -102,6 +102,10 @@ describe("verify:famous-venues daily batch", () => {
 
   it("offers rows again once earlier partial batches together covered the seed", () => {
     const earlier = [
+      {
+        verifiedAt: "2026-08-25",
+        checks: [{ id: "bar-done" }, { id: "bar-withheld" }, { id: "bar-next" }],
+      },
       { verifiedAt: "2026-09-01", checks: [{ id: "bar-done" }, { id: "bar-withheld" }] },
       { verifiedAt: "2026-09-02", checks: [{ id: "bar-next" }] },
     ];
@@ -113,6 +117,32 @@ describe("verify:famous-venues daily batch", () => {
 
     const resumed = [...earlier, { verifiedAt: "2026-10-03", checks: [{ id: "bar-done" }] }];
     expect(idsCoveredByPartialVerifications(resumed, seedIds)).toEqual(["bar-done"]);
+  });
+
+  it("keeps a finished re-verification closed when the seed gains a row", () => {
+    const finished = [
+      {
+        verifiedAt: "2026-09-25",
+        checks: [{ id: "bar-done" }, { id: "bar-withheld" }, { id: "bar-next" }, { id: "bar-gone" }],
+      },
+      {
+        verifiedAt: "2026-10-03",
+        checks: [{ id: "bar-done" }, { id: "bar-withheld" }, { id: "bar-next" }],
+      },
+    ];
+    const grownSeed = [...seedIds, "bar-added"];
+    expect(idsCoveredByPartialVerifications(finished, seedIds)).toEqual([]);
+    expect(idsCoveredByPartialVerifications(finished, grownSeed)).toEqual([]);
+
+    const resumed = [...finished, { verifiedAt: "2026-10-20", checks: [{ id: "bar-done" }] }];
+    const skipIds = idsCoveredByPartialVerifications(resumed, grownSeed);
+    expect(skipIds).toEqual(["bar-done"]);
+    expect(
+      selectVerificationBatch([...entries, batchEntry("bar-added", "2026-10-15")], {
+        limit: 40,
+        skipIds,
+      }).map((entry) => entry.row.id),
+    ).toEqual(["bar-withheld", "bar-next", "bar-added"]);
   });
 
   it("counts today's checks against the batch and rejects a non-positive limit", () => {

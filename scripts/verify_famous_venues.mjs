@@ -175,21 +175,24 @@ export function remainingBatchSize(limit, alreadyVerifiedToday) {
 
 /**
  * Ids already checked in the unfinished re-verification. Artifacts are walked
- * by date: a full artifact, or a run of partial artifacts whose ids together
- * cover the seed, closes that re-verification, so its ids stay eligible.
+ * by date: a re-verification closes once its ids cover every seed id seen in
+ * an artifact so far, so its ids stay eligible. A seed id no artifact has
+ * checked is new and never holds a re-verification open.
  */
 export function idsCoveredByPartialVerifications(artifacts, seedIds) {
   const seed = [...seedIds];
   const byDate = [...artifacts].sort((a, b) =>
     String(a?.verifiedAt).localeCompare(String(b?.verifiedAt)),
   );
+  const seen = new Set();
   let open = new Set();
   for (const artifact of byDate) {
-    const checks = artifactChecks(artifact);
-    for (const check of checks) {
-      if (typeof check?.id === "string") open.add(check.id);
+    for (const check of artifactChecks(artifact)) {
+      if (typeof check?.id !== "string") continue;
+      seen.add(check.id);
+      open.add(check.id);
     }
-    if (checks.length >= seed.length || seed.every((id) => open.has(id))) open = new Set();
+    if (seed.every((id) => !seen.has(id) || open.has(id))) open = new Set();
   }
   return [...open];
 }
