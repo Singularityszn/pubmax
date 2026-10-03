@@ -86,6 +86,19 @@ In order, it:
    `Runner.Listener` runs as the console user, and GitHub shows all four
    runners online within 60 seconds, or the script exits.
 
+Evidence shots used to land in fixed `/tmp` paths owned by the console user. A
+runner cannot write those, so delete the leftovers once, as the console user,
+before the first job. List them by name: `/tmp/pubmax-verify.lock` and
+`/tmp/pubmax-deploy` are live state and must stay.
+
+```sh
+rm -rf /tmp/pubmax-account-switch /tmp/pubmax-arrival /tmp/pubmax-avatar-wp3 \
+  /tmp/pubmax-founding-members /tmp/pubmax-photo-crop /tmp/pubmax-photo-wall \
+  /tmp/pubmax-ui-ux-battle-test /tmp/pubmax-account-menu-1440.png \
+  /tmp/pubmax-profile-socials-1440.png /tmp/pubmax-profile-socials-390.png \
+  /tmp/pubmax-social-editor-390.png /tmp/social-wp1-verified-feed-390.png
+```
+
 Then rerun the checks on any open pull request.
 
 #### Roll back

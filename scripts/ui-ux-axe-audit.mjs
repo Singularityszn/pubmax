@@ -14,8 +14,9 @@ import {
   buildUiUxAxeAuditDocument,
   validateUiUxAxeColorScheme,
 } from "./lib/uiUxAxeAuditMetadata.mjs";
+import { UI_UX_AUDIT_ROOT } from "./lib/uiUxBattleTestOutput.mjs";
 
-const output = process.env.UI_UX_AXE_OUTPUT ?? "/tmp/pubmax-ui-ux-battle-test/axe.json";
+const output = process.env.UI_UX_AXE_OUTPUT ?? path.join(UI_UX_AUDIT_ROOT, "axe.json");
 const origin = process.env.UI_UX_AXE_ORIGIN ?? "http://127.0.0.1:3000";
 const colorScheme = validateUiUxAxeColorScheme(
   process.env.UI_UX_AXE_COLOR_SCHEME ?? "light",

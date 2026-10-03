@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 // Founding members: a mark, a wall, and one door.
 //
 // The rule under test is the asymmetric half. A founding member is shown their
@@ -19,7 +21,7 @@ import { expect, test, type Page } from "@playwright/test";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-0000000000f1";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const HANDLE = "early_bird";
-const SHOTS = "/tmp/pubmax-founding-members";
+const SHOTS = runnerShotDir("pubmax-founding-members");
 const DISCORD_HOST = "discord.gg";
 
 type SessionOptions = {

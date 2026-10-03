@@ -3,6 +3,8 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 const SOCIAL_TITLE = "Crews and people who are already here.";
 const SOCIAL_PREVIEW_BOUNDARY =
   "Social is invite-only for now. It opens more widely soon.";
@@ -244,7 +246,7 @@ test("verified lanes stay chronological, wait for Nearby area, paginate explicit
     page.locator(".socialPostBody").allTextContents(),
   ).resolves.toEqual(["Newest first", "Older second"]);
   await page.screenshot({
-    path: "/tmp/social-wp1-verified-feed-390.png",
+    path: join(runnerShotDir("pubmax-social-shell"), "verified-feed-390.png"),
     fullPage: true,
   });
 
