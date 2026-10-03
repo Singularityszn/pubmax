@@ -21,6 +21,10 @@ const analytics = vi.hoisted(() => ({
   trackEvent: vi.fn(),
 }));
 
+const navigation = vi.hoisted(() => ({
+  push: vi.fn(),
+}));
+
 vi.mock("@elevenlabs/react", () => ({
   ConversationProvider: ({ children }: { children: ReactNode }) => children,
   useConversationControls: () => ({
@@ -38,6 +42,10 @@ vi.mock("@elevenlabs/react", () => ({
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) =>
     createElement("a", { href }, children),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: navigation.push }),
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
@@ -90,6 +98,20 @@ async function mountAvailable(): Promise<void> {
   expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
 }
 
+async function typeAndSend(value: string): Promise<void> {
+  const input = container.querySelector<HTMLInputElement>("input");
+  expect(input).toBeTruthy();
+  await act(async () => {
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setValue?.call(input, value);
+    input?.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.click();
+    await Promise.resolve();
+  });
+}
+
 function unmount(): void {
   act(() => {
     root?.unmount();
@@ -107,6 +129,7 @@ beforeEach(() => {
   voice.sendUserMessage.mockReset();
   requests.authedActionFetch.mockReset();
   analytics.trackEvent.mockReset();
+  navigation.push.mockReset();
   requests.authedActionFetch.mockResolvedValue(new Response(null, { status: 204 }));
 
   vi.stubGlobal(
@@ -771,5 +794,45 @@ describe("Pub Pal voice controls", () => {
     expect(
       requests.authedActionFetch.mock.calls.filter((call) => call[0] === "/api/pub-pal/tool-turn"),
     ).toHaveLength(1);
+  });
+
+  it("asks the written Pal when a message is typed with no voice session", async () => {
+    const states: string[] = [];
+    await act(async () => {
+      root?.render(createElement(PubPalVoice, { onStateChange: (state: string) => states.push(state) }));
+    });
+    await settle();
+    await vi.dynamicImportSettled();
+    await settle();
+
+    await typeAndSend("  Cheapest pint near Old Street?  ");
+
+    expect(voice.sendUserMessage).not.toHaveBeenCalled();
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith(
+      "/pal/chat?ask=Cheapest+pint+near+Old+Street%3F",
+    );
+    expect(states).not.toContain("thinking");
+    expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("");
+    expect(
+      requests.authedActionFetch.mock.calls.filter((call) => call[0] === "/api/pub-pal/tool-turn"),
+    ).toHaveLength(0);
+  });
+
+  it("speaks a typed message into a live voice session", async () => {
+    voice.status = "connected";
+    const states: string[] = [];
+    await act(async () => {
+      root?.render(createElement(PubPalVoice, { onStateChange: (state: string) => states.push(state) }));
+    });
+    await settle();
+    await vi.dynamicImportSettled();
+    await settle();
+
+    await typeAndSend("Quiet pubs in Soho");
+
+    expect(voice.sendUserMessage).toHaveBeenCalledExactlyOnceWith("Quiet pubs in Soho");
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(states).toContain("thinking");
+    expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("");
   });
 });

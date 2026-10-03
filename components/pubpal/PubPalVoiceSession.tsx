@@ -20,6 +20,7 @@ import {
   useConversationMode,
   useConversationStatus,
 } from "@elevenlabs/react";
+import { useRouter } from "next/navigation";
 import { Mic, MicOff, Send } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
@@ -63,6 +64,16 @@ type VoiceSessionAttempt = {
   voiceEndReason: VoiceEndReason | null;
 };
 
+/**
+ * Where a typed message goes when no voice session is live: the written Pal
+ * thread, with the question already asked through its `?ask=` deep link. The
+ * ElevenLabs SDK only takes text inside a running conversation, so the box
+ * beside the Start button must not depend on one.
+ */
+function palWrittenAskHref(value: string): string {
+  return `/pal/chat?${new URLSearchParams({ ask: value }).toString()}`;
+}
+
 async function syncVoiceToolTurn(input: {
   conversationId: string;
   threadTurn?: { role: "user"; content: string };
@@ -97,6 +108,7 @@ async function releaseVoiceSession(durationSeconds: number): Promise<void> {
 }
 
 function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+  const router = useRouter();
   const { startSession, endSession, sendUserMessage } = useConversationControls();
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
@@ -320,6 +332,13 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const send = () => {
     const value = text.trim();
     if (!value) return;
+    if (status !== "connected") {
+      // No live conversation: sendUserMessage would throw and the Pal would
+      // sit on "thinking" forever. Ask the written Pal instead.
+      setText("");
+      router.push(palWrittenAskHref(value));
+      return;
+    }
     onStateChange?.("thinking");
     sendUserMessage(value);
     const conversationId = conversationIdRef.current;
@@ -363,6 +382,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             value={text}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter") send(); }}
+            maxLength={500}
             placeholder="Or type the night you want…"
           />
           <button type="button" onClick={send} aria-label="Send message">
