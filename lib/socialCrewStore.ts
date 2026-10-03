@@ -33,7 +33,8 @@ import {
   readSocialCrewCursorEnvelope,
 } from "@/lib/socialCrewCursor.server";
 import type { SocialPostActor } from "@/lib/socialPostStore";
-import { requireSupabaseAdmin } from "@/lib/supabase";
+import type { Database } from "@/types/database";
+import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,6 +58,15 @@ type SocialCrewSnapshotRpcName =
   | "read_social_crew_join_requests"
   | "list_open_social_crews"
   | "read_social_crew_public_preview";
+
+function crewRpcNamesMatchCatalog(
+  _ok: (SocialCrewRpcName | SocialCrewSnapshotRpcName) extends keyof Database["public"]["Functions"]
+    ? true
+    : never,
+): void {
+  void _ok;
+}
+crewRpcNamesMatchCatalog(true);
 
 export type SocialCrewStoreDependencies = {
   rpc(name: SocialCrewRpcName, input: Record<string, unknown>): Promise<unknown>;
@@ -404,12 +414,12 @@ function parseOpenPlanRow(value: unknown): OutOpenPlan | null {
 
 const defaultDependencies: SocialCrewStoreDependencies = {
   async rpc(name, input) {
-    const { data, error } = await requireSupabaseAdmin().rpc(name, input);
+    const { data, error } = await requireDynamicSupabaseAdmin().rpc(name, input);
     if (error) throw new Error(error.message);
     return data;
   },
   async snapshot(name, input) {
-    const { data, error } = await requireSupabaseAdmin().rpc(name, input);
+    const { data, error } = await requireDynamicSupabaseAdmin().rpc(name, input);
     if (error) throw new Error(error.message);
     return data;
   },
