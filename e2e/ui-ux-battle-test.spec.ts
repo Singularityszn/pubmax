@@ -1,3 +1,6 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -21,12 +24,13 @@ import {
   uiUxAuditContextOptions,
   uiUxChromiumLaunchOptions,
 } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
-import { resolveAuditOutputRoot } from "../scripts/lib/uiUxBattleTestOutput.mjs";
+import { UI_UX_AUDIT_ROOT, resolveAuditOutputRoot } from "../scripts/lib/uiUxBattleTestOutput.mjs";
 
 test("audit output stays inside dedicated temporary root", () => {
-  expect(resolveAuditOutputRoot("after-dark")).toBe(
-    "/tmp/pubmax-ui-ux-battle-test/after-dark",
+  expect(UI_UX_AUDIT_ROOT).toBe(
+    join(tmpdir(), `pubmax-ui-ux-battle-test-${process.getuid?.() ?? process.pid}`),
   );
+  expect(resolveAuditOutputRoot("after-dark")).toBe(join(UI_UX_AUDIT_ROOT, "after-dark"));
   for (const unsafe of [".", "..", "../proof", "/tmp/proof"]) {
     expect(() => resolveAuditOutputRoot(unsafe)).toThrow(
       "UI_UX_OUTPUT must be one safe directory name",

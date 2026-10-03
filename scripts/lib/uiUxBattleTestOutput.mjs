@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
-export const UI_UX_AUDIT_ROOT = "/tmp/pubmax-ui-ux-battle-test";
+export const UI_UX_AUDIT_ROOT = path.join(
+  os.tmpdir(),
+  `pubmax-ui-ux-battle-test-${typeof process.getuid === "function" ? process.getuid() : process.pid}`,
+);
 
 export function resolveAuditOutputRoot(outputName = "before") {
   if (!/^[a-z0-9][a-z0-9_-]*$/i.test(outputName)) {
