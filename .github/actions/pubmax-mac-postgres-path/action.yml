@@ -5,7 +5,9 @@ runs:
   steps:
     - name: Add PostgreSQL 16 and PostgREST to PATH
       shell: bash
-      run: |
+      # Both GITHUB_PATH entries are literal paths in this file, so no job
+      # input reaches them.
+      run: | # zizmor: ignore[github-env]
         set -euo pipefail
         PG_BIN="/opt/homebrew/opt/postgresql@16/bin"
         if [[ ! -x "$PG_BIN/postgres" ]]; then

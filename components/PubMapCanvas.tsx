@@ -222,8 +222,8 @@ import {
 } from "@/lib/mapArrivalBearing";
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
-// Next's asset URL transform does not emit beside the worker. The predev and
-// prebuild copy step preserves that pair under one same-origin public path.
+// Next's asset URL transform does not emit beside the worker. The copy step
+// `npm run dev` and `npm run build` start with preserves that pair under one same-origin public path.
 maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 
 type PubMapCanvasProps = {

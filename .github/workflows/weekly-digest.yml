@@ -23,22 +23,34 @@ concurrency:
 
 jobs:
   send:
-    runs-on: [self-hosted, pubmax-mac]
+    # Jobs that hold a write token or a secret run on their own runner, as a
+    # different macOS user from the one that runs pull request code. See
+    # docs/CI_RUNBOOK.md, section 'Dedicated runner users'.
+    runs-on: [self-hosted, pubmax-mac-refresh]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         timeout-minutes: 5
         with:
           node-version: "22"
-      - run: npm ci
+      - run: |
+          npm ci
+          npm run deps:install-scripts
       - name: Verify digest contract (generator + provider seam)
         run: npm test -- __tests__/weeklyDigest.test.ts __tests__/emailProvider.test.ts
       - name: Send weekly digest (safe no-op until keys land)
         env:
           # All optional today — absent ⇒ the script logs and exits 0 without
           # sending. Populate these secrets to activate delivery.
+          # SUPABASE_SERVICE_ROLE_KEY is deliberately absent: no such secret
+          # exists and delivery is not wired. Add it in the change that wires
+          # delivery, and only while this job runs on the pubmax-mac-refresh
+          # runner, never on the pull request runners.
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/send_weekly_digest.mjs

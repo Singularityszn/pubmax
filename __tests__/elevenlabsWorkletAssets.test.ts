@@ -23,13 +23,13 @@ const PACKAGED = {
 } as const;
 
 describe("self-hosted ElevenLabs worklets", () => {
-  it("writes the packaged modules onto the paths a voice session requests when the dev hook runs", () => {
+  it("writes the packaged modules onto the paths a voice session requests when the dev prepare step runs", () => {
     rmSync(join(ROOT, "public", "vendor", "elevenlabs"), {
       recursive: true,
       force: true,
     });
 
-    execFileSync("npm", ["run", "predev"], { cwd: ROOT, stdio: "pipe" });
+    execFileSync("npm", ["run", "prepare:maplibre-worker"], { cwd: ROOT, stdio: "pipe" });
 
     for (const [url, specifier] of Object.entries(PACKAGED)) {
       const served = readFileSync(join(ROOT, "public", url));

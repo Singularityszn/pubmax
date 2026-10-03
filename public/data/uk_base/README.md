@@ -9,7 +9,7 @@ Shard JSON is generated. This README is hand-written and survives rebuilds.
 `npm run build:uk-base` rebuilds the shards from `data/osm/uk/uk_osm_pubs.json`
 and the `bar` kind of `data/osm/uk/uk_osm_venues_drink.json`, and then
 `places.json` from the raw Overpass chunks beside it; it also runs inside
-`prebuild` and `prevalidate-data`.
+`build` and `prevalidate-data`.
 
 ## What is here
 
