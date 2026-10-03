@@ -6,7 +6,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // IDENTITY (Wave I2). DMs require a signed-in actor. Prefer the auth-linked
 // handle when the JWT's user owns a profile; otherwise the asserted handle may
-// be claimed on first write via gateHandleAction. Unsigned requests get 401.
+// be claimed on first write via gateHandleAction. A read is allowed only when
+// that account owns the handle: an unowned row and a tombstone are refused
+// the same way as a handle owned by somebody else. Unsigned requests get 401.
 // The store still enforces the participant check; the DB denies all anon access
 // (RLS-on / no-policy, migration 0019).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,7 +63,9 @@ export async function GET(request: Request): Promise<Response> {
   const handle = actor.handle;
   if (!handle) return jsonNoStore({ conversations: [], status: "ready" }, { status: 200 });
 
-  const ownership = await gateHandleAction(request, handle, actor.userId);
+  const ownership = await gateHandleAction(request, handle, actor.userId, {
+    requireAccountOwner: true,
+  });
   if (!ownership.allowed) {
     // Fail-soft on store outage: the page keeps rendering, and the body SAYS the
     // read failed rather than handing a stranger an empty inbox as an answer.

@@ -256,11 +256,14 @@ export async function GET(
 //   • We resolve the caller's VERIFIED auth uid from their bearer token
 //     (callerUserId → Supabase auth.getUser). No token / invalid token → null
 //     (anonymous), never a trusted uid.
-//   • An unlinked legacy handle keeps anonymous demo edits, but an authenticated
-//     write cannot turn it into account ownership. A genuinely new handle can
-//     be created and linked. A LINKED handle is editable only by its owner, so a
-//     non-owner (anonymous OR a different account) gets 403. This is the security
-//     win: once claimed, a handle can't be hijacked.
+//   • An existing unlinked legacy handle keeps anonymous demo edits. An
+//     anonymous PATCH of a handle with no row stores nothing, so it cannot
+//     freeze that handle against the account that later claims it. An
+//     authenticated write cannot turn a legacy row into account ownership. A
+//     genuinely new handle can still be created and linked by its account. A
+//     LINKED handle is editable only by its owner, so a non-owner (anonymous
+//     OR a different account) gets 403. This is the security win: once
+//     claimed, a handle can't be hijacked.
 //
 // Regardless of auth we still apply the full server-side trust boundary below
 // (strip HTML/control chars, cap lengths, validate the avatar URL) and
@@ -309,10 +312,13 @@ export async function PATCH(
 
   try {
     const store = profileStore();
-    // Ensure a lightweight anonymous row exists before an anonymous demo edit.
-    // An authenticated new-handle write was already created by the gate.
-    await store.ensure(handle);
+    // An authenticated new-handle write was already created, owned, by the
+    // gate. An anonymous PATCH must not insert a row: that insert is unowned,
+    // and an unowned row is frozen against the account that later claims it.
     const profile = await store.update(handle, built.patch);
+    if (!profile) {
+      return publicApiError("Profile not found.", "NOT_FOUND", 404);
+    }
     return jsonNoStore({ profile: publicProfileFromRecord(profile) }, { status: 200 });
   } catch (err) {
     // The one storage failure worth its own sentence: the person asked to change
