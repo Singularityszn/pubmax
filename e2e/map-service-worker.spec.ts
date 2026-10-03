@@ -366,8 +366,8 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       targetScriptUrl: takeover.controller!,
     },
   );
-  // The destination copy was rejected by the quota, so the data entry is
-  // still served from the retained legacy cache.
+  // The data family never copies entries forward, so the new data cache
+  // stays empty and the entry is served from the retained legacy cache.
   expect(cacheContinuity).toEqual({
     copiedData: false,
     data: true,
