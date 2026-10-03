@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   FLASH_LITE_SKU,
   JOB_SPEND_CAP_USD,
+  SITE_STAMP,
   amenityColumnIsBlank,
   evidenceQuoteIsOnPage,
   keepEvidencedAmenities,
+  liftSiteStamps,
   matchPubToVenue,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
@@ -207,6 +209,10 @@ describe("statedAmenities", () => {
       }),
     ).toEqual({ food: "Our kitchen serves food to order" });
   });
+
+  it("drops an event the page advertises at another venue", () => {
+    expect(statedAmenities({ pubQuiz: "The Lexington Pop Quiz" })).toEqual({});
+  });
 });
 
 describe("pubSpecificEvidence", () => {
@@ -225,10 +231,41 @@ describe("pubSpecificEvidence", () => {
       { osmId: "c", sourceUrl: "https://crown.example/", amenities: { food: "serves food every day" } },
     ]);
   });
+
+  it("treats pages that differ only by query, case or slash, and a shared host's home page, as chain pages", () => {
+    const rows = [
+      { osmId: "a", sourceUrl: "https://www.chain.example/our-pubs?PubID=1", amenities: { food: "Food & Drink" } },
+      { osmId: "b", sourceUrl: "https://WWW.chain.example/our-pubs/?PubID=2#top", amenities: { food: "Food & Drink" } },
+      { osmId: "c", sourceUrl: "https://www.chain.example/", amenities: { cocktails: "secret cocktail bars" } },
+    ];
+    expect(pubSpecificEvidence(rows)).toEqual([]);
+  });
+
+  it("drops a quote repeated word for word across pubs on one host and keeps each pub's own", () => {
+    const rows = [
+      {
+        osmId: "a",
+        sourceUrl: "https://pubs.example/pubs/goose",
+        amenities: { liveSports: "WATCH LIVERPOOL VS MAN CITY LIVE", beerGarden: "a hidden garden" },
+      },
+      {
+        osmId: "b",
+        sourceUrl: "https://pubs.example/pubs/george",
+        amenities: { liveSports: "Watch Liverpool vs Man City live" },
+      },
+    ];
+    expect(pubSpecificEvidence(rows)).toEqual([
+      {
+        osmId: "a",
+        sourceUrl: "https://pubs.example/pubs/goose",
+        amenities: { beerGarden: "a hidden garden" },
+      },
+    ]);
+  });
 });
 
 describe("stampAmenityColumns", () => {
-  it("writes yes into a blank column and leaves a stated answer alone", () => {
+  it("writes the site stamp into a blank column and leaves a stated answer alone", () => {
     const { row, stamped } = stampAmenityColumns(
       { food: "", cocktails: "no", beer_garden: "yes (summer)" },
       {
@@ -237,13 +274,25 @@ describe("stampAmenityColumns", () => {
         beerGarden: "Our beer garden opens",
       },
     );
-    expect(row.food).toBe("yes");
+    expect(row.food).toBe(SITE_STAMP);
     expect(row.cocktails).toBe("no");
     expect(row.beer_garden).toBe("yes (summer)");
     expect(stamped).toEqual(["food"]);
     expect(amenityColumnIsBlank("")).toBe(true);
     expect(amenityColumnIsBlank("n/a")).toBe(true);
     expect(amenityColumnIsBlank("no")).toBe(false);
+  });
+
+  it("lifts its own stamps back to the source row and leaves the source's answers alone", () => {
+    const source = { food: "", live_sports: "yes", pool: "" };
+    const { row } = stampAmenityColumns(source, {
+      food: "serves food every day",
+      liveSports: "We show live sport",
+      nonAlcoholic: "alcohol-free beers",
+    });
+    expect(row).toEqual({ food: SITE_STAMP, live_sports: "yes", pool: "", non_alcoholic: SITE_STAMP });
+    expect(liftSiteStamps(row)).toEqual(source);
+    expect(liftSiteStamps(source)).toBe(source);
   });
 });
 

@@ -9,10 +9,12 @@
 //   npm run harvest:pub-website-amenities -- --limit 1
 //   npm run harvest:pub-website-amenities -- --restamp
 //
-// --restamp stamps the committed evidence file onto the pint dataset through
-// the same gate. It reads no checkpoint, fetches nothing and calls no model.
-// A stamp only fills a blank cell and cannot be taken back, so run it on the
-// unstamped dataset, for example straight after `npm run export:data`.
+// Every run lifts the earlier site stamps, then stamps the committed evidence
+// file onto the source dataset through the gate, so a rerun gives the same
+// dataset and a tightened gate takes stamps away. --restamp does only that: it
+// reads no checkpoint, fetches nothing and calls no model. A harvest adds this
+// run's pages to the committed evidence; the checkpoint only says which pubs
+// are already done.
 //
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
@@ -34,8 +36,10 @@ import {
   JOB_SPEND_CAP_USD,
   MAX_OUTPUT_TOKENS,
   PAGE_CHAR_CAP,
+  PUB_WEBSITE_AMENITY_COLUMNS,
   PUB_WEBSITE_AMENITY_KEYS,
   keepEvidencedAmenities,
+  liftSiteStamps,
   matchPubToVenue,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
@@ -272,30 +276,21 @@ function loadCheckpoint() {
 }
 
 function columnCoverage(rows) {
+  const yes = (value) => ["yes", "true", "y", "1"].includes(String(value ?? "").trim().toLowerCase());
   const groups = new Map();
   for (const row of rows) {
     const id = stableVenueIdFromKey(venueGroupingKey(row));
-    const bucket = groups.get(id) ?? {
-      food: false,
-      cocktails: false,
-      beerGarden: false,
-      liveSports: false,
-      nonAlcoholic: false,
-    };
-    const yes = (value) => ["yes", "true", "y", "1"].includes(String(value ?? "").trim().toLowerCase());
-    if (yes(row.food)) bucket.food = true;
-    if (yes(row.cocktails)) bucket.cocktails = true;
-    if (yes(row.beer_garden)) bucket.beerGarden = true;
-    if (yes(row.live_sports)) bucket.liveSports = true;
-    if (yes(row.non_alcoholic)) bucket.nonAlcoholic = true;
+    const bucket = groups.get(id) ?? new Set();
+    for (const key of PUB_WEBSITE_AMENITY_KEYS) {
+      if (yes(row[PUB_WEBSITE_AMENITY_COLUMNS[key]])) bucket.add(key);
+    }
     groups.set(id, bucket);
   }
-  const counts = { venues: groups.size, food: 0, cocktails: 0, beerGarden: 0, liveSports: 0, nonAlcoholic: 0, any: 0, none: 0 };
+  const counts = { venues: groups.size, ...Object.fromEntries(PUB_WEBSITE_AMENITY_KEYS.map((key) => [key, 0])), any: 0, none: 0 };
   for (const bucket of groups.values()) {
-    const flags = ["food", "cocktails", "beerGarden", "liveSports", "nonAlcoholic"];
-    if (flags.some((key) => bucket[key])) counts.any += 1;
+    if (bucket.size > 0) counts.any += 1;
     else counts.none += 1;
-    for (const key of flags) if (bucket[key]) counts[key] += 1;
+    for (const key of bucket) counts[key] += 1;
   }
   return counts;
 }
@@ -309,10 +304,18 @@ function readEvidence() {
   }
 }
 
-/** Stamp evidence rows onto the dataset file and report what changed. */
-function stampDataset(dataset, evidenceRows) {
+/**
+ * Lift every earlier site stamp, then stamp the evidence onto what the source
+ * said. The dataset that comes out depends only on the source rows and the
+ * evidence, so a rerun changes nothing and a quote the gate now refuses loses
+ * its stamp.
+ */
+function stampDataset(evidenceRows) {
+  const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
+  if (!Array.isArray(dataset)) throw new Error("expected a pint dataset array");
   const rowsByVenue = new Map();
   dataset.forEach((row, index) => {
+    dataset[index] = liftSiteStamps(row);
     const venueId = stableVenueIdFromKey(venueGroupingKey(row));
     const bucket = rowsByVenue.get(venueId) ?? [];
     bucket.push(index);
@@ -334,35 +337,49 @@ function stampDataset(dataset, evidenceRows) {
     if (venueStamped) stampedVenues += 1;
   }
   const after = columnCoverage(dataset);
-  if (stampedRows > 0) {
-    const datasetTemp = `${DATASET_PATH}.tmp`;
-    writeFileSync(datasetTemp, JSON.stringify(dataset));
-    renameSync(datasetTemp, DATASET_PATH);
-  }
+  const datasetTemp = `${DATASET_PATH}.tmp`;
+  writeFileSync(datasetTemp, JSON.stringify(dataset));
+  renameSync(datasetTemp, DATASET_PATH);
   return { before, after, stampedRows, stampedVenues };
+}
+
+/** The evidence file with this run's stamp figures. The first honest before figure is kept. */
+function withStampFigures(evidence, previous, stamps) {
+  const keepCounts = stamps.stampedRows === 0 && previous;
+  return {
+    ...evidence,
+    columnCoverageBefore: previous?.columnCoverageBefore ?? stamps.before,
+    columnCoverageAfter: stamps.after,
+    stampedVenues: keepCounts ? previous.stampedVenues : stamps.stampedVenues,
+    stampedRows: keepCounts ? previous.stampedRows : stamps.stampedRows,
+  };
+}
+
+function writeEvidence(evidence) {
+  mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
+  writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
 }
 
 function restampFromEvidence() {
   const evidence = readEvidence();
   if (!evidence || !Array.isArray(evidence.rows)) throw new Error("no committed evidence file to restamp from");
-  const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
-  if (!Array.isArray(dataset)) throw new Error("expected a pint dataset array");
-  const { before, after, stampedRows, stampedVenues } = stampDataset(dataset, evidence.rows);
-  const next = {
-    ...evidence,
-    columnCoverageBefore: evidence.columnCoverageBefore ?? before,
-    columnCoverageAfter: after,
-    stampedVenues,
-    stampedRows,
-  };
-  writeFileSync(EVIDENCE_PATH, `${JSON.stringify(next, null, 2)}\n`);
-  console.log(JSON.stringify({ stampedVenues, stampedRows, columnCoverageAfter: after }));
+  const next = withStampFigures(evidence, evidence, stampDataset(evidence.rows));
+  writeEvidence(next);
+  console.log(
+    JSON.stringify({
+      stampedVenues: next.stampedVenues,
+      stampedRows: next.stampedRows,
+      columnCoverageBefore: next.columnCoverageBefore,
+      columnCoverageAfter: next.columnCoverageAfter,
+    }),
+  );
 }
 
-function evidenceFromCheckpoint(byOsmId) {
-  const candidates = [];
-  const skipCounts = {};
-  for (const [osmId, entry] of Object.entries(byOsmId)) {
+/** The committed evidence with this run's pages laid over it. */
+function mergeEvidence(previous, fresh) {
+  const skipCounts = { ...(previous?.skipCounts ?? {}) };
+  const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
+  for (const [osmId, entry] of fresh) {
     if (entry.status !== "ok") {
       const status = entry.status ?? "unknown";
       skipCounts[status] = (skipCounts[status] ?? 0) + 1;
@@ -379,7 +396,7 @@ function evidenceFromCheckpoint(byOsmId) {
   }
   const rows = pubSpecificEvidence(candidates).sort((a, b) => a.osmId.localeCompare(b.osmId));
   const unused = candidates.length - rows.length;
-  if (unused > 0) skipCounts.ok = unused;
+  if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts };
 }
 
@@ -470,7 +487,9 @@ async function main() {
   mkdirSync(CHECKPOINT_DIR, { recursive: true });
   const checkpoint = loadCheckpoint();
   let spent = Number(checkpoint.spentUsd ?? 0);
+  const startSpent = spent;
   const byOsmId = checkpoint.byOsmId;
+  const fresh = new Map();
   const robots = createRobotsChecker();
   const queue = pubs.filter((pub) => !byOsmId[pub.osmId]);
   const work = limit === null ? queue : queue.slice(0, limit);
@@ -567,6 +586,8 @@ async function main() {
       cursor += 1;
       if (index >= work.length) return;
       await one(work[index]);
+      const done = byOsmId[work[index].osmId];
+      if (done) fresh.set(work[index].osmId, done);
       if ((index + 1) % 10 === 0) await save();
       if ((index + 1) % 25 === 0) {
         const kept = Object.values(byOsmId).filter((row) => row.status === "ok" && Object.keys(row.amenities ?? {}).length > 0).length;
@@ -578,10 +599,8 @@ async function main() {
   await save();
 
   const previous = readEvidence();
-  const { rows: evidenceRows, skipCounts } = evidenceFromCheckpoint(byOsmId);
-  const { before, after, stampedRows, stampedVenues } = stampDataset(dataset, evidenceRows);
-  mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
-  const evidence = {
+  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh);
+  const evidence = withStampFigures({
     version: 1,
     model: FLASH_LITE_SKU.model,
     sku: {
@@ -595,24 +614,20 @@ async function main() {
       outputTokensPerCall: MAX_OUTPUT_TOKENS,
       spendUsd: Number(projected.toFixed(4)),
     },
-    actualSpendUsd: Number(spent.toFixed(4)),
+    actualSpendUsd: Number(((previous?.actualSpendUsd ?? 0) + spent - startSpent).toFixed(4)),
     jobCapUsd: JOB_SPEND_CAP_USD,
-    columnCoverageBefore: previous?.columnCoverageBefore ?? before,
-    columnCoverageAfter: after,
-    stampedVenues,
-    stampedRows,
     skipCounts,
     rows: evidenceRows,
-  };
-  writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
+  }, previous, stampDataset(evidenceRows));
+  writeEvidence(evidence);
   console.log(
     JSON.stringify({
       actualSpendUsd: evidence.actualSpendUsd,
       evidenceRows: evidenceRows.length,
-      stampedVenues,
-      stampedRows,
+      stampedVenues: evidence.stampedVenues,
+      stampedRows: evidence.stampedRows,
       columnCoverageBefore: evidence.columnCoverageBefore,
-      columnCoverageAfter: after,
+      columnCoverageAfter: evidence.columnCoverageAfter,
       stopped,
     }),
   );

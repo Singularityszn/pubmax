@@ -2,8 +2,8 @@
 //
 // A true value is kept only when the model quotes a phrase that is actually on
 // the page and that phrase states the amenity. The quote is the evidence. A blank price-dataset column is the
-// existing amenity path, so a kept value stamps that column as "yes" and leaves
-// a column the source already answered alone.
+// existing amenity path, so a kept value stamps that column with SITE_STAMP and
+// leaves a column the source already answered alone.
 
 import { haversineMeters } from "../greatCircle.mjs";
 
@@ -146,6 +146,8 @@ const HAPPY_HOUR =
 const CHAIN_NEWS = /\bfuelling growth\b|\bsales\b|\bgreene king pubs\b/i;
 /** Chain headlines a pub page links to. A shortened copy of one is still the headline. */
 const CHAIN_HEADLINES = ["alcohol free cocktails fuelling growth in low and no sales at greene king pubs"];
+/** Events a pub's page advertises at another venue. */
+const ANOTHER_VENUE_EVENTS = new Set(["the lexington pop quiz"]);
 const SEASONAL_PROMO = /\b(?:christmas|festive|halloween|new years?(?: eve)?)\b/i;
 const SITE_NAVIGATION = /\b(?:about us|contact us|careers|hotels)\b|\s[-\u2013]\s*j\s*d\s*wetherspoon\b/i;
 /** A quote that opens on the last word of a sentence has lost the sentence that word belonged to. */
@@ -184,7 +186,12 @@ function quoteIsChainOrSeasonal(quote: string): boolean {
 /** Whether a quote states the amenity at this pub, rather than only mentioning a nearby word. */
 function evidenceStatesAmenity(key: PubWebsiteAmenityKey, quote: string): boolean {
   const folded = foldText(quote);
-  if (quoteIsChainOrSeasonal(folded) || QUESTION.test(folded) || DANGLING_INFINITIVE.test(folded)) {
+  if (
+    quoteIsChainOrSeasonal(folded) ||
+    ANOTHER_VENUE_EVENTS.has(folded) ||
+    QUESTION.test(folded) ||
+    DANGLING_INFINITIVE.test(folded)
+  ) {
     return false;
   }
   const statement = AMENITY_STATEMENTS[key];
@@ -209,23 +216,55 @@ export type PubEvidenceRow = {
   amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
 };
 
+function sourcePage(url: string): { host: string; page: string } | null {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.host.toLowerCase();
+    return { host, page: `${host}${parsed.pathname.replace(/\/+$/, "")}` };
+  } catch {
+    return null;
+  }
+}
+
+function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) counts.set(keyOf(item), (counts.get(keyOf(item)) ?? 0) + 1);
+  return counts;
+}
+
 /**
- * Evidence that speaks for one pub. A page more than one pub points at is a
- * chain page, so its quotes describe the brand rather than any one of them.
- * Every stamp, from a fresh harvest or from the committed evidence file, goes
- * through here.
+ * Evidence that speaks for one pub. A chain-wide page describes the brand
+ * rather than any one pub, so it goes: a page more than one pub points at once
+ * its query, fragment and trailing slash are set aside, the home page of a host
+ * several pubs share, and a quote repeated word for word across pubs on one
+ * host. Every stamp, from a fresh harvest or from the committed evidence file,
+ * goes through here.
  */
 export function pubSpecificEvidence<T extends PubEvidenceRow>(
   rows: readonly T[],
 ): (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] {
-  const pubsPerPage = new Map<string, number>();
-  for (const row of rows) {
-    if (row.sourceUrl) pubsPerPage.set(row.sourceUrl, (pubsPerPage.get(row.sourceUrl) ?? 0) + 1);
-  }
+  const sourced = rows.flatMap((row) => {
+    const source = row.sourceUrl ? sourcePage(row.sourceUrl) : null;
+    return source ? [{ row, ...source }] : [];
+  });
+  const pubsPerPage = countBy(sourced, (item) => item.page);
+  const pubsPerHost = countBy(sourced, (item) => item.host);
+  const quoteKey = (host: string, key: string, quote: string) => `${host}\u0000${key}\u0000${foldText(quote)}`;
+  const pubsPerQuote = countBy(
+    sourced.flatMap(({ row, host }) =>
+      Object.entries(row.amenities ?? {}).map(([key, quote]) => quoteKey(host, key, String(quote))),
+    ),
+    (item) => item,
+  );
   const kept: (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] = [];
-  for (const row of rows) {
-    if (!row.sourceUrl || pubsPerPage.get(row.sourceUrl) !== 1) continue;
-    const amenities = statedAmenities(row.amenities ?? {});
+  for (const { row, host, page } of sourced) {
+    if (pubsPerPage.get(page) !== 1) continue;
+    if (page === host && (pubsPerHost.get(host) ?? 0) > 1) continue;
+    const ownQuotes: Partial<Record<PubWebsiteAmenityKey, string>> = {};
+    for (const [key, quote] of Object.entries(row.amenities ?? {}) as [PubWebsiteAmenityKey, string][]) {
+      if (pubsPerQuote.get(quoteKey(host, key, quote)) === 1) ownQuotes[key] = quote;
+    }
+    const amenities = statedAmenities(ownQuotes);
     if (Object.keys(amenities).length === 0) continue;
     kept.push({ ...row, amenities });
   }
@@ -255,6 +294,12 @@ export function amenityColumnIsBlank(value: unknown): boolean {
   return BLANK_AMENITY.test(String(value ?? "").trim().toLowerCase());
 }
 
+/**
+ * What a stamp writes. No source column uses it, so the next stamp can lift
+ * every earlier one and start again from what the source said.
+ */
+export const SITE_STAMP = "y";
+
 export function stampAmenityColumns<T extends Record<string, unknown>>(
   row: T,
   amenities: Partial<Record<PubWebsiteAmenityKey, string>>,
@@ -266,10 +311,26 @@ export function stampAmenityColumns<T extends Record<string, unknown>>(
     if (typeof evidence !== "string" || !evidence.trim()) continue;
     const column = PUB_WEBSITE_AMENITY_COLUMNS[key];
     if (!amenityColumnIsBlank(next[column])) continue;
-    next[column] = "yes";
+    next[column] = SITE_STAMP;
     stamped.push(key);
   }
   return { row: next as T, stamped };
+}
+
+/** `non_alcoholic` exists only as a stamp; the other columns come from the source. */
+const STAMP_ONLY_COLUMNS = new Set<string>([PUB_WEBSITE_AMENITY_COLUMNS.nonAlcoholic]);
+
+/** The row as the source left it, before any stamp from a pub's site. */
+export function liftSiteStamps<T extends Record<string, unknown>>(row: T): T {
+  let next: Record<string, unknown> | null = null;
+  for (const key of PUB_WEBSITE_AMENITY_KEYS) {
+    const column = PUB_WEBSITE_AMENITY_COLUMNS[key];
+    if (row[column] !== SITE_STAMP) continue;
+    next ??= { ...row };
+    if (STAMP_ONLY_COLUMNS.has(column)) delete next[column];
+    else next[column] = "";
+  }
+  return (next ?? row) as T;
 }
 
 export function projectPubAmenitySpend(input: {
