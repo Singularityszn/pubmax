@@ -1,5 +1,6 @@
-/* The first-visit ask. On a phone it is ONE ROW, a pill docked low over the
-   map-edge column: the question, "Use my location" and the close. As a strip
+/* The first-visit ask. On a phone it is a compact pill docked low over the
+   map-edge column: the question, "Use my location" and the close on one row,
+   and the location sentence as a small line under them. As a strip
    under the top bar it still covered the upper map on first open (y 120 to
    228 at 390x844), and as a panel at the foot it sat on the pins
    (docs/proof/astra-live-walk/report.md B1). It reads the floating stack's
@@ -16,10 +17,10 @@
   min-height: 52px;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 6px;
-  padding: 3px 3px 3px 14px;
+  gap: 0 6px;
+  padding: 5px 3px 7px 14px;
   border: 1px solid var(--hairline, var(--line));
-  border-radius: 999px;
+  border-radius: 26px;
   background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
   color: var(--ink);
   box-shadow: var(--shadow-sm);
@@ -82,17 +83,29 @@
 }
 
 @media (max-width: 640px) {
-  /* The location sentence stays the card's description, read with it,
-     because it is the visible half of a pair with the iOS purpose string
-     (docs/proof/mobile-app-design/STORE_READINESS.md); the pill has no
-     second line to print it on. */
+  /* The location sentence is the visible half of a pair with the iOS
+     purpose string (docs/proof/mobile-app-design/STORE_READINESS.md), so it
+     stays on screen as the pill's second line, under the question and both
+     controls. */
+  .mapArrivalCardSay {
+    display: contents;
+  }
+
+  .mapArrivalCardTitle,
+  .mapArrivalCardActions,
+  .mapArrivalCardClose {
+    grid-row: 1;
+  }
+
+  .mapArrivalCardTitle {
+    text-wrap: balance;
+  }
+
   .mapArrivalCardLead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    font-size: 0.72rem;
+    line-height: 1.25;
   }
 
   .mapArrivalCardChooseArea,
@@ -102,6 +115,17 @@
 
   .mapArrivalCardActions button {
     padding-inline: var(--space-3, 12px);
+  }
+}
+
+/* The narrowest phones keep the question to two lines beside the action. */
+@media (max-width: 359px) {
+  .mapArrivalCardTitle {
+    font-size: 0.78rem;
+  }
+
+  .mapArrivalCardActions button {
+    padding-inline: 10px;
   }
 }
 

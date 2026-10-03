@@ -6,7 +6,7 @@ const VIEWPORTS = [
   { width: 430, height: 932 },
 ] as const;
 
-// The first-visit ask is a one-row pill docked low on a phone, and
+// The first-visit ask is a compact pill docked low on a phone, and
 // no surface may make the map inert (components/AGENTS.md, "THE ARRIVAL ASK IS
 // A STRIP"). So the chrome stays live beside the strip, and the strip is the
 // one banner on screen until the reader answers it.
@@ -72,14 +72,20 @@ for (const viewport of VIEWPORTS) {
     await expect(page.locator(".mapCameraControls")).toBeHidden();
     await expect(page.locator(".maplibregl-ctrl-top-right")).toBeHidden();
 
-    // The ask is one row docked low, so the upper map stays clear: the
-    // question and the location action, with "Choose an area" left to the
+    // The ask is a compact pill docked low, so the upper map stays clear: the
+    // question and the location action on one row, the location sentence the
+    // store copy is paired to under them, and "Choose an area" left to the
     // city switcher on a phone.
     await expect(page.locator(".mobileMapChipRow")).toBeVisible();
     const arrivalBox = await arrival.boundingBox();
     expect(arrivalBox).not.toBeNull();
-    expect(arrivalBox!.height).toBeLessThanOrEqual(60);
-    expect(arrivalBox!.y).toBeGreaterThan(viewport.height / 2);
+    expect(arrivalBox!.height).toBeLessThanOrEqual(80);
+    const lead = arrival.getByText("Location is used only while the map is open.");
+    await expect(lead).toBeVisible();
+    const leadBox = await lead.boundingBox();
+    expect(leadBox!.height).toBeGreaterThan(8);
+    expect(leadBox!.y + leadBox!.height).toBeLessThanOrEqual(arrivalBox!.y + arrivalBox!.height);
+    expect(arrivalBox!.y + arrivalBox!.height / 2).toBeGreaterThan(viewport.height / 2);
     await expect(arrival.getByRole("button", { name: "Use my location" })).toBeVisible();
     await expect(arrival.getByRole("button", { name: "Choose an area" })).toBeHidden();
 

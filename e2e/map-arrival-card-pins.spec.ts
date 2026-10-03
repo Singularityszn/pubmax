@@ -71,7 +71,7 @@ test.describe("the first-visit card and the pin field", () => {
     const box = await card.boundingBox();
     expect(box).not.toBeNull();
     const cardBottom = box!.y + box!.height;
-    expect(box!.y).toBeGreaterThan(PHONE.height / 2);
+    expect(box!.y + box!.height / 2).toBeGreaterThan(PHONE.height / 2);
 
     // No reported mark is UNDER the strip. Not "every mark is below it": the
     // probe reported a pin at y 5.5, in the band above the phone's own top bar,

@@ -150,7 +150,7 @@
     );
   }
 
-  /* The first-visit ask is a one-row pill above the map-edge column now, not a
+  /* The first-visit ask is a compact pill above the map-edge column now, not a
      panel at the foot of the screen, so nothing in the bottom band steps
      around it and nothing stands down for it. It used to hide the chip row, the plan pill, the
      map-edge column and the camera controls, and hold the map itself `inert`:

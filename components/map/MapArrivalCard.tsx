@@ -13,7 +13,7 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import "./mapArrivalCard.css";
 
 /**
- * The first-visit ask: a one-row pill low over the map on a phone, a strip
+ * The first-visit ask: a compact pill low over the map on a phone, a strip
  * under the toolbar on a desktop.
  *
  * It used to be a 256px panel at the foot of the screen, over the densest part
