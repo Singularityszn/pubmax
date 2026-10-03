@@ -247,10 +247,10 @@ function SignInSkeleton(): React.JSX.Element {
           <span className="loginPageSkeletonPill" />
         </div>
         <div className="loginPageSkeletonOptions" aria-hidden="true">
-          <span className="loginPageSkeletonBar" />
-          <span className="loginPageSkeletonBar" />
           <span className="loginPageSkeletonField" />
           <span className="loginPageSkeletonButton" />
+          <span className="loginPageSkeletonBar" />
+          <span className="loginPageSkeletonBar" />
         </div>
       </div>
     </>
@@ -405,6 +405,7 @@ export default function LoginPage({
     configured,
     clerkIntegrationConfigured,
     socialProviders,
+    socialProvidersResolved,
     signInWithGoogle,
     signInWithApple,
     signInWithMicrosoft,
@@ -679,16 +680,6 @@ export default function LoginPage({
           <section ref={formRegion} className="loginPageForm" aria-label="Sign-in options">
             <DoorSwitch intent={intent} onChoose={chooseDoor} />
             <div className="authOptions">
-              {configured || clerkSessionAvailable ? (
-                <SocialSignInButtons
-                  availability={socialProviders}
-                  disabled={busy !== null}
-                  onGoogle={onSignInGoogle}
-                  onApple={onSignInApple}
-                  onMicrosoft={onSignInMicrosoft}
-                  fullLabels
-                />
-              ) : null}
               {configured ? (
                 <>
                   <MagicLinkForm
@@ -708,6 +699,27 @@ export default function LoginPage({
                     />
                   ) : null}
                 </>
+              ) : null}
+              {/* Below the email door, so providers arriving after the read
+                  (or never arriving) cannot move the field the reader is in. */}
+              {!socialProvidersResolved ? (
+                <div className="authProviders" aria-hidden="true">
+                  <span className="authSignIn loginPageSkeletonProvider">
+                    <span className="authProviderMark" />
+                  </span>
+                  <span className="authSignIn loginPageSkeletonProvider">
+                    <span className="authProviderMark" />
+                  </span>
+                </div>
+              ) : configured || clerkSessionAvailable ? (
+                <SocialSignInButtons
+                  availability={socialProviders}
+                  disabled={busy !== null}
+                  onGoogle={onSignInGoogle}
+                  onApple={onSignInApple}
+                  onMicrosoft={onSignInMicrosoft}
+                  fullLabels
+                />
               ) : null}
             </div>
             {error ? (

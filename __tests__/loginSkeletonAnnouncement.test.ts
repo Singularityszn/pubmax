@@ -11,7 +11,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // AFTER the first paint. Only a real mount can show that, which is why this
 // file runs in jsdom while the rest of the login coverage renders to a string.
 
-const authState = vi.hoisted(() => ({ loading: true }));
+const authState = vi.hoisted(() => ({
+  loading: true,
+  providers: { google: true, apple: true, microsoft: false },
+  providersResolved: true,
+}));
 
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) =>
@@ -29,7 +33,8 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     loading: authState.loading,
     configured: true,
     clerkIntegrationConfigured: false,
-    socialProviders: { google: true, apple: true , microsoft: false },
+    socialProviders: authState.providers,
+    socialProvidersResolved: authState.providersResolved,
     signInWithGoogle: vi.fn(),
     signInWithApple: vi.fn(),
     signInWithEmail: vi.fn(),
@@ -72,6 +77,8 @@ let root: Root;
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   authState.loading = true;
+  authState.providers = { google: true, apple: true, microsoft: false };
+  authState.providersResolved = true;
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -232,5 +239,74 @@ describe("the stored-session hint", () => {
       hydrated?.unmount();
     });
     shell.remove();
+  });
+});
+
+// The email door paints before the provider read answers. Whatever that read
+// says, nothing may land above the field: the provider slot is held open BELOW
+// it, and the field the reader may be typing in is never remounted.
+describe("the provider slot", () => {
+  function emailForm(): Element | null {
+    return host.querySelector("form");
+  }
+
+  function follows(later: Element, earlier: Element): boolean {
+    return Boolean(
+      earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  }
+
+  it("holds the slot open below the email door while providers are unknown", () => {
+    authState.providersResolved = false;
+    act(() => {
+      root.render(createElement(LoginPage));
+    });
+
+    const form = emailForm();
+    const pending = host.querySelectorAll(".loginPageSkeletonProvider");
+    expect(form).not.toBeNull();
+    expect(pending).toHaveLength(2);
+    const slot = pending[0]!.parentElement!;
+    expect(slot.getAttribute("aria-hidden")).toBe("true");
+    expect(follows(slot, form!)).toBe(true);
+  });
+
+  it("collapses an empty slot without touching the email door", () => {
+    authState.providersResolved = false;
+    act(() => {
+      root.render(createElement(LoginPage));
+    });
+    const form = emailForm();
+
+    authState.providers = { google: false, apple: false, microsoft: false };
+    authState.providersResolved = true;
+    act(() => {
+      root.render(createElement(LoginPage));
+    });
+
+    expect(host.querySelector(".loginPageSkeletonProvider")).toBeNull();
+    expect(emailForm()).toBe(form);
+    expect(form!.previousElementSibling).toBeNull();
+  });
+
+  it("puts the provider buttons where the slot was, below the email door", () => {
+    authState.providersResolved = false;
+    act(() => {
+      root.render(createElement(LoginPage));
+    });
+    const form = emailForm();
+
+    authState.providersResolved = true;
+    act(() => {
+      root.render(createElement(LoginPage));
+    });
+
+    expect(host.querySelector(".loginPageSkeletonProvider")).toBeNull();
+    expect(emailForm()).toBe(form);
+    const social = [...host.querySelectorAll("div")].find(
+      (node) => node.textContent === "social",
+    );
+    expect(social).toBeDefined();
+    expect(follows(social!, form!)).toBe(true);
   });
 });

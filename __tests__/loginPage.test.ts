@@ -64,6 +64,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     configured: authState.current.configured,
     clerkIntegrationConfigured: false,
     socialProviders: { google: true, apple: true , microsoft: false },
+    socialProvidersResolved: true,
     signInWithGoogle: authActions.google,
     signInWithApple: authActions.apple,
     signInWithEmail: authActions.email,

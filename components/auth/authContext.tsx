@@ -29,6 +29,8 @@ export type AuthContextValue = {
   clerkIntegrationConfigured: boolean;
   /** Social providers enabled by the current Supabase Auth settings read. */
   socialProviders: SocialAuthProviderAvailability;
+  /** False only while that first settings read is still in flight. */
+  socialProvidersResolved: boolean;
   /** Start the Google OAuth redirect. No-op (returns an error) when unconfigured. */
   signInWithGoogle: (next?: string) => Promise<{ error: string | null }>;
   /** Start the Apple OAuth redirect. No-op when unconfigured. */
@@ -88,6 +90,7 @@ const SIGNED_OUT_AUTH: AuthContextValue = {
   configured: false,
   clerkIntegrationConfigured: false,
   socialProviders: NO_SOCIAL_AUTH_PROVIDERS,
+  socialProvidersResolved: true,
   signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
   signInWithApple: async () => ({ error: "Sign-in is not configured." }),
   signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
