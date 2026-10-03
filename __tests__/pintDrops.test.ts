@@ -84,6 +84,13 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 // requiresSupabaseStore() flag below — so no-op it here for a deterministic import
 // in every environment.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+// A stored drop nudges Realtime in the background, never awaited by the
+// response. The Supabase-configured cases below point at an unreachable stub
+// URL, so the real nudge outlived the file and logged its failure while the
+// worker was closing: vitest reported an EnvironmentTeardownError and failed
+// the whole run. The nudge itself is pinned in pintDropsBroadcast.test.ts.
+const signalPintDropLanded = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/pintDropsBroadcast.server", () => ({ signalPintDropLanded }));
 vi.mock("@/lib/venueAliases", () => {
   const aliases: Record<string, string> = { "legacy-pub": "canonical-pub", "legacy-bar": "bar-test" };
   const canonical = (id: string) => aliases[id] ?? id;

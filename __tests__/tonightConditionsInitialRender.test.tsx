@@ -17,6 +17,7 @@ const summary: TonightConditionsSummary = {
   checkedLabel: "Last checked 3 days ago",
   drinkLine: "",
   drinkSuggestion: "",
+  drinkRuleId: null,
   venueClaim: null,
 };
 

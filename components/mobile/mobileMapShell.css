@@ -146,17 +146,17 @@
        e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
     bottom: max(
       calc(var(--mobile-map-dock-clearance) + 68px),
-      calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-mobile-clearance, 56px))
+      calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
     );
   }
 
-  /* The first-visit ask is a STRIP under this bar now, not a panel at the foot
-     of the screen, so nothing in the bottom band steps around it and nothing
-     stands down for it. It used to hide the chip row, the plan pill, the
+  /* The first-visit ask is a compact pill above the map-edge column now, not a
+     panel at the foot of the screen, so nothing in the bottom band steps
+     around it and nothing stands down for it. It used to hide the chip row, the plan pill, the
      map-edge column and the camera controls, and hold the map itself `inert`:
      the painted-pin probe then found zero tappable marks anywhere on the
      canvas, 3 runs of 3 (docs/proof/astra-live-walk/report.md B1). A reader
-     meets the whole map with the ask above it. */
+     meets the whole map with the ask over it. */
 
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
     box-sizing: border-box;

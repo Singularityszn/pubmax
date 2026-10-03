@@ -4722,23 +4722,33 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 }
 
 @media (max-width: 640px) {
-  /* Phone: the card is one 56px row on the tab bar's lane, so scroll surfaces
-     reserve exactly that row and Today, Plan and /pubs actions end above it. */
+  /* Phone: the card is one row on the tab bar's lane. The window stays the
+     scroller, so Allow or No thanks never moves the reader. While the card is
+     mounted it publishes its own measured height on html
+     (components/AnalyticsConsentPrompt.tsx, --analytics-consent-reserve) and
+     the page reserves exactly that as foot padding, so Today, Plan, /pubs and
+     /social actions end above it at every text size; the reserve is removed
+     with the card. The token is the lane until the first measurement. */
   body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: calc(
-        var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 56px)
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
     );
   }
 
+  /* With no tab bar the card is the foot of the screen and its measured
+     height already carries its home-indicator padding. */
   body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)):not(:has(.mapStage)) {
-    padding-bottom: calc(
-      var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom))
+    padding-bottom: var(
+      --analytics-consent-reserve,
+      calc(var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom)))
     );
   }
 
   html:has(.analyticsConsentPrompt) {
     scroll-padding-bottom: calc(
-      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 56px)
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
     );
   }
 
@@ -4792,21 +4802,6 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      of margin make 184px. */
   html[data-text-scale="large"] {
     --analytics-consent-mobile-clearance: 11.5rem;
-  }
-
-  /* The card's own rules above grow it the moment the attribute is set. The
-     lane has to be declared on that same selector: a body rule that only
-     reads the token kept the ordinary 56px row (64px tab bar + 56px = 120px)
-     on the frame the card had already grown, so /tonight's foot stayed under
-     the card at 320px. 11.5rem is the lane the comment above already measured. */
-  html[data-text-scale="large"] body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
-    padding-bottom: calc(
-      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 11.5rem
-    );
-  }
-
-  html[data-text-scale="large"] body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)):not(:has(.mapStage)) {
-    padding-bottom: calc(11.5rem + max(12px, env(safe-area-inset-bottom)));
   }
 
   html[data-text-scale="large"] .analyticsConsentPrompt {

@@ -8,8 +8,10 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 const SEED_VENUE_ID = "venue-16pnwmm";
-const OUT = process.env.PUBMAX_SHOT_DIR ?? "/tmp/pubmax-photo-wall";
+const OUT = process.env.PUBMAX_SHOT_DIR ?? runnerShotDir("pubmax-photo-wall");
 
 async function settle(page: Page): Promise<void> {
   await expect(

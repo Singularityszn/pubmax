@@ -21,6 +21,8 @@ import { useEffect, useState } from "react";
 import { CloudSun } from "lucide-react";
 
 import { NO_WEATHER_READING_LINE } from "@/lib/conditionsFormat";
+import { tonightDayPart } from "@/lib/daySlot";
+import { drinkWeatherLine } from "@/lib/drinkWeather";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
@@ -30,11 +32,17 @@ import "./tonightConditions.css";
 type Props = {
   origin?: { lat: number; lng: number } | null;
   initialSummary?: TonightConditionsSummary | null;
+  /**
+   * The strip sits under the Day/Tonight switch on Tonight, so its drink line
+   * names tonight rather than the clock's part of the day. The summary stays
+   * the clock's for every other surface that reads it.
+   */
+  tonightMode?: boolean;
 };
 
 type ConditionsResponse = { summary: TonightConditionsSummary | null };
 
-export default function TonightConditionsStrip({ origin, initialSummary }: Props) {
+export default function TonightConditionsStrip({ origin, initialSummary, tonightMode = false }: Props) {
   const [summary, setSummary] = useState<TonightConditionsSummary | null | undefined>(initialSummary);
 
   const egressPoint = origin ? coarsenViewerPoint(origin) : null;
@@ -76,7 +84,11 @@ export default function TonightConditionsStrip({ origin, initialSummary }: Props
     );
   }
 
-  const trailer = summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine;
+  const drinkLine =
+    tonightMode && summary.drinkRuleId
+      ? (drinkWeatherLine(summary.drinkRuleId, tonightDayPart(new Date())) ?? summary.drinkLine)
+      : summary.drinkLine;
+  const trailer = summary.stale ? `${summary.checkedLabel}.` : drinkLine;
 
   return (
     <div className="tonightConditions" data-testid="tonight-conditions">

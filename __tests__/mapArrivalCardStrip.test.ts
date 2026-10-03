@@ -57,23 +57,7 @@ describe("the first-visit card leaves the map usable", () => {
   });
 });
 
-describe("the first-visit card is a strip at the top on a phone", () => {
-  it("reads the phone chrome's MEASURED bottom, not only its resting berth", () => {
-    // Anchored to the published berth alone the strip landed at y 120 with the
-    // chip row's own bottom at 215, so "Pints" read through it.
-    expect(cardCss).toContain("--mobile-map-chrome-measured-h");
-    expect(read("components/mobile/MobileMapShell.tsx")).toContain(
-      "usePublishedChromeHeight",
-    );
-  });
-
-  it("docks under the phone's own chrome rather than over the pins", () => {
-    expect(cardCss).toMatch(/\.mapArrivalCard\s*\{[^}]*top:/);
-    expect(cardCss).toContain("--mobile-map-chrome-full-h");
-    // The old berth pinned it to the foot of the screen.
-    expect(cardCss).not.toMatch(/\.mapArrivalCard\s*\{[^}]*bottom:\s*var\(\s*--map-arrival-bottom/);
-  });
-
+describe("the first-visit card", () => {
   it("yields to a panel the reader opens from the toolbar", () => {
     // Measured at 1440x900: the strip spans x 380 to 1060 and the Filters
     // popover opens at x 503 to 863, straight through the middle of it. The
@@ -128,11 +112,6 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     const close = cardCss.match(/\.mapArrivalCardClose\s*\{[^}]*\}/)?.[0] ?? "";
     expect(close).toMatch(/width:\s*44px/);
     expect(close).toMatch(/height:\s*44px/);
-  });
-
-  it("is capped short enough that the pin field is never under it", () => {
-    const card = cardCss.match(/\.mapArrivalCard\s*\{[^}]*\}/)?.[0] ?? "";
-    expect(card).toContain("--map-arrival-strip-max-h");
   });
 });
 

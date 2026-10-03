@@ -567,7 +567,7 @@ export default function TonightClient({
           the lede at every width: it is the only thing between the head and
           the pubs. */}
       <div className="tonightWeather">
-        <TonightConditionsStrip origin={origin} initialSummary={initialConditionsSummary} />
+        <TonightConditionsStrip origin={origin} initialSummary={initialConditionsSummary} tonightMode />
       </div>
 
       <div className="tonightPrimary" data-status={listingsStatus}>
