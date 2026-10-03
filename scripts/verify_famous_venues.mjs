@@ -15,8 +15,8 @@
  *
  * A failed Places call aborts the run before anything is written. --write
  * refuses to overwrite an existing artifact for the verified day, unless
- * --limit is set: that day's checks are merged, and a row already present
- * in a partial artifact is not sent to Places again.
+ * --limit is set: that day's checks are merged, and a row already checked
+ * in the unfinished re-verification is not sent to Places again.
  *
  * The committed artifact keeps the place id and derived verdict fields only;
  * no Google-sourced names, addresses or statuses are stored (Maps ToS).
@@ -25,7 +25,7 @@
  *   npm run verify:famous-venues             # report
  *   npm run verify:famous-venues -- --write  # update seeds + verification artifact
  *   npm run verify:famous-venues -- --write --limit 40
- *     # oldest observedAt first, at most 40 new Places calls today
+ *     # oldest observedAt first, at most 40 checks in today's artifact
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
