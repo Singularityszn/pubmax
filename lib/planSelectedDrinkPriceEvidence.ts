@@ -45,7 +45,17 @@ export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPr
       reportedAt: row.reportedAt,
     };
   }
-  if (row.source !== "listed" || !canonicalTimestamp(row.observedAt)
+  return cleanListedDrinkPriceEvidence(row);
+}
+
+/** Published quote validation shared with discovery; Plan applies its own category policy. */
+export function cleanListedDrinkPriceEvidence(value: unknown): ListedSelectedDrinkPriceEvidence | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (!isDrinkCategory(row.category)
+    || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
+    || (row.pence as number) > 100_000
+    || row.source !== "listed" || !canonicalTimestamp(row.observedAt)
     || (row.serving !== null && (typeof row.serving !== "string"
       || !row.serving.trim() || row.serving !== row.serving.trim() || row.serving.length > 48
       || /[\u0000-\u001f\u007f]/.test(row.serving)))

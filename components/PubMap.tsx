@@ -349,7 +349,7 @@ const LogIntentFallback = dynamic(
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { currentMapRoutePricing, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
-import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import { seedCrawlState, useCrawlUrlSync, type CrawlServingChoice } from "@/components/map/useCrawlUrl";
 import { routeDrinkIntentFromSearch } from "@/lib/crawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
@@ -629,6 +629,7 @@ import {
   phonePlannerOrder,
 } from "@/lib/pubMap";
 import { drinkCategoryIndexKey, listedServingGroup } from "@/lib/listedPriceComparison";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
@@ -998,9 +999,10 @@ function readBandChipDismissed(bandId: string): boolean {
 function activeLensNounFor(
   mapDrinkLensCategory: DrinkCategory | null,
   experienceLens: MapExperienceLensValue,
+  drinkSubtype?: string | null,
 ): string | null {
   return mapDrinkLensCategory
-    ? drinkLensPriceNoun(mapDrinkLensCategory)
+    ? parseDrinkSubtypeParam(drinkSubtype, mapDrinkLensCategory)?.longLabel.toLowerCase() ?? drinkLensPriceNoun(mapDrinkLensCategory)
     : experienceLens === "no-alcohol"
       ? NO_ALCOHOL_LENS_PRICE_NOUN
       : experienceLens === "food"
@@ -1870,42 +1872,54 @@ export default function PubMap({
   const { mapDrinkLensCategory, activeMapDrinkLane } = useMemo(
     () => mapDrinkLensSelection({
       drinkCategory: filters.drinkCategory,
+      drinkSubtype: filters.drinkSubtype,
       experienceLens,
       isMapLensDrinkCategory,
       activeDrinkLane,
       defaultDrinkLane: DEFAULT_DRINK_LANE,
     }),
-    [filters.drinkCategory, experienceLens],
+    [filters.drinkCategory, filters.drinkSubtype, experienceLens],
+  );
+  const drinkPriceSubtype = useMemo(
+    () => mapDrinkLensCategory ? parseDrinkSubtypeParam(filters.drinkSubtype, mapDrinkLensCategory)?.id ?? null : null,
+    [filters.drinkSubtype, mapDrinkLensCategory],
   );
   const drinkServingGroup = useMemo(
-    () => mapDrinkLensCategory
-      ? listedServingGroup(mapDrinkLensCategory, searchParams.get("serving")) : null,
-    [mapDrinkLensCategory, searchParams],
+    () => {
+      if (!mapDrinkLensCategory || searchParams.get("drink") !== mapDrinkLensCategory) return null;
+      const parameterSubtype = parseDrinkSubtypeParam(searchParams.get("sub"), mapDrinkLensCategory)?.id ?? null;
+      if (parameterSubtype !== drinkPriceSubtype) return null;
+      return listedServingGroup(mapDrinkLensCategory, searchParams.get("serving"), drinkPriceSubtype);
+    },
+    [mapDrinkLensCategory, searchParams, drinkPriceSubtype],
   );
   const drinkServingGroups = mapDrinkLensCategory
-    ? communityPrices.drinkServingGroups?.get(mapDrinkLensCategory) ?? [] : [];
+    ? communityPrices.drinkServingGroups?.get(drinkCategoryIndexKey(mapDrinkLensCategory, null, drinkPriceSubtype)) ?? [] : [];
+  const drinkServingChoice = useRef<CrawlServingChoice | null>(null);
   const changeDrinkServingGroup = useCallback((serving: string | null) => {
     if (!mapDrinkLensCategory) return;
     const params = new URLSearchParams(window.location.search);
-    const group = listedServingGroup(mapDrinkLensCategory, serving);
+    const group = listedServingGroup(mapDrinkLensCategory, serving, drinkPriceSubtype);
+    drinkServingChoice.current = { category: mapDrinkLensCategory, subtype: drinkPriceSubtype, serving: group };
     params.set("drink", mapDrinkLensCategory);
+    if (drinkPriceSubtype) params.set("sub", drinkPriceSubtype); else params.delete("sub");
     if (group) params.set("serving", group); else params.delete("serving");
     const state = { ...window.history.state };
     delete state.__NA;
     window.history.replaceState(state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`);
-  }, [mapDrinkLensCategory]);
+  }, [mapDrinkLensCategory, drinkPriceSubtype]);
   useEffect(() => {
     if (mapDrinkLensCategory) {
-      loadDrinkCategoryIndex(mapDrinkLensCategory);
-      if (drinkServingGroup) loadDrinkCategoryIndex(mapDrinkLensCategory, drinkServingGroup);
+      loadDrinkCategoryIndex(mapDrinkLensCategory, null, drinkPriceSubtype);
+      if (drinkServingGroup) loadDrinkCategoryIndex(mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype);
     }
-  }, [loadDrinkCategoryIndex, mapDrinkLensCategory, drinkServingGroup]);
+  }, [loadDrinkCategoryIndex, mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype]);
   // Whichever cross-venue index is answering the map right now reports its own
   // completeness, so the price key never claims a read it did not finish.
   const drinkIndexStatus: CategoryPriceIndexStatus = useMemo(
     () =>
-      mapDrinkLensCategory && drinkServingGroup
-        ? communityPrices.drinkCategoryIndexStatus.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup)) ?? "idle"
+      mapDrinkLensCategory && (drinkServingGroup || drinkPriceSubtype)
+        ? communityPrices.drinkCategoryIndexStatus.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype)) ?? "idle"
         : drinkIndexStatusFor(
         mapDrinkLensCategory,
         experienceLens,
@@ -1915,6 +1929,7 @@ export default function PubMap({
     [
       mapDrinkLensCategory,
       drinkServingGroup,
+      drinkPriceSubtype,
       experienceLens,
       communityPrices.drinkCategoryIndexStatus,
       communityPrices.noAlcoholIndexStatus,
@@ -1927,17 +1942,19 @@ export default function PubMap({
             communityPrices.byVenueId,
             mapDrinkLensCategory,
             [
-              ...(communityPrices.listedDrinkPrices.get(mapDrinkLensCategory) ?? []),
-              ...(drinkServingGroup ? communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup)) ?? [] : []),
+              ...(communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(mapDrinkLensCategory, null, drinkPriceSubtype)) ?? []),
+              ...(drinkServingGroup ? communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype)) ?? [] : []),
             ],
             experiencePolicyNow,
             drinkServingGroup,
+            drinkPriceSubtype,
           )
         : null,
     [
       communityPrices.byVenueId,
       communityPrices.listedDrinkPrices,
       drinkServingGroup,
+      drinkPriceSubtype,
       experiencePolicyNow,
       mapDrinkLensCategory,
     ],
@@ -1959,6 +1976,7 @@ export default function PubMap({
     experienceLens,
     mapDrinkLensCategory,
     drinkServingGroup,
+    drinkPriceSubtype,
     restoredRouteCategory,
     spoonsValueOn,
     communityPrices.byVenueId,
@@ -3023,15 +3041,16 @@ export default function PubMap({
   );
   const mapCanvasLensPrices = useMemo(() => mapDrinkLensCategory
     ? new Map([...(drinkLensPrices ?? [])].filter(([, price]) => price.source === "listed"
-      && drinkServingGroup !== null && listedServingGroup(mapDrinkLensCategory, price.servingSize) === drinkServingGroup))
-    : activeLensPrices, [mapDrinkLensCategory, drinkLensPrices, drinkServingGroup, activeLensPrices]);
-  const activeLensBaseLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
+      && (mapDrinkLensCategory !== "beer" || drinkServingGroup === "pint")
+      && drinkServingGroup !== null && listedServingGroup(mapDrinkLensCategory, price.servingSize, drinkPriceSubtype) === drinkServingGroup))
+    : activeLensPrices, [mapDrinkLensCategory, drinkLensPrices, drinkServingGroup, drinkPriceSubtype, activeLensPrices]);
+  const activeLensBaseLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens, drinkPriceSubtype);
   const activeLensLabel = mapDrinkLensCategory && drinkServingGroup
     ? `${activeLensBaseLabel} · ${drinkServingGroup}` : activeLensBaseLabel;
   // The name a heading wears is not always the name a sentence wants: the
   // no-alcohol lens is titled with a negative, and "no no-alcohol price
   // logged" hides the one fact that is about the pub.
-  const activeLensNoun = activeLensNounFor(mapDrinkLensCategory, experienceLens);
+  const activeLensNoun = activeLensNounFor(mapDrinkLensCategory, experienceLens, drinkPriceSubtype);
   const activeBand = useMemo(
     () => cityStoryBands.find((band) => band.id === activeBandId),
     [cityStoryBands, activeBandId],
@@ -3101,10 +3120,12 @@ export default function PubMap({
         mapListSortMode,
         venueSignals,
         mapDrinkLensCategory ? drinkServingGroup : undefined,
+        drinkPriceSubtype,
       ),
     [
       mapDrinkLensCategory,
       drinkServingGroup,
+      drinkPriceSubtype,
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
@@ -3167,9 +3188,10 @@ export default function PubMap({
         drinkLensPrices,
         mapListSortMode,
         mapDrinkLensCategory ? drinkServingGroup : undefined,
+        drinkPriceSubtype,
       );
     },
-    [cityId, mapViewport.center, renderedBasePubs, venueKindVisibility, visibleVenueState, drinkLensPrices, mapListSortMode, mapDrinkLensCategory, drinkServingGroup],
+    [cityId, mapViewport.center, renderedBasePubs, venueKindVisibility, visibleVenueState, drinkLensPrices, mapListSortMode, mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype],
   );
   // The place the map is OVER, and whether it is off the curated city.
   // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
@@ -3312,6 +3334,7 @@ export default function PubMap({
     ),
     restoredMobileSession !== null,
     crawlHydrationPending,
+    drinkServingChoice,
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.
@@ -3455,7 +3478,7 @@ export default function PubMap({
     const price = drinkLensPrices?.get(venue.id);
     const selectedEvidence = mapDrinkLensCategory
       && (!drinkServingGroup || (price?.source === "listed"
-        && listedServingGroup(mapDrinkLensCategory, price.servingSize) === drinkServingGroup))
+        && listedServingGroup(mapDrinkLensCategory, price.servingSize, drinkPriceSubtype) === drinkServingGroup))
       ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: mapDrinkLensCategory, zeroProof: false }) : null;
     const result = acceptMapVenue({
       cityId,
@@ -3471,7 +3494,7 @@ export default function PubMap({
     trackEvent("venue_accepted", result.telemetry);
     trackEvent("planning_handoff_opened", { from: result.telemetry.source, to: "plan" });
     if (typeof window !== "undefined") window.location.assign(result.destination);
-  }, [selectedVenue, selectedBasePub, selectedVenueId, cityId, mapDrinkLensCategory, drinkLensPrices, drinkServingGroup]);
+  }, [selectedVenue, selectedBasePub, selectedVenueId, cityId, mapDrinkLensCategory, drinkLensPrices, drinkServingGroup, drinkPriceSubtype]);
 
   const handleUkBasePubClick = useCallback(
     (pub: UkBasePub) => {
@@ -5555,6 +5578,9 @@ export default function PubMap({
               <PriceBadge
                 band={
                   selectedLensPrice.category === "beer"
+                    && (!drinkPriceSubtype || (drinkServingGroup === "pint"
+                      && selectedLensPrice.source === "listed"
+                      && listedServingGroup("beer", selectedLensPrice.servingSize, drinkPriceSubtype) === "pint"))
                     ? priceBand(selectedLensPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))
                     : null
                 }
@@ -5859,7 +5885,7 @@ export default function PubMap({
         {experienceLens === "all" ? (
           <TabsContent value="prices" className="mobileMapFilters">
             <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-            {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
+            {activeMapDrinkLane === DEFAULT_DRINK_LANE && !drinkPriceSubtype ? (
               <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkBrand={filters.drinkBrand} onDrinkBrandChange={changeDrinkBrand} />
             ) : null}
             <MobilePriceChoices
@@ -5951,7 +5977,7 @@ export default function PubMap({
             ) : null}
             {/* Brand is a pint refinement. The drink itself is chosen on
                 the map's own lane chip, never in this drawer. */}
-            {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
+            {activeMapDrinkLane === DEFAULT_DRINK_LANE && !drinkPriceSubtype ? (
               <FavoritePintPicker
                 value={favoritePint}
                 onChange={changeFavoritePint}
@@ -6060,7 +6086,7 @@ export default function PubMap({
         tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
         priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤${formatGbp(filters.maxPrice)}` : "Price"}
         drinkFiltersActive={drinkFiltersActive}
-        drinkLaneLabel={drinkLaneLabel(activeMapDrinkLane)}
+        drinkLaneLabel={parseDrinkSubtypeParam(drinkPriceSubtype, activeMapDrinkLane)?.longLabel ?? drinkLaneLabel(activeMapDrinkLane)}
         drinkLaneSelected={activeMapDrinkLane !== DEFAULT_DRINK_LANE}
         experienceFilterLabel={
           experienceLens === "no-alcohol"
@@ -6101,6 +6127,7 @@ export default function PubMap({
           <>
             <DrinkLanePicker
               lane={activeMapDrinkLane}
+              drinkSubtype={drinkPriceSubtype}
               status={drinkIndexStatus}
               servingGroups={drinkServingGroups}
               servingGroup={drinkServingGroup}
@@ -6457,7 +6484,7 @@ export default function PubMap({
         onRouteStopClick={selectVenue}
         onVenuePrefetch={prefetchVenueDetail}
         venueSignals={venueSignals}
-        favoritePint={favoritePint}
+        favoritePint={experienceLens === "all" && activeMapDrinkLane === DEFAULT_DRINK_LANE && !drinkPriceSubtype ? favoritePint : null}
         drinkCategory={experienceLens === "all" ? filters.drinkCategory || null : null}
         whatsOnByVenue={whatsOnTonight.summary}
         provisionalVenueIds={provisionalVenueIds}
@@ -6535,6 +6562,7 @@ export default function PubMap({
         onFavoritePintChange={changeFavoritePint}
         drinkFiltersActive={drinkFiltersActive}
         drinkCategory={filters.drinkCategory}
+        drinkSubtype={drinkPriceSubtype}
         drinkBrand={filters.drinkBrand}
         onDrinkBrandChange={changeDrinkBrand}
         onDrinkLaneChange={changeDrinkLane}

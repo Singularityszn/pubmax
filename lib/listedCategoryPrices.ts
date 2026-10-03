@@ -6,6 +6,7 @@ import {
 import {
   listedServingComparisonKey,
   listedServingGroup,
+  listedDrinkMatchesSubtype,
 } from "@/lib/listedPriceComparison";
 import { priceStandingFor } from "@/lib/priceTier";
 import {
@@ -36,10 +37,12 @@ export function listedCategoryPrices(
   {
     includeBeer = false,
     serving,
+    drinkSubtype,
     onServingGroup,
   }: {
     includeBeer?: boolean;
     serving?: string | null;
+    drinkSubtype?: string | null;
     onServingGroup?: (category: DrinkCategory, group: string) => void;
   } = {},
 ): ListedCategoryPrice[] {
@@ -56,6 +59,7 @@ export function listedCategoryPrices(
     ) {
       continue;
     }
+    if (!listedDrinkMatchesSubtype(row.category, row.drinkLabel, drinkSubtype)) continue;
     const decision = priceStandingFor(
       {
         listed: {
@@ -108,7 +112,7 @@ export function listedCategoryPrices(
       continue;
     }
     const servingKey =
-      listedServingComparisonKey(entry.quote.category, entry.quote.servingSize) ??
+      listedServingComparisonKey(entry.quote.category, entry.quote.servingSize, drinkSubtype) ??
       entry.quote.servingSize?.toLowerCase() ??
       null;
     const key = JSON.stringify([entry.quote.category, drinkKey, servingKey]);
@@ -132,7 +136,7 @@ export function listedCategoryPrices(
     const neutral: (typeof eligible)[number][] = [];
     for (const entry of current) {
       if (entry.quote.category !== category) continue;
-      const key = listedServingComparisonKey(category, entry.quote.servingSize);
+      const key = listedServingComparisonKey(category, entry.quote.servingSize, drinkSubtype);
       if (key === null) {
         neutral.push(entry);
         continue;
@@ -148,13 +152,13 @@ export function listedCategoryPrices(
         left.index - right.index,
     );
     for (const { quote } of comparable) {
-      const group = listedServingGroup(category, quote.servingSize);
+      const group = listedServingGroup(category, quote.servingSize, drinkSubtype);
       if (group) onServingGroup?.(category, group);
     }
-    const selectedGroup = listedServingGroup(category, serving);
+    const selectedGroup = listedServingGroup(category, serving, drinkSubtype);
     const selectedComparable = selectedGroup
       ? comparable.filter(
-          ({ quote }) => listedServingGroup(category, quote.servingSize) === selectedGroup,
+          ({ quote }) => listedServingGroup(category, quote.servingSize, drinkSubtype) === selectedGroup,
         )
       : comparable;
     const candidates = selectedGroup

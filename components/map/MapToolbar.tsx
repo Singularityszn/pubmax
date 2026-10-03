@@ -22,6 +22,7 @@ import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
 import { listedServingGroup } from "@/lib/listedPriceComparison";
+import { parseDrinkSubtypeParam, type DrinkSubtype } from "@/lib/drinkSubtypes";
 import type { SpoonsValueLensState } from "@/lib/spoonsValue";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
@@ -37,6 +38,11 @@ import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 
 const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"));
 
+function selectedDrinkLaneLabel(lane: DrinkCategory, subtype: DrinkSubtype | null, serving: string | null | undefined): string {
+  return lane === "beer" && !subtype
+    ? drinkLaneLabel(lane)
+    : `${subtype?.longLabel ?? drinkLaneLabel(lane)} · ${listedServingGroup(lane, serving, subtype?.id) ?? "all servings"}`;
+}
 
 /**
  * The map's drink, named on a control of its own.
@@ -141,6 +147,7 @@ type MapToolbarProps = {
   onFavoritePintChange: (beerId: string | null) => void;
   drinkFiltersActive: boolean;
   drinkCategory: string;
+  drinkSubtype?: string | null;
   drinkBrand: string;
   onDrinkBrandChange: (drinkBrand: string) => void;
   /** Put the map under one drink. The parent owns the single filter write. */
@@ -216,6 +223,7 @@ export default function MapToolbar({
   onFavoritePintChange,
   drinkFiltersActive,
   drinkCategory,
+  drinkSubtype,
   drinkBrand,
   onDrinkBrandChange,
   onDrinkLaneChange,
@@ -341,13 +349,12 @@ export default function MapToolbar({
     return () => mq.removeEventListener("change", sync);
   }, []);
   const activeLane = activeDrinkLane(drinkCategory);
-  const laneLabel = activeLane === "beer"
-    ? drinkLaneLabel(activeLane)
-    : `${drinkLaneLabel(activeLane)} · ${listedServingGroup(activeLane, drinkServingGroup) ?? "all servings"}`;
+  const subtype = parseDrinkSubtypeParam(drinkSubtype, activeLane);
+  const laneLabel = selectedDrinkLaneLabel(activeLane, subtype, drinkServingGroup);
   // Every drink control is stood down while an experience view owns the map,
   // and brand is a pint-only refinement on top of that.
   const laneAvailable = experienceLens === "all";
-  const showPintBrand = laneAvailable && activeLane === "beer";
+  const showPintBrand = laneAvailable && activeLane === "beer" && !subtype;
   const trimmedQuery = query.trim();
   const showNoSearchMatches = searchFoundNothing({
     searchSettled,
@@ -455,6 +462,7 @@ export default function MapToolbar({
         <>
           <DrinkLanePicker
             lane={activeLane}
+            drinkSubtype={subtype?.id}
             status={drinkLaneStatus}
             servingGroups={drinkServingGroups}
             servingGroup={drinkServingGroup}
