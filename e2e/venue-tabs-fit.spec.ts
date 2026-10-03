@@ -94,6 +94,11 @@ test("phone 390 at 200% text: the tab strip wraps with every label whole inside 
   // The user's own text size: the tab labels are sized in rem, so doubling the
   // root doubles every label.
   await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+  // Reduced motion still leaves a near-zero `transition` on every element, so
+  // the root reads 16px until the next frame. Measure only once it is doubled.
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize))
+    .toBe("32px");
   await strip.scrollIntoViewIfNeeded();
 
   const geometry = await strip.evaluate((el) => {
