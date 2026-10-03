@@ -89,7 +89,7 @@ export type MapSearchSuggestProps = {
    */
   onSelectUkBasePub?: (pub: UkBasePub) => void;
   /**
-   * Navigate to a UK place or curated city guide (same hrefs as CityChooser).
+   * Navigate to a UK place or curated city guide (same hrefs as buildCityChooserSearchResults).
    * The full suggestion rides so the shell can fly in-place when already on
    * that city guide.
    */

@@ -74,10 +74,6 @@ describe("the anonymous price-confirm lane is retired", () => {
     expect(importers.map((file) => file.replace(`${ROOT}/`, ""))).toEqual([]);
   });
 
-  it("leaves no vouch publisher in the fact-claim signals", () => {
-    expect(code(join(ROOT, "lib/priceFactClaims.ts"))).not.toContain("price-confirm");
-  });
-
   it("leaves no vouch wording in the confidence read", () => {
     // "×3 this week", "vouched this week", "vouched recently" all described an
     // anonymous tally as though it counted people.

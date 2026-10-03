@@ -1,5 +1,5 @@
 // Glasgow landmarks for the map's history layer — static, curated, sourced.
-// Same Landmark shape as London (lib/landmarks.ts); selected via landmarksForCity.
+// Same Landmark shape as London (lib/landmarks.ts); selected via landmarksForCityAsync.
 
 import type { Landmark } from "@/lib/landmarks";
 

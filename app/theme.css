@@ -369,16 +369,7 @@ html[data-theme="dark"] .mapOnboarding {
   --line: var(--chrome-line);
 }
 
-/* 2b) Home city cards (CityChooser's embedded --section variant, the only one
-   a route mounts). */
-html[data-theme="dark"] .cityChooser--section {
-  --panel: var(--chrome-panel);
-  --panel-raised: var(--chrome-panel-raised);
-  --paper: var(--chrome-paper);
-  --line: var(--chrome-line);
-}
-
-/* 2c) Feed — the diagonal category streaks + every card surface under it. */
+/* 2b) Feed — the diagonal category streaks + every card surface under it. */
 html[data-theme="dark"] .feedShell {
   --panel: var(--chrome-panel);
   --panel-raised: var(--chrome-panel-raised);

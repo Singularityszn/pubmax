@@ -16,7 +16,6 @@ import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
 import {
   cityChooserResultBadge,
   cityChooserResultContext,
-  cityGuidesSearchUnavailableLine,
   TOWN_SEARCH_UNAVAILABLE_LEAD,
 } from "@/lib/cityChooserSearch";
 import { getNightAreasForCity } from "@/lib/nightAreas";
@@ -475,16 +474,13 @@ describe("Places answers a town the city list does not hold", () => {
   });
 
   it("answers a failed index read by naming the button, not a list that is gone", () => {
-    // The chooser's line ends "the five city maps are below", which holds there
-    // because its full list always renders under the panel. On /places the list
-    // is filtered out while a query stands, so the borrowed sentence pointed at
-    // a screen carrying no city map at all.
+    // /places filters the city list out while a query stands, so a failed index
+    // read names the control that is still on screen.
     const line = placesTownSearchUnavailableLine();
 
     expect(line.startsWith(TOWN_SEARCH_UNAVAILABLE_LEAD)).toBe(true);
     expect(line).toContain(PLACES_SHOW_ALL_LABEL);
     expect(line).not.toMatch(/below/i);
-    expect(cityGuidesSearchUnavailableLine(5)).toMatch(/below/i);
   });
 
   it("credits OpenStreetMap for the place names it publishes", () => {
