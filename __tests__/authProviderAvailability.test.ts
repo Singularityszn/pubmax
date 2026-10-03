@@ -4,6 +4,8 @@ import {
   guardSocialAuthProvider,
   loadClerkSocialAuthProviders,
   loadSocialAuthProviders,
+  readSupabaseSocialAuthProviders,
+  SOCIAL_AUTH_PROVIDERS_PATH,
 } from "@/lib/authProviderAvailability";
 
 beforeEach(() => {
@@ -13,6 +15,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 function settingsResponse(external: Record<string, boolean>): Response {
@@ -106,23 +109,6 @@ describe("Clerk social auth provider availability", () => {
     });
   });
 
-  it("reports Microsoft from Supabase's Azure provider flag", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      settingsResponse({
-        google: false,
-        apple: false,
-        azure: true,
-        email: true,
-      }),
-    );
-
-    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
-      google: false,
-      apple: false,
-      microsoft: true,
-    });
-  });
-
   it.each([
     ["an HTTP failure", vi.fn<typeof fetch>().mockResolvedValue(new Response("no", { status: 503 }))],
     ["a network failure", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"))],
@@ -146,7 +132,82 @@ describe("Clerk social auth provider availability", () => {
   });
 });
 
-describe("Supabase social auth provider availability", () => {
+function providerResponse(availability: {
+  google: boolean;
+  apple: boolean;
+  microsoft: boolean;
+}): Response {
+  return new Response(JSON.stringify(availability), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+describe("same-origin social auth provider availability", () => {
+  it("reads the same-origin route without a cross-origin key", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      providerResponse({ google: true, apple: false, microsoft: false }),
+    );
+
+    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
+      google: true,
+      apple: false,
+      microsoft: false,
+    });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(fetchImpl).toHaveBeenCalledWith(
+      SOCIAL_AUTH_PROVIDERS_PATH,
+      expect.objectContaining({
+        credentials: "omit",
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    const init = fetchImpl.mock.calls[0]?.[1];
+    expect(init?.headers).toBeUndefined();
+    expect(init?.cache).not.toBe("no-store");
+  });
+
+  it("asks for an uncached recheck immediately before OAuth", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      providerResponse({ google: false, apple: true, microsoft: false }),
+    );
+
+    await expect(
+      loadSocialAuthProviders(fetchImpl, { fresh: true }),
+    ).resolves.toEqual({
+      google: false,
+      apple: true,
+      microsoft: false,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `${SOCIAL_AUTH_PROVIDERS_PATH}?fresh=1`,
+      expect.objectContaining({ credentials: "omit" }),
+    );
+  });
+
+  it.each([
+    ["an HTTP failure", vi.fn<typeof fetch>().mockResolvedValue(new Response("no", { status: 503 }))],
+    ["a network failure", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"))],
+    [
+      "a malformed payload",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(JSON.stringify({ external: { google: true } }), { status: 200 }),
+      ),
+    ],
+  ])("fails closed for %s", async (_label, fetchImpl) => {
+    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+  });
+
+  it("does not request providers when browser auth configuration is incomplete", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+    const fetchImpl = vi.fn<typeof fetch>();
+
+    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("Supabase social auth provider settings", () => {
   it("reads live settings with the public key and maps Google and Apple", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       settingsResponse({
@@ -156,7 +217,7 @@ describe("Supabase social auth provider availability", () => {
       }),
     );
 
-    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
+    await expect(readSupabaseSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: true,
       apple: false,
       microsoft: false,
@@ -181,10 +242,27 @@ describe("Supabase social auth provider availability", () => {
       }),
     );
 
-    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
+    await expect(readSupabaseSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: false,
       apple: true,
       microsoft: false,
+    });
+  });
+
+  it("reports Microsoft from Supabase's Azure provider flag", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      settingsResponse({
+        google: false,
+        apple: false,
+        azure: true,
+        email: true,
+      }),
+    );
+
+    await expect(readSupabaseSocialAuthProviders(fetchImpl)).resolves.toEqual({
+      google: false,
+      apple: false,
+      microsoft: true,
     });
   });
 
@@ -198,14 +276,14 @@ describe("Supabase social auth provider availability", () => {
       ),
     ],
   ])("fails closed for %s", async (_label, fetchImpl) => {
-    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+    await expect(readSupabaseSocialAuthProviders(fetchImpl)).resolves.toBeNull();
   });
 
   it("does not request settings when browser auth configuration is incomplete", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
     const fetchImpl = vi.fn<typeof fetch>();
 
-    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+    await expect(readSupabaseSocialAuthProviders(fetchImpl)).resolves.toBeNull();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
@@ -275,5 +353,72 @@ describe("social OAuth provider guard", () => {
       result: { error: null },
     });
     expect(start).toHaveBeenCalledOnce();
+  });
+});
+
+describe("GET /api/auth/providers", () => {
+  it("holds a successful read at the edge for a few minutes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        settingsResponse({ google: true, apple: false, azure: false }),
+      ),
+    );
+    const { GET } = await import("@/app/api/auth/providers/route");
+    const response = await GET(new Request("http://localhost/api/auth/providers"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      google: true,
+      apple: false,
+      microsoft: false,
+    });
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
+    );
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "https://example.supabase.co/auth/v1/settings",
+      expect.objectContaining({
+        cache: "no-store",
+        headers: { apikey: "publishable-key" },
+      }),
+    );
+  });
+
+  it("does not cache the recheck made immediately before OAuth", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        settingsResponse({ google: false, apple: false, azure: true }),
+      ),
+    );
+    const { GET } = await import("@/app/api/auth/providers/route");
+    const response = await GET(
+      new Request("http://localhost/api/auth/providers?fresh=1"),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      google: false,
+      apple: false,
+      microsoft: true,
+    });
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("fails closed and does not cache a missed read", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(new Response("no", { status: 503 })),
+    );
+    const { GET } = await import("@/app/api/auth/providers/route");
+    const response = await GET(new Request("http://localhost/api/auth/providers"));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      code: "PROVIDER_SETTINGS_UNAVAILABLE",
+      retryable: true,
+    });
   });
 });
