@@ -6,18 +6,6 @@
 // bundle rows stay as regression evidence; this module is what a fence test
 // and ukPriceCrawl share.
 
-import type { DrinkCategory } from "@/lib/drinks";
-
-function harvestRowKey(
-  category: DrinkCategory,
-  drinkLabel?: string | null,
-  servingSize?: string | null,
-): string {
-  const label = typeof drinkLabel === "string" ? drinkLabel.trim().toLowerCase() : "";
-  const serving = typeof servingSize === "string" ? servingSize.trim().toLowerCase() : "";
-  return `${category}\0${label}\0${serving}`;
-}
-
 /** The three drinks the Shoreditch pilot may show; each is its own price fact. */
 export const COFFEE_PILOT_NAMED_DRINKS = [
   "flat white",
@@ -71,22 +59,4 @@ export function canonicalCoffeePilotDrink(
     if (pattern.test(normalized)) return id;
   }
   return null;
-}
-
-/**
- * Dedup key for site-harvest coffee rows so pilot drinks never share a bucket.
- */
-export function coffeeSiteHarvestDedupeKey(
-  category: DrinkCategory,
-  drinkLabel?: string | null,
-  servingSize?: string | null,
-): string {
-  if (category !== "coffee") {
-    return harvestRowKey(category, drinkLabel, servingSize);
-  }
-  const pilot = canonicalCoffeePilotDrink(drinkLabel);
-  if (pilot) {
-    return harvestRowKey(category, pilot, servingSize);
-  }
-  return harvestRowKey(category, drinkLabel, servingSize);
 }

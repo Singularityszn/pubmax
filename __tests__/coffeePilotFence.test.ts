@@ -5,7 +5,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/ai/typesafe.server.ts", () => ({
+  systemOneOutcome: vi.fn(),
+}));
+
+import { systemOneOutcome } from "@/lib/ai/typesafe.server";
 
 import {
   COFFEE_PILOT_NAMED_DRINKS,
@@ -14,6 +20,7 @@ import {
 } from "@/lib/coffeePricePilot";
 import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import { cheapestPerCategory, readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
+import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
 
 const BUNDLE_ROWS = join(process.cwd(), "public/data/uk_prices/rows.json");
 const ESPRESSO_GBP = 2.65;
@@ -85,6 +92,53 @@ describe("coffee pilot harvest fence", () => {
     expect(rows.length).toBeGreaterThanOrEqual(2);
     const prices = rows.map((row) => row.priceGbp).sort();
     expect(prices).toEqual([3.5, 3.8]);
+  });
+});
+
+describe("coffee pilot judged harvest fence", () => {
+  function everyCandidateJudgedCoffee(questionMap: Record<string, unknown>) {
+    const count = Object.keys(questionMap).filter((key) => key.startsWith("whatIsPriced_")).length;
+    const answers: Record<string, unknown> = {};
+    for (let index = 0; index < count; index += 1) {
+      answers[`whatIsPriced_${index}`] = {
+        type: "choice",
+        choice: "soft_drink_or_coffee",
+        probabilities: { soft_drink_or_coffee: 0.95 },
+      };
+      answers[`isPromotionalPrice_${index}`] = { type: "noul", noul: 0.01 };
+      answers[`drinkCategory_${index}`] = {
+        type: "choice",
+        choice: "coffee",
+        probabilities: { coffee: 0.95 },
+      };
+    }
+    return {
+      status: "ok" as const,
+      result: { model: "jev-test", usage: { input_tokens: 1, output_tokens: 1 }, answers },
+    } as Awaited<ReturnType<typeof systemOneOutcome>>;
+  }
+
+  it("refuses tea, water and affogato the model files as coffee", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) =>
+      everyCandidateJudgedCoffee(questions),
+    );
+    try {
+      const judged = await readVenueDrinkPricesJudged(
+        `<p>Earl Grey Tea £2.50</p>
+        <p>Water £1.50</p>
+        <p>Affogato (vg) Vanilla ice cream, shot of hot espresso £6.00</p>
+        <p>Flat white £3.50</p>`,
+        { pubName: "Shoreditch Cafe", pageUrl: "https://example.co.uk/menu" },
+      );
+      const coffee = judged.kept.filter((row) => row.category === "coffee");
+      expect(coffee).toEqual([
+        expect.objectContaining({ drinkLabel: "Flat white", priceGbp: 3.5 }),
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
   });
 });
 

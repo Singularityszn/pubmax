@@ -35,7 +35,6 @@
 import {
   COFFEE_HARVEST_WORD_PATTERN,
   coffeePriceLabelExcluded,
-  coffeeSiteHarvestDedupeKey,
 } from "@/lib/coffeePricePilot";
 import type { DrinkCategory } from "@/lib/drinks";
 import { parse, parseFragment, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
@@ -950,7 +949,7 @@ export function cheapestPerCategory(reading: UkPriceReading): ReadonlyArray<UkPr
   const low = new Map<string, UkPriceCategoryRow>();
   for (const row of reading.kept) {
     const drinkLabel = row.drinkLabel;
-    const key = coffeeSiteHarvestDedupeKey(row.category, drinkLabel, row.servingSize);
+    const key = siteHarvestPriceKey(row.category, drinkLabel, row.servingSize);
     const seen = low.get(key);
     if (!seen || row.priceGbp < seen.priceGbp) {
       low.set(key, {

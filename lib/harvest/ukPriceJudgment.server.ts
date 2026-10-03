@@ -3,6 +3,7 @@ import "server-only";
 import { choice, noul, type Questions } from "@typesafe-ai/sdk";
 
 import { systemOneOutcome, type SystemOneOutcome } from "@/lib/ai/typesafe.server";
+import { coffeePriceLabelExcluded } from "@/lib/coffeePricePilot";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
 import { batchUkPriceCandidates } from "@/lib/harvest/ukPriceJudgmentBatch";
 import {
@@ -171,6 +172,9 @@ function applyJudgmentToCandidate(
         raw.verbatim,
         priceAtInSnippet,
       ) ?? undefined;
+    if (decision.category === "coffee" && coffeePriceLabelExcluded(drinkLabel)) {
+      return { drops: ["no-category-word-nearby"] };
+    }
     return {
       kept: {
         priceGbp: raw.priceGbp,
