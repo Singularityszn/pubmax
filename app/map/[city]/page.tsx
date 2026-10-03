@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { getCity, parseCityId } from "@/lib/cities";
+import { MAPLIBRE_GL_URL } from "@/lib/maplibreWorkerAssets";
 import {
   cityMapOgAlt,
   cityMapOgDescription,
@@ -50,6 +51,7 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   if (!cityId || !getCity(cityId).enabled) notFound();
   return (
     <>
+      <link rel="modulepreload" href={MAPLIBRE_GL_URL} />
       {cityId === "london" ? (
         // Deferred for the reason app/map/page.tsx states beside its own copy.
         <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />

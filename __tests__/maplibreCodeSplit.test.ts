@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
+import { MAPLIBRE_GL_URL, MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 
 // Perf lane: MapLibre must not ride the PubMap shell's first-load chunk.
 // These are source locks so a silent re-static-import fails CI.
@@ -62,9 +62,15 @@ describe("maplibre cold-open code split", () => {
       join(process.cwd(), "components/map/canvas/useMapCamera.ts"),
       "utf8",
     );
-    expect(canvas).toMatch(/import \* as maplibregl from ["']maplibre-gl["']/);
-    expect(donut).toMatch(/from ["']maplibre-gl["']/);
-    expect(camera).toMatch(/from ["']maplibre-gl["']/);
+    // The engine is the self-hosted module the map document modulepreloads,
+    // not a second copy bundled from the package.
+    expect(canvas).toMatch(/import \{[^}]*\bmaplibregl\b[^}]*\} from ["']@\/lib\/maplibreWorkerAssets["']/);
+    expect(canvas).not.toMatch(/import \* as maplibregl from ["']maplibre-gl["']/);
+    expect(donut).toMatch(/import \{ maplibregl \} from ["']@\/lib\/maplibreWorkerAssets["']/);
+    expect(donut).not.toMatch(/import \* as maplibregl from ["']maplibre-gl["']/);
+    expect(camera).toMatch(/import \{ maplibregl \} from ["']@\/lib\/maplibreWorkerAssets["']/);
+    expect(camera).not.toMatch(/import \* as maplibregl from ["']maplibre-gl["']/);
+    expect(camera).not.toMatch(/^import (?!type) .* from ["']maplibre-gl["']/m);
   });
 
   it("configures the MapLibre 6 module worker for webpack", () => {
@@ -75,8 +81,17 @@ describe("maplibre cold-open code split", () => {
       "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && next dev --webpack",
     );
     expect(packageJson.scripts.build).toMatch(/^npm run prepare:maplibre-worker && /);
+    expect(workerCopy).toContain('"maplibre-gl.mjs"');
     expect(workerCopy).toContain('"maplibre-gl-worker.mjs"');
     expect(workerCopy).toContain('"maplibre-gl-shared.mjs"');
+    expect(MAPLIBRE_GL_URL).toBe("/vendor/maplibre/maplibre-gl.mjs");
+    for (const page of ["app/map/page.tsx", "app/map/[city]/page.tsx"]) {
+      const source = readFileSync(join(process.cwd(), page), "utf8");
+      expect(source).toContain('rel="modulepreload"');
+      expect(source).toContain("MAPLIBRE_GL_URL");
+      expect(source).not.toContain("MAPLIBRE_SHARED_URL");
+      expect(source).not.toContain("MAPLIBRE_WORKER_URL");
+    }
   });
 
   it("uses the MapLibre 6 missing-image resolver", () => {

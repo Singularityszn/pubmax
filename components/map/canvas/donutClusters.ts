@@ -1,4 +1,5 @@
-import * as maplibregl from "maplibre-gl";
+import { maplibregl } from "@/lib/maplibreWorkerAssets";
+import type * as MapLibre from "maplibre-gl";
 import type { GeoJSONFeature } from "maplibre-gl";
 import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
 import { readTokens } from "./tokens";
@@ -54,7 +55,7 @@ export function countsEqual(a: DonutCounts, b: DonutCounts): boolean {
 }
 
 type MarkerEntry = {
-  marker: maplibregl.Marker;
+  marker: MapLibre.Marker;
   el: HTMLDivElement;
   counts: DonutCounts;
 };
@@ -70,8 +71,8 @@ export type DonutClusterSync = {
  *  already has (interactions.ts) so clicking a donut zooms in identically to
  *  clicking the bubble it replaced. */
 export function createDonutClusterSync(
-  map: maplibregl.Map,
-  cinematic: (options: maplibregl.EaseToOptions, kind?: "cluster" | "venue" | "landmark") => void,
+  map: MapLibre.Map,
+  cinematic: (options: MapLibre.EaseToOptions, kind?: "cluster" | "venue" | "landmark") => void,
   { enabled = true }: { enabled?: boolean } = {},
 ): DonutClusterSync {
   // Mobile Safari is especially sensitive to DOM markers being reconciled
@@ -105,7 +106,7 @@ export function createDonutClusterSync(
   };
 
   const handleClusterClick = (clusterId: number, coordinates: [number, number]) => {
-    const source = map.getSource("pubs") as maplibregl.GeoJSONSource | undefined;
+    const source = map.getSource("pubs") as MapLibre.GeoJSONSource | undefined;
     if (!source) return;
     source
       .getClusterExpansionZoom(clusterId)
@@ -219,7 +220,7 @@ export function createDonutClusterSync(
   // `sourcedata` fires for every tile/source on the map, including basemap
   // tiles that have nothing to do with the `pubs` cluster tree, so only the
   // app-owned source may drive this reconciliation.
-  const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
+  const onSourceData = (e: MapLibre.MapSourceDataEvent) => {
     if (e.sourceId !== "pubs") return;
     // Every pubs event may expose the first non-empty cluster snapshot, even
     // when it is not authoritative evidence that an empty source is settled.

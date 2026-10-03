@@ -5,9 +5,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 import "./map/mapCameraControls.css";
 
-import * as maplibregl from "maplibre-gl";
-
-import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
+import { MAPLIBRE_WORKER_URL, maplibregl } from "@/lib/maplibreWorkerAssets";
+import type * as MapLibre from "maplibre-gl";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import {
   Crosshair,
@@ -633,7 +632,7 @@ export default function PubMapCanvas({
     showLandmarksRef.current = showLandmarks;
   }, [mapView, maxBounds, cityBounds, cityId, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<MapLibre.Map | null>(null);
   const userCameraInteractionRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapInstanceReady, setMapInstanceReady] = useState(false);
@@ -1034,9 +1033,9 @@ export default function PubMapCanvas({
   // mutations, while isStyleLoaded() also waits for source tiles and images.
   // Every app-owned setStyle clears this first; the accepted style.load sets it.
   const styleStructureReadyRef = useRef(false);
-  const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
+  const pendingUpdatesRef = useRef<Map<string, (map: MapLibre.Map) => void>>(new Map());
   const applyToMap = useCallback(
-    (key: string, fn: (map: maplibregl.Map) => void) => {
+    (key: string, fn: (map: MapLibre.Map) => void) => {
       const map = mapRef.current;
       if (!map) return;
       if (styleStructureReadyRef.current) {
@@ -1064,11 +1063,11 @@ export default function PubMapCanvas({
   const applyRouteData = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    const run = (m: maplibregl.Map) => {
-      (m.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
+    const run = (m: MapLibre.Map) => {
+      (m.getSource("route-line") as MapLibre.GeoJSONSource | undefined)?.setData(
         routeLineRef.current,
       );
-      (m.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
+      (m.getSource("route-stops") as MapLibre.GeoJSONSource | undefined)?.setData(
         routeStopsRef.current,
       );
     };
@@ -1355,7 +1354,7 @@ export default function PubMapCanvas({
     // callers can attach a listener, so use a supported browser capability
     // probe first and route failure through the existing bounded retry.
     const lowPower = initAttempt >= 1;
-    let map: maplibregl.Map;
+    let map: MapLibre.Map;
     try {
       const webgl2 = probeWebGl2();
       if (!webgl2.hasContext) {
@@ -1806,7 +1805,7 @@ export default function PubMapCanvas({
       setSoftRetry(pinRetryPendingNotice(kind));
       if (styleStructureReadyRef.current) {
         (
-          map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
+          map.getSource("pubs") as MapLibre.GeoJSONSource | undefined
         )?.setData(pubsDataRef.current);
         map.triggerRepaint();
       }
@@ -2584,7 +2583,7 @@ export default function PubMapCanvas({
       // where the optional call is the right no-op.
       const packSource = () =>
         mapRef.current === map
-          ? (map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined)
+          ? (map.getSource(sourceId) as MapLibre.GeoJSONSource | undefined)
           : undefined;
       if (spent.effect === "retry") {
         const url = dataPackUrls[sourceId];
@@ -3402,7 +3401,7 @@ export default function PubMapCanvas({
     // queued forever, leaving the initial empty pubs source marked as loaded.
     const map = mapRef.current;
     if (!map || !styleStructureReadyRef.current) return;
-    (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
+    (map.getSource("pubs") as MapLibre.GeoJSONSource | undefined)?.setData(
       pubsDataRef.current,
     );
   }, [
@@ -3538,7 +3537,7 @@ export default function PubMapCanvas({
     tonightOverlayVisibleRef.current = tonightOverlayVisible;
     if (!mapReady) return;
     applyToMap("tonight:data+visibility", (map) => {
-      (map.getSource("tonight-opportunities") as maplibregl.GeoJSONSource | undefined)?.setData(
+      (map.getSource("tonight-opportunities") as MapLibre.GeoJSONSource | undefined)?.setData(
         tonightDataRef.current,
       );
       const visibility: "visible" | "none" = tonightOverlayVisible ? "visible" : "none";
@@ -3560,7 +3559,7 @@ export default function PubMapCanvas({
         if (cancelled) return;
         poisDataRef.current = poisToGeoJSON(pois);
         applyToMap("pois:data", (map) => {
-          (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
+          (map.getSource("pois") as MapLibre.GeoJSONSource | undefined)?.setData(
             poisDataRef.current,
           );
         });
@@ -3584,7 +3583,7 @@ export default function PubMapCanvas({
     if (!mapReady) return;
     const map = mapRef.current;
     if (!map) return;
-    const run = (m: maplibregl.Map) => applyPoiCategoryVisibility(m, poiHidden);
+    const run = (m: MapLibre.Map) => applyPoiCategoryVisibility(m, poiHidden);
     if (styleStructureReadyRef.current) {
       run(map);
     } else {
@@ -3602,7 +3601,7 @@ export default function PubMapCanvas({
     // set-once plan route paints even while basemap tiles are still loading.
     applyRouteData();
     applyToMap("selection", (map) => {
-      const selectedFilter: maplibregl.FilterSpecification = [
+      const selectedFilter: MapLibre.FilterSpecification = [
         "==",
         ["get", "id"],
         selectedIdRef.current,
@@ -3914,7 +3913,7 @@ export default function PubMapCanvas({
     // to flush on the next style.load rather than dropping it.
     const raf = requestAnimationFrame(() => {
       applyToMap("band:corridor+halo", (map) => {
-        (map.getSource("band-corridor") as maplibregl.GeoJSONSource | undefined)?.setData(
+        (map.getSource("band-corridor") as MapLibre.GeoJSONSource | undefined)?.setData(
           bandCorridorRef.current,
         );
         if (map.getLayer("band-members-halo")) {
