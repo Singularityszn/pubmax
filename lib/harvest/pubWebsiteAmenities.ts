@@ -38,12 +38,12 @@ export const PUB_WEBSITE_AMENITY_COLUMNS: Record<PubWebsiteAmenityKey, string> =
   karaoke: "karaoke",
 };
 
-export const MIN_EVIDENCE_CHARS = 8;
-export const MAX_EVIDENCE_CHARS = 280;
+const MIN_EVIDENCE_CHARS = 8;
+const MAX_EVIDENCE_CHARS = 280;
 export const PAGE_CHAR_CAP = 12_000;
 export const MAX_OUTPUT_TOKENS = 700;
 export const JOB_SPEND_CAP_USD = 6;
-export const MATCH_METRES = 120;
+const MATCH_METRES = 120;
 
 /**
  * Gemini 2.5 Flash-Lite standard paid tier, text, from the Gemini API pricing
