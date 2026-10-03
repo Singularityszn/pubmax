@@ -818,6 +818,49 @@ describe("Pub Pal voice controls", () => {
     ).toHaveLength(0);
   });
 
+  it("holds a typed message while a voice session is starting", async () => {
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getUserMedia).toHaveBeenCalledOnce();
+
+    await typeAndSend("Cheapest pint near Old Street?");
+    const input = container.querySelector<HTMLInputElement>("input");
+    await act(async () => {
+      input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+
+    const sendButton = container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]');
+    expect(sendButton?.disabled).toBe(true);
+    expect(container.querySelector(".palVoiceHint")?.textContent).toBe("Connecting voice…");
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.sendUserMessage).not.toHaveBeenCalled();
+    expect(input?.value).toBe("Cheapest pint near Old Street?");
+  });
+
+  it("holds a typed message while the voice socket is connecting", async () => {
+    voice.status = "connecting";
+    await act(async () => {
+      root?.render(createElement(PubPalVoice));
+    });
+    await settle();
+    await vi.dynamicImportSettled();
+    await settle();
+
+    await typeAndSend("Quiet pubs in Soho");
+
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true);
+    expect(container.querySelector(".palVoiceHint")?.textContent).toBe("Connecting voice…");
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.sendUserMessage).not.toHaveBeenCalled();
+  });
+
   it("speaks a typed message into a live voice session", async () => {
     voice.status = "connected";
     const states: string[] = [];

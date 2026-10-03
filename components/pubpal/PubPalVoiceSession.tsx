@@ -329,9 +329,11 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     }
   };
 
+  const voiceConnecting = isStarting || status === "connecting";
+
   const send = () => {
     const value = text.trim();
-    if (!value) return;
+    if (!value || voiceConnecting) return;
     if (status !== "connected") {
       // No live conversation: sendUserMessage would throw and the Pal would
       // sit on "thinking" forever. Ask the written Pal instead.
@@ -385,11 +387,17 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             maxLength={500}
             placeholder="Or type the night you want…"
           />
-          <button type="button" onClick={send} aria-label="Send message">
+          <button
+            type="button"
+            onClick={send}
+            disabled={voiceConnecting}
+            aria-label="Send message"
+          >
             <Send size={17} />
           </button>
         </label>
       </div>
+      {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
       {error && <p className="palVoiceError" role="alert">{error}</p>}
       <p className="palVoicePrivacy">
         No audio or transcript becomes memory. The Pal proposes facts for you to approve separately.

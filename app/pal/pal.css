@@ -297,13 +297,14 @@
 .palMemoryEmpty { min-height: 6rem; padding: 1rem; border: 1px dashed var(--pal-line); border-radius: .9rem; display: flex; align-items: center; gap: .75rem; color: var(--pal-soft); }
 .palMemoryEmpty p { margin: 0; }
 .palVoice { margin-top: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: var(--panel-raised); }
-.palVoiceStatus, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
+.palVoiceStatus, .palVoiceHint, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
 .palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
 .palVoiceActions > button, .palVoiceActions label { min-height: 2.9rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); }
 .palVoiceActions > button { padding: 0 .85rem; cursor: pointer; }
 .palVoiceActions label { padding-left: .85rem; }
 .palVoiceActions input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: inherit; }
 .palVoiceActions label button { width: 2.8rem; align-self: stretch; border: 0; display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; }
+.palVoiceActions label button:disabled { cursor: not-allowed; opacity: .42; }
 /* Voice off: one honest line plus the writing door, at the same 44px floor. */
 .palVoiceWriteLink { min-height: 2.9rem; padding: 0 .85rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; justify-content: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); text-decoration: none; }
 
