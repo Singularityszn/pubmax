@@ -14,6 +14,11 @@ import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
+import {
+  COFFEE_PILOT_FILE,
+  coffeePilotProblems,
+  shoreditchCafeIds,
+} from "./lib/coffeePilotRows.mjs";
 import { canonicalObservationsPayload } from "../lib/pintIndexCanonical.mjs";
 import { whatsOnRowProblems } from "../lib/whatsOnRowShape.mjs";
 import {
@@ -165,6 +170,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "editorial_overlay", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a file that IS present with a body or extra keys is a genuine defect and stays a hard gate" },
   { id: "historic_pubs", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a record that IS present carrying a note we wrote to ourselves, a description of a pub in another borough, or an event year ordering the pub by age, is published to strangers as a fact about this pub, and stays a hard gate" },
+  { id: "coffee_pilot", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a row that IS present without a named drink, a page, and a day, or that carries an estimate or a cheapestPrice, is a price nobody can check, and stays a hard gate" },
 ];
 
 function classificationFor(id) {
@@ -3947,6 +3953,44 @@ function validateHistoricPubs() {
   return { ok: true, count: rows.length };
 }
 
+// data/coffee_pilot/shoreditch.json — hand-checked flat white, latte and
+// matcha latte prices. The map does not read this file. A row owes a
+// venue-osm- cafe in the box, one of the three drink names, a price, the page
+// that stated it, and a day. Standing is listed. An empty rows array is valid:
+// a drink the page did not state stays absent.
+function validateCoffeePilot() {
+  const name = COFFEE_PILOT_FILE;
+  const filePath = join(ROOT_DIR, name);
+  if (!existsSync(filePath)) {
+    console.log(`SKIP ${name}: file does not exist`);
+    return { ok: true, count: 0 };
+  }
+  let file;
+  try {
+    file = JSON.parse(readFileSync(filePath, "utf8"));
+  } catch (error) {
+    console.log(`FAIL ${name}: not valid JSON (${error.message})`);
+    return { ok: false, count: 0 };
+  }
+  let venueIds;
+  try {
+    venueIds = shoreditchCafeIds(ROOT_DIR);
+  } catch (error) {
+    console.log(`FAIL ${name}: could not read the London cafe pack (${error.message})`);
+    return { ok: false, count: 0 };
+  }
+  const problems = coffeePilotProblems(file, venueIds);
+  const count = Array.isArray(file?.rows) ? file.rows.length : 0;
+  if (problems.length > 0) {
+    console.log(`FAIL ${name}: ${problems.length} problem(s)`);
+    for (const problem of problems.slice(0, 20)) console.log(`  - ${problem}`);
+    if (problems.length > 20) console.log(`  … and ${problems.length - 20} more`);
+    return { ok: false, count };
+  }
+  console.log(`PASS ${name}: ${count} listed rows`);
+  return { ok: true, count };
+}
+
 // matching entry in ARTIFACT_CLASSIFICATION: that is what decides whether a
 // failing run below fails the build or degrades to a WARN.
 const DATASET_RUNS = [
@@ -3971,6 +4015,7 @@ const DATASET_RUNS = [
   { id: "pubmaxxing_seed", run: validatePubmaxxingSeed },
   { id: "editorial_overlay", run: validateEditorialOverlay },
   { id: "historic_pubs", run: validateHistoricPubs },
+  { id: "coffee_pilot", run: validateCoffeePilot },
 ];
 
 async function main() {

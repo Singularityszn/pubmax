@@ -169,7 +169,7 @@ python3 scripts/build_app_dataset.py
 
 ## Shapes
 
-Five committed files are probed by hand often enough to write down. Paths are from the repo root.
+Six committed files are probed by hand often enough to write down. Paths are from the repo root.
 
 | File | Top-level shape | Fields a row carries | Gotcha |
 | --- | --- | --- | --- |
@@ -178,3 +178,4 @@ Five committed files are probed by hand often enough to write down. Paths are fr
 | `public/data/venues_slim.core.json`, `public/data/venues_slim.cell.*.json`, `public/data/cities/*/venues_slim.json`, `public/data/cities/*/venues_slim.core.json` | `{revision, rows}` | `id`, `name`, `lat`, `lng` | Same row pack as the index, without `generatedAt`. |
 | `public/data/venues_slim.manifest.json` | `{version, revision, grid, shards}` | shard: `id`, `core`, `partition`, `url`, `count`, `bbox` | The list is `shards`, not `files` or `cells`. `grid` is the step (`originLat`, `originLon`, `latStep`, `lonStep`), not the cells. A city manifest (`public/data/cities/*/venues_slim.manifest.json`) is `{version, revision, shards}` with no `grid`. |
 | `data/osm/uk/chunks.json` | object | `chunkStats` rows: `id`, `bbox`, `elements`, `timestamp` | `chunks` is a count, not an array. The cells are `chunkStats`. There is no `grid` key. |
+| `data/coffee_pilot/shoreditch.json` | `{version, area, checkedOn, box, drinks, rows}` | `venueId`, `venueName`, `drink`, `priceGbp`, `sourceUrl`, `observedAt`, `standing`, `quote` | `rows` may be empty. `drink` is `flat white`, `latte` or `matcha latte`. `standing` is `listed`. No `cheapestPrice`. The map does not read this file. |
