@@ -15,47 +15,47 @@ export const COFFEE_PILOT_NAMED_DRINKS = [
 
 export type CoffeePilotNamedDrink = (typeof COFFEE_PILOT_NAMED_DRINKS)[number];
 
-const PILOT_DRINK_ORDER: ReadonlyArray<{
-  id: CoffeePilotNamedDrink;
-  pattern: RegExp;
-}> = [
-  { id: "matcha latte", pattern: /^matcha\s+latte\b/i },
-  { id: "flat white", pattern: /^flat\s+white\b/i },
-  { id: "latte", pattern: /^latte\b/i },
-];
-
 /**
- * Vocabulary for ukPriceCrawl and drinkCategoryFromText. Matcha is a coffee
- * word on its own; "matcha latte" is covered by both matcha and latte.
+ * Coffee vocabulary for the UK price reader and the tea and water fence below.
+ * Matcha is a coffee word on its own; "matcha latte" is covered by both.
  */
 export const COFFEE_HARVEST_WORD_PATTERN =
   /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha|matcha|macchiato|cortado)\b/i;
 
+const TEA_OR_WATER = /\b(?:tea|water)\b/i;
+const AFFOGATO = /\baffogato\b/i;
+
 /**
- * A printed menu line that must never become a coffee price. Pass the priced
- * item's own line, not a label joined with the section heading above it.
+ * Whether a priced item must never become a coffee price. `ownLine` is the
+ * item's own printed line; `label` is the fuller label that may carry the
+ * name heading above it. Affogato is refused on either. Tea and water are
+ * judged on the own line when it names a drink, so a "Tea & Coffee" heading
+ * cannot drop the coffee under it, and fall back to the label otherwise.
  */
-export function coffeePriceLabelExcluded(label: string | null | undefined): boolean {
-  if (typeof label !== "string") return false;
-  const normalized = label.trim().toLowerCase();
-  if (!normalized) return false;
-  if (/\baffogato\b/.test(normalized)) return true;
-  if (!/\b(?:tea|water)\b/.test(normalized)) return false;
-  return !COFFEE_HARVEST_WORD_PATTERN.test(normalized);
+export function coffeePriceLabelExcluded(
+  ownLine: string | null | undefined,
+  label: string | null | undefined = ownLine,
+): boolean {
+  const own = typeof ownLine === "string" ? ownLine.trim() : "";
+  const full = typeof label === "string" ? label.trim() : "";
+  if (AFFOGATO.test(own) || AFFOGATO.test(full)) return true;
+  if (COFFEE_HARVEST_WORD_PATTERN.test(own)) return false;
+  if (TEA_OR_WATER.test(own)) return true;
+  return TEA_OR_WATER.test(full) && !COFFEE_HARVEST_WORD_PATTERN.test(full);
 }
 
 /**
- * Map a printed name onto one pilot drink id, or null when it does not open
- * with one, so "Chai latte" or "Iced latte" never stands in for a latte.
+ * Map a printed name onto one pilot drink id only when it is exactly that
+ * drink, so "Chai latte" or "Latte macchiato" never stands in for a latte.
  */
 export function canonicalCoffeePilotDrink(
   label: string | null | undefined,
 ): CoffeePilotNamedDrink | null {
   if (typeof label !== "string") return null;
-  const normalized = label.trim();
-  if (!normalized) return null;
-  for (const { id, pattern } of PILOT_DRINK_ORDER) {
-    if (pattern.test(normalized)) return id;
-  }
-  return null;
+  const normalized = label
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[\s.:|\u2013\u2014-]+$/, "");
+  return COFFEE_PILOT_NAMED_DRINKS.find((drink) => drink === normalized) ?? null;
 }

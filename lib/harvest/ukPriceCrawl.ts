@@ -394,21 +394,18 @@ export function drinkLabelFromPriceContext(
   return normalizeHarvestDrinkLabel(raw);
 }
 
-/**
- * Tea, water and affogato never file as coffee. The priced item's own line
- * decides, so a "Tea & Coffee" heading cannot drop the coffee printed under it.
- */
+/** Tea, water and affogato never file as coffee, on the own line or the label. */
 export function coffeePriceExcludedAt(
   text: string,
   at: number,
   drinkLabel?: string | null,
 ): boolean {
-  return coffeePriceLabelExcluded(printedItemName(text, at)?.own || drinkLabel);
+  return coffeePriceLabelExcluded(printedItemName(text, at)?.own, drinkLabel);
 }
 
 /**
  * Dedup key for site-harvest rows: category, printed name and explicit serving.
- * A coffee that opens with a pilot drink keys by that drink, so flat white,
+ * A coffee printed as exactly a pilot drink keys by that drink, so flat white,
  * latte and matcha latte each keep their own figure.
  */
 export function siteHarvestPriceKey(

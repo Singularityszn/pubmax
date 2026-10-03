@@ -84,30 +84,45 @@ describe("coffee pilot harvest fence", () => {
     expect(rows).toHaveLength(4);
   });
 
-  it("keys each pilot drink once, cheapest wins, without folding in other drinks", () => {
+  it("keys only an exact pilot drink, cheapest wins, and never folds in another drink", () => {
     const html = `
       <p>Flat white £3.50</p>
-      <p>Flat white (oat) £3.90</p>
+      <p>flat white £3.70</p>
       <p>Latte £3.80</p>
+      <p>Latte macchiato £3.40</p>
       <p>Latte (oat) £4.10</p>
       <p>Chai latte £3.20</p>
-      <p>Matcha latte £4.00</p>
-      <p>Matcha latte (oat) £4.40</p>`;
+      <p>Matcha latte £4.00</p>`;
     const rows = cheapestPerCategory(readVenueDrinkPrices(html)).filter(
       (row) => row.category === "coffee",
     );
     const byPilot = new Map(
-      rows.map((row) => [canonicalCoffeePilotDrink(row.drinkLabel), row.priceGbp]),
+      rows
+        .filter((row) => canonicalCoffeePilotDrink(row.drinkLabel))
+        .map((row) => [canonicalCoffeePilotDrink(row.drinkLabel), row.priceGbp]),
     );
-    expect(byPilot.get("flat white")).toBe(3.5);
-    expect(byPilot.get("latte")).toBe(3.8);
-    expect(byPilot.get("matcha latte")).toBe(4);
+    expect(Object.fromEntries(byPilot)).toEqual({
+      "flat white": 3.5,
+      latte: 3.8,
+      "matcha latte": 4,
+    });
     expect(rows).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ drinkLabel: "Latte macchiato", priceGbp: 3.4 }),
+        expect.objectContaining({ drinkLabel: "Latte (oat)", priceGbp: 4.1 }),
         expect.objectContaining({ drinkLabel: "Chai latte", priceGbp: 3.2 }),
       ]),
     );
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(6);
+  });
+
+  it.each([
+    "<h3>Affogato</h3><p>Vanilla ice cream, shot of hot espresso £6.00</p>",
+    "<h3>Earl Grey Tea</h3><p>Pot for one £2.50</p>",
+  ])("refuses the item a name heading calls tea or affogato: %s", (item) => {
+    const html = `${item}<p>Espresso £${ESPRESSO_GBP.toFixed(2)}</p>`;
+    const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
+    expect(coffee.map((row) => row.priceGbp)).toEqual([ESPRESSO_GBP]);
   });
 
   it("judges tea and water on the priced line, not a joined heading", () => {
@@ -179,6 +194,20 @@ describe("coffee pilot judged harvest fence", () => {
       expect(coffee).toEqual([
         expect.objectContaining({ drinkLabel: "Flat white", priceGbp: 3.5 }),
       ]);
+      for (const item of [
+        "<p>Tea - £2.00</p>",
+        "<p>Water | £1.50</p>",
+        "<h3>Affogato</h3><p>Vanilla ice cream, shot of hot espresso £6.00</p>",
+        "<h3>Earl Grey Tea</h3><p>Pot for one £2.50</p>",
+      ]) {
+        const page = await readVenueDrinkPricesJudged(
+          `${item}<p>Espresso - £${ESPRESSO_GBP.toFixed(2)}</p>`,
+          { pubName: "Shoreditch Cafe", pageUrl: "https://example.co.uk/menu" },
+        );
+        expect(
+          page.kept.filter((row) => row.category === "coffee").map((row) => row.priceGbp),
+        ).toEqual([ESPRESSO_GBP]);
+      }
     } finally {
       vi.unstubAllEnvs();
       vi.mocked(systemOneOutcome).mockReset();
