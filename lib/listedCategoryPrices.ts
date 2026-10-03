@@ -30,6 +30,57 @@ export const MAX_QUOTES_PER_CATEGORY = 4;
 export const MAX_SOURCE_URL_LENGTH = 2048;
 export const MAX_SERVING_LENGTH = 48;
 
+function eligibleListedQuote(
+  row: UkPriceBundleRow,
+  categories: readonly DrinkCategory[],
+  now: number,
+  drinkSubtype: string | null | undefined,
+): ListedCategoryPrice | null {
+  if (
+    row.standing !== "listed" ||
+    !isDrinkCategory(row.category) ||
+    !categories.includes(row.category)
+  ) {
+    return null;
+  }
+  if (!listedDrinkMatchesSubtype(row.category, row.drinkLabel, drinkSubtype)) return null;
+  const decision = priceStandingFor(
+    {
+      listed: {
+        priceGbp: row.priceGbp,
+        sourceUrl: row.sourceUrl ?? "",
+        observedAt: row.observedAt,
+      },
+    },
+    now,
+  );
+  if (
+    decision.standing !== "listed" ||
+    !decision.sourceUrl ||
+    decision.sourceUrl.length > MAX_SOURCE_URL_LENGTH ||
+    !decision.asOf ||
+    decision.priceGbp === null
+  ) {
+    return null;
+  }
+  const rawServing = bundleRowServingSize(row);
+  const servingSize =
+    typeof rawServing === "string" &&
+    rawServing.trim().length > 0 &&
+    rawServing.length <= MAX_SERVING_LENGTH
+      ? rawServing.trim()
+      : null;
+  return {
+    source: "listed",
+    category: row.category,
+    drinkLabel: row.drinkLabel ?? null,
+    priceGbp: decision.priceGbp,
+    servingSize,
+    sourceUrl: decision.sourceUrl,
+    observedAt: decision.asOf,
+  };
+}
+
 /** Venue-scoped approved quotes. Beer is opt-in for the unranked base sheet. */
 export function listedCategoryPrices(
   rows: readonly UkPriceBundleRow[],
@@ -52,53 +103,8 @@ export function listedCategoryPrices(
   const eligible: { quote: ListedCategoryPrice; index: number; row: UkPriceBundleRow }[] = [];
 
   for (const [index, row] of authoritativeBundleRows(rows).entries()) {
-    if (
-      row.standing !== "listed" ||
-      !isDrinkCategory(row.category) ||
-      !categories.includes(row.category)
-    ) {
-      continue;
-    }
-    if (!listedDrinkMatchesSubtype(row.category, row.drinkLabel, drinkSubtype)) continue;
-    const decision = priceStandingFor(
-      {
-        listed: {
-          priceGbp: row.priceGbp,
-          sourceUrl: row.sourceUrl ?? "",
-          observedAt: row.observedAt,
-        },
-      },
-      now,
-    );
-    if (
-      decision.standing !== "listed" ||
-      !decision.sourceUrl ||
-      decision.sourceUrl.length > MAX_SOURCE_URL_LENGTH ||
-      !decision.asOf ||
-      decision.priceGbp === null
-    ) {
-      continue;
-    }
-    const rawServing = bundleRowServingSize(row);
-    const servingSize =
-      typeof rawServing === "string" &&
-      rawServing.trim().length > 0 &&
-      rawServing.length <= MAX_SERVING_LENGTH
-        ? rawServing.trim()
-        : null;
-    eligible.push({
-      quote: {
-        source: "listed",
-        category: row.category,
-        drinkLabel: row.drinkLabel ?? null,
-        priceGbp: decision.priceGbp,
-        servingSize,
-        sourceUrl: decision.sourceUrl,
-        observedAt: decision.asOf,
-      },
-      index,
-      row,
-    });
+    const quote = eligibleListedQuote(row, categories, now, drinkSubtype);
+    if (quote) eligible.push({ quote, index, row });
   }
 
   // A later reading of the same named drink and serving replaces its earlier
