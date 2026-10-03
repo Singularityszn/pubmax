@@ -1,6 +1,8 @@
 // Founder photographs of London in a mosaic below the hero (captain 26 Sep 2026).
-// The hero owns LCP; this section is always below the fold. Images mount only once
-// the section nears the viewport so their bytes do not queue behind the answer photo.
+// The hero owns LCP; this section is always below the fold. Every tile, frame and
+// caption renders in the first HTML so the mosaic holds its final size; only the
+// pictures mount once the section nears the viewport, so their bytes do not queue
+// behind the answer photo.
 
 "use client";
 
@@ -27,7 +29,7 @@ const COLLAGE_SIZES =
 /** Tight margin: start fetching only when the reader is about to scroll here. */
 const COLLAGE_ROOT_MARGIN = "80px 0px";
 
-function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
+function CollageTile({ photo, showPicture }: { photo: LondonCollagePhoto; showPicture: boolean }) {
   return (
     <li
       className={`lpCollageTile lpCollageTile--${photo.layout}`}
@@ -35,21 +37,23 @@ function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
     >
       <figure className="lpCollageTile__figure">
         <div className="lpCollageTile__frame">
-          <picture>
-            <source type="image/avif" srcSet={londonCollageSrcSet(photo, "avif")} sizes={COLLAGE_SIZES} />
-            <source type="image/webp" srcSet={londonCollageSrcSet(photo, "webp")} sizes={COLLAGE_SIZES} />
-            <img
-              className="lpCollageTile__img"
-              src={londonCollageSrc(photo, WIDEST, "webp")}
-              width={photo.width}
-              height={photo.height}
-              alt={photo.alt}
-              loading="lazy"
-              decoding="async"
-              sizes={COLLAGE_SIZES}
-              style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
-            />
-          </picture>
+          {showPicture ? (
+            <picture>
+              <source type="image/avif" srcSet={londonCollageSrcSet(photo, "avif")} sizes={COLLAGE_SIZES} />
+              <source type="image/webp" srcSet={londonCollageSrcSet(photo, "webp")} sizes={COLLAGE_SIZES} />
+              <img
+                className="lpCollageTile__img"
+                src={londonCollageSrc(photo, WIDEST, "webp")}
+                width={photo.width}
+                height={photo.height}
+                alt={photo.alt}
+                loading="lazy"
+                decoding="async"
+                sizes={COLLAGE_SIZES}
+                style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
+              />
+            </picture>
+          ) : null}
         </div>
         <figcaption className="lpCollageTile__caption">{photo.caption}</figcaption>
       </figure>
@@ -59,21 +63,16 @@ function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
 
 export default function LandingLondonCollage() {
   const sectionRef = useRef<HTMLElement>(null);
-  const [showMosaic, setShowMosaic] = useState(false);
+  const [showPictures, setShowPictures] = useState(false);
 
   useEffect(() => {
     const node = sectionRef.current;
-    if (!node) return;
-
-    if (typeof IntersectionObserver === "undefined") {
-      setShowMosaic(true);
-      return;
-    }
+    if (!node || typeof IntersectionObserver === "undefined") return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setShowMosaic(true);
+          setShowPictures(true);
           observer.disconnect();
         }
       },
@@ -94,23 +93,15 @@ export default function LandingLondonCollage() {
           </h2>
         </header>
 
-        {showMosaic ? (
-          <ul
-            className="lpCollageMosaic"
-            aria-label="Founder photographs of London"
-            tabIndex={0}
-          >
-            {LONDON_COLLAGE_PHOTOS.map((photo) => (
-              <CollageTile key={photo.id} photo={photo} />
-            ))}
-          </ul>
-        ) : (
-          <div
-            className="lpCollageMosaic lpCollageMosaic--pending"
-            aria-hidden="true"
-            style={{ minHeight: "min(72vw, 280px)" }}
-          />
-        )}
+        <ul
+          className="lpCollageMosaic"
+          aria-label="Founder photographs of London"
+          tabIndex={0}
+        >
+          {LONDON_COLLAGE_PHOTOS.map((photo) => (
+            <CollageTile key={photo.id} photo={photo} showPicture={showPictures} />
+          ))}
+        </ul>
 
         <p className="lpCollageCredit">{LONDON_COLLAGE_CREDIT}</p>
       </div>

@@ -14,19 +14,16 @@ import {
 describe("the founder London collage on the landing", () => {
   const html = renderToStaticMarkup(createElement(LandingLondonCollage));
 
-  it("renders the section copy and defers photograph markup until the client", () => {
+  it("renders every tile and caption but defers the photographs to the client", () => {
     expect(html).toContain("Streets the map sits on.");
-    expect(html).toContain("lpCollageMosaic--pending");
     expect(html).toContain(LONDON_COLLAGE_CREDIT);
     for (const photo of LONDON_COLLAGE_PHOTOS) {
+      expect(html).toContain(`data-collage-id="${photo.id}"`);
+      expect(html).toContain(photo.caption);
       expect(html).not.toContain(`alt="${photo.alt}"`);
     }
-  });
-
-  it("does not preload collage bytes in the first HTML", () => {
-    expect(html).not.toContain("fetchpriority=");
+    expect(html).not.toContain("<img");
     expect(html).not.toContain('rel="preload"');
-    expect(html).not.toContain('loading="lazy"');
   });
 
   it("advertises each photograph's real encoded width as its widest candidate", () => {
