@@ -16,6 +16,7 @@ import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import { cheapestPerCategory, readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
 
 const BUNDLE_ROWS = join(process.cwd(), "public/data/uk_prices/rows.json");
+const ESPRESSO_GBP = 2.65;
 
 describe("coffee pilot harvest fence", () => {
   it("names matcha as coffee in free-text taxonomy", () => {
@@ -26,14 +27,21 @@ describe("coffee pilot harvest fence", () => {
   it.each([
     ["Highland Spring Water Sparkling", 1.5],
     ["Bottled Water", 2],
+    ["Water", 1.5],
+    ["Tap water", 1],
+    ["Mineral water", 1.8],
     ["Earl Grey Tea", 2.5],
     ["Tea", 2],
     ["Affogato (vg) Vanilla ice cream, shot of hot espresso", 6],
-  ])("refuses %s as a coffee price", (label, priceGbp) => {
-    const html = `<p>${label} £${priceGbp.toFixed(2)}</p>`;
-    const reading = readVenueDrinkPrices(html);
-    expect(reading.kept.filter((row) => row.category === "coffee")).toEqual([]);
+  ])("refuses %s as a coffee price beside an espresso line", (label, priceGbp) => {
+    const html = `<p>${label} £${priceGbp.toFixed(2)}</p><p>Espresso £${ESPRESSO_GBP.toFixed(2)}</p>`;
+    const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
+    expect(coffee.map((row) => row.priceGbp)).toEqual([ESPRESSO_GBP]);
     expect(coffeePriceLabelExcluded(label)).toBe(true);
+  });
+
+  it("keeps a coffee drink whose description names water", () => {
+    expect(coffeePriceLabelExcluded("Americano (espresso and hot water)")).toBe(false);
   });
 
   it("refuses tea even when the next line names coffee", () => {
@@ -104,10 +112,9 @@ describe("coffee pilot bundle regression fixture", () => {
     );
     expect(mislabeled.length).toBeGreaterThanOrEqual(8);
     for (const row of mislabeled) {
-      const html = `<p>${row.drinkLabel} £${row.priceGbp.toFixed(2)}</p>`;
-      expect(
-        readVenueDrinkPrices(html).kept.some((kept) => kept.category === "coffee"),
-      ).toBe(false);
+      const html = `<p>${row.drinkLabel} £${row.priceGbp.toFixed(2)}</p><p>Espresso £${ESPRESSO_GBP.toFixed(2)}</p>`;
+      const coffee = readVenueDrinkPrices(html).kept.filter((kept) => kept.category === "coffee");
+      expect(coffee.map((kept) => kept.priceGbp)).toEqual([ESPRESSO_GBP]);
     }
   });
 });

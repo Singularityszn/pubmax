@@ -37,7 +37,7 @@ const PILOT_DRINK_ORDER: ReadonlyArray<{
   { id: "latte", pattern: /\blatte\b/i },
 ];
 
-const COFFEE_WORDS_BESIDE_TEA =
+const COFFEE_WORDS_BESIDE_TEA_OR_WATER =
   /\b(espresso|americano|cappuccino|latte|flat\s+white|mocha|macchiato|cortado|matcha)\b/i;
 
 /**
@@ -56,17 +56,8 @@ export function coffeePriceLabelExcluded(label: string | null | undefined): bool
   const normalized = label.trim().toLowerCase();
   if (!normalized) return false;
   if (/\baffogato\b/.test(normalized)) return true;
-  if (
-    /\b(?:still|sparkling|bottled)\s+water\b/.test(normalized) ||
-    (/\bwater\b/.test(normalized) &&
-      /\b(?:highland|spring|bottled|sparkling|still)\b/.test(normalized))
-  ) {
-    return true;
-  }
-  if (!/\btea\b/.test(normalized)) return false;
-  if (PILOT_DRINK_ORDER.some(({ pattern }) => pattern.test(normalized))) return false;
-  if (COFFEE_WORDS_BESIDE_TEA.test(normalized)) return false;
-  return true;
+  if (!/\b(?:tea|water)\b/.test(normalized)) return false;
+  return !COFFEE_WORDS_BESIDE_TEA_OR_WATER.test(normalized);
 }
 
 /** Map a printed name onto one pilot drink id, or null when it names none of them. */
