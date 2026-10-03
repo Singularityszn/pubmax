@@ -545,9 +545,10 @@ beforeAll(async () => {
       'staff-only-note', 'reported-in-private', 'receipts/secret_author/bill.jpg'
     );
     insert into public.community_prices (
-      id, venue_id, drink_category, price_pennies, actor, contributor_handle
+      id, venue_id, drink_category, price_pennies, actor, contributor_handle, receipt_photo_key
     ) values (
-      '${VISIBLE_PRICE}', '${DOOR_VENUE}', 'wine', 450, 'profile:${BOB_PROFILE}', 'secret_author'
+      '${VISIBLE_PRICE}', '${DOOR_VENUE}', 'wine', 450, 'profile:${BOB_PROFILE}', 'secret_author',
+      'receipts/secret_author/price-bill.jpg'
     );
     insert into public.structured_visit_reports (
       id, venue_id, handle, visited_at, note, status, moderator_note
@@ -1357,7 +1358,7 @@ describe("price observation and its confirmation", () => {
     }
   });
 
-  it("at the table: a browser cannot read a Pint Drop, a visit report, or a contributor handle", async () => {
+  it("at the table: a browser cannot read a Pint Drop, a visit report, a contributor handle, or a price's bill photo key", async () => {
     expect(truth(`select handle from public.pint_drops where id = '${ANON_DROP}'`)).toBe("secret_author");
 
     const drops = await requireSession().rest(
@@ -1393,6 +1394,21 @@ describe("price observation and its confirmation", () => {
     );
     expect(contributor.status).toBeGreaterThanOrEqual(400);
     expect(JSON.stringify(contributor.body)).not.toContain("secret_author");
+
+    // Migration 0187: the bill photo key behind a price is service-role only,
+    // even to the actor who logged it (B owns this row).
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const) {
+      expect(truth(`select has_column_privilege('${role}', 'public.community_prices', 'receipt_photo_key', 'SELECT')`)).toBe("false");
+      const receipt = await requireSession().rest(
+        `/community_prices?select=receipt_photo_key&id=eq.${VISIBLE_PRICE}`,
+        { sub },
+      );
+      expect(receipt.status).toBeGreaterThanOrEqual(400);
+      expect(JSON.stringify(receipt.body)).not.toContain("price-bill.jpg");
+      const receiptRead = attemptAsRole(role, sub, `select receipt_photo_key from public.community_prices where id = '${VISIBLE_PRICE}'`);
+      expect(receiptRead.ok, receiptRead.err).toBe(false);
+      expect(receiptRead.err).toMatch(/permission denied/i);
+    }
 
     const prices = await requireSession().rest(
       `/community_prices?select=id,price_pennies&venue_id=in.(${PRICE_VENUE},${DOOR_VENUE})`,
