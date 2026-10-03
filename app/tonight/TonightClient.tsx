@@ -46,6 +46,7 @@ import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import TonightSoftPlansModule from "./TonightSoftPlansModule";
+import { useFirstListingsRead } from "./useFirstListingsRead";
 import TodayQuietPintCard from "@/app/today/TodayQuietPintCard";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -384,14 +385,15 @@ export default function TonightClient({
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
   const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
+  const firstListingsRead = useFirstListingsRead(listingsStatus);
   const listingLede = useMemo(
     () =>
-      listingsStatus === "idle" ? (
+      firstListingsRead ? (
         <span className="tonightLedeHold" aria-hidden="true" />
       ) : (
         tonightListingLede(listingsStatus, primaryListingRows, selectableVenueIds)
       ),
-    [primaryListingRows, listingsStatus, selectableVenueIds],
+    [firstListingsRead, primaryListingRows, listingsStatus, selectableVenueIds],
   );
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
