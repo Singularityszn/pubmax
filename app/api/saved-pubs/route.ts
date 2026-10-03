@@ -39,6 +39,13 @@ assertServerEnv();
 // the raw client length.
 const MAX_VENUE_ID = 64;
 
+const SAVE_HANDLE_LIMIT = 8;
+const SAVE_ACTOR_LIMIT = 40;
+const SAVE_RATE_WINDOW_MS = 60_000;
+const LIST_HANDLE_LIMIT = 8;
+const LIST_ACTOR_LIMIT = 40;
+const LIST_RATE_WINDOW_MS = 60_000;
+
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const handle = normalizeHandle(params.get("handle") ?? "");
@@ -102,7 +109,21 @@ export async function POST(request: Request): Promise<Response> {
   if (readString(body.action) === "createList") {
     const name = cleanListType(body.name ?? body.listType);
     if (!name) return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
-    if (await isLimited(`lists:${ownership.handle}`, `lists:${hashIp(clientIp(request))}`)) {
+    const listActorHash = hashIp(clientIp(request));
+    if (
+      (await isLimited(
+        `lists:${ownership.handle}`,
+        `lists:${ownership.handle}`,
+        LIST_HANDLE_LIMIT,
+        LIST_RATE_WINDOW_MS,
+      )) ||
+      (await isLimited(
+        `lists:${listActorHash}`,
+        `lists:${listActorHash}`,
+        LIST_ACTOR_LIMIT,
+        LIST_RATE_WINDOW_MS,
+      ))
+    ) {
       return publicApiError("Too many lists, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const lists = await savedListsStore().createList(ownership.handle, name);
@@ -124,11 +145,24 @@ export async function POST(request: Request): Promise<Response> {
   // Note is untrusted free text: strip HTML/control chars and cap length.
   const note = cleanNote(body.note);
 
-  // Rate-limit per handle AND per actor: the in-memory key leads with the handle
-  // so one handle can't flood; the durable key leads with the actor (hashed IP)
-  // so one device can't spam across handles. 429 when either budget is exhausted.
+  // Rate-limit per handle AND per actor (two independent budgets). The handle
+  // cap stops one profile flooding; the actor cap is generous for normal toggles
+  // across venues. 429 when either budget is exhausted.
   const actorHash = hashIp(clientIp(request));
-  if (await isLimited(`saved:${ownership.handle}`, `saved:${actorHash}`)) {
+  if (
+    (await isLimited(
+      `saved:${ownership.handle}`,
+      `saved:${ownership.handle}`,
+      SAVE_HANDLE_LIMIT,
+      SAVE_RATE_WINDOW_MS,
+    )) ||
+    (await isLimited(
+      `saved:${actorHash}`,
+      `saved:${actorHash}`,
+      SAVE_ACTOR_LIMIT,
+      SAVE_RATE_WINDOW_MS,
+    ))
+  ) {
     return publicApiError("Too many saves, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
