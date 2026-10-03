@@ -35,6 +35,7 @@ import {
   projectPubAmenitySpend,
   spendFromTokenCounts,
   stableVenueId,
+  statedAmenities,
   stampAmenityColumns,
   venueGroupKey,
 } from "../../../lib/harvest/pubWebsiteAmenities.ts";
@@ -507,6 +508,9 @@ async function main() {
     }
   });
   await Promise.all(workers);
+  for (const entry of Object.values(byOsmId)) {
+    if (entry.amenities) entry.amenities = statedAmenities(entry.amenities);
+  }
   await save();
 
   const before = columnCoverage(dataset);

@@ -26,16 +26,16 @@
   },
   "columnCoverageAfter": {
     "venues": 1916,
-    "food": 894,
-    "cocktails": 450,
+    "food": 885,
+    "cocktails": 449,
     "beerGarden": 663,
-    "liveSports": 477,
-    "nonAlcoholic": 92,
+    "liveSports": 476,
+    "nonAlcoholic": 45,
     "any": 1047,
     "none": 869
   },
-  "stampedVenues": 365,
-  "stampedRows": 943,
+  "stampedVenues": 348,
+  "stampedRows": 860,
   "skipCounts": {
     "robots-unreadable": 98,
     "http-404": 60,
@@ -43,7 +43,7 @@
     "robots-unreachable": 127,
     "refused-host": 104,
     "http-403": 3,
-    "ok": 138,
+    "ok": 139,
     "quota": 53,
     "empty-page": 16,
     "model-0": 3,
@@ -145,7 +145,6 @@
       "amenities": {
         "food": "generous pub food menu",
         "beerGarden": "spacious beer garden",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz"
       }
     },
@@ -346,7 +345,6 @@
         "food": "Delicious Pub Food Great food is at the heart of what we do",
         "beerGarden": "spacious beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "live music nights too",
         "pubQuiz": "Test your knowledge at our quiz night"
       }
@@ -503,9 +501,7 @@
       "amenities": {
         "food": "Our pub food menu boasts a generous choice of traditional classics",
         "beerGarden": "our beer garden is a great spot",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "We often showcase live music throughout the week.",
-        "pubQuiz": "Christmas quizzes to karaoke."
+        "liveMusic": "We often showcase live music throughout the week."
       }
     },
     {
@@ -664,7 +660,6 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails",
         "darts": "Interactive Darts"
       }
     },
@@ -721,16 +716,6 @@
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
         "nonAlcoholic": "low and no-alcohol options"
-      }
-    },
-    {
-      "osmId": "node/12572448581",
-      "name": "Stormbird",
-      "venueId": null,
-      "sourceUrl": "https://stormbirdcamberwell.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "nonAlcoholic": "Alcohol free"
       }
     },
     {
@@ -916,8 +901,7 @@
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/crown",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Delicious dishes We proudly serve freshly cooked traditional pub food throughout the week.",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs"
+        "food": "Delicious dishes We proudly serve freshly cooked traditional pub food throughout the week."
       }
     },
     {
@@ -927,9 +911,7 @@
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/two-brewers",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "range of pub food classics",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "food": "range of pub food classics"
       }
     },
     {
@@ -1043,7 +1025,6 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
@@ -1078,8 +1059,7 @@
         "cocktails": "plus cocktails and natural wines.",
         "beerGarden": "plenty of outside seating",
         "liveMusic": "Live music and more",
-        "pubQuiz": "We host Quiz nights",
-        "happyHour": "Thirsty Thursdays!"
+        "pubQuiz": "We host Quiz nights"
       }
     },
     {
@@ -1105,8 +1085,7 @@
         "food": "delicious burgers and seasonal sides",
         "cocktails": "freshly made cocktails",
         "liveSports": "The World Cup Screening",
-        "pubQuiz": "weekly quiz night",
-        "happyHour": "4pm - 7pm Every Weekday"
+        "pubQuiz": "weekly quiz night"
       }
     },
     {
@@ -1118,9 +1097,7 @@
       "amenities": {
         "food": "We serve cask ales and wines",
         "beerGarden": "there's a beer garden for you",
-        "liveSports": "We've got Sky Sports on our screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveSports": "We've got Sky Sports on our screens"
       }
     },
     {
@@ -1132,9 +1109,7 @@
       "amenities": {
         "food": "We serve classic British pub food",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -1267,8 +1242,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "We serve traditional pub food",
-        "cocktails": "including enticing cocktails",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "cocktails": "including enticing cocktails"
       }
     },
     {
@@ -1312,9 +1286,7 @@
       "amenities": {
         "food": "mouthwatering pub food classics",
         "beerGarden": "our beer garden operates",
-        "liveSports": "Live sport Book a table",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table"
       }
     },
     {
@@ -1581,7 +1553,6 @@
         "food": "If you need some good pub food, we’ve got you covered with stacked burgers, hand-battered fish & chips, hunter’s chicken and succulent steaks, alongside a tasty kids’ menu and a load of sides!",
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "pool": "Pool Table",
         "happyHour": "From the 14th September to 1st October, enjoy 2-for-1 on selected drinks from 4pm - 7pm, Monday to Thursday!"
       }
@@ -1594,9 +1565,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "tasty pub grub",
-        "beerGarden": "beer garden",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "beer garden"
       }
     },
     {
@@ -1743,8 +1712,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Burger menu",
-        "liveSports": "Live sport (Sky)",
-        "nonAlcoholic": "Alcohol Free"
+        "liveSports": "Live sport (Sky)"
       }
     },
     {
@@ -1860,9 +1828,7 @@
       "amenities": {
         "food": "dig in to something delicious in our family-friendly pub restaurant",
         "beerGarden": "Watch the world go by in our outdoor seating",
-        "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Book a table for all the top sporting action"
       }
     },
     {
@@ -1911,7 +1877,6 @@
         "food": "our food menu, with hearty pies, succulent steaks, stacked gourmet burgers and aromatic curries.",
         "beerGarden": "our spacious beer garden is a great spot",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "our social calendar is packed with live music",
         "pubQuiz": "Join our pub quiz, every Thursday"
       }
@@ -1987,8 +1952,7 @@
       "amenities": {
         "food": "Food Bar & Brunch Menu Kids Menu",
         "cocktails": "Cocktail Lovers",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "Alcohol Free"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -2048,9 +2012,7 @@
         "food": "fantastic pub food",
         "beerGarden": "large garden space",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "liveMusic": "evenings of live music",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "evenings of live music"
       }
     },
     {
@@ -2073,7 +2035,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/j-j-moons-hornchurch/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "beer garden clearing"
       }
@@ -2146,7 +2107,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -2172,9 +2132,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "From our menu packed with pub classics",
-        "beerGarden": "small beer garden outside",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "small beer garden outside"
       }
     },
     {
@@ -2247,7 +2205,6 @@
         "food": "our menu of pub classics and small plates for sharing",
         "beerGarden": "relaxing in our beer garden",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "from live music to champions league football",
         "pool": "Pool Table"
       }
@@ -2298,7 +2255,6 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free",
         "pubQuiz": "Join our pub quiz, every Thursday",
         "pool": "Pool Table"
       }
@@ -2546,9 +2502,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "sink your teeth into a delicious dish from our pub food menu",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "liveMusic": "live music nights",
-        "pubQuiz": "Christmas quizzes",
         "karaoke": "karaoke and live music nights"
       }
     },
@@ -2572,9 +2526,7 @@
       "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/fig-tree",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Delicious Pub Food Great food is at the heart of what we do",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "food": "Delicious Pub Food Great food is at the heart of what we do"
       }
     },
     {
@@ -2819,9 +2771,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "serving the finest British pub food",
-        "beerGarden": "beer garden on a sunshine-filled day",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "beer garden on a sunshine-filled day"
       }
     },
     {
@@ -2931,8 +2881,7 @@
         "food": "classic pub fare",
         "cocktails": "enticing cocktails",
         "beerGarden": "beer garden",
-        "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "liveSports": "Live sport"
       }
     },
     {
@@ -2997,9 +2946,7 @@
       "amenities": {
         "food": "Great food is at the heart of what we do",
         "beerGarden": "have a small beer garden to enjoy",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -3027,7 +2974,6 @@
         "food": "Settle down and enjoy a hearty pub meal",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
         "liveSports": "catch the latest live sports action on the big screen",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "catch some live entertainment",
         "pubQuiz": "Join our pub quiz, every Wednesday"
       }
@@ -3060,7 +3006,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-rockingham-arms-elephant-and-castle/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area"
       }
@@ -3131,9 +3076,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "You'll find comfort food classics like burgers, pies, and chilli, plus plenty of puddings to choose from on our delicious menu.",
-        "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke."
+        "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!"
       }
     },
     {
@@ -3146,9 +3089,7 @@
         "food": "classic British pub food",
         "beerGarden": "outdoor seating",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "liveMusic": "live music performances",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "live music performances"
       }
     },
     {
@@ -3338,9 +3279,7 @@
       "amenities": {
         "food": "Tuck into a selection of small plates or treat yourself to some pub grub classics",
         "cocktails": "perhaps even a cheeky cocktail?",
-        "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Book a table for all the top sporting action"
       }
     },
     {
@@ -3350,7 +3289,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -3400,7 +3338,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Award-Winning Pints & Proper Pub Food",
-        "cocktails": "Festive Cocktails & Apéritifs",
         "beerGarden": "secluded rear garden",
         "nonAlcoholic": "over 14 alcohol-free options"
       }
@@ -3448,9 +3385,7 @@
         "food": "Serving cask ales and traditional pub food",
         "beerGarden": "Our beer garden is the ultimate retreat",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "evenings of live music",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "evenings of live music"
       }
     },
     {
@@ -3500,8 +3435,7 @@
       "amenities": {
         "food": "classic pub food dishes",
         "cocktails": "enticing cocktails for special occasions",
-        "beerGarden": "Outside dining is available in our beer garden",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
+        "beerGarden": "Outside dining is available in our beer garden"
       }
     },
     {
@@ -3624,7 +3558,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -3789,7 +3722,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/hamilton-hall-city-of-london",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area"
       }
@@ -3898,7 +3830,6 @@
         "food": "mouth-watering steaks, moist burgers, and delicious desserts",
         "beerGarden": "summery beer garden",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "in-pub entertainment like our quizzes",
         "pool": "pool nights"
       }
@@ -3921,7 +3852,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -3934,8 +3864,6 @@
       "amenities": {
         "food": "delicious pub food from our range of tasty burgers, classic fish & chips and succulent steaks",
         "liveSports": "Sky Sports and TNT Sports screens allow you to watch every second of the live sports action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes",
         "pool": "Pool Table"
       }
     },
@@ -4004,7 +3932,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-willow-walk-victoria",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -4066,7 +3993,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-sennockian-sevenoaks",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
         "liveSports": "tv TV screens"
@@ -4109,7 +4035,6 @@
         "food": "our menu of pub classics and small plates",
         "beerGarden": "relaxing in our beer garden",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "from live music to champions league football",
         "pubQuiz": "Join our pub quiz, every Thursday"
       }
@@ -4335,9 +4260,7 @@
       "amenities": {
         "food": "Tuck into something tasty in our family-friendly pub restaurant",
         "liveSports": "Sky Sports and TNT Sports",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "Live music provides a good time",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "Live music provides a good time"
       }
     },
     {
@@ -4349,9 +4272,7 @@
       "amenities": {
         "food": "cosy, family-friendly pub restaurant",
         "beerGarden": "outdoor seating area",
-        "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport"
       }
     },
     {
@@ -4515,9 +4436,7 @@
       "amenities": {
         "food": "famous crispy fish & chips",
         "liveSports": "live sports showing on our Sky Sports",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "live music nights",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "live music nights"
       }
     },
     {
@@ -4530,9 +4449,7 @@
         "food": "Enjoy our range of delicious handmade pizzas",
         "cocktails": "evening of cocktails and conversation",
         "beerGarden": "outdoor seating",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "live DJ performances",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "live DJ performances"
       }
     },
     {
@@ -4566,7 +4483,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -4649,7 +4565,6 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz, every Thursday",
         "darts": "Dartboard"
       }
@@ -4724,8 +4639,7 @@
       "amenities": {
         "food": "indulge in refined pub food classics",
         "cocktails": "enticing cocktails",
-        "beerGarden": "Beer Garden",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "beerGarden": "Beer Garden"
       }
     },
     {
@@ -4787,9 +4701,7 @@
         "food": "Indulge in traditional pub food, from juicy burgers to succulent steaks, fresh salads and hearty pies",
         "cocktails": "pair your meal with our selection of tasty ales and cocktails",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
-        "liveSports": "live sports showcased on our Sky Sports and TNT Sports screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveSports": "live sports showcased on our Sky Sports and TNT Sports screens"
       }
     },
     {
@@ -4880,7 +4792,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/j-j-moons-kingsbury/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -4960,7 +4871,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-barrel-vault-camden/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area"
       }
@@ -5029,8 +4939,7 @@
         "food": "delicious small plates and sharers, as well as hearty main courses",
         "cocktails": "wine and cocktails!",
         "beerGarden": "great outdoor terrace in the churchyard",
-        "nonAlcoholic": "0% options",
-        "happyHour": "Until 5pm everyday and all day on Mondays."
+        "nonAlcoholic": "0% options"
       }
     },
     {
@@ -5052,8 +4961,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Delicious Pub Food Great food is at the heart of what we do",
-        "beerGarden": "an outdoor seating area",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
+        "beerGarden": "an outdoor seating area"
       }
     },
     {
@@ -5086,9 +4994,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "We've got our famous Fish & Chips and more, plus tasty vegetarian and vegan dishes.",
-        "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke."
+        "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!"
       }
     },
     {
@@ -5131,9 +5037,7 @@
         "food": "Tuck into a dish from our pub food menu",
         "beerGarden": "small pavement seating area",
         "liveSports": "Our large screens showcase the latest sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "we often host live music nights too",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "we often host live music nights too"
       }
     },
     {
@@ -5145,9 +5049,7 @@
       "amenities": {
         "food": "Our generous pub food menu serves up traditional classics",
         "cocktails": "signature cocktails",
-        "beerGarden": "Our beer garden is the perfect spot",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "Our beer garden is the perfect spot"
       }
     },
     {
@@ -5215,7 +5117,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-new-crown-southgate",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -5230,7 +5131,6 @@
         "cocktails": "sipping on the fruitiest cocktail",
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "open mic nights",
         "pubQuiz": "Join our pub quiz, every Tuesday",
         "darts": "Interactive Darts"
@@ -5272,9 +5172,7 @@
       "amenities": {
         "food": "range of burgers, salads and pub classics",
         "cocktails": "craft cask ales to cocktails",
-        "liveSports": "show live sport through Sky Sports",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveSports": "show live sport through Sky Sports"
       }
     },
     {
@@ -5389,7 +5287,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-sir-julian-huxley-selsdon",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
         "liveSports": "tv TV screens"
@@ -5441,10 +5338,8 @@
         "food": "you’ll find our menu has got it covered",
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz",
-        "pool": "Pool Table",
-        "happyHour": "4pm - 7pm, Monday to Thursday!"
+        "pool": "Pool Table"
       }
     },
     {
@@ -5631,8 +5526,7 @@
       "amenities": {
         "food": "delicious, staple Canadian dishes",
         "beerGarden": "Come and sit outside in our beer garden",
-        "liveSports": "TVs to watch live sports on",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "liveSports": "TVs to watch live sports on"
       }
     },
     {
@@ -5700,8 +5594,7 @@
       "amenities": {
         "food": "quality pub classics and seasonal chef’s specials",
         "cocktails": "2 for 12 cocktails",
-        "beerGarden": "lush beer garden",
-        "nonAlcoholic": "Alcohol free"
+        "beerGarden": "lush beer garden"
       }
     },
     {
@@ -5930,12 +5823,10 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food Served",
-        "cocktails": "🎃Halloween Cocktails",
         "beerGarden": "Garden or outside area",
         "liveSports": "Live Sport",
         "liveMusic": "🎶Live Music",
-        "pubQuiz": "❓Quiz Night",
-        "karaoke": "🎃Halloween Karaoke"
+        "pubQuiz": "❓Quiz Night"
       }
     },
     {
@@ -5970,8 +5861,7 @@
       "amenities": {
         "food": "quality pub classics and seasonal chef’s specials",
         "cocktails": "2 for 12 cocktails",
-        "beerGarden": "Unwind in our relaxing beer garden",
-        "nonAlcoholic": "Alcohol free Cocktails"
+        "beerGarden": "Unwind in our relaxing beer garden"
       }
     },
     {
@@ -6068,7 +5958,6 @@
         "food": "Whether you’re stopping for lunch, dining with the family, or catching up with friends, you’ll find our menu has got it covered!",
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "pubQuiz": "Join our pub quiz, every Tuesday"
       }
     },
@@ -6148,7 +6037,6 @@
         "food": "flavour-filled menu and refuel with some of our delicious pub classics",
         "beerGarden": "beautiful beer garden",
         "liveSports": "watch live sport on our Sky Sports and TNT Sports screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
@@ -6211,9 +6099,7 @@
       "amenities": {
         "food": "Our family-friendly pub restaurant has plenty of delectable dishes for you to tuck into.",
         "beerGarden": "Sip on one of our wines from around the world or enjoy a cask ale in our beer garden.",
-        "liveSports": "Sky Sports TNT Sports Accepts Matchday Discount",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke."
+        "liveSports": "Sky Sports TNT Sports Accepts Matchday Discount"
       }
     },
     {
@@ -6239,8 +6125,6 @@
         "food": "Settle in for a Sunday roast in our family-friendly atmosphere or tuck in to a juicy burger, comfort food classic like a pie, or opt for something worth savouring from our vegetarian and vegan dishes.",
         "beerGarden": "Enjoy a drink outside in our beer garden (weather permitting!)",
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes",
         "pool": "We've got bar games, pool, free Wi-Fi, and arcade games."
       }
     },
@@ -6252,8 +6136,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "our pub food menu is sure to please",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
         "karaoke": "bingo karaoke"
       }
     },
@@ -6279,9 +6161,7 @@
         "food": "tuck into our delicious menu of food and drinks",
         "beerGarden": "outdoor seating",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "liveMusic": "often shows live music",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "often shows live music"
       }
     },
     {
@@ -6328,9 +6208,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Serving real ales and traditional pub food",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -6529,8 +6407,7 @@
       "amenities": {
         "food": "Proudly serving the best Food & Drinks",
         "cocktails": "classic cocktails",
-        "beerGarden": "a hidden garden terrace",
-        "nonAlcoholic": "Alcohol Free"
+        "beerGarden": "a hidden garden terrace"
       }
     },
     {
@@ -6542,9 +6419,7 @@
       "amenities": {
         "food": "Choose from delightful pub food classics, small plates, and sharers",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "liveMusic": "We'll keep you entertained with live music",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveMusic": "We'll keep you entertained with live music"
       }
     },
     {
@@ -6578,9 +6453,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "classic British pub food",
-        "liveSports": "Live sport Book a table",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table"
       }
     },
     {
@@ -6590,7 +6463,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-great-spoon-of-ilford-ilford",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "beer garden clearing"
       }
@@ -6605,7 +6477,6 @@
         "food": "indulge in some classic pub food",
         "beerGarden": "chill out in our beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "Join our pub quiz, every Monday",
         "pool": "Pool Table",
         "happyHour": "enjoy 2-for-1 on selected drinks from 4pm - 7pm",
@@ -6684,7 +6555,6 @@
         "food": "our menu of pub classics and small plates",
         "beerGarden": "our beer garden",
         "liveSports": "live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "live music"
       }
     },
@@ -6766,7 +6636,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/penderels-oak-holborn",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
         "liveSports": "tv TV screens"
@@ -7049,9 +6918,7 @@
       "amenities": {
         "food": "We serve a wide range of cask ales and traditional pub food",
         "beerGarden": "Our family-friendly pub hosts outdoor seating",
-        "liveSports": "showcases all the live sports action on our Sky Sports and TNT Sports screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "showcases all the live sports action on our Sky Sports and TNT Sports screens"
       }
     },
     {
@@ -7127,9 +6994,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "menu packed with flavour",
-        "beerGarden": "beer garden in the heart of Kensington",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "beerGarden": "beer garden in the heart of Kensington"
       }
     },
     {
@@ -7140,8 +7005,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke.",
         "pool": "Pool Table"
       }
     },
@@ -7194,7 +7057,6 @@
         "food": "menu packed with flavour",
         "beerGarden": "beautiful beer garden",
         "liveSports": "Live sport Book a table",
-        "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "live music and quiz nights",
         "pubQuiz": "live music and quiz nights",
         "karaoke": "karaoke if you've got a flair"
@@ -7254,9 +7116,7 @@
       "amenities": {
         "food": "our food menu aims to please",
         "beerGarden": "our beer garden",
-        "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport"
       }
     },
     {
@@ -7348,7 +7208,6 @@
         "food": "Hungry Horse classics",
         "cocktails": "full of cocktails",
         "beerGarden": "cosy beer garden",
-        "nonAlcoholic": "Alcohol Free",
         "pubQuiz": "Join our pub quiz"
       }
     },
@@ -7491,8 +7350,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "award-winning burgers",
-        "cocktails": "£6 Tommy’s Margs",
-        "happyHour": "Margarita Hour Thursdays & Fridays"
+        "cocktails": "£6 Tommy’s Margs"
       }
     },
     {
@@ -7541,8 +7399,7 @@
       "amenities": {
         "food": "Serving a menu of refined, honest pub food",
         "cocktails": "including enticing cocktails for special occasions",
-        "beerGarden": "or a seat outside on our roof terrace",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
+        "beerGarden": "or a seat outside on our roof terrace"
       }
     },
     {
@@ -7722,8 +7579,6 @@
         "food": "Serving cask ales and traditional pub food",
         "beerGarden": "idyllic outdoor seating",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
         "darts": "interactive darts",
         "pool": "pool table"
       }
@@ -7737,9 +7592,7 @@
       "amenities": {
         "food": "Enjoy classics like pies, burgers, and Sticky Toffee Pudding",
         "beerGarden": "outdoor seating area",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -7800,9 +7653,7 @@
       "amenities": {
         "food": "traditional pub food",
         "beerGarden": "large beer garden",
-        "liveSports": "Sky Sports and TNT Sports showcasing the live sports action",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Sky Sports and TNT Sports showcasing the live sports action"
       }
     },
     {
@@ -7812,7 +7663,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-metropolitan-bar-marylebone",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -7925,9 +7775,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "delicious pub food",
-        "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport"
       }
     },
     {
@@ -7938,9 +7786,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Our menu is packed with classics",
-        "beerGarden": "small beer garden to the side",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "small beer garden to the side"
       }
     },
     {
@@ -8120,8 +7966,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "traditional pub food",
-        "beerGarden": "outdoor beer garden",
-        "nonAlcoholic": "Alcohol free"
+        "beerGarden": "outdoor beer garden"
       }
     },
     {
@@ -8133,9 +7978,7 @@
       "amenities": {
         "food": "Serving real ales and classic pub food",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -8193,8 +8036,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "LIVE SPORTS",
-        "liveMusic": "Live music venue",
-        "happyHour": "EARLY BIRDS WEEKDAYS 1-5PM"
+        "liveMusic": "Live music venue"
       }
     },
     {
@@ -8355,8 +8197,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "serving traditional British pub food",
-        "beerGarden": "a beer garden",
-        "nonAlcoholic": "Alcohol free"
+        "beerGarden": "a beer garden"
       }
     },
     {
@@ -8392,8 +8233,7 @@
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/red-lion",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "traditional British pub food",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "food": "traditional British pub food"
       }
     },
     {
@@ -8450,8 +8290,7 @@
       "amenities": {
         "food": "serves the most delicious of dishes",
         "cocktails": "expertly-brewed cask ales and cocktails",
-        "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
+        "liveSports": "Book a table for all the top sporting action"
       }
     },
     {
@@ -8463,9 +8302,7 @@
       "amenities": {
         "food": "Taste our delicious dishes of pub food classics",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "night of live music - our pub caters for all!",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "night of live music - our pub caters for all!"
       }
     },
     {
@@ -8573,9 +8410,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "pub restaurant. You can tuck into a pub food classic",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "We've got live music",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "We've got live music"
       }
     },
     {
@@ -8629,9 +8464,7 @@
       "amenities": {
         "food": "traditional pub food",
         "beerGarden": "beer garden",
-        "nonAlcoholic": "Alcohol free",
-        "liveMusic": "live music performances",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "live music performances"
       }
     },
     {
@@ -8777,9 +8610,7 @@
         "food": "Along with a delicious menu of hearty pub classics, from fish & chips, burgers, pies and more",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "we've got regular live music",
-        "pubQuiz": "Christmas quizzes",
         "pool": "Pool Table"
       }
     },
@@ -9062,7 +8893,6 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free",
         "pubQuiz": "Join our pub quiz, every Sunday",
         "pool": "Pool Table"
       }
@@ -9097,7 +8927,6 @@
       "amenities": {
         "food": "traditional British pub food",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free",
         "liveMusic": "live performances",
         "pubQuiz": "fun quiz nights"
       }
@@ -9135,9 +8964,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Indulge in a classic Roast Dinner, or go to town on a succulent steak, taste our salads and sink your teeth into our juicy burgers",
-        "beerGarden": "Take in views of the water from our rooftop seating area or beer garden",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "Take in views of the water from our rooftop seating area or beer garden"
       }
     },
     {
@@ -9226,8 +9053,7 @@
       "amenities": {
         "food": "Classic pub cuisine perfected",
         "cocktails": "including enticing cocktails",
-        "liveSports": "Live sport Book a table",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "liveSports": "Live sport Book a table"
       }
     },
     {
@@ -9252,7 +9078,6 @@
         "food": "Delicious Pub Food Great food is at the heart of what we do",
         "beerGarden": "our beer garden is perfect for a catch-up",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "watch our live music nights",
         "pubQuiz": "round up a team for quiz night"
       }
@@ -9266,7 +9091,6 @@
       "amenities": {
         "food": "Serving Hours Today (Sat) 10:00am - 9:00pm",
         "beerGarden": "Our beer garden is the perfect place",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "occasional live music showing",
         "pubQuiz": "Join our pub quiz, every Wednesday"
       }
@@ -9340,8 +9164,7 @@
       "amenities": {
         "food": "quality pub classics and seasonal chef’s specials",
         "cocktails": "2 for 12 cocktails",
-        "beerGarden": "The pleasant beer garden is perfect",
-        "nonAlcoholic": "Alcohol free"
+        "beerGarden": "The pleasant beer garden is perfect"
       }
     },
     {
@@ -9522,9 +9345,7 @@
       "amenities": {
         "food": "We serve a great range of pub food",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "evenings of live music",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "evenings of live music"
       }
     },
     {
@@ -9565,7 +9386,6 @@
         "food": "menu of tasty pub classics",
         "beerGarden": "our beer garden is the perfect spot",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "Join our pub quiz, every Monday"
       }
     },
@@ -9638,9 +9458,7 @@
       "amenities": {
         "food": "the food is tasty",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "liveMusic": "rich history as a music venue, you can't miss out on some live entertainment",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "rich history as a music venue, you can't miss out on some live entertainment"
       }
     },
     {
@@ -9736,9 +9554,7 @@
       "amenities": {
         "food": "tuck into sharers with friends or treat yourself to Fish & Chips",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "live music (including karaoke!)",
-        "pubQuiz": "Christmas quizzes",
         "karaoke": "live music (including karaoke!)"
       }
     },
@@ -9901,9 +9717,7 @@
       "amenities": {
         "food": "Our pub food menu is packed with classics",
         "beerGarden": "beer garden and dog-friendly areas",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -9915,8 +9729,7 @@
       "amenities": {
         "food": "refined pub food classics",
         "cocktails": "enticing cocktails for special occasions",
-        "beerGarden": "outdoor seating area",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "beerGarden": "outdoor seating area"
       }
     },
     {
@@ -9928,8 +9741,7 @@
       "amenities": {
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
-        "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "liveSports": "Watch live football with us"
       }
     },
     {
@@ -9999,7 +9811,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/shakespeares-head-holborn",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -10010,7 +9821,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -10122,8 +9932,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Try out our menu: packed with flavour, full of pub classics and brimming with value for money.",
-        "liveSports": "showing live sports on our Sky Sports and TNT Sports screens.",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs"
+        "liveSports": "showing live sports on our Sky Sports and TNT Sports screens."
       }
     },
     {
@@ -10271,9 +10080,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Our pub food menu offers traditional classics",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -10356,7 +10163,6 @@
         "food": "Seasonal & British Pub Food & Drinks",
         "cocktails": "our winter cocktail menu",
         "liveSports": "live sport",
-        "nonAlcoholic": "ALCOHOL FREE",
         "pubQuiz": "weekly quiz night"
       }
     },
@@ -10381,7 +10187,6 @@
         "food": "Amazing Food",
         "cocktails": "Cocktails",
         "liveSports": "Rugby Info",
-        "liveMusic": "Live Music this Halloween",
         "pubQuiz": "Monthly Quiz Night"
       }
     },
@@ -10442,9 +10247,7 @@
       "amenities": {
         "food": "serves a menu that's bursting with flavour",
         "beerGarden": "sip away from our idyllic beer garden",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -10455,9 +10258,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Free pub classic? Oh yes.",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "we still have live music nights regularly",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "we still have live music nights regularly"
       }
     },
     {
@@ -10560,8 +10361,7 @@
       "amenities": {
         "food": "Food Bar & Brunch Menu",
         "beerGarden": "🌿 Beer garden / outside tables",
-        "liveSports": "⚽ Live sport",
-        "nonAlcoholic": "Alcohol Free"
+        "liveSports": "⚽ Live sport"
       }
     },
     {
@@ -10575,8 +10375,7 @@
         "cocktails": "cocktails",
         "liveSports": "Live sport",
         "nonAlcoholic": "alcohol-free sips",
-        "liveMusic": "live music",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "live music"
       }
     },
     {
@@ -10586,7 +10385,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-beehive-brixton",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -10613,9 +10411,7 @@
       "amenities": {
         "cocktails": "well-mixed cocktail",
         "beerGarden": "Our cosy beer garden",
-        "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "regular live music",
-        "pubQuiz": "Christmas quizzes",
         "karaoke": "karaoke to keep"
       }
     },
@@ -10629,8 +10425,6 @@
         "food": "Delicious Pub Food",
         "beerGarden": "outdoor seating area",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free",
-        "pubQuiz": "Christmas quizzes",
         "pool": "Pool Table"
       }
     },
@@ -10641,7 +10435,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -10665,7 +10458,6 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz, every Tuesday"
       }
     },
@@ -10740,8 +10532,7 @@
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/coach-and-horses",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Serving delicious hot pub food",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "food": "Serving delicious hot pub food"
       }
     },
     {
@@ -11011,7 +10802,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-george-staines-upon-thames/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
         "liveSports": "tv TV screens"
@@ -11238,7 +11028,6 @@
         "food": "flavoursome pub food",
         "beerGarden": "Our beer garden",
         "liveSports": "live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "live music performances",
         "pubQuiz": "quiz nights"
       }
@@ -11273,7 +11062,6 @@
       "amenities": {
         "food": "our menu of pub classics and small plates",
         "beerGarden": "relaxing in our beer garden",
-        "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "live music or a quick catch up",
         "pubQuiz": "Join our pub quiz, every Tuesday",
         "pool": "Pool Table"
@@ -11352,8 +11140,7 @@
         "food": "brilliant menu filled with refined pub classics, like steaks, burgers, fish & chips and Sunday roasts",
         "beerGarden": "Sit outside and watch the world go by under our awning",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "alcoholic and non-alcoholic drinks",
-        "pubQuiz": "Christmas quizzes"
+        "nonAlcoholic": "alcoholic and non-alcoholic drinks"
       }
     },
     {
@@ -11434,7 +11221,6 @@
       "amenities": {
         "food": "Delicious dishes We proudly serve freshly cooked traditional pub food throughout the week.",
         "liveSports": "There's always live sport showing on our Sky Sports and TNT Sports screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "pubQuiz": "gather a team for our quiz night"
       }
     },
@@ -11508,8 +11294,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "2 for 12 cocktails",
-        "beerGarden": "Relax in the beer garden",
-        "nonAlcoholic": "Alcohol free"
+        "beerGarden": "Relax in the beer garden"
       }
     },
     {
@@ -11697,7 +11482,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -11721,7 +11505,6 @@
         "food": "classic pub food like fish & chips, steaks, and burgers",
         "beerGarden": "splendid beer garden",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pool": "Pool Table"
       }
     },
@@ -11973,8 +11756,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Our pub food menu is on hand to curb any craving",
-        "beerGarden": "Our beer garden is the ideal spot",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
+        "beerGarden": "Our beer garden is the ideal spot"
       }
     },
     {
@@ -12120,8 +11902,6 @@
         "food": "Enjoy traditional pub food fayre",
         "cocktails": "expertly crafted cocktails",
         "beerGarden": "outdoor seating area",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
         "karaoke": "karaoke night with friends"
       }
     },
@@ -12133,8 +11913,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "delicious delights in our kitchen",
-        "cocktails": "delicious cocktails",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "cocktails": "delicious cocktails"
       }
     },
     {
@@ -12157,9 +11936,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "tuck into a plate of crispy fish & chips",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "liveMusic": "listen to some live music",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "listen to some live music"
       }
     },
     {
@@ -12171,7 +11948,6 @@
       "amenities": {
         "food": "Our Menus Best pub in Wimbledon for Autumn Nations",
         "cocktails": "the classic cocktails are made perfectly",
-        "liveSports": "Catch the Action Wimbledon's best pub for Christmas Parties",
         "pubQuiz": "Our weekly pub quiz is the perfect excuse"
       }
     },
@@ -12185,7 +11961,6 @@
         "food": "traditional fish and chips",
         "beerGarden": "outdoor seating area",
         "liveSports": "Live sport Book a table",
-        "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "From live music to quiz nights",
         "pubQuiz": "Pop into one of our quiz nights"
       }
@@ -12227,7 +12002,6 @@
         "food": "pub restaurant",
         "cocktails": "full of cocktails",
         "beerGarden": "spacious Beer Garden",
-        "nonAlcoholic": "Alcohol Free",
         "pool": "cashless pool table"
       }
     },
@@ -12273,7 +12047,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-walnut-tree-leytonstone/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "beer garden clearing"
       }
@@ -12458,8 +12231,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Serving Hours",
-        "beerGarden": "Beer Garden",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "beerGarden": "Beer Garden"
       }
     },
     {
@@ -12540,8 +12312,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "You can savour the flavour of our burgers, soups, steaks or sharers and pair your meal with our wide selection of drinks.",
-        "beerGarden": "Watch the city go by as you sit in our beer garden or take a trip to Buckingham Palace just seven minutes away.",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs"
+        "beerGarden": "Watch the city go by as you sit in our beer garden or take a trip to Buckingham Palace just seven minutes away."
       }
     },
     {
@@ -12602,8 +12373,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Serving a seasonal menu of British classics including perfectly grilled steaks, fish and chips and a very special Sunday lunch.",
-        "cocktails": "Drop in for a pint or a cocktail and maybe a snack or two.",
-        "liveMusic": "From live music to Burns Night and New Years Eve Parties"
+        "cocktails": "Drop in for a pint or a cocktail and maybe a snack or two."
       }
     },
     {
@@ -12624,9 +12394,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "refined pub food classics",
-        "beerGarden": "our beer garden",
-        "nonAlcoholic": "Alcohol free",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "our beer garden"
       }
     },
     {
@@ -12637,9 +12405,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "tasty traditional pub food",
-        "liveSports": "Watch live sports action",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Watch live sports action"
       }
     },
     {
@@ -12653,7 +12419,6 @@
         "cocktails": "sipping on the fruitiest cocktail",
         "beerGarden": "Make yourself at home in the beer garden",
         "liveSports": "catch all the latest live sports action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
@@ -12677,8 +12442,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Delicious Pub Food",
-        "beerGarden": "Outside you can enjoy our beer garden.",
-        "nonAlcoholic": "Alcohol free"
+        "beerGarden": "Outside you can enjoy our beer garden."
       }
     },
     {
@@ -12692,8 +12456,7 @@
         "cocktails": "Our bar offers craft cask ale and delicious cocktails",
         "beerGarden": "small outdoor seating area",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "liveMusic": "live music nights on regularly too",
-        "pubQuiz": "Christmas quizzes"
+        "liveMusic": "live music nights on regularly too"
       }
     },
     {
@@ -12739,9 +12502,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "menu is filled with your favourite pub classics from hearty pies, fish & chips and steaks cooked to perfection.",
-        "liveSports": "We also show live sport through our Sky Sports and TNT Sport screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke."
+        "liveSports": "We also show live sport through our Sky Sports and TNT Sport screens"
       }
     },
     {
@@ -12820,7 +12581,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "The Best Pub Food in Walton-on-Thames",
-        "cocktails": "expertly crafted Christmas cocktails",
         "beerGarden": "Pub & Beer Garden in Surrey",
         "liveSports": "Where To Watch Autumn Nations Rugby"
       }
@@ -12835,7 +12595,6 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz, every Wednesday",
         "pool": "Pool Table"
       }
@@ -12953,9 +12712,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "range of grub food classics",
-        "liveSports": "Sky Sports and TNT Sports",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Sky Sports and TNT Sports"
       }
     },
     {
@@ -13060,7 +12817,6 @@
         "food": "endless menu serving up hearty pub classics like fish & chips and warm pies, or indulge in our famous carvery.",
         "beerGarden": "spacious beer garden",
         "liveSports": "Sky Sports and TNT Sports screens showing all the latest action.",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "pool": "Pool Table"
       }
     },
@@ -13143,8 +12899,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "traditional pub food",
-        "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails"
+        "liveSports": "Live sport"
       }
     },
     {
@@ -13156,7 +12911,6 @@
       "amenities": {
         "food": "pub food full of flavour",
         "liveSports": "watching live sports on our Sky Sports and TNT Sports screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "live music performances",
         "karaoke": "Karaoke and live music performances"
       }
@@ -13254,7 +13008,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -13266,9 +13019,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "serving delightful pies, classics like fish & chips, and vegetarian and vegan fayre.",
-        "liveSports": "all the best sports from Sky Sports and TNT Sports",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke."
+        "liveSports": "all the best sports from Sky Sports and TNT Sports"
       }
     },
     {
@@ -13374,7 +13125,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-moon-under-water-colindale",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -13488,7 +13238,6 @@
         "food": "our food is big in size and little in price",
         "cocktails": "beers and cocktails",
         "liveSports": "catch all the live sports action",
-        "nonAlcoholic": "Alcohol Free",
         "pubQuiz": "Join our pub quiz",
         "pool": "game of pool"
       }
@@ -13514,7 +13263,6 @@
         "food": "fantastic pub food like all-day breakfasts, hand-battered fish & chips, succulent steaks and crafted burgers",
         "beerGarden": "in our beer garden on those sunny days",
         "liveSports": "Watch live sports with our Sky Sports and TNT Sports screens",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pool": "Pool Table",
         "happyHour": "2-for-1 on selected drinks from 4pm - 7pm"
       }
@@ -13566,7 +13314,6 @@
         "food": "Serving expertly brewed cask ale and classic pub food",
         "beerGarden": "hang outside in our outdoor seating",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "live music performances",
         "pubQuiz": "immersing yourself in our quiz nights"
       }
@@ -13626,7 +13373,6 @@
       "amenities": {
         "food": "dig into a family-friendly menu, which is packed with pub classics",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "pubQuiz": "Join our pub quiz, every Thursday"
       }
     },
@@ -13692,7 +13438,6 @@
         "food": "our pub food menu is brimming with tasty dishes",
         "beerGarden": "a gorgeous beer garden to seize the sunshine",
         "liveSports": "Our screens showcase the latest sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "our lively quiz nights are always entertaining",
         "pool": "Pool Table"
       }
@@ -13811,7 +13556,6 @@
       "amenities": {
         "food": "Our pub food menu has a generous array of tempting starters, hearty mains and decadent desserts.",
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "liveMusic": "Our social calendar is packed with fun, including quiz nights and live music.",
         "pubQuiz": "Our social calendar is packed with fun, including quiz nights and live music."
       }
@@ -13872,8 +13616,7 @@
         "food": "Great food is at the heart of what we do",
         "cocktails": "including enticing cocktails for special occasions",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -14118,7 +13861,6 @@
         "food": "delicious menu, packed with classics",
         "beerGarden": "dog-friendly beer garden",
         "liveSports": "Live sport Book a table",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "regular quiz night"
       }
     },
@@ -14163,9 +13905,7 @@
       "amenities": {
         "food": "tasty pub fayre",
         "beerGarden": "outdoor seating",
-        "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport"
       }
     },
     {
@@ -14200,8 +13940,6 @@
         "food": "Serving real ales and classic pub food",
         "beerGarden": "Traditional 18th century pub with beer garden",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke",
         "pool": "Pool Table"
       }
     },
@@ -14289,9 +14027,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "known for its delicious dishes",
-        "beerGarden": "idyllic beer garden",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes"
+        "beerGarden": "idyllic beer garden"
       }
     },
     {
@@ -14340,9 +14076,7 @@
       "amenities": {
         "food": "Serving real ales and classic pub food",
         "beerGarden": "beer garden in Earl’s Court",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -14463,8 +14197,7 @@
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/bunch-of-grapes",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Famed for our fish & chips, we have a menu bursting with flavour",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
+        "food": "Famed for our fish & chips, we have a menu bursting with flavour"
       }
     },
     {
@@ -14502,7 +14235,6 @@
         "food": "top-notch pub food",
         "beerGarden": "our beer garden",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free",
         "happyHour": "The happiest hours of the week"
       }
     },
@@ -14698,7 +14430,6 @@
         "food": "classic pub food at an affordable price",
         "beerGarden": "meal in our beer garden",
         "liveSports": "showcase live sports with our Sky Sports",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "exciting events from live music",
         "pubQuiz": "Join our pub quiz, every Monday"
       }
@@ -14750,7 +14481,6 @@
         "food": "Our menu is packed with pub food classics",
         "cocktails": "sipping on the fruitiest cocktail",
         "beerGarden": "heated beer garden",
-        "nonAlcoholic": "low and no sales",
         "pubQuiz": "Join our pub quiz"
       }
     },
@@ -14881,7 +14611,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/goldengrove-stratford",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
@@ -14982,7 +14711,6 @@
         "food": "line those stomachs up with crafted burgers, indulgent steaks, and delicious non-gluten options too!",
         "beerGarden": "Enjoy the summer vibes in our beer garden",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "happyHour": "enjoy 2-for-1 on selected drinks from 4pm - 7pm"
       }
     },
@@ -15134,7 +14862,6 @@
       "amenities": {
         "food": "crispy fish & chips",
         "liveSports": "We show live sports",
-        "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "we have live music",
         "pubQuiz": "quiz nights too"
       }
@@ -15245,10 +14972,8 @@
         "food": "hearty pub food",
         "beerGarden": "booming beer garden",
         "liveSports": "showing live sports",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "competitive quiz nights",
-        "pool": "a pool table",
-        "happyHour": "4pm - 7pm, Monday to Thursday!"
+        "pool": "a pool table"
       }
     },
     {
@@ -15306,9 +15031,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Our food menu is sure to satisfy any craving",
-        "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes"
+        "liveSports": "Live sport Book a table for all the top sporting action"
       }
     },
     {
@@ -15435,7 +15158,6 @@
         "food": "serves a great range of pub food",
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz, every Wednesday",
         "pool": "Pool Table"
       }

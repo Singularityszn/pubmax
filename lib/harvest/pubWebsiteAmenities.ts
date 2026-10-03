@@ -123,7 +123,7 @@ export function evidenceQuoteIsOnPage(pageText: string, quote: string): boolean 
 }
 
 const ALCOHOL_FREE =
-  /alch?ohol[\s-]*free|\bnon\s*[-\u2013]?\s*alch?oholic|\bno[\s-]+alch?ohol|\b(?:low|no)\s*(?:and|&|\/|or)\s*(?:low|no)\b|\bzero[\s-]*proof|\b0(?:\.[05])?\s*%|\b0\.0|\bmocktails?\b|\bvirgin\b/i;
+  /alch?ohol[\s-]*free|\bnon\s*[-\u2013]?\s*alch?oholic|\bno[\s-]+alch?ohol|\b(?:low|no)\s*(?:and|&|\/|or)\s*(?:low|no)[\s-]*(?:alch?ohol|abv|options?|drinks?|beers?|wines?|spritz|serves|bottles)\b|\bzero[\s-]*proof|\b0(?:\.[05])?\s*%|\b0\.0|\bmocktails?\b|\bvirgin\b/i;
 const DARTS = /\bdarts?\b|dartboards?/i;
 const DARTS_PLAYED =
   /dartboards?|\b(?:boards?|lanes?|oche|interactive|smart|digital|electric|ar|games?|play|teams?|club|league|competitions?|social|party|room|set of|round of|pool|shuffleboard|try your hand)\b/i;
@@ -132,7 +132,12 @@ const TELEVISED_SPORT =
 const POOL = /\bpool\b/i;
 const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party|parties|house))\b/i;
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
-const SEASONAL_PROMO = /\bchristmas\b/i;
+const HAPPY_HOUR =
+  /\bh[ao]ppy\s*hours?\b|\bhappiest hours?\b|\bbogof?\b|\b(?:2|two)\s*-?\s*(?:for|4)\s*-?\s*(?:1|one|\u00a3)|\bhalf[\s-]*price|\d\s*%\s*off\b|\u00a3\s*\d/i;
+const CHAIN_NEWS = /\bfuelling growth\b|\bsales\b|\bgreene king pubs\b/i;
+/** Chain headlines a pub page links to. A shortened copy of one is still the headline. */
+const CHAIN_HEADLINES = ["alcohol free cocktails fuelling growth in low and no sales at greene king pubs"];
+const SEASONAL_PROMO = /\b(?:christmas|festive|halloween|new years?(?: eve)?)\b/i;
 const SITE_NAVIGATION = /\b(?:about us|contact us|careers|hotels)\b|\s[-\u2013]\s*j\s*d\s*wetherspoon\b/i;
 /** A quote that opens on the last word of a sentence has lost the sentence that word belonged to. */
 const SENTENCE_TAIL = /^[\w'-]+\.(?:\s|$)/;
@@ -140,21 +145,43 @@ const SENTENCE_TAIL = /^[\w'-]+\.(?:\s|$)/;
 /**
  * What a quote must say for each amenity to stand. Tea, coffee, soft drinks and
  * a kids' meal drink are not alcohol-free beer. Darts on the television is not
- * a dartboard. A key without an entry needs only the quote.
+ * a dartboard. A time range alone is not a happy hour. A key without an entry
+ * needs only the quote.
  */
 const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) => boolean>> = {
   food: (quote) => !SITE_NAVIGATION.test(quote),
   nonAlcoholic: (quote) => ALCOHOL_FREE.test(quote),
   darts: (quote) => DARTS.test(quote) && DARTS_PLAYED.test(quote) && !TELEVISED_SPORT.test(quote),
   pool: (quote) => POOL.test(quote) && !NOT_A_POOL_TABLE.test(quote),
-  karaoke: (quote) =>
-    KARAOKE.test(quote) && !SEASONAL_PROMO.test(quote) && !SENTENCE_TAIL.test(quote),
+  karaoke: (quote) => KARAOKE.test(quote) && !SENTENCE_TAIL.test(quote),
+  happyHour: (quote) => HAPPY_HOUR.test(quote),
 };
 
+/** Chain-wide news and seasonal promotions describe the brand or the calendar, not this pub. */
+function quoteIsChainOrSeasonal(quote: string): boolean {
+  if (CHAIN_NEWS.test(quote) || SEASONAL_PROMO.test(quote)) return true;
+  return quote.includes(" ") && CHAIN_HEADLINES.some((headline) => headline.includes(quote));
+}
+
 /** Whether a quote states the amenity at this pub, rather than only mentioning a nearby word. */
-export function evidenceStatesAmenity(key: PubWebsiteAmenityKey, quote: string): boolean {
+function evidenceStatesAmenity(key: PubWebsiteAmenityKey, quote: string): boolean {
+  const folded = foldText(quote);
+  if (quoteIsChainOrSeasonal(folded)) return false;
   const statement = AMENITY_STATEMENTS[key];
-  return statement ? statement(foldText(quote)) : true;
+  return statement ? statement(folded) : true;
+}
+
+/** Stored quotes that state their amenity. Restamping goes through here, so an older quote cannot outlive the gate. */
+export function statedAmenities(
+  amenities: Partial<Record<PubWebsiteAmenityKey, string>>,
+): Partial<Record<PubWebsiteAmenityKey, string>> {
+  const stated: Partial<Record<PubWebsiteAmenityKey, string>> = {};
+  for (const key of PUB_WEBSITE_AMENITY_KEYS) {
+    const quote = amenities[key];
+    if (typeof quote !== "string" || !evidenceStatesAmenity(key, quote)) continue;
+    stated[key] = quote;
+  }
+  return stated;
 }
 
 /** Keep true values whose evidence is a quote from the page that states the amenity. Everything else goes. */
@@ -162,16 +189,15 @@ export function keepEvidencedAmenities(
   amenities: Partial<Record<PubWebsiteAmenityKey, ParsedAmenity>>,
   pageText: string,
 ): Partial<Record<PubWebsiteAmenityKey, string>> {
-  const kept: Partial<Record<PubWebsiteAmenityKey, string>> = {};
+  const onPage: Partial<Record<PubWebsiteAmenityKey, string>> = {};
   for (const key of PUB_WEBSITE_AMENITY_KEYS) {
     const item = amenities[key];
     if (!item?.value) continue;
     const evidence = item.evidence.trim();
     if (!evidenceQuoteIsOnPage(pageText, evidence)) continue;
-    if (!evidenceStatesAmenity(key, evidence)) continue;
-    kept[key] = evidence;
+    onPage[key] = evidence;
   }
-  return kept;
+  return statedAmenities(onPage);
 }
 
 const BLANK_AMENITY = /^(?:|n\/a|na|n\.a\.?|not applicable|unknown|tbc|tbd|-|\?)$/i;

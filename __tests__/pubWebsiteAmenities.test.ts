@@ -12,6 +12,7 @@ import {
   projectPubAmenitySpend,
   stableVenueId,
   stampAmenityColumns,
+  statedAmenities,
   venueGroupKey,
 } from "@/lib/harvest/pubWebsiteAmenities";
 
@@ -108,12 +109,36 @@ describe("keepEvidencedAmenities", () => {
     ).toEqual({});
   });
 
+  it("drops chain-wide news, seasonal promotions and a bare time range", () => {
+    const page = [
+      "Related Content Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs.",
+      "Plenty of merriment from Christmas quizzes to karaoke.",
+      "Drinks deals 4pm - 7pm, Monday to Thursday!",
+    ].join(" ");
+    const kept = keepEvidencedAmenities(
+      {
+        nonAlcoholic: {
+          value: true,
+          evidence: "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
+        },
+        pubQuiz: { value: true, evidence: "Christmas quizzes" },
+        happyHour: { value: true, evidence: "4pm - 7pm, Monday to Thursday!" },
+      },
+      page,
+    );
+    expect(kept).toEqual({});
+    for (const evidence of ["Alcohol free cocktails", "low and no sales"]) {
+      expect(keepEvidencedAmenities({ nonAlcoholic: { value: true, evidence } }, page)).toEqual({});
+    }
+  });
+
   it("keeps a quote that names the amenity itself", () => {
     const page = [
       "Lucky Saint 0.5% and alcohol-free cocktails behind the bar.",
       "Upstairs we have a dart board and two pool tables.",
       "Karaoke every Thursday from eight.",
       "Our kitchen serves food every day.",
+      "2-4-1 cocktails Monday to Friday, 5-7pm.",
     ].join(" ");
     const kept = keepEvidencedAmenities(
       {
@@ -122,16 +147,32 @@ describe("keepEvidencedAmenities", () => {
         pool: { value: true, evidence: "two pool tables" },
         karaoke: { value: true, evidence: "Karaoke every Thursday" },
         food: { value: true, evidence: "serves food every day" },
+        happyHour: { value: true, evidence: "2-4-1 cocktails Monday to Friday" },
       },
       page,
     );
     expect(kept).toEqual({
+      happyHour: "2-4-1 cocktails Monday to Friday",
       nonAlcoholic: "alcohol-free cocktails",
       darts: "a dart board",
       pool: "two pool tables",
       karaoke: "Karaoke every Thursday",
       food: "serves food every day",
     });
+  });
+});
+
+describe("statedAmenities", () => {
+  it("drops stored quotes the gate would refuse, so a restamp cannot bring them back", () => {
+    expect(
+      statedAmenities({
+        nonAlcoholic: "tea, coffee and hot chocolate drinks",
+        darts: "Boxing Darts Formula 1",
+        pubQuiz: "Christmas quizzes to karaoke.",
+        beerGarden: "Our beer garden opens",
+        pool: "two pool tables",
+      }),
+    ).toEqual({ beerGarden: "Our beer garden opens", pool: "two pool tables" });
   });
 });
 
