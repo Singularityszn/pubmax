@@ -24,24 +24,31 @@ export const COFFEE_HARVEST_WORD_PATTERN =
 
 const TEA_OR_WATER = /\b(?:tea|water)\b/i;
 const AFFOGATO = /\baffogato\b/i;
+const AFFOGATO_ITEM_HEADING = /^affogato\b/i;
 
 /**
  * Whether a priced item must never become a coffee price. `ownLine` is the
- * item's own printed line; `label` is the fuller label that may carry the
- * name heading above it. Affogato is refused on either. Tea and water are
- * judged on the own line when it names a drink, so a "Tea & Coffee" heading
- * cannot drop the coffee under it, and fall back to the label otherwise.
+ * item's own printed line and decides first: affogato is refused, a coffee
+ * word is kept, tea or water is refused. `itemHeading` is the unpriced line
+ * just above it; it decides only an item heading that opens with affogato
+ * (whose description may name espresso) or, when the own line names no drink,
+ * a tea or water name. A note such as "Ask about our affogato" or a
+ * "Tea & Coffee" section heading never drops the coffee printed under it.
  */
 export function coffeePriceLabelExcluded(
   ownLine: string | null | undefined,
-  label: string | null | undefined = ownLine,
+  itemHeading?: string | null,
 ): boolean {
   const own = typeof ownLine === "string" ? ownLine.trim() : "";
-  const full = typeof label === "string" ? label.trim() : "";
-  if (AFFOGATO.test(own) || AFFOGATO.test(full)) return true;
-  if (COFFEE_HARVEST_WORD_PATTERN.test(own)) return false;
+  const heading = typeof itemHeading === "string" ? itemHeading.trim() : "";
+  const headingIsAffogato = AFFOGATO_ITEM_HEADING.test(heading);
+  if (AFFOGATO.test(own)) return true;
+  if (COFFEE_HARVEST_WORD_PATTERN.test(own)) return headingIsAffogato;
   if (TEA_OR_WATER.test(own)) return true;
-  return TEA_OR_WATER.test(full) && !COFFEE_HARVEST_WORD_PATTERN.test(full);
+  return (
+    headingIsAffogato ||
+    (TEA_OR_WATER.test(heading) && !COFFEE_HARVEST_WORD_PATTERN.test(heading))
+  );
 }
 
 /**

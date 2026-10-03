@@ -394,13 +394,15 @@ export function drinkLabelFromPriceContext(
   return normalizeHarvestDrinkLabel(raw);
 }
 
-/** Tea, water and affogato never file as coffee, on the own line or the label. */
+/** Tea, water and affogato never file as coffee, judged on the own line and its item heading. */
 export function coffeePriceExcludedAt(
   text: string,
   at: number,
   drinkLabel?: string | null,
 ): boolean {
-  return coffeePriceLabelExcluded(printedItemName(text, at)?.own, drinkLabel);
+  const printed = printedItemName(text, at);
+  if (!printed) return coffeePriceLabelExcluded(drinkLabel);
+  return coffeePriceLabelExcluded(printed.own, printed.preceding.at(-1));
 }
 
 /**
