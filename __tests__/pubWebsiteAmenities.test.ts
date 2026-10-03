@@ -73,6 +73,66 @@ describe("keepEvidencedAmenities", () => {
     expect(kept.pubQuiz).toBeUndefined();
     expect(evidenceQuoteIsOnPage(PAGE, "quiz")).toBe(false);
   });
+
+  it("drops a quote that is on the page but does not state the amenity at this pub", () => {
+    const page = [
+      "We serve a range of tea, coffee and hot chocolate drinks.",
+      "All children's meals are served with a drink and fruit option included.",
+      "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
+      "Pool Charging Station by the door.",
+      "Plenty of merriment from Christmas quizzes to karaoke. Come join us.",
+      "Food and drinks Hotels About us Contact us Careers",
+    ].join(" ");
+    const kept = keepEvidencedAmenities(
+      {
+        nonAlcoholic: { value: true, evidence: "tea, coffee and hot chocolate drinks" },
+        darts: { value: true, evidence: "from footy to rugby, F1, darts and more!" },
+        pool: { value: true, evidence: "Pool Charging Station" },
+        karaoke: { value: true, evidence: "Christmas quizzes to karaoke" },
+        food: { value: true, evidence: "Food and drinks Hotels About us Contact us Careers" },
+      },
+      page,
+    );
+    expect(kept).toEqual({});
+    expect(
+      keepEvidencedAmenities(
+        {
+          nonAlcoholic: {
+            value: true,
+            evidence: "All children's meals are served with a drink",
+          },
+          karaoke: { value: true, evidence: "karaoke. Come join us" },
+        },
+        page,
+      ),
+    ).toEqual({});
+  });
+
+  it("keeps a quote that names the amenity itself", () => {
+    const page = [
+      "Lucky Saint 0.5% and alcohol-free cocktails behind the bar.",
+      "Upstairs we have a dart board and two pool tables.",
+      "Karaoke every Thursday from eight.",
+      "Our kitchen serves food every day.",
+    ].join(" ");
+    const kept = keepEvidencedAmenities(
+      {
+        nonAlcoholic: { value: true, evidence: "alcohol-free cocktails" },
+        darts: { value: true, evidence: "a dart board" },
+        pool: { value: true, evidence: "two pool tables" },
+        karaoke: { value: true, evidence: "Karaoke every Thursday" },
+        food: { value: true, evidence: "serves food every day" },
+      },
+      page,
+    );
+    expect(kept).toEqual({
+      nonAlcoholic: "alcohol-free cocktails",
+      darts: "a dart board",
+      pool: "two pool tables",
+      karaoke: "Karaoke every Thursday",
+      food: "serves food every day",
+    });
+  });
 });
 
 describe("stampAmenityColumns", () => {

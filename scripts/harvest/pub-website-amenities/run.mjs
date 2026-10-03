@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Read each London pub's own website once, ask Gemini Flash-Lite for amenity
-// JSON, and keep a true value only when its evidence is a quote from that page.
+// JSON, and keep a true value only when its evidence is a quote from that page
+// that states the amenity.
 // Blank amenity columns on the pint dataset are then stamped "yes". The quote,
 // source URL and verified day live in data/amenities/london_pub_website_evidence.json.
 //
@@ -27,6 +28,7 @@ import {
   JOB_SPEND_CAP_USD,
   MAX_OUTPUT_TOKENS,
   PAGE_CHAR_CAP,
+  PUB_WEBSITE_AMENITY_KEYS,
   keepEvidencedAmenities,
   matchPubToVenue,
   parsePubAmenityModelJson,
@@ -49,44 +51,27 @@ const LAT_MIN = 51.26;
 const LAT_MAX = 51.72;
 const LON_MIN = -0.55;
 const LON_MAX = 0.3;
-const SPEND_STOP_USD = 18;
+const SPEND_STOP_USD = 5;
 const CONCURRENCY = 5;
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_BYTES = 400_000;
 const USER_AGENT = "PUBMAXX-harvest/1";
 
-const FALLBACK_SKU = {
-  model: "gemini-3.1-flash-lite",
-  inputUsdPerMillion: 0.25,
-  outputUsdPerMillion: 1.5,
-};
-
-const AMENITY_KEYS = [
-  "food",
-  "cocktails",
-  "beerGarden",
-  "liveSports",
-  "nonAlcoholic",
-  "liveMusic",
-  "pubQuiz",
-  "darts",
-  "pool",
-  "happyHour",
-  "karaoke",
-];
-
 const PROMPT = [
   "You read one pub's own web page and report amenities the page states.",
   "Return JSON with an amenities object. Keys, exactly:",
-  AMENITY_KEYS.join(", ") + ".",
+  PUB_WEBSITE_AMENITY_KEYS.join(", ") + ".",
   'Each key is {"value": boolean, "evidence": string}.',
-  "Set value true only when the page states that amenity.",
+  "Set value true only when the page states that this pub has that amenity.",
   "evidence must be a contiguous phrase copied from the page, at least 8 characters.",
   'If the page does not state it, value is false and evidence is "".',
   "food means the pub serves meals. cocktails means cocktails.",
   "beerGarden means a garden, terrace or outdoor seating.",
-  "liveSports means televised sport. nonAlcoholic means alcohol-free drinks.",
-  "liveMusic, pubQuiz, darts, pool, happyHour and karaoke mean those events or facilities.",
+  "liveSports means televised sport.",
+  "nonAlcoholic means alcohol-free or 0.0% beer, wine, cocktails or spirits. Tea, coffee, hot chocolate, soft drinks, juice, a spritz and a drink with a kids' meal do not count.",
+  "darts means a dartboard to play at the pub, and pool means a pool table. Darts or pool shown on TV is liveSports, not darts or pool.",
+  "liveMusic, pubQuiz, happyHour and karaoke mean those events at this pub.",
+  "Do not use site navigation, chain-wide news or seasonal promotions that do not describe this pub.",
   "Do not infer from the pub name. Do not use anything that is not on the page.",
   "",
   "PAGE:",
@@ -179,7 +164,7 @@ async function readHtml(url) {
   }
 }
 
-function usageCost(body, sku) {
+function usageCost(body) {
   const usage = body?.usageMetadata ?? {};
   const inputTokens = Number(usage.promptTokenCount ?? 0);
   const outputTokens =
@@ -190,8 +175,8 @@ function usageCost(body, sku) {
     usd: spendFromTokenCounts({
       inputTokens,
       outputTokens,
-      inputUsdPerMillion: sku.inputUsdPerMillion,
-      outputUsdPerMillion: sku.outputUsdPerMillion,
+      inputUsdPerMillion: FLASH_LITE_SKU.inputUsdPerMillion,
+      outputUsdPerMillion: FLASH_LITE_SKU.outputUsdPerMillion,
     }),
   };
 }
@@ -226,12 +211,12 @@ async function paceModelCall() {
   if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now));
 }
 
-async function askModel(pageText, sku, attempt = 0) {
+async function askModel(pageText, attempt = 0) {
   if (!accessToken || Date.now() - accessTokenAt > 20 * 60 * 1000) refreshAccessToken();
   await paceModelCall();
   let response;
   try {
-    response = await fetch(vertexUrl(sku.model), {
+    response = await fetch(vertexUrl(FLASH_LITE_SKU.model), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -249,17 +234,17 @@ async function askModel(pageText, sku, attempt = 0) {
   const body = await response.json().catch(() => null);
   if (response.status === 401 && attempt < 1) {
     refreshAccessToken();
-    return askModel(pageText, sku, attempt + 1);
+    return askModel(pageText, attempt + 1);
   }
   if (response.status === 429 && attempt < 5) {
     await new Promise((resolve) => setTimeout(resolve, 5000 * 2 ** attempt));
-    return askModel(pageText, sku, attempt + 1);
+    return askModel(pageText, attempt + 1);
   }
   return { status: response.status, body };
   } catch {
     if (attempt < 3) {
       await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
-      return askModel(pageText, sku, attempt + 1);
+      return askModel(pageText, attempt + 1);
     }
     return { status: 0, body: null };
   }
@@ -272,7 +257,6 @@ function loadCheckpoint() {
     return {
       spentUsd: Number(parsed.spentUsd ?? 0),
       byOsmId: parsed.byOsmId && typeof parsed.byOsmId === "object" ? parsed.byOsmId : {},
-      sku: parsed.sku ?? null,
     };
   } catch (error) {
     if (error?.code === "ENOENT") return { spentUsd: 0, byOsmId: {} };
@@ -307,6 +291,26 @@ function columnCoverage(rows) {
     for (const key of flags) if (bucket[key]) counts[key] += 1;
   }
   return counts;
+}
+
+function stampDataset(dataset, rowsByVenue, byOsmId) {
+  let stampedRows = 0;
+  let stampedVenues = 0;
+  for (const entry of Object.values(byOsmId)) {
+    if (entry.status !== "ok" || !entry.venueId) continue;
+    const amenities = entry.amenities ?? {};
+    if (Object.keys(amenities).length === 0) continue;
+    let venueStamped = false;
+    for (const index of rowsByVenue.get(entry.venueId) ?? []) {
+      const result = stampAmenityColumns(dataset[index], amenities);
+      if (result.stamped.length === 0) continue;
+      dataset[index] = result.row;
+      stampedRows += 1;
+      venueStamped = true;
+    }
+    if (venueStamped) stampedVenues += 1;
+  }
+  return { stampedRows, stampedVenues };
 }
 
 async function main() {
@@ -397,7 +401,6 @@ async function main() {
 
   mkdirSync(CHECKPOINT_DIR, { recursive: true });
   const checkpoint = loadCheckpoint();
-  let sku = checkpoint.sku?.model ? checkpoint.sku : { ...FLASH_LITE_SKU };
   let spent = Number(checkpoint.spentUsd ?? 0);
   const byOsmId = checkpoint.byOsmId;
   const robots = createRobotsChecker();
@@ -409,7 +412,7 @@ async function main() {
 
   const save = () => {
     writeChain = writeChain.then(() => {
-      const next = { spentUsd: spent, sku, byOsmId };
+      const next = { spentUsd: spent, byOsmId };
       const temp = `${CHECKPOINT_PATH}.tmp`;
       writeFileSync(temp, JSON.stringify(next));
       renameSync(temp, CHECKPOINT_PATH);
@@ -457,13 +460,8 @@ async function main() {
       byOsmId[pub.osmId] = { status: "empty-page", venueId: pub.venueId, sourceUrl: home.url };
       return;
     }
-    let result = await askModel(text, sku);
-    if (result.status === 404 && sku.model === FLASH_LITE_SKU.model) {
-      sku = { ...FALLBACK_SKU };
-      console.log(`model ${FLASH_LITE_SKU.model} unavailable; switching to ${sku.model}`);
-      result = await askModel(text, sku);
-    }
-    const cost = usageCost(result.body, sku);
+    const result = await askModel(text);
+    const cost = usageCost(result.body);
     spent += cost.usd;
     if (result.status === 429) {
       byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, usd: cost.usd };
@@ -512,29 +510,11 @@ async function main() {
   await save();
 
   const before = columnCoverage(dataset);
-  let stampedRows = 0;
-  let stampedVenues = 0;
-  for (const entry of Object.values(byOsmId)) {
-    if (entry.status !== "ok" || !entry.venueId) continue;
-    const amenities = entry.amenities ?? {};
-    if (Object.keys(amenities).length === 0) continue;
-    const indexes = rowsByVenue.get(entry.venueId) ?? [];
-    let venueStamped = false;
-    for (const index of indexes) {
-      const result = stampAmenityColumns(dataset[index], amenities);
-      if (result.stamped.length === 0) continue;
-      const row = result.row;
-      if (!String(row.website ?? "").trim() && entry.sourceUrl) row.website = entry.sourceUrl;
-      dataset[index] = row;
-      stampedRows += 1;
-      venueStamped = true;
-    }
-    if (venueStamped) stampedVenues += 1;
-  }
+  const { stampedRows, stampedVenues } = stampDataset(dataset, rowsByVenue, byOsmId);
   const after = columnCoverage(dataset);
   if (stampedRows > 0) {
     const datasetTemp = `${DATASET_PATH}.tmp`;
-    writeFileSync(datasetTemp, `${JSON.stringify(dataset)}\n`);
+    writeFileSync(datasetTemp, JSON.stringify(dataset));
     renameSync(datasetTemp, DATASET_PATH);
   }
 
@@ -559,10 +539,10 @@ async function main() {
   mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
   const evidence = {
     version: 1,
-    model: sku.model,
+    model: FLASH_LITE_SKU.model,
     sku: {
-      inputUsdPerMillion: sku.inputUsdPerMillion,
-      outputUsdPerMillion: sku.outputUsdPerMillion,
+      inputUsdPerMillion: FLASH_LITE_SKU.inputUsdPerMillion,
+      outputUsdPerMillion: FLASH_LITE_SKU.outputUsdPerMillion,
       note: "Vertex AI Gemini 2.5 Flash-Lite standard text tier on project pubmaxx. No search grounding. Output price includes thinking tokens.",
     },
     projected: {

@@ -13,29 +13,29 @@
     "spendUsd": 1.1315
   },
   "actualSpendUsd": 0.4559,
-  "jobCapUsd": 20,
+  "jobCapUsd": 6,
   "columnCoverageBefore": {
     "venues": 1916,
-    "food": 716,
-    "cocktails": 317,
-    "beerGarden": 545,
-    "liveSports": 325,
-    "nonAlcoholic": 7,
-    "any": 888,
-    "none": 1028
+    "food": 701,
+    "cocktails": 307,
+    "beerGarden": 541,
+    "liveSports": 316,
+    "nonAlcoholic": 0,
+    "any": 881,
+    "none": 1035
   },
   "columnCoverageAfter": {
     "venues": 1916,
-    "food": 897,
+    "food": 894,
     "cocktails": 450,
     "beerGarden": 663,
     "liveSports": 477,
-    "nonAlcoholic": 182,
+    "nonAlcoholic": 92,
     "any": 1047,
     "none": 869
   },
-  "stampedVenues": 356,
-  "stampedRows": 1016,
+  "stampedVenues": 365,
+  "stampedRows": 943,
   "skipCounts": {
     "robots-unreadable": 98,
     "http-404": 60,
@@ -43,7 +43,7 @@
     "robots-unreachable": 127,
     "refused-host": 104,
     "http-403": 3,
-    "ok": 136,
+    "ok": 138,
     "quota": 53,
     "empty-page": 16,
     "model-0": 3,
@@ -63,8 +63,7 @@
       "amenities": {
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -77,8 +76,7 @@
         "liveSports": "Live Sport Football Premier League Champions League",
         "nonAlcoholic": "low and no-alcohol options",
         "liveMusic": "Live music, DJs & Quiz Nights",
-        "pubQuiz": "Live music, DJs & Quiz Nights",
-        "darts": "Darts Formula 1"
+        "pubQuiz": "Live music, DJs & Quiz Nights"
       }
     },
     {
@@ -125,7 +123,6 @@
       "amenities": {
         "food": "Best BBQ & Burger Restaurant in Kingston Upon Thames",
         "cocktails": "playful and delicious cocktail list",
-        "nonAlcoholic": "Soft, Beer + Wine",
         "liveMusic": "Music, Comedy and more."
       }
     },
@@ -286,7 +283,6 @@
         "food": "refined pub food menu",
         "beerGarden": "spacious beer garden",
         "liveSports": "outdoor TV for sport",
-        "nonAlcoholic": "soft drinks",
         "liveMusic": "LIVE MUSIC SATURDAY",
         "pubQuiz": "QUIZ NIGHT EVERY SUNDAY"
       }
@@ -325,8 +321,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -338,8 +333,7 @@
       "amenities": {
         "food": "hearty pub favourites",
         "cocktails": "wines and cocktails",
-        "beerGarden": "Beer Garden",
-        "nonAlcoholic": "quality coffees"
+        "beerGarden": "Beer Garden"
       }
     },
     {
@@ -354,8 +348,7 @@
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "live music nights too",
-        "pubQuiz": "Test your knowledge at our quiz night",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Test your knowledge at our quiz night"
       }
     },
     {
@@ -401,8 +394,7 @@
       "amenities": {
         "food": "British menu",
         "cocktails": "moreish cocktails",
-        "beerGarden": "Grand Terrace overlooking the Eurostar platform",
-        "nonAlcoholic": "thirst-quenching craft beers"
+        "beerGarden": "Grand Terrace overlooking the Eurostar platform"
       }
     },
     {
@@ -415,8 +407,7 @@
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "All meals are served with a drink"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -426,9 +417,7 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-whispering-moon-wallington",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks - J D Wetherspoon",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -439,8 +428,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food is very much part of The White Swan",
-        "beerGarden": "secluded sun-trap of a garden",
-        "nonAlcoholic": "soft drinks"
+        "beerGarden": "secluded sun-trap of a garden"
       }
     },
     {
@@ -453,8 +441,7 @@
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -468,8 +455,7 @@
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport Football",
         "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "Live Music",
-        "darts": "enhanced darts setup"
+        "liveMusic": "Live Music"
       }
     },
     {
@@ -519,8 +505,7 @@
         "beerGarden": "our beer garden is a great spot",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "We often showcase live music throughout the week.",
-        "pubQuiz": "Christmas quizzes to karaoke.",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Christmas quizzes to karaoke."
       }
     },
     {
@@ -607,7 +592,6 @@
         "liveSports": "LIVE SPORT",
         "liveMusic": "Live Singers & Bands",
         "pubQuiz": "Quiz Night",
-        "darts": "World Grand Prix Darts",
         "pool": "Ultimate Pool",
         "karaoke": "Karaoke Night"
       }
@@ -667,8 +651,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All children’s meals are served with a drink and fruit option included."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -703,8 +686,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All children’s meals are served with a drink and fruit option included."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -738,8 +720,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -876,8 +857,7 @@
         "beerGarden": "one of Greenwich’s best beer gardens",
         "liveSports": "live sports, darts and great people!",
         "liveMusic": "DJs every Friday",
-        "pubQuiz": "Sunday quiz night",
-        "darts": "live sports, darts and great people!"
+        "pubQuiz": "Sunday quiz night"
       }
     },
     {
@@ -1064,8 +1044,7 @@
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Join our pub quiz, every Wednesday",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
     {
@@ -1141,9 +1120,7 @@
         "beerGarden": "there's a beer garden for you",
         "liveSports": "We've got Sky Sports on our screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -1157,9 +1134,7 @@
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -1207,8 +1182,7 @@
         "food": "Brunch, Lunch & Dinner at our Pub In Fulham, London | Classic Pub Food On Fulham Road",
         "cocktails": "plus classic cocktails, cocktails with a twist",
         "beerGarden": "Outdoor Dining on Fulham Road, London",
-        "liveSports": "Live Sports",
-        "nonAlcoholic": "freshly brewed coffee"
+        "liveSports": "Live Sports"
       }
     },
     {
@@ -1250,8 +1224,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "award-winning food that gets punters & critics buzzing",
-        "cocktails": "cask ales and cocktails",
-        "nonAlcoholic": "House-Made Drinks"
+        "cocktails": "cask ales and cocktails"
       }
     },
     {
@@ -1341,9 +1314,7 @@
         "beerGarden": "our beer garden operates",
         "liveSports": "Live sport Book a table",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -1413,8 +1384,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Our Menus Daily Menu",
-        "cocktails": "Cocktail Special £12.00",
-        "nonAlcoholic": "Kombucha £6.50"
+        "cocktails": "Cocktail Special £12.00"
       }
     },
     {
@@ -1505,8 +1475,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -1554,8 +1523,7 @@
         "food": "Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "TNT Sports",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "liveSports": "TNT Sports"
       }
     },
     {
@@ -1600,7 +1568,6 @@
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
         "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1",
         "karaoke": "karaoke on a Wednesday night"
       }
     },
@@ -1615,7 +1582,6 @@
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "darts": "darts and more!",
         "pool": "Pool Table",
         "happyHour": "From the 14th September to 1st October, enjoy 2-for-1 on selected drinks from 4pm - 7pm, Monday to Thursday!"
       }
@@ -1653,8 +1619,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -1694,8 +1659,7 @@
       "amenities": {
         "food": "food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -1793,8 +1757,7 @@
         "food": "Food & Drink",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -1861,7 +1824,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveMusic": "Cabaret/Karaoke",
-        "pool": "Pool Charging Station",
         "karaoke": "Karaoke night"
       }
     },
@@ -1900,8 +1862,7 @@
         "beerGarden": "Watch the world go by in our outdoor seating",
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -1952,8 +1913,7 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "our social calendar is packed with live music",
-        "pubQuiz": "Join our pub quiz, every Thursday",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Thursday"
       }
     },
     {
@@ -2090,8 +2050,7 @@
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "evenings of live music",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -2116,8 +2075,7 @@
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "beer garden clearing",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "beerGarden": "beer garden clearing"
       }
     },
     {
@@ -2129,8 +2087,7 @@
       "amenities": {
         "food": "great fresh food",
         "cocktails": "great cocktails",
-        "beerGarden": "large garden with shady terraces",
-        "nonAlcoholic": "fairtrade coffee & teas"
+        "beerGarden": "large garden with shady terraces"
       }
     },
     {
@@ -2154,8 +2111,7 @@
       "amenities": {
         "food": "traditional British meals",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -2191,8 +2147,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -2294,7 +2249,6 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "from live music to champions league football",
-        "darts": "F1, darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -2346,7 +2300,6 @@
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free",
         "pubQuiz": "Join our pub quiz, every Thursday",
-        "darts": "from footy to rugby, F1, darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -2385,7 +2338,6 @@
         "food": "delicious meal",
         "cocktails": "2-for-1 cocktails",
         "beerGarden": "south-facing garden",
-        "nonAlcoholic": "soft drinks",
         "liveMusic": "The Day & Night Party",
         "pubQuiz": "Fortnightly Pub Quiz",
         "happyHour": "Happy Hour Tuesday - Friday"
@@ -2426,7 +2378,6 @@
         "food": "Food Served",
         "beerGarden": "Outside seating",
         "liveSports": "Big Screen Sports Viewing",
-        "nonAlcoholic": "artisan-produced soft drinks",
         "liveMusic": "regular live music",
         "pubQuiz": "pub quiz every Sunday"
       }
@@ -2561,7 +2512,6 @@
       "amenities": {
         "beerGarden": "a hidden garden",
         "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "a range of soft drinks is included",
         "liveMusic": "live music",
         "darts": "darts board"
       }
@@ -2585,8 +2535,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea and coffee"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -2625,8 +2574,7 @@
       "amenities": {
         "food": "Delicious Pub Food Great food is at the heart of what we do",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -2640,7 +2588,6 @@
         "beerGarden": "head out to our beer garden",
         "liveSports": "Live sport on our TVs",
         "pubQuiz": "Sunday Night Quiz",
-        "darts": "Darts: Semi-Finals",
         "pool": "game of pool"
       }
     },
@@ -2663,8 +2610,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -2716,7 +2662,6 @@
         "food": "fabulous food",
         "beerGarden": "secret garden",
         "liveSports": "Big Screen Sports Viewing",
-        "nonAlcoholic": "SOFT DRINK",
         "liveMusic": "live music",
         "pubQuiz": "QUIZ NIGHT"
       }
@@ -2742,8 +2687,7 @@
       "amenities": {
         "food": "Our chefs create seasonal menus packed with modern British dishes and elevated pub classics",
         "cocktails": "plus an impressive wine list and standout cocktails",
-        "liveSports": "Live Sport Autumn Internationals Chelsea FC",
-        "nonAlcoholic": "coffee (or pint)"
+        "liveSports": "Live Sport Autumn Internationals Chelsea FC"
       }
     },
     {
@@ -2755,7 +2699,6 @@
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
         "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1",
         "pool": "Getting on the pool table"
       }
     },
@@ -2777,8 +2720,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "delicious food",
-        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "a range of soft drinks is included"
+        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE"
       }
     },
     {
@@ -2812,7 +2754,6 @@
         "cocktails": "sipping on a spritz",
         "beerGarden": "Our Garden",
         "liveSports": "Live Sports",
-        "nonAlcoholic": "frothy coffees",
         "pubQuiz": "pub quizzes"
       }
     },
@@ -2991,8 +2932,7 @@
         "cocktails": "enticing cocktails",
         "beerGarden": "beer garden",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "darts": "darts and more!"
+        "nonAlcoholic": "Alcohol free cocktails"
       }
     },
     {
@@ -3033,7 +2973,6 @@
         "nonAlcoholic": "low and no-alcohol options",
         "liveMusic": "Live Music",
         "pubQuiz": "Join us every Sunday for our weekly quiz",
-        "darts": "Boxing Darts Formula 1",
         "pool": "New to the venue is a pool table"
       }
     },
@@ -3060,9 +2999,7 @@
         "beerGarden": "have a small beer garden to enjoy",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -3092,9 +3029,7 @@
         "liveSports": "catch the latest live sports action on the big screen",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "catch some live entertainment",
-        "pubQuiz": "Join our pub quiz, every Wednesday",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
     {
@@ -3127,8 +3062,7 @@
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -3184,11 +3118,9 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-masque-haunt-old-street",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us Contact us Careers",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -3201,9 +3133,7 @@
         "food": "You'll find comfort food classics like burgers, pies, and chilli, plus plenty of puddings to choose from on our delicious menu.",
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke.",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Christmas quizzes to karaoke."
       }
     },
     {
@@ -3218,9 +3148,7 @@
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "live music performances",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -3326,7 +3254,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-red-lion-pineapple-acton/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
         "liveSports": "tv TV screens"
@@ -3399,8 +3326,7 @@
         "food": "Food & Drink",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -3414,9 +3340,7 @@
         "cocktails": "perhaps even a cheeky cocktail?",
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -3427,8 +3351,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -3527,9 +3450,7 @@
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "evenings of live music",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -3555,8 +3476,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -3633,8 +3553,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -3684,8 +3603,7 @@
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -3707,8 +3625,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -3767,8 +3684,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -3781,7 +3697,6 @@
         "food": "The Dragon Flame are serving up delicious smokehouse BBQ Wednesday - Saturday plus Sunday Roasts too.",
         "cocktails": "cider, wines, spirits, cocktails, and soft drinks.",
         "beerGarden": "An open, welcoming space with both indoor & outdoor seating",
-        "nonAlcoholic": "cider, wines, spirits, cocktails, and soft drinks.",
         "liveMusic": "regular Friday night DJs"
       }
     },
@@ -3792,8 +3707,7 @@
       "sourceUrl": "https://wildswanlondon.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "delicious pizzas",
-        "nonAlcoholic": "hand-picked soft drinks"
+        "food": "delicious pizzas"
       }
     },
     {
@@ -3815,8 +3729,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -3830,7 +3743,6 @@
         "cocktails": "Draught pints, cocktails, wine and soft drinks",
         "beerGarden": "beer garden",
         "liveSports": "Nations Championship rugby",
-        "nonAlcoholic": "soft drinks",
         "pubQuiz": "Quiz Night Pub quiz nights",
         "karaoke": "Karaoke Singalong nights"
       }
@@ -3879,8 +3791,7 @@
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -3989,7 +3900,6 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "in-pub entertainment like our quizzes",
-        "darts": "F1, darts and more!",
         "pool": "pool nights"
       }
     },
@@ -4001,8 +3911,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "beerGarden": "rear outside area",
-        "pubQuiz": "fortnightly quiz",
-        "darts": "including darts"
+        "pubQuiz": "fortnightly quiz"
       }
     },
     {
@@ -4013,8 +3922,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -4028,7 +3936,6 @@
         "liveSports": "Sky Sports and TNT Sports screens allow you to watch every second of the live sports action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "pubQuiz": "Christmas quizzes",
-        "darts": "from footy to rugby, F1, darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -4098,8 +4005,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -4112,8 +4018,7 @@
         "food": "Food and drinks Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range, a choice of nine classic and fruity recipes for all tastes.",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -4123,11 +4028,9 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-wibbas-down-inn-wimbledon",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks - J D Wetherspoon",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -4138,8 +4041,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "We show live sports every day",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -4153,7 +4055,6 @@
         "cocktails": "Cocktail Menu",
         "beerGarden": "Beer Garden",
         "liveSports": "Live Sport",
-        "nonAlcoholic": "freshly brewed coffee, and a variety of teas",
         "liveMusic": "Live Music",
         "pubQuiz": "Quiz Night"
       }
@@ -4168,8 +4069,7 @@
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -4182,8 +4082,7 @@
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -4196,7 +4095,6 @@
         "food": "Serving food Monday",
         "cocktails": "stay for cocktails!",
         "beerGarden": "London Rooftop terrace",
-        "nonAlcoholic": "Come for coffee",
         "liveMusic": "Let&#8217;s Disco!",
         "happyHour": "happy hour drinks"
       }
@@ -4213,18 +4111,7 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "from live music to champions league football",
-        "pubQuiz": "Join our pub quiz, every Thursday",
-        "darts": "from footy to rugby, F1, darts and more!"
-      }
-    },
-    {
-      "osmId": "node/4172844859",
-      "name": "EeBria",
-      "venueId": null,
-      "sourceUrl": "https://www.eebriatrade.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "nonAlcoholic": "Soft Drinks"
+        "pubQuiz": "Join our pub quiz, every Thursday"
       }
     },
     {
@@ -4236,8 +4123,7 @@
       "amenities": {
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport Football",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -4282,8 +4168,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -4347,8 +4232,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -4388,7 +4272,6 @@
       "amenities": {
         "food": "delicious food",
         "liveSports": "live sport",
-        "nonAlcoholic": "soft drinks",
         "pool": "pool tables"
       }
     },
@@ -4454,8 +4337,7 @@
         "liveSports": "Sky Sports and TNT Sports",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "Live music provides a good time",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -4469,8 +4351,7 @@
         "beerGarden": "outdoor seating area",
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -4493,7 +4374,6 @@
       "amenities": {
         "food": "Whether you fancy a few rounds with friends , a spot of lunch with colleagues or a cosy meal for two.",
         "liveSports": "watching live sports in our bar!",
-        "nonAlcoholic": "Club Orange paired with a gourmet chicken roll",
         "liveMusic": "listen to some Irish Trad on a Sunday evening",
         "pubQuiz": "test your mettle at the Quiz",
         "karaoke": "belt out Step it Out Mary on the Karoake Night"
@@ -4572,7 +4452,6 @@
         "cocktails": "English winesthrough to Spirits",
         "beerGarden": "sunny urban beer garden",
         "liveSports": "watch the World Cup 2026",
-        "nonAlcoholic": "soft drinks",
         "liveMusic": "Karaoke or band",
         "pubQuiz": "Fabal Beerhall Quiz",
         "karaoke": "Private Karaoke Room Hire"
@@ -4623,7 +4502,6 @@
         "food": "stunning food",
         "cocktails": "party with a cocktail",
         "beerGarden": "TWO GARDENS",
-        "nonAlcoholic": "MARGARITA SLUSHIES",
         "pubQuiz": "quiz or the whole venue",
         "darts": "Camden Darts Club"
       }
@@ -4639,8 +4517,7 @@
         "liveSports": "live sports showing on our Sky Sports",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "live music nights",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -4679,8 +4556,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -4691,8 +4567,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -4761,8 +4636,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Watch Live Sport at The Crowning Angel Romford",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -4862,8 +4736,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food and drinks",
-        "cocktails": "spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink"
+        "cocktails": "spritz cocktail range"
       }
     },
     {
@@ -4916,9 +4789,7 @@
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
         "liveSports": "live sports showcased on our Sky Sports and TNT Sports screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -4999,8 +4870,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -5011,8 +4881,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All children’s meals are served with a drink and fruit option included"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -5022,9 +4891,7 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/j-j-moons-tooting/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks - J D Wetherspoon",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -5072,7 +4939,6 @@
         "food": "Indian home-style cooking with classic British pub food",
         "beerGarden": "The venue also provides a beer garden",
         "liveSports": "Sky Sports",
-        "nonAlcoholic": "soft drinks",
         "darts": "pool and darts",
         "pool": "pool and darts"
       }
@@ -5096,8 +4962,7 @@
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -5223,9 +5088,7 @@
         "food": "We've got our famous Fish & Chips and more, plus tasty vegetarian and vegan dishes.",
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke.",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Christmas quizzes to karaoke."
       }
     },
     {
@@ -5270,9 +5133,7 @@
         "liveSports": "Our large screens showcase the latest sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "we often host live music nights too",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -5331,7 +5192,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "COME FOR THE FOOD, STAY FOR THE DRINKS",
-        "nonAlcoholic": "soft drinks will also be available",
         "liveMusic": "community through music, dance, beer, food and good times",
         "karaoke": "KARAOKE NIGHT"
       }
@@ -5414,9 +5274,7 @@
         "cocktails": "craft cask ales to cocktails",
         "liveSports": "show live sport through Sky Sports",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -5426,8 +5284,7 @@
       "sourceUrl": "https://www.threehoundsbeerco.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "beerGarden": "8 seats out front",
-        "nonAlcoholic": "soft drinks"
+        "beerGarden": "8 seats out front"
       }
     },
     {
@@ -5471,11 +5328,9 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-rocket-putney",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks - J D Wetherspoon",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "TV screens"
       }
     },
     {
@@ -5537,8 +5392,7 @@
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -5549,7 +5403,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "diverse range of cocktails",
-        "nonAlcoholic": "soft drinks",
         "happyHour": "Friday Night Happy Hour"
       }
     },
@@ -5590,7 +5443,6 @@
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz",
-        "darts": "darts and more!",
         "pool": "Pool Table",
         "happyHour": "4pm - 7pm, Monday to Thursday!"
       }
@@ -5603,8 +5455,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "traditional British meals",
-        "cocktails": "spritz cocktail range",
-        "nonAlcoholic": "hot chocolate drinks"
+        "cocktails": "spritz cocktail range"
       }
     },
     {
@@ -5649,8 +5500,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "traditional British meals",
-        "cocktails": "spritz cocktail range",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "cocktails": "spritz cocktail range"
       }
     },
     {
@@ -5686,8 +5536,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "food and drinks",
-        "cocktails": "spritz cocktail range",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "cocktails": "spritz cocktail range"
       }
     },
     {
@@ -5726,16 +5575,6 @@
       }
     },
     {
-      "osmId": "node/9891375140",
-      "name": "The Green Goddess",
-      "venueId": "venue-1mhmkh",
-      "sourceUrl": "https://www.thegreengoddess.pub/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "nonAlcoholic": "excellent tea and coffee"
-      }
-    },
-    {
       "osmId": "node/9908253789",
       "name": "Bishops",
       "venueId": null,
@@ -5744,8 +5583,7 @@
       "amenities": {
         "cocktails": "Bishop’s Bar crafted Cocktails.",
         "beerGarden": "front terrace, vibrant with flowers.",
-        "liveSports": "pizza to watch the match with",
-        "nonAlcoholic": "Freshly squeezed Juices and Smoothies."
+        "liveSports": "pizza to watch the match with"
       }
     },
     {
@@ -5758,8 +5596,7 @@
         "food": "exceptional food",
         "beerGarden": "leafy beer garden",
         "liveSports": "Live sport",
-        "pubQuiz": "Join our pub quiz",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Join our pub quiz"
       }
     },
     {
@@ -5795,9 +5632,7 @@
         "food": "delicious, staple Canadian dishes",
         "beerGarden": "Come and sit outside in our beer garden",
         "liveSports": "TVs to watch live sports on",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "nonAlcoholic": "Alcohol free cocktails"
       }
     },
     {
@@ -5833,8 +5668,7 @@
       "amenities": {
         "food": "food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -5930,8 +5764,7 @@
       "amenities": {
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport Football",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -5993,8 +5826,7 @@
         "food": "hearty seasonal dishes",
         "cocktails": "Explore our cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "a glass of something warming"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -6054,8 +5886,7 @@
       "amenities": {
         "food": "Our homemade Cornish pasties are made fresh daily",
         "beerGarden": "in the hop garden tonight",
-        "liveSports": "showing the England World Cup games",
-        "nonAlcoholic": "soft drinks, hot drinks"
+        "liveSports": "showing the England World Cup games"
       }
     },
     {
@@ -6163,7 +5994,6 @@
       "amenities": {
         "food": "serving great food",
         "cocktails": "classic cocktail",
-        "nonAlcoholic": "spirited or not",
         "liveMusic": "host live music"
       }
     },
@@ -6201,8 +6031,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -6226,8 +6055,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -6241,8 +6069,7 @@
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Join our pub quiz, every Tuesday",
-        "darts": "darts and more!"
+        "pubQuiz": "Join our pub quiz, every Tuesday"
       }
     },
     {
@@ -6269,7 +6096,6 @@
         "cocktails": "fine wines and cocktails",
         "beerGarden": "bar and garden area",
         "liveSports": "Live sport",
-        "nonAlcoholic": "soft drinks",
         "liveMusic": "Live music",
         "pubQuiz": "Quiz nights"
       }
@@ -6282,8 +6108,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "The owner and renown chef Lamty has created a divine selection of menus with a variety of cuisines to cater to all tastebuds.",
-        "beerGarden": "with a gorgeous courtyard perfect for a summers day.",
-        "nonAlcoholic": "Orange Juice £2.00"
+        "beerGarden": "with a gorgeous courtyard perfect for a summers day."
       }
     },
     {
@@ -6324,8 +6149,7 @@
         "beerGarden": "beautiful beer garden",
         "liveSports": "watch live sport on our Sky Sports and TNT Sports screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Join our pub quiz, every Wednesday",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
     {
@@ -6336,8 +6160,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "good food and beer",
-        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "a range of soft drinks is included"
+        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE"
       }
     },
     {
@@ -6363,7 +6186,6 @@
         "food": "Food & Drinks",
         "cocktails": "Winter Cocktails",
         "beerGarden": "Canal side food",
-        "nonAlcoholic": "vegan goodness",
         "pubQuiz": "Quiz Night Pints 'n' Points"
       }
     },
@@ -6377,8 +6199,7 @@
         "food": "Food available until 10 every day",
         "beerGarden": "large beer garden",
         "liveSports": "all sport shown",
-        "pubQuiz": "Join our pub quiz, every Wednesday",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
     {
@@ -6392,9 +6213,7 @@
         "beerGarden": "Sip on one of our wines from around the world or enjoy a cask ale in our beer garden.",
         "liveSports": "Sky Sports TNT Sports Accepts Matchday Discount",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke.",
-        "darts": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Christmas quizzes to karaoke."
       }
     },
     {
@@ -6422,7 +6241,6 @@
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
         "pool": "We've got bar games, pool, free Wi-Fi, and arcade games."
       }
     },
@@ -6463,8 +6281,7 @@
         "liveSports": "Watch live football with us",
         "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "often shows live music",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -6477,7 +6294,6 @@
         "food": "serving up sizzling steaks, stacked burgers and grill-iant pub food classics like fish & chips.",
         "beerGarden": "our big beer garden.",
         "liveSports": "Book a table for all the top sporting action",
-        "darts": "darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -6514,9 +6330,7 @@
         "food": "Serving real ales and traditional pub food",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -6556,7 +6370,6 @@
         "food": "Delicious Food",
         "beerGarden": "Pubs with Beers Gardens",
         "liveSports": "All major sporting events are shown",
-        "nonAlcoholic": "We serve great coffee and soft drinks too",
         "liveMusic": "we have music on a Friday night"
       }
     },
@@ -6693,8 +6506,7 @@
         "cocktails": "punchy cocktails",
         "beerGarden": "spacious beer garden",
         "liveSports": "Live sport Book a table",
-        "pubQuiz": "Join our pub quiz",
-        "darts": "darts and more!"
+        "pubQuiz": "Join our pub quiz"
       }
     },
     {
@@ -6732,9 +6544,7 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "We'll keep you entertained with live music",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -6757,7 +6567,6 @@
         "food": "Serving a great selection of food and drinks",
         "beerGarden": "in our beer garden",
         "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "a range of soft drinks is included",
         "liveMusic": "Famous for live music"
       }
     },
@@ -6771,9 +6580,7 @@
         "food": "classic British pub food",
         "liveSports": "Live sport Book a table",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -6785,8 +6592,7 @@
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "beer garden clearing",
-        "nonAlcoholic": "All meals are served with a drink"
+        "beerGarden": "beer garden clearing"
       }
     },
     {
@@ -6801,7 +6607,6 @@
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "Join our pub quiz, every Monday",
-        "darts": "from footy to rugby, F1, darts and more!",
         "pool": "Pool Table",
         "happyHour": "enjoy 2-for-1 on selected drinks from 4pm - 7pm",
         "karaoke": "vibrant karaoke nights"
@@ -6828,7 +6633,6 @@
         "food": "good food, great drinks and a friendly local atmosphere",
         "beerGarden": "Outside Seating",
         "liveSports": "We show live sport in HD",
-        "nonAlcoholic": "soft and hot drinks",
         "liveMusic": "Live Music",
         "pubQuiz": "quiz nights",
         "darts": "dart board",
@@ -6952,8 +6756,7 @@
         "food": "Food & Drink",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -6966,8 +6769,7 @@
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -7033,8 +6835,7 @@
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
         "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "Live music events will be advertised",
-        "darts": "Boxing Darts Formula 1"
+        "liveMusic": "Live music events will be advertised"
       }
     },
     {
@@ -7068,8 +6869,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "dining on a moreish menu of refined British pub classics",
-        "cocktails": "enticing cocktails for special occasions",
-        "nonAlcoholic": "soft drinks or botanicals"
+        "cocktails": "enticing cocktails for special occasions"
       }
     },
     {
@@ -7081,7 +6881,6 @@
       "amenities": {
         "food": "savour our home-cooked menu",
         "beerGarden": "Pub Garden",
-        "nonAlcoholic": "Tea and Coffee",
         "liveMusic": "lively music venue"
       }
     },
@@ -7119,7 +6918,6 @@
       "amenities": {
         "food": "pub & restaurant",
         "beerGarden": "Outdoor area",
-        "nonAlcoholic": "soft drinks",
         "liveMusic": "hosts live music"
       }
     },
@@ -7169,8 +6967,7 @@
       "amenities": {
         "food": "Our Delicious Food & Drinks",
         "cocktails": "Our bar staff know how to shake things up with fantastic cocktails",
-        "beerGarden": "award winning garden",
-        "nonAlcoholic": "unlimited tea & coffee"
+        "beerGarden": "award winning garden"
       }
     },
     {
@@ -7203,8 +7000,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -7216,7 +7012,6 @@
       "amenities": {
         "food": "Food Served Mon – Sat 12.00 – 21.00",
         "beerGarden": "suntrap seating in the summer",
-        "nonAlcoholic": "homemade lemonade",
         "liveMusic": "MNA performing tonight",
         "pubQuiz": "our Quiz Night!"
       }
@@ -7230,8 +7025,7 @@
       "amenities": {
         "food": "traditional British meals",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -7243,7 +7037,6 @@
       "amenities": {
         "food": "mouthwatering menu focused on small plates and pizza",
         "beerGarden": "Outside seating",
-        "nonAlcoholic": "wide range of soft drinks",
         "pubQuiz": "QUIZ NIGHT"
       }
     },
@@ -7258,8 +7051,7 @@
         "beerGarden": "Our family-friendly pub hosts outdoor seating",
         "liveSports": "showcases all the live sports action on our Sky Sports and TNT Sports screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -7297,7 +7089,6 @@
         "food": "Offering Gastro quality food",
         "cocktails": "Cocktails, Real Ales",
         "liveSports": "during Rugby World Cup!",
-        "nonAlcoholic": "wine or soft drink",
         "pubQuiz": "Nunhead’s best Quiz Night",
         "darts": "Interactive Darts"
       }
@@ -7323,7 +7114,6 @@
         "food": "Our awesomely-tasty menu is served daily alongside chef’s specials and a cracking Sunday roast.",
         "beerGarden": "chill in our great beer garden",
         "liveSports": "Watch all the live Sporting action",
-        "nonAlcoholic": "spirits, and soft drinks.",
         "liveMusic": "From live music and quiz nights",
         "pubQuiz": "From live music and quiz nights",
         "darts": "Dartboard"
@@ -7339,8 +7129,7 @@
         "food": "menu packed with flavour",
         "beerGarden": "beer garden in the heart of Kensington",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -7353,9 +7142,7 @@
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "pubQuiz": "Christmas quizzes to karaoke.",
-        "darts": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "pool": "Pool Table",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pool": "Pool Table"
       }
     },
     {
@@ -7410,7 +7197,6 @@
         "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "live music and quiz nights",
         "pubQuiz": "live music and quiz nights",
-        "darts": "from footy to rugby, F1, darts and more!",
         "karaoke": "karaoke if you've got a flair"
       }
     },
@@ -7445,9 +7231,7 @@
       "amenities": {
         "food": "taste our delicious menu, packed with juicy burgers, crispy fish & chips and hearty pies.",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
-        "nonAlcoholic": "lemonade",
-        "pubQuiz": "We also put on a quiz night",
-        "karaoke": "karaoke."
+        "pubQuiz": "We also put on a quiz night"
       }
     },
     {
@@ -7472,9 +7256,7 @@
         "beerGarden": "our beer garden",
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -7503,8 +7285,7 @@
         "food": "an extensive food menu",
         "cocktails": "cocktails",
         "liveSports": "Sky Sports on multiple screens",
-        "liveMusic": "regular live music",
-        "darts": "ALL the Darts action"
+        "liveMusic": "regular live music"
       }
     },
     {
@@ -7542,8 +7323,7 @@
       "amenities": {
         "cocktails": "a small cocktail menu",
         "beerGarden": "Outdoor seating",
-        "pubQuiz": "Quiz night every other Thursday",
-        "darts": "Bar games"
+        "pubQuiz": "Quiz night every other Thursday"
       }
     },
     {
@@ -7581,8 +7361,7 @@
       "amenities": {
         "food": "fresh food, where drinkers and eaters alike are looked after",
         "cocktails": "great cocktails",
-        "beerGarden": "alfresco dining & lovely sunny terrace",
-        "nonAlcoholic": "Fairtrade coffee & teas"
+        "beerGarden": "alfresco dining & lovely sunny terrace"
       }
     },
     {
@@ -7634,7 +7413,6 @@
         "food": "proper pub food",
         "cocktails": "Seasonal cocktails",
         "beerGarden": "huge refurbished garden",
-        "nonAlcoholic": "Frozen drinks",
         "liveMusic": "option to bring your own music",
         "pubQuiz": "weekly quiz",
         "happyHour": "Happy Hour"
@@ -7690,8 +7468,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "fabulous food and drink",
-        "beerGarden": "Outside seating",
-        "nonAlcoholic": "soft drinks"
+        "beerGarden": "Outside seating"
       }
     },
     {
@@ -7739,8 +7516,7 @@
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "All meals are served with a drink"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -7804,8 +7580,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -7842,8 +7617,7 @@
       "sourceUrl": "https://shipec3.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "decent bar snacks",
-        "darts": "City of London Darts Association"
+        "food": "decent bar snacks"
       }
     },
     {
@@ -7866,8 +7640,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Indian Dream For a pub meal with a difference",
-        "beerGarden": "Outside seating",
-        "nonAlcoholic": "soft drinks"
+        "beerGarden": "Outside seating"
       }
     },
     {
@@ -7889,8 +7662,7 @@
       "amenities": {
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport Football",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -7967,9 +7739,7 @@
         "beerGarden": "outdoor seating area",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -8032,8 +7802,7 @@
         "beerGarden": "large beer garden",
         "liveSports": "Sky Sports and TNT Sports showcasing the live sports action",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -8044,8 +7813,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -8159,8 +7927,7 @@
         "food": "delicious pub food",
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -8185,7 +7952,6 @@
       "amenities": {
         "food": "delicious menu of home-cooked traditional pub classics",
         "beerGarden": "pub’s large courtyard area and garden",
-        "nonAlcoholic": "soft drink",
         "liveMusic": "live music and popular quiz nights",
         "pubQuiz": "live music and popular quiz nights"
       }
@@ -8230,8 +7996,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "mouthwatering menu choices",
-        "beerGarden": "Dogs Allowed (Garden Only)",
-        "nonAlcoholic": "DECAF (FILTERED) COFFEE"
+        "beerGarden": "Dogs Allowed (Garden Only)"
       }
     },
     {
@@ -8256,8 +8021,7 @@
       "amenities": {
         "food": "Freshly Prepared Food Our restaurants cater for all, with a tasty start, an intriguing middle and a delightful ending.",
         "cocktails": "classic cocktails, carefully selected wines, and a draught range",
-        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE | SUNDAY 11TH OCTOBER 4.30PM",
-        "darts": "Darts geschaut und uns durch die vielen verschiedenen Biere probiert"
+        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE | SUNDAY 11TH OCTOBER 4.30PM"
       }
     },
     {
@@ -8371,9 +8135,7 @@
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -8396,8 +8158,7 @@
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "liveSports": "TV screens"
       }
     },
     {
@@ -8608,7 +8369,6 @@
         "food": "fabulous fresh food",
         "beerGarden": "superb courtyard",
         "liveSports": "Home of Sport In the City",
-        "nonAlcoholic": "soft drink",
         "darts": "Darts Board"
       }
     },
@@ -8654,10 +8414,8 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-gate-clock-greenwich",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us Contact us Careers",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "beer garden clearing",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "beer garden clearing"
       }
     },
     {
@@ -8693,8 +8451,7 @@
         "food": "serves the most delicious of dishes",
         "cocktails": "expertly-brewed cask ales and cocktails",
         "liveSports": "Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
       }
     },
     {
@@ -8708,9 +8465,7 @@
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "night of live music - our pub caters for all!",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -8746,8 +8501,7 @@
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "All meals are served with a drink"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -8761,7 +8515,6 @@
         "cocktails": "Tequila Cocktails",
         "beerGarden": "Sunday Garden Grill",
         "liveSports": "WATCH EVERY FIXTURE",
-        "nonAlcoholic": "Perky Blenders Coffee",
         "liveMusic": "Live Music 1st Sunday",
         "pubQuiz": "WORLD CUP QUIZ NIGHT",
         "happyHour": "SUNDAY HAPPY HOUR"
@@ -8776,7 +8529,6 @@
       "amenities": {
         "food": "mouth-watering food, served up by our kitchen partners Patty & Bun.",
         "cocktails": "Friday 2-4-£14 Cocktails 5-9pm",
-        "nonAlcoholic": "Add A Soft Drink for £1.50",
         "liveMusic": "Karaoke Nights & More Karaoke Nights & More We also host several regular fun Karaoke events and music nights.",
         "pubQuiz": "TUE 06 OCT Pub Quiz 7:00 PM - 9:30 PM",
         "karaoke": "Home of Karaoke Heaven"
@@ -8823,8 +8575,7 @@
         "food": "pub restaurant. You can tuck into a pub food classic",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "We've got live music",
-        "pubQuiz": "Christmas quizzes",
-        "karaoke": "karaoke. Come join us"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -8892,7 +8643,6 @@
       "amenities": {
         "food": "Classic, Creative Cuisine",
         "liveSports": "OPEN FOR EVERY GAMEDAY",
-        "nonAlcoholic": "Soft Drink menu",
         "liveMusic": "Iconic Music Venue"
       }
     },
@@ -8954,8 +8704,7 @@
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -8966,8 +8715,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -9032,7 +8780,6 @@
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "we've got regular live music",
         "pubQuiz": "Christmas quizzes",
-        "darts": "from footy to rugby, F1, darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -9178,7 +8925,6 @@
         "food": "Fresh seafood, great pints and a warm East End welcome.",
         "cocktails": "house cocktails",
         "beerGarden": "Beer Garden",
-        "nonAlcoholic": "something soft",
         "happyHour": "HAPPY HOUR"
       }
     },
@@ -9192,8 +8938,7 @@
         "food": "hearty seasonal dishes",
         "cocktails": "Explore our cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "a glass of something warming"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -9239,8 +8984,7 @@
         "food": "Food & Drink",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -9254,7 +8998,6 @@
         "cocktails": "La Dolce Vita — Our Summer Spritz Menu Is Here",
         "beerGarden": "Pub Garden in Walthamstow | The Village",
         "liveSports": "live sports and more...",
-        "nonAlcoholic": "soft drinks and juices.",
         "pubQuiz": "Quiz Night",
         "darts": "including Darts, board games,"
       }
@@ -9266,11 +9009,9 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-george-croydon",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us Contact us Careers",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -9297,8 +9038,7 @@
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "TV screens"
       }
     },
     {
@@ -9309,8 +9049,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "mouth-watering locally sourced menu",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "Sandwich & Draught Soft Drink"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -9325,7 +9064,6 @@
         "liveSports": "Watch live football with us",
         "nonAlcoholic": "Alcohol free",
         "pubQuiz": "Join our pub quiz, every Sunday",
-        "darts": "darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -9361,9 +9099,7 @@
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free",
         "liveMusic": "live performances",
-        "pubQuiz": "fun quiz nights",
-        "darts": "darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "fun quiz nights"
       }
     },
     {
@@ -9491,8 +9227,7 @@
         "food": "Classic pub cuisine perfected",
         "cocktails": "including enticing cocktails",
         "liveSports": "Live sport Book a table",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "darts": "F1, darts and more!"
+        "nonAlcoholic": "Alcohol free cocktails"
       }
     },
     {
@@ -9519,9 +9254,7 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "watch our live music nights",
-        "pubQuiz": "round up a team for quiz night",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "round up a team for quiz night"
       }
     },
     {
@@ -9535,8 +9268,7 @@
         "beerGarden": "Our beer garden is the perfect place",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "occasional live music showing",
-        "pubQuiz": "Join our pub quiz, every Wednesday",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
     {
@@ -9677,7 +9409,6 @@
       "amenities": {
         "food": "a 2 course meal",
         "cocktails": "Great cocktails",
-        "nonAlcoholic": "non-stop party vibes",
         "liveMusic": "live music",
         "happyHour": "Happy Hour"
       }
@@ -9793,9 +9524,7 @@
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "evenings of live music",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -9837,8 +9566,7 @@
         "beerGarden": "our beer garden is the perfect spot",
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Join our pub quiz, every Monday",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Monday"
       }
     },
     {
@@ -9898,7 +9626,6 @@
         "liveSports": "Live Sport Football Premier League",
         "nonAlcoholic": "low and no-alcohol options",
         "liveMusic": "Live Music",
-        "darts": "Darts Formula 1",
         "pool": "Pool Table"
       }
     },
@@ -9913,8 +9640,7 @@
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
         "liveMusic": "rich history as a music venue, you can't miss out on some live entertainment",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -9925,8 +9651,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -9999,8 +9724,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste. However, it is not just choice and variety which are important – a key priority is the quality of the food offered.",
-        "cocktails": "Wetherspoon’s spritz cocktail range, a choice of nine classic and fruity recipes for all tastes.",
-        "nonAlcoholic": "All children’s meals are served with a drink and fruit option included."
+        "cocktails": "Wetherspoon’s spritz cocktail range, a choice of nine classic and fruity recipes for all tastes."
       }
     },
     {
@@ -10015,7 +9739,6 @@
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "live music (including karaoke!)",
         "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
         "karaoke": "live music (including karaoke!)"
       }
     },
@@ -10040,7 +9763,6 @@
         "food": "enjoy great food & drink",
         "cocktails": "Cocktail List",
         "beerGarden": "large beer garden out the front",
-        "nonAlcoholic": "great coffee too",
         "liveMusic": "PRICELESS ✨ LIVE VOCALS"
       }
     },
@@ -10068,7 +9790,6 @@
         "cocktails": "secret cocktail bar",
         "beerGarden": "all-weather garden space",
         "liveSports": "Live Sport",
-        "nonAlcoholic": "grab a coffee",
         "pubQuiz": "Weekly Pub Quiz"
       }
     },
@@ -10108,8 +9829,7 @@
         "food": "Pub Food at George Staples Sidcup",
         "cocktails": "cocktails and more",
         "beerGarden": "large beer garden out front",
-        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "good range of soft drinks"
+        "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE"
       }
     },
     {
@@ -10123,7 +9843,6 @@
         "beerGarden": "spacious beer garden",
         "liveSports": "Watch Live Football at Jolly Fenman!",
         "pubQuiz": "Join our pub quiz",
-        "darts": "F1, darts and more!",
         "pool": "cashless pool tables"
       }
     },
@@ -10184,8 +9903,7 @@
         "beerGarden": "beer garden and dog-friendly areas",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -10211,8 +9929,7 @@
         "food": "Classic pub favourites with a seasonal twist",
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "nonAlcoholic": "Alcohol free cocktails"
       }
     },
     {
@@ -10272,7 +9989,6 @@
         "cocktails": "two for one on cocktails",
         "liveSports": "live sport",
         "liveMusic": "live music",
-        "darts": "major darts",
         "happyHour": "Heroically priced Happy Hour"
       }
     },
@@ -10284,8 +10000,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -10296,8 +10011,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -10320,8 +10034,7 @@
       "amenities": {
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -10376,8 +10089,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -10411,8 +10123,7 @@
       "amenities": {
         "food": "Try out our menu: packed with flavour, full of pub classics and brimming with value for money.",
         "liveSports": "showing live sports on our Sky Sports and TNT Sports screens.",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs"
       }
     },
     {
@@ -10449,7 +10160,6 @@
       "amenities": {
         "food": "Great food and sunny beer garden",
         "beerGarden": "sunny beer garden",
-        "nonAlcoholic": "something soft",
         "liveMusic": "live music and quiz nights",
         "pubQuiz": "live music and quiz nights"
       }
@@ -10517,8 +10227,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Good food, great drinks",
-        "beerGarden": "our outdoor tables provide the perfect spot",
-        "nonAlcoholic": "soft drinks"
+        "beerGarden": "our outdoor tables provide the perfect spot"
       }
     },
     {
@@ -10564,9 +10273,7 @@
         "food": "Our pub food menu offers traditional classics",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -10593,8 +10300,7 @@
         "food": "Food & Drink",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -10738,8 +10444,7 @@
         "beerGarden": "sip away from our idyllic beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -10752,8 +10457,7 @@
         "food": "Free pub classic? Oh yes.",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "we still have live music nights regularly",
-        "pubQuiz": "Christmas quizzes",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -10767,7 +10471,6 @@
         "cocktails": "2 for 1 Cocktails",
         "beerGarden": "Our Beer Gardens",
         "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "Schweppes lemonade",
         "pool": "outside pool table"
       }
     },
@@ -10806,8 +10509,7 @@
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "TV screens"
       }
     },
     {
@@ -10833,7 +10535,6 @@
       "amenities": {
         "food": "try our seasonal menu, our hearty Sunday roasts",
         "liveSports": "Live sport Check out what live sport we have coming up.",
-        "nonAlcoholic": "We also know how to make a good cup of coffee and tea!",
         "liveMusic": "We also host amazing events like live music"
       }
     },
@@ -10847,8 +10548,7 @@
         "food": "Food & Drink",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -10887,8 +10587,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -10932,9 +10631,7 @@
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free",
         "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "pool": "Pool Table",
-        "karaoke": "karaoke."
+        "pool": "Pool Table"
       }
     },
     {
@@ -10945,8 +10642,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -10970,8 +10666,7 @@
         "beerGarden": "Beer Garden",
         "liveSports": "Watch live football with us",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Join our pub quiz, every Tuesday",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Tuesday"
       }
     },
     {
@@ -10997,8 +10692,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Our Khun Pakin Thai restaurant offers an exceptional dining experience",
-        "beerGarden": "Garden Outside seating",
-        "nonAlcoholic": "artisan soft drink"
+        "beerGarden": "Garden Outside seating"
       }
     },
     {
@@ -11167,8 +10861,7 @@
         "food": "View our menu",
         "beerGarden": "Beer Garden",
         "liveSports": "Live sport",
-        "pubQuiz": "Join our pub quiz",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "Join our pub quiz"
       }
     },
     {
@@ -11321,8 +11014,7 @@
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -11367,7 +11059,6 @@
         "food": "phenomenal pizza from Hackney&#8217;s ACE Pizza available every day",
         "cocktails": "Two spritzes for £15, Every Sunday! Choose from Aperol, Americano or Hugo Spritzes",
         "beerGarden": "enjoy the new outdoor seating",
-        "nonAlcoholic": "spirits and soft drinks",
         "pubQuiz": "regular Pub Quiz every Monday"
       }
     },
@@ -11419,8 +11110,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -11486,8 +11176,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -11500,7 +11189,6 @@
         "food": "traditional light lunches, seasonal specials",
         "cocktails": "spirits and cocktails",
         "liveSports": "LIVE SPORT",
-        "nonAlcoholic": "teas, and coffees",
         "darts": "Dart board",
         "pool": "Pool table"
       }
@@ -11536,10 +11224,8 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-william-webb-ellis-twickenham",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us Contact us Careers",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -11554,9 +11240,7 @@
         "liveSports": "live sport",
         "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "live music performances",
-        "pubQuiz": "quiz nights",
-        "darts": "darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "quiz nights"
       }
     },
     {
@@ -11669,8 +11353,7 @@
         "beerGarden": "Sit outside and watch the world go by under our awning",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "alcoholic and non-alcoholic drinks",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -11737,7 +11420,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-moon-stars-penge/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us Contact us Careers",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
         "liveSports": "tv TV screens"
@@ -11753,8 +11435,7 @@
         "food": "Delicious dishes We proudly serve freshly cooked traditional pub food throughout the week.",
         "liveSports": "There's always live sport showing on our Sky Sports and TNT Sports screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "gather a team for our quiz night",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "gather a team for our quiz night"
       }
     },
     {
@@ -11781,8 +11462,7 @@
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -11817,8 +11497,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "We serve iconic beers, quality fine wines & spirits, great coffee and drinks",
-        "beerGarden": "river view and terrace for those warm summer days",
-        "nonAlcoholic": "great coffee and drinks"
+        "beerGarden": "river view and terrace for those warm summer days"
       }
     },
     {
@@ -11995,8 +11674,7 @@
         "food": "Sunday roast",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -12009,8 +11687,7 @@
         "food": "Sunday roast",
         "cocktails": "sunset cocktails",
         "beerGarden": "Pub Gardens",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "refreshing spritz"
+        "liveSports": "Live Sport"
       }
     },
     {
@@ -12021,8 +11698,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -12046,7 +11722,6 @@
         "beerGarden": "splendid beer garden",
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "darts": "darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -12069,9 +11744,7 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-coronation-hall-surbiton",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks - J D Wetherspoon",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -12212,8 +11885,7 @@
         "food": "Food and drinks Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range, a choice of nine classic and fruity recipes for all tastes.",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -12250,8 +11922,7 @@
       "amenities": {
         "food": "Food Service Times",
         "cocktails": "deliciously sip-worthy cocktails",
-        "liveSports": "Autumn Nations 2026 Catch the Action",
-        "nonAlcoholic": "canine IPA (aka water"
+        "liveSports": "Autumn Nations 2026 Catch the Action"
       }
     },
     {
@@ -12280,7 +11951,6 @@
       "amenities": {
         "food": "Great Pizzas, Burgers, Ales, World beers, Wide Spirit Selection and Soft Drinks galore!",
         "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "Soft Drinks galore!",
         "liveMusic": "DJ&#x27;s all weekend"
       }
     },
@@ -12292,8 +11962,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -12518,9 +12187,7 @@
         "liveSports": "Live sport Book a table",
         "nonAlcoholic": "Alcohol free cocktails",
         "liveMusic": "From live music to quiz nights",
-        "pubQuiz": "Pop into one of our quiz nights",
-        "darts": "darts and more!",
-        "karaoke": "karaoke. Come join us"
+        "pubQuiz": "Pop into one of our quiz nights"
       }
     },
     {
@@ -12608,8 +12275,7 @@
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "beer garden clearing",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "beer garden clearing"
       }
     },
     {
@@ -12657,8 +12323,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -12670,7 +12335,6 @@
       "amenities": {
         "food": "Thai Kitchen serving up freshly prepared Thai dishes",
         "liveSports": "Live Sport",
-        "nonAlcoholic": "a quiet coffee",
         "liveMusic": "live music every Saturday",
         "pubQuiz": "Weekly pub quiz",
         "darts": "Darts Board"
@@ -12904,8 +12568,7 @@
         "food": "Food and drinks",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "TV screens",
-        "nonAlcoholic": "hot chocolate drinks"
+        "liveSports": "TV screens"
       }
     },
     {
@@ -12976,9 +12639,7 @@
         "food": "tasty traditional pub food",
         "liveSports": "Watch live sports action",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -12993,8 +12654,7 @@
         "beerGarden": "Make yourself at home in the beer garden",
         "liveSports": "catch all the latest live sports action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Join our pub quiz, every Wednesday",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Wednesday"
       }
     },
     {
@@ -13032,11 +12692,8 @@
         "cocktails": "Our bar offers craft cask ale and delicious cocktails",
         "beerGarden": "small outdoor seating area",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "range of soft drinks",
         "liveMusic": "live music nights on regularly too",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -13050,7 +12707,6 @@
         "beerGarden": "open, airy beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "pubQuiz": "Join our pub quiz",
-        "darts": "F1, darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -13085,9 +12741,7 @@
         "food": "menu is filled with your favourite pub classics from hearty pies, fish & chips and steaks cooked to perfection.",
         "liveSports": "We also show live sport through our Sky Sports and TNT Sport screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke.",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Christmas quizzes to karaoke."
       }
     },
     {
@@ -13183,7 +12837,6 @@
         "liveSports": "Watch live football with us",
         "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz, every Wednesday",
-        "darts": "darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -13265,8 +12918,7 @@
       "sourceUrl": "https://kanpai.london/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Sake bar & KITCHEN",
-        "nonAlcoholic": "soft drink"
+        "food": "Sake bar & KITCHEN"
       }
     },
     {
@@ -13303,9 +12955,7 @@
         "food": "range of grub food classics",
         "liveSports": "Sky Sports and TNT Sports",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke."
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -13351,8 +13001,7 @@
         "food": "Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "All meals are served with a drink, fruit and contain at least two of your five-a day."
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -13362,7 +13011,6 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-new-fairlop-oak-fairlop",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us Contact us Careers",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
         "liveSports": "tv TV screens"
@@ -13377,8 +13025,7 @@
       "amenities": {
         "beerGarden": "Most importantly, we have a beer garden.",
         "liveSports": "We show live sports every day",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -13414,7 +13061,6 @@
         "beerGarden": "spacious beer garden",
         "liveSports": "Sky Sports and TNT Sports screens showing all the latest action.",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "darts": "F1, darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -13428,7 +13074,6 @@
         "food": "mouth-watering steaks, burgers stacked with flavour and your favourite pub classics",
         "liveSports": "Watch Live Football at Whittington!",
         "pubQuiz": "Join our pub quiz",
-        "darts": "darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -13499,8 +13144,7 @@
       "amenities": {
         "food": "traditional pub food",
         "liveSports": "Live sport",
-        "nonAlcoholic": "Alcohol free cocktails",
-        "darts": "F1, darts and more!"
+        "nonAlcoholic": "Alcohol free cocktails"
       }
     },
     {
@@ -13514,7 +13158,6 @@
         "liveSports": "watching live sports on our Sky Sports and TNT Sports screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "live music performances",
-        "darts": "F1, darts and more!",
         "karaoke": "Karaoke and live music performances"
       }
     },
@@ -13551,7 +13194,6 @@
       "amenities": {
         "food": "all food, drink and fixtures are plant-based",
         "cocktails": "carefully curated cocktail list",
-        "nonAlcoholic": "Lucky Saint",
         "liveMusic": "first class DJs play every weekend",
         "pubQuiz": "infamous quiz and other events"
       }
@@ -13613,8 +13255,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -13627,9 +13268,7 @@
         "food": "serving delightful pies, classics like fish & chips, and vegetarian and vegan fayre.",
         "liveSports": "all the best sports from Sky Sports and TNT Sports",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
-        "pubQuiz": "Christmas quizzes to karaoke.",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Christmas quizzes to karaoke."
       }
     },
     {
@@ -13642,7 +13281,6 @@
         "food": "hearty meal with friends and family",
         "cocktails": "cruel cocktails and scary shots",
         "beerGarden": "Enclosed Garden",
-        "nonAlcoholic": "soft drinks",
         "liveMusic": "LIVE MUSIC Every Third Sunday",
         "karaoke": "KARAOKE Saturday 3rd October"
       }
@@ -13715,8 +13353,7 @@
         "food": "Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -13727,8 +13364,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -13752,8 +13388,7 @@
         "food": "Wetherspoon’s menus offer something for every taste.",
         "cocktails": "Wetherspoon’s spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -13787,7 +13422,6 @@
       "amenities": {
         "food": "Serving the taste of Louisiana in London",
         "cocktails": "proper cocktails at prices",
-        "nonAlcoholic": "bloody Marys, shrimp, pints, and mimosas",
         "liveMusic": "live music and the kind of atmosphere",
         "happyHour": "Looking for the best Happy Hour in Islington?"
       }
@@ -13856,7 +13490,6 @@
         "liveSports": "catch all the live sports action",
         "nonAlcoholic": "Alcohol Free",
         "pubQuiz": "Join our pub quiz",
-        "darts": "F1, darts and more!",
         "pool": "game of pool"
       }
     },
@@ -13882,7 +13515,6 @@
         "beerGarden": "in our beer garden on those sunny days",
         "liveSports": "Watch live sports with our Sky Sports and TNT Sports screens",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "darts": "darts and more!",
         "pool": "Pool Table",
         "happyHour": "2-for-1 on selected drinks from 4pm - 7pm"
       }
@@ -13908,8 +13540,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -13922,8 +13553,7 @@
         "food": "food and drinks",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -13938,8 +13568,7 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "live music performances",
-        "pubQuiz": "immersing yourself in our quiz nights",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "pubQuiz": "immersing yourself in our quiz nights"
       }
     },
     {
@@ -13971,8 +13600,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "amazing seasonal food",
-        "cocktails": "seasonal cocktails",
-        "nonAlcoholic": "fair trade coffee"
+        "cocktails": "seasonal cocktails"
       }
     },
     {
@@ -13999,8 +13627,7 @@
         "food": "dig into a family-friendly menu, which is packed with pub classics",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales",
-        "pubQuiz": "Join our pub quiz, every Thursday",
-        "darts": "darts and more!"
+        "pubQuiz": "Join our pub quiz, every Thursday"
       }
     },
     {
@@ -14067,9 +13694,7 @@
         "liveSports": "Our screens showcase the latest sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "our lively quiz nights are always entertaining",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "pool": "Pool Table",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pool": "Pool Table"
       }
     },
     {
@@ -14080,8 +13705,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food and drinks",
-        "cocktails": "spritz cocktail range",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "cocktails": "spritz cocktail range"
       }
     },
     {
@@ -14189,9 +13813,7 @@
         "liveSports": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth in low and no sales at Greene King Pubs",
         "liveMusic": "Our social calendar is packed with fun, including quiz nights and live music.",
-        "pubQuiz": "Our social calendar is packed with fun, including quiz nights and live music.",
-        "darts": "Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke."
+        "pubQuiz": "Our social calendar is packed with fun, including quiz nights and live music."
       }
     },
     {
@@ -14215,8 +13837,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All children’s meals are served with a drink and fruit option included."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -14252,8 +13873,7 @@
         "cocktails": "including enticing cocktails for special occasions",
         "beerGarden": "Beer garden Enjoy a drink outside in our beer garden",
         "liveSports": "Live sport Book a table for all the top sporting action",
-        "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "darts": "from footy to rugby, F1, darts and more!"
+        "nonAlcoholic": "Alcohol free cocktails fuelling growth"
       }
     },
     {
@@ -14329,7 +13949,6 @@
         "liveSports": "sports screenings",
         "liveMusic": "Live Music in Highbury Pubs",
         "pubQuiz": "quiz nights",
-        "darts": "Traditional Pub Games: How Highbury Pubs Keep the Spirit Alive",
         "pool": "Traditional pub games, including darts, pool"
       }
     },
@@ -14363,8 +13982,7 @@
       "amenities": {
         "beerGarden": "we have a beer garden",
         "liveSports": "We show live sports every day",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -14412,8 +14030,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "serving breakfast, lunch and dinner",
-        "beerGarden": "beautiful 372m 2 garden",
-        "nonAlcoholic": "hot, soft and alcoholic drinks"
+        "beerGarden": "beautiful 372m 2 garden"
       }
     },
     {
@@ -14475,7 +14092,6 @@
         "food": "We've got wings, steaks, burgers, veggie and vegan options, all the best pub food classics",
         "beerGarden": "If the sun's out, why noy relax in our beer garden?",
         "liveSports": "Book a table for all the top sporting action",
-        "darts": "F1, darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -14489,8 +14105,7 @@
         "food": "food and drinks",
         "cocktails": "spritz cocktail range",
         "beerGarden": "Licensed outside area",
-        "liveSports": "tv TV screens",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "liveSports": "tv TV screens"
       }
     },
     {
@@ -14504,8 +14119,7 @@
         "beerGarden": "dog-friendly beer garden",
         "liveSports": "Live sport Book a table",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "regular quiz night",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "regular quiz night"
       }
     },
     {
@@ -14516,8 +14130,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "The Samuel Pepys serves a selection of tasty snacks and traditional pub meals",
-        "cocktails": "Cocktails Available A selection of cocktails may be available",
-        "nonAlcoholic": "soft drink"
+        "cocktails": "Cocktails Available A selection of cocktails may be available"
       }
     },
     {
@@ -14552,8 +14165,7 @@
         "beerGarden": "outdoor seating",
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -14590,9 +14202,7 @@
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "from footy to rugby, F1, darts and more!",
-        "pool": "Pool Table",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pool": "Pool Table"
       }
     },
     {
@@ -14693,8 +14303,7 @@
       "amenities": {
         "food": "traditional British meals",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -14719,7 +14328,6 @@
       "amenities": {
         "food": "proper pub grub",
         "beerGarden": "great garden with plenty of seating",
-        "nonAlcoholic": "soft drinks",
         "liveMusic": "regular live music"
       }
     },
@@ -14734,9 +14342,7 @@
         "beerGarden": "beer garden in Earl’s Court",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes to karaoke",
-        "darts": "F1, darts and more!",
-        "karaoke": "Christmas quizzes to karaoke"
+        "pubQuiz": "Christmas quizzes to karaoke"
       }
     },
     {
@@ -14799,7 +14405,6 @@
         "liveSports": "Live Sport Football Premier League Champions League EFL FA Cup Conference League Rugby Horse Racing Golf Boxing Darts Formula 1",
         "nonAlcoholic": "low and no-alcohol options",
         "liveMusic": "Live Music",
-        "darts": "Darts Formula 1",
         "pool": "Pool Table"
       }
     },
@@ -14834,7 +14439,6 @@
       "amenities": {
         "food": "Savour the flavour of our fantastic pub food",
         "beerGarden": "charming beer garden",
-        "nonAlcoholic": "non-gluten options",
         "liveMusic": "hosts live music performances",
         "pubQuiz": "fun quiz nights"
       }
@@ -14885,9 +14489,7 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-crosse-keys-city-of-london",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks - J D Wetherspoon",
-        "cocktails": "spritz cocktail range",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "cocktails": "spritz cocktail range"
       }
     },
     {
@@ -14901,7 +14503,6 @@
         "beerGarden": "our beer garden",
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free",
-        "darts": "F1, darts and more!",
         "happyHour": "The happiest hours of the week"
       }
     },
@@ -14947,7 +14548,6 @@
       "amenities": {
         "food": "Enjoy freshly prepared food",
         "beerGarden": "Beer Garden in Hersham",
-        "nonAlcoholic": "soft drink",
         "pubQuiz": "Tuesday - Quiz"
       }
     },
@@ -14985,8 +14585,7 @@
       "amenities": {
         "food": "traditional British meals",
         "cocktails": "spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -14998,8 +14597,7 @@
       "amenities": {
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport Football",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -15036,7 +14634,6 @@
       "amenities": {
         "liveSports": "Live Sport Football Premier League",
         "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Boxing Darts Formula 1",
         "pool": "play pool"
       }
     },
@@ -15103,8 +14700,7 @@
         "liveSports": "showcase live sports with our Sky Sports",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
         "liveMusic": "exciting events from live music",
-        "pubQuiz": "Join our pub quiz, every Monday",
-        "darts": "F1, darts and more!"
+        "pubQuiz": "Join our pub quiz, every Monday"
       }
     },
     {
@@ -15189,10 +14785,8 @@
       "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-moon-under-water-enfield",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "Food and drinks Hotels About us Contact us Careers",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "beer garden clearing",
-        "nonAlcoholic": "tea, coffee and hot chocolate drinks"
+        "beerGarden": "beer garden clearing"
       }
     },
     {
@@ -15229,7 +14823,6 @@
         "food": "Serving coffee, pastries and cocktails.",
         "cocktails": "Serving coffee, pastries and cocktails.",
         "beerGarden": "Our courtyard bar and cafe",
-        "nonAlcoholic": "Serving coffee, pastries and cocktails.",
         "liveMusic": "Live Music"
       }
     },
@@ -15289,8 +14882,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Celebrate Christmas with some fabulously festive food",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All meals are served with a drink"
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -15312,8 +14904,7 @@
       "amenities": {
         "liveSports": "We show live sports every day",
         "nonAlcoholic": "low and no-alcohol options",
-        "liveMusic": "music is good after 9 pm",
-        "darts": "Darts Formula 1"
+        "liveMusic": "music is good after 9 pm"
       }
     },
     {
@@ -15367,8 +14958,7 @@
       "amenities": {
         "beerGarden": "Outside Area",
         "liveSports": "Live Sport Football",
-        "nonAlcoholic": "low and no-alcohol options",
-        "darts": "Darts Formula 1"
+        "nonAlcoholic": "low and no-alcohol options"
       }
     },
     {
@@ -15393,7 +14983,6 @@
         "beerGarden": "Enjoy the summer vibes in our beer garden",
         "liveSports": "Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "darts": "from footy to rugby, F1, darts and more!",
         "happyHour": "enjoy 2-for-1 on selected drinks from 4pm - 7pm"
       }
     },
@@ -15407,8 +14996,7 @@
         "food": "hearty home-cooked food",
         "cocktails": "summer cocktails",
         "beerGarden": "Outside seating",
-        "liveSports": "live sport on TV",
-        "nonAlcoholic": "soft drink"
+        "liveSports": "live sport on TV"
       }
     },
     {
@@ -15458,8 +15046,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste.",
-        "cocktails": "Wetherspoon’s spritz cocktail range",
-        "nonAlcoholic": "All children’s meals are served with a drink and fruit option included."
+        "cocktails": "Wetherspoon’s spritz cocktail range"
       }
     },
     {
@@ -15469,8 +15056,7 @@
       "sourceUrl": "https://www.chiswickcc.org/clients/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "liveSports": "Sky Sports and BT Sports",
-        "nonAlcoholic": "high-quality coffee"
+        "liveSports": "Sky Sports and BT Sports"
       }
     },
     {
@@ -15624,8 +15210,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "range of tea, coffee and hot chocolate drinks"
+        "beerGarden": "Licensed outside area"
       }
     },
     {
@@ -15662,7 +15247,6 @@
         "liveSports": "showing live sports",
         "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "competitive quiz nights",
-        "darts": "F1, darts and more!",
         "pool": "a pool table",
         "happyHour": "4pm - 7pm, Monday to Thursday!"
       }
@@ -15724,9 +15308,7 @@
         "food": "Our food menu is sure to satisfy any craving",
         "liveSports": "Live sport Book a table for all the top sporting action",
         "nonAlcoholic": "Alcohol free cocktails fuelling growth",
-        "pubQuiz": "Christmas quizzes",
-        "darts": "F1, darts and more!",
-        "karaoke": "karaoke. Come join us"
+        "pubQuiz": "Christmas quizzes"
       }
     },
     {
@@ -15767,7 +15349,6 @@
         "food": "Looking to book in for food and drinks",
         "beerGarden": "Beer garden, pool tables",
         "liveSports": "Live sport on six big screens",
-        "darts": "cricket and the darts",
         "pool": "pool tables and the photobooth"
       }
     },
@@ -15803,7 +15384,6 @@
         "food": "delicious food",
         "beerGarden": "large beer garden",
         "liveSports": "WATCH LIVERPOOL VS MAN CITY LIVE",
-        "nonAlcoholic": "range of soft drinks is included",
         "pubQuiz": "quiz nights",
         "karaoke": "karaoke sessions"
       }
@@ -15857,7 +15437,6 @@
         "liveSports": "Live sport",
         "nonAlcoholic": "Alcohol free cocktails",
         "pubQuiz": "Join our pub quiz, every Wednesday",
-        "darts": "darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -15882,7 +15461,6 @@
         "food": "delicious pub food classics",
         "beerGarden": "head out to the beer garden",
         "liveSports": "live sports coverage",
-        "darts": "darts and more!",
         "pool": "Pool Table"
       }
     },
@@ -15998,8 +15576,7 @@
       "amenities": {
         "food": "Wetherspoon’s menus offer something for every taste",
         "cocktails": "Wetherspoon’s spritz cocktail range",
-        "beerGarden": "Licensed outside area",
-        "nonAlcoholic": "All meals are served with a drink"
+        "beerGarden": "Licensed outside area"
       }
     }
   ]

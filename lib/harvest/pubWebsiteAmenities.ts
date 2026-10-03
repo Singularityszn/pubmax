@@ -1,7 +1,7 @@
 // Amenity claims taken from a pub's own website.
 //
 // A true value is kept only when the model quotes a phrase that is actually on
-// the page. The quote is the evidence. A blank price-dataset column is the
+// the page and that phrase states the amenity. The quote is the evidence. A blank price-dataset column is the
 // existing amenity path, so a kept value stamps that column as "yes" and leaves
 // a column the source already answered alone.
 
@@ -42,7 +42,7 @@ export const MIN_EVIDENCE_CHARS = 8;
 export const MAX_EVIDENCE_CHARS = 280;
 export const PAGE_CHAR_CAP = 12_000;
 export const MAX_OUTPUT_TOKENS = 700;
-export const JOB_SPEND_CAP_USD = 20;
+export const JOB_SPEND_CAP_USD = 6;
 export const MATCH_METRES = 120;
 
 /**
@@ -122,7 +122,42 @@ export function evidenceQuoteIsOnPage(pageText: string, quote: string): boolean 
   return foldText(pageText).includes(folded);
 }
 
-/** Keep true values whose evidence is a quote from the page. Everything else goes. */
+const ALCOHOL_FREE =
+  /alch?ohol[\s-]*free|\bnon\s*[-\u2013]?\s*alch?oholic|\bno[\s-]+alch?ohol|\b(?:low|no)\s*(?:and|&|\/|or)\s*(?:low|no)\b|\bzero[\s-]*proof|\b0(?:\.[05])?\s*%|\b0\.0|\bmocktails?\b|\bvirgin\b/i;
+const DARTS = /\bdarts?\b|dartboards?/i;
+const DARTS_PLAYED =
+  /dartboards?|\b(?:boards?|lanes?|oche|interactive|smart|digital|electric|ar|games?|play|teams?|club|league|competitions?|social|party|room|set of|round of|pool|shuffleboard|try your hand)\b/i;
+const TELEVISED_SPORT =
+  /\b(?:f1|formula\s*1|boxing|footy|rugby|football|cricket|sports?|sporting|action|grand prix|semi-?finals?|final|championship|watch|screens?|tv|televised|geschaut)\b/i;
+const POOL = /\bpool\b/i;
+const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party|parties|house))\b/i;
+const KARAOKE = /\bkar(?:aoke|oake)\b/i;
+const SEASONAL_PROMO = /\bchristmas\b/i;
+const SITE_NAVIGATION = /\b(?:about us|contact us|careers|hotels)\b|\s[-\u2013]\s*j\s*d\s*wetherspoon\b/i;
+/** A quote that opens on the last word of a sentence has lost the sentence that word belonged to. */
+const SENTENCE_TAIL = /^[\w'-]+\.(?:\s|$)/;
+
+/**
+ * What a quote must say for each amenity to stand. Tea, coffee, soft drinks and
+ * a kids' meal drink are not alcohol-free beer. Darts on the television is not
+ * a dartboard. A key without an entry needs only the quote.
+ */
+const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) => boolean>> = {
+  food: (quote) => !SITE_NAVIGATION.test(quote),
+  nonAlcoholic: (quote) => ALCOHOL_FREE.test(quote),
+  darts: (quote) => DARTS.test(quote) && DARTS_PLAYED.test(quote) && !TELEVISED_SPORT.test(quote),
+  pool: (quote) => POOL.test(quote) && !NOT_A_POOL_TABLE.test(quote),
+  karaoke: (quote) =>
+    KARAOKE.test(quote) && !SEASONAL_PROMO.test(quote) && !SENTENCE_TAIL.test(quote),
+};
+
+/** Whether a quote states the amenity at this pub, rather than only mentioning a nearby word. */
+export function evidenceStatesAmenity(key: PubWebsiteAmenityKey, quote: string): boolean {
+  const statement = AMENITY_STATEMENTS[key];
+  return statement ? statement(foldText(quote)) : true;
+}
+
+/** Keep true values whose evidence is a quote from the page that states the amenity. Everything else goes. */
 export function keepEvidencedAmenities(
   amenities: Partial<Record<PubWebsiteAmenityKey, ParsedAmenity>>,
   pageText: string,
@@ -133,6 +168,7 @@ export function keepEvidencedAmenities(
     if (!item?.value) continue;
     const evidence = item.evidence.trim();
     if (!evidenceQuoteIsOnPage(pageText, evidence)) continue;
+    if (!evidenceStatesAmenity(key, evidence)) continue;
     kept[key] = evidence;
   }
   return kept;
@@ -149,7 +185,7 @@ export function stampAmenityColumns<T extends Record<string, unknown>>(
   row: T,
   amenities: Partial<Record<PubWebsiteAmenityKey, string>>,
 ): { row: T; stamped: PubWebsiteAmenityKey[] } {
-  const next = { ...row };
+  const next: Record<string, unknown> = { ...row };
   const stamped: PubWebsiteAmenityKey[] = [];
   for (const key of PUB_WEBSITE_AMENITY_KEYS) {
     const evidence = amenities[key];
@@ -159,7 +195,7 @@ export function stampAmenityColumns<T extends Record<string, unknown>>(
     next[column] = "yes";
     stamped.push(key);
   }
-  return { row: next, stamped };
+  return { row: next as T, stamped };
 }
 
 export function projectPubAmenitySpend(input: {

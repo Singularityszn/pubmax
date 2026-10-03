@@ -398,7 +398,8 @@ export const initialFilters: Filters = {
 
 /**
  * The source column each amenity is read from. `nonAlcoholic` is deliberately
- * absent: it is derived from the pub's listed drink names, not a column, and
+ * absent: it is derived from the pub's listed drink names or the
+ * `non_alcoholic` column stamped from the pub's own site, and
  * `venueAmenityStatus` reads it through `derivedAmenityStatus`.
  */
 const AMENITY_SOURCE_COLUMNS = {
