@@ -98,6 +98,11 @@ export type VenuePrice = {
   pool: string;
   happy_hour: string;
   karaoke: string;
+  /**
+   * Alcohol-free drinks the pub's own site stated, with the quote kept beside
+   * the row in the website-amenity evidence file. Absent is unknown.
+   */
+  non_alcoholic?: string;
   cool: string;
   source_datasets: string;
   source_row_count: number;
@@ -650,7 +655,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         pool: prices.some((price) => truthyFlag(price.pool)),
         happyHour: prices.some((price) => truthyFlag(price.happy_hour)),
         karaoke: prices.some((price) => truthyFlag(price.karaoke)),
-        nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
+        nonAlcoholic:
+          hasNonAlcoholic(prices.map((price) => price.pint_name)) ||
+          prices.some((price) => truthyFlag(price.non_alcoholic ?? "")),
       },
       website: prices.find((price) => price.website)?.website ?? "",
       bookingLink: firstHttp(...prices.map((price) => price.booking_link)),
