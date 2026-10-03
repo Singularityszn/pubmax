@@ -35,6 +35,10 @@ import { readString } from "@/lib/textClean";
 
 assertServerEnv();
 
+const COMMENT_ACTOR_LIMIT = 8;
+const COMMENT_PER_DROP_LIMIT = 120;
+const COMMENT_RATE_WINDOW_MS = 60_000;
+
 export async function GET(request: Request): Promise<Response> {
   const dropId = new URL(request.url).searchParams.get("dropId");
   if (!dropId) return jsonNoStore({ comments: [] }, { status: 200 });
@@ -106,10 +110,24 @@ export async function POST(request: Request): Promise<Response> {
   // and future moderation; never part of the public DTO.
   const actorHash = hashIp(clientIp(request));
 
-  // Rate-limit per drop AND per actor: the in-memory key leads with the drop so
-  // one drop can't be flooded; the durable key leads with the actor so one
-  // device can't spam across drops. 429 when either budget is exhausted.
-  if (await isLimited(`comment:${dropId}`, `comment:${actorHash}`)) {
+  // Rate-limit per actor AND per drop (two independent budgets). The actor cap
+  // stops one device spamming across drops; the per-drop cap is generous so a
+  // lively thread never trips it during normal reading. 429 when either budget
+  // is exhausted.
+  if (
+    (await isLimited(
+      `comment:${actorHash}`,
+      `comment:${actorHash}`,
+      COMMENT_ACTOR_LIMIT,
+      COMMENT_RATE_WINDOW_MS,
+    )) ||
+    (await isLimited(
+      `comment:${dropId}`,
+      `comment:${dropId}`,
+      COMMENT_PER_DROP_LIMIT,
+      COMMENT_RATE_WINDOW_MS,
+    ))
+  ) {
     return publicApiError("Too many comments, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
