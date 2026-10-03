@@ -13,6 +13,7 @@
   "kinds": [
     "bar",
     "cafe",
+    "club",
     "coworking",
     "food",
     "hotel_lounge",
@@ -22,23 +23,24 @@
     "restaurant"
   ],
   "uk": {
-    "total": 91431,
+    "total": 91604,
     "byKind": {
       "pub": 38207,
       "bar": 7195,
       "other": 2572,
-      "restaurant": 517,
+      "restaurant": 530,
       "hotel_lounge": 296,
       "cafe": 38266,
       "food": 319,
       "library": 3601,
-      "coworking": 458
+      "coworking": 458,
+      "club": 160
     },
     "byTaxonomyKey": {
       "pub": 38207,
       "bar": 7168,
       "off_licence": 2465,
-      "restaurant_bar": 517,
+      "restaurant_bar": 530,
       "hotel_bar": 296,
       "biergarten": 27,
       "cafe": 37897,
@@ -46,21 +48,23 @@
       "late_fast_food": 319,
       "library": 3601,
       "coworking": 458,
-      "community_centre_wifi": 107
+      "community_centre_wifi": 107,
+      "nightclub": 160
     }
   },
   "london": {
-    "total": 13477,
+    "total": 13650,
     "byKind": {
       "pub": 3650,
       "bar": 1246,
       "other": 513,
       "hotel_lounge": 43,
-      "restaurant": 159,
+      "restaurant": 172,
       "cafe": 7203,
       "food": 46,
       "library": 463,
-      "coworking": 154
+      "coworking": 154,
+      "club": 160
     },
     "byTaxonomyKey": {
       "pub": 3650,
@@ -68,20 +72,21 @@
       "bar": 1236,
       "off_licence": 503,
       "hotel_bar": 43,
-      "restaurant_bar": 159,
+      "restaurant_bar": 172,
       "cafe": 7133,
       "coffee_shop": 70,
       "late_fast_food": 46,
       "library": 463,
       "community_centre_wifi": 10,
-      "coworking": 154
+      "coworking": 154,
+      "nightclub": 160
     }
   },
   "groups": [
     {
       "group": "drink",
-      "venues": 48680,
-      "bytes": 22091176
+      "venues": 48853,
+      "bytes": 22172574
     },
     {
       "group": "food",
@@ -92,6 +97,38 @@
       "group": "work",
       "venues": 4166,
       "bytes": 2052800
+    }
+  ],
+  "supplements": [
+    {
+      "askedAt": "2026-10-03T16:28:22.249Z",
+      "snapshotAt": "2026-10-03T16:26:41Z",
+      "bbox": [
+        51.28,
+        -0.53,
+        51.7,
+        0.34
+      ],
+      "keys": [
+        "nightclub",
+        "restaurant_bar"
+      ],
+      "elements": 333,
+      "unclassified": 0,
+      "unnamed": 2,
+      "added": 173,
+      "addedByKind": {
+        "club": 160,
+        "restaurant": 13
+      },
+      "addedByTaxonomyKey": {
+        "nightclub": 160,
+        "restaurant_bar": 13
+      },
+      "skippedExisting": 158,
+      "outsideWindow": 0,
+      "wrongKey": 0,
+      "note": "One Overpass request over the Greater London bbox. Existing pack rows were kept. Nightclubs in the UK totals are this window only. Restaurants already in the pack stay UK-wide; only the restaurants this request added are Greater London."
     }
   ]
 }

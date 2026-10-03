@@ -8,8 +8,8 @@ The packs beside this file are generated. This file is hand-written and
 survives a rebuild.
 
 ```
-uk_osm_venues_drink.json   # pubs, bars, beer gardens, restaurants with a bar,
-                           # hotel bars, off-licences
+uk_osm_venues_drink.json   # pubs, bars, beer gardens, nightclubs, restaurants
+                           # that state alcohol, hotel bars, off-licences
 uk_osm_venues_food.json    # cafes, coffee shops, late fast food
 uk_osm_venues_work.json    # coworking, libraries, community centres with wifi
 venue_chunks.json          # the grid, per-chunk element counts, failures
@@ -19,6 +19,11 @@ raw_venues/                # raw Overpass responses, GITIGNORED
 
 Refresh: `npm run fetch:uk-venues` (resumes by default; `--from-raw` rebuilds the
 packs with no network; `--scope=work` retries one lane; `--list` prints the grid).
+`npm run fetch:uk-venues -- --supplement-london` asks Overpass once, for Greater
+London only, for `amenity=nightclub` and for restaurants the table below now
+treats as drink-serving, and appends those rows to the drink pack. It does not
+refetch the grid, and it does not rewrite a row the pack already holds. Until
+the next full-grid refresh, UK counts for those keys are that London window.
 
 An artifact describes a complete run of its own scope: a `--scope` retry writes
 that lane's pack and its own `venue_chunks_<scope>.json`, and leaves the other
@@ -35,7 +40,8 @@ written down. THE RULE is that a row exists because OSM **states** the thing:
 | `pub` | `pub` | `amenity=pub` |
 | `bar` | `bar` | `amenity=bar` |
 | `biergarten` | `bar` | `amenity=biergarten` |
-| `restaurant_bar` | `restaurant` | `amenity=restaurant` **and** a stated `bar`, `microbrewery` or `real_ale` |
+| `nightclub` | `club` | `amenity=nightclub` |
+| `restaurant_bar` | `restaurant` | `amenity=restaurant` **and** a stated `bar`, `microbrewery`, `real_ale`, `alcohol=yes` or `alcohol=served`, `drink` set to an alcoholic name, or an alcoholic `drink:*` key (`yes`, `served`, `draught` or `bottled`). The alcoholic `drink:*` keys are the Alcoholic list on OSM wiki [Key:drink:*](https://wiki.openstreetmap.org/wiki/Key:drink:*). Coffee, tea and the other non-alcoholic keys on that page do not qualify. |
 | `hotel_bar` | `hotel_lounge` | `tourism=hotel` **and** a stated `bar` |
 | `off_licence` | `other` | `shop=alcohol` or `shop=off_licence` |
 | `cafe` | `cafe` | `amenity=cafe` |

@@ -30,6 +30,8 @@ import {
   isFreshOverpassSnapshot,
 } from "../scripts/lib/overpassClient.mjs";
 import {
+  ALCOHOLIC_DRINK_KEYS,
+  LONDON_DRINK_SUPPLEMENT_KEYS,
   UK_VENUE_GROUPS,
   UK_VENUE_KINDS,
   UK_VENUE_QUERY_SCOPES,
@@ -38,7 +40,9 @@ import {
   classifyVenueTags,
   countVenues,
   normalizeVenueElements,
+  restaurantStatesAlcohol,
   taxonomyForScope,
+  venuesToAdd,
 } from "../scripts/lib/ukOsmVenueSeed.mjs";
 import { VENUE_KINDS, isVenueKind, type VenueKind } from "@/lib/venues";
 import {
@@ -79,11 +83,45 @@ describe("UK venue taxonomy", () => {
     expect(() => taxonomyForScope("nightclubs")).toThrow(/Unknown venue scope/);
   });
 
-  it("takes a restaurant only where OSM states a bar, a microbrewery or real ale", () => {
+  it("takes a nightclub as a club, and nothing inferred from a name", () => {
+    expect(classifyVenueTags({ amenity: "nightclub", name: "Fabric" })?.kind).toBe("club");
+    expect(classifyVenueTags({ amenity: "nightclub" })?.key).toBe("nightclub");
+    expect(classifyVenueTags({ amenity: "bar", name: "Nightclub" })?.kind).toBe("bar");
+    expect(classifyVenueTags({ name: "The Club" })).toBeNull();
+  });
+
+  it("takes a restaurant only where OSM states alcohol", () => {
     expect(classifyVenueTags({ amenity: "restaurant", name: "Plain" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", bar: "yes" })?.key).toBe("restaurant_bar");
     expect(classifyVenueTags({ amenity: "restaurant", real_ale: "yes" })?.key).toBe("restaurant_bar");
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "yes" })?.key).toBe("restaurant_bar");
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "served" })?.kind).toBe("restaurant");
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:wine": "served" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "draught" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", drink: "wine" })?.key).toBe("restaurant_bar");
     expect(classifyVenueTags({ amenity: "restaurant", bar: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:coffee": "yes" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "retail" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", drink: "coffee" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", opening_hours: "24/7" })).toBeNull();
+    expect(restaurantStatesAlcohol({ amenity: "cafe", alcohol: "yes" })).toBe(false);
+  });
+
+  it("asks the London supplement for nightclubs and alcohol-stating restaurants only", () => {
+    const query = buildUkVenueQuery(LONDON_CELL, "drink", { keys: LONDON_DRINK_SUPPLEMENT_KEYS });
+    expect(query).toContain('node["amenity"="nightclub"](area.uk)');
+    expect(query).toContain('["alcohol"~"^(yes|served)$"]');
+    expect(query).toContain("drink:wine");
+    expect(query).not.toContain("drink:coffee");
+    expect(query).not.toContain('"amenity"="pub"');
+    expect(query).not.toContain('"amenity"="cafe"');
+    for (const key of ALCOHOLIC_DRINK_KEYS) expect(query).toContain(key);
   });
 
   it("takes fast food only where OSM states alcohol or round-the-clock hours", () => {
@@ -181,6 +219,26 @@ describe("UK venue normalization", () => {
     expect(result.unclassified).toBe(1);
   });
 
+  it("appends a supplement without rewriting a row the pack already holds", () => {
+    const existing = [
+      { osmId: "node/1", kind: "restaurant", taxonomyKey: "restaurant_bar", lat: 51.5, lng: -0.1 },
+    ];
+    const incoming = [
+      { osmId: "node/1", kind: "restaurant", taxonomyKey: "restaurant_bar", lat: 51.5, lng: -0.1 },
+      { osmId: "node/2", kind: "club", taxonomyKey: "nightclub", lat: 51.51, lng: -0.12 },
+      { osmId: "node/3", kind: "pub", taxonomyKey: "pub", lat: 51.5, lng: -0.1 },
+      { osmId: "node/4", kind: "club", taxonomyKey: "nightclub", lat: 52.5, lng: -1.5 },
+    ];
+    const result = venuesToAdd(existing, incoming, {
+      keys: LONDON_DRINK_SUPPLEMENT_KEYS,
+      inWindow: (venue) => venue.lat < 52,
+    });
+    expect(result.added.map((venue) => venue.osmId)).toEqual(["node/2"]);
+    expect(result.skippedExisting).toBe(1);
+    expect(result.wrongKey).toBe(1);
+    expect(result.outsideWindow).toBe(1);
+  });
+
   it("counts by kind and by taxonomy key", () => {
     const { venues } = normalizeVenueElements([
       node(20, { amenity: "pub", name: "One" }),
@@ -198,7 +256,7 @@ describe("the widened venue vocabulary", () => {
   it("leaves pub behaviour exactly as it was", () => {
     expect(isPubVenueKind(undefined)).toBe(true);
     expect(isPubVenueKind("pub")).toBe(true);
-    for (const kind of ["cafe", "coworking", "library", "hotel_lounge", "other"] as const) {
+    for (const kind of ["cafe", "club", "coworking", "library", "hotel_lounge", "other"] as const) {
       expect(isPubVenueKind(kind)).toBe(false);
     }
   });
