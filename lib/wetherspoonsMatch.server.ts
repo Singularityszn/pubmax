@@ -17,17 +17,18 @@ export {
 
 let directoryPubs: Promise<WetherspoonsPub[]> | null = null;
 
+async function readWetherspoonsDirectoryPubs(): Promise<WetherspoonsPub[]> {
+  const raw = JSON.parse(
+    await readFile(path.join(process.cwd(), "public/data/wetherspoons/pubs.json"), "utf8"),
+  ) as { pubs?: unknown };
+  return Array.isArray(raw.pubs) ? (raw.pubs as WetherspoonsPub[]) : [];
+}
+
 export async function loadWetherspoonsDirectoryPubs(): Promise<WetherspoonsPub[]> {
-  directoryPubs ??= (async () => {
-    try {
-      const raw = JSON.parse(
-        await readFile(path.join(process.cwd(), "public/data/wetherspoons/pubs.json"), "utf8"),
-      ) as { pubs?: unknown };
-      return Array.isArray(raw.pubs) ? (raw.pubs as WetherspoonsPub[]) : [];
-    } catch {
-      return [];
-    }
-  })();
+  directoryPubs ??= readWetherspoonsDirectoryPubs().catch(() => {
+    directoryPubs = null;
+    return [];
+  });
   return directoryPubs;
 }
 
