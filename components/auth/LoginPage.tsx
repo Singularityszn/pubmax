@@ -393,9 +393,8 @@ export default function LoginPage({
   addAccount?: boolean;
   /**
    * True when the server saw a resume cookie or a provider callback landing.
-   * A signed-in reader keeps the
-   * skeleton until the session answers; a reader without a hint gets the
-   * email door in the first HTML.
+   * A signed-in reader keeps the skeleton until the session answers; a reader
+   * without a hint gets the email door in the first HTML.
    */
   sessionHint?: boolean;
 } = {}): React.JSX.Element {
