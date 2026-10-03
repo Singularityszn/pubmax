@@ -77,24 +77,42 @@ describe("verify:famous-venues daily batch", () => {
     ]);
   });
 
+  const seedIds = ["bar-done", "bar-withheld", "bar-next"];
+  const entries = [
+    batchEntry("bar-done", "2026-08-25"),
+    batchEntry("bar-withheld", "2026-08-25"),
+    batchEntry("bar-next", "2026-09-25"),
+  ];
+
   it("skips rows a partial batch already checked and still offers rows from a full re-verify", () => {
-    const partial = { checks: [{ id: "bar-done" }, { id: "bar-withheld" }] };
-    const full = { checks: [{ id: "bar-a" }, { id: "bar-b" }, { id: "bar-c" }] };
-    expect(idsCoveredByPartialVerifications([full, partial], 3)).toEqual([
-      "bar-done",
-      "bar-withheld",
-    ]);
-    const entries = [
-      batchEntry("bar-done", "2026-08-25"),
-      batchEntry("bar-withheld", "2026-08-25"),
-      batchEntry("bar-next", "2026-09-25"),
-    ];
+    const partial = {
+      verifiedAt: "2026-10-03",
+      checks: [{ id: "bar-done" }, { id: "bar-withheld" }],
+    };
+    const full = {
+      verifiedAt: "2026-09-25",
+      checks: [{ id: "bar-done" }, { id: "bar-withheld" }, { id: "bar-next" }],
+    };
+    const skipIds = idsCoveredByPartialVerifications([partial, full], seedIds);
+    expect(skipIds).toEqual(["bar-done", "bar-withheld"]);
     expect(
-      selectVerificationBatch(entries, {
-        limit: 40,
-        skipIds: idsCoveredByPartialVerifications([partial], 3),
-      }).map((entry) => entry.row.id),
+      selectVerificationBatch(entries, { limit: 40, skipIds }).map((entry) => entry.row.id),
     ).toEqual(["bar-next"]);
+  });
+
+  it("offers rows again once earlier partial batches together covered the seed", () => {
+    const earlier = [
+      { verifiedAt: "2026-09-01", checks: [{ id: "bar-done" }, { id: "bar-withheld" }] },
+      { verifiedAt: "2026-09-02", checks: [{ id: "bar-next" }] },
+    ];
+    const skipIds = idsCoveredByPartialVerifications(earlier, seedIds);
+    expect(skipIds).toEqual([]);
+    expect(
+      selectVerificationBatch(entries, { limit: 40, skipIds }).map((entry) => entry.row.id),
+    ).toEqual(["bar-done", "bar-withheld", "bar-next"]);
+
+    const resumed = [...earlier, { verifiedAt: "2026-10-03", checks: [{ id: "bar-done" }] }];
+    expect(idsCoveredByPartialVerifications(resumed, seedIds)).toEqual(["bar-done"]);
   });
 
   it("counts today's checks against the batch and rejects a non-positive limit", () => {

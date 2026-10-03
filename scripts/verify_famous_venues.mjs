@@ -174,19 +174,24 @@ export function remainingBatchSize(limit, alreadyVerifiedToday) {
 }
 
 /**
- * Ids already checked by a partial batch. An artifact that covers the whole
- * seed is a previous full re-verify, so its ids stay eligible.
+ * Ids already checked in the unfinished re-verification. Artifacts are walked
+ * by date: a full artifact, or a run of partial artifacts whose ids together
+ * cover the seed, closes that re-verification, so its ids stay eligible.
  */
-export function idsCoveredByPartialVerifications(artifacts, seedRowCount) {
-  const ids = new Set();
-  for (const artifact of artifacts) {
-    const checks = Array.isArray(artifact?.checks) ? artifact.checks : [];
-    if (seedRowCount > 0 && checks.length >= seedRowCount) continue;
+export function idsCoveredByPartialVerifications(artifacts, seedIds) {
+  const seed = [...seedIds];
+  const byDate = [...artifacts].sort((a, b) =>
+    String(a?.verifiedAt).localeCompare(String(b?.verifiedAt)),
+  );
+  let open = new Set();
+  for (const artifact of byDate) {
+    const checks = artifactChecks(artifact);
     for (const check of checks) {
-      if (typeof check?.id === "string") ids.add(check.id);
+      if (typeof check?.id === "string") open.add(check.id);
     }
+    if (checks.length >= seed.length || seed.every((id) => open.has(id))) open = new Set();
   }
-  return [...ids];
+  return [...open];
 }
 
 /** Oldest observedAt first, then id. skipIds are not sent to Places again. */
@@ -243,16 +248,19 @@ async function main() {
   }
 
   let entries = rows;
-  let priorArtifacts = [];
+  let skipIds = [];
   if (limit != null) {
-    priorArtifacts = loadVerificationArtifacts();
+    const priorArtifacts = loadVerificationArtifacts();
     const today = priorArtifacts.find((artifact) => artifact.verifiedAt === verifiedDay) ?? null;
     const room = remainingBatchSize(limit, artifactChecks(today).length);
     if (room === 0) {
       console.log(`Today's batch already has ${limit} checks; not calling Places again`);
       return;
     }
-    const skipIds = idsCoveredByPartialVerifications(priorArtifacts, rows.length);
+    skipIds = idsCoveredByPartialVerifications(
+      priorArtifacts,
+      rows.map(({ row }) => row.id),
+    );
     entries = selectVerificationBatch(rows, { limit: room, skipIds });
     if (entries.length === 0) {
       console.log("No famous-venue rows left in this re-verification");
@@ -326,10 +334,7 @@ async function main() {
       `Next: add ${closed.map((c) => c.id).join(", ")} to data/famous_venues/removed.json`,
     );
   }
-  const skipAfter = new Set([
-    ...idsCoveredByPartialVerifications(priorArtifacts, rows.length),
-    ...mergedChecks.map((check) => check.id),
-  ]);
+  const skipAfter = new Set([...skipIds, ...mergedChecks.map((check) => check.id)]);
   const stillPending =
     limit == null ? [] : selectVerificationBatch(rows, { skipIds: [...skipAfter] });
   if (limit == null || stillPending.length === 0) {
