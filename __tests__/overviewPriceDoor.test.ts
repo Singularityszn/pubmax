@@ -27,7 +27,6 @@ import VenueOverviewTab, {
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import type { CommunityPrice } from "@/lib/communityPrice";
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { drinkLaneLogActionLabel } from "@/lib/drinkLanes";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
@@ -447,7 +446,10 @@ describe("published prices and drinker-log absence on the rendered Overview", ()
     expect(drinks).toContain("Pint Prices");
     for (const row of catalogue) expect(drinks).toContain(`href="${row.pub_url}"`);
     expect(drinks).toMatch(/<time[^>]*datetime=/i);
-    expect(drinks).toContain(PINT_DATASET_OBSERVED_AT.toISOString());
+    for (const row of catalogue) {
+      expect(row.scraped_at_values).toBeTruthy();
+      expect(drinks).toContain(new Date(row.scraped_at_values!).toISOString());
+    }
     expect(base.prices).toEqual(catalogue);
   });
 
