@@ -129,7 +129,7 @@ no side effect, as above.
 | Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
-| Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle | writes to their OWN list, never the named one ||||| allowed |
+| Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
 | A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
 
