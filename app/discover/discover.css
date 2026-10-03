@@ -10,20 +10,14 @@
   color: var(--ink);
 }
 
-/* Social embed: hold the settled block height from first paint so the discover
-   analysis load cannot grow the column (CLS 0.035 → ~0 on the remeasure rig).
-   Measured 390×844 Slow 4G production, 3 Oct 2026: scrollHeight 5116px after
-   load; social.css still zeroes outer padding on .discoverPageEmbedded. */
-.discoverPage.discoverPageEmbeddedReserved {
-  min-height: 5116px;
-}
-
-/* Embedded discover lives inside Social: scroll-reveal transforms on rows were
-   shifting the whole embed (CLS 0.035 on the remeasure rig). */
-.discoverPage.discoverPageEmbeddedReserved [data-reveal] {
-  opacity: 1;
-  transform: none;
-  transition: none;
+/* Social embed: while the discover read runs, hold the block at its settled
+   height so the answer cannot grow the column (CLS 0.035 on the remeasure rig).
+   Measured 390x844 Slow 4G production, 3 Oct 2026: scrollHeight 5116px after
+   load, about 320em at the page's 16px. Sized in em so it follows the type
+   scale, and released once the read settles so a shorter answer leaves no
+   empty tail. */
+.discoverPage.discoverPageEmbeddedReserved[data-embed-load="loading"] {
+  min-height: 320em;
 }
 
 /* The head is the launch Screen (components/ui/screen.tsx), on the page

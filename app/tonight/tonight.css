@@ -806,31 +806,21 @@
   min-height: min(640px, 75vh);
 }
 
-/* Reserve the hyped lede from first paint through listings idle → ready.
-   Measured on 390×844, Slow 4G, production (3 Oct 2026 remeasure): five lead
-   rows with credit + map link land at 1373px scrollHeight. The listing spine
-   below stays variable on purpose. */
-.tonightHypedShell[data-reserve="true"] {
-  min-height: 1373px;
-}
-
-/* SSR paints the lede before the hyped client chunk hydrates; hold the block
-   until .tonightHyped exists so the card and map link do not pop in later. */
-.tonightLedeRegion[data-hyped-reserve="true"]:not(:has(.tonightHyped))::before {
-  content: "";
+/* The head's lede waits on the listings read, and it sits above
+   the hyped pubs, so landing it on ready pushed the whole lede down the page
+   (CLS 0.10 on throttled cold loads, 3 Oct 2026 remeasure). Until the read
+   is ready the head holds an empty line box for it, sized in lines so it
+   follows the type scale: three lines at 390px, two once the lede reaches its
+   34rem measure. Ready releases it to the real sentence. */
+.tonightLedeHold {
   display: block;
-  min-height: 1373px;
+  min-height: 3lh;
 }
 
-.tonightHypedRow {
-  /* One card + credit + map link; measured 272px on the remeasure rig. */
-  min-height: 272px;
-}
-
-.tonightHypedMapSlot {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
+@media (min-width: 641px) {
+  .tonightLedeHold {
+    min-height: 2lh;
+  }
 }
 
 /* While the listings read runs, nothing after the lede may paint: the lede

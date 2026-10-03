@@ -444,6 +444,7 @@ export function DiscoverBody({
           ? "discoverPage discoverPageEmbedded discoverPageEmbeddedReserved"
           : "discoverPage"
       }
+      data-embed-load={embedded ? status : undefined}
       ref={setRevealRoot}
     >
       {!embedded ? <SiteNav active="discover" /> : null}

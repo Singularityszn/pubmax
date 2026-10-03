@@ -22,25 +22,17 @@ import { checkedLabel } from "@/lib/whatsOnBadges";
  */
 export default function TonightHypedPubs({
   rows = [],
-  reserveCount = 0,
   selectableVenueIds,
 }: {
   rows?: readonly HypedPub[];
-  /** Rows prerendered for this document; holds lede height before hydration. */
-  reserveCount?: number;
   /** Eager-shard ids the map can open, or null when that index is unreadable. */
   selectableVenueIds?: ReadonlySet<string> | null;
 }) {
-  const reserve = reserveCount > 0 || rows.length > 0;
-  if (!reserve) return null;
-  if (rows.length === 0) {
-    return <div className="tonightHypedShell" data-reserve="true" aria-hidden="true" />;
-  }
+  if (rows.length === 0) return null;
   const lead = rows.slice(0, HYPED_PUBS_VISIBLE);
   const rest = rows.slice(HYPED_PUBS_VISIBLE);
 
   return (
-    <div className="tonightHypedShell" data-reserve="true">
     <section className="tonightHyped" aria-labelledby="tonight-hyped-title">
       <h2 className="tonightHypedTitle" id="tonight-hyped-title">
         {HYPED_PUBS_TITLE}
@@ -64,7 +56,6 @@ export default function TonightHypedPubs({
         </details>
       ) : null}
     </section>
-    </div>
   );
 }
 
@@ -103,16 +94,14 @@ function HypedRow({
           <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
         </p>
       ) : null}
-      <div className="tonightHypedMapSlot">
-        {mapHref ? (
-          <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
-            Open on map
-            <ArrowRight size={13} aria-hidden="true" />
-          </Link>
-        ) : (
-          <p className="tonightHypedUnmatched">{HYPED_PUB_UNMATCHED_LINE}</p>
-        )}
-      </div>
+      {mapHref ? (
+        <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
+          Open on map
+          <ArrowRight size={13} aria-hidden="true" />
+        </Link>
+      ) : (
+        <p className="tonightHypedUnmatched">{HYPED_PUB_UNMATCHED_LINE}</p>
+      )}
     </li>
   );
 }
