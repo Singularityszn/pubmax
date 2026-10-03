@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAX_OWNED_OBJECTS,
+  nightMomentKeyBelongsToOwner,
   nightMomentObjectPrefix,
   ownedObjectFolders,
   ownedObjectKeysFromRows,
@@ -55,6 +56,16 @@ describe("ownedObjectFolders", () => {
     const media = readFileSync(join(process.cwd(), "lib/nightMomentMedia.ts"), "utf8");
     expect(media).toContain("nightMomentObjectPrefix(");
     expect(media).not.toContain("night-moments/");
+  });
+});
+
+
+describe("nightMomentKeyBelongsToOwner", () => {
+  it("rejects dot-segment owner ids", () => {
+    const key = `night-moments/${USER}/mem-1/photo.jpg`;
+    expect(nightMomentKeyBelongsToOwner(".", key)).toBe(false);
+    expect(nightMomentKeyBelongsToOwner("..", key)).toBe(false);
+    expect(nightMomentKeyBelongsToOwner(USER, key)).toBe(true);
   });
 });
 

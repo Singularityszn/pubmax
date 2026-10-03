@@ -1,3 +1,9 @@
+import {
+  firstHttp as firstHttpImpl,
+  firstHttps as firstHttpsImpl,
+  isHttpUrl as isHttpUrlImpl,
+} from "./httpUrl.mjs";
+
 /**
  * True when `value` parses as an absolute http(s) URL.
  * Non-strings and empty strings are false. The default rejects any whitespace,
@@ -9,33 +15,15 @@ export function isHttpUrl(
   value: unknown,
   options?: { allowWhitespace?: boolean },
 ): value is string {
-  if (typeof value !== "string" || value.length === 0) return false;
-  const allowWhitespace = options?.allowWhitespace === true;
-  if (!allowWhitespace && /\s/.test(value)) return false;
-  try {
-    const { protocol } = new URL(value);
-    return protocol === "http:" || protocol === "https:";
-  } catch {
-    return false;
-  }
+  return isHttpUrlImpl(value, options);
 }
 
 /** First non-empty trimmed http(s) candidate, or `""` if none. */
 export function firstHttp(...candidates: Array<string | undefined | null>): string {
-  for (const candidate of candidates) {
-    const trimmed = typeof candidate === "string" ? candidate.trim() : "";
-    if (trimmed && isHttpUrl(trimmed)) return trimmed;
-  }
-  return "";
+  return firstHttpImpl(...candidates);
 }
 
 /** First non-empty trimmed https candidate, or "" if none. */
 export function firstHttps(...candidates: Array<string | undefined | null>): string {
-  for (const candidate of candidates) {
-    const trimmed = typeof candidate === "string" ? candidate.trim() : "";
-    if (!trimmed || !isHttpUrl(trimmed)) continue;
-    const url = new URL(trimmed);
-    if (url.protocol === "https:") return trimmed;
-  }
-  return "";
+  return firstHttpsImpl(...candidates);
 }
