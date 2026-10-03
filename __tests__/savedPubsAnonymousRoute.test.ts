@@ -89,7 +89,7 @@ describe("keyless saved-pub demo", () => {
 });
 
 describe("durable anonymous saved-pub writes", () => {
-  it("still saves against a profile row that already exists", async () => {
+  it("does not refuse an anonymous save when the profile row already exists", async () => {
     configured.value = true;
     await memoryProfileStore.ensure("legacymint");
     const res = await save("legacymint");
@@ -107,6 +107,27 @@ describe("durable anonymous saved-pub writes", () => {
       retryable: false,
     });
     expect(await memoryProfileStore.getByHandle("durablemint")).toBeNull();
+  });
+
+  it("answers a retryable 503 when the profile read fails after the gate", async () => {
+    configured.value = true;
+    await memoryProfileStore.ensure("flakymint");
+    const read = memoryProfileStore.getByHandle.bind(memoryProfileStore);
+    const spy = vi
+      .spyOn(memoryProfileStore, "getByHandle")
+      .mockImplementationOnce(read)
+      .mockRejectedValueOnce(new Error("read failed"));
+    try {
+      const res = await save("flakymint");
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({
+        error: "Profile storage is unavailable.",
+        code: "STORE_UNAVAILABLE",
+        retryable: true,
+      });
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("refuses a list follow that would mint the follower or the named owner", async () => {

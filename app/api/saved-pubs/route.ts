@@ -85,12 +85,16 @@ export async function POST(request: Request): Promise<Response> {
   // already exists: minting one would leave it unowned, and an unowned row is
   // frozen against the account that later claims the handle. Keyless dev keeps
   // the memory store, which has no profile row to mint.
-  if (
-    isSupabaseConfigured() &&
-    !gateHasVerifiedActor(ownership) &&
-    !(await profileStore().getByHandle(ownership.handle))
-  ) {
-    return publicApiError("Profile not found.", "NOT_FOUND", 404);
+  if (isSupabaseConfigured() && !gateHasVerifiedActor(ownership)) {
+    let existing;
+    try {
+      existing = await profileStore().getByHandle(ownership.handle);
+    } catch {
+      return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+    if (!existing) return publicApiError("Profile not found.", "NOT_FOUND", 404);
   }
 
   // createList action (story 33): register a custom list name for this handle so
