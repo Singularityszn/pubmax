@@ -2,7 +2,7 @@ import "server-only";
 
 import type { PubPalMemory, PubPalMemoryKind } from "@/lib/pubPal";
 import { listPalMemoriesResult } from "@/lib/pubPalStore";
-import { readPubPalToolTurnOwner } from "@/lib/pubPalToolTurnStore";
+import { readPubPalToolTurnBinding } from "@/lib/pubPalToolTurnStore";
 
 /**
  * What the Pal may remember in a conversation: only lines the person wrote or
@@ -95,7 +95,7 @@ export async function recallPalMemoriesForConversation(
   if (!conversationId) return refuse("No saved memories are available in this conversation.");
   let ownerId: string | null;
   try {
-    ownerId = await readPubPalToolTurnOwner(conversationId);
+    ownerId = (await readPubPalToolTurnBinding(conversationId))?.ownerId ?? null;
   } catch {
     return refuse("Saved memories are unavailable right now.");
   }

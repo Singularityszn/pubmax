@@ -113,8 +113,9 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    and never from the request body. Typed chat puts the same lines ahead of the
    ask on the server, or one line saying nothing is confirmed, so it does not
    need the tool. A second Pal-only webhook, `propose_memory`, adds a memory card
-   to the conversation for the bound account, only when that Pal has memory
-   proposals on. It saves nothing: the memory exists once the person taps
+   to a typed chat for the bound account, only when that Pal has memory
+   proposals on. It refuses in a voice call, where no card can be shown. It
+   saves nothing: the memory exists once the person taps
    Confirm, which posts to `POST /api/pub-pal/memories`. Typed chat also carries
    a rolling session summary of at most 300 tokens, built only from the person's
    own older asks and never used as a fact source.

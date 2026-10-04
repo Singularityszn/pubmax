@@ -78,7 +78,7 @@ const TOOL_DESCRIPTIONS = {
   recall_memories:
     "Read the preferences this person confirmed for their Pal to remember. Read-only. Never facts about a pub.",
   propose_memory:
-    "Propose one preference for the Pal to remember. Shows a card in the app. Saves nothing until the person confirms.",
+    "Typed chat only. Propose one preference for the Pal to remember. Saves nothing until the person confirms the card.",
 };
 
 function loadDotEnv() {

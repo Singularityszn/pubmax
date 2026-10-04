@@ -31,6 +31,7 @@ import {
   __resetPubPalToolTurnStore,
   bindPubPalToolTurn,
   readPubPalToolTurn,
+  registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
@@ -40,6 +41,10 @@ const CONVERSATION = "conv_proposetest01";
 async function pal(ownerId: string, memories: boolean) {
   expect((await createPubPalResult(ownerId, { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Morrow" })).ok).toBe(true);
   expect((await updatePubPalResult(ownerId, { proposalPreferences: { memories } })).ok).toBe(true);
+}
+
+async function typedChat(ownerId: string) {
+  await registerPubPalToolTurn(CONVERSATION, { query: "a quiet pub tonight", cityId: "london", ownerId });
 }
 
 function propose(body: Record<string, unknown>, authorization = "Bearer test-llm-secret") {
@@ -71,7 +76,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
 
   it("adds a confirm card and saves nothing until the owner confirms it through the memories route", async () => {
     await pal(OWNER, true);
-    await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
+    await typedChat(OWNER);
 
     const response = await propose({
       conversation_id: CONVERSATION,
@@ -106,7 +111,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
 
   it("proposes nothing when the owner has memory proposals off", async () => {
     await pal(OWNER, false);
-    await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
+    await typedChat(OWNER);
 
     const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "Cask ale" })).json();
 
@@ -117,7 +122,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
   it("reads the owner from the conversation binding, never from the webhook body", async () => {
     await pal(OWNER, false);
     await pal(STRANGER, true);
-    await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
+    await typedChat(OWNER);
 
     const spoofed = await (
       await propose({ conversation_id: CONVERSATION, ownerId: STRANGER, kind: "drink_preference", value: "Cask ale" })
@@ -133,9 +138,23 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
     }
   });
 
-  it("refuses a kind outside the memory vocabulary or an empty value", async () => {
+  it("refuses in a voice call, where no card can be shown, and makes no card", async () => {
     await pal(OWNER, true);
     await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
+
+    const body = await (
+      await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "Cask ale" })
+    ).json();
+
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+    expect(body.result.answerHint).not.toMatch(/card is waiting/i);
+    expect(await storedProposals()).toEqual([]);
+    expect((await readPubPalToolTurn(CONVERSATION))?.toolsUsed).toEqual([]);
+  });
+
+  it("refuses a kind outside the memory vocabulary or an empty value", async () => {
+    await pal(OWNER, true);
+    await typedChat(OWNER);
 
     for (const parameters of [
       { kind: "price_fact", value: "The Crown pint is £3" },
@@ -150,7 +169,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
 
   it("refuses the propose webhook without the shared secret", async () => {
     await pal(OWNER, true);
-    await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
+    await typedChat(OWNER);
 
     const response = await propose(
       { conversation_id: CONVERSATION, kind: "drink_preference", value: "Cask ale" },

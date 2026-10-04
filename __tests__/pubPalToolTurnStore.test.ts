@@ -105,7 +105,7 @@ describe("pubPalToolTurnStore (memory backend)", () => {
     expect((await readPubPalToolTurn(CONVERSATION_ID))?.query).toBe("quiet pubs in Clapham");
   });
 
-  it("rolls a voice line that leaves the recent window into the session summary", async () => {
+  it("keeps only the newest voice lines and stores no session summary for a voice row", async () => {
     await bindPubPalToolTurn(CONVERSATION_ID, OWNER_ID, "london");
     for (let index = 1; index <= 8; index += 1) {
       expect(
@@ -127,7 +127,7 @@ describe("pubPalToolTurnStore (memory backend)", () => {
       "ask 7",
       "ask 8",
     ]);
-    expect(owned?.summary).toBe("ask 1; ask 2");
+    expect(owned?.summary).toBe("");
   });
 
   it("drops a turn once the retention window has passed", async () => {
