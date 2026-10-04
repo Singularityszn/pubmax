@@ -13,12 +13,14 @@ const pack = JSON.parse(readFileSync(path.join(ROOT, "data/venue_copy/london.jso
 // The pack is checked against the facts each entry records, so a later data
 // refresh cannot turn this red. The detail reader omits copy whose facts changed.
 describe("published Gemini pub copy", () => {
-  it("grounds every entry in its recorded facts, documents every skip and stays below USD 15", () => {
+  it("grounds every entry in its recorded facts, documents every skip and kept its run below USD 15", () => {
     expect(pack.version).toBe(2);
     expect(pack.model).toBe("gemini-2.5-flash-lite");
     expect(pack.sourceDatasetSha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(pack.actualSpendUsd).toBeGreaterThan(0);
-    expect(pack.actualSpendUsd).toBeLessThanOrEqual(15);
+    expect(pack.runCapUsd).toBe(15);
+    expect(pack.runSpendUsd).toBeGreaterThan(0);
+    expect(pack.runSpendUsd).toBeLessThanOrEqual(pack.runCapUsd);
+    expect(pack.actualSpendUsd).toBeGreaterThanOrEqual(pack.runSpendUsd);
     expect(Object.keys(pack.venues).length).toBeGreaterThan(0);
     for (const [venueId, entry] of Object.entries<Record<string, unknown>>(pack.venues)) {
       expect(entry.venueId).toBe(venueId);

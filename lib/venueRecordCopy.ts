@@ -100,14 +100,20 @@ const ALL_FEATURES = AMENITY_COPY.map(({ key }) => key);
 const STAGED: readonly AmenityKey[] = ["liveMusic", "pubQuiz", "karaoke"];
 const GAMES: readonly AmenityKey[] = ["darts", "pool"];
 const DRINKS: readonly AmenityKey[] = ["cocktails", "nonAlcoholic"];
-// After "<features> are" only a presence word or a participle that fits every
-// one of those features may follow, never a verdict: nobody serves darts.
-const AFTER_FACT_IS = new Map<string, readonly AmenityKey[]>([
-  ...["on", "here", "available", "featured", "offered", "provided", "in", "at", "a", "an", "the", "part"]
-    .map((word): [string, readonly AmenityKey[]] => [word, ALL_FEATURES]),
-  ["served", DRINKS], ["poured", DRINKS], ["mixed", DRINKS],
-  ["run", STAGED], ["hosted", STAGED], ["put", STAGED],
-  ["played", [...GAMES, "liveMusic"]], ["sung", ["karaoke"]],
+// A passive participle governs the features before it, back to the previous
+// verb or the clause start, and must name one there: nobody serves darts.
+const PARTICIPLE_FITS: ReadonlyArray<[RegExp, readonly AmenityKey[]]> = [
+  [/^(?:served|poured|mixed)$/, DRINKS],
+  [/^(?:hosted|run|put)$/, STAGED],
+  [/^played$/, [...GAMES, "liveMusic"]],
+  [/^sung$/, ["karaoke"]],
+];
+const PARTICIPLES = /\b(?:served|poured|mixed|hosted|run|put|played|sung)\b/g;
+const AFTER_BE = /(?:\b(?:is|are|be|been|being)|'s|'re)(?: (?:also|all|both))? *$/;
+// After "<features> are" only a presence word or a participle may follow, never a verdict.
+const AFTER_FACT_IS = new Set([
+  "on", "here", "available", "featured", "offered", "provided", "in", "at", "a", "an", "the", "part",
+  "served", "poured", "mixed", "run", "hosted", "put", "played", "sung",
 ]);
 const BE = new Set(["is", "are", "'s", "be", "been", "being"]);
 const BETWEEN_BE = new Set(["also", "all", "both", "can"]);
@@ -183,16 +189,26 @@ function claimsAreSupported(
   if (/\b(?:pub|local|boozer|place|spot|venue|it|they) (?:catch|catches|play|plays|sing|sings|get|gets|grab|grabs|order|orders|sip|sips)\b/.test(text)) return false;
   return text.split(/[.?;:]/).every((clause) => {
     const verbs = [...clause.matchAll(VERBS)];
-    return verbs.every((verb, index) => {
-      const end = verbs[index + 1]?.index ?? clause.length;
-      const governed = [...clause.slice(verb.index, end).matchAll(/fact_(\w+)/g)].map((match) => match[1]);
+    const participles = [...clause.matchAll(PARTICIPLES)].filter((participle) =>
+      AFTER_BE.test(clause.slice(0, participle.index)));
+    const governing = [...verbs, ...participles].sort((a, b) => a.index - b.index);
+    const factsBetween = (start: number, end: number) =>
+      [...clause.slice(start, end).matchAll(/fact_(\w+)/g)].map((match) => match[1]);
+    const activeFit = verbs.every((verb) => {
+      const end = governing.find((next) => next.index > verb.index)?.index ?? clause.length;
       const fits: readonly string[] = VERB_FITS.find(([pattern]) => pattern.test(verb[0]))?.[1] ?? [];
-      return governed.every((key) => fits.includes(key));
+      return factsBetween(verb.index, end).every((key) => fits.includes(key));
+    });
+    return activeFit && participles.every((participle) => {
+      const previous = governing.filter((verb) => verb.index < participle.index).at(-1);
+      const governed = factsBetween(previous ? previous.index + previous[0].length : 0, participle.index);
+      const fits: readonly string[] = PARTICIPLE_FITS.find(([pattern]) => pattern.test(participle[0]))?.[1] ?? [];
+      return governed.length > 0 && governed.every((key) => fits.includes(key));
     });
   });
 }
 
-/** No modifier before a feature, and no verdict or ill-fitting participle after it. */
+/** No modifier before a feature and no verdict after it. */
 function factsStandPlain(text: string): boolean {
   const tokens = text.match(/fact_\w+|[a-z'-]+|[,?.;:]/g) ?? [];
   const introduced = tokens.every((token, index) => {
@@ -209,12 +225,11 @@ function factsStandPlain(text: string): boolean {
     if (BE.has(after)) return true;
     let at = index - 1;
     while (at >= 0 && (BE.has(tokens[at]) || BETWEEN_BE.has(tokens[at]))) at--;
-    const subject: string[] = [];
+    let featureSubject = false;
     for (; at >= 0 && (tokens[at].startsWith("fact_") || SUBJECT_LINK.has(tokens[at])); at--) {
-      if (tokens[at].startsWith("fact_")) subject.push(tokens[at].slice("fact_".length));
+      featureSubject ||= tokens[at].startsWith("fact_");
     }
-    const fits: readonly string[] = AFTER_FACT_IS.get(after) ?? [];
-    return subject.every((key) => fits.includes(key));
+    return !featureSubject || AFTER_FACT_IS.has(after);
   });
 }
 

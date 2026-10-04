@@ -198,6 +198,12 @@ describe("venue record copy", () => {
       "Cocktails, darts and a pub quiz are all served here.",
       "Karaoke can be poured at this pub.",
       "This pub has karaoke, and darts and cocktails are served here.",
+      "This pub has darts, which are served here.",
+      "This pub has darts that are served up.",
+      "Darts here are served with a smile.",
+      "Darts at this pub are poured.",
+      "This pub hosts karaoke, which is played here.",
+      "They have darts. These are served here.",
     ]) expect(validateVenueRecordCopyDraft(facts, copy(description, ["Cocktails"])), description).toBeNull();
   });
 
