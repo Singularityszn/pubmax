@@ -155,6 +155,20 @@ describe("MapVenueList", () => {
     expect(html).toMatch(/Named gin · 50ml · pub\.example · 24 Sept? 2026 · Unranked/);
   });
 
+  it("dates a late UTC summer price observation by its London calendar day", () => {
+    const html = renderToStaticMarkup(createElement(MapVenueList, {
+      model: { rows: [{ id: "venue-late", name: "Late Arms", typeLabel: "Pub", priceLabel: "£4.00", anchor: null,
+        distanceKm: 0.2, sortPrice: 4, lensPrice: { venueId: "venue-late", categoryLabel: "Gin", priceGbp: 4,
+          source: "listed", category: "gin", drinkLabel: "Named gin", servingSize: "50ml",
+          sourceUrl: "https://pub.example/menu", observedAt: "2026-09-21T23:02:39.707Z" } }],
+      total: 1, shown: 1, truncated: false, coverageNote: null },
+      ukBaseModel: { rows: [], total: 0, shown: 0, truncated: false }, cityName: "London", open: true,
+      onOpenChange: () => {}, loaded: true, onSelectVenue: () => {}, onSelectUkBasePub: () => {},
+      onPrefetchVenue: () => {}, sortMode: "nearest", onSortModeChange: () => {}, drinkCategory: "gin", servingGroup: "50ml",
+    }));
+    expect(html).toMatch(/Named gin · 50ml · pub\.example · 22 Sept? 2026/);
+  });
+
   it("keeps Cheapest available when one selected-serving quote can rank beside unranked offers", () => {
     const curated: MapVenueListModel = {
       rows: [{ id: "venue-near", name: "Near Unranked", typeLabel: "Pub",

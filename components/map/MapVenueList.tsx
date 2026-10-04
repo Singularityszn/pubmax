@@ -346,7 +346,7 @@ function PriceProvenance({ price, ranked }: { price: MapLensPrice; ranked: boole
   return <span className="mapVenueListPriceProvenance">
     {price.drinkLabel ? `${price.drinkLabel} · ` : ""}{price.servingSize ?? "Serving not recorded"}
     {` · ${price.source === "community" ? "Community report" : publisher}`}
-    {date ? ` · ${new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}
+    {date ? ` · ${new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })}` : ""}
     {!ranked ? " · Unranked" : ""}
   </span>;
 }

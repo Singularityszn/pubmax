@@ -120,8 +120,11 @@ export async function canonicalPlanRoute(
     const ids = alternatives.map(submittedStopId);
     if (ids.some((id) => id === null || submittedIds.includes(id)) || new Set(ids).size !== ids.length) return null;
   }
-  const savedAlternatives = new Map(persistedStops.map((stop) => [stop.venueId,
-    new Set(stop.alternatives?.map((alternative) => alternative.venueId) ?? [])]));
+  const savedGroups = new Map<string, ReadonlySet<string> | null>();
+  for (const stop of persistedStops) {
+    const group = new Set([stop.venueId, ...stop.alternatives?.map((alternative) => alternative.venueId) ?? []]);
+    for (const id of group) savedGroups.set(id, savedGroups.has(id) ? null : group);
+  }
   const { resolve, confirmedMissing, physicalVenueId } = await planStopResolution(cityId, raw, persistedStops.length > 0);
   const physicalRouteIds = new Set(submittedIds.map((id) => id && physicalVenueId(id)));
   if (physicalRouteIds.size !== raw.length) return null;
@@ -141,7 +144,7 @@ export async function canonicalPlanRoute(
       const canonical = resolve(alternative);
       if (!canonical) {
         const id = submittedStopId(alternative);
-        if (id && savedAlternatives.get(target.venueId)?.has(id) && confirmedMissing(id)) continue;
+        if (id && savedGroups.get(target.venueId)?.has(id) && confirmedMissing(id)) continue;
         return null;
       }
       const price = cleanSelectedDrinkPriceEvidence(alternative && typeof alternative === "object"

@@ -275,7 +275,7 @@ export function planSummaryRouteUpdateBody(input: {
   };
 }
 
-function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlySet<string>): EditableStop {
+export function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlySet<string>): EditableStop {
   const alternatives = stop.alternatives ?? [];
   const nextIndex = alternatives.findIndex((alternative) => !excludedVenueIds.has(alternative.venueId));
   if (nextIndex < 0) return stop;

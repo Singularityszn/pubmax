@@ -35,7 +35,7 @@ function workspace() {
 
 function fixtureEnv(backup: ReturnType<typeof prepareDisposableMenuFixture>): NodeJS.ProcessEnv {
   return {
-    PW_DISPOSABLE_PLAN_DB: "1", PW_DISPOSABLE_SUPABASE_URL: "http://127.0.0.1:3100",
+    NODE_ENV: "test", PW_DISPOSABLE_PLAN_DB: "1", PW_DISPOSABLE_SUPABASE_URL: "http://127.0.0.1:3100",
     PW_DISPOSABLE_SERVICE_ROLE_KEY: "disposable-test-only",
     PW_SKIP_WEBSERVER: "0", PW_SKIP_KEYLESS_WEBSERVER: "1",
     PW_DISPOSABLE_MENU_BACKUP_DIR: backup.backupDir,

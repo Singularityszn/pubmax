@@ -159,7 +159,7 @@ export function selectedDrinkPriceEvidenceForPrice(
 export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
   if (!evidence) return null;
   const reported = new Date(evidence.source === "community" ? evidence.reportedAt : evidence.observedAt).toLocaleDateString("en-GB", {
-    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+    day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London",
   });
   const serving = evidence.serving ? `Serving ${evidence.serving}.` : "Serving size not recorded.";
   const drink = "drinkLabel" in evidence ? evidence.drinkLabel : categoryLabel(evidence.category);
