@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import {
   restoreCommittedBundledData,
   shouldRestoreBundledDataAfterTrackedOutputs,
+  untrackedBundledData,
 } from "./lib/committedBundledDataPaths.mjs";
 
 const [, , command, ...args] = process.argv;
@@ -54,6 +55,7 @@ function trackedDiff() {
 }
 
 const trackedBefore = trackedDiff();
+const untrackedBefore = untrackedBundledData();
 
 let result;
 try {
@@ -62,7 +64,7 @@ try {
   });
 } finally {
   if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs)) {
-    if (!restoreCommittedBundledData()) {
+    if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore })) {
       console.error("Failed to restore committed bundled data from HEAD.");
       process.exit(1);
     }
