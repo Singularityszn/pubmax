@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const fixture = vi.hoisted(() => ({
   rows: [] as import("@/lib/ukPriceBundle").UkPriceBundleRow[],
+  venueSuffixes: [] as string[],
+  emptyCities: [] as string[],
+  baseStatus: "ready" as "ready" | "missing" | "unavailable",
+  baseAlias: "",
+  catalogueReadGate: null as (() => Promise<void>) | null,
   community: [] as Array<{ venueId: string; drinkCategory: "wine"; priceGbp: number;
     submittedAt: number; source: "community"; corroborations: number }>,
 }));
@@ -16,8 +21,11 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => ({
 }));
 // Canonical server venue pack is the fixture seam, never submitted display names.
 vi.mock("@/lib/concierge/venues.server", () => ({
-  loadConciergeVenues: async () => ["a", "b", "c", "d", "e", ...Array.from({ length: 25 }, (_, i) => `extra-${i}`)]
-    .map((suffix) => ({ id: `venue-${suffix}`, name: `Canonical ${suffix}` })),
+  loadConciergeVenues: async (cityId: string) => {
+    if (cityId === "london") await fixture.catalogueReadGate?.();
+    return (fixture.emptyCities.includes(cityId) ? [] : fixture.venueSuffixes)
+      .map((suffix) => ({ id: `venue-${suffix}`, name: `Canonical ${suffix}` }));
+  },
 }));
 // Same committed server-pack identity fixture used by existing canonical-base Plan tests.
 const basePub = vi.hoisted(() => ({ id: "venue-uk-n8308248176", name: "The Sydney Arms",
@@ -26,7 +34,8 @@ const basePub = vi.hoisted(() => ({ id: "venue-uk-n8308248176", name: "The Sydne
 vi.mock("@/lib/ukBaseIndex", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/ukBaseIndex")>(),
   lookupUkBasePub: async (id: string) => id === basePub.id
-    ? { status: "ready", pub: basePub } : { status: "missing" },
+    ? fixture.baseStatus === "ready" ? { status: "ready", pub: { ...basePub, curatedVenueId: fixture.baseAlias } }
+      : { status: fixture.baseStatus } : { status: "missing" },
 }));
 vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/ukPriceBundle.server")>(),
@@ -93,7 +102,11 @@ async function memberRead(id: string, token: string) {
   return response.json();
 }
 
-beforeEach(() => { __resetMemoryPlans(); fixture.rows = [row()]; fixture.community = []; vi.spyOn(Date, "now").mockReturnValue(NOW); });
+beforeEach(() => { __resetMemoryPlans(); fixture.rows = [row()]; fixture.community = [];
+  fixture.venueSuffixes = ["a", "b", "c", "d", "e", ...Array.from({ length: 25 }, (_, i) => `extra-${i}`)];
+  fixture.emptyCities = []; fixture.baseStatus = "ready"; fixture.baseAlias = "";
+  fixture.catalogueReadGate = null;
+  vi.spyOn(Date, "now").mockReturnValue(NOW); });
 afterEach(() => { __resetMemoryPlans(); fixture.rows = []; fixture.community = []; vi.restoreAllMocks(); });
 
 describe("Saved Plan backups through canonical route and approved quote doors", () => {
@@ -196,6 +209,140 @@ describe("Saved Plan backups through canonical route and approved quote doors", 
       { params: Promise.resolve({ id }) });
     expect(stale.status).toBe(409);
     expect((await memoryPlanStore.get(id))?.plan.routeRevision).toBe(2);
+  });
+
+  it("saves the original editor route after an unused backup disappears and retains the remaining pub's exact quote", async () => {
+    const remainingQuote = { ...quote, pence: 725, sourceUrl: "https://example.org/remaining-menu" };
+    fixture.rows.push(row({ venueId: "venue-e", name: "Canonical e", priceGbp: 7.25,
+      sourceUrl: remainingQuote.sourceUrl }));
+    const original = submitted();
+    const stops = [{ ...original[0], alternatives: [original[0].alternatives![0],
+      { venueId: "venue-e", venueName: "Client name", selectedDrinkPriceEvidence: remainingQuote }] },
+    ...original.slice(1)];
+    const created = await create(stops);
+    const saved = await memberRead(created.plan.plan.id, created.memberToken);
+    const wire = planSummaryRouteUpdateBody({ stops: seedRouteDraft(saved.stops, []),
+      expectedRouteRevision: 1, authority: null });
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+
+    const updated = await patch(created.plan.plan.id, created.memberToken, wire);
+    expect(updated.stops.map((stop) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
+    expect(updated.stops[0].alternatives).toEqual([
+      { venueId: "venue-e", venueName: "Canonical e", selectedDrinkPriceEvidence: remainingQuote },
+    ]);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(updated.stops);
+    expect(reloaded.plan.routeRevision).toBe(2);
+  });
+
+  it("refuses physical alias duplicates in the original backups even when the curated alias disappeared", async () => {
+    const created = await create(submitted());
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+    fixture.baseAlias = "venue-d";
+    const response = await PATCH(request(`/${created.plan.plan.id}`, "PATCH", { expectedRouteRevision: 1,
+      stops: [{ venueId: "venue-a", alternatives: [{ venueId: "venue-d" }, { venueId: basePub.id }] },
+        { venueId: "venue-b" }, { venueId: "venue-c" }] }, created.memberToken),
+    { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(response.status).toBe(400);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(created.plan.stops);
+    expect(reloaded.plan.routeRevision).toBe(1);
+  });
+
+  it.each([
+    ["new unknown backup", [{ venueId: "venue-a", alternatives: [{ venueId: "venue-d" }, { venueId: "venue-unknown" }] },
+      { venueId: "venue-b" }, { venueId: "venue-c" }]],
+    ["missing selected pub", [{ venueId: "venue-d" }, { venueId: "venue-b" }, { venueId: "venue-c" }]],
+    ["duplicate missing backups", [{ venueId: "venue-a", alternatives: [{ venueId: "venue-d" }, { venueId: "venue-d" }] },
+      { venueId: "venue-b" }, { venueId: "venue-c" }]],
+    ["missing backup moved to another parent", [{ venueId: "venue-a" },
+      { venueId: "venue-b", alternatives: [{ venueId: "venue-d" }] }, { venueId: "venue-c" }]],
+    ["over-cap original backups", [{ venueId: "venue-a", alternatives: [{ venueId: "venue-d" },
+      ...Array.from({ length: 24 }, (_, i) => ({ venueId: `venue-extra-${i}` }))] },
+    { venueId: "venue-b" }, { venueId: "venue-c" }]],
+    ["malformed backup shape", [{ venueId: "venue-a", alternatives: { venueId: "venue-d" } },
+      { venueId: "venue-b" }, { venueId: "venue-c" }]],
+  ])("refuses %s without changing saved backups or revision", async (_, stops) => {
+    const created = await create(submitted());
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+    const response = await PATCH(request(`/${created.plan.plan.id}`, "PATCH", { expectedRouteRevision: 1, stops }, created.memberToken),
+      { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(response.status).toBe(400);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(created.plan.stops);
+    expect(reloaded.plan.routeRevision).toBe(1);
+  });
+
+  it.each([["wrong-token", 1, 403], ["host", 2, 409]] as const)(
+    "refuses removed-backup recovery for %s at revision %s before changing saved state", async (actor, expectedRouteRevision, status) => {
+      const created = await create(submitted());
+      fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+      const response = await PATCH(request(`/${created.plan.plan.id}`, "PATCH", { expectedRouteRevision, stops: submitted() },
+        actor === "host" ? created.memberToken : "invalid-member-token"),
+      { params: Promise.resolve({ id: created.plan.plan.id }) });
+      expect(response.status).toBe(status);
+      const body = await response.json();
+      expect(JSON.stringify(body)).not.toContain("venue-d");
+      const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+      expect(reloaded.stops).toEqual(created.plan.stops);
+      expect(reloaded.plan.routeRevision).toBe(1);
+    });
+
+  it("refuses pruning when the missing backup's catalogue is empty or unreadable", async () => {
+    const created = await create(submitted());
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+    fixture.emptyCities = ["london"];
+    const response = await PATCH(request(`/${created.plan.plan.id}`, "PATCH", { expectedRouteRevision: 1, stops: submitted() },
+      created.memberToken), { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(response.status).toBe(400);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(created.plan.stops);
+    expect(reloaded.plan.routeRevision).toBe(1);
+  });
+
+  it.each([["missing", 200], ["unavailable", 400]] as const)(
+    "distinguishes a %s UK pack result before omitting a saved backup", async (status, expectedStatus) => {
+      const stops = [{ venueId: "venue-a", alternatives: [{ venueId: basePub.id }] }];
+      const created = await create(stops);
+      fixture.baseStatus = status;
+      const response = await PATCH(request(`/${created.plan.plan.id}`, "PATCH", { expectedRouteRevision: 1, stops }, created.memberToken),
+        { params: Promise.resolve({ id: created.plan.plan.id }) });
+      expect(response.status).toBe(expectedStatus);
+      const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+      expect(reloaded.stops).toEqual(status === "missing"
+        ? [{ venueId: "venue-a", venueName: "Canonical a", position: 0 }] : created.plan.stops);
+      expect(reloaded.plan.routeRevision).toBe(status === "missing" ? 2 : 1);
+    });
+
+  it("keeps new Plan creation and route proposals strict after a saved backup disappears", async () => {
+    const created = await create(submitted());
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+    const creation = await createPlan(request("", "POST", { creatorName: "Host", startTime: "2026-09-30T19:00:00Z", stops: submitted() }));
+    expect(creation.status).toBe(400);
+    const proposal = await propose(request(`/${created.plan.plan.id}/proposals`, "POST", {
+      expectedRouteRevision: 1, reason: "Keep removed backup", stops: submitted(),
+    }, created.memberToken), { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(proposal.status).toBe(400);
+    expect((await memberRead(created.plan.plan.id, created.memberToken)).stops).toEqual(created.plan.stops);
+  });
+
+  it("allows only one replacement when both hosts read the same saved revision before recovery", async () => {
+    const created = await create(submitted());
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+    let release!: () => void;
+    const bothCatalogueReads = new Promise<void>((resolve) => { release = resolve; });
+    let readers = 0;
+    fixture.catalogueReadGate = async () => {
+      if (++readers === 2) release();
+      await bothCatalogueReads;
+    };
+    const responses = await Promise.all(Array.from({ length: 2 }, () => PATCH(request(`/${created.plan.plan.id}`, "PATCH", {
+      expectedRouteRevision: 1, stops: submitted(),
+    }, created.memberToken), { params: Promise.resolve({ id: created.plan.plan.id }) })));
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops[0].alternatives).toEqual([{ venueId: "venue-e", venueName: "Canonical e" }]);
+    expect(reloaded.plan.routeRevision).toBe(2);
   });
 
   it.each([{ drinkCategory: "gin", zeroProof: false }, { drinkCategory: "wine", zeroProof: true }] as const)(

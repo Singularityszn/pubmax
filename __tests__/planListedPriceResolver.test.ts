@@ -105,6 +105,34 @@ describe("Plan listed evidence is rebuilt from the exact server venue bundle", (
     expect((await resolve())[0]?.selectedDrinkPriceEvidence).toBeUndefined();
   });
 
+  it("keeps each backup's exact hint when canonical backups are filtered or reordered", async () => {
+    const other = { ...LISTED, pence: 725, sourceUrl: "https://other.example/menu" };
+    fixture.rows = [row({ venueId: "venue-d" }), row({ venueId: "venue-e", priceGbp: 7.25, sourceUrl: other.sourceUrl })];
+    const submitted = [{ venueId: "venue-a", alternatives: [
+      { venueId: "venue-d", selectedDrinkPriceEvidence: LISTED }, { venueId: "venue-e", selectedDrinkPriceEvidence: other },
+    ] }];
+    const context = { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" };
+    for (const ids of [["venue-e"], ["venue-e", "venue-d"]]) {
+      const result = await resolvePlanSelectedDrinkPriceEvidence([{ venueId: "venue-a", venueName: "Canonical a",
+        alternatives: ids.map((venueId) => ({ venueId, venueName: venueId })) }], submitted, context);
+      expect(result[0].alternatives?.map((alternative) => alternative.selectedDrinkPriceEvidence))
+        .toEqual(ids.length === 1 ? [other] : [other, LISTED]);
+    }
+  });
+
+  it("does not borrow backup hints from another submitted parent even when both pubs list the same tuple", async () => {
+    fixture.rows = [row({ venueId: "venue-d" }), row({ venueId: "venue-e" })];
+    const result = await resolvePlanSelectedDrinkPriceEvidence([
+      { venueId: "venue-a", venueName: "Canonical a", alternatives: [{ venueId: "venue-e", venueName: "Canonical e" }] },
+      { venueId: "venue-b", venueName: "Canonical b", alternatives: [{ venueId: "venue-d", venueName: "Canonical d" }] },
+    ], [
+      { venueId: "venue-a", alternatives: [{ venueId: "venue-d", selectedDrinkPriceEvidence: LISTED }] },
+      { venueId: "venue-b", alternatives: [{ venueId: "venue-e", selectedDrinkPriceEvidence: LISTED }] },
+    ], { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" });
+    expect(result.flatMap((stop) => stop.alternatives ?? []).map((alternative) => alternative.selectedDrinkPriceEvidence))
+      .toEqual([undefined, undefined]);
+  });
+
   it("never gives an exact quarantined wrong-category claim Plan authority", async () => {
     fixture.rows = [row({ priceGbp: 4, drinkLabel: "London Pride", servingSize: "500ml",
       sourceUrl: "https://thebellonthegreen.com/drinks/" })];
