@@ -22,17 +22,21 @@ function mapVenueSuggestionGroup(page: Page) {
     );
 }
 
-/** Venue search needs the slim index; retry when the map surfaces a load failure. */
-async function dismissVenueIndexRetryIfPresent(page: Page): Promise<void> {
+/**
+ * Venue search needs the slim index; retry when the map surfaces a load failure.
+ * Returns whether Retry was clicked. That click blurs the search combobox.
+ */
+async function dismissVenueIndexRetryIfPresent(page: Page): Promise<boolean> {
   const retry = page
     .getByRole("status")
     .filter({ hasText: /pub list/i })
     .getByRole("button", { name: "Retry" });
-  if (!(await retry.isVisible().catch(() => false))) return;
+  if (!(await retry.isVisible().catch(() => false))) return false;
   await retry.click();
   await expect(page.getByText(/pub list (hasn't|still hasn't) loaded/i)).toHaveCount(0, {
     timeout: 60_000,
   });
+  return true;
 }
 
 async function waitForVenueIndexReady(page: Page, timeout = 60_000): Promise<void> {
@@ -76,7 +80,12 @@ export async function selectFirstToolbarVenue(
   await search.click();
   await search.fill(query);
   await expect(async () => {
-    await dismissVenueIndexRetryIfPresent(page);
+    // Retry sits on the map, so the click blurs the combobox and the suggestion
+    // list unmounts. Focus the field again. The query is already there; filling
+    // again would restart the debounce.
+    if (await dismissVenueIndexRetryIfPresent(page)) {
+      await search.click();
+    }
     await expect(option).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout });
   await expect(async () => {
