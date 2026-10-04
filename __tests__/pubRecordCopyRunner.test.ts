@@ -187,7 +187,7 @@ describe("pub copy generation CLI", () => {
     expect(pack.actualSpendUsd).toBeCloseTo(0.000185, 8);
   });
 
-  it("retains a reservation after an unknown transport outcome and releases it on the next run", () => {
+  it("retains unknown reservations across resumes and refuses publication until reconciliation", () => {
     const { run, dir } = fixture("transport");
     const result = run("--generate");
     expect(result.status).toBe(1);
@@ -196,12 +196,49 @@ describe("pub copy generation CLI", () => {
     expect(reservedUsd).toBeGreaterThan(0);
     expect(existsSync(path.join(dir, "copy.json"))).toBe(false);
     const resumed = run("--generate");
+    expect(resumed.status).toBe(1);
+    expect(resumed.stderr).toContain("unresolved spend reservations");
+    const projection = JSON.parse(resumed.stdout.split("\n")[0]);
+    expect(projection.reservedUsd).toBe(reservedUsd);
+    expect(projection.projectedSpendUsd).toBeGreaterThan(reservedUsd);
+    expect(JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8")).reservedUsd).toBeCloseTo(reservedUsd, 8);
+    expect(existsSync(path.join(dir, "copy.json"))).toBe(false);
+  });
+
+  it("counts unknown reservations against the resumed projection before making another request", () => {
+    const { run, dir } = fixture("transport");
+    expect(run("--generate").status).toBe(1);
+    const file = path.join(dir, "checkpoint.json");
+    const checkpoint = JSON.parse(readFileSync(file, "utf8"));
+    checkpoint.runSpendUsd = 15 - checkpoint.reservedUsd;
+    writeFileSync(file, JSON.stringify(checkpoint));
+    rmSync(path.join(dir, "request.json"));
+    const resumed = run("--generate");
+    expect(resumed.status).toBe(1);
+    expect(resumed.stderr).toContain("projected spend exceeds run cap");
+    expect(existsSync(path.join(dir, "request.json"))).toBe(false);
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(checkpoint);
+  });
+
+  it.each([false, true])("merges published copy over a stale checkpoint with same-input skip=%s", (skip) => {
+    const { run, dir } = fixture();
+    expect(run("--generate").status).toBe(0);
+    const published = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
+    const previous = JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8"));
+    const [id, entry] = Object.entries(previous.entries)[0] as [string, {inputHash: string}];
+    writeFileSync(path.join(dir, "checkpoint.json"), JSON.stringify({version: 1,
+      actualSpendUsd: 0, runSpendUsd: 0, reservedUsd: 0, requests: 0, entries: {},
+      skipped: skip ? {[id]: {inputHash: entry.inputHash, reason: "invalid-copy-after-retry"}} : {}}));
+    rmSync(path.join(dir, "request.json"));
+    const resumed = run("--generate");
     expect(resumed.status, resumed.stderr).toBe(0);
-    expect(JSON.parse(resumed.stdout.split("\n")[0]).releasedReservationUsd).toBe(reservedUsd);
-    expect(JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8")).reservedUsd).toBe(0);
+    expect(JSON.parse(resumed.stdout.split("\n")[0]).pending).toBe(0);
+    expect(existsSync(path.join(dir, "request.json"))).toBe(false);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
-    expect(Object.keys(pack.venues)).toHaveLength(1);
-    expect(pack.actualSpendUsd).toBeCloseTo(0.000185, 8);
+    expect(pack.venues).toEqual(published.venues);
+    expect(pack.skipped).toEqual(published.skipped);
+    expect(pack.requests).toBe(published.requests);
+    expect(pack.actualSpendUsd).toBe(published.actualSpendUsd);
   });
 
   it("moves to europe-west2 after fifteen minutes of global quota responses", () => {

@@ -119,6 +119,21 @@ function loadSpendCheckpoint(file, out) {
   checkpoint.actualSpendUsd = Math.max(checkpoint.actualSpendUsd, published?.actualSpendUsd ?? 0);
   checkpoint.requests = Math.max(checkpoint.requests, published?.requests ?? 0);
   checkpoint.skipped ??= {};
+  for (const [venueId, publishedEntry] of Object.entries(entries)) {
+    const fact = { venueId, borough: publishedEntry.borough, supportedTags: publishedEntry.supportedTags };
+    if (!validateVenueRecordCopy(fact, publishedEntry)) continue;
+    const existing = checkpoint.entries[venueId];
+    // Preserve newer interrupted work, but recover published copy over a stale
+    // missing or invalid entry and its same-input skip.
+    if (!existing || !validateVenueRecordCopy(existing, existing)) {
+      checkpoint.entries[venueId] = publishedEntry;
+      if (checkpoint.skipped[venueId]?.inputHash === publishedEntry.inputHash)
+        delete checkpoint.skipped[venueId];
+    }
+  }
+  for (const [venueId, skipped] of Object.entries(published?.skipped ?? {})) {
+    if (!checkpoint.entries[venueId] && !checkpoint.skipped[venueId]) checkpoint.skipped[venueId] = skipped;
+  }
   return checkpoint;
 }
 
@@ -193,6 +208,7 @@ async function evaluateJudge(probes, requestBatch, checkpoint) {
 
 /** A run ends only when it completes; an interrupted run resumes with its spend. */
 function endRun(checkpoint, file) {
+  if (checkpoint.reservedUsd > 0.000000001) throw new Error("unresolved spend reservations; run remains unfinished");
   checkpoint.runSpendUsd = 0;
   writeJson(file, checkpoint);
 }
@@ -210,9 +226,7 @@ async function main() {
     return;
   }
   const checkpoint = loadSpendCheckpoint(opts.checkpoint, opts.out);
-  // An earlier unknown outcome is released so it can never block a later run.
-  const releasedReservationUsd = checkpoint.reservedUsd;
-  checkpoint.reservedUsd = 0;
+  // Unknown outcomes remain charged against this unfinished run until reconciled.
   const probes = opts.evaluateJudge ? readJson(path.join(ROOT, "scripts/fixtures/pubCopyJudgeProbes.json")) : [];
   const eligible = facts.filter((fact) => fact.supportedTags.length > 0);
   const pending = eligible.filter((fact) => {
@@ -230,14 +244,14 @@ async function main() {
   for (let i = 0; i < pending.length; i += JUDGE_BATCH_SIZE) judgeBatches.push(pending.slice(i, i + JUDGE_BATCH_SIZE));
   const evaluationBatches = [];
   for (let i = 0; i < probes.length; i += JUDGE_BATCH_SIZE) evaluationBatches.push(probes.slice(i, i + JUDGE_BATCH_SIZE));
-  const projectedSpendUsd = checkpoint.runSpendUsd + (opts.evaluateJudge ?
+  const projectedSpendUsd = checkpoint.runSpendUsd + checkpoint.reservedUsd + (opts.evaluateJudge ?
     evaluationBatches.reduce((sum, batch) => sum + judgeReserveFor(batch), 0) :
     batches.reduce((sum, batch) => sum + reserveFor(batch), 0) +
     judgeBatches.reduce((sum, batch) => sum + judgeReserveFor(batch), 0) +
     pending.reduce((sum, fact) => sum + reserveFor([fact]) + judgeReserveFor([fact]), 0));
   console.log(JSON.stringify({ model: FLASH_LITE_SKU.model, judgeModel: JUDGE_SKU.model, venues: facts.length, eligible: eligible.length,
     pending: pending.length, batches: batches.length, projectedSpendUsd, runCapUsd: RUN_CAP_USD, runSpendUsd: checkpoint.runSpendUsd,
-    actualSpendUsd: checkpoint.actualSpendUsd, releasedReservationUsd, mode: opts.generate ? "generate" : "dry-run" }));
+    actualSpendUsd: checkpoint.actualSpendUsd, reservedUsd: checkpoint.reservedUsd, mode: opts.generate ? "generate" : "dry-run" }));
   if (projectedSpendUsd > RUN_CAP_USD) throw new Error("projected spend exceeds run cap; no model call made");
   if (!opts.generate) return;
   let token = "";

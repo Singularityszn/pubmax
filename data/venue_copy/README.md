@@ -75,7 +75,9 @@ conservative input-token bound. Each call reserves its maximum cost in a durable
 checkpoint before sending. Successful responses replace that reservation with
 token-metered spend, including thinking tokens. Non-200 responses are not
 billed by Vertex AI, whatever their body. An unknown transport outcome keeps its
-reservation and stops the run; the next run releases it and retries the batch.
+reservation and stops the run. Resumes retain that reservation in the projection
+and per-request cap. Publication remains blocked until the unknown charge is
+reconciled against provider billing evidence.
 Reported spend is calculated from API token usage, not a billing invoice.
 
 Checkpoint: `data-harvest/pub-record-copy/checkpoint.json`, ignored by git.
@@ -84,6 +86,8 @@ from the published pack, so only pending or invalid pubs are sent.
 Reruns resume only judge-approved entries whose structured inputs still match.
 A changed grounding version invalidates earlier entries and skips. A stale
 checkpoint cannot reduce spend or requests recorded by the published pack.
+Valid published entries recover missing or invalid checkpoint entries and replace
+same-input skips. Valid newer checkpoint entries remain available for resume.
 Lifetime spend remains cumulative across runs. Output is replaced atomically
 only after every pub has valid copy or a documented skip and every reservation
 is settled. Matching skipped inputs are not retried on resume.
