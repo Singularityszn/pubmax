@@ -490,6 +490,13 @@ function recoverPending(checkpoint, previous, currentPubs) {
   return { fresh, batch: unpublished ?? (fresh.size > 0 ? { spentUsd: checkpoint.spentUsd, id: randomUUID() } : null) };
 }
 
+/** The counter and batch id this run's evidence carries: a pending batch's own, else the previous file's. */
+function publicationStamp(batch, previous) {
+  return batch
+    ? { publications: batch.publications, publicationBatchId: batch.id }
+    : { publications: previous?.publications, publicationBatchId: previous?.publicationBatchId };
+}
+
 async function main() {
   if (process.argv.includes("--restamp")) {
     restampFromEvidence();
@@ -739,8 +746,7 @@ async function main() {
     },
     actualSpendUsd: Number(((previous?.actualSpendUsd ?? 0) + spent - (batch?.spentUsd ?? startSpent)).toFixed(4)),
     jobCapUsd: JOB_SPEND_CAP_USD,
-    publications: batch ? batch.publications : previous?.publications,
-    publicationBatchId: batch ? batch.id : previous?.publicationBatchId,
+    ...publicationStamp(batch, previous),
     skipCounts,
     rows: evidenceRows,
   }, previous, stampDataset(evidenceRows));
