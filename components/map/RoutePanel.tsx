@@ -149,9 +149,9 @@ export default function RoutePanel({
   // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
   // in sync with the URL round-trip.
   const stopNoun = drinkPresentation?.stopNoun ?? altStyleStopNoun[altStyle];
-  const crawlTitle =
-    crawlName || (drinkPresentation ? `${drinkPresentation.label} plan`
-      : mode === "build" ? "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`);
+  const crawlTitle = drinkPresentation
+    ? crawlName || `${drinkPresentation.label} plan`
+    : mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
 
   // Loop 2 crawl-completion stickiness — localStorage only. Key off crawlId when
   // present, else a stable title slug so hand-built routes still track.
