@@ -54,6 +54,30 @@ function expectSportsPublication(quote: string, expected: boolean) {
 }
 
 describe("sports evidence publication", () => {
+  it("refuses a television title whose only apparent sporting identity is game", () => {
+    expectSportsPublication("Watch Game of Thrones on our TVs.", false);
+  });
+
+  it.each([
+    "Watch The Hunger Games on our screens.",
+    "We show games on our TVs.",
+    "Watch board games live on our screens.",
+    "Watch game day on our screens.",
+    "Watch game-day live on our TVs.",
+  ])("requires sporting identity beyond game wording: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "Watch football games on our TVs.",
+    "We show rugby games on our screens.",
+    "We broadcast cricket games live.",
+    "Watch Premier League games on our screens.",
+    "Watch game day live on Sky Sports.",
+  ])("retains games with explicit sporting identity: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
   it.each([
     "We don't show Sky Sports.",
     "We don't show Manchester United games.",

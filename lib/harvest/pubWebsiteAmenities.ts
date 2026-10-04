@@ -133,8 +133,9 @@ const TELEVISED_SPORT =
 const POOL = /\bpool\b/i;
 const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party|parties|house))\b/i;
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
+/** Bare game titles do not identify sport; require sporting words in the quote. */
 const SPORT_SHOWN =
-  /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
+  /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
 const SPORT_VIEWING =
   /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b|\bsports?\s+(?:pub|bar)s?\b/i;
 /** Team fixture copy must explicitly invite live viewing; a bare "vs" is not sport. */
