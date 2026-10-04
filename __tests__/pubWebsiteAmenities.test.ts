@@ -61,6 +61,12 @@ describe("keepEvidencedAmenities", () => {
     "Autumn Nations 2026",
     "No screens and no live sport at this pub.",
     "We have no TVs for the football.",
+    "No Sky Sports here.",
+    "No TNT Sports here.",
+    "We do not show sport.",
+    "We dont show sport.",
+    "We don’t show sport.",
+    "Never show sport.",
   ])("does not publish a quote that does not say sport is shown here: %s", (quote) => {
     const parsed = parsePubAmenityModelJson(JSON.stringify({
       amenities: { liveSports: { value: true, evidence: quote } },
@@ -91,6 +97,11 @@ describe("keepEvidencedAmenities", () => {
     "Catch the rugby this season",
     "Playing all the big matches",
     "World Cup and Wimbledon matches screened in the garden.",
+    "No food, but we show live sport.",
+    "Sports pub",
+    "Sports bar, restaurant and rooms",
+    "The Crown is known as a \"Sports Pub\" for football and rugby.",
+    "A pub known for televised sport.",
   ])("publishes affirmative televised sport evidence: %s", (quote) => {
     const parsed = parsePubAmenityModelJson(JSON.stringify({
       amenities: { liveSports: { value: true, evidence: quote } },
