@@ -374,7 +374,7 @@ function factDateStatus(eventDates, now) {
   if (eventDates.some(
     ({ start, end }) => end >= oldestAllowed && start <= nowDay.getTime(),
   )) return "current";
-  if (eventDates.length > 0 && eventDates.every(({ end }) => end < oldestAllowed)) return "expired";
+  if (eventDates.some(({ end }) => end < oldestAllowed)) return "expired";
   return "invalid";
 }
 

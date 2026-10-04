@@ -122,6 +122,25 @@ describe("area-news dataset loader", () => {
     await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [CURRENT_ENTRY] });
   });
 
+  it("drops a cached mixed-date fact once its past event expires while keeping current facts", async () => {
+    vi.setSystemTime(Date.parse("2026-09-15T12:00:00Z"));
+    const mixed = {
+      ...EXPIRING_ENTRY,
+      detail: "Golden Lion (Soho) pub opened on 1 September 2026 and hosts an event on 20 October 2026.",
+    };
+    const current = {
+      ...CURRENT_ENTRY,
+      detail: "Golden Lion (Soho) pub opened in Soho on 14 September 2026.",
+      observedAt: "2026-09-15",
+    };
+    readFile.mockResolvedValue(dataset([mixed, current]));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [mixed, current] });
+    vi.setSystemTime(Date.parse("2026-10-03T12:00:00Z"));
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [current] });
+    expect(readFile).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a fact accepted before the year rolled over", async () => {
     vi.setSystemTime(Date.parse("2027-01-02T12:00:00Z"));
     const reopened = {
