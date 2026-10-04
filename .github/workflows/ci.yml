@@ -1,7 +1,8 @@
 name: CI
 
 # GitHub-hosted ubuntu-latest. The repository is public, so CI does not run
-# on a personal Mac. No job needs macOS. Effective RLS stays in
+# on a personal Mac. Playwright jobs live in e2e.yml and performance.yml
+# and use macos-latest. Effective RLS stays in
 # rls-session.yml so this workflow stays lean. Job timeout-minutes are the
 # ceilings already measured for these jobs; see docs/CI_RUNBOOK.md.
 
