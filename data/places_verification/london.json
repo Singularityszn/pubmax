@@ -16,7 +16,7 @@
       },
       {
         "sku": "Places API Place Details Pro",
-        "fieldMask": "businessStatus",
+        "fieldMask": "businessStatus,displayName",
         "calls": 3053,
         "usdPerThousandAfterFreeCap": 17,
         "freeMonthlyCap": 5000,

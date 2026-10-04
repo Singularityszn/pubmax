@@ -276,6 +276,14 @@ describe("Shoreditch coffee box and spend cap", () => {
     expect(PLACES_TEXT_SEARCH_FIELD_MASK).toBe("places.id");
     expect(PLACES_PUB_DETAILS_FIELD_MASK).toBe("businessStatus,displayName");
     expect(PLACES_CAFE_DETAILS_FIELD_MASK).toBe("businessStatus,regularOpeningHours.periods");
+    const ledger = JSON.parse(
+      readFileSync(path.join(ROOT, "data/places_verification/london.json"), "utf8"),
+    ) as { spend: { skus: { fieldMask: string }[] } };
+    expect(ledger.spend.skus.map((sku) => sku.fieldMask)).toEqual([
+      PLACES_TEXT_SEARCH_FIELD_MASK,
+      PLACES_PUB_DETAILS_FIELD_MASK,
+      PLACES_CAFE_DETAILS_FIELD_MASK,
+    ]);
   });
 });
 
