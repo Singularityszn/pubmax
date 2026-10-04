@@ -36,7 +36,11 @@ import {
   type ProfileCoverPhoto,
   type ProfileCoverPhotoFields,
 } from "@/lib/profileCovers";
-import { profileImageServePath, profileImageServingKey } from "@/lib/profileImageSlots";
+import {
+  moderatorCoverPreviewPath,
+  profileImageServePath,
+  profileImageServingKey,
+} from "@/lib/profileImageSlots";
 import {
   PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
   profileOwnerImageWriteBlocked,
@@ -161,7 +165,7 @@ export function toModeratorProfileCover(
     ...(photo.moderatedAt ? { moderatedAt: photo.moderatedAt } : {}),
     ...(photo.moderatorNote ? { moderatorNote: photo.moderatorNote } : {}),
     ...(photo.moderationState === "approved"
-      ? { previewUrl: profileImageServePath("cover", photo.profileId, photo.generation) }
+      ? { previewUrl: moderatorCoverPreviewPath(photo.profileId, photo.generation) }
       : {}),
     rotationOnly,
   };

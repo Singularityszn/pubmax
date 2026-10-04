@@ -119,3 +119,8 @@ export function profileImageServePath(
 ): string {
   return `${PROFILE_IMAGE_SLOT_SPECS[slot].servePath}/${profileId}/${generation}`;
 }
+
+/** Moderator-only cover read for the reported-cover queue. Never a reader's URL. */
+export function moderatorCoverPreviewPath(profileId: string, generation: string): string {
+  return `/api/admin/profile-avatars/cover/${profileId}/${generation}`;
+}

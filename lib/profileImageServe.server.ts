@@ -36,6 +36,16 @@ export const PROFILE_IMAGE_SERVE_CACHE_CONTROL = "public, max-age=300, s-maxage=
 
 export type ProfileImageServeDeps = {
   getProfileById: (id: string) => Promise<ProfileRecord | null>;
+  /**
+   * Who may read this cover generation, checked before storage or rotation.
+   * Readers get the profile card's owner/mate rule. Only the moderator preview
+   * route swaps it, for a generation that is in the reported-cover queue now.
+   */
+  coverReadRefusal: (
+    request: Request,
+    profile: ProfileRecord,
+    generation: string,
+  ) => Promise<CoverReadRefusal | null>;
   downloadObject: (objectKey: string) => Promise<Awaited<ReturnType<typeof downloadProfileImageObject>>>;
   /**
    * Generations this slot may serve BESIDES the one on the profile row. Only
@@ -47,8 +57,17 @@ export type ProfileImageServeDeps = {
   extraServingKey?: (profileId: string, generation: string) => Promise<string | null>;
 };
 
+async function readerCoverRefusal(
+  request: Request,
+  profile: ProfileRecord,
+): Promise<CoverReadRefusal | null> {
+  const projection = await resolveProfileProjection({ request, profile });
+  return projection.projection === "full" ? null : "profile_private";
+}
+
 export const defaultProfileImageServeDeps: ProfileImageServeDeps = {
   getProfileById: (id) => profileStore().getById(id),
+  coverReadRefusal: readerCoverRefusal,
   downloadObject: (objectKey) => downloadProfileImageObject(objectKey),
 };
 
@@ -59,11 +78,13 @@ export const defaultProfileImageServeDeps: ProfileImageServeDeps = {
  * and served 404 on every read stayed undiagnosable. Log-only closed set:
  * nothing branches on it, and the reader is told nothing new.
  */
+export type CoverReadRefusal = "profile_private" | "not_in_review_queue";
+
 type ProfileImageServeRefusal =
+  | CoverReadRefusal
   | "storage_unconfigured"
   | "malformed_request"
   | "profile_missing"
-  | "profile_private"
   | "profile_unclaimed"
   | "moderation_not_approved"
   | "image_absent"
@@ -167,10 +188,8 @@ export async function handleProfileImageServe(
   // before storage or rotation so a retained generation cannot bypass it.
   // Avatars remain public recognition, including on private accounts.
   if (slot === "cover") {
-    const projection = await resolveProfileProjection({ request, profile });
-    if (projection.projection !== "full") {
-      return notFound(slot, "profile_private", { profileId: id, generation: gen });
-    }
+    const refusal = await deps.coverReadRefusal(request, profile, gen);
+    if (refusal) return notFound(slot, refusal, { profileId: id, generation: gen });
   }
 
   const resolved = await servingKey(profile, slot, gen);

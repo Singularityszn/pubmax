@@ -21,6 +21,7 @@ import {
 } from "@/lib/foundingMembers";
 import { normalizeHandle, toPublicProfile, type PublicProfile } from "@/lib/profiles";
 import {
+  moderatorCoverPreviewPath,
   PROFILE_IMAGE_SLOTS,
   profileImageServePath,
   type ProfileImageSlot,
@@ -679,7 +680,10 @@ function toModeratorImage(
 ): ModeratorProfileImage | null {
   const state = profileImageState(profile, slot);
   if (!state.generation || !state.moderationState || !state.objectKey) return null;
-  const previewUrl = publicOwnedImageUrl(profile, slot);
+  const previewUrl =
+    slot === "cover" && state.moderationState === "approved"
+      ? moderatorCoverPreviewPath(profile.id, state.generation)
+      : publicOwnedImageUrl(profile, slot);
   return {
     slot,
     handle: profile.handle,
@@ -695,7 +699,7 @@ function toModeratorImage(
   };
 }
 
-function isReportedImageQueueRow(profile: ProfileRecord, slot: ProfileImageSlot): boolean {
+export function isReportedImageQueueRow(profile: ProfileRecord, slot: ProfileImageSlot): boolean {
   const state = profileImageState(profile, slot);
   const reports = state.reportCount ?? state.reportActors?.length ?? 0;
   return (
