@@ -37,13 +37,19 @@ export type PubPalToolTurn = {
   toolsUsed: string[];
 };
 
-type StoredTurn = PubPalToolTurn & { ownerId: string };
+/** Where the conversation is happening. Only a typed chat can show a confirm card. */
+export type PubPalToolTurnSurface = "voice" | "text";
+
+type StoredTurn = PubPalToolTurn & { ownerId: string; surface: PubPalToolTurnSurface };
+
+export type PubPalToolTurnBinding = { ownerId: string; surface: PubPalToolTurnSurface };
 
 type PubPalToolTurnPayload = {
   query: string;
   cityId: CityId;
   turns: PubPalFenceTurn[];
   summary?: string;
+  surface?: PubPalToolTurnSurface;
   cards: AskCard[];
   proposals: AskProposal[];
   hints: string[];
@@ -88,12 +94,13 @@ function assertConversationId(conversationId: string): void {
   if (!isPubPalConversationId(conversationId)) throw new PubPalToolTurnAccessError();
 }
 
-function payloadFromTurn(turn: PubPalToolTurn): PubPalToolTurnPayload {
+function payloadFromTurn(turn: StoredTurn): PubPalToolTurnPayload {
   return {
     query: turn.query,
     cityId: turn.cityId,
     turns: turn.turns,
     summary: turn.summary,
+    surface: turn.surface,
     cards: turn.cards,
     proposals: turn.proposals,
     hints: turn.hints,
@@ -117,6 +124,7 @@ function turnFromPayload(
     hints: Array.isArray(payload.hints) ? payload.hints : [],
     toolsUsed: Array.isArray(payload.toolsUsed) ? payload.toolsUsed : [],
     ownerId,
+    surface: payload.surface === "text" ? "text" : "voice",
   };
 }
 
@@ -136,6 +144,7 @@ function mergeOwned(existing: StoredTurn | null, input: OwnedWrite, now: number)
     hints: input.hints ?? existing?.hints ?? [],
     toolsUsed: input.toolsUsed ?? existing?.toolsUsed ?? [],
     ownerId: input.ownerId,
+    surface: existing?.surface ?? "text",
   };
 }
 
@@ -144,7 +153,7 @@ type PubPalToolTurnStore = {
   register(conversationId: string, input: OwnedWrite): Promise<void>;
   read(conversationId: string): Promise<PubPalToolTurn | null>;
   readOwned(conversationId: string, ownerId: string): Promise<PubPalToolTurn | null>;
-  ownerOf(conversationId: string): Promise<string | null>;
+  bindingOf(conversationId: string): Promise<PubPalToolTurnBinding | null>;
   touch(conversationId: string, ownerId: string): Promise<boolean>;
   appendOwnedUserTurn(
     conversationId: string,
@@ -186,6 +195,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
       hints: [],
       toolsUsed: [],
       ownerId,
+      surface: "voice",
     });
   },
 
@@ -214,10 +224,11 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     return publicTurn(turn);
   },
 
-  async ownerOf(conversationId) {
+  async bindingOf(conversationId) {
     if (!isPubPalConversationId(conversationId)) return null;
     pruneMemory(Date.now());
-    return memoryTurns.get(conversationId)?.ownerId ?? null;
+    const turn = memoryTurns.get(conversationId);
+    return turn ? { ownerId: turn.ownerId, surface: turn.surface } : null;
   },
 
   async touch(conversationId, ownerId) {
@@ -236,9 +247,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId);
     if (!existing || existing.ownerId !== ownerId) return false;
-    const session = windowPalSessionTurns(existing.summary, [...existing.turns, turn]);
-    existing.turns = session.turns;
-    existing.summary = session.summary;
+    existing.turns = [...existing.turns, turn].slice(-PAL_SESSION_RECENT_TURNS);
     if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
     existing.cityId = cityId;
     existing.expiresAt = now + PUB_PAL_TOOL_TURN_TTL_MS;
@@ -359,6 +368,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           hints: [],
           toolsUsed: [],
           ownerId,
+          surface: "voice",
         });
       },
     });
@@ -419,20 +429,22 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     });
   },
 
-  async ownerOf(conversationId) {
+  async bindingOf(conversationId) {
     if (!isPubPalConversationId(conversationId)) return null;
-    return guard<string | null>({
-      context: "owner-of",
+    return guard<PubPalToolTurnBinding | null>({
+      context: "binding-of",
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: "pub-pal-tool-turn",
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
-          fallback: () => memoryPubPalToolTurnStore.ownerOf(conversationId),
+          fallback: () => memoryPubPalToolTurnStore.bindingOf(conversationId),
           onProduction: async () => null,
         }),
       run: async () => {
         const lookup = await lookupStoredRow(conversationId);
-        return lookup.status === "owned" ? lookup.turn.ownerId : null;
+        return lookup.status === "owned"
+          ? { ownerId: lookup.turn.ownerId, surface: lookup.turn.surface }
+          : null;
       },
     });
   },
@@ -477,9 +489,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         const lookup = await lookupStoredRow(conversationId);
         if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
         const existing = lookup.turn;
-        const session = windowPalSessionTurns(existing.summary, [...existing.turns, turn]);
-        existing.turns = session.turns;
-        existing.summary = session.summary;
+        existing.turns = [...existing.turns, turn].slice(-PAL_SESSION_RECENT_TURNS);
         if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
         existing.cityId = cityId;
         existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
@@ -560,9 +570,11 @@ export async function readOwnedPubPalToolTurn(
   return pubPalToolTurnStore().readOwned(conversationId, ownerId);
 }
 
-/** The account that bound this live conversation, or null once it has expired or was never bound. */
-export async function readPubPalToolTurnOwner(conversationId: string): Promise<string | null> {
-  return pubPalToolTurnStore().ownerOf(conversationId);
+/** The account that bound this live conversation and its surface, or null once it has expired or was never bound. */
+export async function readPubPalToolTurnBinding(
+  conversationId: string,
+): Promise<PubPalToolTurnBinding | null> {
+  return pubPalToolTurnStore().bindingOf(conversationId);
 }
 
 export async function touchPubPalToolTurn(

@@ -155,8 +155,8 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  // Read from the signed-in owner's own Pal, never from the request body.
-  const memories = await confirmedPalMemoriesFor(input.ownerId);
+  // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
+  const memoriesRead = confirmedPalMemoriesFor(input.ownerId);
 
   let signedUrl: string;
   try {
@@ -164,6 +164,7 @@ export async function runPalElevenLabsChatTurn(
   } catch {
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
+  const memories = await memoriesRead;
 
   return new Promise((resolve) => {
     let settled = false;

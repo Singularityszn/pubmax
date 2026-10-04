@@ -5,7 +5,11 @@ import { randomUUID } from "node:crypto";
 import type { AskProposal } from "@/lib/ask/types";
 import { isPubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 import { getPubPalResult } from "@/lib/pubPalStore";
-import { appendPubPalToolTurn, readPubPalToolTurnOwner } from "@/lib/pubPalToolTurnStore";
+import {
+  appendPubPalToolTurn,
+  readPubPalToolTurnBinding,
+  type PubPalToolTurnBinding,
+} from "@/lib/pubPalToolTurnStore";
 import { cleanText } from "@/lib/textClean";
 
 /** The Pal-only webhook tool that puts a memory card in front of the person. It never saves. */
@@ -25,7 +29,8 @@ export type PalProposeMemoryToolResult = {
 /**
  * Answer the propose webhook for one live conversation. The owner comes from the
  * server-side binding, never from the webhook body, and the proposal only lands
- * when that owner's Pal allows memory proposals. The card it adds is the same
+ * in a typed chat, where the card is visible, when that owner's Pal allows
+ * memory proposals. The card it adds is the same
  * confirm card every proposal uses: the memory exists only once the person
  * confirms it through POST /api/pub-pal/memories.
  */
@@ -38,13 +43,19 @@ export async function proposePalMemoryForConversation(
   });
   const unavailable = "Memory proposals are unavailable right now. Nothing was saved.";
   if (!conversationId) return refuse("No one is signed in to this conversation. Nothing was saved.");
-  let ownerId: string | null;
+  let binding: PubPalToolTurnBinding | null;
   try {
-    ownerId = await readPubPalToolTurnOwner(conversationId);
+    binding = await readPubPalToolTurnBinding(conversationId);
   } catch {
     return refuse(unavailable);
   }
-  if (!ownerId) return refuse("No one is signed in to this conversation. Nothing was saved.");
+  if (!binding) return refuse("No one is signed in to this conversation. Nothing was saved.");
+  if (binding.surface !== "text") {
+    return refuse(
+      "Memory proposals are only offered in typed chat. Nothing was saved and no card was made, so do not mention one.",
+    );
+  }
+  const { ownerId } = binding;
 
   let pal: Awaited<ReturnType<typeof getPubPalResult>>;
   try {
