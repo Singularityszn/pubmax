@@ -17,11 +17,13 @@
 // are already done.
 //
 // A page or quote proven chain-wide stays in
-// data/amenities/london_pub_website_chain_pages.json. The harvest reads it
-// before fetching and skips a pub whose page is on it, every stamp goes through
-// it, and a harvest adds what its pages prove. The pubs that proved a page
-// chain-wide never reach the evidence file, so without the list a later run
-// that reads one of those pages alone would take it for the pub's own.
+// data/amenities/london_pub_website_chain_pages.json, with every pub that has
+// read each page, whatever came of the read. The harvest reads it before
+// fetching and skips a pub whose page is on it, every stamp goes through it,
+// and a harvest adds its readers and what they prove. A pub that kept no
+// amenity, failed, or read a chain-wide page never reaches the evidence file,
+// so without the list a later run that reads one of those pages alone would
+// take it for the pub's own.
 //
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
@@ -397,11 +399,17 @@ function restampFromEvidence() {
   );
 }
 
-/** The committed evidence with this run's pages laid over it, and the chain list with what they prove. */
+/**
+ * The committed evidence with this run's pages laid over it, and the chain
+ * list with this run's readers and what they prove. Every pub that read a
+ * page is a reader, whatever came of the read.
+ */
 function mergeEvidence(previous, fresh, knownChainPages) {
   const skipCounts = { ...(previous?.skipCounts ?? {}) };
   const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
+  const reads = [];
   for (const [osmId, entry] of fresh) {
+    if (entry.sourceUrl) reads.push({ osmId, sourceUrl: entry.sourceUrl });
     if (entry.status !== "ok") {
       const status = entry.status ?? "unknown";
       skipCounts[status] = (skipCounts[status] ?? 0) + 1;
@@ -416,7 +424,7 @@ function mergeEvidence(previous, fresh, knownChainPages) {
       amenities: entry.amenities ?? {},
     });
   }
-  const chainPages = mergeChainDenylists(knownChainPages, provenChainEvidence(candidates));
+  const chainPages = mergeChainDenylists(knownChainPages, provenChainEvidence([...candidates, ...reads]));
   const rows = pubSpecificEvidence(candidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
   const unused = candidates.length - rows.length;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
@@ -532,6 +540,7 @@ async function main() {
   };
 
   async function one(pub) {
+    let sourceUrl;
     try {
     if (stopped || spent >= SPEND_STOP_USD) {
       stopped = true;
@@ -555,6 +564,7 @@ async function main() {
       byOsmId[pub.osmId] = { status: home.reason, venueId: pub.venueId };
       return;
     }
+    sourceUrl = home.url;
     if (isChainPage(home.url, knownChainPages)) {
       byOsmId[pub.osmId] = { status: "chain-page", venueId: pub.venueId, sourceUrl: home.url };
       return;
@@ -583,11 +593,11 @@ async function main() {
     const cost = usageCost(result.body);
     spent += cost.usd;
     if (result.status === 429) {
-      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     if (result.status !== 200) {
-      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     const textOut = result.body?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
@@ -608,7 +618,7 @@ async function main() {
     };
     if (spent >= SPEND_STOP_USD) stopped = true;
     } catch {
-      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId };
+      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId, sourceUrl };
     }
   }
 
