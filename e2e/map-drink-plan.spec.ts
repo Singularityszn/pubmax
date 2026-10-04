@@ -34,9 +34,11 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     }
     await testInfo.attach("selected-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
     await route.getByRole("button", { name: "Start this crawl", exact: true }).click();
-    for (let index = 0; index < 2; index += 1) {
-      await route.getByRole("button", { name: "Mark complete", exact: true }).click();
-    }
+    const crawlProgress = route.getByTestId("crawl-progress");
+    await crawlProgress.getByRole("button", { name: "Mark complete", exact: true }).click();
+    await expect(
+      crawlProgress.getByRole("status").filter({ hasText: /^Crawl complete: 2\/2 stops$/ }),
+    ).toHaveText("Crawl complete: 2/2 stops");
     const shared = route.getByTestId("crawl-share-open");
     await expect(shared).toBeVisible();
     const href = await shared.getAttribute("href");
