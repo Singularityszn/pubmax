@@ -70,6 +70,7 @@ function contextValue(accountRevision: number): AuthContextValue {
     configured: true,
     clerkIntegrationConfigured: false,
     socialProviders: NO_SOCIAL_AUTH_PROVIDERS,
+    socialProvidersResolved: true,
     signInWithGoogle: async () => ({ error: null }),
     signInWithApple: async () => ({ error: null }),
     signInWithMicrosoft: async () => ({ error: null }),

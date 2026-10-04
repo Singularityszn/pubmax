@@ -26,6 +26,7 @@ import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 import { EXPECTED_MAP_DATA_REVISION, MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
@@ -341,10 +342,11 @@ async function loadSlimVenuesFromPathUnshared(
         offlineKey,
         options.expectedRevision,
       );
-      if (fallback) return { rows: fallback, status: "ready" };
+      if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
       return { rows: [], status: "unavailable" };
     }
-    const { rows, complete } = payload;
+    const { rows: parsedRows, complete } = payload;
+    const rows = omitClosedCuratedVenues(parsedRows);
     if (complete && rows.length > 0) {
       const stored = options.expectedRevision
         ? { revision: options.expectedRevision, rows }
@@ -360,7 +362,7 @@ async function loadSlimVenuesFromPathUnshared(
       offlineKey,
       options.expectedRevision,
     );
-    if (fallback) return { rows: fallback, status: "ready" };
+    if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
     throw error;
   }
 }

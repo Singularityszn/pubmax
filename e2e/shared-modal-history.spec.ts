@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { expectMapToolbarReady } from "./helpers/mapToolbar";
+import { expectMapToolbarReady, selectFirstToolbarVenue } from "./helpers/mapToolbar";
 
 test.use({ viewport: { width: 1440, height: 900 }, serviceWorkers: "block", screenshot: "only-on-failure" });
 test.setTimeout(120_000);
@@ -21,15 +21,7 @@ for (const finalOpen of [false, true]) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/map");
     await expectMapToolbarReady(page);
-    const search = page.locator(".mapToolbar").getByRole("combobox", { name: "Search places" });
-    await expect(async () => {
-      await search.fill("The French House");
-      const option = page.getByRole("listbox", { name: "Search suggestions" })
-        .getByRole("option", { name: /The French House/i }).first();
-      await expect(option).toBeVisible({ timeout: 2_000 });
-      await option.click();
-    }).toPass({ timeout: 45_000 });
-    await expect(page).toHaveURL(/sel=/);
+    await selectFirstToolbarVenue(page, "The French House");
     const drawer = page.locator(".mapDrawer.right");
     await expect(drawer).toHaveAttribute("aria-hidden", "false");
     if (finalOpen) {

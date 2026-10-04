@@ -12,6 +12,7 @@ import {
   parseUkBaseShardForEntry,
   type UkBasePub,
 } from "@/lib/ukBasePubs";
+import { VERIFIED_CLOSED_OSM_REFS, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 // Server-only membership index for the UK BASE layer, the sibling of
 // lib/venueIndex.ts for `venue-uk-…` ids. Base pubs deliberately live OUTSIDE
@@ -149,11 +150,15 @@ export async function getUkBaseIdIndex(): Promise<UkBaseIdIndexResult> {
 
 /**
  * Resolve one `venue-uk-*` id to its shard record for cold deep-link restore.
- * Fail closed: a well-formed id the pack does not carry is `missing`; a pack
- * read failure is `unavailable` (never treated as an empty city).
+ * Fail closed: a well-formed id the pack does not carry, or a pub verified
+ * permanently closed, is `missing`; a pack read failure is `unavailable`
+ * (never treated as an empty city).
  */
-export async function lookupUkBasePub(id: string): Promise<UkBasePubLookupResult> {
-  if (!isUkBaseId(id)) return { status: "missing" };
+export async function lookupUkBasePub(
+  id: string,
+  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
+): Promise<UkBasePubLookupResult> {
+  if (!isUkBaseId(id) || isVerifiedClosedPub(id, closedOsmRefs)) return { status: "missing" };
   const map = await ensureIdToShardUrl();
   if (!map) return { status: "unavailable" };
   const shardUrl = map.get(id);

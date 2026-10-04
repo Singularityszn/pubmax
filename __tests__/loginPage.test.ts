@@ -42,6 +42,17 @@ vi.mock("next/link", () => ({
 
 const navigation = vi.hoisted(() => ({ redirect: vi.fn() }));
 
+const requestCookies = vi.hoisted(() => new Map<string, string>());
+
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) => {
+      const value = requestCookies.get(name);
+      return value === undefined ? undefined : { name, value };
+    },
+  }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   redirect: navigation.redirect,
@@ -55,6 +66,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     supabaseAuthState: authState.current.supabaseAuthState,
     clerkIntegrationConfigured: false,
     socialProviders: { google: true, apple: true , microsoft: false },
+    socialProvidersResolved: true,
     signInWithGoogle: authActions.google,
     signInWithApple: authActions.apple,
     signInWithEmail: authActions.email,
@@ -120,6 +132,7 @@ beforeEach(() => {
     welcomeBack: null,
   };
   navigation.redirect.mockClear();
+  requestCookies.clear();
 });
 
 describe("login page", () => {
@@ -130,6 +143,53 @@ describe("login page", () => {
     );
     expect(html).toContain("email form");
     expect(html).toContain("Browse without signing in");
+  });
+
+  // The resume cookie is HttpOnly, so the route is the only reader that can
+  // see it. A signed-in reader gets the card's shape, not the email door.
+  it("holds the email door back for a reader with a resume cookie", async () => {
+    authState.current.loading = true;
+    requestCookies.set("pubmax_session_resume", "opaque-resume-value");
+    const { default: LoginRoute } = await import("@/app/login/page");
+    const html = renderToStaticMarkup(
+      await LoginRoute({ searchParams: Promise.resolve({}) }),
+    );
+    expect(html).toContain("loginPageSkeleton");
+    expect(html).not.toContain("email form");
+    expect(html).not.toContain("opaque-resume-value");
+  });
+
+  // Back from Google, Apple or Microsoft: the session is in the fragment and
+  // the cookie is not set yet, so the callback marker is the hint.
+  it("holds the email door back on a provider callback landing", async () => {
+    authState.current.loading = true;
+    const { default: LoginRoute } = await import("@/app/login/page");
+    const landing = renderToStaticMarkup(
+      await LoginRoute({ searchParams: Promise.resolve({ _authCallback: "1" }) }),
+    );
+    expect(landing).toContain("loginPageSkeleton");
+    expect(landing).not.toContain("email form");
+
+    const failed = renderToStaticMarkup(
+      await LoginRoute({
+        searchParams: Promise.resolve({ _authCallback: "1", authError: "1" }),
+      }),
+    );
+    expect(failed).not.toContain("loginPageSkeleton");
+    expect(failed).toContain("email form");
+  });
+
+  // Adding a second account asked for the form, so a hint must not hide it.
+  it("paints the form for an added account even with a resume cookie", async () => {
+    authState.current.loading = true;
+    requestCookies.set("pubmax_session_resume", "opaque-resume-value");
+    const { default: LoginRoute } = await import("@/app/login/page");
+    const html = renderToStaticMarkup(
+      await LoginRoute({ searchParams: Promise.resolve({ add: "1" }) }),
+    );
+    expect(html).not.toContain("loginPageSkeleton");
+    expect(html).toContain("email form");
+    expect(html).toContain("Add another account");
   });
 
   it("sends /signin to /login", async () => {
@@ -161,13 +221,42 @@ describe("login page", () => {
     expect(html).not.toContain("Checking your session");
   });
 
-  // The body may not be empty while the session resolves: the card's shape
-  // stands in for it. `aria-busy` belongs to the region that is loading, and
-  // the screen-reader line starts EMPTY, because a live region announces a
-  // change and text already present when it mounted is never spoken.
-  it("stands the sign-in card's shape up while the session resolves", () => {
+  // No session hint: the email door is in the first HTML. The field must not
+  // wait for the live session, which is the whole of the slow paint.
+  it("paints the email door while the session is still unknown", () => {
     authState.current.loading = true;
     const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("email form");
+    expect(html).toContain("social");
+    expect(html).not.toContain("loginPageSkeleton");
+    expect(html).not.toContain('<main class="loginPage" aria-busy');
+  });
+
+  // The head is painted with the form, so it must already be the door's own
+  // copy: a swap when the session answers would shift the field being typed in.
+  it("paints the sign-up door's head with the form while the session resolves", () => {
+    const settled = renderToStaticMarkup(
+      createElement(LoginPageWithProps, { initialIntent: "signup" }),
+    );
+    authState.current.loading = true;
+    const resolving = renderToStaticMarkup(
+      createElement(LoginPageWithProps, { initialIntent: "signup" }),
+    );
+    const heading = (html: string) => html.match(/<h1[^>]*>(.*?)<\/h1>/)?.[1];
+    expect(resolving).toContain("email form");
+    expect(heading(resolving)).toBe(heading(settled));
+  });
+
+  // A hint (resume cookie or stored session) keeps the card's shape up so a
+  // signed-in reader does not see the form flash. `aria-busy` belongs to the
+  // region that is loading, and the screen-reader line starts EMPTY, because a
+  // live region announces a change and text already present when it mounted is
+  // never spoken.
+  it("stands the sign-in card's shape up while a hinted session resolves", () => {
+    authState.current.loading = true;
+    const html = renderToStaticMarkup(
+      createElement(LoginPageWithProps, { sessionHint: true }),
+    );
     expect(html).toContain('class="loginPageSkeleton" aria-busy="true"');
     // The spoken line stands BESIDE the busy shape, never inside it.
     expect(html).toMatch(
@@ -216,7 +305,9 @@ describe("login page", () => {
   it("keeps the loading skeleton while unavailable auth is still resolving", () => {
     authState.current.supabaseAuthState = "unavailable";
     authState.current.loading = true;
-    const html = renderToStaticMarkup(createElement(LoginPage));
+    const html = renderToStaticMarkup(
+      createElement(LoginPageWithProps, { sessionHint: true }),
+    );
     expect(html).toContain("loginPageSkeleton");
     expect(html).not.toContain("Sign-in is temporarily unavailable");
     expect(html).not.toContain("email form");

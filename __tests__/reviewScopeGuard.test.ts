@@ -287,6 +287,38 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["uk_pub_search"]);
   });
 
+  it("permits generated database types when the diff carries a migration", () => {
+    const report = summarizeReviewScope([
+      "supabase/migrations/20260101000000_example.sql",
+      "types/database.ts",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["database_types"]);
+  });
+
+  it("permits generated database types when the diff carries the generator", () => {
+    const report = summarizeReviewScope([
+      "scripts/db/generate-database-types.mjs",
+      "types/database.ts",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categoryCounts).toEqual({ source: 1, regenerated: 1 });
+    expect(report.regeneratedLanes).toEqual(["database_types"]);
+  });
+
+  it("forbids a hand-edited database type file", () => {
+    const report = summarizeReviewScope(["types/database.ts"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "types/database.ts" },
+    ]);
+    expect(report.regeneratedLanes).toEqual([]);
+  });
+
   it("keeps city slim packs and the UK search index forbidden without their inputs", () => {
     const report = summarizeReviewScope([
       "public/data/pint_prices_app_dataset.json",

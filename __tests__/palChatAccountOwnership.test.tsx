@@ -47,6 +47,7 @@ function session(owner: string, token = "synthetic-token"): Session {
 function authValue(): AuthContextValue {
   return { session: current, user: current?.user ?? null, loading: false, configured: true,
     clerkIntegrationConfigured: false, socialProviders: NO_SOCIAL_AUTH_PROVIDERS,
+    socialProvidersResolved: true,
     signInWithGoogle: async () => ({ error: null }), signInWithApple: async () => ({ error: null }),
     signInWithMicrosoft: async () => ({ error: null }),
     signInWithEmail: async () => ({ status: "sent", message: "Synthetic sent." }),

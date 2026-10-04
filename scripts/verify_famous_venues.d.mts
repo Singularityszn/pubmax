@@ -59,3 +59,19 @@ export function toCommittedPlacesCheck(check: PlacesVenueCheck): {
   matchReason: string | null;
   checkedAt: string | null;
 };
+
+export function parseVerificationLimit(argv: readonly string[]): number | null;
+
+export function remainingBatchSize(limit: number, alreadyVerifiedToday: number): number;
+
+export function idsCoveredByPartialVerifications(
+  artifacts: ReadonlyArray<{ verifiedAt?: string; checks?: ReadonlyArray<{ id?: unknown }> }>,
+  seedIds: Iterable<string>,
+): string[];
+
+export function selectVerificationBatch<
+  Entry extends { row: { id: string; observedAt?: string } },
+>(
+  entries: readonly Entry[],
+  options?: { limit?: number | null; skipIds?: Iterable<string> },
+): Entry[];

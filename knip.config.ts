@@ -200,8 +200,11 @@ const config: KnipConfig = {
   // Arize tracing registers; this app never imports it directly.
   ignoreDependencies: ["postcss", "playwright", "openai"],
   // System SysV IPC and process tools the postgres harness shells out to
-  // (scripts/rls/postgresShm.mjs); they are not npm binaries.
-  ignoreBinaries: ["ipcs", "ipcrm", "ps"],
+  // (scripts/rls/postgresShm.mjs), and the Google Cloud CLI. The pub-website
+  // amenity harvest mints its Vertex token with it, and the Places verify job
+  // reads an access token from it (scripts/verify_london_places.mjs). They are
+  // not npm binaries.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud"],
 };
 
 // This optional local MCP CLI has its own pinned package manifest and named

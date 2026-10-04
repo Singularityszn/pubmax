@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
 import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
@@ -196,14 +197,14 @@ export default function HandlePasswordSignIn({
         />
       </label>
       <div className="loginPageHandlePasswordActions">
-        <button
+        <Button
           type="submit"
-          className="loginPagePrimary"
+          variant="secondary"
           data-testid="e2e-login-submit"
           disabled={busy || disabled}
         >
           {busy ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
         <button
           type="button"
           className="loginPageQuietLink"

@@ -15,6 +15,9 @@ const browserAuth = vi.hoisted(() => ({
   session: null as Session | null,
   getAccessToken: vi.fn<() => Promise<string | null>>(),
 }));
+const navigation = vi.hoisted(() => ({
+  push: vi.fn(),
+}));
 
 vi.mock("@elevenlabs/react", () => ({
   ConversationProvider: ({ children }: { children: ReactNode }) => children,
@@ -29,6 +32,9 @@ vi.mock("@elevenlabs/react", () => ({
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) =>
     createElement("a", { href }, children),
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: navigation.push }),
 }));
 vi.mock("@/lib/authClient", () => ({
   getAccessToken: browserAuth.getAccessToken,
@@ -109,6 +115,7 @@ function authValue(): AuthContextValue {
     configured: true,
     clerkIntegrationConfigured: false,
     socialProviders: NO_SOCIAL_AUTH_PROVIDERS,
+    socialProvidersResolved: true,
     signInWithGoogle: async () => ({ error: null }),
     signInWithApple: async () => ({ error: null }),
     signInWithMicrosoft: async () => ({ error: null }),
@@ -207,6 +214,7 @@ beforeEach(() => {
   sdk.startSession.mockReset();
   sdk.endSession.mockReset().mockResolvedValue(undefined);
   sdk.sendUserMessage.mockReset();
+  navigation.push.mockReset();
   browserAuth.getAccessToken.mockReset().mockImplementation(async () =>
     browserAuth.session?.access_token ?? null);
   wire = [];
