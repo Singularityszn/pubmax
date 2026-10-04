@@ -41,7 +41,10 @@ The captain applies migrations. Agents write SQL only. Never apply a migration t
 
 ## Realtime
 
-Every channel is private on both halves. The server sends with `private: true` and the browser subscribes with `{ config: { private: true } }`. A `realtime.messages` policy is the gate. Send an empty payload and let the client refetch through the filtered route. Examples: `lib/messagesBroadcast.server.ts`, `lib/pintDropsBroadcast.server.ts`, `lib/realtime.ts`.
+This repo uses two kinds of channel. Find out which kind you are changing before you change its authorization.
+
+- A Broadcast channel is private on both halves. The server sends with `private: true` and the browser subscribes with `{ config: { private: true } }`. A `realtime.messages` policy is the gate. Send an empty payload and let the client refetch through the filtered route. Examples: `lib/messagesBroadcast.server.ts`, `lib/messagesRealtime.ts`, `lib/pintDropsBroadcast.server.ts`, `lib/realtime.ts`.
+- A `postgres_changes` channel is authorized by RLS on its table, not by a `realtime.messages` policy. Example: `lib/crewRealtime.ts`, which RLS on `plan_crew_members` gates.
 
 ## Rate limits
 

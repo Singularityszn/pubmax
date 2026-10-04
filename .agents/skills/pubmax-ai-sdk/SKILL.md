@@ -5,7 +5,7 @@ description: PubMaxxing's conventions for model calls, covering the Vercel AI SD
 
 # Model calls in PubMaxxing
 
-This repo calls models three ways. Each call runs on the server, is traced, spends a paid budget and fails closed to a grounded answer.
+This repo calls models three ways, and every call runs on the server. The other controls differ by path today. The table under "Controls today" says which path has which. A new call must have all of them, as the rules below say.
 
 ## Where each kind lives
 
@@ -16,6 +16,19 @@ This repo calls models three ways. Each call runs on the server, is traced, spen
 | TypeSafe (Jev) | `lib/ai/typesafe.server.ts` | `systemOne` for typed judgments, such as `lib/pubPalLlmFence.ts`. |
 
 Moderation calls are in `lib/profileAvatarModeration.ts` and `lib/socialPostModeration.ts`.
+
+## Controls today
+
+Do not assume that an existing path has a control. Check this table and the code.
+
+| Path | Shared paid budget | Arize trace | Fallback |
+| --- | --- | --- | --- |
+| Ask (`app/api/ask/route.ts`, `lib/ask/modelLoop.ts`) | Yes, lane `ask` | `traceArizeModelLoop` | Deterministic answer |
+| Heritage (`app/api/heritage/route.ts`, `lib/heritage.ts`) | Yes, lane `heritage` | `traceArizeModelCall` | Grounded structured answer |
+| AI Gateway search (`lib/searchProvider.server.ts`) | No. It has its own `SEARCH_GATEWAY_MAX_CALLS` cap. | AI SDK spans, only when Arize is registered | Not an answer path |
+| Moderation (`lib/profileAvatarModeration.ts`, `lib/socialPostModeration.ts`) | No | `traceArizeModelCall` | Not an answer path |
+| TypeSafe app door (`lib/ai/typesafe.server.ts`) | Yes, lane `typesafe` | No. It records timing with `recordTypesafeTiming`. | `null` |
+| TypeSafe plain Node (`lib/ai/typesafe.ts`) | No | No | `null` |
 
 ## Rules for a new model call
 
