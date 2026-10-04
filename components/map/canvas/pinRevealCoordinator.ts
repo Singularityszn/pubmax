@@ -176,8 +176,14 @@ type PinRevealCoordinatorOptions = {
    * those layers were still hidden.
    */
   confirmVisibleFrameBeforeReveal?: boolean;
-  /** Optional compositor guard after the confirmed visible render. */
-  visibleFrameHoldMs?: number;
+  /**
+   * Animation frames to wait after the render that includes those visible
+   * pins. MapLibre's render event can lead the phone compositor by a few
+   * frames; two frames confirm the paint. 0 reveals on that render.
+   */
+  compositeConfirmFrames?: number;
+  scheduleFrame: (callback: () => void) => number;
+  cancelFrame: (handle: number) => void;
   setPinsVisible: (visible: boolean) => void;
   subscribeRender: (listener: () => void) => () => void;
   subscribeIdle: (listener: () => void) => () => void;
@@ -211,7 +217,9 @@ export function createPinRevealCoordinator({
   hasPinsPaintable,
   requiresBasemapPaint = true,
   confirmVisibleFrameBeforeReveal = false,
-  visibleFrameHoldMs = 0,
+  compositeConfirmFrames = 0,
+  scheduleFrame,
+  cancelFrame,
   setPinsVisible,
   subscribeRender,
   subscribeIdle,
@@ -230,7 +238,7 @@ export function createPinRevealCoordinator({
     | "cancelled" = "idle";
   let pinTimer: number | null = null;
   let ceilingTimer: number | null = null;
-  let visibleTimer: number | null = null;
+  let frameHandle: number | null = null;
   let unsubscribeRender: (() => void) | null = null;
   let unsubscribeIdle: (() => void) | null = null;
 
@@ -239,8 +247,8 @@ export function createPinRevealCoordinator({
     pinTimer = null;
     if (ceilingTimer !== null) clearTimer(ceilingTimer);
     ceilingTimer = null;
-    if (visibleTimer !== null) clearTimer(visibleTimer);
-    visibleTimer = null;
+    if (frameHandle !== null) cancelFrame(frameHandle);
+    frameHandle = null;
     unsubscribeRender?.();
     unsubscribeRender = null;
     unsubscribeIdle?.();
@@ -315,14 +323,23 @@ export function createPinRevealCoordinator({
       unsubscribeRender = subscribeRender(() => {
         unsubscribeRender?.();
         unsubscribeRender = null;
-        if (visibleFrameHoldMs <= 0) {
-          finishReveal(reason);
-          return;
-        }
-        visibleTimer = setTimer(
-          () => finishReveal(reason),
-          visibleFrameHoldMs,
-        );
+        const awaitFrames = (remaining: number) => {
+          if (
+            generation !== armedGeneration ||
+            state !== "awaiting-visible-frame"
+          ) {
+            return;
+          }
+          if (remaining <= 0) {
+            finishReveal(reason);
+            return;
+          }
+          frameHandle = scheduleFrame(() => {
+            frameHandle = null;
+            awaitFrames(remaining - 1);
+          });
+        };
+        awaitFrames(compositeConfirmFrames);
       });
     };
     const revealPainted = (reason: Exclude<PinRevealReason, "timeout">) => {

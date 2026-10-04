@@ -17,26 +17,23 @@ permissions:
   contents: read
 
 concurrency:
-  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
-  group: pubmax-mac-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   send:
-    # Jobs that hold a write token or a secret run on their own runner, as a
-    # different macOS user from the one that runs pull request code. See
-    # docs/CI_RUNBOOK.md, section 'Dedicated runner users'.
-    runs-on: [self-hosted, pubmax-mac-refresh]
+    # This workflow does not run on pull_request, so a fork cannot read a
+    # repository secret. See docs/CI_RUNBOOK.md.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         timeout-minutes: 5
         with:
           node-version: "22"
+          cache: npm
       - run: |
           npm ci
           npm run deps:install-scripts
@@ -44,12 +41,8 @@ jobs:
         run: npm test -- __tests__/weeklyDigest.test.ts __tests__/emailProvider.test.ts
       - name: Send weekly digest (safe no-op until keys land)
         env:
-          # All optional today — absent ⇒ the script logs and exits 0 without
-          # sending. Populate these secrets to activate delivery.
-          # SUPABASE_SERVICE_ROLE_KEY is deliberately absent: no such secret
-          # exists and delivery is not wired. Add it in the change that wires
-          # delivery, and only while this job runs on the pubmax-mac-refresh
-          # runner, never on the pull request runners.
+          # Absent ⇒ the script logs and exits 0 without sending.
+          # SUPABASE_SERVICE_ROLE_KEY stays absent until delivery is wired.
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

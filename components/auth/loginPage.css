@@ -137,6 +137,16 @@
   height: 46px;
 }
 
+/* A provider pill held open while the provider read is in flight. It keeps
+   `.authSignIn` and an empty mark, so every breakpoint sizes it exactly as
+   the button that replaces it. */
+.authSignIn.loginPageSkeletonProvider {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--ink-soft) 12%, transparent);
+  animation: loginPageSkeletonPulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
 @keyframes loginPageSkeletonPulse {
   0%,
   100% {
@@ -415,7 +425,8 @@
   .loginPageSkeletonPill,
   .loginPageSkeletonBar,
   .loginPageSkeletonField,
-  .loginPageSkeletonButton {
+  .loginPageSkeletonButton,
+  .authSignIn.loginPageSkeletonProvider {
     animation: none;
   }
 }
