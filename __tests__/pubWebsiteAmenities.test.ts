@@ -198,6 +198,46 @@ describe("sports evidence publication", () => {
     expectSportsPublication(quote, true);
   });
 
+  it.each([
+    "We don't have Sky Sports, TNT Sports shows these matches.",
+    "We don't have Sky Sports, TNT Sports shows those games.",
+    "We don't have Sky Sports, TNT Sports shows their matches.",
+    "We don't have Sky Sports, TNT Sports shows both matches.",
+    "We don't have Sky Sports, TNT Sports shows this match.",
+    "We don't have Sky Sports, TNT Sports shows many games.",
+    "We don't have Sky Sports, TNT Sports shows more football.",
+    "We don't have Sky Sports, TNT Sports shows two matches a day.",
+    "We don't have Sky Sports, TNT Sports shows 3 matches a day.",
+    "We don't have Sky Sports, TNT Sports shows today's match.",
+    "No Sky Sports, TNT Sports shows these matches.",
+    "We don't have Sky Sports, TNT Sports shows a few of their games.",
+  ])("retains demonstrative, possessive, quantifier and numeral objects beside comma denials: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each([
+    "We don't have Sky Sports, TNT Sports screens that football fans love.",
+    "We don't have Sky Sports, TNT Sports screens this weekend.",
+    "We don't have Sky Sports, TNT Sports screens their bar.",
+  ])("leaves dual-use viewing nouns before a determiner without viewed content under the comma denial: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  // Unsupported by the bounded recognizer, so conservatively unconfirmed: the
+  // relative-ambiguous "that", adjectives outside the closed modifier set, and
+  // a possessive noun not immediately followed by viewed content.
+  it.each([
+    "We don't have Sky Sports, TNT Sports shows that match.",
+    "We don't have Sky Sports, TNT Sports shows the whole match.",
+    "We don't have Sky Sports, TNT Sports shows every single match.",
+    "We don't have Sky Sports, TNT Sports shows the biggest matches.",
+    "We don't have Sky Sports, TNT Sports shows all the major matches.",
+    "We don't have Sky Sports, TNT Sports shows European football.",
+    "We don't have Sky Sports, TNT Sports shows today's big match.",
+  ])("leaves unsupported object prefixes unconfirmed: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
   // A dual-use verb's object is recognised from its first word: a closed
   // determiner, quantifier, partitive or modifier prefix, then viewed content.
   // Any other first word leaves the remainder unconfirmed rather than searching

@@ -154,10 +154,13 @@ const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
 const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
 const SPORT_ADJUNCT =
   "(?:here|there|(?:(?:every|each|on|at|this|next)\\s+)?(?:(?:mon|tues|wednes|thurs|fri|satur|sun)days?|days?|nights?|weekends?|weeks?|mornings?|afternoons?|evenings?))\\b";
+const OBJECT_DETERMINER =
+  "(?:every|each|all|most|some|any|an?|the|this|these|those|my|your|our|their|its|his|her|both|many|more|few|several|enough|" +
+  "one|two|three|four|five|six|seven|eight|nine|ten|\\d+)\\s+";
 /** A viewed-content object read from its first word: a closed determiner, partitive and modifier prefix, then sport, games, action or them. */
 const VIEWED_OBJECT =
-  "(?:(?:every|each|all|most|some|any|an?|the|our)\\s+(?:one\\s+)?(?:of\\s+)?)?(?:(?:the|our)\\s+)?" +
-  `(?:(?:big|live|international|six)\\s+)*(?:${SPORT_SHOWN.source}|\\b(?:games?|action|them)\\b)`;
+  `(?:(?:${OBJECT_DETERMINER}(?:of\\s+)?)*(?:(?:big|live|international|six)\\s+)*|[a-z]+['\u2019]s\\s+)` +
+  `(?:${SPORT_SHOWN.source}|\\b(?:games?|action|them)\\b)`;
 /** Shows, screens and broadcasts are verbs only before a viewed-content object; otherwise they can be denied nouns. */
 const SPORT_REMAINDER_PREDICATE = new RegExp(
   `^\\s*${SPORT_OBJECT}((?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*)\\s+(?:(?:is|are|isn'?t|aren'?t)\\b|(will)\\b|` +
