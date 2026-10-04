@@ -52,7 +52,7 @@ describe("venueKindFilters", () => {
     ).toEqual(["pub", "food", "restaurant"]);
   });
 
-  it("keeps restaurants distinct from Pints and excludes future clubs", () => {
+  it("keeps restaurants distinct from Pints", () => {
     const restaurantsOff = toggleVenueKind(
       defaultVenueKindVisibility(),
       "restaurant",
@@ -60,14 +60,39 @@ describe("venueKindFilters", () => {
 
     expect(
       filterVenuesByKind(
-        [
-          venue("pub"),
-          venue("restaurant", "restaurant"),
-          venue("club", "club"),
-        ],
+        [venue("pub"), venue("restaurant", "restaurant")],
         restaurantsOff,
       ).map((item) => item.id),
     ).toEqual(["pub"]);
+  });
+
+  it("shows clubs with the bars and keeps their club label", () => {
+    const club = venue("club", "club");
+    expect(filterVenuesByKind([club], defaultVenueKindVisibility())).toEqual([
+      club,
+    ]);
+    expect(
+      filterVenuesByKind(
+        [club],
+        toggleVenueKind(defaultVenueKindVisibility(), "bar"),
+      ),
+    ).toEqual([]);
+    expect(
+      filterVenuesByKind(
+        [club],
+        toggleVenueKind(defaultVenueKindVisibility(), "pub"),
+      ),
+    ).toEqual([club]);
+    expect(venueKindLabel(club.kind)).toBe("Club");
+  });
+
+  it("leaves the OSM-only kinds off the curated map", () => {
+    expect(
+      filterVenuesByKind(
+        [venue("cafe", "cafe"), venue("library", "library"), venue("other", "other")],
+        defaultVenueKindVisibility(),
+      ),
+    ).toEqual([]);
   });
 
   it("identifies only legacy and explicit pub venues for pint-domain consumers", () => {

@@ -11,10 +11,9 @@ import "./tonightArcChips.css";
 
 // The kinds the map's own filter offers, and no more. A "Clubs" chip stood
 // here permanently disabled, explained by a `title` attribute no phone shows
-// (docs/proof/astra-live-walk/report.md B9). It could never be enabled:
-// `curatedVenueKind` in lib/venueKindFilters.ts answers null for a club, so
-// `filterVenuesByKind` leaves clubs off the map entirely. Giving those kinds
-// their own surface is a separate wave, and the chip comes back with it.
+// (docs/proof/astra-live-walk/report.md B9). It could never be enabled, so it
+// went: `curatedVenueKind` in lib/venueKindFilters.ts files a club under the
+// bars, and the Bars chip shows and hides clubs with them.
 const CHIPS: ReadonlyArray<{
   kind: CuratedVenueKind;
   label: string;

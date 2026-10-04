@@ -14,8 +14,6 @@ describe("discovered venue kind", () => {
     ["the name says it is a sports club", quoted("Edgbaston Golf Club", "bar", "Both the Restaurant and the Bar Menu are available all day.")],
     ["the name says it is a working men's club", quoted("Tyseley Working Mens Club", "bar", "we also show many of the major sporting events in our bar")],
     ["the evidence describes a social bar", quoted("Hall Green H.G. Club", "bar", "Join us to enjoy the social bar area")],
-    ["the evidence says it is a nightclub", quoted("The Loft", "bar", "The Loft is a late-night bar and nightclub with cocktails")],
-    ["the name says it is a nightclub", quoted("Pryzm Nightclub", "bar", "cocktails and dancing until late")],
   ])("is a club when %s", (_, row) => {
     expect(discoveredKind(row)).toBe("club");
   });
@@ -27,6 +25,8 @@ describe("discovered venue kind", () => {
     ["CAMRA labels it a pub", quoted("Ukrainian Club", "pub", "[### Ukrainian Club  Pub, in Manchester]  **Cask Ale not available**")],
     ["the word club is not in its name or evidence", quoted("Copper Rooms", "bar", "Copper Rooms social cocktail bar, members welcome")],
     ["the bar only hosts club nights", quoted("The Copper Rooms", "bar", "club nights every Friday with cocktails")],
+    ["the evidence only mentions a nightclub", quoted("The Loft", "bar", "The Loft is a late-night bar and nightclub with cocktails")],
+    ["research names it a restaurant", quoted("Harborne Cricket Club", "restaurant", "Harborne Cricket Club clubhouse restaurant", "Our wine list pairs with every dish")],
   ])("keeps its kind when %s", (_, row) => {
     expect(discoveredKind(row)).toBe(row.kind);
   });
@@ -41,6 +41,14 @@ describe("discovered venue kind", () => {
     const stored = { ...candidate, kind: "bar" as const, id: "venue-bhm-ward", lat: 52.49, lng: -1.83, coordinatePrecision: "postcode-centroid" as const };
     expect(validateDiscoveryPack({ city: city.id, venues: [{ ...stored, kind: "club" }] }, city).venues).toHaveLength(1);
     expect(assembleCityDiscoveries({ found: [], previous: [stored], existing: [], city }).venues.map((row) => row.kind)).toEqual(["club"]);
+  });
+
+  it("keeps a club-named restaurant that only its restaurant evidence admits", () => {
+    const url = "https://camra.org.uk/pubs/harborne";
+    const stored = { name: "Harborne Cricket Club", kind: "restaurant" as const, address: "Old Church Avenue, Harborne, Birmingham, B17 0BB", postcode: "B17 0BB",
+      locality: city.displayName, website: null, lat: 52.46, lng: -1.95, coordinatePrecision: "postcode-centroid" as const, sourceUrls: [url], observedAt: "2026-10-04T10:00:00Z",
+      evidence: [{ url, excerpt: "Harborne Cricket Club, Old Church Avenue, Harborne, Birmingham, B17 0BB" }, { url, excerpt: "Our wine list pairs with every dish" }] };
+    expect(assembleCityDiscoveries({ found: [], previous: [stored], existing: [], city }).venues.map((row) => row.kind)).toEqual(["restaurant"]);
   });
 
   it("leaves no committed discovery under a kind its evidence contradicts", () => {

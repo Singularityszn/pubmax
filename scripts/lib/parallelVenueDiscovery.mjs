@@ -87,23 +87,22 @@ export function statesDrinking(kind, quotes, name) {
   return kind === "restaurant" ? RESTAURANT_ALCOHOL.test(rest) : PUB_OR_BAR_EVIDENCE.test(rest);
 }
 
-const NIGHTCLUB = /\bnight ?clubs?\b/;
 const CLUB_TYPE_NAME = /\b(?:social|working ?m[ae]n'?s|conservative|labour|liberal|unionist|constitutional|ex[- ]?service(?:s|m[ae]n'?s)?|services|legion|cricket|rugby|golf|sailing|yacht|rowing|sports?|football|bowls|bowling|tennis|hockey|athletic|snooker)\b.*\bclub\b/;
 const CLUB_EVIDENCE = /\b(?:this is a club|club members|members['’]? (?:only|club|bar)|members sailing club|club ?house|social)\b/;
 const CLUB_LABEL = /\bclub\s*,\s*in\b/;
 
-// A discovery is a club, in the venue vocabulary's sense of a nightclub or a
-// social, members', sports or services club, when its evidence says so or its
-// name says what kind of club it is. A name that only carries the word, such as
-// Cosy Club or The Oyster Club, keeps the kind its research gave it. The
-// evidence is read without the name, except for CAMRA's "Club, in <place>"
-// type label, which follows the name in its listing.
+// A pub or bar discovery is a club, in the sense of a social, members', sports
+// or services club, when its name carries the word club and either the name
+// says what kind of club it is or its evidence says it is a club. A name that
+// only carries the word, such as Cosy Club, keeps the kind its research gave
+// it. A restaurant keeps its kind, because its drinking evidence was judged by
+// the restaurant rule. The evidence is read without the name, except for
+// CAMRA's "Club, in <place>" type label, which follows the name in its listing.
 export function discoveredKind({ name, kind, evidence }) {
+  const named = fold(name).replace(/['’]/g, "");
+  if (kind === "restaurant" || !/\bclub\b/.test(named)) return kind;
   const quotes = (evidence ?? []).map((entry) => entry.excerpt).join(" ");
   const rest = withoutName(quotes, name);
-  const named = fold(name).replace(/['’]/g, "");
-  if (NIGHTCLUB.test(named) || NIGHTCLUB.test(rest)) return "club";
-  if (!/\bclub\b/.test(named)) return kind;
   return CLUB_TYPE_NAME.test(named) || CLUB_EVIDENCE.test(rest) || CLUB_LABEL.test(fold(quotes)) ? "club" : kind;
 }
 
