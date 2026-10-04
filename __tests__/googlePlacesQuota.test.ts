@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+// @ts-expect-error - plain .mjs CLI helper has no declaration file.
 import { monthPlacesRequests, setDailyOverrides } from "../scripts/lib/googlePlacesQuota.mjs";
 
 afterEach(() => vi.unstubAllGlobals());
