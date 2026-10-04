@@ -6,18 +6,23 @@ check layer.
 
 ## GitHub-hosted runners
 
-Every job runs on `ubuntu-latest`. The repository is public, so CI uses
-GitHub's free hosted runners. No job needs macOS: Playwright, PostgreSQL,
-Semgrep and the performance sweep all run on Linux. The sweep once failed to
-measure itself on a private repository's 2 vCPU runner; that is why it is not
-on the pull-request path. It is not a reason to run a public repository's CI
-on a personal machine.
+Every job that runs Playwright uses `macos-latest`. Every other job uses
+`ubuntu-latest`. The repository is public, so both are GitHub's free hosted
+runners. Ubuntu font metrics wrap the landing hero differently from the
+macOS metrics the law pins were proved on, so the browser jobs stay on
+macOS. PostgreSQL, Semgrep and the rest stay on Linux. The performance
+sweep once failed to measure itself on a private repository's 2 vCPU
+runner; that is why it is not on the pull-request path. It is not a reason
+to run a public repository's CI on a personal machine.
 
 ```yaml
+# a job that runs Playwright
+runs-on: macos-latest
+# every other job
 runs-on: ubuntu-latest
 ```
 
-`__tests__/ciRunnerIsolation.test.ts` holds that label, and it holds the
+`__tests__/ciRunnerIsolation.test.ts` holds those labels, and it holds the
 secret rule: a workflow that runs on `pull_request` does not reference
 `secrets`. Refresh workflows that open a review PR do not trigger on
 `pull_request`, so a fork never receives their job token or a repository

@@ -39,8 +39,8 @@ jobs:
   # From 6 to 15 September 2026 the measurement ran on a 4 vCPU runner (Avrea,
   # then Blacksmith). A private repository's 2 vCPU `ubuntu-latest` could not
   # measure itself, which is one reason the sweep left the pull-request path.
-  # The repository is public, so this job uses the same ubuntu-latest as every
-  # other job. No job needs macOS. The
+  # This job launches Playwright, so it runs on macos-latest with the law pins.
+  # Ubuntu font metrics do not match those pins. The
   # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
   # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
   # a route flipped between pass and fail on one commit. A ceiling is only a
@@ -53,7 +53,7 @@ jobs:
   # inside the old wall, since that work only happens on `if: failure()`.
   performance-budget:
     name: Performance budget
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 55
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
@@ -194,7 +194,7 @@ jobs:
   ux-lane-performance:
     name: UX lane performance
     needs: [performance-budget]
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 17
     steps:
       - name: Checkout

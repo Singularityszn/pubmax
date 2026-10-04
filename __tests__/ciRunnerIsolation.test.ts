@@ -1,14 +1,16 @@
 // A PUBLIC REPO DOES NOT RUN CI ON A PERSONAL MACHINE.
 //
-// Every job runs on GitHub-hosted ubuntu-latest. Pull request workflows do
-// not reference the secrets context, so a fork cannot read a repository
-// secret. docs/CI_RUNBOOK.md is the runbook.
+// Jobs that run Playwright use GitHub-hosted macos-latest. Every other job
+// uses ubuntu-latest. Pull request workflows do not reference the secrets
+// context, so a fork cannot read a repository secret. docs/CI_RUNBOOK.md
+// is the runbook.
 //
 //   1. no dependency runs an install script unless the allowlist says so;
 //   2. no pre/post npm hook exists for `ignore-scripts` to skip in silence;
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
-//   4. every job uses ubuntu-latest, and a pull request workflow has no secrets.
+//   4. a Playwright job uses macos-latest, every other job uses ubuntu-latest,
+//      and a pull request workflow has no secrets.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -190,10 +192,15 @@ describe("workflow credentials and pins", () => {
 });
 
 describe("hosted runners", () => {
-  it("runs every job on ubuntu-latest", () => {
+  it("runs Playwright jobs on macos-latest and every other job on ubuntu-latest", () => {
     for (const { file, parsed } of workflows) {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
-        expect(job["runs-on"], `${file} / ${jobId}`).toBe("ubuntu-latest");
+        const launchesPlaywright = job.steps.some(
+          (step) => typeof step.run === "string" && /\bplaywright test\b/.test(step.run),
+        );
+        expect(job["runs-on"], `${file} / ${jobId}`).toBe(
+          launchesPlaywright ? "macos-latest" : "ubuntu-latest",
+        );
       }
     }
   });

@@ -377,7 +377,7 @@ describe("mobile chrome fit at 390px", () => {
     // the heading drops a step and the card its outer padding; the rendered
     // fold is measured in e2e/landing-find-my-pint.spec.ts.
     const phone = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.screenTitle\s*{([^}]*)}/)?.[1] ?? "";
-    expect(phone, "phone override for the hero heading").toMatch(/font-size:\s*clamp\(2rem/);
+    expect(phone, "phone override for the hero heading").toMatch(/font-size:\s*clamp\(2\.125rem/);
     expect(landingCss).toMatch(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.lpAnswerCard\s*{[^}]*padding:\s*var\(--space-4\)/);
   });
 });
