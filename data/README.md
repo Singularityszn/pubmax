@@ -49,7 +49,11 @@ because `public/data/pint_prices_app_dataset.json` is LAYERED - the outer-London
 OSM merge, the Wikipedia London list and the two gazetteer seeds add rows the CSV
 does not carry. A plain re-export publishes 2,719 rows over the 3,761 committed
 ones, so the export now refuses that loss unless `--allow-row-loss` says it is
-intended.
+intended. The amenity cells stamped from each pub's own website are layered too:
+the CSV does not carry them and the row-loss guard cannot see them, so after a
+re-export run `npm run harvest:pub-website-amenities -- --restamp`. It stamps
+`data/amenities/london_pub_website_evidence.json` back onto the dataset with no
+fetch and no model call; the script header owns the details.
 
 The 2026-09-04 re-collection read 964 pages with no errors and re-observed 2,624
 of the 2,788 priced rows (94.1%); 55 prices had moved. The other 164 priced rows

@@ -24,11 +24,11 @@ import {
 
 function harness({
   confirmVisibleFrameBeforeReveal = false,
-  visibleFrameHoldMs = 0,
+  compositeConfirmFrames = 0,
   requiresBasemapPaint = true,
 }: {
   confirmVisibleFrameBeforeReveal?: boolean;
-  visibleFrameHoldMs?: number;
+  compositeConfirmFrames?: number;
   requiresBasemapPaint?: boolean;
 } = {}) {
   let basemapPainted = false;
@@ -36,6 +36,7 @@ function harness({
   let nextId = 1;
   const timers = new Map<number, () => void>();
   const timerDelays = new Map<number, number>();
+  const frames = new Map<number, () => void>();
   const renderListeners = new Set<() => void>();
   const idleListeners = new Set<() => void>();
   const visibility: boolean[] = [];
@@ -50,7 +51,15 @@ function harness({
     hasPinsPaintable: () => pinsPaintable,
     requiresBasemapPaint,
     confirmVisibleFrameBeforeReveal,
-    visibleFrameHoldMs,
+    compositeConfirmFrames,
+    scheduleFrame: (callback) => {
+      const id = nextId++;
+      frames.set(id, callback);
+      return id;
+    },
+    cancelFrame: (id) => {
+      frames.delete(id);
+    },
     setPinsVisible: (visible) => visibility.push(visible),
     subscribeRender: (listener) => {
       renderListeners.add(listener);
@@ -116,6 +125,13 @@ function harness({
     },
     firePinTimeout() { this.fireByDelay(3_000); },
     fireCeiling() { this.fireByDelay(12_000); },
+    fireFrame() {
+      const next = frames.entries().next();
+      if (next.done) return;
+      const [id, callback] = next.value;
+      frames.delete(id);
+      callback();
+    },
   };
 }
 
@@ -410,10 +426,10 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
-  it("can hold loading chrome through the phone's visual composite", () => {
+  it("confirms the phone composite with two frames after the visible pin render", () => {
     const h = harness({
       confirmVisibleFrameBeforeReveal: true,
-      visibleFrameHoldMs: 500,
+      compositeConfirmFrames: 2,
     });
     h.setBasemapPainted(true);
     h.coordinator.arm();
@@ -422,14 +438,33 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
     expect(h.reveals).toEqual([]);
 
-    h.fireByDelay(500);
+    h.fireFrame();
+    expect(h.reveals).toEqual([]);
+    h.fireFrame();
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+  });
+
+  it("drops a composite frame that arrives after the ready ceiling", () => {
+    const h = harness({
+      confirmVisibleFrameBeforeReveal: true,
+      compositeConfirmFrames: 2,
+    });
+    h.setBasemapPainted(true);
+    h.coordinator.arm();
+    h.fireRender();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+
+    h.fireCeiling();
+    h.fireFrame();
+
+    expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
   });
 
   it("emits timeout when no phone frame follows the paintable-source render", () => {
     const h = harness({
       confirmVisibleFrameBeforeReveal: true,
-      visibleFrameHoldMs: 500,
+      compositeConfirmFrames: 2,
     });
     h.setBasemapPainted(true);
     h.coordinator.arm();

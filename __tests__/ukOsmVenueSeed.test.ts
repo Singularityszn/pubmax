@@ -30,6 +30,7 @@ import {
   isFreshOverpassSnapshot,
 } from "../scripts/lib/overpassClient.mjs";
 import {
+  ALCOHOLIC_DRINK_KEYS,
   UK_VENUE_GROUPS,
   UK_VENUE_KINDS,
   UK_VENUE_QUERY_SCOPES,
@@ -38,6 +39,7 @@ import {
   classifyVenueTags,
   countVenues,
   normalizeVenueElements,
+  statesAlcohol,
   taxonomyForScope,
 } from "../scripts/lib/ukOsmVenueSeed.mjs";
 import { VENUE_KINDS, isVenueKind, type VenueKind } from "@/lib/venues";
@@ -79,11 +81,77 @@ describe("UK venue taxonomy", () => {
     expect(() => taxonomyForScope("nightclubs")).toThrow(/Unknown venue scope/);
   });
 
-  it("takes a restaurant only where OSM states a bar, a microbrewery or real ale", () => {
+  it("takes a nightclub as a club, and nothing inferred from a name", () => {
+    expect(classifyVenueTags({ amenity: "nightclub", name: "Fabric" })?.kind).toBe("club");
+    expect(classifyVenueTags({ amenity: "nightclub" })?.key).toBe("nightclub");
+    expect(classifyVenueTags({ amenity: "bar", name: "Nightclub" })?.kind).toBe("bar");
+    expect(classifyVenueTags({ name: "The Club" })).toBeNull();
+  });
+
+  it("takes a restaurant only where OSM states alcohol", () => {
     expect(classifyVenueTags({ amenity: "restaurant", name: "Plain" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", bar: "yes" })?.key).toBe("restaurant_bar");
     expect(classifyVenueTags({ amenity: "restaurant", real_ale: "yes" })?.key).toBe("restaurant_bar");
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "yes" })?.key).toBe("restaurant_bar");
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "served" })?.kind).toBe("restaurant");
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:wine": "served" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "draught" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", drink: "wine" })?.key).toBe("restaurant_bar");
     expect(classifyVenueTags({ amenity: "restaurant", bar: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:coffee": "yes" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "served;bottled" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no;served" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "served; bottled" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "retail" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no;retail" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "notserved" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", drink: "coffee" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", opening_hours: "24/7" })).toBeNull();
+    expect(statesAlcohol({ "drink:coffee": "yes", "drink:tea": "yes" })).toBe(false);
+  });
+
+  it("takes a music venue as a club", () => {
+    expect(classifyVenueTags({ amenity: "music_venue" })?.key).toBe("music_venue");
+    expect(classifyVenueTags({ amenity: "music_venue" })?.kind).toBe("club");
+  });
+
+  it("takes a social or members' club only where OSM states alcohol", () => {
+    expect(classifyVenueTags({ club: "social" })).toBeNull();
+    expect(classifyVenueTags({ club: "social", bar: "yes" })?.key).toBe("social_club");
+    expect(classifyVenueTags({ club: "sport", "drink:beer": "yes" })?.kind).toBe("club");
+    expect(classifyVenueTags({ club: "social", "drink:coffee": "yes" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "pub", club: "social", bar: "yes" })?.key).toBe("pub");
+    expect(classifyVenueTags({ bar: "yes" })).toBeNull();
+  });
+
+  it("takes a casino only where OSM states alcohol", () => {
+    expect(classifyVenueTags({ amenity: "casino" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "casino", alcohol: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "casino", bar: "yes" })?.key).toBe("casino_bar");
+    expect(classifyVenueTags({ amenity: "casino", alcohol: "served" })?.kind).toBe("other");
+  });
+
+  it("asks Overpass for every alcoholic drink key and no non-alcoholic one", () => {
+    const query = buildUkVenueQuery(LONDON_CELL, "drink");
+    expect(query).toContain('node["amenity"="nightclub"](area.uk)');
+    expect(query).toContain('node["amenity"="music_venue"](area.uk)');
+    expect(query).toContain('node["club"]["bar"="yes"](area.uk)');
+    expect(query).toContain('node["amenity"="casino"]["alcohol"~"^(yes|served)$"](area.uk)');
+    expect(query).not.toContain("drink:coffee");
+    expect(query).toContain("(?:[^;]*;)*\\s*(?:yes|served|draught|bottled)\\s*(?:;.*)?$");
+    for (const key of ALCOHOLIC_DRINK_KEYS) expect(query).toContain(key);
   });
 
   it("takes fast food only where OSM states alcohol or round-the-clock hours", () => {
@@ -198,7 +266,7 @@ describe("the widened venue vocabulary", () => {
   it("leaves pub behaviour exactly as it was", () => {
     expect(isPubVenueKind(undefined)).toBe(true);
     expect(isPubVenueKind("pub")).toBe(true);
-    for (const kind of ["cafe", "coworking", "library", "hotel_lounge", "other"] as const) {
+    for (const kind of ["cafe", "club", "coworking", "library", "hotel_lounge", "other"] as const) {
       expect(isPubVenueKind(kind)).toBe(false);
     }
   });

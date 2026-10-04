@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactElement,
 } from "react";
 import { LogIn } from "lucide-react";
@@ -35,7 +36,11 @@ import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { addLinkAwareDestination } from "@/lib/addLink";
-import { loginPageHeadCopy, loginPageShowsSkeleton } from "@/lib/loginPageFraming";
+import {
+  loginPageGate,
+  loginPageHasSessionHint,
+  loginPageHeadCopy,
+} from "@/lib/loginPageFraming";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 
 import "@/app/auth/auth.css";
@@ -242,10 +247,10 @@ function SignInSkeleton(): React.JSX.Element {
           <span className="loginPageSkeletonPill" />
         </div>
         <div className="loginPageSkeletonOptions" aria-hidden="true">
-          <span className="loginPageSkeletonBar" />
-          <span className="loginPageSkeletonBar" />
           <span className="loginPageSkeletonField" />
           <span className="loginPageSkeletonButton" />
+          <span className="loginPageSkeletonBar" />
+          <span className="loginPageSkeletonBar" />
         </div>
       </div>
     </>
@@ -294,6 +299,42 @@ export function PageHead({
   );
 }
 
+function readBrowserSessionHint(): boolean {
+  try {
+    return loginPageHasSessionHint({
+      storageKeys: Object.keys(window.localStorage),
+    });
+  } catch {
+    return false;
+  }
+}
+
+function subscribeLoginSessionHint(): () => void {
+  return () => {};
+}
+
+/**
+ * The server hint is the resume cookie or a provider callback landing.
+ * localStorage is the browser's own copy of the session, but it is read only
+ * on a client-side mount: a hydrating mount keeps the server's answer, so an
+ * email door already painted is never swapped for a skeleton.
+ */
+function useLoginSessionHint(serverHint: boolean): boolean {
+  const [browserHint] = useState(() => {
+    let read: boolean | undefined;
+    return {
+      onClient: () => (read ??= readBrowserSessionHint()),
+      whileHydrating: () => (read ??= false),
+    };
+  });
+  const storedSession = useSyncExternalStore(
+    subscribeLoginSessionHint,
+    browserHint.onClient,
+    browserHint.whileHydrating,
+  );
+  return serverHint || storedSession;
+}
+
 /** The two doors as one control. Extracted so the page body stays readable. */
 function DoorSwitch({
   intent,
@@ -339,6 +380,7 @@ export default function LoginPage({
   initialIntent = "signin",
   from = null,
   addAccount = false,
+  sessionHint = false,
 }: {
   initialIntent?: ArrivalIntent;
   from?: string | null;
@@ -349,6 +391,12 @@ export default function LoginPage({
    * and the new sign-in becomes the active account through the one auth event.
    */
   addAccount?: boolean;
+  /**
+   * True when the server saw a resume cookie or a provider callback landing.
+   * A signed-in reader keeps the skeleton until the session answers; a reader
+   * without a hint gets the email door in the first HTML.
+   */
+  sessionHint?: boolean;
 } = {}): React.JSX.Element {
   const {
     user,
@@ -356,6 +404,7 @@ export default function LoginPage({
     configured,
     clerkIntegrationConfigured,
     socialProviders,
+    socialProvidersResolved,
     signInWithGoogle,
     signInWithApple,
     signInWithMicrosoft,
@@ -518,12 +567,21 @@ export default function LoginPage({
   // Adding an account is the ONE case where a live session does not get the
   // signed-in card: the person came here to bring a second account onto this
   // device, and telling them they are already in would be answering a question
-  // they did not ask.
-  const adding = addAccount && Boolean(user);
-  const showSignedIn = Boolean(user) && !adding;
+  // they did not ask. The skeleton, card and form split lives in the framing
+  // leaf.
+  const sessionHinted = useLoginSessionHint(sessionHint);
   const returning = Boolean(welcomeBack) && !useDifferentAccount;
+  const { adding, showSignedIn, headSessionKnown, showSkeleton, showForm } =
+    loginPageGate({
+      sessionKnown: !loading,
+      signedIn: Boolean(user),
+      addAccount,
+      sessionHinted,
+      hasAuthSurface,
+      returning,
+    });
   const head = loginPageHeadCopy({
-    sessionKnown: !loading,
+    sessionKnown: headSessionKnown,
     adding,
     signedIn: Boolean(user),
     returning,
@@ -532,8 +590,6 @@ export default function LoginPage({
   });
   const showWelcomeBack =
     !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
-  const showForm =
-    !loading && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount);
 
 
   // ONE primary for the page, decided by the same state the body is. A signed-in
@@ -544,8 +600,9 @@ export default function LoginPage({
   // a returning one the resume tap; while the FORM is on screen the head paints
   // nothing, because the form's own submit beside the field is the primary
   // (captain's ruling, 7 Sep 2026: a head door above the field and the form's
-  // submit under it were two doors for one action). While the session is still
-  // unknown the skeleton stands where the form will, and no door is painted.
+  // submit under it were two doors for one action). A reader with no session
+  // hint paints that form immediately. A hint keeps the skeleton where the
+  // card will be, and no door is painted until the session answers.
   const headPrimary: ReactElement | undefined = showSignedIn && !loading ? (
     <Link href="/map">Continue to the map</Link>
   ) : showWelcomeBack ? (
@@ -584,9 +641,7 @@ export default function LoginPage({
           </p>
         ) : null}
 
-        {loginPageShowsSkeleton({ sessionKnown: !loading, hasAuthSurface }) ? (
-          <SignInSkeleton />
-        ) : null}
+        {showSkeleton ? <SignInSkeleton /> : null}
 
         {!loading && showSignedIn && user ? (
           <SignedInCard
@@ -613,16 +668,6 @@ export default function LoginPage({
           <section ref={formRegion} className="loginPageForm" aria-label="Sign-in options">
             <DoorSwitch intent={intent} onChoose={chooseDoor} />
             <div className="authOptions">
-              {configured || clerkSessionAvailable ? (
-                <SocialSignInButtons
-                  availability={socialProviders}
-                  disabled={busy !== null}
-                  onGoogle={onSignInGoogle}
-                  onApple={onSignInApple}
-                  onMicrosoft={onSignInMicrosoft}
-                  fullLabels
-                />
-              ) : null}
               {configured ? (
                 <>
                   <MagicLinkForm
@@ -642,6 +687,27 @@ export default function LoginPage({
                     />
                   ) : null}
                 </>
+              ) : null}
+              {/* Below the email door, so providers arriving after the read
+                  (or never arriving) cannot move the field the reader is in. */}
+              {!socialProvidersResolved ? (
+                <div className="authProviders" aria-hidden="true">
+                  <span className="authSignIn loginPageSkeletonProvider">
+                    <span className="authProviderMark" />
+                  </span>
+                  <span className="authSignIn loginPageSkeletonProvider">
+                    <span className="authProviderMark" />
+                  </span>
+                </div>
+              ) : configured || clerkSessionAvailable ? (
+                <SocialSignInButtons
+                  availability={socialProviders}
+                  disabled={busy !== null}
+                  onGoogle={onSignInGoogle}
+                  onApple={onSignInApple}
+                  onMicrosoft={onSignInMicrosoft}
+                  fullLabels
+                />
               ) : null}
             </div>
             {error ? (
