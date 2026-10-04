@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/social/media/[mediaId]/route";
 import { GET as adminGET } from "@/app/api/admin/social-posts/media/[mediaId]/route";
-import { ADMIN_SESSION_COOKIE, hashAdminSession } from "@/lib/adminAuth";
+import { POST as createModeratorSession } from "@/app/api/admin/session/route";
 import { AUTH_RESUME_COOKIE, encodeAuthResumeCookie } from "@/lib/authSessionResume";
 
 const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
@@ -145,9 +145,16 @@ it("preserves native image requests authenticated by the resume cookie", async (
 });
 
 it("preserves the moderator session-cookie image request", async () => {
-  const cookie = hashAdminSession("fixture-admin-token");
+  const session = await createModeratorSession(new Request("https://app.test/api/admin/session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token: "fixture-admin-token" }),
+  }));
+  expect(session.status).toBe(200);
+  const cookie = session.headers.get("set-cookie")?.split(";")[0];
+  expect(cookie).toBeTruthy();
   await expectPhoto(await adminGET(new Request(`https://app.test/api/admin/social-posts/media/${MEDIA_ID}`, {
-    headers: { cookie: `${ADMIN_SESSION_COOKIE}=${cookie}` },
+    headers: { cookie: cookie! },
   }), { params: Promise.resolve({ mediaId: MEDIA_ID }) }));
 });
 
