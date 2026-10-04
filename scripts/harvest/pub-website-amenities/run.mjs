@@ -304,6 +304,28 @@ function readEvidence() {
   }
 }
 
+/** Compare pages against other pubs, without counting this pub's sibling pages as pubs. */
+function pubSpecificPages(rows) {
+  const byHost = new Map();
+  for (const row of rows) {
+    let host;
+    try {
+      host = new URL(row.sourceUrl).host.toLowerCase();
+    } catch {
+      continue;
+    }
+    const bucket = byHost.get(host) ?? [];
+    bucket.push(row);
+    byHost.set(host, bucket);
+  }
+  return [...byHost.values()].flatMap((bucket) => bucket.flatMap((row) => {
+    const others = bucket.filter((other) => other !== row && (!row.osmId || other.osmId !== row.osmId));
+    const kept = pubSpecificEvidence([row, ...others]).find((entry) =>
+      entry.osmId === row.osmId && entry.sourceUrl === row.sourceUrl);
+    return kept ? [kept] : [];
+  }));
+}
+
 /**
  * Lift every earlier site stamp, then stamp the evidence onto what the source
  * said. The dataset that comes out depends only on the source rows and the
@@ -322,25 +344,23 @@ function stampDataset(evidenceRows) {
     rowsByVenue.set(venueId, bucket);
   });
   const before = columnCoverage(dataset);
-  let stampedRows = 0;
-  let stampedVenues = 0;
-  for (const entry of pubSpecificEvidence(evidenceRows)) {
+  const stampedRows = new Set();
+  const stampedVenues = new Set();
+  for (const entry of pubSpecificPages(evidenceRows)) {
     if (!entry.venueId) continue;
-    let venueStamped = false;
     for (const index of rowsByVenue.get(entry.venueId) ?? []) {
       const result = stampAmenityColumns(dataset[index], entry.amenities);
       if (result.stamped.length === 0) continue;
       dataset[index] = result.row;
-      stampedRows += 1;
-      venueStamped = true;
+      stampedRows.add(index);
+      stampedVenues.add(entry.venueId);
     }
-    if (venueStamped) stampedVenues += 1;
   }
   const after = columnCoverage(dataset);
   const datasetTemp = `${DATASET_PATH}.tmp`;
   writeFileSync(datasetTemp, JSON.stringify(dataset));
   renameSync(datasetTemp, DATASET_PATH);
-  return { before, after, stampedRows, stampedVenues };
+  return { before, after, stampedRows: stampedRows.size, stampedVenues: stampedVenues.size };
 }
 
 /** The evidence file with this run's stamp figures. The first honest before figure is kept. */
@@ -385,16 +405,18 @@ function mergeEvidence(previous, fresh) {
       skipCounts[status] = (skipCounts[status] ?? 0) + 1;
       continue;
     }
-    candidates.push({
-      osmId,
-      name: entry.name,
-      venueId: entry.venueId,
-      sourceUrl: entry.sourceUrl,
-      verifiedAt: entry.verifiedAt,
-      amenities: entry.amenities ?? {},
-    });
+    for (const page of entry.pages ?? [entry]) {
+      candidates.push({
+        osmId,
+        name: entry.name,
+        venueId: entry.venueId,
+        sourceUrl: page.sourceUrl,
+        verifiedAt: entry.verifiedAt,
+        amenities: page.amenities ?? {},
+      });
+    }
   }
-  const rows = pubSpecificEvidence(candidates).sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const rows = pubSpecificPages(candidates).sort((a, b) => a.osmId.localeCompare(b.osmId));
   const unused = candidates.length - rows.length;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts };
@@ -532,7 +554,8 @@ async function main() {
       byOsmId[pub.osmId] = { status: landedPermission.reason ?? "robots-denied", venueId: pub.venueId };
       return;
     }
-    let text = home.text;
+    const pages = [{ sourceUrl: home.url, text: home.text.slice(0, PAGE_CHAR_CAP) }];
+    let text = pages[0].text;
     const extraLinks = sameHostLinks(home.html, home.url);
     for (const link of extraLinks.slice(0, 1)) {
       if (!isHarvestableOperatorUrl(link)) continue;
@@ -542,7 +565,9 @@ async function main() {
       if (!extra.ok) continue;
       const extraLandedPermission = await robots(extra.url);
       if (!extraLandedPermission.allowed) continue;
-      text = `${text}\n${extra.text}`.slice(0, PAGE_CHAR_CAP);
+      const extraText = extra.text.slice(0, Math.max(0, PAGE_CHAR_CAP - text.length - 1));
+      pages.push({ sourceUrl: extra.url, text: extraText });
+      text = `${text}\n${extraText}`.slice(0, PAGE_CHAR_CAP);
       break;
     }
     if (text.length < 40) {
@@ -566,7 +591,18 @@ async function main() {
       byOsmId[pub.osmId] = { status: parsed.reason, venueId: pub.venueId, sourceUrl: home.url, usd: cost.usd };
       return;
     }
-    const kept = keepEvidencedAmenities(parsed.amenities, text);
+    const kept = {};
+    const evidencedPages = [];
+    for (const page of pages) {
+      const amenities = keepEvidencedAmenities(parsed.amenities, page.text);
+      // A quote present on both pages needs only its first actual citation.
+      for (const key of Object.keys(amenities)) {
+        if (key in kept) delete amenities[key];
+      }
+      if (Object.keys(amenities).length === 0) continue;
+      Object.assign(kept, amenities);
+      evidencedPages.push({ sourceUrl: page.sourceUrl, amenities });
+    }
     byOsmId[pub.osmId] = {
       status: "ok",
       venueId: pub.venueId,
@@ -574,6 +610,7 @@ async function main() {
       sourceUrl: home.url,
       verifiedAt: new Date().toISOString().slice(0, 10),
       amenities: kept,
+      pages: evidencedPages,
       usd: cost.usd,
     };
     if (spent >= SPEND_STOP_USD) stopped = true;
