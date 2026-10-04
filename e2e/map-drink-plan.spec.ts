@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { desktopPlannerDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
 
 for (const drink of ["beer", "wine", "gin"] as const) {
@@ -75,3 +75,88 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     await testInfo.attach("reopened-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
   });
 }
+
+async function openPhonePlanner(page: Page, search = "drink=wine") {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  const response = await page.goto(`/map?${search}`);
+  expect(response?.status()).toBe(200);
+  const intent = page.locator(".mapDrawer.left .mobilePlannerIntent");
+  const toggle = page.getByRole("button", { name: "Describe the outing", exact: true });
+  await expect(async () => {
+    if (!(await intent.isVisible())) await toggle.click();
+    await expect(intent).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  await intent.getByRole("combobox", { name: "Stops", exact: true }).selectOption("2");
+  return intent;
+}
+
+const phoneRequests = [
+  { name: "the Wine map default", query: "Soho", category: "wine", zeroProof: false, alcoholFree: false },
+  { name: "an explicit Gin request", query: "Gin in Soho", category: "gin", zeroProof: false, alcoholFree: false },
+  { name: "an explicit no-alcohol request", query: "No alcohol tonight in Soho", category: null, zeroProof: true, alcoholFree: false },
+  { name: "the Alcohol-free control", query: "Soho", category: null, zeroProof: true, alcoholFree: true },
+] as const;
+
+for (const scenario of phoneRequests) {
+  test(`phone generation respects ${scenario.name}`, async ({ page }, testInfo) => {
+    const intent = await openPhonePlanner(page);
+    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    if (scenario.alcoholFree) {
+      const control = intent.getByRole("button", { name: "Alcohol-free", exact: true });
+      await control.click();
+      await expect(control).toHaveAttribute("aria-pressed", "true");
+    }
+    const generatedResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/plans/generate" &&
+      response.request().method() === "POST",
+    );
+    await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+    const response = await generatedResponse;
+    const sent = response.request().postDataJSON() as { query: string; context: Record<string, unknown> };
+    expect(sent.query).toBe(scenario.query);
+    if (scenario.name === "the Wine map default") {
+      expect(sent.context.drinkCategory).toBe("wine");
+    } else {
+      expect(sent.context).not.toHaveProperty("drinkCategory");
+    }
+    expect(response.status()).toBe(200);
+    const body = await response.json() as {
+      inferredContext: { drinkCategory: string | null; zeroProof: boolean };
+      stops: Array<{ venueId: string }>;
+    };
+    expect(body.inferredContext.drinkCategory).toBe(scenario.category);
+    expect(body.inferredContext.zeroProof).toBe(scenario.zeroProof);
+    expect(body.stops).toHaveLength(2);
+    const result = intent.locator(".mobilePlannerResult");
+    await expect(result).toBeVisible();
+    await expect(result.locator(".mobilePlannerConfidence")).not.toContainText("one recorded pint");
+    if (!scenario.zeroProof) {
+      await expect(result.locator(".mobilePlannerConfidence")).toContainText("Selected-drink servings are not recorded.");
+    }
+    await result.scrollIntoViewIfNeeded();
+    await testInfo.attach("phone-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
+  });
+}
+
+test("phone planner refuses an unsupported Gin brand before requesting a generic plan", async ({ page }, testInfo) => {
+  let generationRequests = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/plans/generate" && request.method() === "POST") {
+      generationRequests += 1;
+    }
+  });
+  const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith");
+  await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+  const alert = intent.getByRole("alert");
+  await expect(alert).toContainText("The planner cannot match Sipsmith yet.");
+  expect(generationRequests).toBe(0);
+  await alert.scrollIntoViewIfNeeded();
+  await testInfo.attach("phone-unsupported-drink", { body: await page.screenshot(), contentType: "image/png" });
+});
