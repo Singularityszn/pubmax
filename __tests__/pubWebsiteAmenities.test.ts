@@ -54,6 +54,53 @@ function expectSportsPublication(quote: string, expected: boolean) {
 }
 
 describe("sports evidence publication", () => {
+  it.each([
+    "Watch F1 live on our screens.",
+    "F1 is broadcast on our TVs.",
+  ])("publishes explicit F1 viewing evidence: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each(["Formula1", "Formula 1"].flatMap((sport) => [
+    `Watch ${sport} live on our screens.`,
+    `${sport} is broadcast on our TVs.`,
+  ]))("publishes explicit Formula viewing evidence: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each(["F1", "Formula1", "Formula 1"].flatMap((sport) => [
+    `We show ${sport} on our screens.`,
+    `We are watching ${sport} on our TVs.`,
+    `Our screens are used to show ${sport}.`,
+  ]))("retains ordinary Formula viewing propositions: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each(["F1", "Formula1", "Formula 1"].flatMap((sport) => [
+    `No ${sport} here.`,
+    `We do not watch ${sport} on our screens.`,
+    `We don't broadcast ${sport} on our TVs.`,
+    `${sport} is not shown on our TVs.`,
+    `${sport} isn't broadcast on our screens.`,
+    `We have no TVs for watching ${sport}.`,
+    `We don't show ${sport} and rugby on TV.`,
+    `${sport} and rugby aren't shown on our screens.`,
+    `${sport} event this Sunday.`,
+    `${sport} Grand Prix race night.`,
+    `${sport} is on our menu. Watch Alien vs Predator live.`,
+    `${sport} is on our menu and we show Alien vs Predator live.`,
+  ]))("refuses denied or unsupported Formula viewing evidence: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "Watch F10 live on our screens.",
+    "Watch Formula10 live on our screens.",
+    "Watch Formula 10 live on our screens.",
+  ])("requires a complete Formula sporting identity: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
   it("requires explicit sport identity for live versus viewing", () => {
     expectSportsPublication("Watch Alien vs Predator live", false);
   });
@@ -138,6 +185,7 @@ describe("sports evidence publication", () => {
   it.each([
     "We don’t show Sky Sports.",
     "We don't show Sky Sports and TNT Sports.",
+    "We don't show football and rugby on TV.",
     "We don’t broadcast football or rugby.",
     "We don't watch football or cricket on our TVs.",
     "No Sky Sports and no TNT Sports.",
