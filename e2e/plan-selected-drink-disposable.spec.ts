@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import type { PlanState } from "../lib/plan";
 import type { UkPriceBundleRow } from "../lib/ukPriceBundle";
+import { DISPOSABLE_MENU_FIXTURE } from "../scripts/e2e/disposable-menu-fixture.mjs";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
@@ -161,16 +162,17 @@ for (const journey of [
 }
 
 
-test("named White wine survives Map, durable save, reload and host route refresh", async ({ page }, testInfo) => {
+test("named White wine survives Map, durable save, reload and host route refresh with a disposable menu fixture", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
-  const venueId = "venue-uk-n8308248176";
+  const { venueId, venueName, lat, lng } = DISPOSABLE_MENU_FIXTURE;
   const rows = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")) as UkPriceBundleRow[];
   const printed = rows.find((row) => row.venueId === venueId && row.category === "wine"
-    && row.standing === "listed" && row.drinkLabel === "Chardonnay, Pays D’oc, France"
+    && row.standing === "listed" && row.drinkLabel === DISPOSABLE_MENU_FIXTURE.drinkLabel
     && row.servingSize === "125ml");
-  expect(printed, "Committed Sydney menu supplies the real named quote").toBeDefined();
-  expect(printed).toMatchObject({ priceGbp: 5.5,
-    sourceUrl: "https://www.sydneyarmschelsea.com/menu/", observedAt: "2026-09-29T10:40:17.846Z" });
+  expect(printed, "Owned disposable server supplies qualified synthetic menu evidence").toBeDefined();
+  expect(process.env.PW_DISPOSABLE_MENU_OBSERVED_AT).toBeTruthy();
+  expect(printed).toMatchObject({ name: venueName, priceGbp: 5.5, publisher: "Disposable menu fixture",
+    sourceUrl: DISPOSABLE_MENU_FIXTURE.sourceUrl, observedAt: process.env.PW_DISPOSABLE_MENU_OBSERVED_AT });
   const evidence = { category: "wine", pence: Math.round(printed!.priceGbp * 100),
     serving: printed!.servingSize, source: "listed", sourceUrl: printed!.sourceUrl,
     observedAt: printed!.observedAt, drinkLabel: printed!.drinkLabel, drinkSubtype: "wine-white" };
@@ -187,25 +189,26 @@ test("named White wine survives Map, durable save, reload and host route refresh
     localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
-  // Viewport coordinates belong to the published pub, never a viewer position.
-  expect((await page.goto(`/map?drink=wine&sub=wine-white&serving=125ml&sel=${venueId}&at=51.4888,-0.1695&uk=1`))?.status()).toBe(200);
+  // The menu is synthetic; venue identity and viewport coordinates are curated facts.
+  expect((await page.goto(`/map?drink=wine&sub=wine-white&serving=125ml&sel=${venueId}&at=${lat},${lng}&uk=1`))?.status()).toBe(200);
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await expect(sheet.getByRole("heading", { name: "The Sydney Arms", exact: true })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: venueName, exact: true })).toBeVisible();
   await expect(sheet).toContainText(printed!.drinkLabel!);
   await expect(sheet).toContainText("£5.50");
   await expect(sheet).toContainText("125ml");
   await expect(sheet.locator(`a[href="${printed!.sourceUrl}"]`)).toBeVisible();
   await expect(async () => {
-    await sheet.getByRole("button", { name: "Make The Sydney Arms Stop 1" }).click();
+    await sheet.getByRole("button", { name: `Make ${venueName} Stop 1` }).click();
     await expect(page).toHaveURL(/\/plan(?:\?|$)/, { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   await expect(page.getByRole("region", { name: "Accepted plan context" })).toContainText(printed!.drinkLabel!);
-  await describeFirstQuery(page).fill("Quiet white wine in Clapham for 2, keep my first stop");
+  await describeFirstQuery(page).fill("Quiet night in Clapham for 2, keep my first stop");
   const generation = page.waitForResponse((response) => response.request().method() === "POST"
     && new URL(response.url()).pathname === "/api/plans/generate");
   await page.locator(".planComposer__conciergeInput button").click();
   const generatedResponse = await generation;
   expect(generatedResponse.status()).toBe(200);
+  expect(generatedResponse.request().postDataJSON().anchor.selectedDrinkPriceEvidence).toEqual(evidence);
   const generated = await generatedResponse.json() as { stops: PlanState["stops"] };
   expect(generated.stops[0]).toMatchObject({ venueId, selectedDrinkPriceEvidence: evidence });
   expect(generated.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
@@ -253,7 +256,10 @@ test("named White wine survives Map, durable save, reload and host route refresh
   await page.getByRole("button", { name: "Edit route", exact: true }).click();
   const refreshedResponse = await refresh;
   expect(refreshedResponse.status()).toBe(200);
-  expect(refreshedResponse.request().postDataJSON().anchor.selectedDrinkPriceEvidence).toEqual(evidence);
+  const refreshedAnchor = refreshedResponse.request().postDataJSON().anchor;
+  expect(refreshedAnchor.selectedDrinkRefresh).toEqual({ category: "wine", serving: "125ml",
+    drinkLabel: printed!.drinkLabel, drinkSubtype: "wine-white" });
+  expect(refreshedAnchor.selectedDrinkPriceEvidence).toBeUndefined();
   const refreshed = await refreshedResponse.json() as { stops: PlanState["stops"] };
   expect(refreshed.stops).toHaveLength(2);
   expect(refreshed.stops[0]).toMatchObject({ venueId, selectedDrinkPriceEvidence: evidence });
