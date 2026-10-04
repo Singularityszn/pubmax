@@ -165,6 +165,21 @@ describe("parseConciergeIntent keyless fallback", () => {
     expect(parsed.intent.area).toBeUndefined();
   });
 
+  it.each([
+    ["Plan a crawl in Victoria Park", "Victoria Park"],
+    ["pubs in Camden Passage", "Camden Passage"],
+  ])("keeps a longer place name that starts with a known area in %j", async (text, area) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).toBe(area);
+  });
+
+  it("reads the first known area named, not the longest", async () => {
+    const parsed = await parseConciergeIntent("Crawl in Camden, finishing near King's Cross");
+
+    expect(parsed.intent.area).toBe("Camden");
+  });
+
   it("falls back to regex when systemOne throws and never spends without a key", async () => {
     vi.mocked(systemOne).mockRejectedValue(new Error("typesafe unavailable"));
     await expect(parseConciergeIntent("Cheapest pint in Camden tonight")).resolves.toEqual({
