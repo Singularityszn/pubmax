@@ -16,6 +16,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { authedFetch } from "@/lib/authedFetch";
 import { followRelationHint, resolveFollowRelation } from "@/lib/followRelation";
 import { displayHandle } from "@/lib/handleDisplay";
 import { type FollowListEntry, parseFollowListEntry } from "@/lib/followList";
@@ -52,6 +53,11 @@ function initial(handle: string): string {
   return clean ? clean.slice(0, 1).toUpperCase() : "?";
 }
 
+// A withdrawn handle's graph reads as empty to everyone but its owner, so the
+// read carries the viewer's bearer when there is one.
+const ownerAwareFetch: typeof fetch = (input, init) =>
+  authedFetch(input, init ?? {}, { requiresIdentity: true });
+
 export default function PeopleListClient({
   handle,
   relation,
@@ -77,6 +83,7 @@ export default function PeopleListClient({
         {
           signal: controller.signal,
           maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
+          fetchImpl: ownerAwareFetch,
           validate: (body) => Array.isArray(body?.[relation]),
         },
         (body) => {
@@ -96,6 +103,7 @@ export default function PeopleListClient({
         {
           signal: controller.signal,
           maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
+          fetchImpl: ownerAwareFetch,
           validate: (body) => Boolean(body && typeof body === "object"),
         },
         (body) => {

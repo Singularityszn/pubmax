@@ -23,7 +23,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -162,14 +162,16 @@ export default function PeopleDirectory({
     void (async () => {
       try {
         const [lotResponse, followingResponse] = await Promise.all([
-          fetch(`/api/profiles/${encodeURIComponent(viewer)}/lot`, {
-            cache: "no-store",
-            signal: controller.signal,
-          }),
-          fetch(`/api/profiles/${encodeURIComponent(viewer)}/following`, {
-            cache: "no-store",
-            signal: controller.signal,
-          }),
+          authedFetch(
+            `/api/profiles/${encodeURIComponent(viewer)}/lot`,
+            { cache: "no-store", signal: controller.signal },
+            { requiresIdentity: true },
+          ),
+          authedFetch(
+            `/api/profiles/${encodeURIComponent(viewer)}/following`,
+            { cache: "no-store", signal: controller.signal },
+            { requiresIdentity: true },
+          ),
         ]);
         if (
           controller.signal.aborted ||

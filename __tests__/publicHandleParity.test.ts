@@ -223,6 +223,41 @@ describe("public handle parity", () => {
     },
   );
 
+  it("still shows a suspended owner their own follow graph", async () => {
+    authState.userId = "user-suspended";
+    const ownFollowing = (await (await following("suspendedbob")).json()) as {
+      following: { handle: string }[];
+    };
+    expect(ownFollowing.following.map((entry) => entry.handle).sort()).toEqual(["alice", "sam"]);
+    const ownFollowers = (await (await followers("suspendedbob")).json()) as {
+      followers: { handle: string }[];
+    };
+    expect(ownFollowers.followers.map((entry) => entry.handle)).toEqual(["alice"]);
+    expect(await (await lot("suspendedbob")).json()).toEqual({ lot: ["alice"] });
+  });
+
+  it("answers another account's graph reads for a suspended handle like an unknown handle", async () => {
+    authState.userId = "user-sam";
+    expect(await answered(await following("suspendedbob"))).toEqual(await answered(await following(UNKNOWN)));
+    expect(await answered(await followers("suspendedbob"))).toEqual(await answered(await followers(UNKNOWN)));
+    expect(await answered(await lot("suspendedbob"))).toEqual(await answered(await lot(UNKNOWN)));
+  });
+
+  it("keeps other withdrawn mutuals out of a suspended owner's own lot", async () => {
+    await followStore().follow("suspendedbob", "bannedbob");
+    await followStore().follow("bannedbob", "suspendedbob");
+    authState.userId = "user-suspended";
+    expect(await (await lot("suspendedbob")).json()).toEqual({ lot: ["alice"] });
+  });
+
+  it("asks who the caller is on a graph read only when the handle is withdrawn", async () => {
+    authState.userId = "user-sam";
+    await following("alice");
+    await followers("alice");
+    await lot("alice");
+    expect(authState.lookups).toBe(0);
+  });
+
   it("omits a banned or withdrawn mutual from a live lot", async () => {
     const body = (await (await lot("alice")).json()) as { lot: string[] };
     expect(body.lot).toEqual(["sam"]);

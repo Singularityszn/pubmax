@@ -14,6 +14,7 @@ import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
+import { callerOwnedWithdrawnHandle } from "@/lib/profileOwnership";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
@@ -27,7 +28,7 @@ import { publicApiError } from "@/lib/apiError";
 assertServerEnv();
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
@@ -37,7 +38,11 @@ export async function GET(
   if (!handle) return jsonNoStore({ followers: [] }, { status: 200 });
 
   try {
-    if ((await withdrawnHandles([handle])).has(handle)) {
+    // A withdrawn handle reads like an unknown one, except to its own owner.
+    if (
+      (await withdrawnHandles([handle])).has(handle) &&
+      !(await callerOwnedWithdrawnHandle(request, handle))
+    ) {
       return jsonNoStore({ followers: [] }, { status: 200 });
     }
     const handles = await followStore().listFollowers(handle);
