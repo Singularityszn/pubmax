@@ -26,8 +26,9 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
   const { accountRevision, providerAuthState, session, user } = useAuth();
   const userId = user?.id;
   const readerKey = `${accountRevision}:${userId ?? ""}:${providerAuthState}:${src}`;
-  const [loaded, setLoaded] = useState<{ readerKey: string; session: typeof session; url: string } | null>(null);
+  const [loaded, setLoaded] = useState<{ readerKey: string; url: string } | null>(null);
   const onErrorRef = useRef(onError);
+  const restartRef = useRef(() => {});
 
   useEffect(() => {
     onErrorRef.current = onError;
@@ -40,15 +41,16 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
     const controller = new AbortController();
     const accountSignal = readProviderAccountSignal();
     let active = true;
+    let reading = false;
     let objectUrl: string | null = null;
     const current = () => active && !controller.signal.aborted && !accountSignal.aborted;
 
-    async function load() {
+    async function read() {
       let retryAfterMs = 0;
       for (const delayMs of RETRY_DELAYS_MS) {
         const waitMs = Math.max(delayMs, retryAfterMs);
         // Respect a long server cooldown without keeping this read alive indefinitely.
-        if (waitMs > 10_000) return;
+        if (waitMs > 10_000) break;
         if (waitMs && !await waitUnlessAborted(waitMs, controller.signal)) return;
         if (!current()) return;
         try {
@@ -62,7 +64,7 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
             discardBody(response);
             if (!current()) return;
             // A storage outage and an absent/hidden cover both answer 404. Keep
-            // that ambiguity private and retry briefly instead of excluding the URL.
+            // that ambiguity private and retry briefly before giving up.
             if ([404, 408, 429].includes(response.status) || response.status >= 500) {
               const retryAfter = response.headers.get("Retry-After");
               const seconds = Number(retryAfter);
@@ -77,25 +79,41 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
           const blob = await response.blob();
           if (!current()) return;
           objectUrl = URL.createObjectURL(blob);
-          setLoaded({ readerKey, session, url: objectUrl });
+          setLoaded({ readerKey, url: objectUrl });
           return;
         } catch {
           // Session warming and transport failures can recover without a reader change.
           if (!current()) return;
         }
       }
-      // Exhausted temporary reads stay neutral. They do not blacklist the cover.
+      // An exhausted read leaves until the reader or session changes.
+      if (current()) onErrorRef.current?.();
     }
-    void load();
+    function load() {
+      if (reading || objectUrl) return;
+      reading = true;
+      void read().finally(() => { reading = false; });
+    }
+    restartRef.current = load;
+    load();
     return () => {
       active = false;
+      restartRef.current = () => {};
       controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (!objectUrl) return;
+      URL.revokeObjectURL(objectUrl);
+      const released = objectUrl;
+      setLoaded((prev) => (prev?.url === released ? null : prev));
     };
-  }, [src, readerKey, providerAuthState, session, userId]);
+  }, [src, readerKey, providerAuthState, userId]);
+
+  // A same-account session refresh retries only a read that has not produced bytes.
+  useEffect(() => {
+    restartRef.current();
+  }, [session]);
 
   // Account changes hide the previous bytes during render, before effect cleanup.
-  if (loaded?.readerKey !== readerKey || loaded.session !== session) return <span className={className} aria-hidden="true" />;
+  if (loaded?.readerKey !== readerKey) return <span className={className} aria-hidden="true" />;
   return (
     <Image
       src={loaded.url}

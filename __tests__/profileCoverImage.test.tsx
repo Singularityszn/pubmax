@@ -267,14 +267,13 @@ describe("private cover rendering", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
-  it("bounds temporary retries and leaves exhausted reads neutral", async () => {
+  it("bounds temporary retries and takes an exhausted cover out of the rotation", async () => {
     vi.useFakeTimers();
     fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
     await render();
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
     expect(fetchCover).toHaveBeenCalledTimes(4);
-    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
-    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector(".profileCoverFrames")).toBeNull();
     expect(makeBlobUrl).not.toHaveBeenCalled();
   });
 
@@ -284,7 +283,83 @@ describe("private cover rendering", () => {
     await render();
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
     expect(fetchCover).toHaveBeenCalledTimes(1);
-    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
+    expect(container.querySelector(".profileCoverFrames")).toBeNull();
+  });
+
+  it("keeps a loaded cover on screen through a same-user session refresh", async () => {
+    await render();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+    auth.session = {
+      access_token: "owner-token-2", refresh_token: "fixture-refresh", expires_in: 3_600,
+      token_type: "bearer", user: { id: "owner" } as User,
+    };
+    await render();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    expect(releaseBlobUrl).not.toHaveBeenCalled();
+  });
+
+  it("drops only the hidden cover from a rotation once its reads are exhausted", async () => {
+    vi.useFakeTimers();
+    const hidden = COVER.replace("22222222", "33333333");
+    fetchCover.mockImplementation(async (input) => String(input).startsWith(hidden)
+      ? new Response("Not found", { status: 404 })
+      : new Response("approved bytes", { headers: { "Content-Type": "image/jpeg" } }));
+    await act(async () => {
+      root.render(createElement(AuthFixture, { userId: "owner" },
+        createElement(ProfileCoverCarousel, { covers: [COVER, hidden] })));
+    });
+    expect(container.querySelector(".profileCoverFrames")?.getAttribute("data-cover-count")).toBe("2");
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(fetchCover.mock.calls.filter(([input]) => String(input).startsWith(hidden))).toHaveLength(4);
+    expect(container.querySelector(".profileCoverFrames")?.getAttribute("data-cover-count")).toBe("1");
+    expect(container.querySelectorAll("img")).toHaveLength(1);
+  });
+
+  it("returns an exhausted cover to the rotation after a same-user session refresh", async () => {
+    vi.useFakeTimers();
+    fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
+    await render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(container.querySelector(".profileCoverFrames")).toBeNull();
+    fetchCover.mockImplementation(async () => new Response("approved bytes", { headers: { "Content-Type": "image/jpeg" } }));
+    auth.session = {
+      access_token: "owner-token-2", refresh_token: "fixture-refresh", expires_in: 3_600,
+      token_type: "bearer", user: { id: "owner" } as User,
+    };
+    await render();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("restarts an exhausted editor image on a same-user session refresh", async () => {
+    vi.useFakeTimers();
+    fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
+    await render("owner", COVER, true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(fetchCover).toHaveBeenCalledTimes(4);
+    expect(container.querySelector("img")).toBeNull();
+    fetchCover.mockImplementation(async () => new Response("approved bytes", { headers: { "Content-Type": "image/jpeg" } }));
+    auth.session = {
+      access_token: "owner-token-2", refresh_token: "fixture-refresh", expires_in: 3_600,
+      token_type: "bearer", user: { id: "owner" } as User,
+    };
+    await render("owner", COVER, true);
+    expect(fetchCover).toHaveBeenCalledTimes(5);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("removes a cover whose visibility was withdrawn and does not show it to the next reader's refusal", async () => {
+    vi.useFakeTimers();
+    await render();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+    fetchCover.mockImplementation(async () => new Response("Not found", { status: 404 }));
+    switchAccount("stranger");
+    await render("stranger");
+    expect(container.querySelector("img")).toBeNull();
+    expect(releaseBlobUrl).toHaveBeenCalledWith("blob:approved-cover");
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(container.querySelector(".profileCoverFrames")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
   });
 
   it("cancels the previous reader's retry before it can fetch again", async () => {

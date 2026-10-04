@@ -25,9 +25,9 @@ import { profileImageOutputBox } from "@/lib/profileImageSlots";
 //    without a timer: the first cover, static, and the other four are never
 //    even fetched. `coverCarouselRotates` is the one predicate that decides it.
 //
-// 3. A PERMANENTLY REFUSED OR BROKEN IMAGE LEAVES THIS READER'S ROTATION.
-//    Temporary storage or network failures stay eligible for bounded retries.
-//    A different reader starts with no exclusions. The brass band remains
+// 3. A REFUSED, BROKEN OR EXHAUSTED IMAGE LEAVES THIS READER'S ROTATION.
+//    Temporary storage or network failures get bounded retries first. A new
+//    reader or session starts with no exclusions. The brass band remains
 //    underneath even when no cover can be shown.
 //
 // Tapping does nothing: this is a backdrop, not a gallery. It is `aria-hidden`
