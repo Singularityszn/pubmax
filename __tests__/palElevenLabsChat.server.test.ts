@@ -10,24 +10,14 @@ function agentResponse(text: string): Record<string, unknown> {
   return { type: "agent_response", agent_response_event: { agent_response: text } };
 }
 
-function toolRequest(id: string): Record<string, unknown> {
-  return {
-    type: "agent_tool_request",
-    agent_tool_request: { tool_name: "search_venues", tool_call_id: id, tool_type: "webhook" },
-  };
-}
-
-function toolResponse(id: string): Record<string, unknown> {
-  return {
-    type: "agent_tool_response",
-    agent_tool_response: { tool_name: "search_venues", tool_call_id: id, is_error: false },
-  };
+function responseComplete(): Record<string, unknown> {
+  return { type: "agent_response_complete", agent_response_complete_event: { event_id: 1 } };
 }
 
 const wsState = vi.hoisted(() => ({
   lastInitPayload: null as unknown,
   userMessageText: null as string | null,
-  /** What the agent sends after the user message. Null sends only the answer. */
+  /** What the agent sends after the user message. Null sends the answer and the turn end. */
   replyScript: null as ScriptedEvent[] | null,
 }));
 
@@ -75,12 +65,8 @@ class MockElevenLabsWebSocket {
         return;
       }
       queueMicrotask(() => {
-        this.emit("message", {
-          data: JSON.stringify({
-            type: "agent_response",
-            agent_response_event: { agent_response: SOURCED_ANSWER },
-          }),
-        });
+        this.emit("message", { data: JSON.stringify(agentResponse(SOURCED_ANSWER)) });
+        this.emit("message", { data: JSON.stringify(responseComplete()) });
       });
     }
   }
@@ -305,7 +291,8 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(storeMocks.readOwnedPubPalToolTurn).not.toHaveBeenCalled();
     expect(wsState.userMessageText).toBe("quiet pubs");
   });
-  it("asks for tool events so it can tell the checking line from the answer", async () => {
+
+  it("asks for the turn-complete event so it can tell the checking line from the answer", async () => {
     await runPalElevenLabsChatTurn({
       query: "quiet pubs",
       ownerId: "11111111-1111-4111-8111-111111111111",
@@ -315,16 +302,15 @@ describe("runPalElevenLabsChatTurn", () => {
       conversation_config_override?: { conversation?: { client_events?: string[] } };
     };
     expect(init?.conversation_config_override?.conversation?.client_events).toEqual(
-      expect.arrayContaining(["agent_response", "agent_tool_request", "agent_tool_response"]),
+      expect.arrayContaining(["agent_response", "agent_response_complete"]),
     );
   });
 
   it("answers with the reply after the tool, not the checking line said before it", async () => {
     wsState.replyScript = [
       { afterMs: 0, event: agentResponse(CHECKING_LINE) },
-      { afterMs: 50, event: toolRequest("call_1") },
-      { afterMs: 300, event: toolResponse("call_1") },
-      { afterMs: 50, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 400, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
     ];
 
     const outcome = await runPalElevenLabsChatTurn({
@@ -335,31 +321,12 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
   });
 
-  it("treats a checking line that arrives after its tool request as interim", async () => {
-    wsState.replyScript = [
-      { afterMs: 0, event: toolRequest("call_1") },
-      { afterMs: 10, event: agentResponse(CHECKING_LINE) },
-      { afterMs: 300, event: toolResponse("call_1") },
-      { afterMs: 50, event: agentResponse(SOURCED_ANSWER) },
-    ];
-
-    const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
-      ownerId: "11111111-1111-4111-8111-111111111111",
-    });
-
-    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
-  });
-
-  it("waits through a chain of two tools, each with its own checking line", async () => {
+  it("waits through a chained second tool that starts more than 600 ms after its checking line", async () => {
     wsState.replyScript = [
       { afterMs: 0, event: agentResponse(CHECKING_LINE) },
-      { afterMs: 20, event: toolRequest("call_1") },
-      { afterMs: 100, event: toolResponse("call_1") },
-      { afterMs: 20, event: agentResponse("Now the trains.") },
-      { afterMs: 20, event: toolRequest("call_2") },
-      { afterMs: 100, event: toolResponse("call_2") },
-      { afterMs: 20, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 200, event: agentResponse("Now the trains.") },
+      { afterMs: 900, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
     ];
 
     const outcome = await runPalElevenLabsChatTurn({

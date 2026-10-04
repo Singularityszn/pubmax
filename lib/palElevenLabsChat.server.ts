@@ -19,13 +19,6 @@ import {
 const CHAT_TIMEOUT_MS = 28_000;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
-/**
- * How long a reply must stand before it counts as the answer. The agent says a
- * short checking line before each tool call (pre_tool_speech "force"), and
- * that line can reach us just before the tool request does. A tool request
- * inside this window marks the line as interim.
- */
-const FINAL_REPLY_SETTLE_MS = 600;
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,8 +61,6 @@ function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
 type AgentResponseEvent = {
   type?: string;
   agent_response_event?: { agent_response?: string };
-  agent_tool_request?: { tool_call_id?: string };
-  agent_tool_response?: { tool_call_id?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
     conversation_id?: string;
@@ -157,16 +148,7 @@ export async function runPalElevenLabsChatTurn(
     let settled = false;
     let conversationId = "";
     let userMessageSent = false;
-    let settleTimer: ReturnType<typeof setTimeout> | null = null;
     let latestReply = "";
-    // Bumped by every reply and tool request, so a late tool request also
-    // cancels a settle that is already reading the tool turn.
-    let replyGeneration = 0;
-    const pendingToolCalls = new Set<string>();
-    const clearSettleTimer = () => {
-      if (settleTimer) clearTimeout(settleTimer);
-      settleTimer = null;
-    };
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
@@ -178,7 +160,6 @@ export async function runPalElevenLabsChatTurn(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      clearSettleTimer();
       try {
         ws.close();
       } catch {
@@ -201,8 +182,7 @@ export async function runPalElevenLabsChatTurn(
               text_only: true,
               client_events: [
                 "agent_response",
-                "agent_tool_request",
-                "agent_tool_response",
+                "agent_response_complete",
                 "conversation_initiation_metadata",
                 "ping",
               ],
@@ -256,57 +236,41 @@ export async function runPalElevenLabsChatTurn(
         return;
       }
 
-      if (payload.type === "agent_tool_request") {
-        if (!userMessageSent) return;
-        // The reply before this request was the checking line, not the answer.
-        clearSettleTimer();
-        replyGeneration += 1;
-        pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
-        return;
-      }
-
-      if (payload.type === "agent_tool_response") {
-        pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
-        return;
-      }
-
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
+        // The agent says a checking line before each tool call, so only the
+        // reply standing when its turn completes is the answer.
         latestReply = payload.agent_response_event?.agent_response?.trim() ?? "";
-        replyGeneration += 1;
-        clearSettleTimer();
-        // A tool is still running, so this is a checking line. Wait for the answer.
-        if (pendingToolCalls.size > 0) return;
-        settleTimer = setTimeout(() => {
-          settleTimer = null;
-          const agentMessage = latestReply;
-          const generation = replyGeneration;
-          void (async () => {
-            try {
-              const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
-              if (generation !== replyGeneration) return;
-              const cards = turn?.cards ?? [];
-              const proposals = turn?.proposals ?? [];
-              const message =
-                agentMessage ||
-                (turn?.hints.length
-                  ? composeAnswer(turn.hints, cards, [])
-                  : cards.length > 0
-                    ? composeAnswer([], cards, [])
-                    : "Nothing sourced for that. Try a nearby area or a broader ask.");
-              finish({
-                ok: true,
-                message,
-                cards,
-                proposals,
-                conversationId,
-                toolsUsed: turn?.toolsUsed ?? [],
-              });
-            } catch {
-              finish({ ok: false, code: "UNAVAILABLE" });
-            }
-          })();
-        }, FINAL_REPLY_SETTLE_MS);
+        return;
+      }
+
+      if (payload.type === "agent_response_complete") {
+        if (!userMessageSent) return;
+        const agentMessage = latestReply;
+        void (async () => {
+          try {
+            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
+            const cards = turn?.cards ?? [];
+            const proposals = turn?.proposals ?? [];
+            const message =
+              agentMessage ||
+              (turn?.hints.length
+                ? composeAnswer(turn.hints, cards, [])
+                : cards.length > 0
+                  ? composeAnswer([], cards, [])
+                  : "Nothing sourced for that. Try a nearby area or a broader ask.");
+            finish({
+              ok: true,
+              message,
+              cards,
+              proposals,
+              conversationId,
+              toolsUsed: turn?.toolsUsed ?? [],
+            });
+          } catch {
+            finish({ ok: false, code: "UNAVAILABLE" });
+          }
+        })();
       }
     });
 

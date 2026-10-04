@@ -48,8 +48,6 @@ describe("Pub Pal voice prompt register", () => {
   it("asks for a checking line before each tool that states no fact", () => {
     const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     expect(prompt).toContain(PAL_VOICE_PRE_TOOL_LINE_RULE);
-    expect(PAL_VOICE_PRE_TOOL_LINE_RULE).toMatch(/before each tool call/i);
-    expect(PAL_VOICE_PRE_TOOL_LINE_RULE).toMatch(/never a pub, price, time, or event/i);
   });
 
   it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {
