@@ -78,6 +78,9 @@ import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const FIXTURE_NOW = new Date("2026-08-16T17:00:00.000Z");
+const LISTED_PUB_INDEX = buildOutVenueMatchIndex([
+  { id: "venue-1137z1c", name: "The Lexington", borough: "Islington", lat: 51.5326, lng: -0.1119 },
+]);
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ORIGINAL_TM = process.env.TICKETMASTER_API_KEY;
@@ -439,11 +442,59 @@ describe("buildOutResponse", () => {
       { city: "london", day: "today" },
       {
         now: FIXTURE_NOW.getTime(),
-        loadBaseline: () => [eventRow({ venueId: "venue-soho-theatre" })],
+        loadBaseline: () => [eventRow({ venueId: "venue-1137z1c", placeName: "The Lexington" })],
         liveProviders: [],
+        loadVenueMatchIndex: async () => LISTED_PUB_INDEX,
       },
     );
-    expect(body.events[0].venueId).toBe("venue-soho-theatre");
+    expect(body.events[0].venueId).toBe("venue-1137z1c");
+  });
+
+  it("recovers a retired pub id from a bundled listing without a live provider row", async () => {
+    const bundled = eventRow({
+      venueId: "venue-retired-lexington",
+      placeName: "The Lexington",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [bundled],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => LISTED_PUB_INDEX,
+      },
+    );
+
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0]).toMatchObject({
+      title: bundled.title,
+      source: bundled.source,
+      venueId: "venue-1137z1c",
+    });
+    expect(body.unmatchedCount).toBe(0);
+    expect(bundled.venueId).toBe("venue-retired-lexington");
+  });
+
+  it("keeps an originally unmatched bundled listing unmatched without a live row", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow({
+          placeName: "The Lexington",
+          lat: 51.5326,
+          lng: -0.1119,
+        })],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => LISTED_PUB_INDEX,
+      },
+    );
+
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].venueId).toBeUndefined();
+    expect(body.unmatchedCount).toBe(1);
   });
 });
 
@@ -537,7 +588,8 @@ describe("the two lanes fold onto one listing", () => {
   it("shows a Ticketmaster event once, keeping the bundled row's venue match", async () => {
     const bundled = eventRow({
       id: "events-tm-bundled",
-      venueId: "venue-soho-theatre",
+      venueId: "venue-1137z1c",
+      placeName: "The Lexington",
       sourceId: "tm-1",
       observedAt: "2026-08-16T06:00:00.000Z",
     });
@@ -545,6 +597,7 @@ describe("the two lanes fold onto one listing", () => {
     // place name alone gives dedupeRows a different key.
     const live = eventRow({
       id: "events-tm-live",
+      placeName: "The Lexington",
       sourceId: "tm-1",
       observedAt: "2026-08-16T16:00:00.000Z",
       venueId: "   ",
@@ -557,11 +610,12 @@ describe("the two lanes fold onto one listing", () => {
         liveProviders: [
           { name: "ticketmaster", isConfigured: () => true, fetchTonight: async () => [live] },
         ],
+        loadVenueMatchIndex: async () => LISTED_PUB_INDEX,
       },
     );
     expect(body.events).toHaveLength(1);
     expect(body.events[0].observedAt).toBe("2026-08-16T16:00:00.000Z");
-    expect(body.events[0].venueId).toBe("venue-soho-theatre");
+    expect(body.events[0].venueId).toBe("venue-1137z1c");
   });
 
   it("keeps two shows in one venue at the same minute, because their ids differ", async () => {
@@ -976,6 +1030,7 @@ describe("the live lane is venue-matched at request time", () => {
         sourceId: "matched-" + index,
         title: "Matched " + index,
         venueId: "venue-1137z1c",
+        placeName: "The Lexington",
         startsAt: "2026-08-16T18:00:00.000Z",
       }),
     );
@@ -1024,6 +1079,7 @@ describe("the live lane is venue-matched at request time", () => {
       id: "matched-after-cap",
       sourceId: "matched-after-cap",
       venueId: "venue-1137z1c",
+      placeName: "The Lexington",
       startsAt: "2026-08-16T23:00:00.000Z",
     });
     const body = await buildOutResponse(
@@ -1118,9 +1174,9 @@ describe("the live lane is venue-matched at request time", () => {
       id: "events-tm-lex",
       sourceId: "tm-lex",
       placeName: "The Lexington",
-      venueId: "venue-from-refresh",
-      lat: 51.5326,
-      lng: -0.1119,
+      venueId: "venue-1137z1c",
+      lat: undefined,
+      lng: undefined,
     });
     const body = await buildOutResponse(
       { city: "london", day: "today" },
@@ -1132,7 +1188,7 @@ describe("the live lane is venue-matched at request time", () => {
       },
     );
     expect(body.events).toHaveLength(1);
-    expect(body.events[0].venueId).toBe("venue-from-refresh");
+    expect(body.events[0].venueId).toBe("venue-1137z1c");
   });
 
   it("does not promote an unresolved bundled row through the weaker live matcher", async () => {
