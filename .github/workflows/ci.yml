@@ -84,6 +84,13 @@ jobs:
         # Generates the typedRoutes link types before the native tsc pass.
         run: npm run typecheck
 
+      - name: Typecheck (TypeScript 6)
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+        # The bridge compiler Next builds with, over the full tsconfig. The
+        # route types come from the step above. `npx tsc` is TypeScript 7.
+        run: node node_modules/typescript/bin/tsc --noEmit
+
   production-build:
     name: Production build
     needs: [lint-and-types]

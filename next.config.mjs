@@ -230,7 +230,7 @@ const nextConfig = {
     root: projectRoot,
   },
   experimental: {
-    // Next's route-aware compiler API uses the supported TypeScript 6 alias.
+    // Next's route-aware compiler API uses the TypeScript 6 `typescript` package.
     // npm run typecheck separately calls TypeScript 7's native CLI explicitly.
     useTypeScriptCli: false,
     // How long the CLIENT router may reuse a route it already holds.

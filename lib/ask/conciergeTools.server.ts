@@ -244,7 +244,8 @@ export async function toolCheapestPintNear(
     scope = rows.length > 0 ? "walkable" : "none";
   }
 
-  if (rows.length === 0) {
+  const [cheapest] = rows;
+  if (!cheapest) {
     return {
       ok: true,
       tool: "cheapest_pint_near",
@@ -268,18 +269,6 @@ export async function toolCheapestPintNear(
     provenance: DIRECTORY,
   }));
 
-  const [cheapest] = rows;
-  if (!cheapest) {
-    return {
-      ok: true,
-      tool: "cheapest_pint_near",
-      data: { anchor, rows: [] },
-      provenance: [DIRECTORY],
-      cards: [],
-      proposals: [],
-      answerHint: cheapestNearEmptyLine(anchor, "ready"),
-    };
-  }
   return {
     ok: true,
     tool: "cheapest_pint_near",

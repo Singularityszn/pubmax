@@ -3480,7 +3480,8 @@ export default function PubMap({
       );
       setNearbyLoading(false);
       setPendingNearMeRequest(null);
-      if (ids.length === 0) {
+      const [first] = ids;
+      if (first === undefined) {
         setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
         return;
       }
@@ -3488,7 +3489,7 @@ export default function PubMap({
       setBuiltIds(ids);
       setRouteMapped(true);
       setActiveCrawl(null);
-      showLoadedRoute(ids[0]!);
+      showLoadedRoute(first);
     };
     if (!loader) {
       return;
@@ -3946,7 +3947,9 @@ export default function PubMap({
       });
       if (move === "select-one") {
         // Fly to the one match and open its sheet (reuses the pin path).
-        selectVenue(filteredVenuesRef.current[0]!.id);
+        const [match] = filteredVenuesRef.current;
+        if (!match) return;
+        selectVenue(match.id);
       } else if (move === "fit-many") {
         // Frame the whole matched set so none stay hidden off-screen.
         setSearchFitToken((token) => token + 1);

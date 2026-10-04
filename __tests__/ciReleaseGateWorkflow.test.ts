@@ -137,7 +137,7 @@ describe("clean-main CI release gate", () => {
     // them: it builds the merge base in a worktree.
     const needsHeap = steps.filter(
       (step) =>
-        /npm run build|next build|npm run typecheck|npx tsc --noEmit|playwright test|scripts\/perf-ab\.mjs/.test(
+        /npm run build|next build|npm run typecheck|node_modules\/typescript\/bin\/tsc|playwright test|scripts\/perf-ab\.mjs/.test(
           step.run,
         ) && !/npm run build:slim/.test(step.run),
     );
@@ -148,6 +148,7 @@ describe("clean-main CI release gate", () => {
     }
     expect(needsHeap.map((step) => step.name)).toContain("Tell a red route apart from a slow box");
     expect(needsHeap.map((step) => step.name)).toContain("Typecheck");
+    expect(needsHeap.map((step) => step.name)).toContain("Typecheck (TypeScript 6)");
   });
 
   it("holds the A/B's mirrored wall to the Performance budget job's own timeout", () => {

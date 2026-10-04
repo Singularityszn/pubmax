@@ -1,4 +1,4 @@
-type Last<T extends readonly unknown[]> = T extends readonly [...unknown[], infer L] ? L : never;
+type Last<T extends readonly unknown[]> = T extends readonly [...unknown[], infer L] ? L : T[number];
 
 /**
  * The last element of a non-empty tuple, typed as that element. The tuple
