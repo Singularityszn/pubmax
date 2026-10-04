@@ -271,6 +271,75 @@ describe("Saved Plan backups through canonical route and approved quote doors", 
         { venueId: "venue-b" }, { venueId: "venue-c" }] }, created.memberToken),
     { params: Promise.resolve({ id: created.plan.plan.id }) });
     expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("PLAN_ROUTE_INVALID");
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(created.plan.stops);
+    expect(reloaded.plan.routeRevision).toBe(1);
+  });
+
+  const generatedSwaps = [
+    { venueId: "venue-extra-0", venueName: "Canonical extra-0",
+      alternatives: [{ venueId: "venue-extra-1", venueName: "Canonical extra-1" }] },
+    { venueId: "venue-extra-2", venueName: "Canonical extra-2" },
+    { venueId: "venue-extra-3", venueName: "Canonical extra-3" },
+  ];
+  const swapFirstStop = (draft: ReturnType<typeof seedRouteDraft>) =>
+    [stopWithNextAlternative(draft[0], new Set(draft.slice(1).map((stop) => stop.venueId))), ...draft.slice(1)];
+
+  it("saves a Summary swap to a fresh generated candidate after a saved backup disappears", async () => {
+    const created = await create([{ venueId: "venue-a", alternatives: [{ venueId: "venue-d" }, { venueId: "venue-e" }] },
+      { venueId: "venue-b" }, { venueId: "venue-c" }]);
+    const saved = await memberRead(created.plan.plan.id, created.memberToken);
+    const swapped = swapFirstStop(seedRouteDraft(saved.stops, generatedSwaps));
+    expect(swapped[0].venueId).toBe("venue-extra-0");
+    expect(swapped[0].alternatives?.map((alternative) => alternative.venueId))
+      .toEqual(["venue-extra-1", "venue-extra-2", "venue-extra-3", "venue-d", "venue-e", "venue-a"]);
+    const wire = planSummaryRouteUpdateBody({ stops: swapped, expectedRouteRevision: 1, authority: null });
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+
+    const updated = await patch(created.plan.plan.id, created.memberToken, wire);
+    expect(updated.stops.map((stop) => stop.venueId)).toEqual(["venue-extra-0", "venue-b", "venue-c"]);
+    expect((updated.stops[0].alternatives as Array<{ venueId: string }>).map((alternative) => alternative.venueId))
+      .toEqual(["venue-extra-1", "venue-extra-2", "venue-extra-3", "venue-e", "venue-a"]);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(updated.stops);
+    expect(reloaded.plan.routeRevision).toBe(2);
+  });
+
+  it("saves a Summary swap to a backup that one editor save shared across Stops", async () => {
+    const created = await create([{ venueId: "venue-a", alternatives: [{ venueId: "venue-d" }, { venueId: "venue-e" }] },
+      { venueId: "venue-b" }, { venueId: "venue-c" }]);
+    const first = await memberRead(created.plan.plan.id, created.memberToken);
+    await patch(created.plan.plan.id, created.memberToken, planSummaryRouteUpdateBody({
+      stops: seedRouteDraft(first.stops, generatedSwaps), expectedRouteRevision: 1, authority: null }));
+    const saved = await memberRead(created.plan.plan.id, created.memberToken);
+    expect((saved.stops as Array<{ alternatives?: Array<{ venueId: string }> }>)
+      .filter((stop) => stop.alternatives?.some((alternative) => alternative.venueId === "venue-extra-0")).length)
+      .toBeGreaterThan(1);
+    const swapped = swapFirstStop(seedRouteDraft(saved.stops, generatedSwaps));
+    expect(swapped[0].venueId).toBe("venue-extra-0");
+    const wire = planSummaryRouteUpdateBody({ stops: swapped, expectedRouteRevision: 2, authority: null });
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+
+    const updated = await patch(created.plan.plan.id, created.memberToken, wire);
+    expect(updated.stops.map((stop) => stop.venueId)).toEqual(["venue-extra-0", "venue-b", "venue-c"]);
+    expect((updated.stops[0].alternatives as Array<{ venueId: string }>).map((alternative) => alternative.venueId))
+      .toEqual(["venue-extra-1", "venue-extra-2", "venue-extra-3", "venue-e", "venue-a"]);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(updated.stops);
+    expect(reloaded.plan.routeRevision).toBe(3);
+  });
+
+  it("refuses recovery when a submitted Stop names two saved parent Stops", async () => {
+    const created = await create([{ venueId: "venue-a", alternatives: [{ venueId: "venue-e" }, { venueId: "venue-d" }] },
+      { venueId: "venue-b", alternatives: [{ venueId: "venue-extra-5" }] }, { venueId: "venue-c" }]);
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+    const response = await PATCH(request(`/${created.plan.plan.id}`, "PATCH", { expectedRouteRevision: 1,
+      stops: [{ venueId: "venue-e", alternatives: [{ venueId: "venue-d" }, { venueId: "venue-a" }, { venueId: "venue-b" }] },
+        { venueId: "venue-extra-5", alternatives: [{ venueId: "venue-b" }] }, { venueId: "venue-c" }] }, created.memberToken),
+    { params: Promise.resolve({ id: created.plan.plan.id }) });
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("PLAN_ROUTE_INVALID");
     const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
     expect(reloaded.stops).toEqual(created.plan.stops);
     expect(reloaded.plan.routeRevision).toBe(1);

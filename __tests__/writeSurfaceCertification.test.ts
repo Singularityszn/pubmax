@@ -194,8 +194,8 @@ describe("mutating API surface certification", () => {
     // 149: less POST /api/pub-pal/mastery, deleted with no caller (#1802).
     // 150: plus POST /api/drink-wall, the city Drink Wall upload.
     // 153: plus POST /api/pub-pal/chat, tool-turn, and tools/[toolName] (#Pal ElevenLabs brain).
-    // 157: plus explicit friend-location start, update and revoke, and owner-only Social Crew completion.
-    // 156: less POST /api/pub-pal/llm, the unused Custom LLM bridge.
+    // 152: less POST /api/pub-pal/llm, the unused Custom LLM bridge.
+    // 156: plus explicit friend-location start, update and revoke, and owner-only Social Crew completion.
     expect(mutationHandlers).toHaveLength(156);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),

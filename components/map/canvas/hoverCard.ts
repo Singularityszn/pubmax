@@ -1,4 +1,5 @@
 import { COMMUNITY_PROVISIONAL_SHORT_NOTE } from "@/lib/communityPrice";
+import { londonObservationDay } from "@/lib/drinks";
 import { priceBand, priceBandAreaForVenue, priceBandClass, type PriceBand } from "@/lib/priceBand";
 import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
@@ -129,6 +130,15 @@ export function hoverPriceLine(
   return { price: null, provenance: "Tap for detail" };
 }
 
+function lensProvenance(price: MapLensPrice): string {
+  const parts = price.source === "community"
+    ? ["Community", formatFreshness(price.submittedAt)]
+    : price.source === "listed"
+      ? ["Published menu", londonObservationDay(price.observedAt ?? "") ?? "date unavailable", anchorSourceLabel(price.sourceUrl)]
+      : ["Sourced", anchorMonthLabel(price.observedAt), anchorSourceLabel(price.sourceUrl)];
+  return parts.filter(Boolean).join(" · ");
+}
+
 export function hoverCardCopy(
   mapVenue: Venue | undefined,
   signal: VenueSignal | undefined,
@@ -163,24 +173,12 @@ export function hoverCardCopy(
         pendingNote: "",
       };
     }
-    const provenance =
-      experiencePrice.source === "community"
-        ? ["Community", formatFreshness(experiencePrice.submittedAt)]
-            .filter(Boolean)
-            .join(" · ")
-        : [
-            "Sourced",
-            anchorMonthLabel(experiencePrice.observedAt),
-            anchorSourceLabel(experiencePrice.sourceUrl),
-          ]
-            .filter(Boolean)
-            .join(" · ");
     return {
       venueTypeLabel,
       price: experiencePrice.priceGbp,
       priceBand: lensBandFor(experiencePrice),
       priceSuffix: experiencePrice.categoryLabel,
-      provenance,
+      provenance: lensProvenance(experiencePrice),
       detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
       pendingNote: "",
     };

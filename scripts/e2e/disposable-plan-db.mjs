@@ -8,7 +8,6 @@ import { startRlsSession } from "../rls/session-harness.mjs";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 const V1_RELEASE = "20260806035204_0070_v1_release_security.sql";
-const LAST_MIGRATION = "20261003031818_0185_plan_named_listed_drink_evidence.sql";
 
 // The Belle Vue occurs on the generated Clapham route for both queries. Each
 // observation has an independent, non-null actor for corroboration.
@@ -27,6 +26,13 @@ function sqlLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
+/** Every forward migration after the V1 boundary, in the order Supabase applies them. */
+export function disposablePlanMigrations() {
+  return readdirSync(MIGRATIONS)
+    .filter((name) => name.endsWith(".sql") && name > V1_RELEASE)
+    .sort();
+}
+
 function assertLoopback(url) {
   const parsed = new URL(url);
   if (parsed.protocol !== "http:" || parsed.hostname !== "127.0.0.1") {
@@ -40,11 +46,9 @@ export async function startDisposablePlanDb() {
     session = await startRlsSession();
     assertLoopback(session.restBaseUrl);
 
-    const laterMigrations = readdirSync(MIGRATIONS)
-      .filter((name) => name.endsWith(".sql") && name > V1_RELEASE && name <= LAST_MIGRATION)
-      .sort();
-    if (laterMigrations.at(-1) !== LAST_MIGRATION) {
-      throw new Error("Disposable Plan fixture cannot find migration 0185");
+    const laterMigrations = disposablePlanMigrations();
+    if (laterMigrations.length === 0) {
+      throw new Error("Disposable Plan fixture cannot find any migration after the V1 release");
     }
     for (const migration of laterMigrations) {
       session.sqlFile(join(MIGRATIONS, migration));
@@ -92,7 +96,7 @@ export async function startDisposablePlanDb() {
       serviceRoleKey: session.serviceRoleKey,
       sql: session.sql,
       stop: session.stop,
-      lastMigration: LAST_MIGRATION,
+      lastMigration: laterMigrations.at(-1),
       fixtures: PLAN_PRICE_FIXTURES.map((fixture) => ({ ...fixture, reportedAt })),
     };
   } catch (error) {

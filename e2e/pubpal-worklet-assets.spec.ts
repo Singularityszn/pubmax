@@ -33,7 +33,7 @@ const ASSETS = [
 
 // The runner's existing expectation ceiling, not a processing retry or sleep.
 const PORT_EVENT_DEADLINE_MS = 10_000;
-const FAKE_SUPABASE_SETTINGS = "https://pubmaxx-e2e.supabase.co/auth/v1/settings";
+const PUBLIC_PROVIDER_AVAILABILITY = "**/api/auth/providers";
 
 type ProcessingEvidence = {
   secureContext: boolean;
@@ -123,30 +123,22 @@ async function exerciseWorklets(
   page.on("pageerror", onPageError);
   page.on("console", onConsole);
   page.on("websocket", onWebSocket);
-  // Only the runner's non-resolving public settings host is doubled. No session,
-  // app API, worklet asset, or provider credential is supplied by this fixture.
-  const onFakeSupabaseSettings = async (route: Route) => {
-    const method = route.request().method();
-    const headers = {
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, OPTIONS",
-      "access-control-allow-headers": "apikey",
-    };
-    if (method === "OPTIONS") {
-      await route.fulfill({ status: 204, headers });
-    } else if (method === "GET") {
+  // Only the public same-origin provider availability read is doubled, because
+  // the runner's Supabase settings host does not resolve. No session, credential,
+  // other app API, HTML, worklet asset, or provider socket is supplied here.
+  const onProviderAvailability = async (route: Route) => {
+    if (route.request().method() === "GET") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        headers,
-        body: JSON.stringify({ external: { google: false, apple: false, azure: false } }),
+        body: JSON.stringify({ google: false, apple: false, microsoft: false }),
       });
     } else {
       await route.continue();
     }
   };
   try {
-    await page.route(FAKE_SUPABASE_SETTINGS, onFakeSupabaseSettings);
+    await page.route(PUBLIC_PROVIDER_AVAILABILITY, onProviderAvailability);
     const documentResponse = await page.goto("/pal");
     expect(documentResponse).not.toBeNull();
     expect(documentResponse!.status()).toBe(200);
@@ -468,7 +460,7 @@ async function exerciseWorklets(
     page.off("pageerror", onPageError);
     page.off("console", onConsole);
     page.off("websocket", onWebSocket);
-    await page.unroute(FAKE_SUPABASE_SETTINGS, onFakeSupabaseSettings);
+    await page.unroute(PUBLIC_PROVIDER_AVAILABILITY, onProviderAvailability);
   }
 }
 

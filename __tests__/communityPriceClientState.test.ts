@@ -484,13 +484,13 @@ describe("published menu prices through the selected base read", () => {
     { ...quote, source: "estimate" },
     { ...quote, sourceUrl: "javascript:alert(1)" },
     { ...quote, observedAt: "not-a-date" },
-    { ...quote, observedAt: "2024-01-01T00:00:00.000Z" },
+    { ...quote, observedAt: "2099-01-01T00:00:00.000Z" },
     { ...quote, servingSize: 250 },
     { ...quote, drinkLabel: {} },
     { ...quote, drinkLabel: "x".repeat(81) },
     { ...quote, servingSize: "x".repeat(49) },
     { ...quote, sourceUrl: `https://pub.example/${"x".repeat(2048)}` },
-  ])("does not render a malformed or expired published claim: %j", async (invalid) => {
+  ])("does not render a malformed published claim: %j", async (invalid) => {
     mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [invalid] }));
     await act(async () => { mount(); });
     await vi.waitFor(async () => {
@@ -499,6 +499,19 @@ describe("published menu prices through the selected base read", () => {
     });
     expect(container.textContent).not.toContain("£10.50");
     expect(current.venuePriceStatus.get(pub.id)).toBe("ready");
+  });
+
+  it("drops only an aged published quote and keeps the rest of the menu", async () => {
+    const aged = { ...quote, drinkLabel: "Old house red", priceGbp: 7.25, observedAt: "2024-01-01T00:00:00.000Z" };
+    mockPriceReads(() => Response.json({ prices: [], signals: [], listedPrices: [aged, quote] }));
+    await act(async () => { mount(); });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain("£10.50");
+    });
+    expect(current.listedPricesByVenueId?.get(pub.id)).toEqual([quote]);
+    expect(container.textContent).not.toContain("£7.25");
+    expect(container.textContent).not.toContain("Published menu prices unavailable just now");
   });
 
   it("uses canonical label normalization without changing the quoted measure or amount", async () => {

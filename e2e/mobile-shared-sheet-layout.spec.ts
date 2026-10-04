@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
@@ -287,6 +287,8 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   await expectSheetInsideViewport(page, sheet, footer);
   await expect(share).toBeInViewport();
   await observeVenueShare(page);
+  const abortWhatsApp = (route: Route) => route.abort();
+  await page.context().route("https://wa.me/**", abortWhatsApp);
   await share.click();
   const feedback = footer.locator(".venueSheetShareFeedback");
   await expect.poll(async () => {
@@ -343,6 +345,7 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
     }
   }
 
+  await page.context().unroute("https://wa.me/**", abortWhatsApp);
   expect(browserErrors).toEqual([]);
 });
 

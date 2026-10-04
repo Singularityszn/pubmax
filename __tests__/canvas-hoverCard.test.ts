@@ -223,6 +223,26 @@ describe("hoverCardCopy", () => {
     expect(loading.provenance).toBe("Whisky price not read yet");
   });
 
+  it.each([
+    ["2026-09-30T23:30:00.000Z", "Published menu · 2026-10-01 · pub.example"],
+    ["2026-01-21T23:30:00.000Z", "Published menu · 2026-01-21 · pub.example"],
+    ["not-a-date", "Published menu · date unavailable · pub.example"],
+  ])("dates a published-menu quote observed at %s by its London day", (observedAt, provenance) => {
+    const copy = hoverCardCopy({ kind: "pub" } as Venue, undefined, null, false, {
+      venueId: "v", category: "wine", categoryLabel: "Wine", priceGbp: 6.25,
+      observedAt, source: "listed", sourceUrl: "https://www.pub.example/menu",
+    });
+    expect(copy.provenance).toBe(provenance);
+  });
+
+  it("keeps a sourced anchor on its month label", () => {
+    const copy = hoverCardCopy({ kind: "bar" } as Venue, undefined, null, false, {
+      venueId: "v", category: null, categoryLabel: "Cocktail", priceGbp: 12,
+      observedAt: "2025-03-01", source: "sourced-anchor", sourceUrl: "https://bar.example/menu",
+    });
+    expect(copy.provenance).toBe("Sourced · Mar 2025 · bar.example");
+  });
+
   it("keeps a real figure whatever the index managed", () => {
     const copy = hoverCardCopy(
       { kind: "pub" } as Venue,

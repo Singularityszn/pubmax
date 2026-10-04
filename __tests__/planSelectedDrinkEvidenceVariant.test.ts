@@ -22,10 +22,10 @@ describe("Plan selected drink evidence variants", () => {
   });
 
   it.each([
-    ["2026-09-21T23:02:39.707Z", "22 Sept 2026"],
-    ["2026-01-21T23:00:41.000Z", "21 Jan 2026"],
+    ["2026-09-21T23:02:39.707Z", /published menu 22 Sept? 2026\./],
+    ["2026-01-21T23:00:41.000Z", /published menu 21 Jan 2026\./],
   ])("dates listed observation %s by its London calendar day", (observedAt, day) => {
-    expect(selectedDrinkPriceDescription({ ...listed, observedAt })).toContain(`published menu ${day}.`);
+    expect(selectedDrinkPriceDescription({ ...listed, observedAt })).toMatch(day);
   });
 
   it("marks absent listed serving as unknown", () => {

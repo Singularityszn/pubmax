@@ -436,6 +436,7 @@ function readVenueListedPrices(value: unknown): ListedCategoryPrice[] | null {
     || listed.length > DRINK_CATEGORIES.length * MAX_QUOTES_PER_CATEGORY) return null;
   const categoryCounts = new Map<DrinkCategory, number>();
   const quotes: ListedCategoryPrice[] = [];
+  const now = Date.now();
   for (const item of listed) {
     if (!item || typeof item !== "object") return null;
     const row = item as Record<string, unknown>;
@@ -453,8 +454,11 @@ function readVenueListedPrices(value: unknown): ListedCategoryPrice[] | null {
     categoryCounts.set(row.category, count);
     const decision = priceStandingFor({ listed: {
       priceGbp: row.priceGbp, sourceUrl: row.sourceUrl, observedAt: row.observedAt,
-    } });
-    if (decision.standing !== "listed") return null;
+    } }, now);
+    if (decision.standing !== "listed") {
+      if (decision.reason === "listed_expired" && Date.parse(row.observedAt) <= now) continue;
+      return null;
+    }
     quotes.push({
       source: "listed", category: row.category, priceGbp: row.priceGbp,
       drinkLabel: normalizeUkPriceBundleDrinkLabel(row.drinkLabel as string | null),
