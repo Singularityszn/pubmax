@@ -1,6 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const limitState = vi.hoisted(() => ({ limited: false }));
+const storeState = vi.hoisted(() => ({ failure: null as null | "result" | "throw" }));
+
+vi.mock("@/lib/pubPalStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pubPalStore")>();
+  return {
+    ...actual,
+    listPalMemoriesResult: async (ownerId: string) => {
+      if (storeState.failure === "throw") throw new Error("store down");
+      if (storeState.failure === "result") return { ok: false as const, error: "error" as const };
+      return actual.listPalMemoriesResult(ownerId);
+    },
+  };
+});
 
 vi.mock("@/lib/pintDrops", () => ({
   isLimited: vi.fn(async () => limitState.limited),
@@ -55,6 +68,7 @@ function recall(conversationId: string | undefined, authorization = "Bearer test
 describe("confirmed Pub Pal memories in the agent loop", () => {
   beforeEach(() => {
     limitState.limited = false;
+    storeState.failure = null;
     vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "test-llm-secret");
     __resetPubPalStore();
     __resetPubPalToolTurnStore();
@@ -115,6 +129,24 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
     });
     expect(body.result.answerHint).toContain("Drinks: Cask ale");
     expect(JSON.stringify(body)).not.toContain("Stranger");
+  });
+
+  it("reports a memory store failure as unavailable, never as nothing confirmed", async () => {
+    await palWithMemories(OWNER, [{ kind: "drink_preference", value: "Cask ale" }]);
+    await bindPubPalToolTurn("conv_ownervoice01", OWNER, "london");
+    for (const failure of ["result", "throw"] as const) {
+      storeState.failure = failure;
+      const body = await (await recall("conv_ownervoice01")).json();
+      expect(body.result).toMatchObject({ ok: false, memories: [] });
+      expect(body.result.answerHint).not.toMatch(/not confirmed anything/i);
+      expect(await confirmedPalMemoriesFor(OWNER)).toEqual([]);
+    }
+  });
+
+  it("answers an account with no Pal as nothing confirmed", async () => {
+    await bindPubPalToolTurn("conv_ownervoice01", STRANGER, "london");
+    const body = await (await recall("conv_ownervoice01")).json();
+    expect(body.result).toMatchObject({ ok: true, memories: [] });
   });
 
   it("returns nothing for a conversation no signed-in account opened", async () => {
