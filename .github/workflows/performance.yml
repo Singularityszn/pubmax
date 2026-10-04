@@ -13,8 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
-  group: pubmax-mac-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 
@@ -22,9 +21,9 @@ jobs:
   # Speed is the product's claim, so a commit on main that slows a budgeted
   # route fails here the next night rather than being noticed on a phone weeks
   # later. Since 15 September 2026 this sweep runs nightly on main and on
-  # demand, not on every pull request: the GitHub free minutes cannot carry a
-  # 35-minute sweep per push, and the 2 vCPU GitHub-hosted box cannot measure
-  # a single commit repeatably (see the spread record below). A pull request
+  # demand, not on every pull request: free minutes cannot carry a 35-minute
+  # sweep per push, and a 2 vCPU box could not measure a single commit
+  # repeatably (see the spread record below). A pull request
   # that must prove a route dispatches this workflow against its branch. The ceilings
   # live in perf/route-budgets.json and docs/PERFORMANCE_BUDGETS.md owns the rule
   # for changing one. Every route the site serves a stranger is measured - all 34
@@ -38,10 +37,10 @@ jobs:
   # that wire, on top of a production build. It was 15 with nine routes on
   # loopback.
   # From 6 to 15 September 2026 the measurement ran on a 4 vCPU runner (Avrea,
-  # then Blacksmith) rather than the 2 vCPU every other job took. GitHub-hosted
-  # `ubuntu-latest` on a private repository is a 2 vCPU box, and on a 2 vCPU box
-  # the sweep could not measure itself, which is one reason the sweep left the
-  # pull-request path: the
+  # then Blacksmith). A private repository's 2 vCPU `ubuntu-latest` could not
+  # measure itself, which is one reason the sweep left the pull-request path.
+  # This job launches Playwright, so it runs on macos-latest with the law pins.
+  # Ubuntu font metrics do not match those pins. The
   # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
   # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
   # a route flipped between pass and fail on one commit. A ceiling is only a
@@ -54,16 +53,8 @@ jobs:
   # inside the old wall, since that work only happens on `if: failure()`.
   performance-budget:
     name: Performance budget
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: macos-latest
     timeout-minutes: 55
-    # Shares pubmax-mac-browser with Browser tests. This job starts its own
-    # production server and Chromium; on 3-4 Oct 2026 several such jobs at
-    # once pushed host load to ~79 and timed out specs that pass when the
-    # machine is quiet. The queue waits. Lint and unit tests are not in it.
-    concurrency:
-      group: pubmax-mac-browser
-      cancel-in-progress: false
-      queue: max
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
       # measuring deadline from the wall MINUS what the sweep and the merge-base
@@ -80,14 +71,12 @@ jobs:
           # branch's, so it needs the base branch to compare against.
           fetch-depth: 0
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -124,7 +113,7 @@ jobs:
       # Chromium only: the budget is measured in one engine on purpose, so a run
       # is comparable to the one before it.
       - name: Install Chromium
-        uses: ./.github/actions/pubmax-mac-playwright
+        run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
@@ -205,28 +194,20 @@ jobs:
   ux-lane-performance:
     name: UX lane performance
     needs: [performance-budget]
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: macos-latest
     timeout-minutes: 17
-    # Same pubmax-mac-browser slot as the budget sweep above and as Browser
-    # tests: one web server plus Chromium on this Mac.
-    concurrency:
-      group: pubmax-mac-browser
-      cancel-in-progress: false
-      queue: max
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -234,7 +215,7 @@ jobs:
           npm run deps:install-scripts
 
       - name: Install Chromium
-        uses: ./.github/actions/pubmax-mac-playwright
+        run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port

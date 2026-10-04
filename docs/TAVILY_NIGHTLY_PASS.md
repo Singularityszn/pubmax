@@ -33,7 +33,7 @@ on:
   workflow_dispatch:
 jobs:
   pass:
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
