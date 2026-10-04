@@ -80,7 +80,8 @@ for (const viewport of [
     await expect(main.getByRole("heading", { name: "Sign-in is temporarily unavailable", exact: true })).toHaveCount(0);
     await expect(main.getByRole("button", { name: "Try again", exact: true })).toHaveCount(0);
     expect(documents).toBe(2);
-    expect(sdkScripts.some((script) => script.document === 2 && !script.blocked)).toBe(true);
+    // The server-rendered door is usable before the lazy SDK lands, so wait for it.
+    await expect.poll(() => sdkScripts.some((script) => script.document === 2 && !script.blocked)).toBe(true);
     await page.screenshot({ path: test.info().outputPath("login-client-recovered.png") });
   });
 }

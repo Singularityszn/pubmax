@@ -40,6 +40,12 @@ export default function MagicLinkForm({
   const [status, setStatus] = useState<"idle" | "sending" | MagicLinkResult["status"]>("idle");
   const [message, setMessage] = useState("");
   const valid = looksLikeEmail(email);
+  // /login server-renders this field, so a reader can type into it before
+  // hydration. React keeps that DOM value but not the state, and the next
+  // render would reset the field to "". Adopt it as the field attaches.
+  const adoptTypedEmail = useCallback((input: HTMLInputElement | null) => {
+    if (input?.value) setEmail(input.value);
+  }, []);
 
   const submit = useCallback(
     async (event: React.FormEvent) => {
@@ -69,6 +75,7 @@ export default function MagicLinkForm({
       </label>
       <div className="authMagicLinkRow">
         <input
+          ref={adoptTypedEmail}
           id={inputId}
           className="authMagicLinkInput"
           type="email"
