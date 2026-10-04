@@ -1118,7 +1118,7 @@
   "webSearches": 380,
   "pagesRead": 1050,
   "researched": 143,
-  "added": 1,
+  "added": 0,
   "retained": [
     {
       "name": "Vero Moderno",
@@ -1153,6 +1153,10 @@
       "id": "venue-mcr-17wwbfk"
     },
     {
+      "name": "Velopark Cafe",
+      "id": "venue-mcr-2mlxmv"
+    },
+    {
       "name": "Manchester Union Brewery Tap",
       "id": "venue-mcr-55die4"
     },
@@ -1175,10 +1179,6 @@
     {
       "name": "Joiners Arms",
       "id": "venue-mcr-j30rtl"
-    },
-    {
-      "name": "Nags Head",
-      "id": "venue-mcr-1qfay4y"
     },
     {
       "name": "Monton Tap",
@@ -1257,7 +1257,7 @@
       "id": "venue-mcr-18rfqdc"
     }
   ],
-  "totalAccepted": 35,
+  "totalAccepted": 34,
   "repeats": 28,
   "duplicates": [
     {
@@ -1385,6 +1385,12 @@
       "id": null,
       "matchedName": "Lancashire Fold",
       "matchedId": "way/258790679"
+    },
+    {
+      "name": "Nags Head",
+      "id": null,
+      "matchedName": "Nag's Head",
+      "matchedId": "way/1115745084"
     },
     {
       "name": "Grapes",
@@ -1591,7 +1597,15 @@
       "matchedId": "node/59981073"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Nags Head",
+      "id": "venue-mcr-1qfay4y",
+      "matchedName": "Nag's Head",
+      "matchedId": "way/1115745084",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",

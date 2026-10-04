@@ -192,6 +192,9 @@ export function streetIdentity(address) {
   return null;
 }
 
+// Apostrophes join letters. The shared normalizer handles other punctuation.
+const dedupeName = (name) => normalizeVenueIdentityName(text(name).replace(/['’‘`]/g, ""));
+
 // One venue, by compatible name and place. The same house number on the same
 // street is the same venue whatever postcode each source gives; the same
 // street where a number is missing, or the same full postcode, is the same
@@ -199,8 +202,8 @@ export function streetIdentity(address) {
 // street addresses stay apart beyond a corner's width, so nearby branches of
 // one name are kept.
 export function sameVenue(a, b) {
-  const aName = normalizeVenueIdentityName(a.name);
-  const bName = normalizeVenueIdentityName(b.name);
+  const aName = dedupeName(a.name);
+  const bName = dedupeName(b.name);
   if (!aName || !bName || !namesLikelySamePub(aName, bName)) return false;
   const distance = haversineMeters(a.lat, a.lng, b.lat, b.lng);
   const centroid = a.coordinatePrecision === "postcode-centroid" || b.coordinatePrecision === "postcode-centroid";

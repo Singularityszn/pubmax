@@ -739,7 +739,7 @@
   "webSearches": 156,
   "pagesRead": 584,
   "researched": 2070,
-  "added": 1,
+  "added": 0,
   "retained": [
     {
       "name": "Lulu Wild",
@@ -942,10 +942,6 @@
       "id": "venue-bhm-1s3gdvb"
     },
     {
-      "name": "McDwyers",
-      "id": "venue-bhm-1lzn4xw"
-    },
-    {
       "name": "Tyseley Working Mens Club",
       "id": "venue-bhm-uchscy"
     },
@@ -1064,6 +1060,10 @@
     {
       "name": "El Buen Gusto",
       "id": "venue-bhm-xe1x1j"
+    },
+    {
+      "name": "De La Vies",
+      "id": "venue-bhm-37m3sc"
     },
     {
       "name": "Barsana - Harborne",
@@ -1258,7 +1258,7 @@
       "id": "venue-bhm-1gg3rw7"
     }
   ],
-  "totalAccepted": 130,
+  "totalAccepted": 129,
   "repeats": 58,
   "duplicates": [
     {
@@ -1326,6 +1326,12 @@
       "id": null,
       "matchedName": "The Heartlands Club",
       "matchedId": "node/1946864088"
+    },
+    {
+      "name": "McDwyers",
+      "id": null,
+      "matchedName": "McDwyer's",
+      "matchedId": "way/70565949"
     },
     {
       "name": "The Rainbow Pub",
@@ -1454,7 +1460,15 @@
       "matchedId": "node/12688193702"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "McDwyers",
+      "id": "venue-bhm-1lzn4xw",
+      "matchedName": "McDwyer's",
+      "matchedId": "way/70565949",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "1000 Trades",

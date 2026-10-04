@@ -38,35 +38,6 @@
       "id": "venue-bat-1ftmwfc"
     },
     {
-      "name": "Saracens Head",
-      "kind": "pub",
-      "address": "42 Broad Street, Bath BA1 5LP",
-      "postcode": "BA1 5LP",
-      "locality": "Bath",
-      "website": null,
-      "lat": 51.384074,
-      "lng": -2.360098,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844",
-          "excerpt": "### Saracens Head\n\nTaylor Walker (Greene King) Pub, in Bath]\n\n3 Regular, 1 Changing Beers\n\n \n\n**0.6** miles from you\n\n42 Broad Street, Bath, BA1 5LP"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:47.453Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/BA1%205LP",
-        "observedAt": "2026-10-04T13:06:55.925Z",
-        "postcode": "BA1 5LP",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-bat-1btwlmw"
-    },
-    {
       "name": "Wolf Wine",
       "kind": "pub",
       "address": "Walcot Street, Bath BA1 5BW",

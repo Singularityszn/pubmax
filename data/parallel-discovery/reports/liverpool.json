@@ -895,10 +895,6 @@
       "id": "venue-liv-95pitm"
     },
     {
-      "name": "Foghertys",
-      "id": "venue-liv-1p5c4yd"
-    },
-    {
       "name": "Blackburne Eatery",
       "id": "venue-liv-rfeuk9"
     },
@@ -959,7 +955,7 @@
       "id": "venue-liv-wyxmb7"
     }
   ],
-  "totalAccepted": 22,
+  "totalAccepted": 21,
   "repeats": 42,
   "duplicates": [
     {
@@ -1051,6 +1047,12 @@
       "id": null,
       "matchedName": "The Penny Lane",
       "matchedId": "way/990063832"
+    },
+    {
+      "name": "Foghertys",
+      "id": null,
+      "matchedName": "Fogherty's",
+      "matchedId": "node/240115990"
     },
     {
       "name": "Dovedale Towers",
@@ -1221,7 +1223,15 @@
       "matchedId": "way/559723982"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Foghertys",
+      "id": "venue-liv-1p5c4yd",
+      "matchedName": "Fogherty's",
+      "matchedId": "node/240115990",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Hamilton+Square%2C+Birkenhead+CH41+6AY",

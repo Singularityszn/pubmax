@@ -29,11 +29,11 @@
       "webSearches": 156,
       "pagesRead": 584,
       "researched": 2070,
-      "added": 1,
+      "added": 0,
       "retained": 129,
-      "duplicates": 32,
+      "duplicates": 33,
       "rejected": 1978,
-      "totalAccepted": 130,
+      "totalAccepted": 129,
       "usage": {
         "parallel": {
           "calls": 1527,
@@ -128,11 +128,11 @@
       "webSearches": 380,
       "pagesRead": 1050,
       "researched": 143,
-      "added": 1,
+      "added": 0,
       "retained": 34,
-      "duplicates": 55,
+      "duplicates": 56,
       "rejected": 208,
-      "totalAccepted": 35,
+      "totalAccepted": 34,
       "usage": {
         "parallel": {
           "calls": 208,
@@ -200,10 +200,10 @@
       "pagesRead": 607,
       "researched": 117,
       "added": 0,
-      "retained": 22,
-      "duplicates": 43,
+      "retained": 21,
+      "duplicates": 44,
       "rejected": 152,
-      "totalAccepted": 22,
+      "totalAccepted": 21,
       "usage": {
         "parallel": {
           "calls": 140,
@@ -232,8 +232,8 @@
       "webSearches": 110,
       "pagesRead": 402,
       "researched": 31,
-      "added": 1,
-      "retained": 4,
+      "added": 0,
+      "retained": 5,
       "duplicates": 7,
       "rejected": 83,
       "totalAccepted": 5,
@@ -265,11 +265,11 @@
       "webSearches": 18,
       "pagesRead": 104,
       "researched": 12,
-      "added": 1,
+      "added": 0,
       "retained": 2,
-      "duplicates": 9,
+      "duplicates": 10,
       "rejected": 17,
-      "totalAccepted": 3,
+      "totalAccepted": 2,
       "usage": {
         "parallel": {
           "calls": 8,
@@ -299,10 +299,10 @@
       "pagesRead": 135,
       "researched": 20,
       "added": 0,
-      "retained": 7,
-      "duplicates": 11,
+      "retained": 5,
+      "duplicates": 12,
       "rejected": 32,
-      "totalAccepted": 7,
+      "totalAccepted": 5,
       "usage": {
         "parallel": {
           "calls": 16,

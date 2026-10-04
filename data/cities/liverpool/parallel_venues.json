@@ -183,35 +183,6 @@
       "id": "venue-liv-95pitm"
     },
     {
-      "name": "Foghertys",
-      "kind": "pub",
-      "address": "1 Blenheim Rd, Wavertree, Liverpool L18 1EH",
-      "postcode": "L18 1EH",
-      "locality": "Liverpool",
-      "website": null,
-      "lat": 53.389273,
-      "lng": -2.91897,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/postcode/955326?serves%5B0%5D=RealAle&hide_closed=1"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/postcode/955326?serves%5B0%5D=RealAle&hide_closed=1",
-          "excerpt": "[### Foghertys\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.2** miles from you\n\n1 Blenheim Rd, Wavertree, Liverpool, L18 1EH"
-        }
-      ],
-      "observedAt": "2026-10-04T12:51:43.434Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/L18%201EH",
-        "observedAt": "2026-10-04T13:05:14.014Z",
-        "postcode": "L18 1EH",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-liv-1p5c4yd"
-    },
-    {
       "name": "Blackburne Eatery",
       "kind": "pub",
       "address": "133-135 Allerton Road, Allerton, Liverpool L18 2DD",

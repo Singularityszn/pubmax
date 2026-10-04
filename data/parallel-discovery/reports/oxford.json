@@ -112,10 +112,6 @@
   "added": 0,
   "retained": [
     {
-      "name": "The Butcher's Arms",
-      "id": "venue-oxf-1aku938"
-    },
-    {
       "name": "Hawkwell House Hotel",
       "id": "venue-oxf-t029tn"
     },
@@ -132,16 +128,12 @@
       "id": "venue-oxf-bgoqjw"
     },
     {
-      "name": "Cricketer's Arms",
-      "id": "venue-oxf-m5pjg2"
-    },
-    {
       "name": "Everest Nepalese",
       "id": "venue-oxf-a7povx"
     }
   ],
-  "totalAccepted": 7,
-  "repeats": 0,
+  "totalAccepted": 5,
+  "repeats": 1,
   "duplicates": [
     {
       "name": "Tile Shop Ale House",
@@ -208,9 +200,30 @@
       "id": null,
       "matchedName": "William Morris",
       "matchedId": "node/175707113"
+    },
+    {
+      "name": "Cricketer's Arms",
+      "id": null,
+      "matchedName": "The Cricketers Arms",
+      "matchedId": "way/140741973"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "The Butcher's Arms",
+      "id": "venue-oxf-1aku938",
+      "matchedName": "The Butchers Arms",
+      "matchedId": "way/832383135",
+      "reason": "duplicate of an existing venue"
+    },
+    {
+      "name": "Cricketer's Arms",
+      "id": "venue-oxf-m5pjg2",
+      "matchedName": "The Cricketers Arms",
+      "matchedId": "way/140741973",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/oxfordshire",

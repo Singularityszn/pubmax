@@ -357,35 +357,6 @@
       "id": "venue-mcr-j30rtl"
     },
     {
-      "name": "Nags Head",
-      "kind": "pub",
-      "address": "41 Church Street, Eccles M30 0BJ",
-      "postcode": "M30 0BJ",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.483609,
-      "lng": -2.335464,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/eccles-manchester-5825"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/eccles-manchester-5825",
-          "excerpt": "### Nags Head\n\nPub, in Eccles]\n\n**Cask Ale not available**\n\n**0.0** miles from you\n\n41 Church Street, Eccles, M30 0BJ"
-        }
-      ],
-      "observedAt": "2026-10-04T12:48:45.172Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M30%200BJ",
-        "observedAt": "2026-10-04T13:02:37.404Z",
-        "postcode": "M30 0BJ",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-1qfay4y"
-    },
-    {
       "name": "Monton Tap",
       "kind": "pub",
       "address": "165 Monton Road, Monton M30 9GS",

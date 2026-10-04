@@ -75,6 +75,28 @@ describe("Parallel venue discovery", () => {
     const osm = { name: osmName, address: osmAddress, lat: osmLat, lng: osmLng, osmId: "node/1" };
     expect(dedupeVenues([discovery], [osm])).toMatchObject({ accepted: [], duplicates: [{ name, matchedName: osmName, matchedId: "node/1" }] });
   });
+  it.each([
+    ["Nags Head", "41 Church Street, Eccles M30 0BJ", 53.483609, -2.335464, "Nag's Head", "41, Church Street, Manchester, M30 0BJ", 53.4836028, -2.3353344],
+    ["Foghertys", "1 Blenheim Rd, Wavertree, Liverpool L18 1EH", 53.389273, -2.91897, "Fogherty's", "Liverpool", 53.3892964, -2.9188591],
+    ["The Butcher's Arms", "Wilberforce Street, Headington, Oxford, Oxfordshire OX3 7AN", 51.755851, -1.21103, "The Butchers Arms", "5, Wilberforce Street, Oxford, OX3 7AN", 51.7560089, -1.2111385],
+    ["Cricketer's Arms", "102 Temple Cowley Road, Temple Cowley, Oxford OX4 2EZ", 51.736688, -1.211928, "The Cricketers Arms", "Temple Road, Oxford, OX4 2EZ", 51.7357497, -1.2122323],
+    ["McDwyers", "79 Warwick Road, Sparkhill, Birmingham, B11 4RD", 52.456138, -1.863885, "McDwyer's", null, 52.4562632, -1.8647139],
+    ["Saracens Head", "42 Broad Street, Bath BA1 5LP", 51.384074, -2.360098, "Saracen's Head Tavern", "42, Broad Street, Bath, BA1 5LP", 51.3838525, -2.3598897],
+  ])("withdraws %s when apostrophe differences hide an existing map venue", (name, address, lat, lng, osmName, osmAddress, osmLat, osmLng) => {
+    const discovery = { name, address, lat, lng, coordinatePrecision: "postcode-centroid" };
+    const osm = { name: osmName, address: osmAddress ?? undefined, lat: osmLat, lng: osmLng, osmId: "node/1" };
+    expect(dedupeVenues([discovery], [osm])).toMatchObject({ accepted: [], duplicates: [{ name, matchedName: osmName, matchedId: "node/1" }] });
+  });
+  it.each(["Copper's-Rooms", "Copper’s Rooms", "Copper‘s Rooms", "Copper`s Rooms"])("ignores apostrophe and punctuation variants in %s", (name) => {
+    const existing = [{ name: "Coppers Rooms", lat: 52.48, lng: -1.90 }];
+    const discovery = { name, lat: 52.48, lng: -1.90 };
+    expect(dedupeVenues([discovery], existing).accepted).toEqual([]);
+  });
+  it("keeps separate branches after removing apostrophe differences", () => {
+    const existing = [{ name: "Copper's Rooms", address: "12 Test Street, B1 1AA", lat: 52.48, lng: -1.90 }];
+    const branch = { name: "Coppers Rooms", address: "212 Test Street, Birmingham B1 4DD", lat: 52.483, lng: -1.90, coordinatePrecision: "postcode-centroid" };
+    expect(dedupeVenues([branch], existing).accepted).toEqual([branch]);
+  });
   it("keeps unshown food, work and drink rows in research context but never lets them withdraw a discovery: the real Velopark Cafe pair", () => {
     const velopark = { name: "Velopark Cafe", address: "National Cycling Centre, Stuart Street, Clayton M11 4DQ", lat: 53.486398, lng: -2.196838, coordinatePrecision: "postcode-centroid" };
     const foodRow = { osmId: "node/5940361450", name: "Velopark Cafe", amenity: "cafe", kind: "cafe", address: "Stuart Street, Manchester, M11 4BZ", lat: 53.4851234, lng: -2.1907685 };

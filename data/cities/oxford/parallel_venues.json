@@ -9,39 +9,6 @@
   ],
   "venues": [
     {
-      "name": "The Butcher's Arms",
-      "kind": "pub",
-      "address": "Wilberforce Street, Headington, Oxford, Oxfordshire OX3 7AN",
-      "postcode": "OX3 7AN",
-      "locality": "Oxford",
-      "website": "https://www.butchersarmsoxford.co.uk/",
-      "lat": 51.755851,
-      "lng": -1.21103,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.butchersarmsoxford.co.uk"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.butchersarmsoxford.co.uk",
-          "excerpt": "The Butcher's Arms, Wilberforce Street, Headington, Oxford, Oxfordshire, OX3 7AN"
-        },
-        {
-          "url": "https://www.butchersarmsoxford.co.uk",
-          "excerpt": "This recently refurbished pub, tucked away in the back streets of Headington, is one of Oxfordshire's hidden gems. Boasting a fine range of real ales, The Butcher's Arms guarantees a warm and friendly welcome for all."
-        }
-      ],
-      "observedAt": "2026-10-04T12:53:00.182Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/OX3%207AN",
-        "observedAt": "2026-10-04T12:53:00.319Z",
-        "postcode": "OX3 7AN",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-oxf-1aku938"
-    },
-    {
       "name": "Hawkwell House Hotel",
       "kind": "pub",
       "address": "Church Way, Iffley, Oxford OX4 4DZ",
@@ -156,35 +123,6 @@
       },
       "provider": "tavily",
       "id": "venue-oxf-bgoqjw"
-    },
-    {
-      "name": "Cricketer's Arms",
-      "kind": "pub",
-      "address": "102 Temple Cowley Road, Temple Cowley, Oxford OX4 2EZ",
-      "postcode": "OX4 2EZ",
-      "locality": "Oxford",
-      "website": null,
-      "lat": 51.736688,
-      "lng": -1.211928,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/postcode/ox4-4rq-600635"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/postcode/ox4-4rq-600635",
-          "excerpt": "### Cricketer's Arms\n\nNest (Greene King) Pub, in Oxford]\n\n1 Regular, 1 Changing Beers\n\n \n\n**0.9** miles from you\n\n102 Temple Cowley Road, Temple Cowley, Oxford, OX4 2EZ"
-        }
-      ],
-      "observedAt": "2026-10-04T12:53:04.945Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/OX4%202EZ",
-        "observedAt": "2026-10-04T13:11:39.297Z",
-        "postcode": "OX4 2EZ",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-oxf-m5pjg2"
     },
     {
       "name": "Everest Nepalese",

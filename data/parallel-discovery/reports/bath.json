@@ -94,18 +94,18 @@
   "webSearches": 18,
   "pagesRead": 104,
   "researched": 12,
-  "added": 1,
+  "added": 0,
   "retained": [
+    {
+      "name": "Wolf Wine",
+      "id": "venue-bat-1kit5a0"
+    },
     {
       "name": "Hudson Bar & Grill",
       "id": "venue-bat-1ftmwfc"
-    },
-    {
-      "name": "Saracens Head",
-      "id": "venue-bat-1btwlmw"
     }
   ],
-  "totalAccepted": 3,
+  "totalAccepted": 2,
   "repeats": 0,
   "duplicates": [
     {
@@ -151,6 +151,12 @@
       "matchedId": "way/89868028"
     },
     {
+      "name": "Saracens Head",
+      "id": null,
+      "matchedName": "Saracen's Head Tavern",
+      "matchedId": "way/92228107"
+    },
+    {
       "name": "Pulteney Arms",
       "id": null,
       "matchedName": "The Pulteney Arms",
@@ -163,7 +169,15 @@
       "matchedId": "way/398959637"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Saracens Head",
+      "id": "venue-bat-1btwlmw",
+      "matchedName": "Saracen's Head Tavern",
+      "matchedId": "way/92228107",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://www.cntraveller.com/article/best-pubs-in-bath",

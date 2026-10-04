@@ -1892,44 +1892,6 @@
       "provider": "parallel"
     },
     {
-      "name": "McDwyers",
-      "kind": "pub",
-      "address": "79 Warwick Road, Sparkhill, Birmingham, B11 4RD",
-      "postcode": "B11 4RD",
-      "locality": "Birmingham",
-      "website": null,
-      "lat": 52.456138,
-      "lng": -1.863885,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/mcdwyers-birmingham-121448"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/mcdwyers-birmingham-121448",
-          "excerpt": "McDwyers, Birmingham"
-        },
-        {
-          "url": "https://camra.org.uk/pubs/mcdwyers-birmingham-121448",
-          "excerpt": "79 Warwick Road, Sparkhill, Birmingham, B11 4RD"
-        },
-        {
-          "url": "https://camra.org.uk/pubs/mcdwyers-birmingham-121448",
-          "excerpt": "Corner pub built in the famous red bricks seen throughout Birmingham."
-        }
-      ],
-      "observedAt": "2026-10-04T11:22:32.703Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/B11%204RD",
-        "observedAt": "2026-10-04T11:22:32.745Z",
-        "postcode": "B11 4RD",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fb81bf68cc4103a97",
-      "id": "venue-bhm-1lzn4xw",
-      "provider": "parallel"
-    },
-    {
       "name": "Tyseley Working Mens Club",
       "kind": "bar",
       "address": "573 Warwick Road, Tyseley, Birmingham, B11 2EX",

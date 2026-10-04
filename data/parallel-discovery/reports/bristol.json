@@ -378,7 +378,7 @@
   "webSearches": 110,
   "pagesRead": 402,
   "researched": 31,
-  "added": 1,
+  "added": 0,
   "retained": [
     {
       "name": "Lost & Grounded",
@@ -387,6 +387,10 @@
     {
       "name": "Langton",
       "id": "venue-bri-2ej83h"
+    },
+    {
+      "name": "Beeses Bar & Tea Gardens",
+      "id": "venue-bri-182eti8"
     },
     {
       "name": "The Kings Head",
