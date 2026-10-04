@@ -16,6 +16,20 @@ import {
 } from "@/lib/pubPalToolTurnStore";
 
 const fence = vi.hoisted(() => ({ forceFenced: false }));
+const store = vi.hoisted(() => ({ failAppend: false }));
+
+vi.mock("@/lib/pubPalToolTurnStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pubPalToolTurnStore")>();
+  return {
+    ...actual,
+    appendPubPalToolTurn: async (
+      ...args: Parameters<typeof actual.appendPubPalToolTurn>
+    ) => {
+      if (store.failAppend) throw new Error("pub_pal_tool_turns unavailable");
+      return actual.appendPubPalToolTurn(...args);
+    },
+  };
+});
 
 vi.mock("@/lib/pubPalLlmFence", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pubPalLlmFence")>();
@@ -68,6 +82,8 @@ describe("propose_plan over the Pal webhook", () => {
 
   afterEach(() => {
     fence.forceFenced = false;
+    store.failAppend = false;
+    vi.restoreAllMocks();
     __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
   });
@@ -107,8 +123,6 @@ describe("propose_plan over the Pal webhook", () => {
     }
   });
 
-  // The live chat reply came back with toolsUsed [] although propose_plan
-  // answered 200: the webhook fenced the ask and returned without storing it.
   it("records a fenced propose_plan in the turn the chat reads", async () => {
     const conversationId = "conv_fencedplan01";
     await registerPubPalToolTurn(conversationId, {
@@ -128,5 +142,30 @@ describe("propose_plan over the Pal webhook", () => {
     const turn = await readPubPalToolTurn(conversationId);
     expect(turn?.toolsUsed).toEqual(["propose_plan"]);
     expect(turn?.hints).toEqual([result.answerHint]);
+  });
+
+  it("still returns the get-home register when the store write fails", async () => {
+    const conversationId = "conv_fencedplan02";
+    await registerPubPalToolTurn(conversationId, {
+      query: "Plan me a 3 pub crawl in Shoreditch tonight",
+      cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    fence.forceFenced = true;
+    store.failAppend = true;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { result } = await invokePubPalAskTool({
+      toolName: "propose_plan",
+      args: { query: "Plan me a 3 pub crawl in Shoreditch tonight" },
+      conversationId,
+    });
+
+    expect(result).toMatchObject({ ok: true, fenced: true });
+    expect(typeof result.answerHint).toBe("string");
+    expect(warn).toHaveBeenCalledWith(
+      "pub-pal-tool.fenced-append-failed",
+      expect.objectContaining({ toolName: "propose_plan" }),
+    );
   });
 });

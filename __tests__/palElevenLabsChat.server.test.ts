@@ -6,7 +6,6 @@ const SOURCED_ANSWER = "Two Soho picks with listed pints under five pounds.";
 const wsState = vi.hoisted(() => ({
   lastInitPayload: null as unknown,
   userMessageText: null as string | null,
-  toolResponses: [] as string[],
 }));
 
 class MockElevenLabsWebSocket {
@@ -45,20 +44,6 @@ class MockElevenLabsWebSocket {
     if (payload.type === "user_message") {
       wsState.userMessageText = payload.text ?? null;
       queueMicrotask(() => {
-        for (const toolName of wsState.toolResponses) {
-          this.emit("message", {
-            data: JSON.stringify({
-              type: "agent_tool_response",
-              agent_tool_response: {
-                tool_name: toolName,
-                tool_type: "webhook",
-                is_called: true,
-                is_error: false,
-                status: "success",
-              },
-            }),
-          });
-        }
         this.emit("message", {
           data: JSON.stringify({
             type: "agent_response",
@@ -119,12 +104,11 @@ const storeMocks = vi.hoisted(() => ({
   readOwnedPubPalToolTurn: vi.fn<(conversationId: string, ownerId: string) => Promise<unknown>>(
     async () => null,
   ),
-  readPubPalToolTurn: vi.fn<(conversationId: string) => Promise<unknown>>(async () => null),
 }));
 
 vi.mock("@/lib/pubPalToolTurnStore", () => ({
   registerPubPalToolTurn: storeMocks.registerPubPalToolTurn,
-  readPubPalToolTurn: storeMocks.readPubPalToolTurn,
+  readPubPalToolTurn: vi.fn(async () => toolTurnPayload),
   readOwnedPubPalToolTurn: storeMocks.readOwnedPubPalToolTurn,
 }));
 
@@ -134,9 +118,6 @@ describe("runPalElevenLabsChatTurn", () => {
   beforeEach(() => {
     wsState.lastInitPayload = null;
     wsState.userMessageText = null;
-    wsState.toolResponses = [];
-    storeMocks.readPubPalToolTurn.mockReset();
-    storeMocks.readPubPalToolTurn.mockResolvedValue(toolTurnPayload);
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
     vi.stubGlobal(
@@ -154,7 +135,6 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -292,24 +272,5 @@ describe("runPalElevenLabsChatTurn", () => {
 
     expect(storeMocks.readOwnedPubPalToolTurn).not.toHaveBeenCalled();
     expect(wsState.userMessageText).toBe("quiet pubs");
-  });
-
-  it("reports a tool the agent ran even when its stored result never arrives", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "Date"] });
-    wsState.toolResponses = ["propose_plan"];
-    storeMocks.readPubPalToolTurn.mockResolvedValue({
-      ...toolTurnPayload,
-      cards: [],
-      toolsUsed: [],
-    });
-
-    const pending = runPalElevenLabsChatTurn({
-      query: "Plan me a 3 pub crawl in Shoreditch tonight",
-      ownerId: "11111111-1111-4111-8111-111111111111",
-    });
-    await vi.advanceTimersByTimeAsync(5_000);
-    const outcome = await pending;
-
-    expect(outcome).toMatchObject({ ok: true, toolsUsed: ["propose_plan"] });
   });
 });

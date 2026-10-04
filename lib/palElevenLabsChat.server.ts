@@ -1,7 +1,7 @@
 import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
-import { isAskToolName, type AskCard, type AskProposal } from "@/lib/ask/types";
+import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
@@ -60,7 +60,6 @@ function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
 
 type AgentResponseEvent = {
   type?: string;
-  agent_tool_response?: { tool_name?: string; is_called?: boolean; is_error?: boolean };
   agent_response_event?: { agent_response?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
@@ -149,9 +148,6 @@ export async function runPalElevenLabsChatTurn(
     let settled = false;
     let conversationId = "";
     let userMessageSent = false;
-    // Tools the agent reports it ran. The webhook stores their results, but
-    // toolsUsed must not depend on that write landing before the reply.
-    const calledTools: string[] = [];
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
@@ -183,12 +179,7 @@ export async function runPalElevenLabsChatTurn(
             },
             conversation: {
               text_only: true,
-              client_events: [
-                "agent_response",
-                "agent_tool_response",
-                "conversation_initiation_metadata",
-                "ping",
-              ],
+              client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
             },
           },
         }),
@@ -239,21 +230,6 @@ export async function runPalElevenLabsChatTurn(
         return;
       }
 
-      if (payload.type === "agent_tool_response") {
-        const tool = payload.agent_tool_response;
-        const name = tool?.tool_name?.trim() ?? "";
-        if (
-          userMessageSent &&
-          tool?.is_called !== false &&
-          !tool?.is_error &&
-          isAskToolName(name) &&
-          !calledTools.includes(name)
-        ) {
-          calledTools.push(name);
-        }
-        return;
-      }
-
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
         const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
@@ -275,7 +251,7 @@ export async function runPalElevenLabsChatTurn(
               cards,
               proposals,
               conversationId,
-              toolsUsed: [...new Set([...(turn?.toolsUsed ?? []), ...calledTools])],
+              toolsUsed: turn?.toolsUsed ?? [],
             });
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });
