@@ -1,10 +1,12 @@
 # Grounded pub copy
 
-Gemini wrote a one-sentence description and chose one to three vibe tags for
-all 650 of the 1,916 curated pubs in the stored London price dataset that have
-a fact the summary may state. The other 1,266 pubs get no copy and are listed
-as `insufficient-stored-facts`. No pub failed validation after its retry.
-Country-wide base pubs and non-pub anchors are outside this pack.
+Gemini wrote one or two sentences of free prose and chose one to three vibe
+tags for 587 of the 1,916 curated pubs in the stored London price dataset.
+Another 63 pubs with supported facts failed the claim check twice and are
+listed as `invalid-copy-after-retry`. The other 1,266 pubs have no fact the
+summary may state, so they get no copy and are listed as
+`insufficient-stored-facts`. Country-wide base pubs and non-pub anchors are
+outside this pack.
 
 The model saw a venue ID, its borough and its supported amenities: cocktails,
 alcohol-free options, live music, pub quiz, darts, pool, happy hour and
@@ -12,23 +14,25 @@ karaoke. Food, live sport and beer garden were left to the Overview chips, so
 the summary never repeats them. Names, free text, prices, hours, URLs and
 Google Places content were excluded. No page, Places or search request was made.
 
-Publication checks facts, not wording. Each part of the sentence must be a
-whole phrase of a supported fact, the pub's borough or London directly before
-"pub" or "local", or a connective that states nothing. So "happy" or "live"
-never stands alone, "out of" cannot deny a fact, and "Camden has cocktails" or
-"The City of London pub" fails. The pub must be the subject, at least one fact
-must be named and none twice. The detail reader runs the same check against
+Publication checks claims, not wording. The prose may name only the pub's
+supported features, each once, with a verb that fits: nobody catches a
+cocktail, and "a pub quiz with darts" fails. A closed feature list rejects any
+other feature, including the three Overview chip facts. Denials ("no",
+"without", "out of"), lone "happy" or "live", and mood, quality, age, crowd,
+price or schedule claims fail. No proper noun may appear except the borough
+and London, and neither may lead a sentence: "Camden has cocktails" and "The
+City of London pub" fail. The detail reader runs the same check against
 current pub fields, so a removed supporting amenity suppresses the old copy.
-Every pub was regenerated under these rules.
+Every eligible pub was regenerated at temperature 0.7 under these rules.
+Openings now vary: the most common two-word starts are "You can" (78), "Fancy
+a" (75) and "This place" (73), and 524 of 587 descriptions are distinct.
 
-Cumulative token-metered spend is USD 0.1007636 over 548 requests. That
-includes USD 0.0806508 over 462 requests from earlier rounds: the original
-sentence-picking run, prompt-tuning samples, and runs stopped by quota and
-authentication responses then resumed from the checkpoint. The final
-regeneration of all 650 eligible pubs projected USD 4.8374817 before calling
-and met no quota response, so it stayed on the global endpoint. This is
-API-usage accounting, not an invoice. No quota override was changed. The task
-cap was USD 15.
+Cumulative token-metered spend is USD 0.138007 over 920 requests. That
+includes USD 0.1007636 over 548 requests from earlier rounds, and three 30-pub
+samples used to tune the prompt and claim check in this one. The final
+regeneration projected USD 4.7380852 before calling and met no quota
+response, so it stayed on the global endpoint. This is API-usage accounting,
+not an invoice. No quota override was changed. The task cap was USD 15.
 
 ## Before and after
 
@@ -38,9 +42,9 @@ food and a beer garden alone, both already shown as chips, so it now
 [returns no copy](api-after-skipped.json). The Yorkshire Grey has cocktails,
 live music and happy hour on record, and now returns and shows:
 
-> This Camden pub has cocktails and a happy hour, plus live music.
+> Happy hour runs here, and they also serve cocktails and have live music.
 
-Its tags are Cocktails, Happy hour and Live music.
+Its tags are Happy hour, Cocktails and Live music.
 
 | Proof | Before (George) | After (The Yorkshire Grey) |
 | --- | --- | --- |
@@ -55,9 +59,10 @@ no Google photo was stored as evidence.
 
 ## Checks
 
-`npm run generate:pub-copy -- --check` validated all 650 entries and the
-documented reason for all 1,266 skips. Focused tests exercise the CLI,
-grounding, each review probe as a rejection, durable spend reservations and
+`npm run generate:pub-copy -- --check` validated all 587 entries and the
+documented reason for all 1,329 skips. Focused tests exercise the CLI,
+grounding, each review probe as a rejection (unsupported features, negations,
+mood claims, borough subjects and misfit verbs), durable spend reservations and
 their release on the next run, unbilled non-JSON error pages, per-pub
 retention and retry, skip coverage, exponential quota backoff and the move to
 `europe-west2`, the server reader and the rendered summary. They

@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { FLASH_LITE_SKU, spendFromTokenCounts } from "../lib/harvest/pubWebsiteAmenities.ts";
-import { COPY_CONNECTIVE_WORDS, copyFactsForVenue, copyPhrasesForTag, validateVenueRecordCopy } from "../lib/venueRecordCopy.ts";
+import { copyFactsForVenue, validateVenueRecordCopy } from "../lib/venueRecordCopy.ts";
 import { VENUE_RECORD_COPY_TRACING_INCLUDE } from "../lib/venueRecordCopyFile.mjs";
 import { groupVenuePrices } from "../lib/venues.ts";
 
@@ -23,15 +23,15 @@ const FALLBACK_LOCATION = "europe-west2";
 const PROMPT = [
   "Write one short description and choose vibe tags for each London pub using ONLY its supplied stored facts.",
   "Return JSON {rows:[{venueId:string,description:string,vibeTags:string[]}]}, one row per supplied venue.",
-  "description: ONE plain sentence of 20 to 140 characters, starting with a capital letter and ending with a full stop.",
-  "The pub, or the local, is always the subject: the facts belong to it, never to the borough or London.",
-  "You may name the supplied borough or London only as a word directly before pub or local, spelt and capitalised exactly, as in \"this Camden pub\".",
-  "Name the supplied facts, each once, using one of the exact phrases listed for each fact. Add nothing else: no filler, no repetition.",
-  "Write like a Londoner telling a mate: dry, direct and grammatical, never salesy. Vary the sentence shape between venues.",
-  `Besides the borough, London and the fact phrases, use no word except these: ${COPY_CONNECTIVE_WORDS.join(", ")}.`,
-  "Use no digits, apostrophes or punctuation other than commas, hyphens and the final full stop.",
-  "vibeTags: one to three of the venue's fact tags, copied exactly, most distinctive first.",
-  "Never mention the pub name, food, beer gardens, sport, prices, hours, history, mood or clientele.",
+  "description: natural prose in your own words, one or two sentences, 20 to 180 characters, ending with a full stop.",
+  "Write like a Londoner telling a mate: dry, direct and grammatical, never salesy.",
+  "Vary the opening from venue to venue: lead with a fact, a question or \"you\", and do not start every description with \"This\".",
+  "The pub is what the sentence is about. Never open with the borough or London. Naming the borough is optional; use it in at most half the descriptions, and only after the pub, never as the subject.",
+  "Mention only the venue's supplied facts, each at most once, with a verb that fits. The pub has, does, serves, pours, hosts or runs things; people catch live music, play darts or pool, sing karaoke and get cocktails. The pub itself never catches, plays, sings or gets anything.",
+  "Never mention any other feature: no food, beer gardens, sport, screens, drinks brands, music genres, games, rooms or events.",
+  "Never deny a feature, and make no claim about mood, quality, age, history, crowd, prices, deals or when anything happens.",
+  "Name no person, brand, street or place except the supplied borough and London. No digits or exclamation marks.",
+  "vibeTags: one to three of the venue's facts, copied exactly, most distinctive first.",
   "No external knowledge, Google Places, tools or web searches.",
   "VENUES:",
 ].join("\n");
@@ -74,7 +74,7 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 const cost = (inputTokens, outputTokens) => spendFromTokenCounts({ inputTokens, outputTokens,
   inputUsdPerMillion: FLASH_LITE_SKU.inputUsdPerMillion, outputUsdPerMillion: FLASH_LITE_SKU.outputUsdPerMillion });
 const textFor = (batch) => `${PROMPT}\n${JSON.stringify(batch.map(({ venueId, borough, supportedTags }) =>
-  ({ venueId, borough, facts: supportedTags.map((tag) => ({ tag, phrases: copyPhrasesForTag(tag) })) })))}`;
+  ({ venueId, borough, facts: supportedTags })))}`;
 // One UTF-8 byte per input token is deliberately conservative, with framing room.
 const reserveFor = (batch) => cost(Buffer.byteLength(textFor(batch), "utf8") + 4096, OUTPUT_TOKENS);
 
@@ -217,7 +217,7 @@ async function main() {
           headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: textFor(batch) }] }],
-            generationConfig: { temperature: 0, maxOutputTokens: OUTPUT_TOKENS,
+            generationConfig: { temperature: 0.7, maxOutputTokens: OUTPUT_TOKENS,
               thinkingConfig: { thinkingBudget: 0 }, responseMimeType: "application/json",
               responseSchema: { type: "OBJECT", required: ["rows"], properties: {
                 rows: { type: "ARRAY", minItems: batch.length, maxItems: batch.length, items: { type: "OBJECT", required: ["venueId", "description", "vibeTags"], properties: {

@@ -19,52 +19,75 @@ describe("venue record copy", () => {
     });
   });
 
-  it("accepts free-form wording that states only supported facts", () => {
+  it("accepts natural prose that claims only supported facts", () => {
     expect(validateVenueRecordCopy(copyFactsForVenue(venue), copy(
-      "Live music and a pub quiz at this Hackney local.", ["Pub quiz", "Live music"],
+      "Fancy a pub quiz? This Hackney local runs one, and you can catch live music too.", ["Pub quiz", "Live music"],
     ))).toEqual({
-      description: "Live music and a pub quiz at this Hackney local.",
+      description: "Fancy a pub quiz? This Hackney local runs one, and you can catch live music too.",
       vibeTags: ["Pub quiz", "Live music"],
     });
-  });
-
-  it("rejects invented atmosphere, chip facts, unrecorded amenities, other boroughs and malformed copy", () => {
-    const facts = copyFactsForVenue(venue);
-    for (const entry of [
-      copy("A cosy Hackney pub with live music."),
-      copy("A Hackney pub with live music and food."),
-      copy("A Hackney pub with live music and a beer garden."),
-      copy("A Hackney pub with live music and live sport."),
-      copy("A Hackney pub with live music and karaoke."),
-      copy("A Camden pub with live music."),
-      copy("A Hackney pub with live music.", ["Karaoke"]),
-      copy("A Hackney pub with live music.", ["Live music", "Live music"]),
-      copy("A Hackney pub with live music.", []),
-      copy("A Hackney pub with live music on 3 nights."),
-      copy("a Hackney pub with live music"),
-      copy("A hackney pub with live music."),
-      copy("A Hackney pub with Live music."),
-      copy("A Hackney pub with live music. It runs a pub quiz."),
-      copy("A Hackney pub with live music, and catch live music."),
-      copy("A pub in Hackney, London."),
-      copy("Hackney has live music and a pub quiz."),
-      { ...copy("A Hackney pub with live music."), venueId: "venue-other" },
-    ]) expect(validateVenueRecordCopy(facts, entry), entry.description).toBeNull();
-  });
-
-  it("accepts whole fact phrases with a place name directly before the pub", () => {
     const facts = (borough: string, supportedTags: string[]) => ({ venueId: venue.id, borough, supportedTags });
     for (const [borough, tags, description] of [
-      ["Camden", ["Cocktails", "Live music", "Happy hour"], "This Camden local has cocktails, live music and a happy hour."],
-      ["City of London", ["Cocktails"], "This City of London pub has cocktails."],
-      ["Tower Hamlets", ["Live music", "Pool"], "You can catch live music and play pool at this Tower Hamlets pub."],
-      ["Hounslow", ["Pool"], "This Hounslow pub has a pool table."],
+      ["Camden", ["Cocktails", "Live music", "Happy hour"], "Shaken cocktails, a happy hour and live bands keep this Camden local ticking over."],
+      ["City of London", ["Cocktails"], "This City of London pub knows its way round a cocktail."],
+      ["Tower Hamlets", ["Live music", "Pool"], "Rack up a frame of pool or catch a live set at this Tower Hamlets boozer."],
+      ["Hounslow", ["Darts", "Karaoke"], "Throw darts, then sing karaoke at this Hounslow pub. It's that sort of local."],
+      ["Lewisham", ["Alcohol-free options"], "This Lewisham pub pours alcohol-free beers for anyone sitting this round out."],
+      ["Tower Hamlets", ["Live music", "Pool"], "You can catch live music and play pool here."],
+      ["Westminster", ["Cocktails"], "Fancy a cocktail? This Westminster spot serves them up."],
+      ["Waltham Forest", ["Cocktails", "Karaoke"], "This place in Waltham Forest has cocktails and karaoke."],
+      ["Sutton", ["Pool", "Pub quiz"], "You can play pool here or join the pub quiz."],
+      ["Ealing", ["Cocktails", "Pub quiz"], "You can get cocktails and take part in a pub quiz at this Ealing local."],
     ] as const) {
       expect(validateVenueRecordCopy(facts(borough, [...tags]), copy(description, [tags[0]])), description).not.toBeNull();
     }
   });
 
-  it("rejects fact fragments as mood, absence connectives, borough subjects and awkward copy", () => {
+  it("rejects unsupported features, chip facts, other places and malformed copy", () => {
+    const facts = copyFactsForVenue(venue);
+    for (const entry of [
+      copy("A Hackney pub with live music and food."),
+      copy("A Hackney pub with live music and a beer garden."),
+      copy("A Hackney pub with live music and live sport on the big screens."),
+      copy("A Hackney pub with live music and karaoke."),
+      copy("A Hackney pub with live music and free wifi."),
+      copy("A Hackney pub with live jazz and a pub quiz."),
+      copy("A Hackney pub with live music and real ales."),
+      copy("A Camden pub with live music."),
+      copy("This Hackney pub, on Mare Street, has live music."),
+      copy("A Hackney pub with live music.", ["Karaoke"]),
+      copy("A Hackney pub with live music.", ["Live music", "Live music"]),
+      copy("A Hackney pub with live music.", []),
+      copy("A Hackney pub with live music on 3 nights."),
+      copy("A Hackney pub with live music!"),
+      copy("a Hackney pub with live music"),
+      copy("A Hackney pub with live music, and catch live music."),
+      copy("A pub in Hackney, London."),
+      copy("Live music and a pub quiz, all in Hackney."),
+      { ...copy("A Hackney pub with live music."), venueId: "venue-other" },
+    ]) expect(validateVenueRecordCopy(facts, entry), entry.description).toBeNull();
+  });
+
+  it("rejects negated features and unverifiable mood, quality, crowd, price and schedule claims", () => {
+    const facts = copyFactsForVenue(venue);
+    for (const description of [
+      "This Hackney pub has live music but no pub quiz.",
+      "There's live music here, though this Hackney pub doesn't run a pub quiz.",
+      "This Hackney pub has live music without the fuss of a pub quiz.",
+      "A cosy Hackney pub with live music.",
+      "A lively Hackney local with live music.",
+      "A historic Hackney pub with a pub quiz.",
+      "A friendly Hackney local where you catch live music.",
+      "The best pub quiz in Hackney is at this local.",
+      "A Hackney local favourite with live music.",
+      "Regulars pack this Hackney pub for live music.",
+      "Cheap pints and live music at this Hackney pub.",
+      "This Hackney pub runs a pub quiz every Tuesday.",
+      "Live music tonight at this Hackney pub.",
+    ]) expect(validateVenueRecordCopy(facts, copy(description)), description).toBeNull();
+  });
+
+  it("rejects review probes: fact fragments, borough subjects, absence and awkward verb pairings", () => {
     const camden = { venueId: venue.id, borough: "Camden", supportedTags: ["Cocktails", "Live music", "Happy hour", "Karaoke"] };
     for (const description of [
       "A happy Camden local with karaoke.",
@@ -80,6 +103,19 @@ describe("venue record copy", () => {
       ["City of London", ["Cocktails"], "The City of London pub has cocktails."],
       ["Merton", ["Cocktails", "Pub quiz"], "You can get cocktails and play pub quiz at this Merton local."],
       ["Hounslow", ["Pool"], "This Hounslow pub has a pool table for you to play."],
+      ["Westminster", ["Live music", "Cocktails"], "This Westminster pub is where you can catch live music and cocktails."],
+      ["Greenwich", ["Live music", "Cocktails", "Pub quiz"], "This Greenwich pub hosts live music, cocktails and a pub quiz."],
+      ["Hammersmith and Fulham", ["Darts", "Pub quiz", "Happy hour"], "This Hammersmith and Fulham pub hosts darts, a quiz, and happy hour."],
+      ["Waltham Forest", ["Cocktails", "Pub quiz", "Darts"], "This Waltham Forest pub has cocktails and a pub quiz with darts."],
+      ["Lambeth", ["Pub quiz"], "At this Lambeth pub you can get a pub quiz."],
+      ["Lambeth", ["Pub quiz", "Karaoke"], "This Lambeth local is where you can get a pub quiz and karaoke."],
+      ["Lambeth", ["Pub quiz", "Karaoke"], "You can get a pub quiz and karaoke at this Lambeth pub."],
+      ["Hackney", ["Cocktails", "Live music"], "This Hackney pub catches live music and serves cocktails."],
+      ["Islington", ["Darts"], "This Islington local plays darts."],
+      ["Ealing", ["Cocktails", "Pub quiz"], "This Ealing pub gets cocktails and hosts a pub quiz."],
+      ["Waltham Forest", ["Cocktails", "Karaoke"], "What a pub. In Waltham Forest it has cocktails and karaoke."],
+      ["Kensington and Chelsea", ["Cocktails", "Live music"], "Head to Kensington and Chelsea for cocktails and live music at this pub."],
+      ["Lambeth", ["Cocktails"], "Fancy some cocktails? This Lambeth place does Cocktails."],
     ] as const) {
       expect(validateVenueRecordCopy({ venueId: venue.id, borough, supportedTags: [...tags] }, copy(description, [tags[0]])), description).toBeNull();
     }
