@@ -43,8 +43,11 @@ async function seedSignedInSession(page: Page): Promise<void> {
   });
 }
 
-async function installPushRuntime(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+async function installPushRuntime(
+  page: Page,
+  initiallySubscribed = false,
+): Promise<void> {
+  await page.addInitScript(({ initiallySubscribed: isSubscribed }) => {
     const originalMatchMedia = window.matchMedia.bind(window);
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
@@ -72,6 +75,11 @@ async function installPushRuntime(page: Page): Promise<void> {
     Object.defineProperty(window, "Notification", { configurable: true, value: FakeNotification });
     Object.defineProperty(window, "PushManager", { configurable: true, value: class {} });
 
+    const state = { active: isSubscribed, unsubscribeCalls: 0 };
+    Object.defineProperty(window, "__stepOutPushE2EState", {
+      configurable: true,
+      value: state,
+    });
     const subscription = {
       toJSON: () => ({
         endpoint: "https://updates.push.services.mozilla.com/wpush/v2/step-out-e2e",
@@ -81,13 +89,23 @@ async function installPushRuntime(page: Page): Promise<void> {
           auth: "e2eAuthKey_material_xx",
         },
       }),
-      unsubscribe: async () => true,
+      unsubscribe: async () => {
+        state.active = false;
+        state.unsubscribeCalls += 1;
+        activeSubscription = null;
+        return true;
+      },
     };
+    let activeSubscription = isSubscribed ? subscription : null;
     const registration = {
       addEventListener() {},
       pushManager: {
-        getSubscription: async () => null,
-        subscribe: async () => subscription,
+        getSubscription: async () => activeSubscription,
+        subscribe: async () => {
+          activeSubscription = subscription;
+          state.active = true;
+          return subscription;
+        },
       },
     };
     Object.defineProperty(navigator, "serviceWorker", {
@@ -97,11 +115,27 @@ async function installPushRuntime(page: Page): Promise<void> {
         register: async () => registration,
       },
     });
-  });
+  }, { initiallySubscribed });
 }
 
-async function installStepOutRoutes(page: Page): Promise<{ enabled: boolean }> {
-  const state = { enabled: false };
+type StepOutRouteState = {
+  enabled: boolean;
+  cheapPintEnabled: boolean;
+  pushTokenMethods: string[];
+  omitRetentionField: boolean;
+};
+
+async function installStepOutRoutes(
+  page: Page,
+  initialState: Partial<StepOutRouteState> = {},
+): Promise<StepOutRouteState> {
+  const state: StepOutRouteState = {
+    enabled: false,
+    cheapPintEnabled: false,
+    pushTokenMethods: [],
+    omitRetentionField: false,
+    ...initialState,
+  };
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -130,11 +164,32 @@ async function installStepOutRoutes(page: Page): Promise<{ enabled: boolean }> {
     });
   });
   await page.route("**/api/push-tokens", async (route) => {
+    state.pushTokenMethods.push(route.request().method());
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ ok: true }),
     });
+  });
+  await page.route("**/api/cheap-pint-ping", async (route) => {
+    const method = route.request().method();
+    if (method === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          qualified: state.cheapPintEnabled,
+          enabled: state.cheapPintEnabled,
+          declined: false,
+          sentAt: null,
+          canPrompt: false,
+          canSend: state.cheapPintEnabled,
+          sendWindow: false,
+        }),
+      });
+      return;
+    }
+    await route.fallback();
   });
   await page.route("**/api/step-out-nudge", async (route) => {
     const method = route.request().method();
@@ -178,6 +233,7 @@ async function installStepOutRoutes(page: Page): Promise<{ enabled: boolean }> {
           lastSentAt: null,
           canSend: false,
           maxPerWeek: 1,
+          ...(state.omitRetentionField ? {} : { subscriptionRetained: state.cheapPintEnabled }),
         }),
       });
       return;
@@ -230,11 +286,74 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     await panel.getByRole("button", { name: "Turn Step Out off" }).click();
     await expect(panel.getByText(/Step Out off/i)).toBeVisible({ timeout: 10_000 });
     expect(state.enabled).toBe(false);
+    expect(state.pushTokenMethods).toEqual(["POST", "DELETE"]);
+    await expect.poll(() => page.evaluate(() => (
+      window as unknown as {
+        __stepOutPushE2EState: { active: boolean; unsubscribeCalls: number };
+      }
+    ).__stepOutPushE2EState)).toEqual({ active: false, unsubscribeCalls: 1 });
 
     await page.screenshot({
       path: path.join(SHOTS, "step-out-nudge-withdrawn-390.png"),
       fullPage: true,
     });
+  });
+
+  test("keeps browser push active when cheap-pint alerts remain enabled", async ({
+    page,
+  }) => {
+    await seedSignedInSession(page);
+    await installPushRuntime(page, true);
+    const state = await installStepOutRoutes(page, {
+      enabled: true,
+      cheapPintEnabled: true,
+    });
+
+    await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
+    const panel = page.getByTestId("step-out-nudge-pref");
+    await expect(panel.getByRole("button", { name: "Turn Step Out off" })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    await panel.getByRole("button", { name: "Turn Step Out off" }).click();
+    await expect(panel.getByText(/Step Out off/i)).toBeVisible({ timeout: 10_000 });
+    expect(state.enabled).toBe(false);
+    expect(state.cheapPintEnabled).toBe(true);
+    await expect.poll(() => page.evaluate(() => (
+      window as unknown as {
+        __stepOutPushE2EState: { active: boolean; unsubscribeCalls: number };
+      }
+    ).__stepOutPushE2EState)).toEqual({ active: true, unsubscribeCalls: 0 });
+    expect(state.pushTokenMethods).toEqual([]);
+  });
+
+  test("keeps browser push active when an older server omits retention status", async ({
+    page,
+  }) => {
+    await seedSignedInSession(page);
+    await installPushRuntime(page, true);
+    const state = await installStepOutRoutes(page, {
+      enabled: true,
+      cheapPintEnabled: true,
+      omitRetentionField: true,
+    });
+
+    await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
+    const panel = page.getByTestId("step-out-nudge-pref");
+    await expect(panel.getByRole("button", { name: "Turn Step Out off" })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    await panel.getByRole("button", { name: "Turn Step Out off" }).click();
+    await expect(panel.getByText(/Step Out off/i)).toBeVisible({ timeout: 10_000 });
+    expect(state.enabled).toBe(false);
+    expect(state.cheapPintEnabled).toBe(true);
+    await expect.poll(() => page.evaluate(() => (
+      window as unknown as {
+        __stepOutPushE2EState: { active: boolean; unsubscribeCalls: number };
+      }
+    ).__stepOutPushE2EState)).toEqual({ active: true, unsubscribeCalls: 0 });
+    expect(state.pushTokenMethods).toEqual([]);
   });
 
   test("documents Home Screen install when not standalone", async ({ page }) => {
