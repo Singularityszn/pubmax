@@ -219,17 +219,22 @@ export function sameVenue(a, b) {
   return distance <= (centroid ? 350 : 150);
 }
 
-// The venues a map already shows, and so the only ones a discovery can
-// duplicate: every national OSM pub, the drink pack's bars (as the UK base
-// layer ships them), every city map's OSM pubs and the London dataset. Food,
-// work and other drink rows ship on no map and cannot withdraw a discovery.
-export function shippedVenues({ ukPubs, ukDrink, cityPubs, london }) {
-  return [
+// Two bases from the national packs, the city maps' OSM pubs and London.
+// `known` is every recorded venue, for slicing cities into districts and
+// telling research what exists. `shipped` is what a map shows, the only venues
+// a discovery can duplicate: every national OSM pub, the drink pack's bars (as
+// the UK base layer ships them), every city map's OSM pubs and the London
+// dataset. Food, work and other drink rows ship on no map.
+export function venueBases({ ukPubs, ukDrink, ukFood, ukWork, cityPubs, london }) {
+  const located = (row) => row.name && Number.isFinite(row.lat) && Number.isFinite(row.lng);
+  const shipped = [
     ...ukPubs,
     ...ukDrink.filter((row) => row.kind === "bar"),
     ...cityPubs,
     ...london.map((row) => ({ name: row.pub_name, lat: row.latitude, lng: row.longitude, address: row.address })),
-  ].filter((row) => row.name && Number.isFinite(row.lat) && Number.isFinite(row.lng));
+  ].filter(located);
+  const unshown = [...ukDrink.filter((row) => row.kind !== "bar"), ...ukFood, ...ukWork].filter(located);
+  return { known: [...shipped, ...unshown], shipped };
 }
 
 export function dedupeVenues(candidates, existing) {

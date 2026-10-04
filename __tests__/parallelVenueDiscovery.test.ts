@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shippedVenues, parseTaskVenues, dedupeVenues, allowedEvidenceUrl, validateDiscoveryPack, mergeCityVenueSources, assembleCityDiscoveries, postcodeDistricts, unseenNames } from "../scripts/lib/parallelVenueDiscovery.mjs";
+import { venueBases, parseTaskVenues, dedupeVenues, allowedEvidenceUrl, validateDiscoveryPack, mergeCityVenueSources, assembleCityDiscoveries, postcodeDistricts, unseenNames } from "../scripts/lib/parallelVenueDiscovery.mjs";
 import { parseArgs, taskRequest } from "../scripts/discover_parallel_venues.mjs";
 import { buildCitySlim } from "../scripts/build_city_slim_index.mjs";
 
@@ -75,24 +75,29 @@ describe("Parallel venue discovery", () => {
     const osm = { name: osmName, address: osmAddress, lat: osmLat, lng: osmLng, osmId: "node/1" };
     expect(dedupeVenues([discovery], [osm])).toMatchObject({ accepted: [], duplicates: [{ name, matchedName: osmName, matchedId: "node/1" }] });
   });
-  it("lets only venues a map ships withdraw a discovery: the real Velopark Cafe pair", () => {
+  it("keeps unshown food, work and drink rows in research context but never lets them withdraw a discovery: the real Velopark Cafe pair", () => {
     const velopark = { name: "Velopark Cafe", address: "National Cycling Centre, Stuart Street, Clayton M11 4DQ", lat: 53.486398, lng: -2.196838, coordinatePrecision: "postcode-centroid" };
-    const osmRow = { osmId: "node/5940361450", name: "Velopark Cafe", address: "Stuart Street, Manchester, M11 4BZ", lat: 53.4851234, lng: -2.1907685 };
-    const packs = { ukPubs: [], cityPubs: [], london: [] };
-    const unshown = shippedVenues({ ...packs, ukDrink: [{ ...osmRow, kind: "restaurant" }, { ...osmRow, kind: "other" }, { ...osmRow, kind: "hotel_lounge" }] });
-    expect(unshown).toEqual([]);
-    expect(dedupeVenues([velopark], unshown).accepted).toEqual([velopark]);
-    const asBar = shippedVenues({ ...packs, ukDrink: [{ ...osmRow, kind: "bar" }] });
-    expect(dedupeVenues([velopark], asBar)).toMatchObject({ accepted: [], duplicates: [{ name: "Velopark Cafe", matchedId: "node/5940361450" }] });
-    const asPub = shippedVenues({ ...packs, ukDrink: [], ukPubs: [osmRow] });
-    expect(dedupeVenues([velopark], asPub).accepted).toEqual([]);
-    const asCityPub = shippedVenues({ ...packs, ukDrink: [], cityPubs: [osmRow] });
-    expect(dedupeVenues([velopark], asCityPub).accepted).toEqual([]);
+    const foodRow = { osmId: "node/5940361450", name: "Velopark Cafe", amenity: "cafe", kind: "cafe", address: "Stuart Street, Manchester, M11 4BZ", lat: 53.4851234, lng: -2.1907685 };
+    const workRow = { osmId: "node/77", name: "Velopark Cafe", amenity: "coworking_space", kind: "coworking", address: "Stuart Street, Manchester, M11 4BZ", lat: 53.4851234, lng: -2.1907685 };
+    const empty = { ukPubs: [], ukDrink: [], ukFood: [], ukWork: [], cityPubs: [], london: [] };
+    for (const packs of [{ ...empty, ukFood: [foodRow] }, { ...empty, ukWork: [workRow] }, { ...empty, ukDrink: [{ ...foodRow, kind: "restaurant" }, { ...foodRow, kind: "other" }, { ...foodRow, kind: "hotel_lounge" }] }]) {
+      const { known, shipped } = venueBases(packs);
+      expect(known.length).toBeGreaterThan(0);
+      expect(shipped).toEqual([]);
+      expect(dedupeVenues([velopark], shipped).accepted).toEqual([velopark]);
+      expect(dedupeVenues([velopark], known).accepted).toEqual([]);
+    }
   });
 
-  it("dedupes against London's dataset rows as shipped venues", () => {
-    const shipped = shippedVenues({ ukPubs: [], ukDrink: [], cityPubs: [], london: [{ pub_name: "The Copper Rooms", latitude: 52.48, longitude: -1.90, address: "12 Test Street, B1 1AA" }] });
-    expect(dedupeVenues([{ name: "Copper Rooms", address: "12 Test Street, Birmingham B1 1AA", lat: 52.4805, lng: -1.90, coordinatePrecision: "postcode-centroid" }], shipped).accepted).toEqual([]);
+  it("lets every venue a map ships withdraw a discovery: national pubs, drink-pack bars, city pubs and London", () => {
+    const velopark = { name: "Velopark Cafe", address: "National Cycling Centre, Stuart Street, Clayton M11 4DQ", lat: 53.486398, lng: -2.196838, coordinatePrecision: "postcode-centroid" };
+    const osmRow = { osmId: "node/5940361450", name: "Velopark Cafe", address: "Stuart Street, Manchester, M11 4BZ", lat: 53.4851234, lng: -2.1907685 };
+    const empty = { ukPubs: [], ukDrink: [], ukFood: [], ukWork: [], cityPubs: [], london: [] };
+    for (const packs of [{ ...empty, ukPubs: [osmRow] }, { ...empty, ukDrink: [{ ...osmRow, kind: "bar" }] }, { ...empty, cityPubs: [osmRow] }]) {
+      expect(dedupeVenues([velopark], venueBases(packs).shipped)).toMatchObject({ accepted: [], duplicates: [{ name: "Velopark Cafe", matchedId: "node/5940361450" }] });
+    }
+    const london = venueBases({ ...empty, london: [{ pub_name: "The Copper Rooms", latitude: 52.48, longitude: -1.90, address: "12 Test Street, B1 1AA" }] }).shipped;
+    expect(dedupeVenues([{ name: "Copper Rooms", address: "12 Test Street, Birmingham B1 1AA", lat: 52.4805, lng: -1.90, coordinatePrecision: "postcode-centroid" }], london).accepted).toEqual([]);
   });
 
   it("keeps same-name branches with different house numbers on one street apart within a centroid's spread", () => {

@@ -7,7 +7,7 @@ import { HARVEST_SOURCES, harvestRedirectLanding, isRefusedOnPermission } from "
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { DISCOVERY_CITIES, POPULATION_SOURCES } from "./lib/parallelDiscoveryCities.mjs";
-import { allowedEvidenceUrl, assembleCityDiscoveries, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, shippedVenues, unseenNames, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
+import { allowedEvidenceUrl, assembleCityDiscoveries, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, unseenNames, venueBases, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
 import { createRobotsGate, webSlice } from "./lib/webSlice.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -138,9 +138,6 @@ async function providerRequest(provider, endpoint, { city, body, cost = () => 0,
 
 const parallelRequest = (endpoint, options) => providerRequest("parallel", endpoint, options);
 
-// Every venue OSM and London already record, for slicing cities into
-// districts and telling research what is known; and the subset a map ships,
-// the only venues a discovery can duplicate.
 async function baseVenues() {
   const pack = async (file) => {
     const read = await readJson(path.join(ROOT, "data/osm/uk", file));
@@ -151,9 +148,7 @@ async function baseVenues() {
   const cityPubs = [];
   for (const city of DISCOVERY_CITIES) cityPubs.push(...((await readJson(path.join(ROOT, "data/cities", city.id, "osm_pubs.json")))?.pubs ?? []));
   const london = await readJson(path.join(ROOT, "public/data/pint_prices_app_dataset.json"));
-  const shipped = shippedVenues({ ukPubs, ukDrink, cityPubs, london });
-  const known = [...shipped, ...[...ukDrink.filter((row) => row.kind !== "bar"), ...ukFood, ...ukWork].filter((row) => row.name && Number.isFinite(row.lat) && Number.isFinite(row.lng))];
-  return { known, shipped };
+  return venueBases({ ukPubs, ukDrink, ukFood, ukWork, cityPubs, london });
 }
 
 const discoveryPath = (city) => path.join(ROOT, "data/cities", city.id, "parallel_venues.json");
