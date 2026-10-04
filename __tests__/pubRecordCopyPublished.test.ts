@@ -18,8 +18,10 @@ describe("published Gemini pub copy", () => {
     expect(pack.model).toBe("gemini-2.5-flash-lite");
     expect(pack.sourceDatasetSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(pack.runCapUsd).toBe(15);
-    expect(pack.runSpendUsd).toBeGreaterThan(0);
+    expect(Number.isFinite(pack.runSpendUsd)).toBe(true);
+    expect(pack.runSpendUsd).toBeGreaterThanOrEqual(0);
     expect(pack.runSpendUsd).toBeLessThanOrEqual(pack.runCapUsd);
+    expect(pack.actualSpendUsd).toBeGreaterThan(0);
     expect(pack.actualSpendUsd).toBeGreaterThanOrEqual(pack.runSpendUsd);
     expect(Object.keys(pack.venues).length).toBeGreaterThan(0);
     for (const [venueId, entry] of Object.entries<Record<string, unknown>>(pack.venues)) {

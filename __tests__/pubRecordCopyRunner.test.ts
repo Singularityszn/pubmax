@@ -110,14 +110,18 @@ describe("pub copy generation CLI", () => {
     expect(JSON.parse(resumed.stdout).runSpendUsd).toBe(14.9999);
   });
 
-  it("resumes the published pack's valid entries and skips without a checkpoint", () => {
+  it("resumes the published pack's valid entries and skips without a checkpoint, publishing zero run spend", () => {
     const { run, dir } = fixture("ok", 2);
     expect(run("--generate").status).toBe(0);
+    const lifetime = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8")).actualSpendUsd;
     rmSync(path.join(dir, "checkpoint.json"));
     const resumed = run("--generate");
     expect(resumed.status, resumed.stderr).toBe(0);
     expect(JSON.parse(resumed.stdout.split("\n")[0]).pending).toBe(0);
-    expect(JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8")).requests).toBe(2);
+    const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
+    expect(pack).toMatchObject({ requests: 2, runSpendUsd: 0, runCapUsd: 15, actualSpendUsd: lifetime });
+    expect(Object.keys(pack.venues)).toHaveLength(2);
+    expect(run("--check").status).toBe(0);
   });
 
   it("publishes grounded copy, accounts for usage, and resumes without spending again", () => {
