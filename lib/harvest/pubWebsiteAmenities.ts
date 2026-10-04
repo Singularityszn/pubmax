@@ -136,7 +136,9 @@ const KARAOKE = /\bkar(?:aoke|oake)\b/i;
 /** Bare games or versus fixtures do not identify sport; require explicit sporting words. */
 const SPORT_SHOWN =
   /\b(?:f1|formula\s*1)\b|\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
-const FINITE_VIEWING_VERB = "show(?:s|cas(?:e|es))?|watch(?:es)?|screens?|broadcasts|catch(?:es)?";
+const DUAL_USE_VIEWING_VERB = "shows?|screens?|broadcasts";
+const VIEWING_VERB = "showcas(?:e|es)|watch(?:es)?|catch(?:es)?";
+const FINITE_VIEWING_VERB = `${DUAL_USE_VIEWING_VERB}|${VIEWING_VERB}`;
 const VIEWING_PARTICIPLE = "show(?:n|ing|casing)|watching|screen(?:ed|ing)|televised|broadcast(?:ing)?|catching|playing";
 const SPORT_VIEWING = new RegExp(
   `\\b(?:${FINITE_VIEWING_VERB}|${VIEWING_PARTICIPLE}|screenings?|tvs?|viewings?|projectors?)\\b|` +
@@ -152,10 +154,11 @@ const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
 const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
 const SPORT_ADJUNCT =
   "(?:here|there|(?:(?:every|each|on|at|this|next)\\s+)?(?:(?:mon|tues|wednes|thurs|fri|satur|sun)days?|days?|nights?|weekends?|weeks?|mornings?|afternoons?|evenings?))\\b";
-/** Shows, screens and broadcasts followed only by a location or time can be denied nouns, not independent verbs. */
+/** Shows, screens and broadcasts are verbs only before an object; otherwise they can be denied nouns. */
 const SPORT_REMAINDER_PREDICATE = new RegExp(
-  `^\\s*${SPORT_OBJECT}((?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*)\\s+(?!(?:shows?|screens?|broadcasts)\\s+(?:on|in|at|from|across|throughout|during)\\b)(?:(?:is|are|isn'?t|aren'?t)\\b|(will)\\b|` +
-  `(?:(has|have)|${FINITE_VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:((?:on|in|at|from|for|with|of)\\b)|\\w))`,
+  `^\\s*${SPORT_OBJECT}((?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*)\\s+(?:(?:is|are|isn'?t|aren'?t)\\b|(will)\\b|` +
+  `(?:${DUAL_USE_VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:(?:every|each|all\\s+the|the|our|live)\\b|${SPORT_OBJECT}|\\b(?:match(?:es)?|games?)\\b)|` +
+  `(?:(has|have)|${VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:((?:on|in|at|from|for|with|of)\\b)|\\w))`,
   "i",
 );
 const DENIED_SPORT_LIST = new RegExp(`\\b(?:no|without)\\s+${SPORT_OBJECTS}\\s*$`, "i");
