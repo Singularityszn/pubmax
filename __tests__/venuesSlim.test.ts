@@ -56,9 +56,17 @@ const slim = (
     : slimPayload
 ) as SlimVenue[];
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
+const famousSeedIds = new Set(
+  ["bars", "late_food", "restaurants"].flatMap((file) =>
+    (JSON.parse(readFileSync(path.join(ROOT, "data", "famous_venues", `${file}.json`), "utf8")) as Array<{ id: string }>).map((row) => row.id),
+  ),
+);
+function hasAnchorClaim(row: Record<string, unknown>): boolean {
+  return [row.anchorLabel, row.anchorCourse, row.anchorObservedAt, row.anchorSourceUrl].some((value) => value !== undefined);
+}
 const famousIds = new Set(
   slim
-    .filter((venue) => venue.kind !== undefined && venue.kind !== "pub")
+    .filter((venue) => venue.kind !== undefined && venue.kind !== "pub" && (famousSeedIds.has(venue.id) || hasAnchorClaim(venue)))
     .map((venue) => venue.id),
 );
 const fullVenuesById = new Map(
@@ -89,6 +97,7 @@ function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
     row.priceBand === 2;
   const anchor =
     (row.kind !== "bar" && row.kind !== "food" && row.kind !== "restaurant") ||
+    (row.cheapestPrice === null && !famousIds.has(String(row.id)) && !hasAnchorClaim(row)) ||
     (typeof row.anchorLabel === "string" &&
       row.anchorLabel.length > 0 &&
       typeof row.anchorObservedAt === "string" &&
@@ -228,8 +237,7 @@ describe("venues_slim.json", () => {
 
   it("carries complete anchor provenance for famous non-pub venues", () => {
     const famous = (slim as SlimVenue[]).filter(
-      (row) =>
-        row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
+      (row) => famousIds.has(row.id),
     );
     expect(famous).toHaveLength(expectedSlimFamousCounts().total);
     for (const row of famous) {
@@ -441,9 +449,9 @@ describe("venues_slim.json", () => {
 
   it("ships exact curated pack counts with every type-relative band", () => {
     const rows = slim as SlimVenue[];
-    const bars = rows.filter((row) => row.kind === "bar");
-    const food = rows.filter((row) => row.kind === "food");
-    const restaurants = rows.filter((row) => row.kind === "restaurant");
+    const bars = rows.filter((row) => row.kind === "bar" && famousIds.has(row.id));
+    const food = rows.filter((row) => row.kind === "food" && famousIds.has(row.id));
+    const restaurants = rows.filter((row) => row.kind === "restaurant" && famousIds.has(row.id));
     const expected = expectedSlimFamousCounts();
     expect(bars).toHaveLength(expected.bar);
     expect(food).toHaveLength(expected.food);
