@@ -38,7 +38,9 @@ const SNAPSHOT_NAMED_CLASSES = new Set(["episodic", "user-cadence"]);
 
 // Stale rows that warn in the CLI but never fail the dedicated freshness gate.
 // area_news is hand-refreshed editorial texture; a late cron must not block verify.
-const ADVISORY_STALE_IDS = new Set(["area_news"]);
+// google_places_content is a paid manual push whose copied fields stay shown
+// under their own dates, so an overdue refresh is a visible mark, not a red build.
+const ADVISORY_STALE_IDS = new Set(["area_news", "google_places_content"]);
 
 function isParseableDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));

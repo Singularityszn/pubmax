@@ -156,6 +156,8 @@ export function isVenueKind(value: unknown): value is VenueKind {
 }
 
 export type Venue = {
+  placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
+  openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
   name: string;
   address: string;
