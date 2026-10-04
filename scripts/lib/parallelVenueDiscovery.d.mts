@@ -13,7 +13,7 @@ export function ownSiteFor(name: unknown, landedUrl: string, city: { displayName
 export function allowedEvidenceUrl(value: unknown): boolean;
 export function withoutName(quotes: string, name: unknown): string;
 export function statesDrinking(kind: string, quotes: string, name: unknown): boolean;
-export function discoveredKind<K extends string | undefined>(row: { name: unknown; kind: K; evidence?: Array<{ excerpt: string }> }): Exclude<K, "club"> | "bar" | "club";
+export function discoveredKind<K extends string | undefined>(row: { name: unknown; kind: K; evidence?: Array<{ url: string; excerpt: string }> }): Exclude<K, "club"> | "bar" | "club";
 export function inCity(lat: unknown, lng: unknown, city: DiscoveryCity): boolean;
 export function citationBindsIdentity(row: { name: string; address: string; evidence: Array<{ excerpt: string }> }, city: DiscoveryCity, options?: { local?: boolean }): boolean;
 export function unseenNames(rows: Array<{ name?: unknown } | null>, known: Array<{ name: string }>): string[];

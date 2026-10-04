@@ -1749,7 +1749,7 @@
     },
     {
       "name": "Tyseley Working Mens Club",
-      "kind": "club",
+      "kind": "bar",
       "address": "573 Warwick Road, Tyseley, Birmingham, B11 2EX",
       "postcode": "B11 2EX",
       "locality": "Birmingham",
@@ -2008,7 +2008,7 @@
     },
     {
       "name": "Kings Heath Cricket & Sports Club",
-      "kind": "club",
+      "kind": "bar",
       "address": "Charlton House, 247 Alcester Road South, Kings Heath, Birmingham, B14 6DT",
       "postcode": "B14 6DT",
       "locality": "Birmingham",
@@ -2280,7 +2280,7 @@
     },
     {
       "name": "Edgbaston Golf Club",
-      "kind": "club",
+      "kind": "bar",
       "address": "Church Road, Edgbaston, Birmingham B15 3TB",
       "postcode": "B15 3TB",
       "locality": "Birmingham",
@@ -2521,7 +2521,7 @@
     },
     {
       "name": "Harborne Cricket Club",
-      "kind": "club",
+      "kind": "bar",
       "address": "Old Church Avenue, Harborne, Birmingham, West Midlands, B17 0BE",
       "postcode": "B17 0BE",
       "locality": "Birmingham",
@@ -2781,7 +2781,7 @@
     },
     {
       "name": "Oscott Social Club",
-      "kind": "club",
+      "kind": "bar",
       "address": "239 Witton Lodge Rd, Birmingham B23 5LX",
       "postcode": "B23 5LX",
       "locality": "Birmingham",
@@ -3437,7 +3437,7 @@
     },
     {
       "name": "Aston Manor Cricket Club",
-      "kind": "club",
+      "kind": "bar",
       "address": "Church Road, Perry Barr, Birmingham B42 2LB",
       "postcode": "B42 2LB",
       "locality": "Birmingham",
@@ -3820,7 +3820,7 @@
     },
     {
       "name": "Smethwick Labour Club",
-      "kind": "club",
+      "kind": "bar",
       "address": "Coopers Lane, Smethwick B67 7DN",
       "postcode": "B67 7DN",
       "locality": "Birmingham",

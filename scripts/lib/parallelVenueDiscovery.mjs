@@ -87,25 +87,23 @@ export function statesDrinking(kind, quotes, name) {
   return kind === "restaurant" ? RESTAURANT_ALCOHOL.test(rest) : PUB_OR_BAR_EVIDENCE.test(rest);
 }
 
-const CLUB_TYPE_NAME = /\b(?:social|working ?m[ae]n'?s|conservative|labour|liberal|unionist|constitutional|ex[- ]?service(?:s|m[ae]n'?s)?|services|legion|cricket|rugby|golf|sailing|yacht|rowing|sports?|football|bowls|bowling|tennis|hockey|athletic|snooker)\b.*\bclub\b/;
 const CLUB_EVIDENCE = /\b(?:this is a club|club members|members['’]? (?:only|club|bar)|members sailing club|club ?house)\b/;
 const CLUB_LABEL = /\bclub\s*,\s*in\b/;
 
 // A pub or bar discovery is a club, in the sense of a social, members', sports
-// or services club, when its name carries the word club and either the name
-// says what kind of club it is or its evidence says it is a club. A name that
-// only carries the word, such as Cosy Club, keeps the kind its research gave
-// it. A restaurant keeps its kind, because its drinking evidence was judged by
-// the restaurant rule. A stored club is judged again as the bar it was filed
-// from. The evidence is read without the name, except for CAMRA's
-// "Club, in <place>" type label, which follows the name in its listing.
+// or services club, when its name carries the word club and its evidence says
+// it is a club. A name alone never makes a club, so Cosy Club or Junkyard Golf
+// Club keeps the kind its research gave it. A restaurant keeps its kind,
+// because its drinking evidence was judged by the restaurant rule. A stored
+// club is judged again as the bar it was filed from. The evidence is read
+// without the name, except for CAMRA's "Club, in <place>" type label, which
+// follows the name in a camra.org.uk listing and is read there alone.
 export function discoveredKind({ name, kind, evidence }) {
   const base = kind === "club" ? "bar" : kind;
-  const named = fold(name).replace(/['’]/g, "");
-  if (base === "restaurant" || !/\bclub\b/.test(named)) return base;
-  const quotes = (evidence ?? []).map((entry) => entry.excerpt).join(" ");
-  const rest = withoutName(quotes, name);
-  return CLUB_TYPE_NAME.test(named) || CLUB_EVIDENCE.test(rest) || CLUB_LABEL.test(fold(quotes)) ? "club" : base;
+  if (base === "restaurant" || !/\bclub\b/.test(fold(name))) return base;
+  const rest = withoutName((evidence ?? []).map((entry) => entry.excerpt).join(" "), name);
+  const labels = fold((evidence ?? []).filter((entry) => /(^|\.)camra\.org\.uk$/.test(hostOf(entry.url))).map((entry) => entry.excerpt).join(" "));
+  return CLUB_EVIDENCE.test(rest) || CLUB_LABEL.test(labels) ? "club" : base;
 }
 
 export function inCity(lat, lng, city) {
@@ -185,7 +183,7 @@ export function parseTaskVenues(result, city, observedAt, { local = false } = {}
     if (reason) { rejected.push({ name, reason }); continue; }
     const citedNumbers = new Set((quotes.match(/[-+]?\d+(?:\.\d+)?/g) ?? []).map(Number));
     const pointIsCited = inCity(row.lat, row.lng, city) && citedNumbers.has(row.lat) && citedNumbers.has(row.lng);
-    candidates.push({ name, kind: discoveredKind({ name, kind, evidence }), address, postcode, locality: city.displayName, website: text(row.website) || null,
+    candidates.push({ name, kind, address, postcode, locality: city.displayName, website: text(row.website) || null,
       lat: pointIsCited ? row.lat : null, lng: pointIsCited ? row.lng : null,
       coordinatePrecision: pointIsCited ? "source-coordinate" : null,
       sourceUrls: [...new Set(evidence.map((entry) => entry.url))], evidence, observedAt });
@@ -299,7 +297,8 @@ export function validateDiscoveryPack(pack, city) {
 }
 
 // Provider citations do not establish permission. Only permitted excerpts
-// may bind a venue's identity, address and drinking evidence at publication.
+// may bind a venue's identity, address, drinking evidence and kind at
+// publication.
 export async function gateVenueEvidence(rows, city, permission) {
   const venues = [];
   const rejected = [];
@@ -307,11 +306,12 @@ export async function gateVenueEvidence(rows, city, permission) {
     const answers = await Promise.all(row.sourceUrls.map(async (url) => [url, allowedEvidenceUrl(url)
       ? await permission(url) : { outcome: "refused", reason: "outside-source-fence" }]));
     const permitted = new Set(answers.filter(([, answer]) => answer.outcome === "allowed").map(([url]) => url));
-    const candidate = permitted.size === row.sourceUrls.length ? row : {
+    const kept = permitted.size === row.sourceUrls.length ? row : {
       ...row, sourceUrls: row.sourceUrls.filter((url) => permitted.has(url)),
       evidence: row.evidence.filter((entry) => permitted.has(entry.url)),
     };
     try {
+      const candidate = { ...kept, kind: discoveredKind(kept) };
       validateDiscoveryPack({ city: city.id, venues: [candidate] }, city);
       if (candidate.coordinatePrecision === "source-coordinate") {
         const numbers = new Set(candidate.evidence.flatMap((entry) => (entry.excerpt.match(/[-+]?\d+(?:\.\d+)?/g) ?? []).map(Number)));
@@ -334,8 +334,7 @@ export async function gateVenueEvidence(rows, city, permission) {
 // duplicates of themselves; only other sources can make a candidate a
 // duplicate. A stored row that fails validation, or that an existing venue
 // now matches, is withdrawn with the reason and the venue it matched.
-export function assembleCityDiscoveries({ found, previous: recorded, existing, city }) {
-  const previous = recorded.map((row) => ({ ...row, kind: discoveredKind(row) }));
+export function assembleCityDiscoveries({ found, previous, existing, city }) {
   const valid = previous.filter((row) => {
     try { validateDiscoveryPack({ city: city.id, venues: [row] }, city); return true; }
     catch { return false; }
