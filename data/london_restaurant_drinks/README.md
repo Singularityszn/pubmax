@@ -94,11 +94,12 @@ and stated nothing. 229 were refused by robots, 524 could not reach robots, and
 
 The classifier was then tightened so a dish, an ingredient list or an idiom
 that names a drink is not evidence: a prawn or fruit cocktail, cocktail sauce,
-champagne cod, a cider vinaigrette, white wine and saffron, sake meaning salmon,
-"high spirits", and a line that says a branch does not sell alcohol. The 49
-committed rows whose quote failed the tightened check were removed without a
-new read, so `evidence.json` holds 969 restaurants (967 are new to the London
-layer; OSM already shipped 2). `report.json` still holds that run's counts,
+champagne cod, a cider vinaigrette, white wine and saffron, sausage marinated
+in red wine, "we don't use beer in our batter", sake meaning salmon, "high
+spirits", another restaurant's name, and a line that says a branch does not
+sell alcohol. The 53 committed rows whose quote failed the tightened check were
+removed without a new read, so `evidence.json` holds 965 restaurants (963 are
+new to the London layer; OSM already shipped 2). `report.json` still holds that run's counts,
 including its 1,018 accepted; the next run that reads the pages again replaces
 them.
 

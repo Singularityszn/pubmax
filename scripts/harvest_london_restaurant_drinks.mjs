@@ -316,8 +316,8 @@ function publishedRows(state, byId, counts) {
         siteFrom: entry.site.from,
         evidence: [{ url: verdict.url, excerpt: verdict.quote, observedAt: verdict.observedAt, robots: verdict.robots }],
       });
-    } else if (entry.read) counts.noEvidence += 1;
-    else if (entry.pending) counts.pending += 1;
+    } else if (entry.pending) counts.pending += 1;
+    else if (entry.read) counts.noEvidence += 1;
     else counts[entry.blocked ?? "noEvidence"] += 1;
   }
   return rows.sort((a, b) => a.osmId.localeCompare(b.osmId, "en", { numeric: true }));

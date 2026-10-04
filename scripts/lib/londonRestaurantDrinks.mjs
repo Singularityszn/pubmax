@@ -72,13 +72,13 @@ export function searchQuery(candidate) {
 // out ("drinks", "bar" alone), and the phrases below are struck before the
 // test so an alcohol-free beer or a ginger beer cannot pass as one.
 const DRINK_WORDS = /\b(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|draught|ciders?|prosecco|champagne|cava|sake|soju|spirits|whiske?y|gin|negronis?|spritz|aperitivo|sommelier|by the glass|fully licensed|licensed (?:bar|restaurant)|alcoholic drinks)\b/;
-const NOT_ALCOHOL = /\b(?:non[- ]?alcoholic|alcohol[- ]free|low (?:and|&) no|no (?:and|&) low|zero[- ](?:alcohol|proof)|0(?:\.0)?%|de-?alcoholi[sz]ed|ginger|root|birch|soft|virgin)(?:[- ]+[a-z]+){0,2}?[- ]+(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|ciders?|spirits|gin|prosecco|sake|drinks)\b/g;
+const NOT_ALCOHOL = /\b(?:non[- ]?alcoholic|alcohol[- ]free|low (?:and|&) no|no (?:and|&) low|zero[- ](?:alcohol|proof)|0(?:\.0)?%|de-?alcoholi[sz]ed|ginger|root|birch|soft|virgin)(?:[- ]+(?!and\b|or\b)[a-z]+){0,2}?[- ]+(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|ciders?|spirits|gin|prosecco|sake|drinks)\b/g;
 
 // A drink cooked into a dish, or named by one, is an ingredient, not a drink
 // served: beer batter, a red wine jus, cider vinegar, a sake tare, champagne
 // cod, a cider vinaigrette, sake lees, a prawn cocktail, cocktail sauce, white
-// wine and saffron, trout grilled in wine, and sake meaning salmon on a sushi
-// menu.
+// wine and saffron, trout grilled in wine, sausage marinated in red wine, no
+// beer in our batter, and sake meaning salmon on a sushi menu.
 const FOOD = "(?:garlic|tomato(?:es)?|saffron|herbs|chilli|parsley|olive oil|cream|shallots?|onions?|mushrooms?|prawns|mussels|soya?|yuzu|ponzu|mirin|sauce)";
 const INGREDIENT = new RegExp([
   String.raw`\b(?:wines?|beers?|lagers?|ales|ciders?|sake|whiske?y|gin|champagne|prosecco|cava)[- ](?:batter(?:ed)?|sauce|jus|vinegar|reduction|glaze[ds]?|braised|poached|marinated|marinade|tare|butter|cream|jelly|gravy|cured|dressing|risotto|mustard|syrup|caramel)\b`,
@@ -90,17 +90,19 @@ const INGREDIENT = new RegExp([
   String.raw`\bsake (?:teriyaki|nigiri|sashimi|maki|roll|don|x ?\d)`,
   String.raw`\b(?:(?:red|white|rice) )?(?:wine|sake) (?:and|&|with) (?:[a-z-]+ )?${FOOD}\b`,
   String.raw`\b${FOOD},? (?:(?:and|&|with) )?(?:(?:red|white|rice) )?(?:wine|sake)\b`,
-  String.raw`\b(?:cooked|simmered|braised|stewed|poached|fried|stir|steamed|grilled|baked|roasted) (?:[a-z-]+ ){0,3}(?:in|with) (?:a )?(?:(?:red|white|rice) )?(?:wine|sake|beer|cider)\b`,
+  String.raw`\b(?:cook(?:ed|s)?|marinated|marinaded|simmered|braised|stewed|poached|fried|stir|steamed|grilled|baked|roasted) (?:[a-z-]+ ){0,3}(?:in|with) (?:(?!glass|bottle|pint|carafe|jug)[a-z-]+ ){0,3}(?:wine|sake|beer|cider)\b`,
+  String.raw`\b(?:don['’]?t|do not|never) use (?:any )?(?:wines?|beers?|lagers?|ales|ciders?|sake|whiske?y|gin|champagne|prosecco|cava|spirits)\b`,
 ].join("|"), "g");
 
-// Words that carry a drink word and pour nothing: a mood, a Thai saying, and
-// a drink served at some other venue (the venue's own name is struck first,
-// so "the wine experience at" with no name left after it still counts).
-const IDIOM = /\b(?:high|in good|raise the|lift the) spirits\b|\bgan gin\b|\b(?:whiske?y|wines?|gin|sake|cocktails?|beers?) experience at [a-z]+/g;
+// Words that carry a drink word and pour nothing: a mood, a Thai saying, a
+// restaurant elsewhere that a chef trained at, and a drink served at some
+// other venue (the venue's own name is struck first, so "the wine experience
+// at" with no name left after it still counts).
+const IDIOM = /\b(?:high|in good|raise the|lift the) spirits\b|\bgan gin\b|\bbread (?:&|and) wine\b|\b(?:whiske?y|wines?|gin|sake|cocktails?|beers?) experience at [a-z]+/g;
 
 // A page that says the restaurant does not pour settles it, whatever else the
 // site says: bring-your-own, unlicensed, or a stated no-alcohol house.
-const REFUSES_ALCOHOL = /\b(?:byob?|bring your own (?:bottle|wine|drinks?|alcohol|booze|beer)|unlicen[cs]ed|not licen[cs]ed|(?:do not|don't|dont|does not|doesn't) (?:serve|offer|sell) (?:any )?alcohol(?:ic (?:drinks|beverages))?|no alcohol (?:is )?(?:served|on the premises|allowed)(?! to)|alcohol is not (?:served|permitted|sold)|we are (?:a )?(?:dry|alcohol[- ]free)|alcohol[- ]free (?:restaurant|venue|establishment|premises))\b/;
+const REFUSES_ALCOHOL = /\b(?:byob?|bring your own (?:bottle|wine|drinks?|alcohol|booze|beer)|unlicen[cs]ed|not licen[cs]ed|(?:do not|don['’]?t|does not|doesn['’]?t) (?:serve|offer|sell) (?:any )?alcohol(?:ic (?:drinks|beverages))?|no alcohol (?:is )?(?:served|on the premises|allowed)(?! to)|alcohol is not (?:served|permitted|sold)|we are (?:a )?(?:dry|alcohol[- ]free)|alcohol[- ]free (?:restaurant|venue|establishment|premises))\b/;
 
 const clean = (line) => line.replace(/[*_#>`\\|]/g, " ").replace(/\[([^\]]*)\]/g, "$1").replace(/\s+/g, " ").trim();
 

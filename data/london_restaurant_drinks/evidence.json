@@ -5107,27 +5107,6 @@
       ]
     },
     {
-      "osmId": "node/4522284989",
-      "kind": "restaurant",
-      "name": "Seashell of Lisson Grove",
-      "address": "49-51, Lisson Grove, London",
-      "lat": 51.5226975,
-      "lng": -0.1657891,
-      "website": "https://www.seashellrestaurant.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.seashellrestaurant.co.uk/",
-          "excerpt": "And yes — our fish is halal. We don’t use beer in our batter.",
-          "observedAt": "2026-10-04T22:24:51.476Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:12:41.485Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/4551267504",
       "kind": "restaurant",
       "name": "Zizzi",
@@ -10609,27 +10588,6 @@
       ]
     },
     {
-      "osmId": "node/11256174837",
-      "kind": "restaurant",
-      "name": "Café Cecilia",
-      "address": "32, Andrews Road, London, E8 4FX",
-      "lat": 51.5345727,
-      "lng": -0.0601229,
-      "website": "https://www.cafececilia.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.cafececilia.com/",
-          "excerpt": "Max Rocha is influenced by his time at restaurants such as The River Cafe, St John Bread & Wine and Spring. His greatest inspiration comes from growing up in Ireland, with the cooking of his mum, Odette.",
-          "observedAt": "2026-10-04T22:27:53.417Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:16:47.980Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/11307567087",
       "kind": "restaurant",
       "name": "Park Corner Brasserie",
@@ -10940,27 +10898,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:16:57.058Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/11854012047",
-      "kind": "restaurant",
-      "name": "North China Restaurant",
-      "address": "305, Uxbridge Road, London, W3 9QU",
-      "lat": 51.508267,
-      "lng": -0.277416,
-      "website": "https://www.northchina.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.northchina.co.uk/",
-          "excerpt": "(Fresh Plaice Fillets cook in Marinated Rice Wine, Melts in your mouth)",
-          "observedAt": "2026-10-04T22:28:00.608Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:16:58.355Z"
           }
         }
       ]
@@ -16820,27 +16757,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:29:57.648Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/348812067",
-      "kind": "restaurant",
-      "name": "Gigs",
-      "address": "12, Tottenham Street, London, W1T 4RE",
-      "lat": 51.5206795,
-      "lng": -0.1352925,
-      "website": "https://www.gigsfishandchips.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.gigsfishandchips.com/menus",
-          "excerpt": "charcoal grilled pork sausage marinated in full bodied red wine",
-          "observedAt": "2026-10-04T22:32:38.619Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.905Z"
           }
         }
       ]
