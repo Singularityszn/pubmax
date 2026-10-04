@@ -107,6 +107,34 @@ describe("sports evidence publication", () => {
     expectSportsPublication("We have TNT Sports and no Sky Sports.", true);
   });
 
+  it("retains a provider before an independent active viewing denial", () => {
+    expectSportsPublication("We have TNT Sports and don't show Sky Sports.", true);
+  });
+
+  it("retains an independent active viewing statement after a provider denial", () => {
+    expectSportsPublication("No Sky Sports and we show TNT Sports.", true);
+  });
+
+  it("retains an independent passive viewing statement after a sport denial", () => {
+    expectSportsPublication("Football is not shown and rugby is broadcast on our TVs.", true);
+  });
+
+  it.each([
+    "Football is on our menu and we show Alien vs Predator live.",
+    "Football is on our menu and Alien vs Predator is shown on our TVs.",
+    "Football memorabilia and we have TVs and board games.",
+  ])("keeps sporting identity within the supported viewing proposition: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't show Sky Sports and we show TNT Sports.",
+    "Rugby is broadcast on our TVs and football isn't shown.",
+    "Football is not shown and our TVs are used to show rugby.",
+  ])("retains an independent viewing proposition beside a denial: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
   it.each([
     "We don’t show Sky Sports.",
     "We don't show Sky Sports and TNT Sports.",

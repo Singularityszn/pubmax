@@ -146,6 +146,15 @@ const NO_SPORT_VIEWING = new RegExp(
   "i",
 );
 const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?sports\b/i;
+/** A new subject and predicate separate propositions; object lists stay intact. */
+const SPORT_CLAUSE_BOUNDARY = new RegExp(
+  "[.,;!?]|\\b(?:but|however|yet|although|while)\\b|" +
+  "\\band\\b(?=\\s+(?:no|without|do\\s+not|don'?t|never|" +
+  "we\\s+(?:(?:do\\s+not|don'?t|never)\\s+)?(?:have|show|watch|broadcast|screen|catch|play)|" +
+  "(?:[\\w'-]+\\s+)+(?:is|are|isn'?t|aren'?t)\\s+(?:not\\s+)?(?:being\\s+)?" +
+  "(?:shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen)))\\b)",
+  "i",
+);
 const LIVE_MUSIC =
   /\blive\b[^.]{0,20}\b(?:music|bands?|gigs?|jazz|folk|blues|soul|funk|country|singers?|vocals|acts?|artists)\b|\bbands?\b|\bgigs?\b|\bjazz\b|\bfolk\b|\bblues\b|\bopen mic\b|\bsingers?\b|\bsings? live\b|\bchoir\b|\bjams?\b|\bacoustic\b|\btrad\b|\bseisi|\bconcerts?\b|\btribute show\b|\bmusic venues?\b|\bmusic (?:nights?|events?)\b/i;
 /** Drinks before or after an event somewhere else say nothing about what happens inside the pub. */
@@ -181,9 +190,7 @@ const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) =
   food: (quote) => !SITE_NAVIGATION.test(quote),
   liveSports: (quote) =>
     !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote) &&
-    // A coordinated list inherits its denial. An explicit new denial starts
-    // its own clause, so "TNT Sports and no Sky Sports" keeps the TNT fact.
-    quote.split(/[.,;!?]|\b(?:but|however|yet|although|while)\b|\band\b(?=\s+(?:no|without)\b)/i).some((clause) =>
+    quote.split(SPORT_CLAUSE_BOUNDARY).some((clause) =>
       SPORT_SHOWN.test(clause) &&
       SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause),
     ),
