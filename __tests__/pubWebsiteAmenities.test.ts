@@ -54,6 +54,42 @@ function expectSportsPublication(quote: string, expected: boolean) {
 }
 
 describe("sports evidence publication", () => {
+  it("refuses ambiguous provider screens in a location after a comma denial", () => {
+    expectSportsPublication("We don't have Sky Sports, TNT Sports screens in the bar.", false);
+  });
+
+  // Conservative policy reverses these two historical positives: shows plus a
+  // location can name denied shows, so it does not establish an independent claim.
+  it.each([
+    "We don't show rugby, football shows on all our TVs.",
+    "We don't have Sky Sports, TNT Sports shows on every screen.",
+  ])("leaves historically inferred location-only shows unconfirmed: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't show rugby, cricket broadcasts on TV.",
+    "We do not show rugby, football shows in the bar.",
+    "We don't show rugby, cricket screens on our TVs.",
+    "We don't show rugby, live GAA broadcasts in the bar.",
+    "We don't have Sky Sports, BT Sport screens on our TVs.",
+    "We don't have Sky Sports, BT Sport broadcasts in the bar.",
+    "We don't show rugby, Formula1 shows on our screens.",
+  ])("leaves dual-use viewing nouns with only a location under the comma denial: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't have Sky Sports, TNT Sports is shown in the bar.",
+    "We don't show rugby, cricket is broadcast on our TVs.",
+    "We don't show rugby, football is shown on all our TVs.",
+    "We don't have pool tables and we show football on our TVs.",
+    "We don't show rugby, cricket screens every match on our TVs.",
+    "We don't show rugby, cricket broadcasts every match in the bar.",
+  ])("retains clear viewing predicates with prepositional locations beside denials: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
   it.each([
     "Live football, rugby and cricket are not shown.",
     "Sky Sports, TNT Sports and BT Sport are not available.",
@@ -155,8 +191,6 @@ describe("sports evidence publication", () => {
     "We don't show rugby, football and F1 will be shown on all our TVs.",
     "We don't have Sky Sports, TNT Sports shows every game.",
     "We don't have Sky Sports, BT Sport shows all the action on our big screens.",
-    "We don't have Sky Sports, TNT Sports shows on every screen.",
-    "We don't show rugby, football shows on all our TVs.",
     "We don't have Sky Sports, TNT Sports has it all on our screens.",
     "Without Sky Sports, football is still shown on our TVs.",
     "Without Sky Sports, TNT Sports shows every match.",
