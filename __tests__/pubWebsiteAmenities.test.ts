@@ -70,7 +70,27 @@ describe("sports evidence publication", () => {
     "We don't have Sky Sports, TNT Sports.",
     "We don't have Sky Sports, TNT Sports, BT Sport.",
     "No Sky Sports, TNT Sports, BT Sport here.",
+    "No football, rugby or cricket screenings.",
+    "No Sky Sports, TNT Sports or BT Sport screenings here.",
+    "We don't show football, rugby or cricket broadcasts.",
+    "We don't have Sky Sports, TNT Sports or BT Sport viewings.",
+    "No football, rugby and cricket TVs.",
+    "No Sky Sports, TNT Sports or BT Sport live sport here.",
+    "Without Sky Sports, TNT Sports or BT Sport screenings, we focus on food.",
+    "No Sky Sports, TNT Sports here.",
+    "We don't have Sky Sports, TNT Sports at this pub.",
+    "We don't have Sky Sports, TNT Sports on our screens.",
+    "We don't show football, rugby on TV.",
+    "No football, rugby on TV.",
   ])("refuses shared denials over supported sport and provider lists: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "No Sky Sports, football on the big screen every weekend.",
+    "We don't show cricket, live football every Saturday.",
+    "We do not show cricket, live football every Saturday.",
+  ])("conservatively refuses a denied comma list whose remainder has no predicate of its own: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
 
@@ -89,10 +109,8 @@ describe("sports evidence publication", () => {
     "We don't have Sky Sports, TNT Sports shows every match.",
     "We don't have Sky Sports, BT Sport shows all the Champions League games.",
     "We don't have Sky Sports, TNT Sports has every match on our screens.",
-    "No Sky Sports, football on the big screen every weekend.",
     "We don't show rugby, football shown on all our TVs.",
     "We don't show rugby, football will be shown on all our TVs.",
-    "We don't show cricket, live football every Saturday.",
     "We don't have Sky Sports, TNT Sports and BT Sport show every match.",
     "We don't have Sky Sports, TNT Sports or BT Sport shows every match.",
     "We don't show rugby, football and cricket shown on all our TVs.",
