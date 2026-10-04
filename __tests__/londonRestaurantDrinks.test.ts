@@ -8,6 +8,7 @@ import { inGreaterLondon } from "../scripts/build_london_venue_shards.mjs";
 import {
   drinkLinks,
   drinksEvidence,
+  excludedOsmIds,
   restaurantCandidate,
   searchBindsSite,
   statesRestaurantDrinks,
@@ -161,14 +162,16 @@ describe("London restaurant drinks evidence", () => {
 
   it("keeps OSM restaurants that state nothing about alcohol, and leaves out those that state it either way", () => {
     const element = (tags: Record<string, string>) => ({ type: "node", id: 7, lat: 51.51, lon: -0.13, tags: { amenity: "restaurant", name: "Fenice", ...tags } });
-    expect(restaurantCandidate(element({ "addr:postcode": "W1D 4TQ", website: "https://fenice.co.uk" }), { statesAlcohol })).toMatchObject({ osmId: "node/7", postcode: "W1D 4TQ", website: "https://fenice.co.uk/" });
-    expect(restaurantCandidate(element({ bar: "yes" }), { statesAlcohol })).toBeNull();
-    expect(restaurantCandidate(element({ alcohol: "no" }), { statesAlcohol })).toBeNull();
-    expect(restaurantCandidate(element({ amenity: "cafe" }), { statesAlcohol })).toBeNull();
+    expect(restaurantCandidate(element({ "addr:postcode": "W1D 4TQ", website: "https://fenice.co.uk" }), { statesAlcohol, excluded: new Set<string>() })).toMatchObject({ osmId: "node/7", postcode: "W1D 4TQ", website: "https://fenice.co.uk/" });
+    expect(restaurantCandidate(element({ bar: "yes" }), { statesAlcohol, excluded: new Set<string>() })).toBeNull();
+    expect(restaurantCandidate(element({ alcohol: "no" }), { statesAlcohol, excluded: new Set<string>() })).toBeNull();
+    expect(restaurantCandidate(element({ amenity: "cafe" }), { statesAlcohol, excluded: new Set<string>() })).toBeNull();
+    expect(restaurantCandidate(element({ website: "https://fenice.co.uk" }), { statesAlcohol, excluded: new Set(["node/7"]) })).toBeNull();
   });
 
   it("refuses a published row without own-site evidence, robots permission, a read date or a London position", () => {
-    const check = (rows: unknown[]) => validateRestaurantDrinksPack({ rows }, { inGreaterLondon });
+    const exclusions = { rows: [{ osmId: "node/202", name: "Elsewhere Grill", reason: "The quote is about another venue." }] };
+    const check = (rows: unknown[]) => validateRestaurantDrinksPack({ rows }, { inGreaterLondon, exclusions });
     expect(check([row()])).toEqual([]);
     expect(check([row({ evidence: [{ ...row().evidence[0], url: "https://www.tripadvisor.co.uk/x" }] })])).not.toEqual([]);
     expect(check([row({ evidence: [{ ...row().evidence[0], robots: { outcome: "refused", checkedAt: observedAt } }] })])).not.toEqual([]);
@@ -177,6 +180,8 @@ describe("London restaurant drinks evidence", () => {
     expect(check([row({ evidence: [{ ...row().evidence[0], excerpt: "Native Lobster Cocktail" }] })])).not.toEqual([]);
     expect(check([row({ lat: 53.48, lng: -2.24 })])).not.toEqual([]);
     expect(check([row(), row()])).toEqual(["node/101: repeated"]);
+    expect(check([row({ osmId: "node/202" })])).toEqual(["node/202: excluded in exclusions.json"]);
+    expect(() => validateRestaurantDrinksPack({ rows: [row()] }, { inGreaterLondon, exclusions: { rows: [{ osmId: "node/202", name: "Elsewhere Grill" }] } })).toThrow(/reason/);
   });
 
   const overpassCache = path.join(process.cwd(), "data-harvest/london-restaurant-drinks/overpass.json");
@@ -192,7 +197,9 @@ describe("London restaurant drinks evidence", () => {
 
   it("the committed pack passes its own check", () => {
     const pack = JSON.parse(readFileSync(path.join(process.cwd(), "data/london_restaurant_drinks/evidence.json"), "utf8"));
-    expect(validateRestaurantDrinksPack(pack, { inGreaterLondon })).toEqual([]);
+    const exclusions = JSON.parse(readFileSync(path.join(process.cwd(), "data/london_restaurant_drinks/exclusions.json"), "utf8"));
+    expect(validateRestaurantDrinksPack(pack, { inGreaterLondon, exclusions })).toEqual([]);
+    expect(excludedOsmIds(exclusions).size).toBeGreaterThan(0);
     expect(pack.rows.length).toBeGreaterThan(0);
   });
 });

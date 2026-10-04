@@ -18,5 +18,6 @@ export function searchQuery(candidate: Pick<RestaurantCandidate, "name" | "postc
 export function statesRestaurantDrinks(quote: string, name: string): boolean;
 export function drinksEvidence(markdown: unknown, name: string): { quote?: string; refused?: string };
 export function drinkLinks(markdown: unknown, pageUrl: string, limit?: number): string[];
-export function restaurantCandidate(element: unknown, deps: { statesAlcohol: (tags: Record<string, string>) => boolean }): RestaurantCandidate | null;
-export function validateRestaurantDrinksPack(pack: unknown, deps: { inGreaterLondon: (lat: number, lng: number) => boolean }): string[];
+export function restaurantCandidate(element: unknown, deps: { statesAlcohol: (tags: Record<string, string>) => boolean; excluded: Set<string> }): RestaurantCandidate | null;
+export function excludedOsmIds(exclusions: unknown): Set<string>;
+export function validateRestaurantDrinksPack(pack: unknown, deps: { inGreaterLondon: (lat: number, lng: number) => boolean; exclusions: unknown }): string[];

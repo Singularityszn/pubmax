@@ -73,6 +73,7 @@ const TOTAL_BUDGET_BYTES = 5 * 1024 * 1024;
 const MANIFEST_BUDGET_BYTES = 64 * 1024;
 
 const RESTAURANT_DRINKS_PATH = path.join(ROOT, "data", "london_restaurant_drinks", "evidence.json");
+const RESTAURANT_DRINK_EXCLUSIONS_PATH = path.join(ROOT, "data", "london_restaurant_drinks", "exclusions.json");
 
 function packPathFor(group) {
   return path.join(ROOT, "data", "osm", "uk", `uk_osm_venues_${group}.json`);
@@ -193,7 +194,8 @@ async function main() {
   // fails the build rather than shipping. A restaurant OSM already ships keeps
   // its OSM row.
   const drinks = JSON.parse(await readFile(RESTAURANT_DRINKS_PATH, "utf8"));
-  const problems = validateRestaurantDrinksPack(drinks, { inGreaterLondon });
+  const exclusions = JSON.parse(await readFile(RESTAURANT_DRINK_EXCLUSIONS_PATH, "utf8"));
+  const problems = validateRestaurantDrinksPack(drinks, { inGreaterLondon, exclusions });
   if (problems.length) {
     throw new Error(
       `${path.relative(ROOT, RESTAURANT_DRINKS_PATH)} fails its check:\n${problems.slice(0, 20).join("\n")}`,

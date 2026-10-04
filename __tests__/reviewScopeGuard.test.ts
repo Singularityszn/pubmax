@@ -228,6 +228,16 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["london_venues"]);
   });
 
+  it("permits London venue shards when the diff carries the restaurant drinks exclusions", () => {
+    const report = summarizeReviewScope([
+      "data/london_restaurant_drinks/exclusions.json",
+      "public/data/london_venues/manifest.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.regeneratedLanes).toEqual(["london_venues"]);
+  });
+
   it("refuses London venue shards that nothing in the diff produced", () => {
     const report = summarizeReviewScope(["public/data/london_venues/manifest.json"]);
 

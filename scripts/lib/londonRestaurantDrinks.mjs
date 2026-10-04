@@ -178,14 +178,14 @@ export function drinkLinks(markdown, pageUrl, limit = 3) {
   return [...new Set([...drink, ...menu])].filter(allowedEvidenceUrl).slice(0, limit);
 }
 
-/** OSM restaurants that may need evidence: named, positioned, alcohol not stated either way. */
-export function restaurantCandidate(element, { statesAlcohol }) {
+/** OSM restaurants that may need evidence: named, positioned, alcohol not stated either way, not excluded. */
+export function restaurantCandidate(element, { statesAlcohol, excluded }) {
   const tags = element?.tags ?? {};
   const name = String(tags.name ?? "").trim();
   const lat = Number(element?.lat ?? element?.center?.lat);
   const lng = Number(element?.lon ?? element?.center?.lon);
   if (tags.amenity !== "restaurant" || !name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (statesAlcohol(tags) || /^(?:no|none)$/i.test(String(tags.alcohol ?? ""))) return null;
+  if (statesAlcohol(tags) || /^(?:no|none)$/i.test(String(tags.alcohol ?? "")) || excluded.has(`${element.type}/${element.id}`)) return null;
   const street = String(tags["addr:street"] ?? "").trim() || null;
   const housenumber = String(tags["addr:housenumber"] ?? "").trim() || null;
   const postcode = String(tags["addr:postcode"] ?? "").trim() || null;
@@ -233,18 +233,36 @@ function rowProblems(row, inGreaterLondon) {
 }
 
 /**
- * Every published row, checked again on every build: an OSM identity inside
- * Greater London, an own-site evidence URL the fence permits, a recorded robots
- * permission, a quote that states alcohol without the venue's name and a read
- * date. Returns the problems; an empty list is a valid pack.
+ * The OSM ids of `data/london_restaurant_drinks/exclusions.json`: restaurants
+ * whose quote the classifier accepts but a reviewer found says nothing about
+ * this restaurant pouring. Every row names its osmId, its name and a reason.
  */
-export function validateRestaurantDrinksPack(pack, { inGreaterLondon }) {
+export function excludedOsmIds(exclusions) {
+  if (!exclusions || !Array.isArray(exclusions.rows)) throw new Error("exclusions has no rows array");
+  return new Set(exclusions.rows.map((row) => {
+    if (!OSM_ID.test(String(row?.osmId ?? "")) || !String(row?.name ?? "").trim() || !String(row?.reason ?? "").trim()) {
+      throw new Error(`exclusion ${JSON.stringify(row)} needs an OSM osmId, a name and a reason`);
+    }
+    return row.osmId;
+  }));
+}
+
+/**
+ * Every published row, checked again on every build: an OSM identity inside
+ * Greater London and not excluded, an own-site evidence URL the fence permits,
+ * a recorded robots permission, a quote that states alcohol without the
+ * venue's name and a read date. Returns the problems; an empty list is a valid
+ * pack.
+ */
+export function validateRestaurantDrinksPack(pack, { inGreaterLondon, exclusions }) {
+  const excluded = excludedOsmIds(exclusions);
   if (!pack || !Array.isArray(pack.rows)) return ["pack has no rows array"];
   const problems = [];
   const seen = new Set();
   for (const row of pack.rows) {
     const id = row?.osmId ?? "(no osmId)";
     if (seen.has(id)) problems.push(`${id}: repeated`);
+    if (excluded.has(id)) problems.push(`${id}: excluded in exclusions.json`);
     seen.add(id);
     problems.push(...rowProblems(row, inGreaterLondon).map((problem) => `${id}: ${problem}`));
   }

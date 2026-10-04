@@ -128,7 +128,7 @@ export const REGENERATED_LANES = [
       /^scripts\/lib\/ukBaseGrid\.mjs$/,
       /^scripts\/lib\/londonRestaurantDrinks\.mjs$/,
       /^data\/osm\/uk\/uk_osm_venues_[a-z]+\.json$/,
-      /^data\/london_restaurant_drinks\/evidence\.json$/,
+      /^data\/london_restaurant_drinks\/(?:evidence|exclusions)\.json$/,
     ],
   },
   {

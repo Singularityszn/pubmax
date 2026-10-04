@@ -2020,27 +2020,6 @@
       ]
     },
     {
-      "osmId": "node/800600510",
-      "kind": "restaurant",
-      "name": "Franco Manca",
-      "address": "216, Haverstock Hill, London, NW3 2AE",
-      "lat": 51.551167,
-      "lng": -0.1657457,
-      "website": "https://www.francomanca.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.francomanca.co.uk/restaurants/belsize-park/",
-          "excerpt": "Pizza and Spritz Masterclass Belsize Park",
-          "observedAt": "2026-10-04T22:23:19.321Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:10:27.485Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/826482370",
       "kind": "restaurant",
       "name": "Thai Square",
@@ -3611,27 +3590,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:28.449Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/2850205346",
-      "kind": "restaurant",
-      "name": "Carluccio's",
-      "address": "First Floor, Pancras Road, London, N1C 4QL",
-      "lat": 51.5302143,
-      "lng": -0.1251504,
-      "website": "https://www.carluccios.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.carluccios.com/pages/restaurants/carluccios-st-pancras",
-          "excerpt": "We’ve got everything you need to recreate our Carluccio’s classics in the comfort of your home. You can purchase our very own pastas, wines, coffees, sweet treats and so much more.",
-          "observedAt": "2026-10-04T22:24:27.833Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:11:38.533Z"
           }
         }
       ]
@@ -7144,27 +7102,6 @@
       ]
     },
     {
-      "osmId": "node/6513889435",
-      "kind": "restaurant",
-      "name": "Champagne Route",
-      "address": "30, Gauging Square, London, E1W 2AE",
-      "lat": 51.5080603,
-      "lng": -0.0664176,
-      "website": "https://champagneroute.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://champagneroute.co.uk/",
-          "excerpt": "Champagne, cremant or wine delivery",
-          "observedAt": "2026-10-04T22:25:53.334Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:13:49.701Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/6532493407",
       "kind": "restaurant",
       "name": "Fora",
@@ -7874,27 +7811,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:28.499Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/7242961373",
-      "kind": "restaurant",
-      "name": "Golborne Deli",
-      "address": "100-102, Golborne Road, London, W10 5PS",
-      "lat": 51.5214571,
-      "lng": -0.2093239,
-      "website": "https://golbornedeli.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://golbornedeli.com/",
-          "excerpt": "Wine Consultancy Services",
-          "observedAt": "2026-10-04T22:26:10.285Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:14:31.888Z"
           }
         }
       ]

@@ -36,6 +36,14 @@ drinker could sit in. This lane asks each restaurant's own website instead.
 A page that says bring-your-own, unlicensed, or that the restaurant does not
 serve alcohol settles the restaurant as dry, whatever else the site says.
 
+`exclusions.json` is hand-written. Each row names an `osmId`, the restaurant's
+name and the reason a reviewer found its quote says nothing about this
+restaurant pouring, such as a line about another venue of the group, a shop or
+a class. The harvest never makes an excluded restaurant a candidate, and
+`validateRestaurantDrinksPack` refuses a pack that holds one, so
+`npm run build:london-venues` and `--check` fail on it. Add a row there rather
+than editing `evidence.json` by hand, because the next run rewrites that file.
+
 ## What a row carries
 
 The OSM identity (`osmId`, `name`, `address`, `lat`, `lng`), `kind:
@@ -99,13 +107,12 @@ sausage marinated in red wine, "we don't use beer in our batter", free
 champagne flutes, sake meaning salmon, "high spirits", another restaurant's
 name, and a line that says a branch does not sell alcohol. The 54 committed
 rows whose quote failed the tightened check were removed without a new read.
-Nine more were removed by hand because their quote is about another venue of
-the group, a shop or a class, not about this restaurant pouring: Cicchetti,
-Quality Chop House, Café Chula, Henrietta Bistro, Drunch, Street Burger and
-three Lina Stores. `evidence.json` holds 955 restaurants (953 are new to the
-London layer; OSM already shipped 2). `report.json` still holds that run's
-counts, including its 1,018 accepted; the next run that reads the pages again
-replaces them.
+Thirteen more were excluded in `exclusions.json` because their quote is about
+another venue of the group, a shop, a class, a delivery service or a
+consultancy, not about this restaurant pouring. `evidence.json` holds 951
+restaurants (949 are new to the London layer; OSM already shipped 2).
+`report.json` still holds that run's counts, including its 1,018 accepted; the
+next run that reads the pages again replaces them.
 
 `report.json` counts 1,997 Tavily credits. The first full run stopped on a
 rate limit before writing its report, so its 146 searches (about 146 credits)

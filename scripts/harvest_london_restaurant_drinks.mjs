@@ -30,6 +30,7 @@ import { inGreaterLondon } from "./build_london_venue_shards.mjs";
 import {
   drinkLinks,
   drinksEvidence,
+  excludedOsmIds,
   hostOf,
   LONDON,
   restaurantCandidate,
@@ -46,6 +47,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RAW = path.join(ROOT, "data-harvest", "london-restaurant-drinks");
 const OUT = path.join(ROOT, "data", "london_restaurant_drinks");
 const EVIDENCE_PATH = path.join(OUT, "evidence.json");
+const EXCLUSIONS_PATH = path.join(OUT, "exclusions.json");
 const TAVILY = "https://api.tavily.com";
 const TAVILY_CREDIT_USD = 0.008;
 const CHARING_CROSS = { lat: 51.5073, lng: -0.1276 };
@@ -103,7 +105,7 @@ function distanceKm(a, b) {
   return Math.sqrt(x * x + y * y) * 6371;
 }
 
-async function osmRestaurants({ refresh, spend }) {
+async function osmRestaurants({ refresh, spend, excluded }) {
   const file = path.join(RAW, "overpass.json");
   let raw = refresh ? null : await readJson(file);
   if (!raw) {
@@ -115,7 +117,7 @@ async function osmRestaurants({ refresh, spend }) {
   const candidates = [];
   const seen = new Set();
   for (const element of raw.elements ?? []) {
-    const candidate = restaurantCandidate(element, { statesAlcohol });
+    const candidate = restaurantCandidate(element, { statesAlcohol, excluded });
     if (!candidate || seen.has(candidate.osmId) || !inGreaterLondon(candidate.lat, candidate.lng)) continue;
     seen.add(candidate.osmId);
     candidates.push(candidate);
@@ -323,21 +325,21 @@ function publishedRows(state, byId, counts) {
   return rows.sort((a, b) => a.osmId.localeCompare(b.osmId, "en", { numeric: true }));
 }
 
-async function writeOutputs({ rows, osmBase, counts, searchLimit, usage }) {
+async function writeOutputs({ rows, osmBase, counts, searchLimit, usage, exclusions }) {
   const pack = {
     meaning: "London restaurants OpenStreetMap does not tag with alcohol, whose own website states that they serve it. Identity (name, address, position) is OSM's; each row's evidence is one verbatim line from the restaurant's own site, the URL that stated it, the time it was read and the robots answer that permitted the read. observedAt dates the read, not tonight's menu.",
     osmBase,
     license: "ODbL (identity) - © OpenStreetMap contributors",
     rows,
   };
-  const problems = validateRestaurantDrinksPack(pack, { inGreaterLondon });
+  const problems = validateRestaurantDrinksPack(pack, { inGreaterLondon, exclusions });
   if (problems.length) throw new Error(`refusing to write a pack that fails its own check:\n${problems.slice(0, 20).join("\n")}`);
   await writeJson(EVIDENCE_PATH, pack, true);
   const previous = await readJson(path.join(OUT, "report.json"));
   const spent = { searches: usage.searches, extractCalls: usage.extracts, credits: usage.credits, approxUsd: Number((usage.credits * TAVILY_CREDIT_USD).toFixed(2)) };
   const totals = previous?.tavilyTotals ?? { searches: 0, extractCalls: 0, credits: 0 };
   await writeJson(path.join(OUT, "report.json"), {
-    meaning: "Counts from the last run of scripts/harvest_london_restaurant_drinks.mjs. Every candidate has a site (siteFromOsm, siteFromSearch) or not (noSite, notSearched, pending); every site lands in one of robotsRefused, robotsSkipped, unreadable, landedOffSite, refusesAlcohol, noEvidence, pending or accepted. tavilyTotals accumulates every run's spend; account invoices remain authoritative.",
+    meaning: "Counts from the last run of scripts/harvest_london_restaurant_drinks.mjs. Restaurants in exclusions.json are never candidates. Every candidate has a site (siteFromOsm, siteFromSearch) or not (noSite, notSearched, pending); every site lands in one of robotsRefused, robotsSkipped, unreadable, landedOffSite, refusesAlcohol, noEvidence, pending or accepted. tavilyTotals accumulates every run's spend; account invoices remain authoritative.",
     searchLimit: Number.isFinite(searchLimit) ? searchLimit : null,
     counts,
     lastRunTavily: spent,
@@ -348,7 +350,7 @@ async function writeOutputs({ rows, osmBase, counts, searchLimit, usage }) {
 
 async function check() {
   const pack = await readJson(EVIDENCE_PATH);
-  const problems = validateRestaurantDrinksPack(pack, { inGreaterLondon });
+  const problems = validateRestaurantDrinksPack(pack, { inGreaterLondon, exclusions: await readJson(EXCLUSIONS_PATH) });
   if (problems.length) throw new Error(`${problems.length} problem(s) in ${path.relative(ROOT, EVIDENCE_PATH)}:\n${problems.slice(0, 20).join("\n")}`);
   console.log(`ok: ${pack.rows.length} restaurants, each with own-site evidence and recorded robots permission`);
 }
@@ -363,7 +365,8 @@ async function main() {
 
   const spend = !options.replay;
   const tavily = tavilyClient(spend);
-  const osm = await osmRestaurants({ refresh: options.refreshOsm && spend, spend });
+  const exclusions = await readJson(EXCLUSIONS_PATH);
+  const osm = await osmRestaurants({ refresh: options.refreshOsm && spend, spend, excluded: excludedOsmIds(exclusions) });
   const { candidates } = osm;
   const counts = { osmRestaurants: osm.elements, candidates: candidates.length, siteFromOsm: 0, searched: 0, siteFromSearch: 0, noSite: 0, notSearched: 0,
     robotsRefused: 0, robotsSkipped: 0, unreadable: 0, landedOffSite: 0, refusesAlcohol: 0, noEvidence: 0, pending: 0, accepted: 0 };
@@ -378,7 +381,7 @@ async function main() {
     throw new Error(`--replay left ${counts.pending} restaurant(s) pending: their cached search, robots answer or page read is missing (or --search-limit differs from the run that cached them). Nothing was written.`);
   }
   if (counts.pending) console.warn(`${counts.pending} restaurant(s) still pending a read; rerun to resume.`);
-  const spent = await writeOutputs({ rows, osmBase: osm.osmBase, counts, searchLimit: options.searchLimit, usage: tavily.usage });
+  const spent = await writeOutputs({ rows, osmBase: osm.osmBase, counts, searchLimit: options.searchLimit, usage: tavily.usage, exclusions });
   console.log(JSON.stringify({ counts, lastRunTavily: spent }, null, 2));
 }
 
