@@ -24,11 +24,18 @@ temperature 0.7 and picks one to three of the pub's supported tags.
 Publication checks claims, not wording. Every feature the prose names must be
 one of the pub's supported facts, each named once; a closed feature list
 catches the rest, including food, beer gardens, sport, screens, drinks styles,
-music genres, board games, rooms and events. A denial ("no", "without", "out of")
-or a lapse ("used to", "once", "stopped") fails, as does a mood, quality,
-reputation, age, crowd, price, quantity or schedule claim such as "cosy",
-"known for", "specialises in", "historic", "locals", "overpriced", "a range
-of" or "every Friday". A lone "happy" or
+music genres, board games, tables, rooms and events. The check is structural
+where it can be. The word before a feature may only introduce it (a
+determiner, a joining word, a verb, or "a game of"), so any adjective, number
+or price there fails: "strong cocktails", "two pool tables", "cheapish
+cocktails". After "<feature> is" only a presence word may follow, so "the
+cocktails are strong" fails. A past-tense governing verb outside the passive
+is a lapse ("hosted live music"), while "cocktails are served here" passes.
+Feature-to-feature ties ("with", "during") fail. Class lexicons also reject
+denial, lapse, hedge and frequency, schedule, mood, quality and any
+superlative, reputation, age, crowd, price and quantity words. They are lists:
+a claim worded outside them and away from a feature can still pass, and the
+runtime reader would not catch it either. A lone "happy" or
 "live" counts as mood. Each verb must fit its feature: a pub has, serves or
 hosts things, and people catch live music, play darts or pool, sing karaoke
 and get cocktails, so "catch cocktails" or "a pub quiz with darts" fails. No

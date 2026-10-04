@@ -18,7 +18,7 @@ const AMENITY_COPY = [
   { key: "liveMusic", tag: "Live music", terms: /\blive (?:music|bands?|acts?|sets?)\b|\b(?:bands?|gigs?|musicians?)\b/g },
   { key: "pubQuiz", tag: "Pub quiz", terms: /\b(?:pub )?(?:quiz(?:zes)?|trivia)(?: nights?)?\b/g },
   { key: "darts", tag: "Darts", terms: /\b(?:darts|dartboards?|oche)\b/g },
-  { key: "pool", tag: "Pool", terms: /\bpool(?: tables?| cues?)?\b/g },
+  { key: "pool", tag: "Pool", terms: /\bpool(?: table| cue)?\b/g },
   { key: "happyHour", tag: "Happy hour", terms: /\bhappy hours?\b/g },
   { key: "karaoke", tag: "Karaoke", terms: /\b(?:karaoke|sing-?alongs?)\b/g },
 ] as const;
@@ -36,33 +36,73 @@ const UNSUPPORTED_FEATURES = new RegExp(`\\b(?:${[
   "guest beers?", "jukebox(?:es)?", "djs?", "dj sets?", "dancing", "dance ?floors?", "discos?", "comedy", "open mics?",
   "bingo", "board games?", "arcades?", "snooker", "billiards", "skittles", "shuffleboard", "ping pong",
   "table tennis", "function rooms?", "private hire", "events?", "parking", "rooms?", "accommodation", "cinema",
-  "theatre", "jazz", "folk", "blues", "acoustic", "reggae", "indie", "punk", "metal",
+  "theatre", "jazz", "folk", "blues", "acoustic", "reggae", "indie", "punk", "metal", "tables?",
 ].join("|")})\\b`);
 
-// Mood, quality, reputation, crowd, age, price, quantity and schedule claims no
-// stored field can back, plus words that deny a feature or say it has ended. A lone "happy" or "live" is a mood word.
-const UNVERIFIABLE = new RegExp(`\\b(?:${[
-  "no", "not", "never", "none", "nor", "without", "lacks?", "lacking", "out of", "minus", "except", "isn't", "aren't",
-  "doesn't", "don't", "won't", "can't", "cannot", "hasn't", "haven't", "nothing", "forget", "skip",
-  "happy(?! hours?)", "live(?! (?:music|bands?|acts?|sets?))", "lively", "cosy", "cozy", "buzz(?:y|ing)?", "vibe",
-  "vibes", "atmosphere", "atmospheric", "friendly", "welcoming", "warm", "charming", "charm", "character",
-  "historic", "history", "heritage", "traditional", "old", "oldest", "older", "ancient", "classic", "iconic",
-  "famous", "legendary", "landmark", "institution", "popular", "favourites?", "favorites?", "beloved", "loved",
-  "best", "better", "great", "good", "nice", "decent", "solid", "proper", "top", "perfect", "ideal", "amazing",
-  "excellent", "fantastic", "brilliant", "lovely", "superb", "stunning", "beautiful", "gorgeous", "quiet",
-  "busy", "packed", "rowdy", "chilled", "relaxed", "laid-back", "intimate", "spacious", "huge", "big", "tiny",
-  "small", "little", "large", "stylish", "trendy", "hip", "cool", "fun", "unique", "quirky", "hidden", "gems?",
-  "secret", "rustic", "vibrant", "experience", "discover", "elevate", "seamless", "curated", "unleash", "unlock",
-  "journey", "effortless", "immerse", "boasts?", "locals", "regulars", "crowds?", "punters", "everyone", "families",
-  "family", "students", "workers", "tourists", "award", "award-winning", "cheap", "cheapest", "affordable",
-  "pricey", "expensive", "prices?", "priced", "value", "bargains?", "deals?", "discounts?", "quid", "budget",
-  "wallet", "free", "every", "weekly", "nightly", "daily", "tonight", "today", "weekends?", "mornings?",
-  "afternoons?", "evenings?", "nights", "late", "open", "opens", "until", "always", "often", "usually", "what a",
-  "known", "renowned", "reputation", "speciali[sz](?:e|es|ed|ing)", "special(?:i?ty|ities)", "signature",
-  "once", "used to", "formerly", "former", "gone", "dropped", "stopped", "ended", "banned", "ditched", "closed",
-  "rubbish", "dreadful", "terrible", "awful", "bad", "worst", "poor", "overpriced", "range of", "selection of",
-  "variety of", "plenty", "lots", "loads",
-].join("|")})\\b`);
+// Claims no stored field can back, by class. Each class is closed as a class,
+// not word by word: a lone "happy" or "live" is mood, any superlative is a
+// quality claim, and a past-tense governing verb outside the passive is a lapse.
+const PASSIVE = "(?<!\\b(?:is|are|be|been|being) )";
+const SUPERLATIVE_EXCEPTIONS = [
+  "rest", "west", "guests?", "test", "interest", "request", "quest", "honest", "nest", "chest", "pest", "suggest",
+  "contest", "protest", "invest", "harvest", "forest", "digest", "arrest", "crest", "zest", "manifest", "earnest",
+  "conquest", "priest", "vest", "jest", "lest", "attest", "behest", "infest", "detest", "inquest", "bequest",
+];
+const CLAIM_CLASSES = {
+  denial: ["no", "not", "never", "none", "nor", "without", "lacks?", "lacking", "out of", "minus", "except",
+    "isn't", "aren't", "doesn't", "don't", "won't", "can't", "cannot", "hasn't", "haven't", "nothing", "forget", "skip"],
+  lapse: ["once", "used to", "formerly", "former", "previously", "recently", "lately", "anymore", "any more",
+    "gone", "dropped", "stopped", "ended", "banned", "ditched", "closed", "closing", "closes", "shut", "shuts",
+    "scrapped", "axed", "cancell?ed", "suspended", "discontinued", "retired", "paused", "halted", "ceased", "quit",
+    "lost", "removed", "was", "were",
+    `${PASSIVE}(?:hosted|served|ran|poured|played|sang|joined|entered|grabbed|ordered|sipped|mixed|shook|shaken|threw|caught|staged|had|offered|did|featured|held)`],
+  hedge: ["might", "may", "maybe", "perhaps", "possibly", "probably", "could", "would", "should", "sometimes",
+    "occasional(?:ly)?", "rare(?:ly)?", "seldom", "regular(?:ly)?", "frequent(?:ly)?", "usually", "often",
+    "generally", "typically", "mostly", "hardly", "barely", "soon", "tends?", "now and then", "from time to time",
+    "every", "always", "weekly", "nightly", "daily"],
+  schedule: ["tonight", "today", "tomorrow", "weekends?", "weekdays?", "mornings?", "afternoons?", "evenings?",
+    "nights", "late", "early", "open", "opens", "until", "till", "til", "midnight", "noon", "o'clock", "am", "pm",
+    "hours?", "days?", "weeks?", "months?", "monthly", "years?", "yearly", "annual(?:ly)?", "seasons?", "seasonal",
+    "summer", "winter", "spring", "autumn", "christmas", "during", "twice", "thrice", "times", "fortnight(?:ly)?",
+    "(?:mon|tues|wednes|thurs|fri|satur|sun)days?"],
+  mood: ["happy(?! hours?)", "live(?! (?:music|bands?|acts?|sets?))", "lively", "cosy", "cozy", "buzz(?:y|ing)?",
+    "vibes?", "atmospheric", "atmosphere", "friendly", "welcoming", "warm", "charming", "charm", "character",
+    "chilled", "relaxed", "laid-back", "intimate", "rowdy", "quiet", "busy", "packed", "fun", "what a"],
+  quality: ["best", "better", "great", "good", "nice", "decent", "solid", "proper", "top", "perfect", "ideal",
+    "amazing", "excellent", "fantastic", "brilliant", "lovely", "superb", "stunning", "beautiful", "gorgeous",
+    "spacious", "huge", "big", "tiny", "small", "little", "large", "stylish", "trendy", "hip", "cool", "unique",
+    "quirky", "hidden", "gems?", "secret", "rustic", "vibrant", "experience", "discover", "elevate", "seamless",
+    "curated", "unleash", "unlock", "journey", "effortless", "immerse", "boasts?", "go-to", "excel(?:s|led|lent)?",
+    "rubbish", "dreadful", "terrible", "awful", "bad", "worst", "poor", "mediocre", "weak", "strong",
+    `(?!(?:${SUPERLATIVE_EXCEPTIONS.join("|")})\\b)[a-z]{2,}est`],
+  reputation: ["known", "renowned", "reputation", "speciali[sz](?:e|es|ed|ing)", "special(?:i?ty|ities)",
+    "signature", "famous", "legendary", "iconic", "landmark", "institution", "popular", "favourites?",
+    "favorites?", "beloved", "loved", "award", "award-winning"],
+  age: ["historic", "history", "heritage", "traditional", "old", "older", "ancient", "classic", "new", "newly"],
+  crowd: ["locals", "regulars", "crowds?", "punters", "everyone", "families", "family", "students", "workers",
+    "tourists"],
+  price: ["cheap\\w*", "affordable", "pric\\w*", "expensive", "overpriced", "value", "bargains?", "deals?",
+    "discounts?", "quid", "budget", "wallet", "free", "fiver", "tenner", "pounds?", "pence", "costs?", "costing",
+    "pay", "paying", "spend"],
+  quantity: ["range of", "selection of", "variety of", "plenty", "lots", "loads", "dozens?", "several", "few",
+    "many", "multiple", "numerous", "countless", "couple", "pair", "two", "three", "four", "five", "six", "seven",
+    "eight", "nine", "ten", "eleven", "twelve", "twenty", "hundreds?", "extensive", "endless"],
+};
+const UNVERIFIABLE = new RegExp(`\\b(?:${Object.values(CLAIM_CLASSES).flat().join("|")})\\b`);
+
+// The word before a feature may only introduce it: a determiner, a joining
+// word, a verb, or "a game of". Any adjective, number or price there is a claim.
+const BEFORE_FACT = new Set([
+  "a", "an", "the", "some", "its", "their", "your", "and", "or", "plus", "with", "also", "both", "for", "on", "up",
+  "in", "find", "fancy", "enjoy", "try", "then", "got", "there's", "here's",
+]);
+const PARTITIVE = new Set(["game", "bit", "round", "frame", "go"]);
+// After "<feature> is" only a presence word may follow, never a verdict.
+const AFTER_FACT_IS = new Set([
+  "on", "here", "available", "served", "poured", "mixed", "run", "hosted", "played", "sung", "featured", "offered",
+  "provided", "put", "in", "at", "a", "an",
+  "the", "part", "also", "all",
+]);
 
 // Each verb may govern only the features it fits: nobody catches a cocktail.
 const VERB_FITS: ReadonlyArray<[RegExp, readonly AmenityKey[]]> = [
@@ -72,9 +112,9 @@ const VERB_FITS: ReadonlyArray<[RegExp, readonly AmenityKey[]]> = [
   [/^(?:join|joins|joining|enter|enters|take part in)$/, ["pubQuiz", "karaoke"]],
   [/^(?:get|gets|grab|grabs|order|orders|sip|sips)$/, ["cocktails", "nonAlcoholic", "happyHour"]],
   [/^(?:serve|serves|serving|pour|pours|pouring|mix|mixes|mixing|shake|shakes|shaking)$/, ["cocktails", "nonAlcoholic"]],
-  [/^(?:has|have|offers?|offering|does|do)$/, AMENITY_COPY.map(({ key }) => key)],
+  [/^(?:has|have|offers?|offering|does|do|features?|featuring|provides?|providing)$/, AMENITY_COPY.map(({ key }) => key)],
 ];
-const VERBS = /\b(?:catch|catching|host|hosts|hosting|run|runs|running|puts on|put on|stages?|play|plays|playing|shoot|throw|throws|sing|sings|singing|belt|belts|join|joins|joining|enter|enters|take part in|get|gets|grab|grabs|order|orders|sip|sips|serve|serves|serving|pour|pours|pouring|mix|mixes|mixing|shake|shakes|shaking|has|have|offers?|offering|does|do)\b/g;
+const VERBS = /\b(?:catch|catching|host|hosts|hosting|run|runs|running|puts on|put on|stages?|play|plays|playing|shoot|throw|throws|sing|sings|singing|belt|belts|join|joins|joining|enter|enters|take part in|get|gets|grab|grabs|order|orders|sip|sips|serve|serves|serving|pour|pours|pouring|mix|mixes|mixing|shake|shakes|shaking|has|have|offers?|offering|does|do|features?|featuring|provides?|providing)\b/g;
 
 const FORMAT = /^[A-Z][A-Za-z ,.?'’-]*\.$/;
 const PUB_REFERENCE = /\b(?:pub(?! quiz)|local|boozer|place|spot|venue|here|they)\b/i;
@@ -111,8 +151,13 @@ function placesFollowThePub(description: string, borough: string | null): boolea
 }
 
 /** Every named feature is supported, named once, never denied and paired with a verb that fits. */
-function claimsAreSupported(description: string, stated: ReadonlyArray<(typeof AMENITY_COPY)[number]>): boolean {
+function claimsAreSupported(
+  description: string,
+  borough: string | null,
+  stated: ReadonlyArray<(typeof AMENITY_COPY)[number]>,
+): boolean {
   let text = description.toLowerCase().replace(/’/g, "'");
+  for (const place of [borough, "London"]) if (place) text = text.split(place.toLowerCase()).join(" place ");
   const mentioned: AmenityKey[] = [];
   for (const { key, terms } of AMENITY_COPY) {
     text = text.replace(terms, () => {
@@ -124,6 +169,7 @@ function claimsAreSupported(description: string, stated: ReadonlyArray<(typeof A
   if (!mentioned.every((key) => stated.some((fact) => fact.key === key))) return false;
   if (UNSUPPORTED_FEATURES.test(text) || UNVERIFIABLE.test(text)) return false;
   if (/fact_\w+ +with\b|\band drinks\b|\bfor you to\b/.test(text)) return false;
+  if (!factsStandPlain(text)) return false;
   // A pub hosts and serves; people catch, play, sing and get.
   if (/\b(?:pub|local|boozer|place|spot|venue|it|they) (?:catch|catches|play|plays|sing|sings|get|gets|grab|grabs|order|orders|sip|sips)\b/.test(text)) return false;
   return text.split(/[.?;:]/).every((clause) => {
@@ -135,6 +181,20 @@ function claimsAreSupported(description: string, stated: ReadonlyArray<(typeof A
       return governed.every((key) => fits.includes(key));
     });
   });
+}
+
+/** No modifier before a feature and no verdict after it. */
+function factsStandPlain(text: string): boolean {
+  const tokens = text.match(/fact_\w+|[a-z'-]+|[,?.;:]/g) ?? [];
+  const introduced = tokens.every((token, index) => {
+    if (!token.startsWith("fact_")) return true;
+    const before = tokens[index - 1];
+    if (!before || /^[,?.;:]$/.test(before) || BEFORE_FACT.has(before)) return true;
+    if (VERB_FITS.some(([pattern]) => pattern.test(before))) return true;
+    return (before === "of" || before === "at") && PARTITIVE.has(tokens[index - 2] ?? "");
+  });
+  if (!introduced) return false;
+  return [...text.matchAll(/fact_\w+ +(?:is|are|'s) +([a-z'-]+)/g)].every((match) => AFTER_FACT_IS.has(match[1]));
 }
 
 /**
@@ -160,6 +220,6 @@ export function validateVenueRecordCopy(
   if (description.length < 20 || description.length > 180 || !FORMAT.test(description)) return null;
   if ((description.match(/[.?](?: |$)/g) ?? []).length > 2) return null;
 
-  if (!placesFollowThePub(description, facts.borough) || !claimsAreSupported(description, stated)) return null;
+  if (!placesFollowThePub(description, facts.borough) || !claimsAreSupported(description, facts.borough, stated)) return null;
   return { description, vibeTags: vibeTags as string[] };
 }
