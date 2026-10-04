@@ -2,9 +2,9 @@
  * Verify London venues or budget-selected UK city pubs with Places.
  *
  * Text Search is IDs only (free). Place Details then reads businessStatus
- * and displayName for pubs and, for those cafes, the opening period list.
- * The name and the periods are compared in memory with our OSM row and
- * dropped. A pub counts as closed only when Google says CLOSED_PERMANENTLY
+ * and displayName for pubs and, for the Shoreditch coffee-box cafes, the
+ * opening period list. The name and the periods are compared in memory with
+ * our OSM row and dropped. A pub counts as closed only when Google says CLOSED_PERMANENTLY
  * and the names match; closed_pubs.json is the single record of closure.
  * The files this writes store our venue id, the place id, our cafe
  * OSM-hours verdict (agree, disagree or no_osm_hours), closed OSM refs, and
