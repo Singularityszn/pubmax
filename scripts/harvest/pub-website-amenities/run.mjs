@@ -24,6 +24,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
@@ -461,7 +462,12 @@ function mergeEvidence(previous, fresh, ownership) {
 /** Pending observations the evidence file does not carry yet, with the spend their batch started from. */
 function recoverPending(checkpoint, previous, currentPubs) {
   const stored = checkpoint.pendingPublication;
-  const batchPublished = Number.isInteger(stored?.publications) && stored.publications === previous?.publications;
+  const hasBatchId = typeof stored?.id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stored.id);
+  // A counter-only legacy batch cannot prove that existing evidence published it.
+  if (stored && !hasBatchId && previous !== null) {
+    throw new Error("Cannot verify legacy pending publication against existing evidence; preserve checkpoint for operator recovery");
+  }
+  const batchPublished = hasBatchId && stored.id === previous?.publicationBatchId;
   const fresh = new Map();
   for (const [osmId, entry] of Object.entries(checkpoint.byOsmId)) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
@@ -479,8 +485,9 @@ function recoverPending(checkpoint, previous, currentPubs) {
       entry.publication = "published";
     }
   }
-  const unpublished = !batchPublished && Number.isFinite(stored?.spentUsd) ? { spentUsd: stored.spentUsd } : null;
-  return { fresh, batch: unpublished ?? (fresh.size > 0 ? { spentUsd: checkpoint.spentUsd } : null) };
+  const unpublished = !batchPublished && Number.isFinite(stored?.spentUsd)
+    ? { spentUsd: stored.spentUsd, id: hasBatchId ? stored.id : randomUUID() } : null;
+  return { fresh, batch: unpublished ?? (fresh.size > 0 ? { spentUsd: checkpoint.spentUsd, id: randomUUID() } : null) };
 }
 
 async function main() {
@@ -692,7 +699,7 @@ async function main() {
       if (done) {
         done.publication = "pending";
         fresh.set(work[index].osmId, done);
-        batch ??= { spentUsd: startSpent };
+        batch ??= { spentUsd: startSpent, id: randomUUID() };
       }
       if ((index + 1) % 10 === 0) await save();
       if ((index + 1) % 25 === 0) {
@@ -733,6 +740,7 @@ async function main() {
     actualSpendUsd: Number(((previous?.actualSpendUsd ?? 0) + spent - (batch?.spentUsd ?? startSpent)).toFixed(4)),
     jobCapUsd: JOB_SPEND_CAP_USD,
     publications: batch ? batch.publications : previous?.publications,
+    publicationBatchId: batch ? batch.id : previous?.publicationBatchId,
     skipCounts,
     rows: evidenceRows,
   }, previous, stampDataset(evidenceRows));
