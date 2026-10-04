@@ -1,5 +1,7 @@
-/** One stderr line per forbidden category, printed after the JSON report. */
-export const REVIEW_SCOPE_HINTS: Readonly<Record<"generated" | "skill-pack", string>>;
+/** One stderr line per failing check, printed after the JSON report. */
+export const REVIEW_SCOPE_HINTS: Readonly<
+  Record<"generated" | "skill-pack" | "pipeline-data", string>
+>;
 
 export const MAX_REVIEW_FILES: number;
 export const MAX_RUNTIME_DOMAINS: number;
@@ -55,7 +57,17 @@ export function changedFilesFromGit(
   head: string,
   cwd: string,
 ): string[];
+/** Subject prefix of a commit the no-mistakes pipeline wrote. */
+export const PIPELINE_COMMIT_SUBJECT: RegExp;
+
+export type BranchCommit = { sha: string; subject: string; paths: string[] };
+
+/** Bundled-data paths that no-mistakes pipeline commits touched. */
+export function pipelineDataChurn(
+  commits: readonly BranchCommit[],
+): Array<{ sha: string; path: string }>;
+export function commitsFromGit(base: string, head: string, cwd: string): BranchCommit[];
 export function runReviewScopeCli(
   argv?: string[],
   cwd?: string,
-): ReviewScopeReport;
+): ReviewScopeReport & { pipelineChurn: Array<{ sha: string; path: string }> };

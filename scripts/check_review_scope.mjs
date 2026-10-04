@@ -3,7 +3,8 @@
 // Review-scope report for pull requests. This script is deliberately
 // dependency-free so CI can run it before installing the application.
 //
-// It FAILS on one thing: generated or skill-pack output in a human review.
+// It FAILS on two things: generated or skill-pack output in a human review,
+// and a no-mistakes pipeline commit that touches committed bundled data.
 // The file count and the runtime-domain count are warnings, because a wide
 // review is a judgement and a machine-written file in one is not. The single
 // exception is a REGENERATED LANE, declared below: output the same diff can be
@@ -13,11 +14,15 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
+import { isBundledDataFile } from "./lib/committedBundledDataPaths.mjs";
+
 export const REVIEW_SCOPE_HINTS = {
   generated:
     "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
   "skill-pack":
     "A skill pack in this diff sits outside the project skill root. Move it under .agents/skills/; rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+  "pipeline-data":
+    "A no-mistakes pipeline commit in this branch changed committed bundled data. Builder churn is never part of an automatic fix: drop those paths from the commit, and keep .no-mistakes.yaml protected_paths covering them.",
 };
 
 export const MAX_REVIEW_FILES = 150;
@@ -313,6 +318,48 @@ function parseNameStatus(line) {
   return [{ path, status: code }];
 }
 
+/**
+ * THE PIPELINE NEVER COMMITS BUNDLED DATA.
+ *
+ * A no-mistakes step commits whatever its agent left in the run worktree. On
+ * PR 1862 a CI repair ran a builder outside the restore wrappers and committed
+ * 111 stamped public/data files. A later revert hid it from the net diff, so
+ * this check reads every pipeline commit, not the diff. A person may commit
+ * regenerated data; an automatic fix may not. The README files beside the
+ * data stay open to the Document step.
+ */
+export const PIPELINE_COMMIT_SUBJECT = /^no-mistakes\([a-z-]+\):/;
+
+/**
+ * Bundled-data paths that pipeline commits touched.
+ * @param {{ sha: string, subject: string, paths: string[] }[]} commits
+ */
+export function pipelineDataChurn(commits) {
+  return commits
+    .filter((commit) => PIPELINE_COMMIT_SUBJECT.test(commit.subject))
+    .flatMap((commit) =>
+      commit.paths
+        .map(normalizeReviewPath)
+        .filter(isBundledDataFile)
+        .map((path) => ({ sha: commit.sha, path })),
+    );
+}
+
+export function commitsFromGit(base, head, cwd) {
+  // A push that creates a branch names no base, and so no range to read.
+  if (/^0{40}$/.test(base)) return [];
+  const output = execFileSync(
+    "git",
+    ["log", "--no-renames", "--format=%x1e%H%x1f%s", "--name-only", `${base}..${head}`],
+    { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+  );
+  return output.split("\x1e").filter(Boolean).map((record) => {
+    const [header, ...lines] = record.split("\n");
+    const [sha, subject = ""] = header.split("\x1f");
+    return { sha, subject, paths: lines.filter(Boolean) };
+  });
+}
+
 function usage() {
   return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>]";
 }
@@ -338,7 +385,9 @@ function parseArgs(argv) {
 export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cwd()) {
   const args = parseArgs(argv);
   const files = changedFilesFromGit(args.base, args.head, args.repo ?? cwd);
-  const report = summarizeReviewScope(files);
+  const scope = summarizeReviewScope(files);
+  const pipelineChurn = pipelineDataChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd));
+  const report = { ...scope, pipelineChurn, ok: scope.ok && pipelineChurn.length === 0 };
   console.log(JSON.stringify({ base: args.base, head: args.head, ...report }, null, 2));
   return report;
 }
@@ -350,6 +399,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
       for (const [category, hint] of Object.entries(REVIEW_SCOPE_HINTS)) {
         if (report.forbidden.some((item) => item.category === category)) console.error(hint);
       }
+      if (report.pipelineChurn.length > 0) console.error(REVIEW_SCOPE_HINTS["pipeline-data"]);
       process.exitCode = 1;
     }
   } catch (error) {

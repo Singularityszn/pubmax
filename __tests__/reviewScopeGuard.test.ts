@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -6,8 +6,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   changedFilesFromGit,
+  commitsFromGit,
   MAX_REVIEW_FILES,
   MAX_RUNTIME_DOMAINS,
+  pipelineDataChurn,
   REVIEW_SCOPE_HINTS,
   summarizeReviewScope,
 } from "../scripts/check_review_scope.mjs";
@@ -496,5 +498,90 @@ describe("review scope guard", () => {
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
+  });
+});
+
+describe("pipeline commits and bundled data", () => {
+  it("flags bundled data in a no-mistakes commit, whatever the step", () => {
+    const churn = pipelineDataChurn([
+      {
+        sha: "ci",
+        subject: "no-mistakes(ci): Browser law pins failed",
+        paths: ["e2e/map-surface-history.spec.ts", "public/data/venues_slim.core.json"],
+      },
+      { sha: "doc", subject: "no-mistakes(document): Refresh docs", paths: ["public/data/uk_base/a.json"] },
+    ]);
+
+    expect(churn).toEqual([
+      { sha: "ci", path: "public/data/venues_slim.core.json" },
+      { sha: "doc", path: "public/data/uk_base/a.json" },
+    ]);
+  });
+
+  it("leaves a person's data commit, a revert and the data READMEs alone", () => {
+    expect(
+      pipelineDataChurn([
+        { sha: "author", subject: "feat(data): add pubs", paths: ["public/data/venues_slim.json"] },
+        {
+          sha: "revert",
+          subject: 'Revert "no-mistakes(ci): Browser law pins failed"',
+          paths: ["public/data/venues_slim.json"],
+        },
+        {
+          sha: "doc",
+          subject: "no-mistakes(document): Correct price docs",
+          paths: ["public/data/uk_prices/README.md", "public/data/AGENTS.md"],
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("fails the CLI on churn a later revert hid from the net diff", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-pipeline-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+
+    try {
+      git("init", "-q");
+      git("config", "user.email", "review-scope@example.invalid");
+      git("config", "user.name", "Review Scope Test");
+      mkdirSync(join(repo, "public/data"), { recursive: true });
+      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"local"}\n');
+      git("add", ".");
+      git("commit", "-qm", "seed");
+      const base = git("rev-parse", "HEAD");
+
+      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"746811cfdddc"}\n');
+      mkdirSync(join(repo, "e2e"), { recursive: true });
+      writeFileSync(join(repo, "e2e/flake.spec.ts"), "// retried\n");
+      git("add", "-A");
+      git("commit", "-qm", "no-mistakes(ci): Browser law pins failed");
+      const churned = git("rev-parse", "HEAD");
+      git("revert", "--no-edit", churned);
+      const head = git("rev-parse", "HEAD");
+
+      expect(commitsFromGit(base, head, repo).map((commit) => commit.paths)).toEqual([
+        ["e2e/flake.spec.ts", "public/data/venues_slim.json"],
+        ["e2e/flake.spec.ts", "public/data/venues_slim.json"],
+      ]);
+      expect(summarizeReviewScope(changedFilesFromGit(base, head, repo)).ok).toBe(true);
+
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "scripts/check_review_scope.mjs"), "--base", base, "--head", head, "--repo", repo],
+        { encoding: "utf8" },
+      );
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout).pipelineChurn).toEqual([
+        { sha: churned, path: "public/data/venues_slim.json" },
+      ]);
+      expect(result.stderr).toBe(`${REVIEW_SCOPE_HINTS["pipeline-data"]}\n`);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("reads no commit range from an all-zero base", () => {
+    expect(commitsFromGit("0".repeat(40), "HEAD", process.cwd())).toEqual([]);
   });
 });
