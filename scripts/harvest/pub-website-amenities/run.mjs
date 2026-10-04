@@ -13,8 +13,8 @@
 // file onto the source dataset through the gate, so a rerun gives the same
 // dataset and a tightened gate takes stamps away. --restamp does only that: it
 // reads no checkpoint, fetches nothing and calls no model. A harvest adds this
-// run's pages to the committed evidence; the checkpoint only says which pubs
-// are already done.
+// run's pages to the committed evidence. Completed observations stay pending in
+// the checkpoint until both publication files are written.
 //
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
@@ -377,7 +377,9 @@ function withStampFigures(evidence, previous, stamps) {
 
 function writeEvidence(evidence) {
   mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
-  writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
+  const temp = `${EVIDENCE_PATH}.tmp`;
+  writeFileSync(temp, `${JSON.stringify(evidence, null, 2)}\n`);
+  renameSync(temp, EVIDENCE_PATH);
 }
 
 function restampFromEvidence() {
@@ -393,6 +395,27 @@ function restampFromEvidence() {
       columnCoverageAfter: next.columnCoverageAfter,
     }),
   );
+}
+
+/** Recovered observations must still identify a current pub and permitted citations. */
+function recoverableObservation(entry, pub) {
+  const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  const quotes = (value) => record(value) && Object.entries(value).every(([key, quote]) =>
+    PUB_WEBSITE_AMENITY_KEYS.includes(key) && typeof quote === "string");
+  const permitted = (url) => typeof url === "string" && isHarvestableOperatorUrl(url);
+  if (!record(entry) || entry.status !== "ok" || !pub) return false;
+  if (typeof entry.name !== "string" || !entry.name.trim()) return false;
+  if (entry.name !== pub.name || entry.venueId !== pub.venueId) return false;
+  if (entry.website !== undefined && entry.website !== pub.website) return false;
+  if (!permitted(pub.website) || !permitted(entry.sourceUrl)) return false;
+  const day = entry.verifiedAt;
+  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const date = new Date(`${day}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== day) return false;
+  if (day > new Date().toISOString().slice(0, 10) || !quotes(entry.amenities)) return false;
+  if (entry.pages !== undefined && (!Array.isArray(entry.pages) || !entry.pages.every((page) =>
+    record(page) && permitted(page.sourceUrl) && quotes(page.amenities)))) return false;
+  return true;
 }
 
 /** The committed evidence with this run's pages laid over it. */
@@ -511,9 +534,22 @@ async function main() {
   let spent = Number(checkpoint.spentUsd ?? 0);
   const startSpent = spent;
   const byOsmId = checkpoint.byOsmId;
+  const previous = readEvidence();
   const fresh = new Map();
+  const currentPubs = new Map(pubs.map((pub) => [pub.osmId, pub]));
+  for (const [osmId, entry] of Object.entries(byOsmId)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    if (entry.publication === "pending" || (entry.publication === undefined && previous === null)) {
+      if (!recoverableObservation(entry, currentPubs.get(osmId))) continue;
+      entry.publication = "pending";
+      fresh.set(osmId, entry);
+    } else if (entry.publication === undefined) {
+      // Existing publication may have deliberately removed this legacy row.
+      entry.publication = "published";
+    }
+  }
   const robots = createRobotsChecker();
-  const queue = pubs.filter((pub) => !byOsmId[pub.osmId]);
+  const queue = pubs.filter((pub) => !Object.hasOwn(byOsmId, pub.osmId));
   const work = limit === null ? queue : queue.slice(0, limit);
   let cursor = 0;
   let writeChain = Promise.resolve();
@@ -611,6 +647,8 @@ async function main() {
       verifiedAt: new Date().toISOString().slice(0, 10),
       amenities: kept,
       pages: evidencedPages,
+      publication: "pending",
+      website: pub.website,
       usd: cost.usd,
     };
     if (spent >= SPEND_STOP_USD) stopped = true;
@@ -626,7 +664,10 @@ async function main() {
       if (index >= work.length) return;
       await one(work[index]);
       const done = byOsmId[work[index].osmId];
-      if (done) fresh.set(work[index].osmId, done);
+      if (done) {
+        done.publication = "pending";
+        fresh.set(work[index].osmId, done);
+      }
       if ((index + 1) % 10 === 0) await save();
       if ((index + 1) % 25 === 0) {
         const kept = Object.values(byOsmId).filter((row) => row.status === "ok" && Object.keys(row.amenities ?? {}).length > 0).length;
@@ -637,7 +678,6 @@ async function main() {
   await Promise.all(workers);
   await save();
 
-  const previous = readEvidence();
   const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh);
   const evidence = withStampFigures({
     version: 1,
@@ -659,6 +699,8 @@ async function main() {
     rows: evidenceRows,
   }, previous, stampDataset(evidenceRows));
   writeEvidence(evidence);
+  for (const [osmId] of fresh) byOsmId[osmId].publication = "published";
+  await save();
   console.log(
     JSON.stringify({
       actualSpendUsd: evidence.actualSpendUsd,

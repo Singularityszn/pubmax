@@ -7,6 +7,7 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const RUNNER = "scripts/harvest/pub-website-amenities/run.mjs";
 const DATASET = "public/data/pint_prices_app_dataset.json";
 const EVIDENCE = "data/amenities/london_pub_website_evidence.json";
+const CHECKPOINT = "data-harvest/pub-website-amenities/checkpoint.json";
 const SPORTS_QUOTE = "We show live sport on our TV screens.";
 const FOOD_QUOTE = "We serve freshly cooked meals every day.";
 const POOL_QUOTE = "Play on our pool table every evening.";
@@ -62,6 +63,26 @@ cp.execFileSync = (command, args) => {
   calls.push({ kind: "synthetic-token" });
   return "offline-synthetic-token";
 };
+const realWrite = fs.writeFileSync;
+const realRename = fs.renameSync;
+let fileHits = 0;
+const failFile = (file, operation) => {
+  if (config.failure?.operation === operation && String(file).endsWith(config.failure.path)) {
+    fileHits += 1;
+    if (fileHits === (config.failure.occurrence ?? 1)) {
+      calls.push({ kind: "injected-file-error" });
+      throw new Error("Synthetic publication interruption");
+    }
+  }
+};
+fs.writeFileSync = (file, ...args) => {
+  failFile(file, "write");
+  return realWrite(file, ...args);
+};
+fs.renameSync = (from, to) => {
+  failFile(to, "rename");
+  return realRename(from, to);
+};
 syncBuiltinESMExports();
 const RealDate = Date;
 globalThis.Date = class extends RealDate {
@@ -96,10 +117,10 @@ afterEach(() => {
   for (const root of scratchRoots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-function runCli(
+function createCli(
   pages: Record<string, Page>,
   amenities: ModelAmenities = { liveSports: { value: true, evidence: SPORTS_QUOTE } },
-  options: { secondPub?: boolean; restamp?: boolean } = {},
+  options: { secondPub?: boolean } = {},
 ) {
   const scratchParent = path.join(ROOT, ".audit/runner-recovery/tests");
   mkdirSync(scratchParent, { recursive: true });
@@ -141,28 +162,49 @@ function runCli(
     env: { PATH: path.dirname(process.execPath), TSX_TSCONFIG_PATH: path.join(root, "tsconfig.json") },
     encoding: "utf8",
   });
-  const result = execute(["--limit", options.secondPub ? "2" : "1"]);
-  expect(result.error).toBeUndefined();
+  const readText = (relative: string) => readFileSync(path.join(root, relative), "utf8");
+  const read = (relative: string) => JSON.parse(readText(relative));
+  const calls = () => {
+    const recorded = read("calls.json") as Call[];
+    expect(recorded.filter((call) => call.kind === "unexpected")).toEqual([]);
+    return recorded;
+  };
+  const run = (args = ["--limit", options.secondPub ? "2" : "1"]) => {
+    const result = execute(args);
+    expect(result.error).toBeUndefined();
+    calls();
+    return result;
+  };
+  const output = () => {
+    const dataset = read(DATASET);
+    expect(dataset[0]).toMatchObject({
+      price_gbp: 5.75,
+      price_observed_at: "2026-09-20",
+      scraped_at_values: "2026-09-20T12:00:00Z",
+    });
+    const evidence = read(EVIDENCE) as {
+      rows: EvidenceRow[]; stampedVenues: number; stampedRows: number;
+    };
+    return { calls: calls(), dataset, evidence };
+  };
+  return { run, output, read, readText, write, calls, remove: (relative: string) => rmSync(path.join(root, relative)) };
+}
+
+function runCli(
+  pages: Record<string, Page>,
+  amenities: ModelAmenities = { liveSports: { value: true, evidence: SPORTS_QUOTE } },
+  options: { secondPub?: boolean; restamp?: boolean } = {},
+) {
+  const cli = createCli(pages, amenities, options);
+  const result = cli.run();
   expect(result.status, result.stderr).toBe(0);
   if (options.restamp) {
-    const before = readFileSync(path.join(root, DATASET), "utf8");
-    const restamped = execute(["--restamp"]);
-    expect(restamped.error).toBeUndefined();
+    const before = cli.readText(DATASET);
+    const restamped = cli.run(["--restamp"]);
     expect(restamped.status, restamped.stderr).toBe(0);
-    expect(readFileSync(path.join(root, DATASET), "utf8")).toBe(before);
+    expect(cli.readText(DATASET)).toBe(before);
   }
-  const calls = JSON.parse(readFileSync(path.join(root, "calls.json"), "utf8")) as Call[];
-  expect(calls.filter((call) => call.kind === "unexpected")).toEqual([]);
-  const dataset = JSON.parse(readFileSync(path.join(root, DATASET), "utf8"));
-  expect(dataset[0]).toMatchObject({
-    price_gbp: 5.75,
-    price_observed_at: "2026-09-20",
-    scraped_at_values: "2026-09-20T12:00:00Z",
-  });
-  const evidence = JSON.parse(readFileSync(path.join(root, EVIDENCE), "utf8")) as {
-    rows: EvidenceRow[]; stampedVenues: number; stampedRows: number;
-  };
-  return { calls, dataset, evidence };
+  return cli.output();
 }
 
 function pagesWithLinkedLanding(landing = LANDING, rules = "Allow: /"): Record<string, Page> {
@@ -303,5 +345,205 @@ describe("pub website amenities CLI permission and page citations", () => {
     expect(calls.find((call) => call.kind === "model")?.page).not.toContain(SPORTS_QUOTE);
     expect(evidence.rows).toEqual([]);
     expect(dataset[0].live_sports).toBe("");
+  });
+});
+
+
+describe("pub website amenities CLI checkpoint publication", () => {
+  it.each([
+    { operation: "write", path: `${DATASET}.tmp` },
+    { operation: "rename", path: DATASET },
+    { operation: "rename", path: EVIDENCE },
+    { operation: "write", path: `${CHECKPOINT}.tmp`, occurrence: 2 },
+  ])("recovers both page citations across publication failure $operation $path", (failure) => {
+    const pages = pagesWithLinkedLanding();
+    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    const cli = createCli(pages, {
+      food: { value: true, evidence: FOOD_QUOTE },
+      liveSports: { value: true, evidence: SPORTS_QUOTE },
+    });
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure });
+    const interrupted = cli.run();
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-1"].status).toBe("ok");
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z" });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows).toEqual([
+      expect.objectContaining({ sourceUrl: HOME, verifiedAt: OBSERVED_AT, amenities: { food: FOOD_QUOTE } }),
+      expect.objectContaining({ sourceUrl: LANDING, verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE } }),
+    ]);
+    expect(dataset[0]).toMatchObject({ food: "y", live_sports: "y" });
+    const rerun = cli.run();
+    expect(rerun.status, rerun.stderr).toBe(0);
+    expect(cli.output()).toEqual({ calls, dataset, evidence });
+  });
+
+  it("keeps already published reruns byte-identical without external calls", () => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    const before = { dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) };
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {}, now: "2026-10-04T12:00:00Z" });
+    const rerun = cli.run();
+    expect(rerun.status, rerun.stderr).toBe(0);
+    expect(cli.calls()).toEqual([]);
+    expect({ dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) }).toEqual(before);
+  });
+
+  it.each(["published", "legacy"])("preserves deliberate evidence removal for %s checkpoint", (kind) => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    const checkpoint = cli.read(CHECKPOINT);
+    if (kind === "legacy") delete checkpoint.byOsmId["node/synthetic-1"].publication;
+    cli.write(CHECKPOINT, checkpoint);
+    cli.write(EVIDENCE, { ...cli.read(EVIDENCE), rows: [] });
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {} });
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+    // Once publication is known, even deleting the whole evidence file cannot revive it.
+    cli.remove(EVIDENCE);
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+  });
+
+  it("retains valid older observation without inventing expiry or refreshing its date", () => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    const checkpoint = cli.read(CHECKPOINT);
+    Object.assign(checkpoint.byOsmId["node/synthetic-1"], { publication: "pending", verifiedAt: "2015-01-10" });
+    cli.write(CHECKPOINT, checkpoint);
+    cli.remove(EVIDENCE);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {} });
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "y" }], evidence: { rows: [{ verifiedAt: "2015-01-10" }] } });
+  });
+
+  it("reapplies current semantic gates when recovering a checkpoint", () => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    const checkpoint = cli.read(CHECKPOINT);
+    Object.assign(checkpoint.byOsmId["node/synthetic-1"], {
+      publication: "pending", amenities: { food: "Food and drinks Hotels About us Contact us Careers" },
+      pages: [{ sourceUrl: LANDING, amenities: { food: "Food and drinks Hotels About us Contact us Careers" } }],
+    });
+    cli.write(CHECKPOINT, checkpoint);
+    cli.remove(EVIDENCE);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {} });
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+  });
+
+  it("refuses a recovered checkpoint when current dataset no longer maps its pub", () => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    const checkpoint = cli.read(CHECKPOINT);
+    checkpoint.byOsmId["node/synthetic-1"].publication = "pending";
+    cli.write(CHECKPOINT, checkpoint);
+    cli.write(DATASET, [{ ...PRICE_ROW, longitude: -0.3 }]);
+    cli.remove(EVIDENCE);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {} });
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+  });
+
+  it("refuses an obsolete OSM checkpoint entry without adding an unknown pub", () => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    const checkpoint = cli.read(CHECKPOINT);
+    checkpoint.byOsmId["node/obsolete"] = { ...checkpoint.byOsmId["node/synthetic-1"], publication: "pending" };
+    cli.write(CHECKPOINT, checkpoint);
+    cli.remove(EVIDENCE);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {} });
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+  });
+
+  it.each([null, [], "ok", 42])("refuses malformed checkpoint entry %j without retrying external work", (entry) => {
+    const cli = createCli({});
+    cli.write(CHECKPOINT, { spentUsd: 0, byOsmId: { "node/synthetic-1": entry } });
+    const result = cli.run();
+    expect(result.status, result.stderr).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+  });
+
+  it.each([
+    ["invalid calendar day", (entry: Record<string, unknown>) => { entry.verifiedAt = "2026-02-30"; }],
+    ["future observation", (entry: Record<string, unknown>) => { entry.verifiedAt = "2099-01-01"; }],
+    ["missing observation date", (entry: Record<string, unknown>) => { delete entry.verifiedAt; }],
+    ["observation date object", (entry: Record<string, unknown>) => { entry.verifiedAt = { day: OBSERVED_AT }; }],
+    ["wrong pub identity", (entry: Record<string, unknown>) => { entry.name = "Other Pub"; }],
+    ["obsolete venue mapping", (entry: Record<string, unknown>) => { entry.venueId = "venue-obsolete"; }],
+    ["changed pub website", (entry: Record<string, unknown>) => { entry.website = "https://obsolete.example/"; }],
+    ["refused original source", (entry: Record<string, unknown>) => { entry.sourceUrl = "https://127.0.0.1/"; }],
+    ["malformed pages", (entry: Record<string, unknown>) => { entry.pages = {}; }],
+    ["null page", (entry: Record<string, unknown>) => { entry.pages = [null]; }],
+    ["refused citation", (entry: Record<string, unknown>) => { entry.pages = [{ sourceUrl: "https://127.0.0.1/", amenities: { liveSports: SPORTS_QUOTE } }]; }],
+    ["malformed quote", (entry: Record<string, unknown>) => { entry.pages = [{ sourceUrl: HOME, amenities: { liveSports: { evidence: SPORTS_QUOTE } } }]; }],
+  ])("refuses pending checkpoint with %s without external calls", (_label, mutate) => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    const checkpoint = cli.read(CHECKPOINT);
+    const entry = checkpoint.byOsmId["node/synthetic-1"];
+    entry.publication = "pending";
+    mutate(entry);
+    cli.write(CHECKPOINT, checkpoint);
+    cli.remove(EVIDENCE);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {} });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows).toEqual([]);
+    expect(dataset[0].live_sports).toBe("");
+  });
+
+  it("recovers a dated legacy checkpoint only when published evidence file is absent", () => {
+    const pages = pagesWithLinkedLanding();
+    pages[HOME] = { body: `<p>${WELCOME} ${SPORTS_QUOTE}</p>` };
+    const cli = createCli(pages);
+    expect(cli.run().status).toBe(0);
+    const checkpoint = cli.read(CHECKPOINT);
+    const entry = checkpoint.byOsmId["node/synthetic-1"];
+    delete entry.publication;
+    delete entry.website;
+    delete entry.pages;
+    cli.write(CHECKPOINT, checkpoint);
+    cli.remove(EVIDENCE);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {}, now: "2026-10-04T12:00:00Z" });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows).toEqual([expect.objectContaining({
+      sourceUrl: HOME, verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE },
+    })]);
+    expect(dataset[0].live_sports).toBe("y");
+  });
+
+  it("recovers original dated quotes without repeating fetch or model after evidence write interruption", () => {
+    const cli = createCli(pagesWithLinkedLanding());
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"),
+      failure: { operation: "write", path: `${EVIDENCE}.tmp` },
+    });
+    const interrupted = cli.run();
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-1"]).toMatchObject({
+      status: "ok", verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE },
+    });
+    expect(cli.read(DATASET)[0].live_sports).toBe("y");
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z" });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows).toEqual([expect.objectContaining({
+      sourceUrl: LANDING, verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE },
+    })]);
+    expect(dataset[0].live_sports).toBe("y");
   });
 });
