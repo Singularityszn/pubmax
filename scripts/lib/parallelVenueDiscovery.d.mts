@@ -8,8 +8,12 @@ export interface DiscoveryVenue {
 export function postcodeIn(value: unknown): string | null;
 export function allowedEvidenceUrl(value: unknown): boolean;
 export function inCity(lat: unknown, lng: unknown, city: DiscoveryCity): boolean;
+export function citationBindsIdentity(row: { name: string; address: string; evidence: Array<{ excerpt: string }> }, city: DiscoveryCity): boolean;
+export function unseenNames(rows: Array<{ name?: unknown } | null>, known: Array<{ name: string }>): string[];
+export function postcodeDistricts(rows: Array<{ lat: unknown; lng: unknown; postcode?: string | null; address?: string | null }>, city: DiscoveryCity): string[];
 export function parseTaskVenues(result: unknown, city: DiscoveryCity, observedAt: string): { candidates: DiscoveryVenue[]; rejected: Array<{ name: string; reason: string }> };
 export function sameVenue(a: { name: string; lat: number; lng: number; address?: string; coordinatePrecision?: string }, b: { name: string; lat: number; lng: number; address?: string; coordinatePrecision?: string }): boolean;
 export function dedupeVenues<T extends { name: string; lat: number; lng: number; address?: string; id?: string; osmId?: string }>(candidates: T[], existing: Array<{ name: string; lat: number; lng: number; address?: string; id?: string; osmId?: string }>): { accepted: T[]; duplicates: Array<{ name: string; matchedName: string; matchedId: string | null }> };
 export function validateDiscoveryPack<T>(pack: T, city: DiscoveryCity): T;
+export function assembleCityDiscoveries<T extends { name: string; lat: number; lng: number; address?: string; id?: string }>(input: { found: T[]; previous: T[]; existing: Array<{ name: string; lat: number; lng: number; address?: string; id?: string; osmId?: string }>; city: DiscoveryCity }): { venues: T[]; accepted: T[]; retained: Array<{ name: string; id: string | null }>; duplicates: Array<{ name: string; matchedName: string; matchedId: string | null }>; withdrawn: Array<{ name: string; id: string | null }>; repeats: number };
 export function mergeCityVenueSources<T extends { pubs: Array<{ name: string; lat: number; lng: number }>; fetchedAt?: string }>(osmPack: T, discoveryPack: unknown, city: DiscoveryCity): T;

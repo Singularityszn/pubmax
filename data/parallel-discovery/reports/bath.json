@@ -1,0 +1,26 @@
+{
+  "city": "bath",
+  "districts": 2,
+  "slices": 8,
+  "slicesComplete": 0,
+  "incompleteSlices": [
+    "BA1/pub",
+    "BA1/bar",
+    "BA1/cocktail-bar",
+    "BA1/restaurant",
+    "BA2/pub",
+    "BA2/bar",
+    "BA2/cocktail-bar",
+    "BA2/restaurant"
+  ],
+  "taskRuns": 0,
+  "researched": 0,
+  "added": 0,
+  "retained": [],
+  "totalAccepted": 0,
+  "repeats": 0,
+  "duplicates": [],
+  "withdrawn": [],
+  "rejected": [],
+  "outputPath": "data/cities/bath/parallel_venues.json"
+}
