@@ -25,8 +25,17 @@ it("builds only exact identity records and the oldest-row freshness stamp withou
     expect(JSON.parse(readFileSync(path.join(output, "node-123.json"), "utf8"))).toEqual(rows.slice(0, 2));
     expect(stamp()).toEqual({ version: 1, ...head, observedAt: "2026-09-01T00:00:00Z" });
     writeFileSync(source, JSON.stringify({ version: 1, ...head, venues: [rows[0]] }));
+    writeFileSync(path.join(fixture, "data/places_enrichment_uk_cities.json"), JSON.stringify({ version: 1, venues: [rows[2]] }));
+    writeFileSync(path.join(fixture, "data/places_enrichment_london_extras.json"), JSON.stringify({ version: 1, venues: [{
+      venueId: rows[0].venueId, googlePlaceId: rows[0].googlePlaceId, observedAt: "2026-10-05T00:00:00Z",
+      rating: { value: 4.2, source: "google_places", observedAt: "2026-10-05T00:00:00Z" },
+    }] }));
     build();
-    expect(readdirSync(output)).toEqual(["node-123.json"]);
+    expect(readdirSync(output).sort()).toEqual(["node-123.json", "way-456.json"]);
+    const merged = JSON.parse(readFileSync(path.join(output, "node-123.json"), "utf8"));
+    expect(merged).toHaveLength(1);
+    expect(merged[0].rating.value).toBe(4.2);
+    expect(merged[0].formattedAddress).toEqual(rows[0].formattedAddress);
     expect(stamp().observedAt).toBe("2026-10-04T00:00:00Z");
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });

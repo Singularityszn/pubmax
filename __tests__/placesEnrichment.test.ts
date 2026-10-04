@@ -61,3 +61,22 @@ it("prioritises incomparable and mismatched verified pubs, refusing unverified r
   expect(plan.omittedForBudget).toBe(2);
   expect(planPlacesEnrichment(verified, report, 0.03, 0.02).rows).toEqual([]);
 });
+
+it("copies validated Google extras with their own source and observation date, preserving explicit false", () => {
+  const at = "2026-10-04T12:00:00Z";
+  const row = placesEnrichmentRecord("venue-uk-n1", "ChIJVerified0001", {
+    rating: 4.3, userRatingCount: 128, priceLevel: "PRICE_LEVEL_MODERATE",
+    editorialSummary: { text: "A neighbourhood pub.", languageCode: "en" },
+    outdoorSeating: false, servesBeer: true, servesWine: true, servesCocktails: true,
+    goodForGroups: true, liveMusic: false,
+    accessibilityOptions: { wheelchairAccessibleEntrance: true, wheelchairAccessibleRestroom: false, unknown: true },
+  }, at);
+  expect(row.rating).toEqual({ value: 4.3, source: "google_places", observedAt: at });
+  expect(row.outdoorSeating?.value).toBe(false);
+  expect(row.editorialSummary?.value).toEqual({ text: "A neighbourhood pub.", languageCode: "en" });
+  expect(row.accessibilityOptions?.value).toEqual({ wheelchairAccessibleEntrance: true, wheelchairAccessibleRestroom: false });
+  const invalid = placesEnrichmentRecord("venue-uk-n1", "ChIJVerified0001", {
+    rating: 9, userRatingCount: -1, priceLevel: "cheap", outdoorSeating: "yes", editorialSummary: { text: "" },
+  }, at);
+  expect(Object.keys(invalid)).toEqual(["venueId", "googlePlaceId", "observedAt"]);
+});
