@@ -60,9 +60,10 @@ function header(profile: Partial<Profile>): string {
 }
 
 describe("the cover carousel", () => {
-  it("paints one cover before it knows the reader's motion setting", () => {
+  it("reserves one still frame without making an unsigned cover request", () => {
     const markup = carousel(COVERS);
-    expect(markup).toContain(COVERS[0]);
+    expect(markup).toContain('data-cover-count="1"');
+    expect(markup).not.toContain(COVERS[0]);
     expect(markup).not.toContain(COVERS[1]);
     expect(markup).not.toContain(COVERS[2]);
   });
@@ -106,13 +107,15 @@ describe("the header's backdrop", () => {
   it("wears the whole rotation when one travelled", () => {
     const markup = header({ coverUrl: COVERS[0], coverUrls: COVERS });
     expect(markup).toContain("profileHeaderWithCover");
-    expect(markup).toContain(COVERS[0]);
+    expect(markup).toContain('data-cover-count="1"');
+    expect(markup).not.toContain(COVERS[0]);
   });
 
   // A surface that only knows the single cover asked a narrower question, and
   // gets the answer it can use rather than a blank band.
   it("falls back to the single cover, and keeps the brass band with neither", () => {
-    expect(header({ coverUrl: COVERS[0] })).toContain(COVERS[0]);
+    expect(header({ coverUrl: COVERS[0] })).toContain("profileCoverImageActive");
+    expect(header({ coverUrl: COVERS[0] })).not.toContain(COVERS[0]);
     const bare = header({});
     expect(bare).toContain("profileCover");
     expect(bare).not.toContain("profileHeaderWithCover");

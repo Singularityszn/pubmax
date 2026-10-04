@@ -1,9 +1,10 @@
 import "server-only";
 
-// Public read of one approved owned image, byte-for-byte out of the private
+// Read one approved owned image, byte-for-byte out of the private
 // bucket. Shared by /api/avatar/[profileId]/[generation] and
 // /api/cover/[profileId]/[generation]: an unclaimed, tombstoned, pending,
 // flagged, or hidden image is a 404, never a stale serve.
+// Cover reads also require the profile's full visibility projection.
 //
 // Every refusal here answers the reader the SAME "Photo not found.", which is
 // the right answer and a useless finding: nine different gates wear it. So a
@@ -25,6 +26,7 @@ import {
   profileStore,
   type ProfileRecord,
 } from "@/lib/profileStore";
+import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 
 const UUID =
@@ -61,6 +63,7 @@ type ProfileImageServeRefusal =
   | "storage_unconfigured"
   | "malformed_request"
   | "profile_missing"
+  | "profile_private"
   | "profile_unclaimed"
   | "moderation_not_approved"
   | "image_absent"
@@ -160,6 +163,16 @@ export async function handleProfileImageServe(
   const profile = await deps.getProfileById(id);
   if (!profile) return notFound(slot, "profile_missing", { profileId: id, generation: gen });
 
+  // Cover bytes follow the same owner/mate rule as the profile card. Check
+  // before storage or rotation so a retained generation cannot bypass it.
+  // Avatars remain public recognition, including on private accounts.
+  if (slot === "cover") {
+    const projection = await resolveProfileProjection({ request, profile });
+    if (projection.projection !== "full") {
+      return notFound(slot, "profile_private", { profileId: id, generation: gen });
+    }
+  }
+
   const resolved = await servingKey(profile, slot, gen);
   let objectKey = "objectKey" in resolved ? resolved.objectKey : null;
   // The row holds ONE generation, and a cover rotation holds up to five. So a
@@ -193,7 +206,8 @@ export async function handleProfileImageServe(
     status: 200,
     headers: {
       "Content-Type": downloaded.contentType,
-      "Cache-Control": PROFILE_IMAGE_SERVE_CACHE_CONTROL,
+      // Even a public cover can become private without changing its URL.
+      "Cache-Control": slot === "cover" ? "private, no-store" : PROFILE_IMAGE_SERVE_CACHE_CONTROL,
     },
   });
 }

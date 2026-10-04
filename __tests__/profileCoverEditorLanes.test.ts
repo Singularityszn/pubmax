@@ -42,6 +42,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
   authedActionFetch: (url: string, init?: RequestInit) => {
     wire.calls.push({ url, method: String(init?.method ?? "GET").toUpperCase() });
+    if (url.startsWith("/api/cover/")) return Promise.resolve(new Response("cover bytes"));
     return wire.next();
   },
 }));
@@ -86,6 +87,7 @@ async function mount(heldCoverUrls: string[]): Promise<void> {
 }
 
 beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   clearSurfaceCache();
   wire.calls.length = 0;
   wire.next = async () => new Response("{}");
@@ -184,7 +186,8 @@ describe("a remove goes to the lane the rotation is actually in", () => {
 
     const mirror = container.querySelector(".profileEditorCoverMirrorOnly");
     expect(mirror, "the held cover must be shown, not silently ignored").not.toBeNull();
-    expect(mirror!.querySelector("img")?.getAttribute("src")).toBe(HELD_COVER);
+    expect(mirror!.querySelector("img")?.getAttribute("src")).toMatch(/^blob:/);
+    expect(wire.calls.some((call) => call.url === `${HELD_COVER}?privacy=2`)).toBe(true);
     expect(container.textContent).not.toContain(EMPTY_LINE);
 
     wire.next = async () => Response.json({ profile: { handle: "alice" }, covers: [] });

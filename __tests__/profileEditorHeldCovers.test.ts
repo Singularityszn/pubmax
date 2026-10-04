@@ -31,6 +31,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
   authedActionFetch: (url: string, init?: RequestInit) => {
     wire.calls.push({ url, init });
+    if (url.startsWith("/api/cover/")) return Promise.resolve(new Response("cover bytes"));
     return wire.next();
   },
 }));
@@ -127,7 +128,8 @@ describe("the held covers follow the profile read that lands after the editor op
     // THE DEFECT: held in a useState initializer, this stayed `[]` for the life
     // of the session, so an owner with a legacy cover was told they had none and
     // was never offered a way to remove it.
-    expect(mirrorImageSrc()).toBe(HELD_COVER);
+    expect(mirrorImageSrc()).toMatch(/^blob:/);
+    expect(wire.calls.some((call) => call.url === `${HELD_COVER}?privacy=2`)).toBe(true);
     expect(removeCoverButton()).not.toBeNull();
     expect(container.textContent).not.toContain(EMPTY_LINE);
   });
@@ -145,7 +147,9 @@ describe("the held covers follow the profile read that lands after the editor op
 
   it("prefers the rotation over the single back-compat cover", async () => {
     await render({ coverUrl: HELD_COVER, coverUrls: ["/api/cover/p1/g7"] });
-    expect(mirrorImageSrc()).toBe("/api/cover/p1/g7");
+    expect(mirrorImageSrc()).toMatch(/^blob:/);
+    expect(wire.calls.some((call) => call.url === "/api/cover/p1/g7?privacy=2")).toBe(true);
+    expect(wire.calls.some((call) => call.url === `${HELD_COVER}?privacy=2`)).toBe(false);
   });
 
   it("still leaves an edited text field alone when the read lands late", async () => {
