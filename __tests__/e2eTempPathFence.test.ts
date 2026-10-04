@@ -14,7 +14,7 @@ describe("e2e evidence paths", () => {
           "grep",
           "-n",
           "-E",
-          "[\"'`](\\)?/tmp(/|[\"'`])",
+          "[\"'`][\\\\]?/tmp(/|[\"'`])",
           "--",
           "e2e",
           ":(exclude)e2e/helpers/**",
