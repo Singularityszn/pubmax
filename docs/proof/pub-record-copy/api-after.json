@@ -1,12 +1,12 @@
 {
-  "venueId": "venue-1eycmcw",
-  "name": "George",
+  "venueId": "venue-11n9s46",
+  "name": "The Yorkshire Grey",
   "recordCopy": {
-    "description": "Pub in Bexley. Serves food. Has a beer garden.",
+    "description": "This Camden local has cocktails, live music and happy hour drinks.",
     "vibeTags": [
-      "Pub",
-      "Food served",
-      "Beer garden"
+      "Cocktails",
+      "Live music",
+      "Happy hour"
     ]
   }
 }
