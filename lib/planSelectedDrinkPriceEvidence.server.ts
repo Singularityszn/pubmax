@@ -4,12 +4,22 @@ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
 import { trustedDrinkLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import { cleanNightContext } from "@/lib/nightPlanning";
+import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
 import type { PlanStopTarget } from "@/lib/planRoute";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { bundleDrinkFieldsFromPrintedName } from "@/lib/bundleDrinkFields";
 import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, selectedDrinkPriceEvidenceMatchesContext, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
+
+function submittedBackupId(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const id = (value as Record<string, unknown>).venueId;
+  if (typeof id !== "string") return null;
+  const classified = classifyOpenMeetingPoint(id);
+  return classified.kind === "venue" ? classified.venueId
+    : classified.kind === "place" ? `${OPEN_PLAN_PLACE_PREFIX}${classified.placeId}` : null;
+}
 
 /** Resolve a submitted display hint against current, trusted server price rows. */
 async function resolvePriceEvidence(
@@ -123,8 +133,7 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
     const row = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
     const alternatives = Array.isArray(row.alternatives) ? row.alternatives : [];
     return [row, ...(stop.alternatives ?? []).map((alternative) => alternatives.find((value) =>
-      value && typeof value === "object" && !Array.isArray(value)
-      && (value as Record<string, unknown>).venueId === alternative.venueId))];
+      submittedBackupId(value) === alternative.venueId))];
   });
   const priced = await resolvePriceEvidence(flattened, hints, rawContext);
   let offset = 0;

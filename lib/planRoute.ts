@@ -36,9 +36,10 @@ export async function planStopResolver(
   return (await planStopResolution(cityId, submitted)).resolve;
 }
 
-async function planStopResolution(cityId?: CityId, submitted: readonly unknown[] = []) {
+async function planStopResolution(cityId?: CityId, submitted: readonly unknown[] = [], requireCompleteCatalogue = false) {
   const cities = cityId ? [cityId] : (Object.keys(CITIES) as CityId[]);
-  const venueLists = await Promise.all(cities.map((city) => loadConciergeVenues(city)));
+  const venueLists = await Promise.all(cities.map((city) => requireCompleteCatalogue
+    ? loadConciergeVenues(city, { requireCompleteCatalogue: true }) : loadConciergeVenues(city)));
   const readableCities = new Set(cities.filter((_, index) => venueLists[index].length > 0));
   const venuesById = new Map<string, PlanStopTarget>(venueLists.flat().map((venue) =>
     [venue.id, { venueId: venue.id, venueName: venue.name }]));
@@ -121,7 +122,7 @@ export async function canonicalPlanRoute(
   }
   const savedAlternatives = new Map(persistedStops.map((stop) => [stop.venueId,
     new Set(stop.alternatives?.map((alternative) => alternative.venueId) ?? [])]));
-  const { resolve, confirmedMissing, physicalVenueId } = await planStopResolution(cityId, raw);
+  const { resolve, confirmedMissing, physicalVenueId } = await planStopResolution(cityId, raw, persistedStops.length > 0);
   const physicalRouteIds = new Set(submittedIds.map((id) => id && physicalVenueId(id)));
   if (physicalRouteIds.size !== raw.length) return null;
   for (const value of raw) {
