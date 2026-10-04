@@ -26,7 +26,7 @@ function closedCuratedIdSet(value: unknown): ReadonlySet<string> {
 }
 
 /** Curated venue ids that own a closed OSM row. Resolved from that row, not guessed. */
-export const VERIFIED_CLOSED_CURATED_VENUE_IDS: ReadonlySet<string> = closedCuratedIdSet(closedPubs);
+const VERIFIED_CLOSED_CURATED_VENUE_IDS: ReadonlySet<string> = closedCuratedIdSet(closedPubs);
 
 export function isVerifiedClosedCuratedVenue(
   id: string,
