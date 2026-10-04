@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { createContext, useContext, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createContext, Suspense, useContext, useEffect, useState } from "react";
 
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
@@ -88,6 +89,25 @@ type PubMaxingShellProps = {
   ukNationalBrowse?: boolean;
 };
 
+// Router search is already the destination while native history may still
+// contain the departing page. PubMap captures it once when its chunk mounts.
+function RouterMapArrival({
+  cityId = DEFAULT_CITY_ID,
+  placeArrival = null,
+  ukNationalBrowse = false,
+}: PubMaxingShellProps) {
+  const query = useSearchParams().toString();
+  return (
+    <PubMap
+      key={cityId}
+      cityId={cityId}
+      placeArrival={placeArrival}
+      nationalBrowse={ukNationalBrowse}
+      incomingSearch={query ? `?${query}` : ""}
+    />
+  );
+}
+
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
@@ -128,12 +148,13 @@ export default function PubMaxingShell({
 
   return (
     <MapSkeletonCityContext.Provider value={mapDisplayName}>
-      <PubMap
-        key={cityId}
-        cityId={cityId}
-        placeArrival={placeArrival}
-        nationalBrowse={ukNationalBrowse}
-      />
+      <Suspense fallback={<DynamicMapSkeleton />}>
+        <RouterMapArrival
+          cityId={cityId}
+          placeArrival={placeArrival}
+          ukNationalBrowse={ukNationalBrowse}
+        />
+      </Suspense>
     </MapSkeletonCityContext.Provider>
   );
 }

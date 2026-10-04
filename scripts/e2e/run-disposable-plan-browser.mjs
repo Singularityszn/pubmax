@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { startDisposablePlanDb } from "./disposable-plan-db.mjs";
+import { installDisposableMenuFixture, prepareDisposableMenuFixture } from "./disposable-menu-fixture.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const SPEC = "e2e/plan-selected-drink-disposable.spec.ts";
@@ -86,6 +87,7 @@ async function run() {
   let db;
   let adapter;
   let child;
+  let menuFixture;
   let interrupted = false;
   const stopChildGroup = () => {
     if (!child?.pid) return;
@@ -106,6 +108,8 @@ async function run() {
     if (interrupted) return 130;
     adapter = await startRestAdapter(db.restBaseUrl);
     const port = await pickPort();
+    menuFixture = prepareDisposableMenuFixture(ROOT);
+    process.once("exit", menuFixture.restore);
     const env = { ...process.env };
     for (const name of ["DATABASE_URL", "DIRECT_URL", "OPENROUTER_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "VERCEL_ENV", "PW_E2E_ADMIN_TOKEN"]) {
       delete env[name];
@@ -114,6 +118,8 @@ async function run() {
       PW_DISPOSABLE_PLAN_DB: "1",
       PW_DISPOSABLE_SUPABASE_URL: adapter.url,
       PW_DISPOSABLE_SERVICE_ROLE_KEY: db.serviceRoleKey,
+      PW_DISPOSABLE_MENU_BACKUP_DIR: menuFixture.backupDir,
+      PW_DISPOSABLE_MENU_OBSERVED_AT: menuFixture.observedAt,
       PW_PORT: String(port),
       PW_SKIP_WEBSERVER: "0",
       PW_SKIP_KEYLESS_WEBSERVER: "1",
@@ -138,6 +144,12 @@ async function run() {
     return interrupted ? 130 : code;
   } finally {
     stopChildGroup();
+    // Restore before asynchronous DB cleanup, whose failure must not strand a
+    // synthetic menu in public/data. The exit hook covers a direct process exit.
+    if (menuFixture) {
+      menuFixture.restore();
+      process.off("exit", menuFixture.restore);
+    }
     if (adapter) await adapter.stop();
     if (db) await db.stop();
     rmSync(join(ROOT, DIST_DIR), { recursive: true, force: true });
@@ -147,7 +159,13 @@ async function run() {
 }
 
 try {
-  process.exitCode = await run();
+  if (process.argv[2] === "--install-menu-fixture" && process.argv.length === 3) {
+    installDisposableMenuFixture(ROOT);
+  } else if (process.argv.length === 2) {
+    process.exitCode = await run();
+  } else {
+    throw new Error("Usage: node scripts/e2e/run-disposable-plan-browser.mjs [--install-menu-fixture]");
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;

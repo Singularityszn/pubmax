@@ -90,14 +90,43 @@ export type UkPriceBundleRow = {
 };
 
 /**
- * Source-ledger observations with a printed item that contradicts its assigned
- * category. Keep the observations in site_harvest.jsonl for audit, but do not
+ * Source-ledger observations whose printed item contradicts its category or
+ * claims a modifier as a standalone price. Keep site_harvest.jsonl for audit; do not
  * let these exact claims become listed facts. Match the source and printed item
  * as well as category and price, so other drinks on these menus still publish.
  */
 const CATEGORY_QUARANTINE: ReadonlyArray<
-  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
+  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel" | "servingSize">
 > = [
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "vodka", priceGbp: 11, drinkLabel: "FRANCE/ABV 40% HENNESSY VSOP" },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "vodka", priceGbp: 9.5 },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "wine", priceGbp: 6, drinkLabel: "TEQUILA ROSE" },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "shot", priceGbp: 7, drinkLabel: "PIMM’S", servingSize: "25ml" },
+  // The menu adds this mixer price to spirits. Its old unnamed row is retained too.
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "soft-drink", priceGbp: 1.9 },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "soft-drink", priceGbp: 1.9, drinkLabel: "MIX YOUR SPIRITS WITH DRAFT COKE , COKE ZERO , LEMONADE OR A SODA WATER" },
+  { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac 25ml" },
+  { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac", servingSize: "25ml" },
+  { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride 500ml" },
+  { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride", servingSize: "500ml" },
+  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "wine", priceGbp: 3, drinkLabel: "Ting Grapefruit Soda 330ml" },
+  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "wine", priceGbp: 3, drinkLabel: "Ting Grapefruit Soda", servingSize: "330ml" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "beer", priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "rum", priceGbp: 8, drinkLabel: "Paloma –" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "vodka", priceGbp: 4, drinkLabel: "Virgin Bloody Mary AF –" },
+  { sourceUrl: "https://thebrownswood.co.uk/drinks-menu/", category: "coffee", priceGbp: 4.3, drinkLabel: "Liquors Amaretto Lazzaroni –" },
+  { sourceUrl: "https://thegallimaufry.co.uk/food-drink/", category: "cocktail", priceGbp: 6, drinkLabel: ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 8.1, drinkLabel: "/" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 7.8, drinkLabel: "/" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "wine", priceGbp: 11, drinkLabel: "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "rum", priceGbp: 9, drinkLabel: "savoury and refreshing mix of Clean Co Clean V and Big Tom Spiced Tomato Juice" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "cocktail", priceGbp: 9, drinkLabel: "## 0% Espresso Martini The classic coffee cocktail shaken with Clean Co Clean V" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu", category: "cocktail", priceGbp: 9, drinkLabel: "Zesty and refreshing Clean Co Clean R with Mexican lime, Moroccan mint and soda" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "gin", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "shot", priceGbp: 12, drinkLabel: "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "whisky", priceGbp: 10, drinkLabel: "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary" },
@@ -117,14 +146,28 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", category: "wine", priceGbp: 4.45, drinkLabel: "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose" },
   { sourceUrl: "https://www.orangetreerichmond.co.uk/food-drink/", category: "wine", priceGbp: 5.35, drinkLabel: ".35 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
   { sourceUrl: "https://www.theprideofpaddington.co.uk/food-drink/", category: "wine", priceGbp: 3.95, drinkLabel: "50 Elderflower & Raspberry Cooler Orange Blossom, Raspbberry, Elderflower, Soda" },
+  { sourceUrl: "https://www.thesuntavern.co.uk/menu/", category: "gin", priceGbp: 7, drinkLabel: "sics Umbrella Vesper Grey Goose Vodka, Boatyard Gin, Kina L’Aero, Vichy Catalan" },
+  { sourceUrl: "https://www.thesuntavern.co.uk/menu/", category: "beer", priceGbp: 8.5, drinkLabel: "BELFAST COFFEE Bán Poitín, Cold Brew Coffee, Cream, Demerara, Nutmeg" },
 ];
 
 export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
   return row.lane === "site-harvest" && row.standing === "listed" &&
     CATEGORY_QUARANTINE.some((item) =>
       item.sourceUrl === row.sourceUrl && item.category === row.category &&
-      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel,
+      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel &&
+      (item.servingSize === undefined || item.servingSize === row.servingSize),
     );
+}
+
+/** Recover this retained menu's literal measure; existing typed servings win. */
+export function bundleRowServingSize(row: UkPriceBundleRow): string | undefined {
+  if (row.servingSize !== undefined) return row.servingSize;
+  if (row.lane === "site-harvest" && row.standing === "listed" &&
+      row.sourceUrl === "https://thebrownswood.co.uk/drinks-menu/" &&
+      row.category === "gin" && row.drinkLabel === "Gin ~ 25 ml Sacred –") {
+    return "25ml";
+  }
+  return undefined;
 }
 
 function isNonEmptyString(value: unknown): value is string {

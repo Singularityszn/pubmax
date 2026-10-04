@@ -428,3 +428,63 @@ describe("intake accessibility and entry invariants", () => {
     expect(html).toContain('href="/pal/chat"');
   });
 });
+
+describe("accepted offer generation intake category", () => {
+  it("carries the selected category without weakening explicit zero-proof or category changes", () => {
+    const selected = { category: "gin" as const, pence: 420, serving: "25ml",
+      source: "listed" as const, sourceUrl: "https://example.com/published-menu",
+      observedAt: "2026-07-24T11:59:00.000Z" };
+    const anchor = { venueId: "venue-intent", source: "map-search" as const,
+      cityId: "london" as const, acceptedArea: null, startsAt: null,
+      selectedDrinkPriceEvidence: selected };
+    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, {}, anchor).context)
+      .toMatchObject({ drinkCategory: "gin" });
+    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, { drinkCategory: "wine" }, anchor).context)
+      .toMatchObject({ drinkCategory: "wine" });
+    expect(buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, { zeroProof: true }, anchor).context)
+      .not.toHaveProperty("drinkCategory", "gin");
+  });
+});
+
+
+describe("Cider independent request generation intake", () => {
+  const drinkRequest = { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: null };
+  const anchor = { venueId: "venue-13xdb1p", source: "map-search" as const, cityId: "london" as const,
+    acceptedArea: null, startsAt: null, drinkRequest };
+
+  it("seeds Cider subtype when quote is absent and still carries exact held venue", () => {
+    const body = buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "Quiet in Clapham for 2", null, {}, anchor);
+    expect(body.context).toMatchObject(drinkRequest);
+    expect(body.anchor).toMatchObject({ venueId: "venue-13xdb1p", source: "map-search" });
+    expect(body.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+  });
+
+  it.each([
+    { drinkCategory: "beer" as const, drinkSubtype: null, drinkServing: null, zeroProof: false },
+    { drinkCategory: "beer" as const, drinkSubtype: "beer-lager", drinkServing: null, zeroProof: false },
+    { drinkCategory: "wine" as const, zeroProof: false },
+    { zeroProof: true },
+  ])("lets explicit newer choice %j replace accepted Cider refinements", (explicit) => {
+    const body = buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "", null, explicit, anchor);
+    expect(body.context).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(body.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+  });
+});
+
+
+describe("explicit generic wine measure generation intake", () => {
+  it("sends the new choice's own 175ml measure without borrowing accepted Cider refinements", () => {
+    const anchor = {
+      venueId: "venue-13xdb1p", source: "map-search" as const, cityId: "london" as const,
+      acceptedArea: null, startsAt: null,
+      drinkRequest: { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: "500ml" },
+    };
+    const body = buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "Quiet in Clapham for 2", null,
+      { drinkCategory: "wine", drinkServing: "175ml", zeroProof: false }, anchor);
+    expect(body.context).toMatchObject({ drinkCategory: "wine", drinkServing: "175ml", zeroProof: false });
+    expect(body.context).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(body.context).not.toHaveProperty("drinkServing", "500ml");
+    expect(body.anchor).toMatchObject({ venueId: "venue-13xdb1p", source: "map-search" });
+    expect(body.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+  });
+});

@@ -1,3 +1,5 @@
+import type { PublicDrinkRequest } from "@/lib/nightPlanning";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
   arbitratePlanDrafts,
   type DraftArbitrationConflict,
@@ -8,7 +10,7 @@ import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
 import {
   PLAN_DRAFT_KEY,
   PLAN_DRAFT_V2_KEY,
-  readPlanDraftEnvelope,
+  parsePlanDraftEnvelope,
   writePlanDraftEnvelope,
   type ParsedPlanDraft,
   type StoredPlanDraft,
@@ -16,11 +18,13 @@ import {
 import {
   PLAN_ROUTE_DRAFT_KEY,
   PLAN_ROUTE_DRAFT_V2_KEY,
-  readPlanRouteDraftEnvelope,
+  parsePlanRouteDraftEnvelope,
   writePlanRouteDraftEnvelope,
   type ParsedPlanRouteDraft,
 } from "@/lib/planRouteDraft";
 import {
+  parsePlanningIntent,
+  PLANNING_INTENT_STORAGE_KEY,
   settlePlanningIntent,
   type PlanningIntentArea,
   type PlanningIntentSource,
@@ -30,6 +34,7 @@ import {
 import type { CityId } from "@/lib/cities";
 import type { PlanTemplate } from "@/lib/planTemplates";
 import type { RememberedArea } from "@/lib/nightPatches";
+import { safeSessionStorage } from "@/lib/safeStorage";
 
 /**
  * L11 client glue between the L04 arbitration resolver and PlanComposer. It runs
@@ -72,6 +77,8 @@ export type ComposerHydration = {
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
     expiresAt: string | null;
+    drinkRequest?: PublicDrinkRequest;
+    selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   } | null;
   area: PlanningIntentArea;
   /** Show the accepted Venue/area/date summary before intake. */
@@ -119,11 +126,12 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
   });
 
   const acceptedVenueId = result.acceptedVenueId.value;
+  const acceptedIntent = result.acceptedVenueId.source === "planning-intent" ? input.planningIntent : null;
   const draftAnchor = input.planDraft?.draft.acceptedAnchor?.venueId === acceptedVenueId
     ? input.planDraft.draft.acceptedAnchor
     : null;
   const acceptedSource = draftAnchor?.source ?? (result.acceptedVenueId.source === "planning-intent"
-    ? input.planningIntent?.source ?? null
+    ? acceptedIntent?.source ?? null
     : result.acceptedVenueId.source === "route-v2" || result.acceptedVenueId.source === "route-legacy"
       ? result.routePreview?.value.anchorSource ?? null
       : null);
@@ -131,17 +139,21 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     ? draftAnchor ?? {
         venueId: acceptedVenueId,
         source: acceptedSource,
-        cityId: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.cityId
+        cityId: acceptedIntent
+          ? acceptedIntent.cityId
           : null,
-        acceptedArea: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.acceptedArea
+        acceptedArea: acceptedIntent
+          ? acceptedIntent.acceptedArea
           : result.area.value,
-        startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.startsAt
+        startsAt: acceptedIntent
+          ? acceptedIntent.startsAt
           : result.startsAt.value,
-        expiresAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.expiresAt
+        ...(acceptedIntent?.drinkRequest
+          ? { drinkRequest: acceptedIntent.drinkRequest } : {}),
+        ...(acceptedIntent?.selectedDrinkPriceEvidence
+          ? { selectedDrinkPriceEvidence: acceptedIntent.selectedDrinkPriceEvidence } : {}),
+        expiresAt: acceptedIntent
+          ? acceptedIntent.expiresAt
           : null,
       }
     : null;
@@ -227,8 +239,24 @@ function dropPlanDraftAcceptance(
 ): void {
   if (!storage) return;
   try {
-    const existing = readPlanDraftEnvelope(storage, now);
-    if (!existing?.draft.acceptedAnchor) return;
+    const rawV2 = storage.getItem(PLAN_DRAFT_V2_KEY);
+    const rawV1 = storage.getItem(PLAN_DRAFT_KEY);
+    const canonical = parsePlanDraftEnvelope(rawV2, null, now);
+    const existing = canonical ?? parsePlanDraftEnvelope(rawV2, rawV1, now);
+    const legacy = parsePlanDraftEnvelope(null, rawV1, now);
+    if (!existing || (!existing.draft.acceptedAnchor && !legacy?.draft.acceptedAnchor)) return;
+    if (canonical && !canonical.draft.acceptedAnchor) {
+      // V2 already has current work; refresh only its legacy rollback copy.
+      let legacyWritten = false;
+      try {
+        storage.setItem(PLAN_DRAFT_KEY, JSON.stringify(canonical.draft));
+        legacyWritten = true;
+      } catch {
+        // Fall back to removing only the stale rollback copy below.
+      }
+      if (!legacyWritten) bestEffortRemove(storage, PLAN_DRAFT_KEY);
+      return;
+    }
     const withoutAcceptance: StoredPlanDraft = { ...existing.draft };
     delete withoutAcceptance.acceptedAnchor;
     if (!writePlanDraftEnvelope(withoutAcceptance, "manual", storage, now).v2) {
@@ -246,8 +274,16 @@ function dropRouteDraftAcceptance(
 ): void {
   if (!storage) return;
   try {
-    const existing = readPlanRouteDraftEnvelope(storage, now);
-    if (!existing?.value.anchorVenueId) return;
+    const rawV2 = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const rawV1 = storage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    const canonical = parsePlanRouteDraftEnvelope(rawV2, null, now);
+    const existing = canonical ?? parsePlanRouteDraftEnvelope(rawV2, rawV1, now);
+    const legacy = parsePlanRouteDraftEnvelope(null, rawV1, now);
+    if (!existing || (!existing.value.anchorVenueId && !legacy?.value.anchorVenueId)) return;
+    if (canonical && !canonical.value.anchorVenueId) {
+      bestEffortRemove(storage, PLAN_ROUTE_DRAFT_KEY);
+      return;
+    }
     const written = writePlanRouteDraftEnvelope({
       ...existing.value,
       anchorVenueId: null,
@@ -278,10 +314,12 @@ function dropRouteDraftAcceptance(
  * anchored identity. All three go together, because dropping only the intent
  * would let the next hydration hold the same Stop 1 again, which is how
  * "released" would come back a moment later.
+ * Returns confirmation only when every supplied owner is readable and no
+ * acceptance survives. Other callers can keep their best-effort local release.
  */
 export function releaseAcceptedPlanContext(
   storages: AcceptedContextStorages = {},
-): void {
+): boolean {
   settlePlanningIntent(
     "dismissed",
     storages.intent === undefined ? {} : { storage: storages.intent },
@@ -289,9 +327,28 @@ export function releaseAcceptedPlanContext(
   const now = storages.now ?? Date.now();
   dropPlanDraftAcceptance(storages.planDraft, now);
   dropRouteDraftAcceptance(storages.routeDraft, now);
+  try {
+    const intentStorage = storages.intent === undefined ? safeSessionStorage() : storages.intent;
+    if (!intentStorage && storages.intent === undefined && typeof window !== "undefined") return false;
+    const rawIntent = intentStorage ? intentStorage.getItem(PLANNING_INTENT_STORAGE_KEY) : null;
+    const intentReleased = rawIntent === null || parsePlanningIntent(rawIntent, now) === null;
+    const planReleased = !storages.planDraft || (
+      !parsePlanDraftEnvelope(storages.planDraft.getItem(PLAN_DRAFT_V2_KEY), null, now)?.draft.acceptedAnchor
+      && !parsePlanDraftEnvelope(null, storages.planDraft.getItem(PLAN_DRAFT_KEY), now)?.draft.acceptedAnchor
+    );
+    const routeReleased = !storages.routeDraft || (
+      !parsePlanRouteDraftEnvelope(storages.routeDraft.getItem(PLAN_ROUTE_DRAFT_V2_KEY), null, now)?.value.anchorVenueId
+      && !parsePlanRouteDraftEnvelope(null, storages.routeDraft.getItem(PLAN_ROUTE_DRAFT_KEY), now)?.value.anchorVenueId
+    );
+    return intentReleased && planReleased && routeReleased;
+  } catch {
+    // A denied read cannot confirm that the next page will not hold Stop 1.
+    return false;
+  }
 }
 
 export type ProvisionalStopSeed = {
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   key: 1;
   venueId: string;
   venueName: string;
@@ -329,6 +386,7 @@ export const UNRESOLVED_ACCEPTED_VENUE_LABEL = "The pub you kept";
  */
 export function seedProvisionalStop1(input: {
   acceptedVenueId: string | null | undefined;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   venues?: ReadonlyArray<SeedVenue> | null;
   recoveredRouteStops?: ReadonlyArray<SeedStop> | null;
   recoveredPlanStops?: ReadonlyArray<SeedStop> | null;
@@ -340,12 +398,14 @@ export function seedProvisionalStop1(input: {
   if ((input.recoveredRouteStops?.length ?? 0) > 0 || (input.recoveredPlanStops?.length ?? 0) > 0) {
     return null;
   }
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(input.selectedDrinkPriceEvidence);
   const indexed = input.venues?.find((venue) => venue.id.trim() === venueId);
   const venueName = indexed?.name.trim() || UNRESOLVED_ACCEPTED_VENUE_NAME;
   return {
     key: 1,
     venueId,
     venueName,
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
     alternatives: [],
   };
 }

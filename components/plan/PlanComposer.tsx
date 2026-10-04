@@ -1,5 +1,7 @@
 "use client";
 
+import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
+
 import {
   FormEvent,
   useEffect,
@@ -42,12 +44,14 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, mergeNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
-import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import {
   isPlanStopCount,
   MAX_PLAN_STOP_COUNT,
@@ -82,6 +86,7 @@ import {
   composerGeolocationMaySeedIntake,
   mergeSubmittedNightContext,
   mergePlanTemplateFields,
+  newQuerySupersedesDrinkChoice,
   nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
   syncPlanIntakeAreaFromQuery,
@@ -125,6 +130,7 @@ export type DraftStop = {
 
 export type ComposerRouteMutation = {
   accepted: boolean;
+  identityChanged: boolean;
   stops: DraftStop[];
   groundingProof: string | null;
   createOperationKey: string | null;
@@ -145,6 +151,7 @@ export function composerRouteMutation(input: {
   if (heldVenueId && input.nextStops[0]?.venueId !== heldVenueId) {
     return {
       accepted: false,
+      identityChanged: false,
       stops: input.currentStops,
       groundingProof: input.groundingProof,
       createOperationKey: input.createOperationKey,
@@ -156,6 +163,7 @@ export function composerRouteMutation(input: {
     || input.currentStops.some((stop, index) => stop.venueId !== input.nextStops[index]?.venueId);
   return {
     accepted: true,
+    identityChanged,
     stops: input.nextStops,
     groundingProof: identityChanged ? null : input.groundingProof,
     createOperationKey: identityChanged ? null : input.createOperationKey,
@@ -198,6 +206,7 @@ export type StoredRouteDraft = {
   groundingProof: string | null;
   createOperationKey: string | null;
   planAnchor: GeneratedPlanAnchor | null;
+  hasSelectedRouteEdits?: boolean;
 };
 
 export type ServerPlanCreationAttribution = {
@@ -360,6 +369,37 @@ export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftSt
   );
 }
 
+function clearSupersededConciergeDrink(requestBody: ReturnType<typeof buildPlanGenerationIntakeBody>): void {
+  // Earlier context and an accepted quote can both carry the old drink.
+  // Keep the venue and other constraints; the server reads the new query.
+  delete requestBody.context?.drinkCategory;
+  delete requestBody.context?.drinkSubtype;
+  delete requestBody.context?.drinkServing;
+  delete requestBody.context?.zeroProof;
+  delete requestBody.anchor?.selectedDrinkPriceEvidence;
+}
+
+function assertConciergeRouteSelection(
+  body: { outcome?: unknown; operationKey?: unknown },
+  suggested: readonly DraftStop[],
+  grounded: boolean,
+  routeVenueIds: readonly string[] | undefined,
+  heldVenueId: string | null,
+): void {
+  if (routeVenueIds && (
+    !grounded
+    || body.outcome === "anchor-only"
+    || typeof body.operationKey !== "string" || !body.operationKey.trim()
+    || suggested.length !== routeVenueIds.length
+    || suggested.some((stop, index) => stop.venueId !== routeVenueIds[index])
+  )) {
+    throw new Error("Those chosen stops could not be rechecked in the same order. Your preview is still here.");
+  }
+  if (heldVenueId && suggested[0]?.venueId !== heldVenueId) {
+    throw new Error("The accepted pub must stay as Stop 1. Your preview is still here.");
+  }
+}
+
 function cleanRouteRevision(value: unknown): RouteRevision | null {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" && Number.isInteger(value) && value >= 0) return value;
@@ -480,6 +520,8 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.budgetLimitPence !== after.budgetLimitPence
     || before.zeroProof !== after.zeroProof
     || before.drinkCategory !== after.drinkCategory
+    || before.drinkSubtype !== after.drinkSubtype
+    || before.drinkServing !== after.drinkServing
     || before.wetherspoonsPreferred !== after.wetherspoonsPreferred
     || normalizePlanStopCount(before.stopCount) !== normalizePlanStopCount(after.stopCount)
     || !sameList(before.atmosphere, after.atmosphere)
@@ -521,6 +563,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
         ? value.createOperationKey
         : null,
       planAnchor: cleanGeneratedPlanAnchor(value.planAnchor),
+      ...(value.hasSelectedRouteEdits === true ? { hasSelectedRouteEdits: true } : {}),
     };
   } catch {
     return null;
@@ -642,11 +685,13 @@ export function acceptedPlanAreaLabel(area: Exclude<PlanningIntentArea, null>): 
 }
 
 export function acceptedStop1SwapLabel(venueName: string): string {
-  return `${venueName} is the accepted Stop 1. Swap is not available.`;
+  const label = venueName.trim() ? venueName : UNRESOLVED_ACCEPTED_VENUE_LABEL;
+  return `${label} is the accepted Stop 1. Swap is not available.`;
 }
 
 export function acceptedStop1RemoveLabel(venueName: string): string {
-  return `${venueName} is the accepted Stop 1. Remove is not available.`;
+  const label = venueName.trim() ? venueName : UNRESOLVED_ACCEPTED_VENUE_LABEL;
+  return `${label} is the accepted Stop 1. Remove is not available.`;
 }
 
 export function planComposerShowsDescribeFirst(input: {
@@ -733,7 +778,7 @@ export function composerCreatePayload(input: {
   creatorName: string;
   startTime: string;
   cityId?: CityId | null;
-  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }>;
+  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown; alternatives?: RouteAlternative[] }>;
   groundingProof?: string | null;
   planAnchor?: GeneratedPlanAnchor | null;
   context?: NightContext | null;
@@ -743,15 +788,16 @@ export function composerCreatePayload(input: {
     creatorName: input.creatorName,
     startTime: input.startTime,
     ...(input.cityId ? { cityId: input.cityId } : {}),
-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => {
-      const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
-      return {
-        venueId,
-        venueName,
-        ...(evidence && input.context && !input.context.zeroProof
-          && evidence.category === input.context.drinkCategory
-          ? { selectedDrinkPriceEvidence: evidence } : {}),
-      };
+    stops: routeStopsWithAvailableBackups(input.stops).map((stop, position) => {
+      const evidence = cleanSelectedDrinkPriceEvidence(stop.selectedDrinkPriceEvidence);
+      const priced = planStopEvidenceForContext({
+        venueId: stop.venueId, venueName: stop.venueName, position,
+        ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}),
+        ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
+      }, input.context);
+      return { venueId: priced.venueId, venueName: priced.venueName,
+        ...(priced.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: priced.selectedDrinkPriceEvidence } : {}),
+        ...(priced.alternatives?.length ? { alternatives: priced.alternatives } : {}) };
     }),
     ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
     ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
@@ -962,6 +1008,13 @@ export function AcceptedContextPanel({
     .find((stop) => stop.venueId === handoff.heldVenueId)?.venueName
     ?? UNRESOLVED_ACCEPTED_VENUE_LABEL;
   const whenLabel = londonServiceDateLabel(handoff.startsAt);
+  const drinkRequest = handoff.acceptedAnchor?.drinkRequest;
+  const drinkLabel = drinkRequest
+    ? parseDrinkSubtypeParam(drinkRequest.drinkSubtype, drinkRequest.drinkCategory)?.longLabel
+      ?? categoryLabel(drinkRequest.drinkCategory)
+    : null;
+  const priceEvidence = cleanSelectedDrinkPriceEvidence(handoff.acceptedAnchor?.selectedDrinkPriceEvidence) ?? undefined;
+  const quote = selectedDrinkPriceDescription(priceEvidence);
   return (
     <>
       {handoff.showAcceptedSummary && (
@@ -971,11 +1024,25 @@ export function AcceptedContextPanel({
             {handoff.heldVenueId && (
               <div><dt>Venue</dt><dd>{venueName}</dd></div>
             )}
+            {drinkLabel && (
+              <div><dt>Drink</dt><dd>{drinkLabel}{drinkRequest?.drinkServing ? ` (${drinkRequest.drinkServing} requested)` : ""}</dd></div>
+            )}
             {handoff.area && (
               <div><dt>Area</dt><dd>{acceptedPlanAreaLabel(handoff.area)}</dd></div>
             )}
             {whenLabel && (
               <div><dt>When</dt><dd>{whenLabel}</dd></div>
+            )}
+            {quote && (
+              <div className="planComposer__acceptedQuote">
+                <dt>Quote</dt>
+                <dd>
+                  {quote}
+                  {priceEvidence?.source === "listed" && (
+                    <> <a href={priceEvidence.sourceUrl} target="_blank" rel="noopener noreferrer">View menu source</a></>
+                  )}
+                </dd>
+              </div>
             )}
           </dl>
           <p className="planComposer__acceptedNote">
@@ -1045,9 +1112,13 @@ function initialComposerStops(
       alternatives: [],
     })) ?? [];
   if (recoveredRouteDraft?.stops.length) return recoveredRouteDraft.stops;
-  if (recoveredPlanStops.length) return recoveredPlanStops;
+  if (recoveredPlanStops.length) return recoveredPlanStops.map((stop, index) =>
+    index === 0 && stop.venueId === handoff?.heldVenueId && handoff.acceptedAnchor?.selectedDrinkPriceEvidence
+      ? { ...stop, selectedDrinkPriceEvidence: handoff.acceptedAnchor.selectedDrinkPriceEvidence } : stop,
+  );
   const provisional = seedProvisionalStop1({
     acceptedVenueId: handoff?.heldVenueId,
+    selectedDrinkPriceEvidence: handoff?.acceptedAnchor?.selectedDrinkPriceEvidence,
     recoveredRouteStops: recoveredRouteDraft?.stops,
     recoveredPlanStops,
   });
@@ -1154,6 +1225,10 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
+  const heldStopRef = useRef({ heldVenueId, stop: stops[0] });
+  useLayoutEffect(() => {
+    heldStopRef.current = { heldVenueId, stop: stops[0] };
+  }, [heldVenueId, stops]);
   const pathname = usePathname();
   const [urlPrefill] = useState(() =>
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
@@ -1193,6 +1268,8 @@ function PlanComposerForm({
   // flips `heldVenueId` - and a second application would overwrite whatever
   // the drinker has typed since with the line the URL opened on.
   const appliedUrlAskRef = useRef<string | null>(null);
+  const generationRequestRef = useRef(0);
+  const generationDraftRevisionRef = useRef(0);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -1217,7 +1294,10 @@ function PlanComposerForm({
     void Promise.resolve().then(() => {
       setAskDraftQuery(ask);
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
-      if (askNeedsConciergeSurface) setConciergeQuery(ask);
+      if (askNeedsConciergeSurface) {
+        generationDraftRevisionRef.current += 1;
+        setConciergeQuery(ask);
+      }
     });
   }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
   useEffect(() => {
@@ -1279,36 +1359,34 @@ function PlanComposerForm({
       return seeded || current;
     });
   }, [identityResolved, user, viewerHandle]);
-  useEffect(() => {
-    if (!canPersist) return;
-    if (palHandoffAutoGenerateStartedRef.current) return;
-    // A client-side Pal Open in Plan still sees the previous route during the
-    // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
-    // address the same way the prefill layout effect does after the router
-    // commits it; gating on the stale read skipped the deferred generate.
-    const liveHandoff = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
-    if (!shouldAutoGeneratePalHandoffPlan(liveHandoff)) return;
-    palHandoffAutoGenerateStartedRef.current = true;
-    // Defer until the URL ask prefill lands in describe-first or the concierge field.
-    void Promise.resolve().then(() => {
-      const handoffAsk = describeAskFromLocation().handoffAsk ?? liveHandoff;
-      if (!handoffAsk?.trim()) return;
-      submitFromEntry(
-        handoffAsk.trim(),
-        undefined,
-        skipRemainingPlanIntake(createPlanIntakeDraft()),
-      );
-    });
-    // submitFromEntry is intentionally excluded: it is recreated on render,
-    // while this effect must run only when the URL handoff changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canPersist, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
-  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
+  // Acceptance carries one drink choice, not a complete inferred night. Existing
+  // recovered route context and later explicit edits retain their precedence.
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(() => {
+    // A saved intake answer owns the count, including default three omitted
+    // from the wire. Only selected edits may fall back to route context.
+    const recoveredCount = recoveredIntake.answers.stopCount
+      ?? (recoveredRouteDraft?.hasSelectedRouteEdits === true
+        ? routeDraftFields.nightContext?.stopCount
+        : undefined);
+    return {
+      ...(isPlanStopCount(recoveredCount) ? { stopCount: recoveredCount } : {}),
+      ...(!routeDraftFields.nightContext
+        ? handoff?.acceptedAnchor?.drinkRequest
+          ?? (handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
+            ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {})
+        : {}),
+    };
+  });
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
+  // Recovery staleness can mean an expired proof or a partial held anchor.
+  // Only explicit identity-edit intent, including our own saved hint, selects
+  // exact recheck; legacy drafts have no such hint and keep ordinary recovery.
+  const [hasSelectedRouteEdits, setHasSelectedRouteEdits] = useState(recoveredRouteDraft?.hasSelectedRouteEdits === true);
+  useEffect(() => () => { generationRequestRef.current += 1; }, []);
   // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
   // painted primary becomes `Lock it in` and the concierge control above steps
   // back. It is NOT "a Stop names a pub": a held acceptance seeds Stop 1 and
@@ -1316,6 +1394,7 @@ function PlanComposerForm({
   // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
   // A recovered route draft IS a route, so it seeds this true.
   const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
+  const lastGeneratedQueryRef = useRef<string | null>(recoveredRouteDraft ? draftFields.conciergeQuery : null);
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
@@ -1397,6 +1476,7 @@ function PlanComposerForm({
     singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
     planAnchor,
   });
+  const displayedError = error || (completeStops.length > 0 ? lockValidation?.message : null);
   const canLockPlan =
     composerVisible &&
     !submitting &&
@@ -1421,26 +1501,70 @@ function PlanComposerForm({
   useEffect(() => {
     if (!composerVisible) return;
     let active = true;
-    fetch(planComposerVenueIndexPath(acceptedCityId))
-      .then((response) => response.json())
-      .then((rows: unknown) => {
-        if (!active) return;
-        const nextVenues = planVenueOptions(rows);
-        setVenues(nextVenues);
-        const acceptedVenueId = hydratedHandoff?.heldVenueId;
-        if (!acceptedVenueId) return;
-        const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
-        if (!accepted) return;
-        setStops((current) => current.map((stop, index) => (
-          index === 0
-          && stop.venueId === acceptedVenueId
-          && stop.venueName.trim() === UNRESOLVED_ACCEPTED_VENUE_NAME
-            ? { ...stop, venueName: accepted.name }
-            : stop
-        )));
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
+    const controller = new AbortController();
+    const acceptedVenueId = hydratedHandoff?.heldVenueId;
+    const readPaths = [planComposerVenueIndexPath(acceptedCityId)];
+    if (acceptedVenueId && isNationalBaseVenueId(acceptedVenueId)) {
+      readPaths.push(`/api/uk-base/${encodeURIComponent(acceptedVenueId)}`);
+    }
+    const needsAcceptedName = () => {
+      const held = heldStopRef.current;
+      return active && !controller.signal.aborted
+        && Boolean(acceptedVenueId)
+        && held.heldVenueId === acceptedVenueId
+        && held.stop?.venueId === acceptedVenueId
+        && held.stop.venueName.trim() === UNRESOLVED_ACCEPTED_VENUE_NAME;
+    };
+    void (async () => {
+      for (const [readIndex, path] of readPaths.entries()) {
+        // A base pub lives outside the city index. Read only this accepted ID,
+        // and only while its own Stop 1 still needs a public name.
+        if (readIndex > 0 && !needsAcceptedName()) return;
+        try {
+          const response = await fetch(path, {
+            signal: controller.signal,
+            headers: { accept: "application/json" },
+          });
+          if (!active || controller.signal.aborted) {
+            discardBody(response);
+            return;
+          }
+          if (!response.ok) {
+            discardBody(response);
+            continue;
+          }
+          const body: unknown = await response.json();
+          if (!active || controller.signal.aborted) return;
+          let accepted: PlanVenueOption | undefined;
+          if (readIndex === 0) {
+            const nextVenues = planVenueOptions(body);
+            setVenues(nextVenues);
+            accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
+          } else {
+            const pub = body && typeof body === "object" && "pub" in body ? body.pub : null;
+            if (!pub || typeof pub !== "object"
+              || !("id" in pub) || pub.id !== acceptedVenueId
+              || !("kind" in pub) || pub.kind !== "pub") return;
+            accepted = planVenueOptions([pub])[0];
+          }
+          if (!accepted) continue;
+          if (!needsAcceptedName()) return;
+          const acceptedName = accepted.name;
+          setStops((current) => current.map((stop, index) => (
+            index === 0
+            && heldStopRef.current.heldVenueId === acceptedVenueId
+            && stop.venueId === acceptedVenueId
+            && stop.venueName.trim() === UNRESOLVED_ACCEPTED_VENUE_NAME
+              ? { ...stop, venueName: acceptedName }
+              : stop
+          )));
+          return;
+        } catch {
+          if (!active || controller.signal.aborted) return;
+        }
+      }
+    })();
+    return () => { active = false; controller.abort(); };
   }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId]);
 
   useEffect(() => {
@@ -1466,7 +1590,7 @@ function PlanComposerForm({
 
   useEffect(() => {
     if (!canPersist) return;
-    if (!nightContext && routeRevision === null && !stops.some((stop) => stop.alternatives.length > 0)) return;
+    if (!nightContext && routeRevision === null && !hasSelectedRouteEdits && !stops.some((stop) => stop.alternatives.length > 0)) return;
     try {
       safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
         stops,
@@ -1476,11 +1600,12 @@ function PlanComposerForm({
         groundingProof,
         createOperationKey,
         planAnchor,
+        ...(hasSelectedRouteEdits ? { hasSelectedRouteEdits: true } : {}),
       } satisfies StoredRouteDraft));
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeRevision, routeStale, stops]);
+  }, [canPersist, createOperationKey, groundingProof, hasSelectedRouteEdits, nightContext, planAnchor, routeRevision, routeStale, stops]);
 
   useEffect(() => {
     if (planIntake === initialPlanIntakeRef.current) return;
@@ -1549,6 +1674,7 @@ function PlanComposerForm({
       : applyPlanStopCount(next, nightContext, next.answers.stopCount);
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(reconciled.draft));
+    if (answersChanged) generationDraftRevisionRef.current += 1;
     if (answersChanged && nightContext) {
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after those planning details changed.");
@@ -1566,6 +1692,11 @@ function PlanComposerForm({
       setNightContext(reconciled.context);
     }
     setPlanIntake(reconciled.draft);
+  }
+
+  function updateConciergeQuery(value: string) {
+    if (value !== conciergeQuery) generationDraftRevisionRef.current += 1;
+    setConciergeQuery(value);
   }
 
   function adoptDescribePrefillQuery(value: string) {
@@ -1595,16 +1726,27 @@ function PlanComposerForm({
         ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
       },
     });
-    setConciergeQuery(query);
+    updateConciergeQuery(query);
     updatePlanIntake(skippedIntake);
+    const entryStopCount = skippedIntake.answers.stopCount;
+    // A fresh Pal ask supplies count-free intake. Retire the saved count for
+    // later edits and override the captured value on this first request too.
+    if (entryStopCount === undefined) {
+      setExplicitNightContext((current) => {
+        const next = { ...current };
+        delete next.stopCount;
+        return next;
+      });
+    }
     sortWithConcierge(
       query,
       skippedIntake,
-      requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
+      { stopCount: entryStopCount },
     );
   }
 
   function updatePlanStartTime(value: string) {
+    if (value !== startTime) generationDraftRevisionRef.current += 1;
     setStartTime(value);
     const exactStartIso = londonDateTimeInputToIso(value, new Date());
     if (planIntake.answers.timeWindow) {
@@ -1639,6 +1781,8 @@ function PlanComposerForm({
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
       return false;
     }
+    generationDraftRevisionRef.current += 1;
+    if (mutation.identityChanged) setHasSelectedRouteEdits(true);
     setStops(mutation.stops);
     setGroundingProof(mutation.groundingProof);
     setCreateOperationKey(mutation.createOperationKey);
@@ -1649,9 +1793,11 @@ function PlanComposerForm({
     // the count stayed at what was generated, Lock it in went quietly dead on
     // the mismatch, and the next Sort put the removed Stop straight back.
     if (isPlanStopCount(mutation.stops.length)) {
-      const reconciled = applyPlanStopCount(planIntake, nightContext, mutation.stops.length);
+      const stopCount = mutation.stops.length;
+      const reconciled = applyPlanStopCount(planIntake, nightContext, stopCount);
       setPlanIntake(reconciled.draft);
       setNightContext(reconciled.context);
+      setExplicitNightContext((current) => ({ ...current, stopCount }));
     }
     if (mutation.routeStale) setRouteStatus(status);
     return true;
@@ -1665,6 +1811,7 @@ function PlanComposerForm({
     });
     setPlanAnchor(null);
     setGroundingProof(null);
+    generationDraftRevisionRef.current += 1;
     setAcceptanceReleased(true);
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,
@@ -1685,8 +1832,9 @@ function PlanComposerForm({
 
   function updateNightContext(patch: Partial<NightContext>) {
     if (!nightContext) return;
-    const next = { ...nightContext, ...patch };
+    const next = mergeNightContext(nightContext, patch);
     if (nightContextChanged(nightContext, next)) {
+      generationDraftRevisionRef.current += 1;
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after that context change.");
     }
@@ -1695,7 +1843,7 @@ function PlanComposerForm({
       : applyPlanStopCount(planIntake, next, next.stopCount);
     setNightContext(reconciled.context);
     setPlanIntake(reconciled.draft);
-    setExplicitNightContext((current) => ({ ...current, ...patch }));
+    setExplicitNightContext((current) => mergeNightContext(current, patch));
     if (!user) writeDeviceNightContext(reconciled.context ?? next);
   }
 
@@ -1714,19 +1862,33 @@ function PlanComposerForm({
     );
   }
 
-  async function sortWithConcierge(
-    queryOverride?: string,
+  function prepareConciergeSubmission(
+    query: string,
+    queryOverride: string | undefined,
     intakeOverride?: PlanIntakeDraft,
     explicitContextOverride?: Partial<NightContext>,
   ) {
-    // Both overrides (from the describe-first entry surface) are threaded
-    // through explicitly before React re-renders, so state reads here cannot
-    // send the pre-skip intake to the server.
-    const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
+    const previousDrinkQuery = lastGeneratedQueryRef.current
+      ?? (handoff?.acceptedAnchor?.drinkRequest ? "" : null);
+    const supersedesDrinkChoice = newQuerySupersedesDrinkChoice(previousDrinkQuery, query);
     const explicitContextBase = explicitContextOverride
-      ? { ...explicitNightContext, ...explicitContextOverride }
-      : explicitNightContext;
+      ? mergeNightContext(explicitNightContext, explicitContextOverride)
+      : { ...explicitNightContext };
+    if (supersedesDrinkChoice) {
+      delete explicitContextBase.drinkCategory;
+      delete explicitContextBase.drinkSubtype;
+      delete explicitContextBase.drinkServing;
+      delete explicitContextBase.zeroProof;
+      setExplicitNightContext((current) => {
+        const next = { ...current };
+        delete next.drinkCategory;
+        delete next.drinkSubtype;
+        delete next.drinkServing;
+        delete next.zeroProof;
+        return next;
+      });
+    }
     const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
       ? explicitContextBase
       : nightContext?.nightArea
@@ -1738,7 +1900,12 @@ function PlanComposerForm({
         nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
       }));
     }
-    const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
+    // A held Stop 1 exposes these controls before the wizard is complete.
+    // Explicit generation keeps answered choices and skips only missing ones,
+    // using the same intake rule as describe-first.
+    const intake = skipRemainingPlanIntake(
+      syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query),
+    );
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
     }
@@ -1752,6 +1919,21 @@ function PlanComposerForm({
         ? resolveNightPatch(queryArea.patchId)
         : null;
     const blockedUnsupportedPatch = intakeUnsupportedPatch ?? queryUnsupportedPatchForSort;
+    return { queryArea, supersedesDrinkChoice, explicitContext, intake, intakeContextForSort, blockedUnsupportedPatch };
+  }
+
+  async function sortWithConcierge(
+    queryOverride?: string,
+    intakeOverride?: PlanIntakeDraft,
+    explicitContextOverride?: Partial<NightContext>,
+    preserveSelectedRoute = false,
+  ) {
+    // Both overrides (from the describe-first entry surface) are threaded
+    // through explicitly before React re-renders, so state reads here cannot
+    // send the pre-skip intake to the server.
+    const query = queryOverride ?? conciergeQuery;
+    const { queryArea, supersedesDrinkChoice, explicitContext, intake, intakeContextForSort, blockedUnsupportedPatch } =
+      prepareConciergeSubmission(query, queryOverride, intakeOverride, explicitContextOverride);
     if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
     if (blockedUnsupportedPatch) {
       setConciergeNote(conciergeStatusText(false, blockedUnsupportedPatch, ""));
@@ -1762,21 +1944,36 @@ function PlanComposerForm({
       intakeContextForSort,
       queryArea,
     );
+    const hasPreviousRoute = routeSorted && stops.length > 0;
+    const routeVenueIds = preserveSelectedRoute && hasSelectedRouteEdits
+      ? stops.map((stop) => stop.venueId)
+      : undefined;
+    if (routeVenueIds && (completeStops.length !== stops.length || new Set(routeVenueIds).size !== stops.length)) {
+      setError("Choose a distinct pub for every stop before refreshing this route.");
+      return;
+    }
+    const requestId = ++generationRequestRef.current;
+    const draftRevision = generationDraftRevisionRef.current;
+    const ownsRequest = () => requestId === generationRequestRef.current;
+    const ownsDraft = () => ownsRequest() && draftRevision === generationDraftRevisionRef.current;
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
     let responseStatus: number | null = null;
     try {
+      const requestBody = buildPlanGenerationIntakeBody(
+        intake,
+        query,
+        nightContext,
+        submittedContext,
+        handoff?.acceptedAnchor,
+        routeVenueIds,
+      );
+      if (supersedesDrinkChoice) clearSupersededConciergeDrink(requestBody);
       const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildPlanGenerationIntakeBody(
-          intake,
-          query,
-          nightContext,
-          submittedContext,
-          handoff?.acceptedAnchor,
-        )),
+        body: JSON.stringify(requestBody),
       });
       responseStatus = response.status;
       const body = await readApiJson(response) as {
@@ -1793,6 +1990,7 @@ function PlanComposerForm({
         message?: unknown;
         error?: unknown;
       } | null;
+      if (!ownsDraft()) return;
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
       if (!body) throw new Error("PUBMAXX could not sort this one.");
       const anchorConflict = anchorConflictMessage(body);
@@ -1800,19 +1998,27 @@ function PlanComposerForm({
         // Answered 200 with no Stops on purpose: the kept pub is what is in the
         // way, and only the server knows which check refused it.
         setConciergeNote(anchorConflict);
+        setRouteStale(hasPreviousRoute);
+        setRouteStatus(planGenerationFailureStatus(anchorConflict, hasPreviousRoute));
         return;
       }
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) {
         // Zero matches is guidance, not failure (friction sweep follow-up 9):
         // the polite status slot, never the red error banner.
-        setConciergeNote("No venues matched that ask. Try a nearby area or a broader mood.");
+        const guidance = "No venues matched that ask. Try a nearby area or a broader mood.";
+        setConciergeNote(guidance);
+        setRouteStale(hasPreviousRoute);
+        setRouteStatus(planGenerationFailureStatus(guidance, hasPreviousRoute));
         return;
       }
+      const grounded = isGroundedGeneratedRoute(body, suggested);
+      assertConciergeRouteSelection(body, suggested, grounded, routeVenueIds, heldVenueId);
       setStops(suggested);
+      if (!routeVenueIds) setHasSelectedRouteEdits(false);
+      lastGeneratedQueryRef.current = query.trim();
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
-      const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
         const reconciled = reconcileGeneratedNightContext(
@@ -1838,19 +2044,51 @@ function PlanComposerForm({
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
     } catch (caught) {
+      if (!ownsDraft()) return;
       const message = caught instanceof Error ? caught.message : "The concierge could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
       // earlier route is still here".
-      const failureStatus = planGenerationFailureStatus(message, stops.length > 0);
+      const failureStatus = planGenerationFailureStatus(message, hasPreviousRoute);
       trackErrorShown("plan", errorShownKindFromStatus(responseStatus));
       setError(failureStatus);
-      setRouteStale(true);
+      setRouteStale(hasPreviousRoute);
       setRouteStatus(failureStatus);
     } finally {
-      setSorting(false);
+      if (ownsRequest()) {
+        if (!ownsDraft()) {
+          setRouteStale((current) => current || hasPreviousRoute);
+          setRouteStatus("The preview changed while this route was being checked. Refresh it again before locking.");
+        }
+        setSorting(false);
+      }
     }
   }
+
+  useEffect(() => {
+    if (!canPersist) return;
+    if (palHandoffAutoGenerateStartedRef.current) return;
+    // A client-side Pal Open in Plan still sees the previous route during the
+    // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
+    // address the same way the prefill layout effect does after the router
+    // commits it; gating on the stale read skipped the deferred generate.
+    const liveHandoff = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
+    if (!shouldAutoGeneratePalHandoffPlan(liveHandoff)) return;
+    palHandoffAutoGenerateStartedRef.current = true;
+    // Defer until the URL ask prefill lands in describe-first or the concierge field.
+    void Promise.resolve().then(() => {
+      const handoffAsk = describeAskFromLocation().handoffAsk ?? liveHandoff;
+      if (!handoffAsk?.trim()) return;
+      submitFromEntry(
+        handoffAsk.trim(),
+        undefined,
+        skipRemainingPlanIntake(createPlanIntakeDraft()),
+      );
+    });
+    // submitFromEntry is intentionally excluded: it is recreated on render,
+    // while this effect must run only when the URL handoff changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPersist, urlPrefill.handoffAsk]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1998,7 +2236,7 @@ function PlanComposerForm({
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
-          onQueryChange={setConciergeQuery}
+          onQueryChange={updateConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
@@ -2021,7 +2259,7 @@ function PlanComposerForm({
         </div>
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
-          <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+          <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => updateConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
           {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
               `Lock it in` is the thing to do next, and two coral fills on one
               screen is the reader choosing between them. This control keeps
@@ -2050,7 +2288,7 @@ function PlanComposerForm({
             <button
               type="button"
               className="planComposer__regenerate"
-              onClick={() => sortWithConcierge()}
+              onClick={() => sortWithConcierge(undefined, undefined, undefined, true)}
               disabled={sorting || !canSortWithCurrentGenerator}
               aria-busy={sorting}
             >
@@ -2145,7 +2383,7 @@ function PlanComposerForm({
                   ),
                 });
                 setTitle(merged.title);
-                setConciergeQuery(merged.conciergeQuery);
+                updateConciergeQuery(merged.conciergeQuery);
                 setConciergeNote(merged.conciergeNote);
               }}
             >
@@ -2292,7 +2530,7 @@ function PlanComposerForm({
         >Add another stop</button>
       </fieldset>
 
-      {error ? <PlanComposerErrorNotice message={error} /> : null}
+      {displayedError ? <PlanComposerErrorNotice message={displayedError} /> : null}
       {/* THE ANSWER IS PINNED. On a phone this action sat at the natural end of
           a page several screens long, which is under the tab bar and under the
           floating create action: PlanAstra measured it 40% covered at 390. It
@@ -2302,7 +2540,7 @@ function PlanComposerForm({
           card (components/nav/createFab.css). */}
       <div className="planComposer__lock">
         <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
-        <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
+        <p className="planComposer__trust">Share a preview. Joining only asks for a name.</p>
       </div>
         </>
       ) : null}

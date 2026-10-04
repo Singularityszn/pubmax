@@ -26,6 +26,7 @@ import {
   UK_PLACE_SEARCH_GROUP_LABEL,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
+import type { CategoryPriceIndexStatus, MapLensPrice } from "@/lib/mapExperienceLens";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
@@ -61,6 +62,9 @@ export type MapSearchSuggestProps = {
   query: string;
   onQueryChange: (query: string) => void;
   venues: Venue[];
+  lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  lensCategoryLabel?: string | null;
+  lensStatus?: CategoryPriceIndexStatus;
   /** Greater London locality gazetteer; [] for other cities / before it loads. */
   localities: Locality[];
   /**
@@ -111,6 +115,9 @@ export default function MapSearchSuggest({
   query,
   onQueryChange,
   venues,
+  lensPrices = null,
+  lensCategoryLabel = null,
+  lensStatus = "ready",
   localities,
   places = [],
   includeLocalResults = true,
@@ -179,6 +186,9 @@ export default function MapSearchSuggest({
         cityId,
         query: deferredQuery,
         venues,
+        lensPrices,
+        lensCategoryLabel,
+        lensStatus,
         localities,
         places,
         includeLocalResults,
@@ -190,6 +200,9 @@ export default function MapSearchSuggest({
       cityId,
       deferredQuery,
       venues,
+      lensPrices,
+      lensCategoryLabel,
+      lensStatus,
       localities,
       places,
       includeLocalResults,
@@ -297,12 +310,10 @@ export default function MapSearchSuggest({
     indexedCities.length > 0 ||
     indexedVenues.length > 0 ||
     mergedUkBasePubs.length > 0;
-  const showEmptyLine =
-    showPanel &&
-    trimmed.length > 0 &&
-    querySettled &&
-    !searchIndexLoading &&
-    !hasResults;
+  function emptyLineIsVisible() {
+    return showPanel && trimmed.length > 0 && querySettled && !searchIndexLoading && !hasResults;
+  }
+  const showEmptyLine = emptyLineIsVisible();
 
   useEffect(() => {
     if (!showEmptyLine) {
@@ -567,6 +578,7 @@ export default function MapSearchSuggest({
     <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
       <SearchField
         id={id}
+        label="Search places"
         role="combobox"
         aria-expanded={showPanel}
         aria-controls={listboxId}

@@ -20,6 +20,7 @@ type RouteHeaderProps = {
   crawlBlurb?: string;
   altStyle: AltCrawlStyle;
   onAltStyleChange: (style: AltCrawlStyle) => void;
+  generatedDrinkLabel?: string | null;
 };
 
 export default function RouteHeader({
@@ -29,6 +30,7 @@ export default function RouteHeader({
   crawlBlurb,
   altStyle,
   onAltStyleChange,
+  generatedDrinkLabel = null,
 }: RouteHeaderProps) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
@@ -51,7 +53,7 @@ export default function RouteHeader({
         <div>
           <p className="eyebrow">{mode === "build" ? "Your Plan" : "Suggested Plan"}</p>
           <h2>
-            {mode === "build"
+            {generatedDrinkLabel ? `${generatedDrinkLabel} plan` : mode === "build"
               ? crawlName || "Hand-built plan"
               : `${styleLabels[crawlStyle]} plan`}
           </h2>
@@ -74,7 +76,7 @@ export default function RouteHeader({
         <Route size={24} />
       </div>
 
-      <div
+      {generatedDrinkLabel ? null : <div
         className="altStylePicker"
         role="radiogroup"
         aria-label="Crawl style"
@@ -92,7 +94,7 @@ export default function RouteHeader({
             {altStyleLabels[style]}
           </button>
         ))}
-      </div>
+      </div>}
     </>
   );
 }

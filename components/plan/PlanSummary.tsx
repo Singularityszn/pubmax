@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
@@ -14,7 +15,9 @@ import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/u
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { cleanPublicDrinkRequest } from "@/lib/nightPlanning";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { planGenerationDrinkRefreshFromEvidence } from "@/lib/planGenerationDrinkRefresh";
 
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
@@ -231,12 +234,19 @@ function routeGenerationAuthority(value: unknown): RouteGenerationAuthority | nu
 }
 
 export function planSummaryGenerationBody(state: PlanState): Record<string, unknown> {
+  const firstStop = orderedRouteStops(state.stops)[0];
+  const selectedDrinkPriceEvidence = firstStop && firstStop.venueId === state.plan.anchorVenueId
+    ? cleanSelectedDrinkPriceEvidence(firstStop.selectedDrinkPriceEvidence)
+    : null;
+  const selectedDrinkRefresh = planGenerationDrinkRefreshFromEvidence(selectedDrinkPriceEvidence);
   const anchor = state.plan.anchorVenueId && state.plan.anchorSource
     ? {
         venueId: state.plan.anchorVenueId,
         source: state.plan.anchorSource,
         acceptedArea: null,
         startsAt: state.plan.startTime,
+        ...(selectedDrinkRefresh ? { selectedDrinkRefresh }
+          : selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
       }
     : null;
   const cityId = state.context?.nightArea
@@ -255,16 +265,17 @@ export function planSummaryRouteUpdateBody(input: {
   authority: RouteGenerationAuthority | null;
 }): Record<string, unknown> {
   return {
-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
+    stops: routeStopsWithAvailableBackups(input.stops).map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
       venueId, venueName,
       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+      ...(alternatives?.length ? { alternatives } : {}),
     })),
     expectedRouteRevision: input.expectedRouteRevision,
     ...(input.authority ?? {}),
   };
 }
 
-function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlySet<string>): EditableStop {
+export function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlySet<string>): EditableStop {
   const alternatives = stop.alternatives ?? [];
   const nextIndex = alternatives.findIndex((alternative) => !excludedVenueIds.has(alternative.venueId));
   if (nextIndex < 0) return stop;
@@ -357,6 +368,20 @@ export default function PlanSummary({
   }
 
   return <PlanSummaryMember planId={planId} state={state} />;
+}
+
+function publicRouteDrinkIntent(context: PlanState["context"]) {
+  // Map links carry only the saved public drink request, never private planning context.
+  const publicDrinkRequest = context ? cleanPublicDrinkRequest({
+    drinkCategory: context.drinkCategory, drinkSubtype: context.drinkSubtype,
+    drinkServing: context.drinkServing,
+  }) : null;
+  return context?.zeroProof === true
+    ? { zeroProof: true }
+    : publicDrinkRequest
+      ? { ...publicDrinkRequest, zeroProof: false }
+      : null;
+
 }
 
 function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState }) {
@@ -489,6 +514,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     venueName: stop.venueName,
     position: typeof stop.position === "number" ? stop.position : index,
     ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+    ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
   }));
 
   function adoptCanonical(canonical: PlanState): void {
@@ -731,6 +757,8 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       : <p className="planSummary__status planSummary__status--error" role="alert">{notice.text}</p>;
   }
 
+  const routeDrinkIntent = publicRouteDrinkIntent(state.context);
+
   return (
     <section className="planSummary" aria-labelledby="plan-stops-title">
       <div className="planSummary__heading">
@@ -752,6 +780,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
             planId={planId}
             startTime={state.plan.startTime}
             stops={canonicalRouteStops}
+            routeDrinkIntent={routeDrinkIntent}
           />
           {memberToken ? (
             /* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */
@@ -770,9 +799,10 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
           planId={planId}
           memberToken={memberToken}
           isHost={isHost}
-          draftStops={draftStops.map((stop, index) => ({
+          draftStops={routeStopsWithAvailableBackups(draftStops).map((stop, index) => ({
             venueId: stop.venueId, venueName: stop.venueName, position: index,
             ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+            ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
           }))}
           routeRevision={routeRevision}
           canPropose={!anchoredPlan && !isHost && canSaveDraft}

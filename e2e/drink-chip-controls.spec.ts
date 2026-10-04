@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import sharp from "sharp";
 
 import { priceBandLegendLabel } from "../lib/priceBand";
 
@@ -41,6 +42,113 @@ async function openFilters(page: Page): Promise<Locator> {
     timeout: 45_000,
   });
   return sheet;
+}
+
+type PaintedColour = readonly [number, number, number];
+
+function colourDistance(left: PaintedColour, right: PaintedColour): number {
+  return Math.max(...left.map((channel, index) => Math.abs(channel - right[index]!)));
+}
+
+async function expectPaintedClusterKey(key: Locator, mixed: boolean): Promise<void> {
+  const sample = key.locator(".mapKeyClusterSample");
+  await key.page().evaluate(() => document.fonts.ready);
+  await key.evaluate((element) => element.scrollIntoView({
+    block: "center", inline: "nearest", behavior: "instant",
+  }));
+  await expect(sample).toBeVisible();
+  await expect(sample).toBeInViewport({ ratio: 1 });
+  for (const swatch of await key.locator(".mapKeyPriceSwatch").all()) {
+    await expect(swatch).toBeInViewport({ ratio: 1 });
+  }
+  const readGeometry = () => key.evaluate((element) => {
+    const sample = element.querySelector<HTMLElement>(".mapKeyClusterSample");
+    if (!sample) throw new Error("Cluster sample missing from map key");
+    const bounds = (node: Element) => {
+      const box = node.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    };
+    const style = getComputedStyle(sample);
+    return {
+      ...bounds(sample),
+      border: Number.parseFloat(style.borderTopWidth),
+      backgroundImage: style.backgroundImage,
+      swatches: Array.from(element.querySelectorAll(".mapKeyPriceSwatch"), bounds),
+      devicePixelRatio: window.devicePixelRatio,
+    };
+  });
+  const geometry = await readGeometry();
+  expect(geometry.border).toBeGreaterThan(0);
+  expect(geometry.devicePixelRatio).toBeGreaterThan(0);
+  const boxes = [geometry, ...geometry.swatches];
+  const clipX = Math.floor(Math.min(...boxes.map((box) => box.x)));
+  const clipY = Math.floor(Math.min(...boxes.map((box) => box.y)));
+  const clip = {
+    x: clipX,
+    y: clipY,
+    width: Math.ceil(Math.max(...boxes.map((box) => box.x + box.width))) - clipX,
+    height: Math.ceil(Math.max(...boxes.map((box) => box.y + box.height))) - clipY,
+  };
+  const { data, info } = await sharp(await key.page().screenshot({ clip, scale: "device" }))
+    .removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  expect(await readGeometry(), "map key geometry stays fixed during paint capture").toEqual(geometry);
+  expect(Math.abs(info.width - clip.width * geometry.devicePixelRatio)).toBeLessThanOrEqual(1);
+  expect(Math.abs(info.height - clip.height * geometry.devicePixelRatio)).toBeLessThanOrEqual(1);
+  const pixel = (x: number, y: number): PaintedColour => {
+    const pixelX = Math.floor((x - clip.x) * geometry.devicePixelRatio);
+    const pixelY = Math.floor((y - clip.y) * geometry.devicePixelRatio);
+    expect(pixelX).toBeGreaterThanOrEqual(0);
+    expect(pixelX).toBeLessThan(info.width);
+    expect(pixelY).toBeGreaterThanOrEqual(0);
+    expect(pixelY).toBeLessThan(info.height);
+    const offset = (pixelY * info.width + pixelX) * info.channels;
+    return [data[offset]!, data[offset + 1]!, data[offset + 2]!];
+  };
+  // Sample the middle of the computed border, clear of its antialiased edges
+  // and the central #. An integer screenshot clip includes fractional edge
+  // pixels; it does not stretch the element to the crop's width or height.
+  const radius = Math.min(geometry.width, geometry.height) / 2 - geometry.border / 2;
+  const ring = Array.from({ length: 32 }, (_, index) => {
+    const angle = ((index + 0.5) / 32) * Math.PI * 2;
+    return pixel(
+      geometry.x + geometry.width / 2 + radius * Math.cos(angle),
+      geometry.y + geometry.height / 2 + radius * Math.sin(angle),
+    );
+  });
+  const swatches: PaintedColour[] = [];
+  for (const swatch of geometry.swatches) {
+    const colour = pixel(swatch.x + swatch.width / 2, swatch.y + swatch.height / 2);
+    // The circular swatch's outer corner is the actual underlying panel.
+    // A transparent or background-coloured replacement is not grey paint.
+    const background = pixel(swatch.x, swatch.y);
+    expect(colourDistance(colour, background), "legend swatch visibly differs from its background")
+      .toBeGreaterThan(2);
+    swatches.push(colour);
+  }
+  if (mixed) {
+    // Computed conic presence alone is insufficient: actual ring pixels must
+    // also contain each of the three known price-band swatch colours.
+    expect(geometry.backgroundImage).toContain("conic-gradient(");
+    expect(swatches).toHaveLength(4);
+    const known = swatches.slice(0, 3);
+    for (let index = 0; index < known.length; index += 1) {
+      for (const other of known.slice(index + 1)) {
+        expect(colourDistance(known[index]!, other)).toBeGreaterThan(2);
+      }
+      expect(
+        ring.some((colour) => colourDistance(colour, known[index]!) <= 2),
+        `painted cluster ring contains price-band colour ${index + 1}`,
+      ).toBe(true);
+    }
+  } else {
+    expect(swatches).toHaveLength(1);
+    // Every sampled angle must match the sole painted grey swatch. A conic
+    // multicolour ring or an invisible ring cannot satisfy this comparison.
+    expect(
+      Math.max(...ring.map((colour) => colourDistance(colour, swatches[0]!))),
+      "unknown-only cluster ring matches the painted grey legend swatch",
+    ).toBeLessThanOrEqual(2);
+  }
 }
 
 async function pressedLabels(group: Locator): Promise<string[]> {
@@ -104,6 +212,7 @@ for (const viewport of [
       `£££${priceBandLegendLabel("expensive")}; high for its venue type`,
       "?No pint price on the map",
     ]);
+    await expectPaintedClusterKey(key, true);
 
     const noAlcoholIndex = page.waitForResponse(
       (candidate) =>
@@ -114,10 +223,23 @@ for (const viewport of [
       .getByRole("button", { name: "No alcohol", exact: true })
       .click();
     await noAlcoholIndex;
-    await expect(heading).toHaveText("No-alcohol price bands");
-    await expect(rows.last()).toHaveText(
-      "?No alcohol-free or soft drink price on the map",
+    // Loaded non-beer quotes remain on attributed detail rows. Without a
+    // comparable serving group, the real pin producer emits only bucket 3;
+    // the key must describe those grey pins, not promise price bands.
+    await expect(heading).toHaveText("No-alcohol view");
+    await expect(rows).toHaveText(["?Price not shown on pins"]);
+    await expect(rows.locator(".mapKeyPriceSwatch")).toHaveClass(
+      "mapKeyPriceSwatch mapKeyPriceSwatch--grey",
     );
+    await expect(key.locator('.mapKeySection[aria-labelledby="mapKeyPriceHeading"] > p'))
+      .toHaveText(
+        "Pins stay grey because alcohol-free or soft drink servings cannot be compared here. Check venue details for any recorded price and its source.",
+      );
+    await expect(key.locator('.mapKeySection[aria-labelledby="mapKeyClusterHeading"] p'))
+      .toHaveText(
+        "Clusters stay grey because alcohol-free or soft drink servings cannot be compared here. The number is every venue in the cluster.",
+      );
+    await expectPaintedClusterKey(key, false);
     await expect(key.locator(".mapKeyPriceRows")).not.toContainText("pint");
     await expect(key.locator(".mapKeyPriceRows")).not.toContainText(
       "venue type",
@@ -130,6 +252,23 @@ for (const viewport of [
     await expect(rows).toHaveText([
       "?Food pins and clusters stay grey",
     ]);
+    await expectPaintedClusterKey(key, false);
+
+    // Returning through the real All control restores the comparable pint
+    // and venue bands, rather than leaving the unknown-only key behind.
+    await mapViewGroup.getByRole("button", { name: "All", exact: true }).click();
+    await expect(heading).toHaveText("Pint prices and other venue price bands");
+    await expect(rows).toHaveText([
+      `£${priceBandLegendLabel("cheap")}; low for its venue type`,
+      `££${priceBandLegendLabel("average")}; middle for its venue type`,
+      `£££${priceBandLegendLabel("expensive")}; high for its venue type`,
+      "?No pint price on the map",
+    ]);
+    await expectPaintedClusterKey(key, true);
+    await expect(
+      sheet.getByRole("group", { name: "Venue types" })
+        .getByRole("button", { name: "Pints", exact: true }),
+    ).toBeVisible();
   });
 }
 

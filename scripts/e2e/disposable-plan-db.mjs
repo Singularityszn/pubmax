@@ -8,17 +8,29 @@ import { startRlsSession } from "../rls/session-harness.mjs";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 const V1_RELEASE = "20260806035204_0070_v1_release_security.sql";
-const LAST_MIGRATION = "20260930120000_0168_plan_proposal_context_evidence.sql";
 
 // The Belle Vue occurs on the generated Clapham route for both queries. Each
 // observation has an independent, non-null actor for corroboration.
 const PLAN_PRICE_FIXTURES = [
   { venueId: "venue-11e0hkh", category: "wine", pence: 675 },
   { venueId: "venue-11e0hkh", category: "cocktail", pence: 895 },
+  // Synthetic local fixture values only, corroborated by two distinct actors.
+  { venueId: "venue-11e0hkh", category: "whisky", pence: 650 },
+  { venueId: "venue-11e0hkh", category: "gin", pence: 625 },
+  { venueId: "venue-11e0hkh", category: "vodka", pence: 600 },
+  { venueId: "venue-11e0hkh", category: "rum", pence: 575 },
+  { venueId: "venue-11e0hkh", category: "shot", pence: 400 },
 ];
 
 function sqlLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+/** Every forward migration after the V1 boundary, in the order Supabase applies them. */
+export function disposablePlanMigrations() {
+  return readdirSync(MIGRATIONS)
+    .filter((name) => name.endsWith(".sql") && name > V1_RELEASE)
+    .sort();
 }
 
 function assertLoopback(url) {
@@ -34,11 +46,9 @@ export async function startDisposablePlanDb() {
     session = await startRlsSession();
     assertLoopback(session.restBaseUrl);
 
-    const laterMigrations = readdirSync(MIGRATIONS)
-      .filter((name) => name.endsWith(".sql") && name > V1_RELEASE && name <= LAST_MIGRATION)
-      .sort();
-    if (laterMigrations.at(-1) !== LAST_MIGRATION) {
-      throw new Error("Disposable Plan fixture cannot find migration 0168");
+    const laterMigrations = disposablePlanMigrations();
+    if (laterMigrations.length === 0) {
+      throw new Error("Disposable Plan fixture cannot find any migration after the V1 release");
     }
     for (const migration of laterMigrations) {
       session.sqlFile(join(MIGRATIONS, migration));
@@ -86,6 +96,7 @@ export async function startDisposablePlanDb() {
       serviceRoleKey: session.serviceRoleKey,
       sql: session.sql,
       stop: session.stop,
+      lastMigration: laterMigrations.at(-1),
       fixtures: PLAN_PRICE_FIXTURES.map((fixture) => ({ ...fixture, reportedAt })),
     };
   } catch (error) {

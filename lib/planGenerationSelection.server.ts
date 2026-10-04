@@ -4,6 +4,8 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 import { canAffectRoute } from "@/lib/nightSignalClaims";
 import type { NightContext } from "@/lib/nightPlanning";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
@@ -30,6 +32,7 @@ export type ScoredPlanCandidate = {
   venue: ConciergeVenue;
   score: number;
   signalClaims: NightSignalClaim[];
+  selectedDrinkPrice?: MapLensPrice | null;
 };
 
 export type PlanGenerationSelection<T extends ScoredPlanCandidate> =
@@ -61,7 +64,7 @@ export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
       anchorValue: T;
       accessibilityEnforced: boolean;
     }
-  | { ok: false; reason: "ANCHOR_MISSING" };
+  | { ok: false; reason: "ANCHOR_MISSING" | "ANCHOR_ROUTE_CONFLICT" };
 
 /** Join canonical price, access, and opening evidence onto scored candidates. */
 async function groundedRouteCandidates<T extends ScoredPlanCandidate>(
@@ -107,6 +110,7 @@ function groundedConstraints(
   intake: ParsedPlanGenerationIntake | null,
   accessibilityNeeds: readonly PlanAccessibilityNeed[],
   now: number,
+  requestedDrinkVenueIds: readonly string[],
 ): GroundedPlanRouteConstraints {
   return {
     exactArea: intake?.exactNightArea ?? null,
@@ -114,6 +118,7 @@ function groundedConstraints(
     budgetLimitPence: context.budgetLimitPence,
     budgetTier: context.budget,
     selectedDrinkPrice: !planUsesPintPrices(context),
+    requestedDrinkVenueIds,
     groupSize: context.groupSize,
     stopCount: normalizePlanStopCount(context.stopCount),
     transportConstraints: context.transportConstraints,
@@ -122,24 +127,39 @@ function groundedConstraints(
   };
 }
 
+function requestedDrinkOfferIds<T extends ScoredPlanCandidate>(
+  candidates: readonly T[],
+  context: NightContext,
+): string[] {
+  return candidates.filter((candidate) =>
+    selectedDrinkPriceEvidenceForPrice(candidate.selectedDrinkPrice, context) !== null)
+    .map((candidate) => candidate.venue.id);
+}
+
 /** Join canonical evidence and run the hard-constraint optimizer. */
 export async function selectPlanGenerationCandidates<T extends ScoredPlanCandidate>(
   candidates: readonly T[],
   context: NightContext,
   intake: ParsedPlanGenerationIntake | null,
   now: number,
+  routeVenueIds?: readonly string[],
 ): Promise<PlanGenerationSelection<T>> {
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
+  const requestedDrinkVenueIds = requestedDrinkOfferIds(candidates, context);
   const hasContextHardConstraint = accessibilityNeeds.length > 0
     || context.budgetLimitPence !== null
     || context.transportConstraints.length > 0
     || normalizePlanStopCount(context.stopCount) !== DEFAULT_PLAN_STOP_COUNT;
-  if (!intake && !hasContextHardConstraint) {
-    return { ok: true, legacy: true, chosen: candidates.slice(0, normalizePlanStopCount(context.stopCount)) };
+  const legacy = !routeVenueIds && !intake && !hasContextHardConstraint;
+  const legacyChosen = candidates.slice(0, normalizePlanStopCount(context.stopCount));
+  if (legacy && (requestedDrinkVenueIds.length === 0
+    || legacyChosen.some((candidate) => requestedDrinkVenueIds.includes(candidate.venue.id)))) {
+    return { ok: true, legacy: true, chosen: legacyChosen };
   }
   const selection = selectGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
-    groundedConstraints(context, intake, accessibilityNeeds, now),
+    groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),
+    routeVenueIds,
   );
   return selection.ok
     ? {
@@ -149,7 +169,9 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
         selection,
         accessibilityEnforced: accessibilityNeeds.length > 0,
       }
-    : { ok: false, selection };
+    : legacy
+      ? { ok: true, legacy: true, chosen: legacyChosen }
+      : { ok: false, selection };
 }
 
 /**
@@ -163,11 +185,27 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
   intake: ParsedPlanGenerationIntake | null,
   now: number,
   anchorVenueId: string,
+  routeVenueIds?: readonly string[],
 ): Promise<AnchoredPlanGenerationSelection<T>> {
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
+  const requestedDrinkVenueIds = requestedDrinkOfferIds(candidates, context);
+  if (routeVenueIds) {
+    if (routeVenueIds[0] !== anchorVenueId) return { ok: false, reason: "ANCHOR_ROUTE_CONFLICT" };
+    const exact = selectGroundedPlanRoute(
+      await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
+      groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),
+      routeVenueIds,
+    );
+    if (!exact.ok) return { ok: false, reason: "ANCHOR_ROUTE_CONFLICT" };
+    return {
+      ok: true, outcome: "route", chosen: exact.stops.map((stop) => stop.value),
+      selection: { ...exact, outcome: "route", alternatives: exact.alternatives.map((row, index) => index === 0 ? [] : row) },
+      accessibilityEnforced: accessibilityNeeds.length > 0,
+    };
+  }
   const selection = selectAnchoredGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
-    groundedConstraints(context, intake, accessibilityNeeds, now),
+    groundedConstraints(context, intake, accessibilityNeeds, now, requestedDrinkVenueIds),
     anchorVenueId,
   );
   if (!selection.ok) return { ok: false, reason: "ANCHOR_MISSING" };

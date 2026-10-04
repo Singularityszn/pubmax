@@ -1,4 +1,4 @@
-import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
+import { inferNightContext, mergeNightContext, type NightContext } from "@/lib/nightPlanning";
 import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
 import { applyTemplate } from "@/lib/planComposerHandoff";
 import {
@@ -97,11 +97,18 @@ export function composerGeolocationMaySeedIntake(input: {
   return !input.showsDescribeFirst && !input.hasQueryText;
 }
 
+/** A new drink request replaces a correction made for the previous generated query. */
+export function newQuerySupersedesDrinkChoice(previousQuery: string | null, nextQuery: string): boolean {
+  if (previousQuery === null || previousQuery.trim() === nextQuery.trim()) return false;
+  const inferred = inferNightContext(nextQuery).context;
+  return inferred.drinkCategory !== null || inferred.zeroProof;
+}
+
 export function mergeInferredNightContext(
   inferred: NightContext,
   explicit: Partial<NightContext>,
 ): NightContext {
-  return { ...inferred, ...explicit };
+  return mergeNightContext(inferred, explicit);
 }
 
 export function mergeSubmittedNightContext(

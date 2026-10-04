@@ -12,6 +12,7 @@ import {
 } from "@/lib/drinkBrands";
 import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+import { cleanPublicDrinkRequest, type NightContext } from "@/lib/nightPlanning";
 import { parseZoneParam } from "@/lib/zones";
 import { clamp } from "@/lib/mathClamp";
 
@@ -46,7 +47,26 @@ export const altStyleStopNoun: Record<AltCrawlStyle, string> = {
 // Decode is defensive: unknown/malformed params are ignored, numbers clamp to
 // the slider bounds, unknown styles drop. It NEVER throws on bad input.
 
+export type RouteDrinkIntent = Pick<NightContext, "drinkCategory" | "drinkSubtype" | "drinkServing" | "zeroProof">;
+
+/** Public requested drink only. No price, proof or private planning context. */
+export function routeDrinkIntentFromSearch(search: string): RouteDrinkIntent | null {
+  const params = new URLSearchParams(search);
+  if (!params.get("pubs")?.trim()) return null;
+  if (params.get("routeLow") === "1") return { zeroProof: true };
+  const category = params.get("routeDrink");
+  if (!category || !isMapLensDrinkCategory(category)) return null;
+  const request = cleanPublicDrinkRequest({
+    drinkCategory: category,
+    ...(params.has("routeSub") ? { drinkSubtype: params.get("routeSub") } : {}),
+    ...(params.has("routeServing") ? { drinkServing: params.get("routeServing") } : {}),
+  });
+  return request && (category !== "beer" || request.drinkSubtype === "beer-cider")
+    ? { ...request, zeroProof: false } : null;
+}
+
 export type CrawlUrlState = {
+  routeDrinkIntent?: RouteDrinkIntent | null;
   mode: CrawlMode;
   filters: Filters;
   builtIds: string[];
@@ -94,6 +114,20 @@ function parseNum(raw: string | null, min: number, max: number): number | undefi
   if (raw === null) return undefined;
   const n = Number(raw);
   return Number.isFinite(n) ? clamp(n, min, max) : undefined;
+}
+
+function encodeRouteDrinkIntent(params: URLSearchParams, intent: RouteDrinkIntent | null | undefined): void {
+  if (intent?.zeroProof === true) params.set("routeLow", "1");
+  else if (intent) {
+    const request = cleanPublicDrinkRequest({ drinkCategory: intent.drinkCategory,
+      drinkSubtype: intent.drinkSubtype, drinkServing: intent.drinkServing });
+    if (request && isMapLensDrinkCategory(request.drinkCategory)
+      && (request.drinkCategory !== "beer" || request.drinkSubtype === "beer-cider")) {
+      params.set("routeDrink", request.drinkCategory);
+      if (request.drinkSubtype) params.set("routeSub", request.drinkSubtype);
+      if (request.drinkServing) params.set("routeServing", request.drinkServing);
+    }
+  }
 }
 
 export function encodeCrawl(state: CrawlUrlState): string {
@@ -144,7 +178,10 @@ export function encodeCrawl(state: CrawlUrlState): string {
   // Zone lens: only a concrete 1–6 zone is encoded ("" / "all" is the default).
   const zone = parseZoneParam(filters.zone);
   if (zone !== null && zone !== "all") params.set("zone", String(zone));
-  if (builtIds.length) params.set("pubs", builtIds.join(","));
+  if (builtIds.length) {
+    params.set("pubs", builtIds.join(","));
+    encodeRouteDrinkIntent(params, state.routeDrinkIntent);
+  }
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
   if (state.bandId) params.set("band", state.bandId);
@@ -161,7 +198,10 @@ export function encodeCrawl(state: CrawlUrlState): string {
 // `/map?mode=build&pubs=<ordered ids>` (defaults are omitted, so nothing else
 // clutters the link). Returns null for fewer than two stops — a single stop has
 // no walk to show.
-export function buildCrawlMapHref(venueIds: string[]): string | null {
+export function buildCrawlMapHref(
+  venueIds: string[],
+  routeDrinkIntent?: RouteDrinkIntent | null,
+): string | null {
   const ids = venueIds.filter(Boolean);
   if (ids.length < 2) return null;
   return `/map?${encodeCrawl({
@@ -169,6 +209,7 @@ export function buildCrawlMapHref(venueIds: string[]): string | null {
     filters: initialFilters,
     builtIds: ids,
     selectedVenueId: "",
+    routeDrinkIntent,
   })}`;
 }
 
@@ -288,11 +329,14 @@ export function decodeCrawl(
     out.altStyle = alt as AltCrawlStyle;
   }
 
+  const routeDrinkIntent = routeDrinkIntentFromSearch(params.toString());
+  if (routeDrinkIntent) out.routeDrinkIntent = routeDrinkIntent;
   return out;
 }
 
 // Convenience: fold a decoded URL onto the app defaults into full initial state.
 export function seedCrawlState(search: string): {
+  routeDrinkIntent?: RouteDrinkIntent;
   mode: CrawlMode;
   filters: Filters;
   builtIds: string[];
@@ -304,6 +348,7 @@ export function seedCrawlState(search: string): {
 } {
   const decoded = decodeCrawl(new URLSearchParams(search));
   return {
+    ...(decoded.routeDrinkIntent ? { routeDrinkIntent: decoded.routeDrinkIntent } : {}),
     mode: decoded.mode ?? "suggest",
     filters: { ...initialFilters, ...decoded.filters },
     builtIds: decoded.builtIds ?? [],

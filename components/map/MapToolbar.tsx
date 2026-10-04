@@ -21,6 +21,8 @@ import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
+import { listedServingGroup } from "@/lib/listedPriceComparison";
+import { parseDrinkSubtypeParam, type DrinkSubtype } from "@/lib/drinkSubtypes";
 import type { SpoonsValueLensState } from "@/lib/spoonsValue";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
@@ -36,6 +38,11 @@ import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 
 const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"));
 
+function selectedDrinkLaneLabel(lane: DrinkCategory, subtype: DrinkSubtype | null, serving: string | null | undefined): string {
+  return lane === "beer" && !subtype
+    ? drinkLaneLabel(lane)
+    : `${subtype?.longLabel ?? drinkLaneLabel(lane)} · ${listedServingGroup(lane, serving, subtype?.id) ?? "all servings"}`;
+}
 
 /**
  * The map's drink, named on a control of its own.
@@ -140,12 +147,16 @@ type MapToolbarProps = {
   onFavoritePintChange: (beerId: string | null) => void;
   drinkFiltersActive: boolean;
   drinkCategory: string;
+  drinkSubtype?: string | null;
   drinkBrand: string;
   onDrinkBrandChange: (drinkBrand: string) => void;
   /** Put the map under one drink. The parent owns the single filter write. */
   onDrinkLaneChange: (lane: DrinkCategory) => void;
   /** Completeness of the active lane's cross-venue read, for its own note. */
   drinkLaneStatus: CategoryPriceIndexStatus;
+  drinkServingGroups?: readonly string[];
+  drinkServingGroup?: string | null;
+  onDrinkServingGroupChange?: (serving: string | null) => void;
   /** The Spoons value lens, which shares this panel with the drink lanes. */
   spoonsValueOn: boolean;
   spoonsValueLens: SpoonsValueLensState;
@@ -195,9 +206,9 @@ type MapToolbarProps = {
   experienceSummary: string;
   onExperienceLensChange: (lens: MapExperienceLens) => void;
   /**
-   * The venue-type toggles, at 641px and wider (PlanAstra item 9). Absent on a
-   * base-pub-only arrival, where no curated kind is on the map to filter, and
-   * absent on a phone, which reads the same toggles in its Filters sheet.
+   * The venue-type toggles, at 641px and wider (PlanAstra item 9). They also
+   * filter UK base pubs and bars, so a base-led view keeps this one control and
+   * its active count. Phones read the same toggles in their Filters sheet.
    */
   venueKindVisibility?: VenueKindVisibility;
   onVenueKindVisibilityChange?: (next: VenueKindVisibility) => void;
@@ -212,10 +223,14 @@ export default function MapToolbar({
   onFavoritePintChange,
   drinkFiltersActive,
   drinkCategory,
+  drinkSubtype,
   drinkBrand,
   onDrinkBrandChange,
   onDrinkLaneChange,
   drinkLaneStatus,
+  drinkServingGroups,
+  drinkServingGroup,
+  onDrinkServingGroupChange,
   spoonsValueOn,
   spoonsValueLens,
   onSpoonsValueChange,
@@ -334,11 +349,12 @@ export default function MapToolbar({
     return () => mq.removeEventListener("change", sync);
   }, []);
   const activeLane = activeDrinkLane(drinkCategory);
-  const laneLabel = drinkLaneLabel(activeLane);
+  const subtype = parseDrinkSubtypeParam(drinkSubtype, activeLane);
+  const laneLabel = selectedDrinkLaneLabel(activeLane, subtype, drinkServingGroup);
   // Every drink control is stood down while an experience view owns the map,
   // and brand is a pint-only refinement on top of that.
   const laneAvailable = experienceLens === "all";
-  const showPintBrand = laneAvailable && activeLane === "beer";
+  const showPintBrand = laneAvailable && activeLane === "beer" && !subtype;
   const trimmedQuery = query.trim();
   const showNoSearchMatches = searchFoundNothing({
     searchSettled,
@@ -446,7 +462,11 @@ export default function MapToolbar({
         <>
           <DrinkLanePicker
             lane={activeLane}
+            drinkSubtype={subtype?.id}
             status={drinkLaneStatus}
+            servingGroups={drinkServingGroups}
+            servingGroup={drinkServingGroup}
+            onServingGroupChange={onDrinkServingGroupChange}
             onChange={onDrinkLaneChange}
           />
           <SpoonsValueLensControl

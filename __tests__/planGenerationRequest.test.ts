@@ -101,3 +101,103 @@ describe("parsePlanGenerationRequest", () => {
     expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
   });
 });
+
+describe("exact selected route requests", () => {
+  it.each([1, 3, 6])("retains the exact chosen order for %i public venue IDs", async (stopCount) => {
+    const routeVenueIds = Array.from({ length: stopCount }, (_, index) => `venue-${stopCount - index}`);
+    const result = await parsePlanGenerationRequest(request({
+      query: "Clapham", context: { stopCount }, routeVenueIds,
+    }), NOW);
+    expect(result).toMatchObject({ ok: true, value: { routeVenueIds } });
+  });
+
+  it.each([
+    ["null", null],
+    ["empty", []],
+    ["too many", Array.from({ length: 7 }, (_, index) => `venue-${index}`)],
+    ["duplicate", ["venue-a", "venue-a", "venue-c"]],
+    ["non-string", ["venue-a", 2, "venue-c"]],
+    ["blank ID", ["venue-a", "", "venue-c"]],
+    ["whitespace ID", ["venue-a", " venue-b ", "venue-c"]],
+    ["oversized ID", ["venue-a", "x".repeat(129), "venue-c"]],
+    ["proof-unmintable ID", ["venue-a", "x".repeat(121), "venue-c"]],
+    ["URL in place of ID", ["venue-a", "https://pub.example/b", "venue-c"]],
+    ["private coordinate object", ["venue-a", { lat: 51, lng: 0 }, "venue-c"]],
+  ])("rejects %s selection without admitting another public request shape", async (_label, routeVenueIds) => {
+    const result = await parsePlanGenerationRequest(request({
+      query: "Clapham", context: { stopCount: 3 }, routeVenueIds,
+    }), NOW);
+    expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST", status: 400 });
+  });
+
+  it("keeps the request closed beside a valid selected route", async () => {
+    const result = await parsePlanGenerationRequest(request({
+      query: "Clapham", routeVenueIds: ["venue-c", "venue-a", "venue-b"], privateContext: "must not cross this seam",
+    }), NOW);
+    expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST", status: 400 });
+  });
+});
+
+
+describe("Cider bounded generation context", () => {
+  it.each([null, "pint", "500ml"])("admits Cider request with selected measure %s", async (drinkServing) => {
+    const context = { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing, zeroProof: false };
+    const result = await parsePlanGenerationRequest(request({ query: "quiet in Clapham", context }), NOW);
+    expect(result).toMatchObject({ ok: true, value: { context } });
+  });
+
+  it("admits the actual own named-eight Cider quote with unknown source serving", async () => {
+    const selectedDrinkPriceEvidence = { category: "beer", pence: 365, serving: null, source: "listed",
+      sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", observedAt: "2026-09-21T18:27:31.674Z",
+      drinkLabel: "Aspall 4.5%", drinkSubtype: "beer-cider" };
+    const result = await parsePlanGenerationRequest(request({ context: { drinkCategory: "beer", drinkSubtype: "beer-cider" },
+      anchor: { venueId: "venue-13xdb1p", source: "map-search", acceptedArea: null, startsAt: null, selectedDrinkPriceEvidence } }),
+    new Date("2026-10-03T12:00:00.000Z"));
+    expect(result).toMatchObject({ ok: true, value: { anchor: { venueId: "venue-13xdb1p", selectedDrinkPriceEvidence } } });
+  });
+
+  it.each([
+    { drinkCategory: "wine", drinkSubtype: "beer-cider" },
+    { drinkCategory: "beer", drinkSubtype: "beer-not-real" },
+    { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "large bottle" },
+    { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "500ml", zeroProof: true },
+    { drinkCategory: "beer", drinkSubtype: "beer-cider", servingPence: 365 },
+  ])("rejects malformed or incompatible refinement %j", async (context) => {
+    expect(await parsePlanGenerationRequest(request({ context }), NOW)).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
+  });
+});
+
+describe("saved named anchor refresh envelope", () => {
+  const selection = { category: "wine", serving: "125ml", drinkLabel: "Chardonnay", drinkSubtype: "wine-white" };
+  const anchor = { venueId: "venue-a", source: "map-search", acceptedArea: null, startsAt: null };
+
+  it.each(["125ml", null])("admits quote-free identity with source serving %s", async (serving) => {
+    const result = await parsePlanGenerationRequest(request({ anchor: {
+      ...anchor, selectedDrinkRefresh: { ...selection, serving },
+    } }), NOW);
+    expect(result).toMatchObject({ ok: true, value: { anchor: {
+      ...anchor, selectedDrinkRefresh: { ...selection, serving },
+    } } });
+  });
+
+  it.each([
+    { ...selection, pence: 800 },
+    { ...selection, sourceUrl: "https://pub.example/menu" },
+    { ...selection, observedAt: "2026-09-29T12:00:00.000Z" },
+    { ...selection, drinkLabel: " Chardonnay" },
+    { ...selection, drinkSubtype: "wine-red" },
+    { ...selection, serving: " 125ml" },
+    { ...selection, serving: undefined },
+    { ...selection, category: "beer", drinkSubtype: null },
+  ])("rejects malformed identity or old quote authority %j", async (selectedDrinkRefresh) => {
+    expect(await parsePlanGenerationRequest(request({ anchor: { ...anchor, selectedDrinkRefresh } }), NOW))
+      .toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
+  });
+
+  it("rejects combined fresh acceptance and saved refresh modes", async () => {
+    expect(await parsePlanGenerationRequest(request({ anchor: { ...anchor, selectedDrinkRefresh: selection,
+      selectedDrinkPriceEvidence: { ...selection, pence: 800, source: "listed",
+        sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T12:00:00.000Z" },
+    } }), NOW)).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
+  });
+});

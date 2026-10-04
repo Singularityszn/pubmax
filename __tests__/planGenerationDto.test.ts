@@ -66,6 +66,34 @@ function grounded<T>(value: T, pence: number) {
 }
 
 describe("plan generation response projection", () => {
+  it("projects listed source, day, and distinct explicit servings on stops and alternatives without pint evidence", () => {
+    const observedAt = "2026-09-29T12:00:00.000Z";
+    const selected = { ...candidate("selected", -0.1), selectedDrinkPrice: {
+      venueId: "selected", category: "wine" as const, categoryLabel: "Wine", priceGbp: 5.25,
+      source: "listed" as const, servingSize: "125ml", sourceUrl: "https://pub.example/selected/menu", observedAt,
+    } };
+    const alternative = { ...candidate("alternative", -0.099), selectedDrinkPrice: {
+      ...selected.selectedDrinkPrice, venueId: "alternative", priceGbp: 10.5,
+      servingSize: "250ml", sourceUrl: "https://pub.example/alternative/menu",
+    } };
+    const project = (drinkCategory: "wine" | "gin" | "beer", zeroProof = false) => buildPlanGenerationStops({
+      chosen: [selected], candidates: [selected, alternative], groundedStops: null, groundedAlternatives: null,
+      walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] }, area: AREA, planningWeather: null,
+      priceContext: { drinkCategory, zeroProof },
+    });
+    const stops = project("wine");
+    expect(stops[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
+      selectedDrinkPriceEvidence: { category: "wine", pence: 525, serving: "125ml", source: "listed",
+        sourceUrl: "https://pub.example/selected/menu", observedAt } });
+    expect(stops[0].alternatives[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
+      selectedDrinkPriceEvidence: { category: "wine", pence: 1050, serving: "250ml", source: "listed",
+        sourceUrl: "https://pub.example/alternative/menu", observedAt } });
+    for (const guarded of [project("wine", true), project("gin"), project("beer")]) {
+      expect(guarded[0].selectedDrinkPriceEvidence).toBeNull();
+      expect(guarded[0].alternatives[0].selectedDrinkPriceEvidence).toBeNull();
+    }
+  });
+
   it("keeps selected wine evidence on a priced alternative while leaving an unpriced stop unknown", () => {
     const selected = candidate("selected", -0.1, { cheapestPrice: 3 });
     const alternative = candidate("alternative", -0.099, { cheapestPrice: 4 });
@@ -295,5 +323,40 @@ describe("plan generation response projection", () => {
       "openrouteservice foot-walking route duration",
     ]);
     expect(stops.map((stop) => stop.walkingMinutesFromPrevious)).toEqual([null, 4]);
+  });
+});
+
+
+describe("Cider own quote projection and budget", () => {
+  const context = { ...inferNightContext("quiet in Clapham for 2").context,
+    drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: null, zeroProof: false };
+  const selectedDrinkPriceEvidence = { category: "beer", pence: 365, serving: null, source: "listed",
+    sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", observedAt: "2026-09-21T18:27:31.674Z",
+    drinkLabel: "Aspall 4.5%", drinkSubtype: "beer-cider" };
+
+  it("projects actual named Cider evidence without an unrelated pint amount on the same stop", () => {
+    const selected = { ...candidate("venue-13xdb1p", -0.173227, { cheapestPrice: 6.1 }), selectedDrinkPrice: {
+      venueId: "venue-13xdb1p", category: "beer" as const, categoryLabel: "Beer", priceGbp: 3.65,
+      source: "listed" as const, servingSize: null, sourceUrl: selectedDrinkPriceEvidence.sourceUrl,
+      observedAt: selectedDrinkPriceEvidence.observedAt, drinkLabel: "Aspall 4.5%",
+    } };
+    const fallback = candidate("unpriced-cider-companion", -0.173);
+    const stops = buildPlanGenerationStops({ chosen: [selected], candidates: [selected, fallback],
+      groundedStops: [grounded(selected, 610)], groundedAlternatives: null,
+      walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] }, area: AREA, planningWeather: null,
+      priceContext: context });
+    expect(stops[0]).toMatchObject({ venueId: "venue-13xdb1p", estimatedPintPricePence: null,
+      priceEvidence: null, selectedDrinkPriceEvidence });
+    expect(stops[0].alternatives[0]).toMatchObject({ selectedDrinkPriceEvidence: null, estimatedPintPricePence: null, priceEvidence: null });
+  });
+
+  it("leaves hard-budget basis unknown even when generic Beer prices would fit", async () => {
+    const { planUsesPintPrices } = await import("@/lib/planGenerationDto");
+    expect(planUsesPintPrices(context)).toBe(false);
+    expect(planBudgetSummary({ ...context, budgetLimitPence: 500 }, [100, 100, 100])).toMatchObject({
+      limitPence: 500, estimatedPerPersonPence: null, estimatedCrewPence: null, withinLimit: null,
+      basis: "selected-drink-price-unavailable",
+    });
+    expect(planUsesPintPrices({ drinkCategory: "beer", zeroProof: false })).toBe(true);
   });
 });

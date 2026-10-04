@@ -156,6 +156,27 @@ export async function GET(request: Request, context: Context): Promise<Response>
   return jsonNoStore({ ...projection.state, inviteToken }, { status: 200 });
 }
 
+async function prepareRouteReplacement(
+  id: string,
+  memberToken: string | undefined,
+  rawStops: unknown,
+  expectedRouteRevision: number | undefined,
+  nightContext: ReturnType<typeof cleanNightContext> | undefined,
+): Promise<{ stops: PlanStopDTO[] } | { done: Response }> {
+  const identity = await planMemberIdentityResult(id, memberToken);
+  if (!identity.ok) return { done: planUpdateError("error") };
+  if (identity.identity?.role !== "host") return { done: planUpdateError("forbidden") };
+  const current = await planStateResult(id);
+  if (!current.ok) return { done: publicApiError("Plan data is temporarily unavailable.", "PLAN_STORE_UNAVAILABLE", 503, { retryable: true }) };
+  if (!current.plan) return { done: publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404) };
+  if (current.plan.plan.routeRevision !== expectedRouteRevision) return { done: planUpdateError("conflict") };
+  const canonicalStops = await canonicalPlanRoute(rawStops, undefined, current.plan.stops);
+  if (!canonicalStops || !Array.isArray(rawStops)) return { done: publicApiError(`Choose ${PLAN_STOP_COUNT_RANGE_SENTENCE} different listed stops and use the latest route version.`, "PLAN_ROUTE_INVALID", 400) };
+  const stops = (await resolvePlanSelectedDrinkPriceEvidence(canonicalStops, rawStops, nightContext ?? current.plan.context))
+    .map((stop, position) => ({ ...stop, position }));
+  return { stops };
+}
+
 export async function PATCH(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-update:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {
@@ -169,24 +190,22 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const status = typeof body.status === "string" && (PLANNED_NIGHT_STATUSES as readonly string[]).includes(body.status) ? body.status as typeof PLANNED_NIGHT_STATUSES[number] : undefined;
   const nightContext = body.context === undefined ? undefined : cleanNightContext(body.context);
   const hasStops = body.stops !== undefined;
-  const canonicalStops = hasStops ? await canonicalPlanRoute(body.stops) : undefined;
   const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : undefined;
   if (body.context !== undefined && !nightContext) return publicApiError("Add valid Plan details.", "NIGHT_CONTEXT_INVALID", 400);
-  if (hasStops && (!canonicalStops || !isPlanStopCount(canonicalStops.length) || expectedRouteRevision === undefined || status)) return publicApiError(`Choose ${PLAN_STOP_COUNT_RANGE_SENTENCE} different listed stops and use the latest route version.`, "PLAN_ROUTE_INVALID", 400);
+  if (hasStops && (!Array.isArray(body.stops) || !isPlanStopCount(body.stops.length) || expectedRouteRevision === undefined || status)) return publicApiError(`Choose ${PLAN_STOP_COUNT_RANGE_SENTENCE} different listed stops and use the latest route version.`, "PLAN_ROUTE_INVALID", 400);
   if (!hasStops && !status && !nightContext) return publicApiError("Choose what to update.", "PLAN_UPDATE_INVALID", 400);
-  let stops = canonicalStops;
-  if (canonicalStops) {
-    const current = await planStateResult(id);
-    if (!current.ok) return publicApiError("Plan data is temporarily unavailable.", "PLAN_STORE_UNAVAILABLE", 503, { retryable: true });
-    if (!current.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-    stops = (await resolvePlanSelectedDrinkPriceEvidence(canonicalStops, body.stops as unknown[], nightContext ?? current.plan.context))
-      .map((stop, position) => ({ ...stop, position }));
+  const memberToken = planMemberCapability(request, body.memberToken);
+  let stops: PlanStopDTO[] | undefined;
+  if (hasStops) {
+    const replacement = await prepareRouteReplacement(id, memberToken, body.stops, expectedRouteRevision, nightContext);
+    if ("done" in replacement) return replacement.done;
+    stops = replacement.stops;
   }
   // Anchored upgrade (§3.3): a one-Stop draft rises to a grounded three-to-six-Stop
   // route only with a valid V2 proof over the exact new order.
   const upgrade = checkAnchoredUpgrade(stops, body.groundingProof, body.operationKey);
   if ("done" in upgrade) return upgrade.done;
-  const result = await planStore().update(id, planMemberCapability(request, body.memberToken), {
+  const result = await planStore().update(id, memberToken, {
     ...(status ? { status } : {}),
     ...(nightContext ? { context: nightContext } : {}),
     ...(stops ? { stops, expectedRouteRevision, groundedUpgrade: upgrade.groundedUpgrade } : {}),

@@ -1,3 +1,5 @@
+import { cleanPublicDrinkRequest, type PublicDrinkRequest } from "@/lib/nightPlanning";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
@@ -52,6 +54,8 @@ export type PlanningIntentV1 = {
     kind: PlanningIntentEvidenceKind;
     observedAt: string | null;
   };
+  drinkRequest?: PublicDrinkRequest;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   acceptedAt: string;
   expiresAt: string;
 };
@@ -200,6 +204,26 @@ function bestEffortRemove(storage: PlanningIntentStorage | null): void {
   }
 }
 
+function selectedDrinkEvidenceKeys(hint: Record<string, unknown>): string[] {
+  return hint.source === "listed"
+    ? ["category", "pence", "serving", "source", "sourceUrl", "observedAt",
+      ...("drinkLabel" in hint || "drinkSubtype" in hint ? ["drinkLabel", "drinkSubtype"] : [])]
+    : ["category", "pence", "serving", "source", "reportedAt"];
+}
+
+function parseIntentDrinkEvidence(hint: unknown, now: number): SelectedDrinkPriceEvidence | null | undefined {
+  if (hint === undefined) return null;
+  if (!isPlainRecord(hint)) return undefined;
+  const keys = selectedDrinkEvidenceKeys(hint);
+  if (!hasExactKeys(hint, keys)) return undefined;
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(hint);
+  if (!selectedDrinkPriceEvidence) return undefined;
+  const observed = selectedDrinkPriceEvidence.source === "listed"
+    ? selectedDrinkPriceEvidence.observedAt : selectedDrinkPriceEvidence.reportedAt;
+  if (Date.parse(observed) > now + PLANNING_INTENT_MAX_FUTURE_SKEW_MS) return undefined;
+  return selectedDrinkPriceEvidence;
+}
+
 /**
  * Parse one strict PlanningIntent envelope. The function is pure: callers that
  * own storage decide whether a rejected value should be removed.
@@ -218,7 +242,12 @@ export function parsePlanningIntent(
     return null;
   }
 
-  if (!isPlainRecord(value) || !hasExactKeys(value, INTENT_KEYS)) return null;
+  if (!isPlainRecord(value) || !hasExactKeys(value, [...INTENT_KEYS,
+    ...(Object.hasOwn(value, "drinkRequest") ? ["drinkRequest"] : []),
+    ...(Object.hasOwn(value, "selectedDrinkPriceEvidence") ? ["selectedDrinkPriceEvidence"] : []),
+  ])) return null;
+  const drinkRequest = cleanPublicDrinkRequest(value.drinkRequest);
+  if (Object.hasOwn(value, "drinkRequest") && !drinkRequest) return null;
   if (value.version !== 1) return null;
   if (!isOneOf(value.source, PLANNING_INTENT_SOURCES)) return null;
   if (!isCityId(value.cityId)) return null;
@@ -227,6 +256,8 @@ export function parsePlanningIntent(
     !VENUE_ID_PATTERN.test(value.acceptedVenueId)
   ) return null;
 
+  const selectedDrinkPriceEvidence = parseIntentDrinkEvidence(value.selectedDrinkPriceEvidence, now);
+  if (selectedDrinkPriceEvidence === undefined) return null;
   const acceptedArea = parseArea(value.acceptedArea);
   if (acceptedArea === undefined) return null;
 
@@ -263,6 +294,8 @@ export function parsePlanningIntent(
       kind: value.displayEvidence.kind,
       observedAt,
     },
+    ...(drinkRequest ? { drinkRequest } : {}),
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
     acceptedAt: acceptedAt.value,
     expiresAt: expiresAt.value,
   };

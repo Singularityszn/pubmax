@@ -2,6 +2,38 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+const listedBundleFixture = vi.hoisted(() => ({
+  rows: null as import("@/lib/ukPriceBundle").UkPriceBundleRow[] | null,
+  status: "ready" as "ready" | "empty" | "unavailable",
+  indexCoverage: null as { truncated: boolean; degraded: boolean } | null,
+}));
+vi.mock("@/lib/ukPriceBundle.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ukPriceBundle.server")>();
+  const { listedCategoryPrices } = await import("@/lib/listedCategoryPrices");
+  return {
+    ...actual,
+    ukPriceBundleRowsFor: async (venueId: string) => listedBundleFixture.rows === null
+      ? actual.ukPriceBundleRowsFor(venueId)
+      : { status: listedBundleFixture.status, rows: listedBundleFixture.rows.filter((row) => row.venueId === venueId) },
+    ukPriceBundleCategoryIndex: async (category: import("@/lib/drinks").DrinkCategory, now: number) => {
+      if (listedBundleFixture.rows === null) return actual.ukPriceBundleCategoryIndex(category, now);
+      const prices = [...new Set(listedBundleFixture.rows.map((row) => row.venueId))].flatMap((venueId) => {
+        const quote = listedCategoryPrices(listedBundleFixture.rows!.filter((row) => row.venueId === venueId), now)
+          .find((value) => value.category === category);
+        return quote ? [{ venueId, ...quote }] : [];
+      });
+      return {
+        prices,
+        ...(listedBundleFixture.indexCoverage ?? {
+          truncated: false,
+          degraded: listedBundleFixture.status === "unavailable",
+        }),
+      };
+    },
+  };
+});
+
+
 const { isLimitedMock, loadConciergeVenuesMock, categoryIndexMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async (...args: [
     localKey: string,
@@ -58,7 +90,12 @@ vi.mock("@/lib/walkRouteStore", () => ({
 
 import { GET, POST } from "@/app/api/plans/generate/route";
 import { preparePlanGeneration } from "@/lib/planGeneration.server";
-import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+import { verifyAnchoredPlanGroundingProofV2, verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+import * as routeEvidence from "@/lib/planRouteEvidence.server";
+import * as anchorResolution from "@/lib/planningAnchor.server";
+import { buildPriceEvidence } from "@/lib/planRouteEvidence";
+import { validateNightSignalClaim, type NightSignalClaim } from "@/lib/nightSignalClaims";
+import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import {
   PAID_SPEND_BUDGET_WINDOW_MS,
@@ -114,25 +151,63 @@ function generatedVenue(
   };
 }
 
-function prepareWineValueSearch(now: number, query = "cheap wine in Clapham for 2") {
-  loadConciergeVenuesMock.mockResolvedValueOnce([
-    generatedVenue("v1", { cheapestPrice: 4 }),
-    generatedVenue("v2", { cheapestPrice: 6 }),
-    generatedVenue("v3", { cheapestPrice: 3 }),
-  ]);
-  categoryIndexMock.mockResolvedValueOnce({
-    prices: [
-      { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
-      { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
-      { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
-    ],
-    truncated: false,
-    degraded: false,
+async function prepareWineValueSearch(now: number, query = "cheap 125ml wine in Clapham for 2") {
+  // Price validation uses the real quote reader and its own clock. Keep that
+  // clock at daytime so the injected night clock remains independently tested.
+  const daytime = new Date(now);
+  daytime.setUTCHours(12, 0, 0, 0);
+  const clockNow = daytime.getTime();
+  const clock = vi.spyOn(Date, "now").mockReturnValue(clockNow);
+  const observedAt = new Date(Math.min(now, clockNow) - 1_000).toISOString();
+  const previousRows = listedBundleFixture.rows;
+  const previousStatus = listedBundleFixture.status;
+  const previousCoverage = listedBundleFixture.indexCoverage;
+  const resolution = vi.spyOn(anchorResolution, "resolvePlanningAnchor").mockResolvedValue({
+    status: "resolved",
+    display: { venueId: "v1", venueName: "Venue v1", areaName: "Clapham", startLabel: null,
+      priceEvidence: null, routeWindowOk: true, budgetCompatible: true, accessibilityCompatible: true },
+    canonical: { cityId: "london", venueId: "v1", nightAreaSlug: "clapham",
+      acceptedArea: { kind: "night-patch", id: "clapham" }, coordinates: { lat: 51.463, lng: -0.137 },
+      startsAt: null, priceObservedAt: null, priceFreshnessKind: "unknown" },
   });
-  return preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-    method: "POST",
-    body: JSON.stringify({ query }),
-  }), now);
+  try {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1", { cheapestPrice: 4 }),
+      generatedVenue("v2", { cheapestPrice: 6 }),
+      generatedVenue("v3", { cheapestPrice: 3 }),
+    ]);
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+    listedBundleFixture.rows = [["v1", 9], ["v2", 7]].map(([venueId, priceGbp]) => ({
+      venueId: String(venueId), name: `Venue ${venueId}`, category: "wine", priceGbp: Number(priceGbp),
+      drinkLabel: `Named wine ${venueId}`, servingSize: "125ml", lane: "site-harvest", standing: "listed",
+      sourceUrl: `https://pub.example/${venueId}/wine`, observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null,
+    }));
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.indexCoverage = null;
+    return await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query,
+        anchor: { venueId: "v1", source: "pal", acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null,
+          selectedDrinkPriceEvidence: { category: "wine", pence: 900, serving: "125ml", source: "listed",
+            sourceUrl: "https://pub.example/v1/wine", observedAt } },
+      }),
+    }), now);
+  } finally {
+    listedBundleFixture.rows = previousRows;
+    listedBundleFixture.status = previousStatus;
+    listedBundleFixture.indexCoverage = previousCoverage;
+    resolution.mockRestore();
+    clock.mockRestore();
+  }
 }
 
 describe("POST /api/plans/generate", () => {
@@ -218,9 +293,118 @@ describe("POST /api/plans/generate", () => {
     expect(body).not.toHaveProperty("planId");
   });
 
+  it("delivers source-stated listed wine to generated stops and alternatives when community reads are unavailable", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    const observedAt = new Date(PLAN_GENERATION_TEST_NOW - 1_000).toISOString();
+    loadConciergeVenuesMock.mockResolvedValueOnce(["v1", "v2", "v3", "v4"].map((id) => generatedVenue(id)));
+    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: true });
+    listedBundleFixture.rows = ["v1", "v2", "v3", "v4"].map((venueId, index) => ({
+      venueId, name: `Venue ${venueId}`, category: "wine", priceGbp: 5.25 + index,
+      drinkLabel: `Named wine ${index}`, servingSize: "125ml", lane: "site-harvest", standing: "listed",
+      sourceUrl: `https://pub.example/${venueId}/menu`, observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null,
+    }));
+    listedBundleFixture.status = "ready";
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+      }));
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.inferredContext.drinkCategory).toBe("wine");
+      expect(body.stops).toHaveLength(3);
+      const delivered = [...body.stops, ...body.stops.flatMap((stop: { alternatives: unknown[] }) => stop.alternatives)];
+      expect(delivered.some((stop) => stop.venueId === "v4")).toBe(true);
+      for (const stop of delivered) {
+        const row = listedBundleFixture.rows.find((value) => value.venueId === stop.venueId)!;
+        expect(row).toBeDefined();
+        expect(stop).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
+          selectedDrinkPriceEvidence: { category: "wine", pence: Math.round(row.priceGbp * 100),
+            serving: "125ml", source: "listed", sourceUrl: row.sourceUrl, observedAt } });
+      }
+      expect(verifyPlanGroundingProof(body.groundingProof, body.stops.map((stop: { venueId: string }) => stop.venueId), body.operationKey)).toBe(true);
+    } finally {
+      clock.mockRestore();
+      listedBundleFixture.rows = null;
+    }
+  });
+
+  it("retains trusted wine attribution without amount-ranking unknown servings or borrowing pint prices", async () => {
+    const venues = [
+      generatedVenue("v1", { cheapestPrice: 4 }),
+      generatedVenue("v2", { cheapestPrice: 6 }),
+      generatedVenue("v3", { cheapestPrice: 3 }),
+    ];
+    const now = PLAN_GENERATION_TEST_NOW;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    const previousListedRows = listedBundleFixture.rows;
+    listedBundleFixture.rows = [];
+    const request = () => new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+    });
+    const seedReads = (firstAmount: number, secondAmount: number) => {
+      loadConciergeVenuesMock.mockResolvedValueOnce(venues);
+      categoryIndexMock.mockResolvedValueOnce({
+        prices: [
+          { venueId: "v1", drinkCategory: "wine", priceGbp: firstAmount, submittedAt: now, source: "community", corroborations: 2 },
+          { venueId: "v2", drinkCategory: "wine", priceGbp: secondAmount, submittedAt: now, source: "community", corroborations: 2 },
+          { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
+        ],
+        truncated: false,
+        degraded: false,
+      });
+    };
+    try {
+      seedReads(9, 7);
+      const original = await preparePlanGeneration(request());
+      expect("prepared" in original).toBe(true);
+      if (!("prepared" in original)) return;
+      expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), now);
+      expect(original.prepared.context.drinkCategory).toBe("wine");
+      const originalRank = original.prepared.candidates.map(({ venue, score }) => ({ id: venue.id, score }));
+      for (const [id, priceGbp] of [["v1", 9], ["v2", 7]] as const) {
+        const candidate = original.prepared.candidates.find(({ venue }) => venue.id === id)!;
+        expect(candidate.selectedDrinkPrice).toMatchObject({ category: "wine", priceGbp, source: "community", submittedAt: now });
+        expect(candidate.selectedDrinkPrice?.servingSize ?? null).toBeNull();
+        expect(candidate.reasons.join(" ")).not.toMatch(/pints from|wine price £/i);
+      }
+      expect(original.prepared.candidates.find(({ venue }) => venue.id === "v3")?.selectedDrinkPrice).toBeNull();
+
+      // Reverse the cheaper report decisively. Unknown servings carry
+      // attribution, never a raw-GBP comparison or a score bonus.
+      seedReads(2, 20);
+      const changed = await preparePlanGeneration(request());
+      expect("prepared" in changed).toBe(true);
+      if (!("prepared" in changed)) return;
+      expect(changed.prepared.candidates.map(({ venue, score }) => ({ id: venue.id, score }))).toEqual(originalRank);
+      expect(changed.prepared.candidates.find(({ venue }) => venue.id === "v1")?.selectedDrinkPrice?.priceGbp).toBe(2);
+      expect(changed.prepared.candidates.find(({ venue }) => venue.id === "v2")?.selectedDrinkPrice?.priceGbp).toBe(20);
+      expect(changed.prepared.candidates.find(({ venue }) => venue.id === "v3")?.selectedDrinkPrice).toBeNull();
+
+      seedReads(9, 7);
+      const response = await POST(request());
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.stops.map((stop: { venueId: string }) => stop.venueId).sort()).toEqual(["v1", "v2", "v3"]);
+      expect(body.budgetSummary).toMatchObject({ estimatedPerPersonPence: null, estimatedCrewPence: null,
+        basis: "selected-drink-price-unavailable" });
+      for (const [id, pence] of [["v1", 900], ["v2", 700]] as const) {
+        expect(body.stops.find((stop: { venueId: string }) => stop.venueId === id)).toMatchObject({
+          estimatedPintPricePence: null, priceEvidence: null,
+          selectedDrinkPriceEvidence: { category: "wine", pence, serving: null,
+            source: "community", reportedAt: new Date(now).toISOString() },
+        });
+      }
+      expect(body.stops.find((stop: { venueId: string }) => stop.venueId === "v3")?.selectedDrinkPriceEvidence ?? null).toBeNull();
+    } finally {
+      listedBundleFixture.rows = previousListedRows;
+      clock.mockRestore();
+    }
+  });
+
   it("joins trusted wine prices into value ranking without using pint prices", async () => {
     // The dataset stamp is 13:00 London, so the distance weight is two and
-    // the cheaper corroborated wine leads.
+    // the cheaper comparable glass leads.
     const result = await prepareWineValueSearch(PLAN_GENERATION_TEST_NOW);
 
     expect("prepared" in result).toBe(true);
@@ -228,7 +412,7 @@ describe("POST /api/plans/generate", () => {
     expect(result.prepared.context.daypart).toBe("daytime");
     expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
     expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
-    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £7.00");
     expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
     expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
   });
@@ -236,7 +420,7 @@ describe("POST /api/plans/generate", () => {
   it("keeps trusted wine value ordering when the query requests after work in daytime", async () => {
     const result = await prepareWineValueSearch(
       PLAN_GENERATION_TEST_NOW,
-      "cheap wine in Clapham for 2 after work",
+      "cheap 125ml wine in Clapham for 2 after work",
     );
 
     expect("prepared" in result).toBe(true);
@@ -244,7 +428,7 @@ describe("POST /api/plans/generate", () => {
     expect(result.prepared.context).toMatchObject({ daypart: "after_work", drinkCategory: "wine" });
     expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), PLAN_GENERATION_TEST_NOW);
     expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
-    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £7.00");
     expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
     expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
   });
@@ -259,7 +443,7 @@ describe("POST /api/plans/generate", () => {
     if (!("prepared" in result)) return;
     expect(result.prepared.context.daypart).toBe("get_home");
     expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v1", "v2", "v3"]);
-    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £9.00");
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £9.00");
     expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
     expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
   });
@@ -273,7 +457,7 @@ describe("POST /api/plans/generate", () => {
     if (!("prepared" in result)) return;
     expect(result.prepared.context.daypart).toBe("late_night");
     expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v1", "v2", "v3"]);
-    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £9.00");
+    expect(result.prepared.candidates[0]?.reasons).toContain("listed 125ml wine price £9.00");
   });
 
   it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {
@@ -354,7 +538,7 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
-    ["degraded", false, true, "We could not read the wine prices just now, so none are shown yet."],
+    ["degraded", false, true, "We could not read the wine prices from every source just now. Any prices shown come from sources we could read."],
     ["partial", true, false, "Read from part of the wine prices, so some are still missing."],
   ])("discloses %s wine price index coverage in plan confidence", async (_status, truncated, degraded, warning) => {
     categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated, degraded });
@@ -367,6 +551,32 @@ describe("POST /api/plans/generate", () => {
     expect(response.status).toBe(200);
     expect(body.planningConfidence.warnings).toContain(warning);
     expect(body.planningConfidence.level).not.toBe("high");
+  });
+
+  it.each([
+    ["degraded", { truncated: false, degraded: true }, "We could not read the wine prices from every source just now. Any prices shown come from sources we could read."],
+    ["truncated", { truncated: true, degraded: false }, "Read from part of the wine prices, so some are still missing."],
+  ])("discloses %s listed wine index coverage when community index is ready", async (_status, listedCoverage, warning) => {
+    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: false });
+    listedBundleFixture.rows = [];
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.indexCoverage = listedCoverage;
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+      }));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.inferredContext.drinkCategory).toBe("wine");
+      expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
+      expect(body.planningConfidence.warnings).toContain(warning);
+      expect(body.planningConfidence.level).not.toBe("high");
+    } finally {
+      listedBundleFixture.rows = null;
+      listedBundleFixture.indexCoverage = null;
+    }
   });
 
   it.each([5, 6])("returns a grounded %i-stop route from free text", async (stopCount) => {
@@ -1071,5 +1281,304 @@ describe("POST /api/plans/generate", () => {
     } finally {
       clock.mockRestore();
     }
+  });
+});
+
+describe("exact selected route revalidation", () => {
+  const baseIds = ["v1", "v2", "v3"];
+  const selectedIds = ["v4", "v2", "v3"];
+  let catalogue: ConciergeVenue[];
+  let pence: Map<string, number>;
+  let restore: Array<() => void>;
+  let previousCategoryRead: ReturnType<typeof categoryIndexMock.getMockImplementation>;
+  let previousCatalogueRead: ReturnType<typeof loadConciergeVenuesMock.getMockImplementation>;
+
+  beforeEach(() => {
+    catalogue = ["v1", "v2", "v3", "v4", "v5"].map((id) => generatedVenue(id));
+    pence = new Map(catalogue.map((venue) => [venue.id, 500]));
+    restore = [];
+    previousCategoryRead = categoryIndexMock.getMockImplementation();
+    previousCatalogueRead = loadConciergeVenuesMock.getMockImplementation();
+    isLimitedMock.mockClear();
+    isLimitedMock.mockResolvedValue(false);
+    loadConciergeVenuesMock.mockReset();
+    loadConciergeVenuesMock.mockImplementation(async () => catalogue);
+    categoryIndexMock.mockReset();
+    categoryIndexMock.mockResolvedValue({ prices: [], truncated: false, degraded: false });
+    fetchWalkLegRouteMock.mockReset();
+    fetchWalkLegRouteMock.mockResolvedValue(null);
+    orsApiKeyMock.mockReset();
+    orsApiKeyMock.mockReturnValue(null);
+    walkRouteStoreMock.getLeg.mockReset();
+    walkRouteStoreMock.getLeg.mockResolvedValue(null);
+    walkRouteStoreMock.putLeg.mockReset();
+    walkRouteStoreMock.putLeg.mockResolvedValue(undefined);
+    vi.stubEnv("PLAN_IDEMPOTENCY_SECRET", "exact-route-fixture-signing-key-never-production");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    restore.push(() => clock.mockRestore());
+    // Replace catalogue evidence reads, not eligibility, route evaluation or
+    // proof policy. Fixture prices have public publisher tuples and pass the
+    // real evidence builder before the real optimizer reads them.
+    const prices = vi.spyOn(routeEvidence, "planPriceEvidenceForVenues").mockImplementation(async (venues, now) =>
+      new Map(venues.map((venue) => [venue.id, buildPriceEvidence({
+        pence: pence.get(venue.id), label: `Fixture menu ${venue.id}`,
+        url: `https://pub.example/${venue.id}/menu`, observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString(), now,
+      })])),
+    );
+    restore.push(() => prices.mockRestore());
+  });
+
+  afterEach(() => {
+    for (const release of restore.reverse()) release();
+    categoryIndexMock.mockReset();
+    if (previousCategoryRead) categoryIndexMock.mockImplementation(previousCategoryRead);
+    loadConciergeVenuesMock.mockReset();
+    if (previousCatalogueRead) loadConciergeVenuesMock.mockImplementation(previousCatalogueRead);
+    listedBundleFixture.rows = null;
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.indexCoverage = null;
+    vi.unstubAllEnvs();
+  });
+
+  async function generateExact(routeVenueIds: unknown, extra: Record<string, unknown> = {}) {
+    return POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Clapham", intake: generationIntake(), routeVenueIds, ...extra }),
+    }));
+  }
+
+  async function expectRefusal(response: Response) {
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(422);
+    expect(body.code).toBe("GROUNDED_CONSTRAINTS_UNSATISFIED");
+    expect(body.groundingProof).toBeUndefined();
+    expect(body.stops).toBeUndefined();
+  }
+
+  it("returns selected replacements in exact order with fresh attributable evidence and proof", async () => {
+    for (const ids of [selectedIds, ["v3", "v4", "v2"]]) {
+      const response = await generateExact(ids);
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+      expect(body.grounded).toBe(true);
+      for (const stop of body.stops) {
+        expect(stop.priceEvidence).toMatchObject({ pence: 500, source: {
+          label: `Fixture menu ${stop.venueId}`, url: `https://pub.example/${stop.venueId}/menu`,
+          observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString(),
+        } });
+      }
+      expect(verifyPlanGroundingProof(body.groundingProof, ids, body.operationKey)).toBe(true);
+      expect(verifyPlanGroundingProof(body.groundingProof, ids, "different-operation")).toBe(false);
+    }
+  });
+
+  it("revalidates a feasible selected pub beyond the search shortlist", async () => {
+    catalogue = Array.from({ length: 16 }, (_, index) => generatedVenue(`v${index + 1}`, {
+      lat: 51.462 + index * 0.0002, lng: -0.138,
+    }));
+    pence = new Map(catalogue.map((venue) => [venue.id, 500]));
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "Clapham", intake: generationIntake() }),
+    }));
+    expect("prepared" in prepared).toBe(true);
+    if (!("prepared" in prepared)) throw new Error("public catalogue control did not prepare");
+    expect(prepared.prepared.candidates.findIndex(({ venue }) => venue.id === "v16")).toBeGreaterThanOrEqual(14);
+    const ids = ["v16", "v2", "v3"];
+    const response = await generateExact(ids);
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+    expect(verifyPlanGroundingProof(body.groundingProof, ids, body.operationKey)).toBe(true);
+  });
+
+  it("retains ordinary generation when no exact selection is requested", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "Clapham", intake: generationIntake() }),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops).toHaveLength(3);
+    expect(new Set(body.stops.map((stop: { venueId: string }) => stop.venueId)).size).toBe(3);
+    expect(verifyPlanGroundingProof(body.groundingProof, body.stops.map((stop: { venueId: string }) => stop.venueId), body.operationKey)).toBe(true);
+  });
+
+  it.each([
+    ["duplicate", ["v1", "v1", "v3"]],
+    ["oversized", Array.from({ length: 7 }, (_, index) => `v${index}`)],
+  ])("refuses %s before spending generation budget", async (_label, ids) => {
+    const response = await generateExact(ids);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "MALFORMED_REQUEST" });
+    expect(isLimitedMock).not.toHaveBeenCalled();
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a selection whose count differs from the reconciled request", async () => {
+    const response = await generateExact(["v1", "v2"], { context: { stopCount: 3 } });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "MALFORMED_REQUEST" });
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
+  it("uses answered intake count before explicit context count in exact mode", async () => {
+    const response = await generateExact(["v4"], {
+      context: { stopCount: 6 }, intake: generationIntake({ stopCount: 1 }),
+    });
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(["v4"]);
+    expect(body.inferredContext.stopCount).toBe(1);
+    expect(verifyPlanGroundingProof(body.groundingProof, ["v4"], body.operationKey)).toBe(true);
+  });
+
+  it.each(["unknown", "wrong-area", "promoted"] as const)("does not replace a selected %s venue with a better-ranked pub", async (kind) => {
+    if (kind === "wrong-area") catalogue.find((venue) => venue.id === "v4")!.lat = 52;
+    if (kind === "promoted") catalogue.find((venue) => venue.id === "v4")!.promoted = true;
+    await expectRefusal(await generateExact(kind === "unknown" ? ["unknown", "v2", "v3"] : selectedIds));
+  });
+
+  it("keeps a pending exclusion eligible but refuses the same approved reviewed avoid without replacement", async () => {
+    const originalSnapshot = { ...nightSignalSnapshot };
+    const observedAt = new Date(PLAN_GENERATION_TEST_NOW).toISOString();
+    const claim: NightSignalClaim = {
+      id: "fixture-v4-reviewed-avoid", kind: "opening", entity: { type: "venue", id: "v4" },
+      claim: "Fixture reviewed stop exclusion.", publisher: "Fixture pub",
+      sourceUrl: "https://pub.example/v4/status",
+      publishedAt: new Date(PLAN_GENERATION_TEST_NOW - 1_000).toISOString(),
+      observedAt, expiresAt: new Date(PLAN_GENERATION_TEST_NOW + 60 * 60 * 1_000).toISOString(),
+      confidence: 1, reviewState: "pending", verification: "manual_review", routeEffect: "avoid",
+      corroboratingSources: [], reviewedAt: observedAt, reviewAuthority: "operations",
+    };
+    try {
+      expect(validateNightSignalClaim(claim)).not.toBeNull();
+      Object.assign(nightSignalSnapshot, { version: 1, generatedAt: observedAt, claims: [claim] });
+      const pending = await generateExact(selectedIds);
+      const pendingBody = await pending.json();
+      expect(pending.status, JSON.stringify(pendingBody)).toBe(200);
+      expect(pendingBody.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(selectedIds);
+      expect(verifyPlanGroundingProof(pendingBody.groundingProof, selectedIds, pendingBody.operationKey)).toBe(true);
+      const approved = { ...claim, reviewState: "approved" as const };
+      expect(validateNightSignalClaim(approved)).not.toBeNull();
+      Object.assign(nightSignalSnapshot, { version: 1, generatedAt: observedAt, claims: [approved] });
+      await expectRefusal(await generateExact(selectedIds));
+    } finally {
+      Object.assign(nightSignalSnapshot, originalSnapshot);
+    }
+  });
+
+  it("rejects combined swaps that break a ceiling although each single swap fits", async () => {
+    pence.set("v4", 900);
+    pence.set("v5", 900);
+    const intake = generationIntake({ budget: { tier: "value", limitPence: 2_000 } });
+    for (const ids of [["v4", "v2", "v3"], ["v1", "v5", "v3"]]) {
+      const response = await generateExact(ids, { intake });
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+      expect(body.constraintReport.hardConstraints).toContainEqual(expect.objectContaining({ code: "budget_ceiling", status: "satisfied" }));
+    }
+    await expectRefusal(await generateExact(["v4", "v5", "v3"], { intake }));
+  });
+
+  it("refuses selected unknown accessibility instead of choosing accessible alternatives", async () => {
+    for (const venue of catalogue) {
+      if (venue.id !== "v4") venue.name = "The Ice Wharf - JD Wetherspoon";
+    }
+    const intake = generationIntake({ accessibilityNeeds: ["step-free"] });
+    const control = await generateExact(baseIds, { intake });
+    expect(control.status, await control.clone().text()).toBe(200);
+    await expectRefusal(await generateExact(selectedIds, { intake }));
+  });
+
+  it("refuses an exact route whose chosen order breaks the walking limit", async () => {
+    catalogue.find((venue) => venue.id === "v4")!.lat = 51.478;
+    catalogue.find((venue) => venue.id === "v5")!.lat = 51.446;
+    const control = await generateExact(baseIds);
+    expect(control.status, await control.clone().text()).toBe(200);
+    await expectRefusal(await generateExact(["v4", "v5", "v2"]));
+  });
+
+  it("refuses dated selected stops without opening evidence", async () => {
+    const futureStart = new Date(PLAN_GENERATION_TEST_NOW + 24 * 60 * 60 * 1_000);
+    futureStart.setUTCHours(16, 30, 0, 0); // 17:30 London, inside after-work.
+    const exactStartIso = futureStart.toISOString();
+    const intake = generationIntake({
+      timeWindow: { id: "after-work", start: "17:30", end: "20:30", exactStartIso }, skipped: [],
+    });
+    const opening = vi.spyOn(routeEvidence, "planOpeningSchedulesForVenues").mockImplementation(async (venues) =>
+      new Map(venues.map((venue) => [venue.id, baseIds.includes(venue.id) ? {
+        venueListedOpen: true,
+        ranges: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((weekday) => ({
+          weekday, startsAt: "17:00", endsAt: "23:00",
+        })),
+        source: { label: `Fixture hours ${venue.id}`, url: `https://pub.example/${venue.id}/hours`,
+          observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString() },
+      } : null])),
+    );
+    restore.push(() => opening.mockRestore());
+    const control = await generateExact(baseIds, { intake });
+    const controlBody = await control.json();
+    expect(control.status, JSON.stringify(controlBody)).toBe(200);
+    expect(controlBody.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(baseIds);
+    for (const stop of controlBody.stops) {
+      expect(stop.operationalEvidence).toMatchObject({ openingAtVisit: "listed_open", openingSource: {
+        label: `Fixture hours ${stop.venueId}`, url: `https://pub.example/${stop.venueId}/hours`,
+        observedAt: new Date(PLAN_GENERATION_TEST_NOW).toISOString(),
+      } });
+    }
+    await expectRefusal(await generateExact(selectedIds, { intake }));
+  });
+
+  it("keeps unsupported transport fail-closed in exact mode", async () => {
+    await expectRefusal(await generateExact(selectedIds, { context: { transportConstraints: ["night-tube"] } }));
+  });
+
+  it("does not borrow pint evidence for a no-alcohol budget ceiling", async () => {
+    await expectRefusal(await generateExact(selectedIds, {
+      context: { zeroProof: true }, intake: generationIntake({ budget: { tier: "value", limitPence: 2_000 } }),
+    }));
+  });
+
+  it("keeps selected wine publisher tuples on their exact venues without pint fallback", async () => {
+    const observedAt = new Date(PLAN_GENERATION_TEST_NOW).toISOString();
+    listedBundleFixture.rows = catalogue.map((venue, index) => ({
+      venueId: venue.id, name: venue.name, category: "wine", priceGbp: 5 + index,
+      drinkLabel: `Named wine ${venue.id}`, servingSize: "125ml", lane: "site-harvest", standing: "listed",
+      sourceUrl: `https://pub.example/${venue.id}/wine`, observedAt, publisher: "Fixture publisher", basis: null, sampleSize: null,
+    }));
+    const response = await generateExact(selectedIds, { query: "Wine in Clapham", context: { drinkCategory: "wine" } });
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(selectedIds);
+    for (const stop of body.stops) {
+      const row = listedBundleFixture.rows.find((candidate) => candidate.venueId === stop.venueId)!;
+      expect(stop).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null, selectedDrinkPriceEvidence: {
+        category: "wine", pence: Math.round(row.priceGbp * 100), serving: "125ml", source: "listed",
+        sourceUrl: row.sourceUrl, observedAt,
+      } });
+    }
+  });
+
+  it("rechecks matching held Stop 1 and binds the fresh V2 proof to exact companion order", async () => {
+    const resolution = vi.spyOn(anchorResolution, "resolvePlanningAnchor").mockResolvedValue({
+      status: "resolved", display: { venueId: "v1", venueName: "Venue v1", areaName: "Clapham", startLabel: null,
+        priceEvidence: null, routeWindowOk: true, budgetCompatible: true, accessibilityCompatible: true },
+      canonical: { cityId: "london", venueId: "v1", nightAreaSlug: "clapham", acceptedArea: { kind: "night-patch", id: "clapham" },
+        coordinates: { lat: 51.463, lng: -0.137 }, startsAt: null, priceObservedAt: null, priceFreshnessKind: "unknown" },
+    });
+    restore.push(() => resolution.mockRestore());
+    const anchor = { venueId: "v1", source: "pal", acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null };
+    const ids = ["v1", "v4", "v3"];
+    const response = await generateExact(ids, { anchor });
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(ids);
+    expect(body).toMatchObject({ grounded: true, anchored: true, anchorVenueId: "v1", anchorSource: "pal", outcome: "route" });
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ids, body.operationKey)).toMatchObject({ ok: true, routeVenueIds: ids });
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ["v1", "v3", "v4"], body.operationKey)).toEqual({ ok: false, reason: "route-mismatch" });
+    const conflict = await generateExact(["v4", "v1", "v3"], { anchor });
+    expect(conflict.status).toBe(200);
+    expect(await conflict.json()).toMatchObject({ outcome: "anchor-conflict", grounded: false, routeReady: false, stops: [] });
   });
 });

@@ -155,9 +155,21 @@ export default function PlanRouteMiniMap({
     : `Route map: ${count} stops`;
   const description = `Walking route between ${activeResolved.names.join(", ")}.`;
 
-  const labelledBy = `${titleId} ${descId}`;
-  const preview = (
-    <>
+  return (
+    <figure
+      className="planRouteMiniMap planRouteMiniMap--in"
+      data-source={activeDrawn.source}
+      role="group"
+      aria-labelledby={`${titleId} ${descId}`}
+    >
+      {mapHref ? (
+        <Link
+          href={mapHref}
+          prefetch={false}
+          className="planRouteMiniMap__routeLink planRouteMiniMap--clickable"
+          aria-labelledby={`${titleId} ${descId}`}
+        />
+      ) : null}
       <p id={titleId} className="planRouteMiniMap__title">
         {title}
       </p>
@@ -171,23 +183,8 @@ export default function PlanRouteMiniMap({
         lineCoords={activeDrawn.line}
         attributionSlotRef={attributionSlotRef}
       />
-    </>
-  );
-
-  return (
-    <div className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
-      {mapHref ? (
-        <Link className="planRouteMiniMap--clickable" href={mapHref} prefetch={false} aria-labelledby={labelledBy}>
-          {preview}
-        </Link>
-      ) : (
-        <div role="group" aria-labelledby={labelledBy}>
-          {preview}
-        </div>
-      )}
-      {/* MapLibre's credit button cannot sit inside this link or inside the
-          aria-hidden canvas: either one is a nested or hidden control. */}
+      {/* Keep the attribution control outside the decorative canvas and route link. */}
       <div ref={attributionSlotRef} className="planRouteMiniMap__attrib" />
-    </div>
+    </figure>
   );
 }

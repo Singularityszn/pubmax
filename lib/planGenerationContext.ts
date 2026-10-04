@@ -1,5 +1,6 @@
 import {
   inferNightContext,
+  mergeNightContext,
   type ContextReason,
   type NightContext,
 } from "@/lib/nightPlanning";
@@ -67,7 +68,7 @@ export function reconcilePlanContext(
   const inferred = inferNightContext(query, now);
   const contextPatch = explicit ?? {};
   const authoritative = intake ? intakePatch(intake) : {};
-  const context: NightContext = { ...inferred.context, ...contextPatch, ...authoritative };
+  const context = mergeNightContext(mergeNightContext(inferred.context, contextPatch), authoritative);
   const fieldSources: ReconciledPlanContext["fieldSources"] = {};
   for (const field of Object.keys(context) as (keyof NightContext)[]) {
     fieldSources[field] = Object.hasOwn(authoritative, field)

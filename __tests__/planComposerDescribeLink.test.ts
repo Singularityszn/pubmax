@@ -62,7 +62,12 @@ import {
 } from "@/lib/planIntake";
 import { writePlanDraftEnvelope } from "@/lib/planDraft";
 import * as planOccasion from "@/lib/planOccasion";
+import { parsePlanGenerationIntake } from "@/lib/planGenerationIntake";
+import { writePlanningIntent } from "@/lib/planningIntent";
+import { writePlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { reconcilePlanContext } from "@/lib/planGenerationContext";
 
 const URL_ASK = "Plan a crawl in Soho for 4";
 const DRAFT_ASK = "an older ask nobody asked for again";
@@ -230,6 +235,889 @@ beforeEach(() => {
   sessionStorage.clear();
   localStorage.clear();
   setSearch("");
+});
+
+describe("selected Swap route revalidation", () => {
+  const ask = "Three cheap recorded pints in Clapham";
+  const originalIds = ["venue-a", "venue-b", "venue-c"];
+  const selectedIds = ["venue-d", "venue-b", "venue-c"];
+  const venueNames: Record<string, string> = {
+    "venue-a": "Original Arms", "venue-b": "Second Arms", "venue-c": "Third Arms", "venue-d": "Chosen Arms",
+  };
+
+  function stopNames(): string[] {
+    return Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]')).map((input) => input.value);
+  }
+
+  function lockControl(): HTMLButtonElement {
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Lock it in");
+    if (!button) throw new Error("real Lock it in control did not render");
+    return button;
+  }
+
+  function installSelectionServer(options: { holdRecheck?: boolean; refuseRecheck?: boolean; substituteRecheck?: boolean } = {}) {
+    const generated: Record<string, unknown>[] = [];
+    const created: Array<{ body: Record<string, unknown>; headers: Headers }> = [];
+    let release: (() => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith("/api/plans") && init?.method === "POST") {
+        created.push({ body: JSON.parse(String(init.body)), headers: new Headers(init.headers) });
+        // This test proves the real component's create wire, not a fictitious
+        // successful shared write. The service refusal remains visible.
+        return Response.json({ error: "Fixture create unavailable.", code: "PLAN_CREATE_UNAVAILABLE", retryable: true }, { status: 503 });
+      }
+      if (!url.includes("/api/plans/generate")) {
+        return Response.json(Object.entries(venueNames).map(([id, name]) => ({ id, name, kind: "pub" })));
+      }
+      if (init?.method !== "POST") return new Response(null, { status: 204 });
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      generated.push(body);
+      const selection = body.routeVenueIds;
+      // Absent pin takes the ordinary ranked route. The double NEVER returns
+      // the desired choice unless the real component actually transmitted it.
+      const ids = selection === undefined ? originalIds : selection;
+      if (!Array.isArray(ids) || ids.length !== 3 || new Set(ids).size !== 3
+        || !ids.every((id) => typeof id === "string" && Object.hasOwn(venueNames, id))) {
+        return Response.json({ error: "Invalid selected fixture route.", code: "MALFORMED_REQUEST", retryable: false }, { status: 400 });
+      }
+      if (selection !== undefined && options.holdRecheck) {
+        await new Promise<void>((resolve) => { release = resolve; });
+      }
+      if (selection !== undefined && options.refuseRecheck) {
+        return Response.json({ error: "Chosen stops no longer fit this night.", code: "GROUNDED_CONSTRAINTS_UNSATISFIED", retryable: false }, { status: 422 });
+      }
+      const revision = generated.length;
+      return Response.json({
+        ...DEFAULT_GENERATE_BODY,
+        groundingProof: `fixture-proof-${revision}`,
+        operationKey: `fixture-operation-${revision}`,
+        inferredContext: inferNightContext(ask).context,
+        stops: (selection !== undefined && options.substituteRecheck ? originalIds : ids).map((venueId) => ({
+          venueId, venueName: venueNames[venueId],
+          alternatives: venueId === "venue-a" ? [{ venueId: "venue-d", venueName: venueNames["venue-d"] }] : [],
+        })),
+      });
+    }));
+    return { generated, created, releaseRecheck: () => {
+      if (!release) throw new Error("no exact recheck is held");
+      release();
+    } };
+  }
+
+  async function generateAndSwap() {
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()));
+    writePlanDraftEnvelope({
+      title: "Selected swap night", creatorName: "QA Loopback", startTime: "2030-07-24T20:00",
+      conciergeQuery: ask, stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId]! })),
+    }, "manual", sessionStorage);
+    await mountComposer();
+    await act(async () => { clickButton("Make a plan"); });
+    await settleComposerEffects();
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(false);
+    const swap = document.querySelector<HTMLButtonElement>('button[aria-label="Swap stop 1, currently Original Arms"]');
+    expect(swap?.disabled).toBe(false);
+    await act(async () => { swap!.click(); });
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+  }
+
+  it("rechecks the chosen order then sends the exact lock wire with fresh proof", async () => {
+    const server = installSelectionServer({ holdRecheck: true });
+    await generateAndSwap();
+    expect(server.generated).toHaveLength(1);
+    expect(server.generated[0]).not.toHaveProperty("routeVenueIds");
+    await act(async () => { clickButton("Regenerate route"); });
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { server.releaseRecheck(); });
+    await settleComposerEffects();
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    await act(async () => { lockControl().click(); });
+    await settleComposerEffects();
+    expect(server.created).toHaveLength(1);
+    const create = server.created[0]!;
+    expect((create.body.stops as Array<{ venueId: string }>).map((stop) => stop.venueId)).toEqual(selectedIds);
+    expect(create.body.groundingProof).toBe("fixture-proof-2");
+    expect(create.body).not.toHaveProperty("routeVenueIds");
+    expect(create.headers.get("content-type")).toBe("application/json");
+    expect(create.headers.get("idempotency-key")).toBe("fixture-operation-2");
+    expect(JSON.stringify(create.body)).not.toContain("fixture-proof-1");
+    expect(document.body.textContent).toContain("Fixture create unavailable.");
+  });
+
+  it("keeps chosen stops stale on exact recheck refusal and never attempts creation", async () => {
+    const server = installSelectionServer({ refuseRecheck: true });
+    await generateAndSwap();
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(document.body.textContent).toContain("Chosen stops no longer fit this night.");
+    expect(lockControl().disabled).toBe(true);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("does not adopt a recheck response that substituted a different order", async () => {
+    const server = installSelectionServer({ substituteRecheck: true });
+    await generateAndSwap();
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("stands down a rejected refresh after the drinker edits the query while it is pending", async () => {
+    const server = installSelectionServer();
+    const selectionFetch = globalThis.fetch;
+    const requests: Record<string, unknown>[] = [];
+    let rejectPending: ((reason: Error) => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/plans/generate") && init?.method === "POST") {
+        requests.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        // Hold the real second request regardless of whether current production
+        // implements the selected-order field, so baseline reaches the owner
+        // transition rather than stopping on an unrelated missing pin.
+        if (requests.length === 2) {
+          return await new Promise<Response>((_, reject) => { rejectPending = reject; });
+        }
+      }
+      return selectionFetch(input, init);
+    }));
+    await generateAndSwap();
+    await act(async () => { clickButton("Regenerate route"); });
+    expect(requests).toHaveLength(2);
+    expect(requests[1]?.query).toBe(ask);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Refreshing the route");
+    const updatedAsk = "Three cheap recorded pints in Clapham after work";
+    await act(async () => { typeInto("#plan-concierge-query", updatedAsk); });
+    expect(conciergeFieldValue()).toBe(updatedAsk);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(true);
+    const rejectRefresh = () => {
+      if (!rejectPending) throw new Error("real refresh request was not held");
+      rejectPending(new Error("Fixture network disconnected."));
+    };
+    await act(async () => { rejectRefresh(); });
+    await settleComposerEffects();
+    expect(conciergeFieldValue()).toBe(updatedAsk);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    const status = document.querySelector("#plan-route-status")?.textContent ?? "";
+    expect(status).not.toContain("Refreshing the route");
+    expect(status).toBe("The preview changed while this route was being checked. Refresh it again before locking.");
+    const retry = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Regenerate route");
+    expect(retry?.disabled).toBe(false);
+    expect(requests).toHaveLength(2);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("keeps a newer manual stop edit stale when the first generation finishes late", async () => {
+    const server = installSelectionServer();
+    const selectionFetch = globalThis.fetch;
+    const requests: Record<string, unknown>[] = [];
+    let finishPending: (() => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/plans/generate") && init?.method === "POST") {
+        requests.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        if (requests.length === 1) {
+          await new Promise<void>((resolve) => { finishPending = resolve; });
+        }
+      }
+      return selectionFetch(input, init);
+    }));
+    await mountComposer();
+    expect(document.querySelector("#plan-title")).toBeNull();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", ask);
+      clickButton("Sort it");
+    });
+    await settleComposerEffects();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.query).toBe(ask);
+    expect(stopNames()).toEqual([]);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Refreshing the route");
+    // Skipped intake has exposed the actual composer while the first request
+    // is still pending. These real controls own newer work, not its response.
+    for (const [index, id] of selectedIds.entries()) {
+      await act(async () => { clickButton("Add another stop"); });
+      await act(async () => { typeInto(`#venue-name-${index + 1}`, venueNames[id]!); });
+    }
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    const finishFirstGeneration = () => {
+      if (!finishPending) throw new Error("first real generation request was not held");
+      finishPending();
+    };
+    await act(async () => { finishFirstGeneration(); });
+    await settleComposerEffects();
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("QA Loopback");
+    expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2030-07-24T20:00");
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    expect(document.querySelector("#plan-route-status")?.textContent)
+      .toBe("The preview changed while this route was being checked. Refresh it again before locking.");
+    expect(requests).toHaveLength(1);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("lets an explicit fresh sort choose a new route without sending a selected-order pin", async () => {
+    const server = installSelectionServer();
+    await generateAndSwap();
+    await act(async () => { clickButton("Sort it again"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]).not.toHaveProperty("routeVenueIds");
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    expect(server.created).toHaveLength(0);
+  });
+
+  async function recoverComposerFromCurrentStores(): Promise<void> {
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before recovery");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+  }
+
+  it("recovers actual chosen stops and keeps their order through a refreshed proof and another recovery", async () => {
+    const server = installSelectionServer();
+    await generateAndSwap();
+    await settleComposerEffects();
+    const stored = JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null") as {
+      stops: Array<{ venueId: string }>;
+    } | null;
+    expect(stored?.stops.map((stop) => stop.venueId)).toEqual(selectedIds);
+
+    // Recover only what the real edit persisted; never seed a selection hint.
+    await recoverComposerFromCurrentStores();
+    expect(server.generated).toHaveLength(1);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]?.routeVenueIds).toEqual(selectedIds);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+
+    // A renewed proof does not discard the drinker's choice on the next visit.
+    await recoverComposerFromCurrentStores();
+    expect(server.generated).toHaveLength(2);
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    await act(async () => { typeInto("#plan-context-people", "6"); });
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(3);
+    expect(server.generated[2]?.routeVenueIds).toEqual(selectedIds);
+    expect(server.generated[2]?.context).toMatchObject({ groupSize: 6 });
+    expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("recovers a successful fresh sort without carrying the earlier chosen-order intent", async () => {
+    const server = installSelectionServer();
+    await generateAndSwap();
+    await act(async () => { clickButton("Sort it again"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(2);
+    expect(server.generated[1]).not.toHaveProperty("routeVenueIds");
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    const stored = JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null") as Record<string, unknown> | null;
+    expect(stored).not.toBeNull();
+    expect(stored).not.toHaveProperty("hasSelectedRouteEdits");
+
+    await recoverComposerFromCurrentStores();
+    expect(server.generated).toHaveLength(2);
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    await act(async () => { typeInto("#plan-context-people", "6"); });
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(lockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.generated).toHaveLength(3);
+    expect(server.generated[2]).not.toHaveProperty("routeVenueIds");
+    expect(server.generated[2]?.context).toMatchObject({ groupSize: 6 });
+    expect(stopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(lockControl().disabled).toBe(false);
+    expect(server.created).toHaveLength(0);
+  });
+
+  it("recovers real manual choices made before the first generation has supplied any context", async () => {
+    const server = installSelectionServer();
+    const selectionFetch = globalThis.fetch;
+    const requests: Record<string, unknown>[] = [];
+    let finishPending: (() => void) | undefined;
+    const releaseFirst = () => { finishPending?.(); };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/plans/generate") && init?.method === "POST") {
+        requests.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        if (requests.length === 1) {
+          await new Promise<void>((resolve) => { finishPending = resolve; });
+        }
+      }
+      return selectionFetch(input, init);
+    }));
+    try {
+      await mountComposer();
+      await act(async () => {
+        typeInto("#plan-describe-first-query", ask);
+        clickButton("Sort it");
+      });
+      await settleComposerEffects();
+      expect(requests).toHaveLength(1);
+      expect(server.generated).toHaveLength(0);
+      expect(finishPending).toBeTypeOf("function");
+      for (const [index, id] of selectedIds.entries()) {
+        await act(async () => { clickButton("Add another stop"); });
+        await act(async () => { typeInto(`#venue-name-${index + 1}`, venueNames[id]!); });
+      }
+      await act(async () => {
+        typeInto("#plan-name", "QA Loopback");
+        typeInto("#plan-time", "2030-07-24T20:00");
+      });
+      await settleComposerEffects();
+      const stored = JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null") as {
+        stops: Array<{ venueId: string; alternatives: unknown[] }>;
+        nightContext: unknown;
+        routeRevision: unknown;
+      } | null;
+      expect(stored?.stops.map((stop) => stop.venueId)).toEqual(selectedIds);
+      expect(stored?.nightContext).toBeNull();
+      expect(stored?.routeRevision).toBeNull();
+      expect(stored?.stops.map((stop) => stop.alternatives.length)).toEqual([0, 0, 0]);
+
+      await recoverComposerFromCurrentStores();
+      expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+      expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("QA Loopback");
+      expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2030-07-24T20:00");
+      expect(lockControl().disabled).toBe(true);
+      await act(async () => { clickButton("Regenerate route"); });
+      await settleComposerEffects();
+      expect(requests).toHaveLength(2);
+      expect(requests[1]?.routeVenueIds).toEqual(selectedIds);
+      expect(server.generated).toHaveLength(1);
+      expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+      expect(lockControl().disabled).toBe(false);
+
+      await act(async () => { releaseFirst(); });
+      await settleComposerEffects();
+      expect(server.generated).toHaveLength(2);
+      expect(stopNames()).toEqual(selectedIds.map((id) => venueNames[id]));
+      expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+      expect(lockControl().disabled).toBe(false);
+      expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+        groundingProof: "fixture-proof-1", createOperationKey: "fixture-operation-1", routeStale: false,
+      });
+      expect(server.created).toHaveLength(0);
+    } finally {
+      await act(async () => { releaseFirst(); });
+      await settleComposerEffects();
+    }
+  });
+});
+
+describe("selected route stop-count edits", () => {
+  const ask = "Three cheap recorded pints in Clapham";
+  const originalIds = ["venue-a", "venue-b", "venue-c"];
+  const venueNames: Record<string, string> = {
+    "venue-a": "Original Arms", "venue-b": "Second Arms", "venue-c": "Third Arms",
+  };
+
+  function currentStopNames(): string[] {
+    return Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]'))
+      .map((input) => input.value);
+  }
+
+  function currentLockControl(): HTMLButtonElement {
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Lock it in");
+    if (!button) throw new Error("real Lock it in control did not render");
+    return button;
+  }
+
+  function installCountRecheckServer() {
+    const attempts: Array<{ body: Record<string, unknown>; effectiveStopCount: number | null; status: number }> = [];
+    const creates: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith("/api/plans") && init?.method === "POST") {
+        creates.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return Response.json({ error: "Fixture create unavailable.", code: "PLAN_CREATE_UNAVAILABLE", retryable: true }, { status: 503 });
+      }
+      if (!url.includes("/api/plans/generate")) {
+        return Response.json(Object.entries(venueNames).map(([id, name]) => ({ id, name, kind: "pub" })));
+      }
+      if (init?.method !== "POST") return new Response(null, { status: 204 });
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      const now = new Date();
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+        method: "POST", headers: init.headers, body: String(init.body),
+      }), now);
+      if (!parsed.ok) {
+        attempts.push({ body, effectiveStopCount: null, status: parsed.status });
+        return Response.json({ error: parsed.message, code: parsed.code, retryable: false }, { status: parsed.status });
+      }
+      // Exercise the same public decode and count authority as generation.
+      // The response follows transmitted IDs only after that count agrees.
+      const { query, context, intake, routeVenueIds } = parsed.value;
+      const effectiveContext = reconcilePlanContext(query, context, intake, now).context;
+      const effectiveStopCount = effectiveContext.stopCount ?? 3;
+      if (routeVenueIds && routeVenueIds.length !== effectiveStopCount) {
+        attempts.push({ body, effectiveStopCount, status: 400 });
+        return Response.json({ error: "Selected stops must match the requested stop count.", code: "MALFORMED_REQUEST", retryable: false }, { status: 400 });
+      }
+      const ids = routeVenueIds ?? originalIds.slice(0, effectiveStopCount);
+      if (ids.length !== effectiveStopCount || !ids.every((id) => Object.hasOwn(venueNames, id))) {
+        attempts.push({ body, effectiveStopCount, status: 422 });
+        return Response.json({ error: "Selected fixture pubs are unavailable.", code: "GROUNDED_CONSTRAINTS_UNSATISFIED", retryable: false }, { status: 422 });
+      }
+      attempts.push({ body, effectiveStopCount, status: 200 });
+      return Response.json({
+        ...DEFAULT_GENERATE_BODY,
+        groundingProof: `count-fixture-proof-${attempts.length}`,
+        operationKey: `count-fixture-operation-${attempts.length}`,
+        inferredContext: effectiveContext,
+        stops: ids.map((venueId) => ({ venueId, venueName: venueNames[venueId], alternatives: [] })),
+      });
+    }));
+    return { attempts, creates };
+  }
+
+  async function generateThenRemoveThirdStop() {
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", ask);
+      clickButton("Sort it");
+    });
+    await settleComposerEffects();
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+    const remove = document.querySelector<HTMLButtonElement>('button[aria-label="Remove stop 3"]');
+    expect(remove?.disabled).toBe(false);
+    await act(async () => { remove!.click(); });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("2");
+    expect(currentLockControl().disabled).toBe(true);
+  }
+
+  it("rechecks a removed third stop as exactly two selected pubs on the first request", async () => {
+    const server = installCountRecheckServer();
+    await generateThenRemoveThirdStop();
+    expect(server.attempts).toHaveLength(1);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { routeVenueIds: originalIds.slice(0, 2), context: { stopCount: 2 }, intake: { stopCount: 2 } },
+      effectiveStopCount: 2, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("rechecks the added third pub with count three on the first request after a two-stop refresh", async () => {
+    const server = installCountRecheckServer();
+    await generateThenRemoveThirdStop();
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(currentLockControl().disabled).toBe(false);
+    await act(async () => { clickButton("Add another stop"); });
+    const added = Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]')).at(-1);
+    expect(added?.value).toBe("");
+    await act(async () => { typeInto(`#${added!.id}`, venueNames["venue-c"]!); });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { routeVenueIds: originalIds, context: { stopCount: 3 } },
+      effectiveStopCount: 3, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-3", createOperationKey: "count-fixture-operation-3", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("recovers the added third pub count for the first recheck after a People edit", async () => {
+    const server = installCountRecheckServer();
+    const twoPubAsk = "Two pubs in Clapham";
+    await mountComposer();
+    await act(async () => { typeInto("#plan-describe-first-query", twoPubAsk); });
+    await act(async () => { clickButton("Sort it"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+    // Setup uses the real count control, so this first Add refresh succeeds
+    // on the unchanged source without a retry or an internal draft seed.
+    const count = document.querySelector<HTMLSelectElement>("#plan-context-stops");
+    expect(count?.value).toBe("2");
+    await act(async () => {
+      count!.value = "3";
+      count!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => { clickButton("Add another stop"); });
+    const added = Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]')).at(-1);
+    expect(added?.value).toBe("");
+    await act(async () => { typeInto(`#${added!.id}`, venueNames["venue-c"]!); });
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { query: twoPubAsk, routeVenueIds: originalIds, context: { stopCount: 3 } },
+      effectiveStopCount: 3, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      hasSelectedRouteEdits: true, nightContext: { stopCount: 3 }, routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before recovery");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+    expect(server.attempts).toHaveLength(2);
+    expect(conciergeFieldValue()).toBe(twoPubAsk);
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(currentLockControl().disabled).toBe(false);
+    await act(async () => { typeInto("#plan-context-people", "7"); });
+    expect(document.querySelector(".planComposer__routeStale")).not.toBeNull();
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: twoPubAsk, routeVenueIds: originalIds, context: { stopCount: 3, groupSize: 7 } },
+      effectiveStopCount: 3, status: 200,
+    });
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-3", createOperationKey: "count-fixture-operation-3", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+    expect(server.creates).toHaveLength(0);
+  });
+
+  async function generateOrdinaryRoute(query: string) {
+    await mountComposer();
+    await act(async () => { typeInto("#plan-describe-first-query", query); });
+    await act(async () => { clickButton("Sort it"); });
+    await settleComposerEffects();
+    await act(async () => {
+      typeInto("#plan-name", "QA Loopback");
+      typeInto("#plan-time", "2030-07-24T20:00");
+    });
+  }
+
+  async function setOrdinaryStopCount(value: "2" | "3") {
+    const count = document.querySelector<HTMLSelectElement>("#plan-context-stops");
+    if (!count) throw new Error("real Stops control did not render");
+    await act(async () => {
+      count.value = value;
+      count.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  async function recoverOrdinaryPreview() {
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before recovery");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+  }
+
+  it("recovers an ordinary explicit three-stop choice over the earlier two-pub query", async () => {
+    const server = installCountRecheckServer();
+    const twoPubAsk = "Two pubs in Clapham";
+    await generateOrdinaryRoute(twoPubAsk);
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    await setOrdinaryStopCount("3");
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { query: twoPubAsk, context: { stopCount: 3 } }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[1]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[1]?.body.intake).not.toHaveProperty("stopCount");
+    expect(readPlanIntakeDraft(localStorage)?.answers.stopCount).toBe(3);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null"))
+      .not.toHaveProperty("hasSelectedRouteEdits");
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(currentLockControl().disabled).toBe(false);
+
+    await recoverOrdinaryPreview();
+    expect(server.attempts).toHaveLength(2);
+    expect(conciergeFieldValue()).toBe(twoPubAsk);
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(currentLockControl().disabled).toBe(false);
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: twoPubAsk, context: { stopCount: 3, groupSize: 8 } }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[2]?.body).not.toHaveProperty("routeVenueIds");
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-3", createOperationKey: "count-fixture-operation-3", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("recovers an ordinary explicit nondefault two-stop choice without selected IDs", async () => {
+    const server = installCountRecheckServer();
+    const threePubAsk = "Three pubs in Clapham";
+    await generateOrdinaryRoute(threePubAsk);
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({ effectiveStopCount: 3, status: 200 });
+    await setOrdinaryStopCount("2");
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({ effectiveStopCount: 2, status: 200 });
+    expect(server.attempts[1]?.body).not.toHaveProperty("routeVenueIds");
+    expect(readPlanIntakeDraft(localStorage)?.answers.stopCount).toBe(2);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null"))
+      .not.toHaveProperty("hasSelectedRouteEdits");
+    await recoverOrdinaryPreview();
+    expect(server.attempts).toHaveLength(2);
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: threePubAsk, context: { stopCount: 2, groupSize: 8 }, intake: { stopCount: 2 } },
+      effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[2]?.body).not.toHaveProperty("routeVenueIds");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("keeps legacy query count authority when a three-pub preview has no stored count answer", async () => {
+    const server = installCountRecheckServer();
+    // Existing public legacy draft writers create a preview, not a count
+    // correction, a selected-edit hint or an inferred Night Context.
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()));
+    writePlanDraftEnvelope({
+      title: "Legacy preview night", creatorName: "QA Loopback", startTime: "2030-07-24T20:00",
+      conciergeQuery: "Two pubs in Clapham",
+      stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId]! })),
+    }, "manual", sessionStorage);
+    await mountComposer();
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(readPlanIntakeDraft(localStorage)?.answers).not.toHaveProperty("stopCount");
+    expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+    await act(async () => { clickButton("Make a plan"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({
+      body: { query: "Two pubs in Clapham" }, effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[0]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[0]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[0]?.body.intake).not.toHaveProperty("stopCount");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  it("does not treat a legacy context's normalized three-stop default as a saved count correction", async () => {
+    const server = installCountRecheckServer();
+    const legacyContext: Record<string, unknown> = { ...inferNightContext("Two pubs in Clapham").context };
+    delete legacyContext.stopCount;
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()));
+    writePlanDraftEnvelope({
+      title: "Legacy context night", creatorName: "QA Loopback", startTime: "2030-07-24T20:00",
+      conciergeQuery: "Two pubs in Clapham",
+      stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId]! })),
+    }, "manual", sessionStorage);
+    // Old public V1 payload has no count answer or selection hint. Restore
+    // through the real reader; do not pass a fabricated React context.
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+      stops: originalIds.map((venueId, index) => ({ key: index + 1, venueId, venueName: venueNames[venueId], alternatives: [] })),
+      nightContext: legacyContext, routeRevision: null, routeStale: true,
+      groundingProof: null, createOperationKey: null, planAnchor: null,
+    }));
+    expect(legacyContext).not.toHaveProperty("stopCount");
+    await mountComposer();
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(readPlanIntakeDraft(localStorage)?.answers).not.toHaveProperty("stopCount");
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({
+      body: { query: "Two pubs in Clapham", context: { groupSize: 8 } }, effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[0]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[0]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[0]?.body.intake).not.toHaveProperty("stopCount");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  });
+
+  async function exerciseFreshPalCountHandoff(clientNavigation: boolean) {
+    const server = installCountRecheckServer();
+    const twoPubAsk = "Two pubs in Clapham";
+    const threePubAsk = "Three pubs in Clapham";
+    await generateOrdinaryRoute(twoPubAsk);
+    expect(server.attempts).toHaveLength(1);
+    expect(server.attempts[0]).toMatchObject({
+      body: { query: twoPubAsk }, effectiveStopCount: 2, status: 200,
+    });
+    expect(server.attempts[0]?.body).not.toHaveProperty("routeVenueIds");
+    expect(currentStopNames()).toEqual(originalIds.slice(0, 2).map((id) => venueNames[id]));
+    expect(readPlanIntakeDraft(localStorage)?.answers.stopCount).toBe(2);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null"))
+      .not.toHaveProperty("hasSelectedRouteEdits");
+
+    const current = root;
+    if (!current) throw new Error("composer was not mounted before the fresh Pal handoff");
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    const freshSearch = `?query=${encodeURIComponent(threePubAsk)}`;
+    // Use the existing router-commit ordering double only for the client
+    // navigation sibling. Both read the actual saved route and intake again.
+    if (clientNavigation) stageClientNavigation("", freshSearch);
+    else setSearch(freshSearch);
+    await mountComposer();
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(2);
+    expect(server.attempts[1]).toMatchObject({
+      body: { query: threePubAsk }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[1]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[1]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[1]?.body.intake).not.toHaveProperty("stopCount");
+    expect(conciergeFieldValue()).toBe(threePubAsk);
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1") ?? "null")).toMatchObject({
+      groundingProof: "count-fixture-proof-2", createOperationKey: "count-fixture-operation-2", routeStale: false,
+      stops: originalIds.map((venueId) => ({ venueId })),
+    });
+
+    // A count-free FIRST handoff request alone is not enough: old explicit
+    // count state must not reappear on a later ordinary context recheck.
+    await act(async () => { typeInto("#plan-context-people", "8"); });
+    expect(currentLockControl().disabled).toBe(true);
+    await act(async () => { clickButton("Regenerate route"); });
+    await settleComposerEffects();
+    expect(server.attempts).toHaveLength(3);
+    expect(server.attempts[2]).toMatchObject({
+      body: { query: threePubAsk, context: { groupSize: 8 } }, effectiveStopCount: 3, status: 200,
+    });
+    expect(server.attempts[2]?.body).not.toHaveProperty("routeVenueIds");
+    expect(server.attempts[2]?.body.context).not.toHaveProperty("stopCount");
+    expect(server.attempts[2]?.body.intake).not.toHaveProperty("stopCount");
+    expect(currentStopNames()).toEqual(originalIds.map((id) => venueNames[id]));
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector(".planComposer__error")).toBeNull();
+    expect(currentLockControl().disabled).toBe(false);
+    expect(server.creates).toHaveLength(0);
+  }
+
+  it("lets a fresh Pal URL ask replace the saved ordinary two-stop count on mount and later recheck", async () => {
+    await exerciseFreshPalCountHandoff(false);
+  });
+
+  it("lets a fresh Pal client navigation replace the saved ordinary two-stop count after the old route render", async () => {
+    await exerciseFreshPalCountHandoff(true);
+  });
+
 });
 
 afterEach(async () => {
@@ -792,5 +1680,499 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
     });
     expect(generateCall).toBeTruthy();
     expect(document.body.textContent).toContain("Route refreshed");
+  });
+});
+
+// A held Stop 1 renders the full composer before the wizard is complete.
+// Validate its actual emitted intake through the server parser, so a canned
+// success cannot hide a body the real generate route would refuse.
+describe("accepted Stop 1 description generation", () => {
+  const ask = "Three cheap recorded pints in Camden";
+  const swissCottage = { id: "venue-18uogns", name: "Ye Olde Swiss Cottage", kind: "pub" };
+  const generatedStops = [
+    { venueId: swissCottage.id, venueName: swissCottage.name },
+    DEFAULT_GENERATE_BODY.stops[1],
+    DEFAULT_GENERATE_BODY.stops[2],
+  ];
+
+  function validateSubmittedIntake() {
+    const bodies: unknown[] = [];
+    const accepted: boolean[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([swissCottage]);
+      const body: unknown = JSON.parse(String(init?.body ?? "null"));
+      bodies.push(body);
+      const intake = typeof body === "object" && body !== null && "intake" in body ? body.intake : undefined;
+      const parsed = parsePlanGenerationIntake(intake);
+      accepted.push(parsed.ok);
+      if (!parsed.ok) {
+        return Response.json({ error: { code: parsed.code, message: parsed.message } }, { status: 400 });
+      }
+      return Response.json({
+        ...DEFAULT_GENERATE_BODY,
+        stops: generatedStops,
+        inferredContext: {
+          ...inferNightContext(ask).context,
+          ...(parsed.value.handoff.groupSize !== null ? { groupSize: parsed.value.handoff.groupSize } : {}),
+        },
+      });
+    }));
+    return { bodies, accepted };
+  }
+
+  it.each(["fresh acceptance", "recovered group answer"])("generates from %s without losing Stop 1", async (scenario) => {
+    const server = validateSubmittedIntake();
+    expect(writePlanningIntent({
+      source: "pal", cityId: "london", acceptedVenueId: swissCottage.id,
+      acceptedArea: { kind: "night-patch", id: "camden" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, { storage: sessionStorage })).not.toBeNull();
+    if (scenario === "recovered group answer") {
+      const draft = createPlanIntakeDraft({ kind: "patch", id: "camden" });
+      writePlanIntakeDraft({
+        ...draft, settledSteps: ["area", "group-size"],
+        answers: { ...draft.answers, groupSize: 4 },
+      });
+      const route = writePlanRouteDraftEnvelope({
+        anchorVenueId: swissCottage.id, anchorSource: "pal", outcome: "anchor-only",
+        stops: [{ key: 1, venueId: swissCottage.id, venueName: swissCottage.name, alternatives: [] }],
+        alternatives: [], nightContext: { ...inferNightContext("Camden for 4").context, stopCount: 1 },
+        routeTotals: null, transportBasis: null, planningConfidence: null, warnings: [],
+        groundingProof: null, operationKey: null, routeRevision: null, routeStale: true,
+      }, "planning-intent", localStorage);
+      expect(route.v1).toBe(true);
+      expect(route.v2).toBe(true);
+    }
+    await mountComposer();
+    expect(document.querySelector("#plan-describe-first-query")).toBeNull();
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(1);
+    expect(document.querySelector<HTMLInputElement>("#venue-name-1")?.value).toBe(swissCottage.name);
+    await act(async () => {
+      typeInto("#plan-concierge-query", ask);
+      clickButton(scenario === "recovered group answer" ? "Regenerate route" : "Make a plan");
+    });
+    await settleComposerEffects();
+
+    expect(server.accepted).toEqual([true]);
+    expect(server.bodies).toEqual([expect.objectContaining({
+      query: ask,
+      anchor: expect.objectContaining({ venueId: swissCottage.id, source: "pal" }),
+      intake: expect.objectContaining({
+        area: { kind: "night-patch", id: "camden" },
+        groupSize: scenario === "recovered group answer" ? 4 : null,
+      }),
+    })]);
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
+    expect(Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="venue-name-"]'))
+      .map((input) => input.value)).toEqual(generatedStops.map((stop) => stop.venueName));
+    expect(document.querySelector<HTMLInputElement>("#venue-name-1")?.value).toBe(swissCottage.name);
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
+    if (scenario === "recovered group answer") {
+      expect(document.querySelector<HTMLInputElement>("#plan-context-people")?.value).toBe("4");
+    }
+  });
+
+  it("keeps fresh describe-first generation valid through the same server parser", async () => {
+    const server = validateSubmittedIntake();
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", ask);
+      clickButton("Sort it");
+    });
+    await settleComposerEffects();
+
+    expect(server.accepted).toEqual([true]);
+    expect(server.bodies).toEqual([expect.objectContaining({ query: ask })]);
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
+  });
+
+  it.each(["anchor conflict", "zero matches", "HTTP error"].flatMap((outcome) =>
+    [false, true].map((recovered) => ({ outcome, recovered })),
+  ))("ends refreshing after $outcome with recovered=$recovered and permits a retry", async ({ outcome, recovered }) => {
+    const message = outcome === "anchor conflict"
+      ? "We could not build a route from that pub right now. Try a different pub."
+      : outcome === "zero matches"
+        ? "No venues matched that ask. Try a nearby area or a broader mood."
+        : "Could not generate a route right now.";
+    let finishRequest: ((response: Response) => void) | undefined;
+    let requests = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([swissCottage]);
+      requests += 1;
+      if (requests === 1) {
+        return new Promise<Response>((resolve) => { finishRequest = resolve; });
+      }
+      return Response.json({ ...DEFAULT_GENERATE_BODY, stops: generatedStops });
+    }));
+    expect(writePlanningIntent({
+      source: "pal", cityId: "london", acceptedVenueId: swissCottage.id,
+      acceptedArea: { kind: "night-patch", id: "camden" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, { storage: sessionStorage })).not.toBeNull();
+    if (recovered) {
+      const route = writePlanRouteDraftEnvelope({
+        anchorVenueId: swissCottage.id, anchorSource: "pal", outcome: "route",
+        stops: generatedStops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
+        alternatives: [], nightContext: { ...inferNightContext(ask).context, stopCount: 3 },
+        routeTotals: null, transportBasis: null, planningConfidence: null, warnings: [],
+        groundingProof: "test-proof", operationKey: "test-operation", routeRevision: null, routeStale: false,
+      }, "planning-intent", localStorage);
+      expect(route.v1).toBe(true);
+      expect(route.v2).toBe(true);
+    }
+    await mountComposer();
+    const validationMessage = document.querySelector(".planComposer__error")?.textContent;
+    await act(async () => {
+      typeInto("#plan-concierge-query", ask);
+      clickButton(recovered ? "Sort it again" : "Make a plan");
+    });
+    expect(requests).toBe(1);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Refreshing the route");
+    expect(finishRequest).toBeTypeOf("function");
+    await act(async () => {
+      finishRequest!(Response.json(outcome === "anchor conflict"
+        ? { outcome: "anchor-conflict", stops: [], message }
+        : outcome === "zero matches" ? { stops: [] }
+          : { error: { code: "PLAN_GENERATION_FAILED", message } },
+      { status: outcome === "HTTP error" ? 503 : 200 }));
+    });
+    await settleComposerEffects();
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(recovered ? 3 : 1);
+    expect(document.querySelector<HTMLInputElement>("#venue-name-1")?.value).toBe(swissCottage.name);
+    const failureStatus = recovered ? `The previous route is still here. ${message}` : message;
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe(failureStatus);
+    expect(document.querySelector("#plan-route-status")?.textContent).not.toContain("Refreshing");
+    expect(Boolean(document.querySelector(".planComposer__routeStale"))).toBe(recovered);
+    expect(document.querySelector(".planComposer__error")?.textContent)
+      .toBe(outcome === "HTTP error" ? failureStatus : validationMessage);
+    await act(async () => { clickButton(recovered ? "Regenerate route" : "Make a plan"); });
+    await settleComposerEffects();
+    expect(requests).toBe(2);
+    expect(document.querySelectorAll(".planComposer__stop")).toHaveLength(3);
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+  });
+});
+
+describe("accepted base-pub name hydration", () => {
+  const heldId = "venue-uk-n8308248176";
+  const otherId = "venue-uk-n8308248177";
+  const publicPub = {
+    id: heldId, name: "The Sydney Arms", kind: "pub",
+    address: "70 Sydney Street", lat: 51.4888, lng: -0.1695, curatedVenueId: "",
+  };
+
+  function acceptVenue(venueId = heldId): void {
+    expect(writePlanningIntent({
+      source: "map-search", cityId: "london", acceptedVenueId: venueId,
+      acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, { storage: sessionStorage })).not.toBeNull();
+  }
+
+  function publicNameRequests(): string[] {
+    return vi.mocked(fetch).mock.calls.flatMap(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return url.startsWith("/api/uk-base/") ? [url] : [];
+    });
+  }
+
+  function mockNameReads(options: {
+    index?: unknown;
+    indexStatus?: number;
+    indexThrows?: boolean;
+    pub?: unknown;
+    pubStatus?: number;
+    heldResponse?: Promise<Response>;
+  } = {}): void {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url === `/api/uk-base/${heldId}`) {
+        if (options.heldResponse) return options.heldResponse;
+        return Response.json({ pub: "pub" in options ? options.pub : publicPub }, {
+          status: options.pubStatus ?? 200,
+        });
+      }
+      if (url === `/api/uk-base/${otherId}`) {
+        return Response.json({ pub: { ...publicPub, id: otherId, name: "The Other Arms" } });
+      }
+      if (url.includes("/api/plans/generate")) {
+        return Response.json({
+          ...DEFAULT_GENERATE_BODY,
+          stops: [{ venueId: heldId, venueName: "Generated Sydney name" }, ...DEFAULT_GENERATE_BODY.stops.slice(1)],
+        });
+      }
+      if (options.indexThrows) throw new TypeError("Public index unavailable");
+      return Response.json(options.index ?? [], { status: options.indexStatus ?? 200 });
+    }));
+  }
+
+  function stopName(): string | undefined {
+    return document.querySelector<HTMLInputElement>("#venue-name-1")?.value;
+  }
+
+  it("resolves a held map base pub absent from the city index through its exact public ID", async () => {
+    mockNameReads();
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe(publicPub.name);
+    expect(document.querySelector(".planComposer__accepted")?.textContent).toContain(publicPub.name);
+    expect(document.querySelector(".planComposer__swap")?.getAttribute("aria-label"))
+      .toBe("The Sydney Arms is the accepted Stop 1. Swap is not available.");
+    expect(document.body.textContent).not.toContain(heldId);
+  });
+
+  it("keeps the city index primary and avoids a second public lookup when it owns the held ID", async () => {
+    mockNameReads({ index: [{ id: heldId, name: "Indexed Sydney name", kind: "pub" }] });
+    acceptVenue();
+    await mountComposer();
+
+    expect(stopName()).toBe("Indexed Sydney name");
+    expect(publicNameRequests()).toEqual([]);
+  });
+
+  it("does not route an orphan curated ID through the base-pub lookup", async () => {
+    mockNameReads();
+    acceptVenue("venue-orphan");
+    await mountComposer();
+
+    expect(stopName()).toBe("");
+    expect(publicNameRequests()).toEqual([]);
+    expect(document.body.textContent).not.toContain("venue-orphan");
+  });
+
+  it.each(["HTTP refusal", "thrown read"])("still resolves a base pub when the city index has a %s", async (failure) => {
+    mockNameReads({ indexStatus: failure === "HTTP refusal" ? 503 : 200, indexThrows: failure === "thrown read" });
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe(publicPub.name);
+  });
+
+  it.each([
+    { reason: "a different ID", pub: { ...publicPub, id: otherId } },
+    { reason: "a blank name", pub: { ...publicPub, name: "   " } },
+    { reason: "a bar", pub: { ...publicPub, kind: "bar" } },
+    { reason: "an omitted kind", pub: { ...publicPub, kind: undefined } },
+    { reason: "a missing pub", pub: null },
+  ])("does not assign a public response naming $reason to the accepted Stop 1", async ({ pub }) => {
+    mockNameReads({ pub });
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe("");
+    expect(document.querySelector(".planComposer__accepted")?.textContent).toContain("The pub you kept");
+    expect(document.body.textContent).not.toContain(heldId);
+  });
+
+  it("does not adopt a named body from a refused public lookup", async () => {
+    mockNameReads({ pubStatus: 503 });
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe("");
+  });
+
+  it("gives the still-unresolved accepted Stop 1 a nonblank accessible control label", async () => {
+    mockNameReads({ heldResponse: new Promise<Response>(() => undefined) });
+    acceptVenue();
+    await mountComposer();
+
+    expect(stopName()).toBe("");
+    expect(document.querySelector(".planComposer__swap")?.getAttribute("aria-label"))
+      .toBe("The pub you kept is the accepted Stop 1. Swap is not available.");
+    expect(document.body.textContent).not.toContain(heldId);
+  });
+
+  it("does not replace a name the drinker typed while the public lookup was pending", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => { typeInto("#venue-name-1", "My meeting pub"); });
+    expect(stopName()).toBe("My meeting pub");
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("My meeting pub");
+  });
+
+  it("does not revive accepted name hydration after the drinker releases that pub", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => { clickButton("Release this pub"); });
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("");
+    expect(document.querySelector(".planComposer__accepted")).toBeNull();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+  });
+
+  it("keeps a generated name for the same accepted ID when an earlier public reply arrives", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Three cheap pints in Camden");
+      clickButton("Make a plan");
+    });
+    await settleComposerEffects();
+    expect(stopName()).toBe("Generated Sydney name");
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("Generated Sydney name");
+  });
+
+  it("keeps a recovered named Stop 1 without requesting its base name again", async () => {
+    mockNameReads();
+    writePlanDraftEnvelope({
+      title: "", creatorName: "", startTime: "", conciergeQuery: "",
+      stops: [{ key: 1, venueId: heldId, venueName: "Recovered Sydney name" }],
+      acceptedAnchor: {
+        venueId: heldId, source: "map-search", cityId: "london", acceptedArea: null,
+        startsAt: null, expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage);
+    await mountComposer();
+
+    expect(stopName()).toBe("Recovered Sydney name");
+    expect(publicNameRequests()).toEqual([]);
+  });
+
+  it("ignores an old public reply after a new map acceptance mounts", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => { root!.unmount(); });
+    root = null;
+    host?.remove();
+    sessionStorage.clear();
+    localStorage.clear();
+    acceptVenue(otherId);
+    await mountComposer();
+    expect(stopName()).toBe("The Other Arms");
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("The Other Arms");
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`, `/api/uk-base/${otherId}`]);
+    expect(document.querySelector(".planComposer__accepted")?.textContent).toContain("The Other Arms");
+  });
+});
+
+
+describe("Cider accepted request component wire and later choice", () => {
+  it("transmits accepted Cider with no quote, then clears its refinement for a newer Wine query", async () => {
+    const drinkRequest = { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: "500ml" };
+    const acceptance = { source: "map-search" as const, cityId: "london" as const,
+      acceptedVenueId: "venue-13xdb1p", acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory" as const, observedAt: null }, drinkRequest };
+    expect(writePlanningIntent(acceptance, { storage: sessionStorage })).not.toBeNull();
+    const generated: Array<{ context?: Record<string, unknown>; anchor?: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([{ id: "venue-13xdb1p", name: "The Plough", kind: "pub" }]);
+      const body = JSON.parse(String(init?.body));
+      generated.push(body);
+      // Response follows the actual emitted request through real parser/reconciler.
+      // This controlled wire test proves no route eligibility, signed proof or server price.
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(body),
+      }));
+      if (!parsed.ok) return Response.json({ error: { code: parsed.code, message: parsed.message } }, { status: parsed.status });
+      const resolved = reconcilePlanContext(parsed.value.query, parsed.value.context, parsed.value.intake, new Date());
+      return Response.json({ ...DEFAULT_GENERATE_BODY,
+        stops: [{ venueId: "venue-13xdb1p", venueName: "The Plough" }, ...DEFAULT_GENERATE_BODY.stops.slice(1)],
+        inferredContext: resolved.context });
+    }));
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Quiet in Clapham for 2");
+      clickButton("Make a plan");
+    });
+    await settleComposerEffects();
+    expect(generated).toHaveLength(1);
+    expect(generated[0]?.context).toMatchObject(drinkRequest);
+    expect(generated[0]?.anchor).toMatchObject({ venueId: "venue-13xdb1p", source: "map-search" });
+    expect(generated[0]?.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Wine in Clapham for 2");
+      clickButton("Sort it again");
+    });
+    await settleComposerEffects();
+    expect(generated).toHaveLength(2);
+    expect(generated[1]?.context ?? {}).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(generated[1]?.context ?? {}).not.toHaveProperty("drinkServing", "500ml");
+    expect(generated[1]?.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(generated[1]?.anchor).toMatchObject({ venueId: "venue-13xdb1p" });
+  });
+});
+
+
+describe("accepted Cider first typed query priority", () => {
+  it("uses first typed Wine request before any generated route instead of accepted Cider choice", async () => {
+    const acceptance = {
+      source: "map-search" as const, cityId: "london" as const,
+      acceptedVenueId: "venue-13xdb1p", acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory" as const, observedAt: null },
+      drinkRequest: { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: "500ml" },
+    };
+    expect(writePlanningIntent(acceptance, { storage: sessionStorage })).not.toBeNull();
+    const generated: Array<{ context?: Record<string, unknown>; anchor?: Record<string, unknown> }> = [];
+    const reconciled: Array<{ drinkCategory?: string | null; drinkSubtype?: string | null; drinkServing?: string | null }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes("/api/plans/generate")) return Response.json([{ id: "venue-13xdb1p", name: "The Plough", kind: "pub" }]);
+      const body = JSON.parse(String(init?.body));
+      generated.push(body);
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(body),
+      }));
+      if (!parsed.ok) return Response.json({ error: { code: parsed.code, message: parsed.message } }, { status: parsed.status });
+      const resolved = reconcilePlanContext(parsed.value.query, parsed.value.context, parsed.value.intake, new Date());
+      reconciled.push(resolved.context);
+      return Response.json({ ...DEFAULT_GENERATE_BODY,
+        stops: [{ venueId: "venue-13xdb1p", venueName: "The Plough" }, ...DEFAULT_GENERATE_BODY.stops.slice(1)],
+        inferredContext: resolved.context });
+    }));
+    await mountComposer();
+    expect(generated).toHaveLength(0);
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Wine in Clapham for 2");
+      clickButton("Make a plan");
+    });
+    await settleComposerEffects();
+    expect(generated).toHaveLength(1);
+    expect(generated[0]?.context ?? {}).not.toHaveProperty("drinkCategory", "beer");
+    expect(generated[0]?.context ?? {}).not.toHaveProperty("drinkSubtype", "beer-cider");
+    expect(generated[0]?.context ?? {}).not.toHaveProperty("drinkServing", "500ml");
+    expect(generated[0]?.anchor).toMatchObject({ venueId: "venue-13xdb1p", source: "map-search" });
+    expect(generated[0]?.anchor).not.toHaveProperty("selectedDrinkPriceEvidence");
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0]).toMatchObject({ drinkCategory: "wine", zeroProof: false });
+    expect(reconciled[0]).not.toHaveProperty("drinkSubtype", "beer-cider");
   });
 });

@@ -3,6 +3,7 @@
 import { GlassWater } from "lucide-react";
 
 import { MAP_DRINK_LANES } from "@/lib/drinkLanes";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import type { DrinkCategory } from "@/lib/drinks";
 import {
   drinkLensCoverageNote,
@@ -25,22 +26,32 @@ import "./drinkLanePicker.css";
  */
 export default function DrinkLanePicker({
   lane,
+  drinkSubtype,
   status = "ready",
   variant = "panel",
   onChange,
+  servingGroups = [],
+  servingGroup = null,
+  onServingGroupChange,
 }: {
   lane: DrinkCategory;
+  drinkSubtype?: string | null;
   /** How complete the selected lane's cross-venue read was, for the note. */
   status?: CategoryPriceIndexStatus;
   variant?: "panel" | "sheet";
   onChange: (lane: DrinkCategory) => void;
+  servingGroups?: readonly string[];
+  servingGroup?: string | null;
+  onServingGroupChange?: (serving: string | null) => void;
 }) {
   const active = MAP_DRINK_LANES.find((option) => option.category === lane);
+  const subtype = parseDrinkSubtypeParam(drinkSubtype, lane);
+  const restingPints = active?.isDefault && !subtype;
   // A lane still loading, or one we could not read, must not be worded as a
   // settled map. The default pint lane has no cross-venue index to report on.
-  const note = active?.isDefault
+  const note = restingPints
     ? null
-    : drinkLensCoverageNote(active?.noun ?? "this drink", status);
+    : drinkLensCoverageNote(subtype?.longLabel.toLowerCase() ?? active?.noun ?? "this drink", status);
 
   return (
     <section
@@ -79,19 +90,30 @@ export default function DrinkLanePicker({
               aria-pressed={selected}
               onClick={() => onChange(option.category)}
             >
-              {option.label}
+              {selected && subtype ? subtype.longLabel : option.label}
             </button>
           );
         })}
       </div>
-      {/* What the chosen lane can and cannot do. The pint lane keeps the map it
-          always had; every other lane colours pins only where drinkers have
-          logged and confirmed that drink, so its silence is honest rather than
-          a claim that a pub sells none. */}
+      {!restingPints && onServingGroupChange ? (
+        <>
+          <p className="drinkLanePickerNote">Choose a serving size to compare menu prices.</p>
+          <div className="drinkLanePickerOptions" role="group" aria-label="Serving size for price comparison">
+            <button type="button" className={`drinkLanePickerOption${servingGroup === null ? " isSelected" : ""}`}
+              aria-pressed={servingGroup === null} onClick={() => onServingGroupChange(null)}>All servings · unranked</button>
+            {servingGroups.map((group) => <button key={group} type="button"
+              className={`drinkLanePickerOption${servingGroup === group ? " isSelected" : ""}`}
+              aria-pressed={servingGroup === group} onClick={() => onServingGroupChange(group)}>{group}</button>)}
+          </div>
+        </>
+      ) : null}
+      {/* The resting pint lane keeps its original bands. A selected subtype
+          compares its own stated serving and never borrows community rows. */}
       <p className="drinkLanePickerNote">
-        {active?.isDefault
+        {restingPints
           ? "Pin colours follow the cheapest pint on record."
-          : `Pin colours follow confirmed ${active?.noun ?? "drink"} prices that drinkers logged. Pubs without one stay unknown.`}
+          : subtype ? "Other servings stay visible, unranked."
+          : "Other servings and community reports stay visible, unranked."}
       </p>
       {note ? (
         <p className="drinkLanePickerStatus" role="status" aria-live="polite">

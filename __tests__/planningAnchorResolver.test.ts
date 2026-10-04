@@ -1,6 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+
+// Server pack fixture copied exactly from committed
+// public/data/uk_base/packs/a917f46cc28c0e9e/51.25_-0.25.json.
+// Only the existing UK identity reader is doubled; this pub is NEVER added to
+// the curated venue/candidate catalogue and has no invented price or amenity.
+const basePlanPack = vi.hoisted(() => ({
+  result: { status: "missing" } as import("@/lib/ukBaseIndex").UkBasePubLookupResult,
+  pub: { id: "venue-uk-n8308248176", name: "The Sydney Arms",
+    address: "70, Sydney Street, London, SW3 6NJ", lat: 51.48876, lng: -0.16951,
+    curatedVenueId: "", kind: "pub" as const },
+}));
+vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ukBaseIndex")>();
+  return { ...actual, lookupUkBasePub: async (id: string) =>
+    id === basePlanPack.pub.id ? basePlanPack.result : { status: "missing" as const } };
+});
+
 
 import {
   resolvePlanningAnchor,
@@ -222,5 +239,40 @@ describe("anchor conflict copy", () => {
       expect(message.length).toBeGreaterThan(20);
       expect(message).not.toMatch(/\bVenue\b|\bRoute\b|\bPlan\b|\bStop\b/);
     }
+  });
+});
+
+
+describe("server-owned UK base pub acceptance", () => {
+  afterEach(() => { basePlanPack.result = { status: "missing" }; });
+  const input = () => baseInput({ venueId: basePlanPack.pub.id, acceptedArea: null });
+
+  it("resolves real London base identity without a synthetic curated Venue or pint price", async () => {
+    basePlanPack.result = { status: "ready", pub: basePlanPack.pub };
+    const result = await resolvePlanningAnchor(input());
+    expect(result).toMatchObject({ status: "resolved",
+      display: { venueId: basePlanPack.pub.id, venueName: basePlanPack.pub.name, priceEvidence: null },
+      canonical: { cityId: "london", venueId: basePlanPack.pub.id,
+        coordinates: { lat: basePlanPack.pub.lat, lng: basePlanPack.pub.lng },
+        acceptedArea: null, priceFreshnessKind: "unknown", priceObservedAt: null } });
+  });
+
+  it("keeps canonical city, accepted-area, kind and access refusals for base pubs", async () => {
+    basePlanPack.result = { status: "ready", pub: basePlanPack.pub };
+    expect(await resolvePlanningAnchor({ ...input(), cityId: "manchester" }))
+      .toMatchObject({ status: "conflict", code: "ANCHOR_CITY_MISMATCH" });
+    expect(await resolvePlanningAnchor({ ...input(), acceptedArea: { kind: "night-patch", id: "brixton" } }))
+      .toMatchObject({ status: "conflict", code: "ANCHOR_AREA_CONFLICT" });
+    expect(await resolvePlanningAnchor({ ...input(), requiresStepFreeAccess: true }))
+      .toMatchObject({ status: "conflict", code: "ANCHOR_ACCESS_CONFLICT" });
+    // Deliberate policy variant, not a claim about Sydney's real kind.
+    basePlanPack.result = { status: "ready", pub: { ...basePlanPack.pub, kind: "bar" } };
+    expect(await resolvePlanningAnchor(input()))
+      .toMatchObject({ status: "conflict", code: "ANCHOR_VENUE_INVALID" });
+  });
+
+  it.each(["missing", "unavailable"] as const)("does not invent an anchor from a %s base lookup", async (status) => {
+    basePlanPack.result = { status };
+    expect((await resolvePlanningAnchor(input())).status).toBe("conflict");
   });
 });

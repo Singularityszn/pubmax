@@ -4,13 +4,15 @@ import { randomUUID } from "node:crypto";
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { normalizePlanStopCount } from "@/lib/planStopCount";
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
+import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
 import { CATEGORY_META } from "@/lib/drinks";
-import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
+import { drinkLensCoverageNote, readListedDrinkIndex, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import {
 	getNightArea,
 	isNightAreaRouteReady,
@@ -25,7 +27,10 @@ import {
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
-import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
+import { selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
+import { resolvePlanGenerationAnchorDrink } from "@/lib/planGenerationDrinkRefresh.server";
+import { listedServingGroup } from "@/lib/listedPriceComparison";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
@@ -48,6 +53,7 @@ import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/
 import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
+import { ukPriceBundleCategoryIndex } from "@/lib/ukPriceBundle.server";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
@@ -93,8 +99,9 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	operationKey: string;
 	area: NightArea;
 	coverage: ReturnType<typeof publicNightAreaCoverage>;
+	routeVenueIds?: readonly string[];
 }): Promise<{ done: Response } | { route: AnchoredRouteData<T> }> {
-	const { cityId, anchor, candidates, context, intake, requestNow, operationKey, area, coverage } = params;
+	const { cityId, anchor, candidates, context, intake, requestNow, operationKey, area, coverage, routeVenueIds } = params;
 	const nightArea = { id: area.slug, ...coverage };
 	const anchorConflict = (reason: string, message: string): { done: Response } => ({
 		done: jsonNoStore({
@@ -121,13 +128,24 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 		return anchorConflict(anchorResolution.code, anchorResolution.message);
 	}
 	const anchorVenueId = anchorResolution.canonical.venueId;
+	if (routeVenueIds && routeVenueIds[0] !== anchorVenueId) {
+		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "The accepted pub must stay as Stop 1. Keep it there or release it before changing the route.");
+	}
 	const selection = await selectAnchoredPlanGenerationCandidates(
 		candidates,
 		context,
 		intake,
 		requestNow,
 		anchorVenueId,
+		routeVenueIds,
 	);
+	if (routeVenueIds && (!selection.ok || selection.outcome !== "route")) {
+		return { done: publicApiError("The selected stops no longer meet every must-have need. Keep this preview and change the stops or details.",
+			"GROUNDED_CONSTRAINTS_UNSATISFIED", 422) };
+	}
+	if (!selection.ok && isNationalBaseVenueId(anchorVenueId)) {
+		return baseAnchorOnlyResponse(anchorResolution, params);
+	}
 	if (!selection.ok) {
 		return anchorConflict(
 			"ANCHOR_ROUTE_CONFLICT",
@@ -223,7 +241,96 @@ type PlanGenerationPreparation = {
 	drinkPriceCoverageNote: string | null;
 	candidates: PlanGenerationCandidate[];
 	anchor: PlanGenerationAnchor | null;
+	routeVenueIds?: string[];
 };
+
+function approvedDrinkSelection(approved: SelectedDrinkPriceEvidence, venueId: string): {
+	selectedServing: string | null;
+	selectedDrinkSubtype: string | null;
+	acceptedNamedPrice: MapLensPrice | null;
+} {
+	let selectedDrinkSubtype: string | null = null;
+	let acceptedNamedPrice: MapLensPrice | null = null;
+	if (approved.source === "listed" && "drinkLabel" in approved) {
+		selectedDrinkSubtype = approved.drinkSubtype;
+		acceptedNamedPrice = {
+			venueId,
+			category: approved.category,
+			categoryLabel: CATEGORY_META[approved.category].label,
+			priceGbp: approved.pence / 100,
+			source: "listed",
+			servingSize: approved.serving,
+			sourceUrl: approved.sourceUrl,
+			observedAt: approved.observedAt,
+			drinkLabel: approved.drinkLabel,
+		};
+	}
+	const selectedServing = approved.source === "listed"
+		? listedServingGroup(approved.category, approved.serving, selectedDrinkSubtype) : null;
+	return { selectedServing, selectedDrinkSubtype, acceptedNamedPrice };
+}
+
+/** The night's own subtype and measure narrow every listed quote before any anchor does. */
+function requestedDrinkSelection(context: NightContext): { selectedServing: string | null; selectedDrinkSubtype: string | null } {
+	return { selectedServing: context.drinkServing ?? null, selectedDrinkSubtype: context.drinkSubtype ?? null };
+}
+
+async function readPlanGenerationPrices(
+	context: NightContext,
+	requestNow: number,
+	selectedServing: string | null,
+	selectedDrinkSubtype: string | null,
+	acceptedNamedPrice: MapLensPrice | null,
+) {
+	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
+		? context.drinkCategory
+		: null;
+	const [categoryPriceRows, listedPriceIndex] = await Promise.all([
+		readCommunityPriceCategoryIndex(
+			[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
+			requestNow,
+		).catch(() => ({ prices: [] as CommunityPrice[], truncated: false, degraded: true })),
+		requestedCategory
+			? ukPriceBundleCategoryIndex(requestedCategory, requestNow, selectedServing, selectedDrinkSubtype).catch(() => ({ prices: [], truncated: false, degraded: true }))
+			: Promise.resolve(null),
+	]);
+	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
+	for (const row of categoryPriceRows.prices) {
+		const current = priceRowsByVenue.get(row.venueId) ?? [];
+		current.push(row);
+		priceRowsByVenue.set(row.venueId, current);
+	}
+	const naLensPrices = trustedNoAlcoholLensPrices(priceRowsByVenue, requestNow);
+	const drinkLensPrices = requestedCategory
+		? trustedDrinkLensPrices(priceRowsByVenue, requestedCategory, requestNow)
+		: undefined;
+	const listedDrinkPricesByVenue = new Map<string, MapLensPrice>();
+	if (requestedCategory && listedPriceIndex) {
+		for (const price of readListedDrinkIndex(listedPriceIndex.prices, requestedCategory, selectedDrinkSubtype)) {
+			if ((!selectedServing || listedServingGroup(requestedCategory, price.servingSize) === selectedServing)
+				&& !listedDrinkPricesByVenue.has(price.venueId)) {
+				listedDrinkPricesByVenue.set(price.venueId, price);
+			}
+		}
+	}
+	// Accepted anchor keeps its own verified quote; another venue receives only
+	// its own subtype/serving-compatible listing, never this venue-local label.
+	if (acceptedNamedPrice) listedDrinkPricesByVenue.set(acceptedNamedPrice.venueId, acceptedNamedPrice);
+	const drinkPriceCoverageNote = requestedCategory
+		? drinkLensCoverageNote(
+			CATEGORY_META[requestedCategory].label.toLowerCase(),
+			categoryPriceRows.degraded || listedPriceIndex?.degraded
+				? "degraded"
+				: categoryPriceRows.truncated || listedPriceIndex?.truncated
+					? "partial"
+					: "ready",
+		)
+		: null;
+	// Without a chosen, verified measure no non-beer GBP amount is a ranking signal.
+	// Community reports retain their display lane; their null serving cannot join it.
+	const comparableDrinkPrices = selectedServing ? listedDrinkPricesByVenue : undefined;
+	return { naLensPrices, drinkLensPrices, listedDrinkPricesByVenue, comparableDrinkPrices, drinkPriceCoverageNote };
+}
 
 export async function preparePlanGeneration(
 	request: Request,
@@ -233,7 +340,7 @@ export async function preparePlanGeneration(
 	if (!parsedRequest.ok) {
 		return { response: publicApiError(parsedRequest.message, parsedRequest.code, parsedRequest.status) };
 	}
-	const { query, context: contextPatch, intake } = parsedRequest.value;
+	const { query, context: contextPatch, intake, routeVenueIds } = parsedRequest.value;
 	const signingUnavailable = planSigningPreflightResponse();
 	if (signingUnavailable) return { response: signingUnavailable };
 	const operationKey = parsedRequest.value.operationKey ?? `create-${randomUUID()}`;
@@ -264,6 +371,9 @@ export async function preparePlanGeneration(
 	}
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
+	if (routeVenueIds && routeVenueIds.length !== normalizePlanStopCount(context.stopCount)) {
+		return { response: publicApiError("Selected stops must match the requested stop count.", "MALFORMED_REQUEST", 400) };
+	}
 	if (!context.nightArea) {
 		return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
 	}
@@ -302,29 +412,23 @@ export async function preparePlanGeneration(
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
-	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
-		? context.drinkCategory
-		: null;
-	const categoryPriceRows = await readCommunityPriceCategoryIndex(
-		[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
-		requestNow,
-	);
-	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
-	for (const row of categoryPriceRows.prices) {
-		const current = priceRowsByVenue.get(row.venueId) ?? [];
-		current.push(row);
-		priceRowsByVenue.set(row.venueId, current);
+	const anchorDrink = await resolvePlanGenerationAnchorDrink(parsedRequest.value.anchor, cityId, context, requestNow);
+	if (anchorDrink.status === "conflict") return { response: jsonNoStore({
+		grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
+		stops: [], reason: anchorDrink.reason, message: anchorDrink.message, operationKey,
+		nightArea: { id: area.slug, ...coverage },
+	}, { status: 200 }) };
+	const generationAnchor = anchorDrink.anchor;
+	let { selectedServing, selectedDrinkSubtype } = requestedDrinkSelection(context);
+	let acceptedNamedPrice: MapLensPrice | null = null;
+	if (anchorDrink.status === "approved") {
+		const selection = approvedDrinkSelection(anchorDrink.evidence, anchorDrink.venueId);
+		selectedDrinkSubtype = selection.selectedDrinkSubtype;
+		acceptedNamedPrice = selection.acceptedNamedPrice;
+		selectedServing = selection.selectedServing;
 	}
-	const naLensPrices = trustedNoAlcoholLensPrices(priceRowsByVenue, requestNow);
-	const drinkLensPrices = requestedCategory
-		? trustedDrinkLensPrices(priceRowsByVenue, requestedCategory, requestNow)
-		: undefined;
-	const drinkPriceCoverageNote = requestedCategory
-		? drinkLensCoverageNote(
-			CATEGORY_META[requestedCategory].label.toLowerCase(),
-			categoryPriceRows.degraded ? "degraded" : categoryPriceRows.truncated ? "partial" : "ready",
-		)
-		: null;
+	const { naLensPrices, drinkLensPrices, listedDrinkPricesByVenue, comparableDrinkPrices, drinkPriceCoverageNote } =
+		await readPlanGenerationPrices(context, requestNow, selectedServing, selectedDrinkSubtype, acceptedNamedPrice);
 	const venues = await loadConciergeVenues(cityId);
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
@@ -343,9 +447,20 @@ export async function preparePlanGeneration(
 				planningWeather,
 				naLensPrices,
 				wetherspoonsMatchedIds,
-				drinkLensPrices,
+				comparableDrinkPrices,
 			);
-			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
+			return {
+				venue,
+				distance,
+				tonightEvents,
+				signalClaims,
+				...scored,
+				selectedDrinkPrice: acceptedNamedPrice?.venueId === venue.id
+					? acceptedNamedPrice
+					: selectedServing || selectedDrinkSubtype || acceptedNamedPrice
+					? listedDrinkPricesByVenue.get(venue.id) ?? null
+					: drinkLensPrices?.get(venue.id) ?? listedDrinkPricesByVenue.get(venue.id) ?? null,
+			};
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
@@ -368,6 +483,47 @@ export async function preparePlanGeneration(
 		naLensPrices,
 		drinkPriceCoverageNote,
 		candidates,
-		anchor: parsedRequest.value.anchor,
+		anchor: generationAnchor,
+		...(routeVenueIds ? { routeVenueIds } : {}),
 	} };
+}
+
+/** A canonical base pub is a grounded meetup, not a fabricated curated crawl candidate. */
+async function baseAnchorOnlyResponse(
+  anchor: Extract<Awaited<ReturnType<typeof resolvePlanningAnchor>>, { status: "resolved" }>,
+  input: { context: NightContext; intake: ParsedPlanGenerationIntake | null; requestNow: number;
+    operationKey: string; anchor: PlanGenerationAnchor; area: NightArea;
+    coverage: ReturnType<typeof publicNightAreaCoverage> },
+): Promise<{ done: Response }> {
+  const { context, intake, requestNow, operationKey, area, coverage } = input;
+  const coordinates = anchor.canonical.coordinates;
+  const requiredAccess = context.accessibility.length > 0 || Boolean(intake?.handoff.accessibilityNeeds.length);
+  const invalidArea = intake?.exactNightArea && (!coordinates || distanceKm(area.centre,
+    { lat: coordinates.lat, lng: coordinates.lng }) > area.radiusKm);
+  if (requiredAccess || context.budgetLimitPence !== null || invalidArea) {
+    return { done: jsonNoStore({ grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
+      stops: [], reason: requiredAccess ? "ANCHOR_ACCESS_CONFLICT" : invalidArea ? "ANCHOR_AREA_CONFLICT" : "ANCHOR_BUDGET_CONFLICT",
+      message: "We cannot confirm that pub meets those plan requirements. Keep the requirements or choose another pub.",
+      operationKey, nightArea: { id: area.slug, ...coverage } }, { status: 200 }) };
+  }
+  const id = anchor.canonical.venueId;
+  const [approved] = await resolvePlanSelectedDrinkPriceEvidence(
+    [{ venueId: id, venueName: anchor.display.venueName }],
+    [{ selectedDrinkPriceEvidence: input.anchor.selectedDrinkPriceEvidence }], context);
+  let proof: string;
+  try { proof = mintPlanGroundingProofV2({ routeVenueIds: [id], allowedVenueIds: [id], anchorVenueId: id,
+    anchorSource: input.anchor.source, outcome: "anchor-only", operationKey }, requestNow); }
+  catch (error) { const unavailable = planSigningUnavailableResponse(error); if (unavailable) return { done: unavailable }; throw error; }
+  return { done: jsonNoStore({ grounded: true, outcome: "anchor-only", anchored: true, routeReady: false,
+    reason: "ANCHOR_COMPANIONS_INSUFFICIENT", anchorVenueId: id, anchorSource: input.anchor.source,
+    groundingProof: proof, operationKey, inferredContext: context, nightArea: { id: area.slug, ...coverage },
+    stops: [{ venueId: id, venueName: anchor.display.venueName, position: 0,
+      estimatedPintPricePence: null, priceEvidence: null,
+      selectedDrinkPriceEvidence: approved?.selectedDrinkPriceEvidence ?? null, accessEvidence: {},
+      constraintFlags: [{ code: "opening_hours_unconfirmed", message: "Opening hours have not been confirmed." }],
+      operationalEvidence: { openingAtVisit: "unknown", openingSource: null, visitWindow: null,
+        transportBasis: "compact-straight-line" },
+      provenance: [{ kind: "venue_dataset", label: "OpenStreetMap pub location", url: "https://www.openstreetmap.org/copyright" }],
+      alternatives: [] }],
+  }, { status: 200 }) };
 }

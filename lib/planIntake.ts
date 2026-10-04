@@ -1,3 +1,5 @@
+import { cleanPublicDrinkRequest, mergeNightContext, type PublicDrinkRequest } from "@/lib/nightPlanning";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceMatchesContext, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
   NIGHT_PATCHES,
   resolveNightPatch,
@@ -662,10 +664,13 @@ export type PlanGenerationIntakeBody = {
   cityId?: CityId;
   intake: PlanIntakeHandoff;
   anchor?: PlanGenerationWireAnchor;
+  routeVenueIds?: string[];
 };
 
 export type PlanGenerationAnchorInput = PlanGenerationWireAnchor & {
   cityId?: CityId | null;
+  drinkRequest?: PublicDrinkRequest;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
 /** Remove values inherited from an earlier intake before applying its current answers. */
@@ -695,24 +700,33 @@ export function buildPlanGenerationIntakeBody(
   currentContext: NightContext | null,
   explicitContext: Partial<NightContext> = {},
   anchor?: PlanGenerationAnchorInput | null,
+  routeVenueIds?: readonly string[],
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
-  const context = {
-    ...stripPlanIntakeOwnedContext(currentContext),
-    ...explicitContext,
-    ...planIntakeNightContextPatch(draft),
-  };
+  const selected = cleanSelectedDrinkPriceEvidence(anchor?.selectedDrinkPriceEvidence);
+  // A recovered night or a deliberate edit owns its category; the acceptance
+  // seeds only an unanswered choice, never replaces an existing one.
+  const drinkRequest = cleanPublicDrinkRequest(anchor?.drinkRequest);
+  const acceptedChoice: Partial<NightContext> = !explicitContext.zeroProof && !currentContext?.zeroProof
+    ? drinkRequest ?? (selected ? { drinkCategory: selected.category } : {}) : {};
+  const context = mergeNightContext(
+    mergeNightContext(mergeNightContext(acceptedChoice, stripPlanIntakeOwnedContext(currentContext)), explicitContext),
+    planIntakeNightContextPatch(draft),
+  );
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
     ...(Object.keys(context).length > 0 ? { context } : {}),
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
     intake: planIntakeHandoff(draft),
+    ...(routeVenueIds ? { routeVenueIds: [...routeVenueIds] } : {}),
     ...(anchor ? {
       anchor: {
         venueId: anchor.venueId,
         source: anchor.source,
         acceptedArea: anchor.acceptedArea,
         startsAt: anchor.startsAt,
+        ...(selected && selectedDrinkPriceEvidenceMatchesContext(selected, context)
+          ? { selectedDrinkPriceEvidence: selected } : {}),
       },
     } : {}),
   };

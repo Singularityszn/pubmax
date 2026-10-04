@@ -8,6 +8,7 @@ import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
+import PublishedMenuPrices from "@/components/map/PublishedMenuPrices";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
@@ -24,7 +25,10 @@ import {
 } from "@/lib/communityPrice";
 import { DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parsePublicOverlay, type PublicHarvestOverlay } from "@/lib/harvestFold";
+import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
+import { drinkCategoryIndexKey, listedServingGroup } from "@/lib/listedPriceComparison";
 import { discardBody } from "@/lib/responseBody";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice, type Venue } from "@/lib/venues";
@@ -35,8 +39,12 @@ import {
   drinkLensEmptyVenueNote,
   drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
+  readListedDrinkIndex,
+  type CategoryPriceIndexStatus,
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
+
+import { Button } from "@/components/ui/button";
 
 import "./unverifiedPubSheet.css";
 
@@ -55,6 +63,10 @@ type UnverifiedPubSheetProps = {
   experienceLens?: MapExperienceLens;
   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
   drinkLensCategory?: DrinkCategory | null;
+  drinkLensSubtype?: string | null;
+  drinkServingGroup?: string | null;
+  onAcceptStop1?: () => void;
+  acceptanceError?: string | null;
 };
 
 export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverlay }) {
@@ -99,28 +111,91 @@ function knownHereLead(placeNoun: string, venue: Venue): string {
   return venue.placesContent ? `We know this ${placeNoun} is here.` : `We know this ${placeNoun} is here, and that is all we know.`;
 }
 
-export default function UnverifiedPubSheet({
+function basePriceReadLabel({
+  published,
+  community,
+  unread,
+  communityPending,
+  publishedPending,
+  publishedPartial,
+}: {
+  published: boolean;
+  community: boolean;
+  unread: boolean;
+  communityPending: boolean;
+  publishedPending: boolean;
+  publishedPartial: boolean;
+}) {
+  if (published) return "Published menu prices";
+  if (community) return "Community price";
+  if (unread) return "Prices unread";
+  if (publishedPartial) return "Published menu prices incomplete";
+  if (communityPending) return "Checking community prices";
+  if (publishedPending) return "Checking published menu prices";
+  return "No price yet";
+}
+
+function selectedBasePublishedPrices(
+  communityPrices: CommunityPricesState,
+  pubId: string,
+  category: DrinkCategory,
+  subtype: string | null,
+  serving: string | null,
+): { prices: readonly ListedCategoryPrice[] | null | undefined; status: CategoryPriceIndexStatus } {
+  const key = drinkCategoryIndexKey(category, serving, subtype);
+  const status = communityPrices.drinkCategoryIndexStatus.get(key) ?? "idle";
+  if (status === "degraded") return { prices: null, status };
+  if (status === "idle" || status === "loading") return { prices: undefined, status };
+  const ownRows = (communityPrices.listedDrinkPrices.get(key) ?? [])
+    .filter((quote) => quote.venueId === pubId);
+  const prices = readListedDrinkIndex(ownRows, category, subtype).flatMap((quote) => {
+    if (!quote.category || !quote.sourceUrl || !quote.observedAt) return [];
+    if (serving && listedServingGroup(category, quote.servingSize, subtype) !== serving) return [];
+    return [{
+      source: "listed" as const,
+      category: quote.category,
+      drinkLabel: quote.drinkLabel ?? null,
+      priceGbp: quote.priceGbp,
+      servingSize: quote.servingSize ?? null,
+      sourceUrl: quote.sourceUrl,
+      observedAt: quote.observedAt,
+    }];
+  });
+  return { prices, status };
+}
+
+function basePubPriceReading({
   pub,
   communityPrices,
-  experienceLens = "all",
-  drinkLensCategory = null,
-}: UnverifiedPubSheetProps) {
-  const { user, loading: authLoading, configured: authConfigured } = useAuth();
-  // The base-layer half of the release funnel's third step, through the one
-  // hook the curated sheet uses.
-  useVenueSheetOpened(pub.id, "uk_base");
-  const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
-  const [places, setPlaces] = useState<{ id: string; record: PlacesEnrichmentRecord } | null>(null);
-  const detailVenue = applyPlacesEnrichment({
-    ...slimVenueToPin({ id: pub.id, name: pub.name, lat: pub.lat, lng: pub.lng, borough: "", cheapestPrice: null }),
-    address: pub.address,
-  }, places?.id === pub.id ? places.record : null);
+  experienceLens,
+  drinkLensCategory,
+  drinkLensSubtype,
+  drinkServingGroup,
+}: Pick<Required<UnverifiedPubSheetProps>,
+  "pub" | "communityPrices" | "experienceLens" | "drinkLensCategory" | "drinkLensSubtype" | "drinkServingGroup"
+>) {
   const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
   const pricesKnown = readStatus === "ready";
   const readFailed = readStatus === "degraded";
   const rows = communityPrices.byVenueId.get(pub.id);
+  const subtype = experienceLens === "all" && drinkLensCategory
+    ? parseDrinkSubtypeParam(drinkLensSubtype, drinkLensCategory) : null;
+  const serving = experienceLens === "all" && drinkLensCategory
+    ? listedServingGroup(drinkLensCategory, drinkServingGroup, subtype?.id) : null;
+  const selectedPublished = drinkLensCategory && (subtype || serving)
+    ? selectedBasePublishedPrices(communityPrices, pub.id, drinkLensCategory, subtype?.id ?? null, serving)
+    : null;
+  const listed = selectedPublished
+    ? selectedPublished.prices : communityPrices.listedPricesByVenueId?.get(pub.id);
+  const visibleListed = (listed ?? []).filter((quote) =>
+    experienceLens === "food" ? false
+      : experienceLens === "no-alcohol"
+        ? quote.category === "soft-drink" || quote.category === "alcohol-free"
+        : !drinkLensCategory || quote.category === drinkLensCategory,
+  );
+  const hasPublished = visibleListed.length > 0;
   const communityPrice = freshestCommunityPrice(
-    experienceLens === "food"
+    selectedPublished || experienceLens === "food"
       ? undefined
       : experienceLens === "no-alcohol"
       ? rows?.filter(
@@ -144,8 +219,51 @@ export default function UnverifiedPubSheet({
       ? priceBand(communityPrice.priceGbp, baseBandArea)
       : null;
   const drinkLensNoun = drinkLensCategory
-    ? drinkLensPriceNoun(drinkLensCategory)
+    ? subtype?.longLabel.toLowerCase() ?? drinkLensPriceNoun(drinkLensCategory)
     : null;
+
+  const priceReadLabel = basePriceReadLabel({
+    published: hasPublished,
+    community: Boolean(communityPrice),
+    unread: selectedPublished ? listed === null : readFailed || listed === null,
+    communityPending: !selectedPublished && !pricesKnown,
+    publishedPending: listed === undefined && experienceLens !== "food",
+    publishedPartial: selectedPublished?.status === "partial",
+  });
+  return {
+    readStatus, pricesKnown, readFailed, listed, visibleListed, hasPublished,
+    communityPrice, communityTrustStanding, baseBandArea, basePriceBand,
+    drinkLensNoun, selectedPublished, priceReadLabel,
+  };
+}
+
+export default function UnverifiedPubSheet({
+  pub,
+  communityPrices,
+  experienceLens = "all",
+  drinkLensCategory = null,
+  drinkLensSubtype = null,
+  drinkServingGroup = null,
+  onAcceptStop1,
+  acceptanceError = null,
+}: UnverifiedPubSheetProps) {
+  const { user, loading: authLoading, configured: authConfigured } = useAuth();
+  // The base-layer half of the release funnel's third step, through the one
+  // hook the curated sheet uses.
+  useVenueSheetOpened(pub.id, "uk_base");
+  const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
+  const [places, setPlaces] = useState<{ id: string; record: PlacesEnrichmentRecord } | null>(null);
+  const detailVenue = applyPlacesEnrichment({
+    ...slimVenueToPin({ id: pub.id, name: pub.name, lat: pub.lat, lng: pub.lng, borough: "", cheapestPrice: null }),
+    address: pub.address,
+  }, places?.id === pub.id ? places.record : null);
+  const {
+    readStatus, pricesKnown, readFailed, listed, visibleListed, hasPublished,
+    communityPrice, communityTrustStanding, baseBandArea, basePriceBand,
+    drinkLensNoun, selectedPublished, priceReadLabel,
+  } = basePubPriceReading({
+    pub, communityPrices, experienceLens, drinkLensCategory, drinkLensSubtype, drinkServingGroup,
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -185,13 +303,7 @@ export default function UnverifiedPubSheet({
       <div className="unverifiedPubHead">
         <span className="unverifiedPubTag">
           <Sparkles size={12} aria-hidden="true" />
-          {communityPrice
-            ? "Community price"
-            : pricesKnown
-              ? "No price yet"
-              : readFailed
-                ? "Prices unread"
-                : "Checking community prices"}
+          {priceReadLabel}
         </span>
         <h2 className="unverifiedPubName">{pub.name}</h2>
         {detailVenue.address ? (
@@ -201,6 +313,14 @@ export default function UnverifiedPubSheet({
           </p>
         ) : null}
       </div>
+
+      {experienceLens !== "food" ? (
+        <PublishedMenuPrices
+          prices={visibleListed}
+          unavailable={listed === null}
+          loading={listed === undefined}
+        />
+      ) : null}
 
       {communityPrice ? (
         <>
@@ -237,6 +357,12 @@ export default function UnverifiedPubSheet({
             />
           </div>
         </>
+      ) : hasPublished ? null : selectedPublished ? (
+        selectedPublished.status === "ready" ? (
+          <p className="unverifiedPubLead">No {drinkLensNoun} menu price recorded here.</p>
+        ) : selectedPublished.status === "partial" ? (
+          <p className="unverifiedPubLead">Published menu prices are incomplete.</p>
+        ) : null
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
           {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
@@ -261,6 +387,12 @@ export default function UnverifiedPubSheet({
         </p>
       ) : null}
 
+      {pub.kind === "pub" && onAcceptStop1 ? (
+        <Button type="button" variant="ghost" onClick={onAcceptStop1} aria-label={`Make ${pub.name} Stop 1`}>
+          Make it Stop 1
+        </Button>
+      ) : null}
+      {acceptanceError ? <p role="alert">{acceptanceError}</p> : null}
       <VenuePlacesDetails venue={detailVenue} links websiteLink />
       {overlay ? <HarvestOverlayFields overlay={detailVenue.website ? { ...overlay, website: null } : overlay} /> : null}
 
@@ -285,7 +417,7 @@ export default function UnverifiedPubSheet({
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:
-          the pub's existence is sourced, its price is not. */}
+          OSM sources the location, while each price names its own source. */}
       <p className="unverifiedPubSource">
         {placeNoun === "bar" ? "Bar" : "Pub"} location from{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">

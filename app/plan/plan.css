@@ -249,15 +249,17 @@
 .planRoute__stopsTrack {
   position: relative;
   margin-top: 42px;
+  --plan-route-marker-size: 48px;
 }
 
 /* The route spine belongs to the stops only (#1539), never the crew card. */
 .planRoute__stopsTrack .planSummary__rail {
   position: absolute;
-  left: clamp(46px, 7vw, 78px);
+  left: calc(var(--plan-route-marker-size) / 2);
   top: 0;
   bottom: 0;
   width: 3px;
+  transform: translateX(-50%);
   border-radius: 2px;
   background: var(--plan-accent);
 }
@@ -268,8 +270,8 @@
 .planSummary__stops li { min-height: 92px; display: grid; grid-template-columns: 58px 1fr; gap: 22px; align-items: center; position: relative; }
 .planSummary__marker {
   z-index: 1;
-  width: 48px;
-  height: 48px;
+  width: var(--plan-route-marker-size);
+  height: var(--plan-route-marker-size);
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -583,6 +585,9 @@
 .planComposer__acceptedList > div { min-width: 0; display: grid; gap: 4px; }
 .planComposer__acceptedList dt { color: var(--muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
 .planComposer__acceptedList dd { min-width: 0; margin: 0; color: var(--ink); font-weight: 800; overflow-wrap: anywhere; }
+.planComposer__acceptedList > .planComposer__acceptedQuote { grid-column: 1 / -1; }
+.planComposer__acceptedQuote dd { font-size: var(--text-sm); font-weight: 500; line-height: 1.5; }
+.planComposer__acceptedQuote a { color: var(--plan-accent-strong); text-underline-offset: 0.16em; }
 .planComposer__acceptedNote { margin: 14px 0 0; color: var(--ink-soft); font-size: 0.8rem; }
 /* The way out of a held acceptance. Quiet by weight, full 44px by touch: it is
    never the thing to do next, but it must be reachable with a thumb. */
@@ -1132,7 +1137,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planCollab { margin-left: 0; padding: 15px; }
   .planCollab__fields { grid-template-columns: 1fr; }
   .planSummary__stops li { grid-template-columns: 48px 1fr; gap: 14px; }
-  .planSummary__marker { width: 42px; height: 42px; box-shadow: 0 0 0 5px var(--panel-raised); }
+  .planRoute__stopsTrack { --plan-route-marker-size: 42px; }
+  .planSummary__marker { box-shadow: 0 0 0 5px var(--panel-raised); }
   .planComposer__routeStale { align-items: stretch; flex-direction: column; }
   .planComposer__regenerate { width: 100%; }
   .planComposer__routeStatus { margin-left: 0; }
@@ -1289,9 +1295,15 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   text-decoration: none;
   border-radius: var(--radius-lg, 18px);
 }
-.planRouteMiniMap--clickable:focus-visible {
+.planRouteMiniMap__routeLink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+.planRouteMiniMap__routeLink:focus-visible {
   outline: 2px solid var(--plan-accent-strong);
-  outline-offset: 3px;
+  outline-offset: -3px;
 }
 .planRouteMiniMap__title {
   margin: 0 0 8px;

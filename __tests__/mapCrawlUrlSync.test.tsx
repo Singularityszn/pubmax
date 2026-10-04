@@ -63,6 +63,7 @@ function HistoryHarness({
   zone = initialFilters.zone,
   plan,
   pending = false,
+  landmarkId = "",
 }: {
   query: string;
   drinkCategory?: Filters["drinkCategory"];
@@ -70,13 +71,14 @@ function HistoryHarness({
   holdCleanUrl?: boolean;
   maxPrice?: number;
   zone?: Filters["zone"];
-  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId">;
+  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId" | "routeDrinkIntent">;
   pending?: boolean;
+  landmarkId?: string;
 }) {
   const state = useMemo(() => {
     const current = mapState(query, drinkCategory, selectedVenueId);
-    return { ...current, ...plan, filters: { ...current.filters, maxPrice, zone } };
-  }, [query, drinkCategory, selectedVenueId, maxPrice, zone, plan]);
+    return { ...current, ...plan, landmarkId, filters: { ...current.filters, maxPrice, zone } };
+  }, [query, drinkCategory, selectedVenueId, maxPrice, zone, plan, landmarkId]);
   const onSurfaceClose = useCrawlUrlSync(state, holdCleanUrl, pending);
   const trail = useMapSurfaceNavigation({
     arrivalSearch: window.location.search,
@@ -127,6 +129,22 @@ describe("curated crawl URL hydration hold", () => {
     act(() => vi.advanceTimersByTime(300));
     expect(window.location.search).toContain("contribute=price");
     expect(window.location.search).toContain("sel=venue-16pnwmm");
+  });
+
+  it("keeps the log intent's price while the selected venue syncs", async () => {
+    window.history.replaceState({}, "", "/map?sel=venue-16pnwmm&log=1&price=6.50");
+    await act(async () => {
+      root.render(createElement(Harness, {
+        query: "",
+        pending: false,
+        selectedVenueId: "venue-16pnwmm",
+      }));
+    });
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("log")).toBe("1");
+    expect(params.get("price")).toBe("6.50");
+    expect(params.get("sel")).toBe("venue-16pnwmm");
   });
 
   it("keeps crawl identity when map state changes before hydration", async () => {
@@ -180,6 +198,24 @@ async function traverseHistory(action: () => void) {
 }
 
 describe("crawl identity after Map history traversal", () => {
+  it("keeps a clean Back checkpoint while a direct landmark story loads", async () => {
+    window.history.replaceState({}, "", "/map?landmark=covent-garden");
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "", landmarkId: "covent-garden" }));
+    });
+    expect(window.history.state.pubmaxMapSurface.stack).toMatchObject([
+      { id: "landmark", state: { landmarkId: "covent-garden" } },
+    ]);
+    expect(window.location.search).toBe("?landmark=covent-garden");
+
+    act(() => vi.advanceTimersByTime(300));
+    expect(window.location.search).toBe("?landmark=covent-garden");
+
+    await traverseHistory(() => closeHistorySurfaces());
+    expect(window.location.pathname + window.location.search).toBe("/map");
+    expect(window.history.state.pubmaxMapSurface.stack).toEqual([]);
+  });
+
   it.each(["back", "home", "forward"] as const)(
     "reloads edited stops after %s before the debounce",
     async (direction) => {
@@ -527,5 +563,123 @@ describe("crawl URL after Map history traversal", () => {
     });
 
     expect(window.location.pathname + window.location.search).toBe("/map");
+  });
+});
+
+describe("selected serving crawl URL continuity", () => {
+  it("keeps an explicit serving for the same category and retires it when category changes or clears", async () => {
+    window.history.replaceState({}, "", "/map?drink=gin&serving=25ml&contribute=price");
+    await act(async () => root.render(createElement(Harness, { query: "Brownswood", pending: false, drinkCategory: "gin" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("serving")).toBe("25ml");
+    expect(new URLSearchParams(window.location.search).get("contribute")).toBe("price");
+    await act(async () => root.render(createElement(Harness, { query: "Brownswood", pending: false, drinkCategory: "wine" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
+    window.history.replaceState(window.history.state, "", "/map?drink=wine&serving=125ml");
+    await act(async () => root.render(createElement(Harness, { query: "Sydney", pending: false, drinkCategory: "wine" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("serving")).toBe("125ml");
+    await act(async () => root.render(createElement(Harness, { query: "Sydney", pending: false, drinkCategory: "" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
+  });
+});
+
+
+describe("public route intent at the landed history owner", () => {
+  it("keeps independent route/lens intent, then removes route intent on actual Home after manual replacement", async () => {
+    window.history.replaceState({ root: true }, "", "/map?mode=build&pubs=a,b,c&routeDrink=vodka&drink=gin");
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ["a", "b", "c"],
+        routeDrinkIntent: { drinkCategory: "vodka", zeroProof: false } },
+    })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("routeDrink")).toBe("vodka");
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe("gin");
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ["c", "b"], routeDrinkIntent: null },
+    })));
+    await traverseHistory(() => closeHistorySurfaces());
+    const landed = new URLSearchParams(window.location.search);
+    expect(landed.has("routeDrink")).toBe(false);
+    expect(landed.has("routeLow")).toBe(false);
+    expect(landed.get("drink")).toBe("gin");
+    expect(landed.get("pubs")).toBe("c,b");
+    expect(window.history.state.root).toBe(true);
+  });
+});
+
+
+describe("Cider request at the mounted landed history owner", () => {
+  it.each(["back", "home", "forward"].flatMap((direction) =>
+    [null, "pint", "500ml"].map((drinkServing) => ({ direction, drinkServing }))))(
+    "keeps newly selected Cider/$drinkServing after $direction before debounce", async ({ direction, drinkServing }) => {
+    const { routeDrinkIntentFromSearch } = await import("@/lib/crawlUrl");
+    const ids = ["venue-13xdb1p", "venue-companion"];
+    window.history.replaceState({ root: true }, "", "/map?mode=build&pubs=venue-13xdb1p,venue-companion&drink=gin#route");
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ids },
+    })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    if (direction === "home") act(() => openHistorySurface({ id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE }));
+    if (direction === "forward") await traverseHistory(() => window.history.back());
+    const historyLength = window.history.length;
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ids,
+        routeDrinkIntent: { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing, zeroProof: false } },
+    })));
+    await traverseHistory(() => {
+      if (direction === "home") closeHistorySurfaces();
+      else if (direction === "forward") window.history.forward();
+      else window.history.back();
+    });
+    const expectedIntent = { drinkCategory: "beer", drinkSubtype: "beer-cider",
+      ...(drinkServing ? { drinkServing } : {}), zeroProof: false };
+    expect(routeDrinkIntentFromSearch(window.location.search)).toEqual(expectedIntent);
+    expect(seedCrawlState(window.location.search).routeDrinkIntent).toEqual(expectedIntent);
+    expect(new URLSearchParams(window.location.search).get("routeServing")).toBe(drinkServing);
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe("gin");
+    expect(new URLSearchParams(window.location.search).get("pubs")).toBe(ids.join(","));
+    expect(window.history.length).toBe(historyLength);
+    expect(window.history.state.root).toBe(true);
+    expect(window.location.hash).toBe("#route");
+    expect(window.location.search).not.toMatch(/pence|sourceUrl|observedAt|drinkLabel|memberToken|lat=|lng=/);
+  });
+
+  it.each([
+    { direction: "back", intent: { drinkCategory: "beer" as const, zeroProof: false }, expected: null },
+    { direction: "home", intent: { drinkCategory: "beer" as const, drinkSubtype: "beer-cider", drinkServing: "500ml", zeroProof: true }, expected: { zeroProof: true } },
+    { direction: "forward", intent: { drinkCategory: "wine" as const, zeroProof: false }, expected: { drinkCategory: "wine", zeroProof: false } },
+  ])("removes stale Cider refinements on $direction when route choice changes", async ({ direction, intent, expected }) => {
+    const { routeDrinkIntentFromSearch } = await import("@/lib/crawlUrl");
+    const ids = ["venue-13xdb1p", "venue-companion"];
+    window.history.replaceState({ root: true }, "", "/map?mode=build&pubs=venue-13xdb1p,venue-companion&routeDrink=beer&routeSub=beer-cider&routeServing=500ml&drink=gin#route");
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ids,
+        routeDrinkIntent: { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing: "500ml", zeroProof: false } },
+    })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    if (direction === "home") act(() => openHistorySurface({ id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE }));
+    if (direction === "forward") await traverseHistory(() => window.history.back());
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", drinkCategory: "gin", plan: { mode: "build", builtIds: ids, routeDrinkIntent: intent },
+    })));
+    await traverseHistory(() => {
+      if (direction === "home") closeHistorySurfaces();
+      else if (direction === "forward") window.history.forward();
+      else window.history.back();
+    });
+    const landed = new URLSearchParams(window.location.search);
+    expect(landed.has("routeSub")).toBe(false);
+    expect(landed.has("routeServing")).toBe(false);
+    expect(routeDrinkIntentFromSearch(window.location.search)).toEqual(expected);
+    expect(landed.get("drink")).toBe("gin");
+    expect(landed.get("pubs")).toBe(ids.join(","));
+    expect(window.history.state.root).toBe(true);
+    expect(window.location.hash).toBe("#route");
   });
 });

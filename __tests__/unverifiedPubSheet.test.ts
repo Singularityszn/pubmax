@@ -40,6 +40,9 @@ function state(
     byVenueId: known ? new Map([[pub.id, rows]]) : new Map(),
     signalsByVenueId: new Map(),
     freshestByVenueId: new Map(),
+    listedNoAlcoholPrices: [],
+    listedDrinkPrices: new Map(),
+    listedPricesByVenueId: known ? new Map([[pub.id, []]]) : new Map(),
     noAlcoholIndexStatus: "idle",
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: () => {},
@@ -170,7 +173,7 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "no-alcohol");
-    expect(empty).toContain("No alcohol-free or soft drink price logged here yet");
+    expect(empty).toContain("No alcohol-free or soft drink price logged by drinkers yet.");
     expect(empty).not.toContain("£5.80");
   });
 
@@ -197,19 +200,19 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "all", "ready", "coffee");
-    expect(empty).toContain("No coffee price logged here yet.");
+    expect(empty).toContain("No coffee price logged by drinkers yet.");
     expect(empty).not.toContain("£5.80");
     expect(empty).not.toContain("alcohol-free or soft drink");
     expect(empty).not.toContain("Nobody has logged");
 
     const loading = renderSheet([], "all", "loading", "coffee");
     expect(loading).toContain("Checking coffee prices logged here.");
-    expect(loading).not.toContain("No coffee price logged here yet.");
+    expect(loading).not.toContain("No coffee price logged by drinkers yet.");
 
     const degraded = renderSheet([], "all", "degraded", "coffee");
     expect(degraded).toContain("could not read this pub");
     expect(degraded).toContain("coffee prices just now");
-    expect(degraded).not.toContain("No coffee price logged here yet.");
+    expect(degraded).not.toContain("No coffee price logged by drinkers yet.");
   });
 
   it("never shows a beer price in the food view", () => {
@@ -295,6 +298,19 @@ describe("UnverifiedPubSheet", () => {
     expect(html).toContain("No price yet");
     expect(html).toContain("Nobody has logged");
     expect(html).toContain("is here, and that is all we know.");
+  });
+
+  it.each([
+    { prices: undefined, label: "Checking published menu prices" },
+    { prices: null, label: "Prices unread" },
+  ])("does not call an unanswered publisher read empty: $label", ({ prices, label }) => {
+    const communityPrices = state([]);
+    communityPrices.listedPricesByVenueId = prices === undefined
+      ? new Map() : new Map([[pub.id, prices]]);
+    const html = renderToStaticMarkup(createElement(UnverifiedPubSheet, { pub, communityPrices }));
+
+    expect(html).toContain(label);
+    expect(html).not.toContain("No price yet");
   });
 
   it("does not claim overlay absence on first paint", () => {

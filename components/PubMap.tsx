@@ -343,9 +343,10 @@ const LogIntentFallback = dynamic(
   { ssr: false },
 );
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
-import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { currentMapRoutePricing, useMapPlanCoordinator, useMapPlanPresentation, type GeneratedMapRoutePricing } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
-import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import { seedCrawlState, useCrawlUrlSync, type CrawlServingChoice } from "@/components/map/useCrawlUrl";
+import { routeDrinkIntentFromSearch } from "@/lib/crawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
   clearFavoritePint,
@@ -424,7 +425,7 @@ import {
   scheduleLogIntentReveal,
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
-import { warmVenueDetail } from "@/lib/warmVenueDetail";
+import { getWarmedVenue, warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -471,11 +472,12 @@ import {
   isMapLensDrinkCategory,
   lensPricesForVenues,
   parseMapExperienceLensParam,
-  trustedDrinkLensPrices,
+  discoveryDrinkLensPrices,
   trustedNoAlcoholLensPrices,
   MAP_EXPERIENCE_LENS_URL_PARAM,
   type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
+  type MapLensPrice,
 } from "@/lib/mapExperienceLens";
 import { loadSpoonsValueLane } from "@/lib/spoonsValueLane";
 import {
@@ -488,7 +490,7 @@ import {
 import { type DrinkCategory } from "@/lib/drinks";
 import {
   activeDrinkLane,
-  applyDrinkLane,
+  tapDrinkLane,
   DEFAULT_DRINK_LANE,
   drinkLaneLabel,
   venueDrinkPriceView,
@@ -620,6 +622,9 @@ import {
   builtStopCountFor,
   phonePlannerOrder,
 } from "@/lib/pubMap";
+import { drinkCategoryIndexKey, listedServingGroup } from "@/lib/listedPriceComparison";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
   parseUkPlaceIndex,
@@ -698,6 +703,32 @@ function subscribeAcceptedArrival(
     cancelExpiry();
     for (const name of ACCEPTED_ARRIVAL_EVENTS) window.removeEventListener(name, notify);
   };
+}
+
+/** A drink lens quote names its own source-stated serving, or says it has none. */
+function lensPriceCaption(price: MapLensPrice | null, drinkLens: boolean): string | null {
+  if (!price) return null;
+  return drinkLens ? `${price.categoryLabel} · ${price.servingSize ?? "Serving not recorded"}` : price.categoryLabel;
+}
+
+/** A restored route's drink-price read speaks only while its Build route is shown. */
+function restoredRoutePriceNoticeFor(buildRoute: boolean, status: CategoryPriceIndexStatus | null): string | null {
+  if (!buildRoute || !status || status === "ready") return null;
+  if (status === "degraded") return "Current drink prices could not be read. Try again by reopening this route.";
+  if (status === "partial") return "Some current drink prices could not be read. Prices shown keep their source and date.";
+  return "Checking current drink prices. The round total is not recorded.";
+}
+
+function restoredDrinkSelection(generatedPricing: GeneratedMapRoutePricing | null) {
+  const restoredRouteCategory = generatedPricing?.readCurrentQuotes && !generatedPricing.context.zeroProof
+    ? generatedPricing.context.drinkCategory ?? null : null;
+  const restoredRouteSubtype = restoredRouteCategory
+    ? parseDrinkSubtypeParam(generatedPricing?.context.drinkSubtype, restoredRouteCategory)?.id ?? null : null;
+  const restoredRouteServing = restoredRouteCategory
+    ? generatedPricing?.context.drinkServing ?? null : null;
+  const restoredRouteIndexKey = restoredRouteCategory
+    ? drinkCategoryIndexKey(restoredRouteCategory, restoredRouteServing, restoredRouteSubtype) : null;
+  return { restoredRouteCategory, restoredRouteSubtype, restoredRouteServing, restoredRouteIndexKey };
 }
 
 function noAcceptedArrivalSource(): null {
@@ -988,9 +1019,10 @@ function readBandChipDismissed(bandId: string): boolean {
 function activeLensNounFor(
   mapDrinkLensCategory: DrinkCategory | null,
   experienceLens: MapExperienceLensValue,
+  drinkSubtype?: string | null,
 ): string | null {
   return mapDrinkLensCategory
-    ? drinkLensPriceNoun(mapDrinkLensCategory)
+    ? parseDrinkSubtypeParam(drinkSubtype, mapDrinkLensCategory)?.longLabel.toLowerCase() ?? drinkLensPriceNoun(mapDrinkLensCategory)
     : experienceLens === "no-alcohol"
       ? NO_ALCOHOL_LENS_PRICE_NOUN
       : experienceLens === "food"
@@ -1023,6 +1055,7 @@ export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
   nationalBrowse = false,
+  incomingSearch,
 }: {
   cityId?: CityId;
   /**
@@ -1038,11 +1071,16 @@ export default function PubMap({
    * appear once the camera crosses the base zoom gate. Never invents prices.
    */
   nationalBrowse?: boolean;
+  /** Canonical router arrival; undefined preserves direct caller fallback. */
+  incomingSearch?: string;
 }) {
+  // One arrival feeds every initializer. Later URL reflection must not revive
+  // stops or price authority after the reader edits or clears the route.
+  const [arrivalSearch] = useState(() => incomingSearch ?? currentSearch());
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
   const [ukNationalBrowse] = useState(
-    () => nationalBrowse || isUkNationalBrowse(currentSearch()),
+    () => nationalBrowse || isUkNationalBrowse(arrivalSearch),
   );
   // National gazetteer for map search (same places.json as the /places town search).
   // Loaded once when the reader types two characters or arrives on a national
@@ -1066,7 +1104,7 @@ export default function PubMap({
     return pending;
   }, []);
   const [lastKnownLocation] = useState(() =>
-    currentSearch() ? null : readMapOpeningLocation(),
+    arrivalSearch ? null : readMapOpeningLocation(),
   );
   const arrivalSearchNow = currentSearch();
   const arrival = useMemo(
@@ -1080,7 +1118,14 @@ export default function PubMap({
       }),
     [arrivalSearchNow, ukPlaceArrival, ukNationalBrowse, cityId, city.displayName],
   );
-  const mapOpeningNeedsResolution = arrival.needsOpeningResolution;
+  // Opening resolution belongs to this arrival, not later URL reflection.
+  const [mapOpeningNeedsResolution] = useState(() => mapArrivalFrame({
+    search: arrivalSearch,
+    placeArrival: ukPlaceArrival,
+    nationalBrowse: ukNationalBrowse,
+    cityId,
+    cityDisplayName: city.displayName,
+  }).needsOpeningResolution);
   const [initialMapView] = useState<MapViewportSnapshot>(() => {
     if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
     if (ukNationalBrowse) {
@@ -1163,15 +1208,12 @@ export default function PubMap({
   // URL is the only share/restore source — do NOT resurrect a previous hand-built
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
-  const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch(), cityId));
+  const [seed] = useState<MapSeed>(() => buildMapSeed(arrivalSearch, cityId));
   const [restoredMobileSession] = useState(() => {
-    if (currentSearch()) return null;
+    if (arrivalSearch) return null;
     const saved = readMobileMapSession();
     return saved?.cityId === cityId ? saved : null;
   });
-  // Freeze arrival search with the seed so fit-on-arrival does not flip when the
-  // user later maps a route or the address bar syncs.
-  const [arrivalSearch] = useState(() => currentSearch());
   // A restored /map?sel=venue-uk-* arrival: the base pub's id plus the `at=`
   // location hint the selecting tap wrote alongside sel. The id alone carries
   // no coordinates and no shard cell, so without the hint an older link
@@ -1179,7 +1221,7 @@ export default function PubMap({
   // rather than opening a guessed pub.
   const [ukBaseRestore] = useState(() => {
     if (!seed.selectedVenueId || !isUkBaseId(seed.selectedVenueId)) return null;
-    const hint = parseSelectionHint(currentSearch());
+    const hint = parseSelectionHint(arrivalSearch);
     return hint ? { id: seed.selectedVenueId, ...hint } : null;
   });
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
@@ -1192,16 +1234,16 @@ export default function PubMap({
   // PlanningIntent is always explicit Map intent.
   const [explicitArrivalIntent] = useState(() =>
     explicitMapIntent({
-      search: currentSearch(),
+      search: arrivalSearch,
       planningIntent: readPlanningIntent(),
       restoredMobileSession,
     }),
   );
   const [mapResumeSeed] = useState(() =>
-    currentSearch() ? null : readMapResumeSync(cityId),
+    arrivalSearch ? null : readMapResumeSync(cityId),
   );
   const shouldResolveOpeningLocation = shouldResolveOpeningLocationFor({
-    needsOpeningResolution: arrival.needsOpeningResolution,
+    needsOpeningResolution: mapOpeningNeedsResolution,
     mapResumeSeed,
     restoredMobileSession,
   });
@@ -1268,10 +1310,10 @@ export default function PubMap({
         restoredSession: restoredMobileSession,
         resumeSeed: mapResumeSeed,
         cityId,
-        search: arrivalSearchNow,
+        search: arrivalSearch,
         shouldOpenPlanningInitially,
       }),
-    [arrivalSearchNow, cityId, mapResumeSeed, restoredMobileSession, seed],
+    [arrivalSearch, cityId, mapResumeSeed, restoredMobileSession, seed],
   );
   const mapResumeSeedConsumedRef = useRef(false);
   // `loaded` means the slim map index has settled. Source datasets are not
@@ -1444,7 +1486,7 @@ export default function PubMap({
     noAcceptedArrivalSource,
   );
   const [arrivalSelectionNotice, setArrivalSelectionNotice] = useState<MapSelectionNotice | null>(
-    () => mapSelectionNoticeFromSearch(currentSearch()),
+    () => mapSelectionNoticeFromSearch(arrivalSearch),
   );
   const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
     () => arrivalSelectionNotice,
@@ -1507,10 +1549,10 @@ export default function PubMap({
   // holds, because nothing asks for it until a reader arrives under it or the
   // map has drawn the control to switch it over.
   const [spoonsValueOn, setSpoonsValueOn] = useState(() =>
-    spoonsValueLensRequested(currentSearch()),
+    spoonsValueLensRequested(arrivalSearch),
   );
   const [spoonsValueRead, setSpoonsValueRead] = useState<SpoonsValueLensState>(() =>
-    spoonsValueReadForToggle(spoonsValueLensRequested(currentSearch())),
+    spoonsValueReadForToggle(spoonsValueLensRequested(arrivalSearch)),
   );
   const [spoonsValueLaneRead, setSpoonsValueLaneRead] =
     useState<SpoonsValuePinLane | null>(null);
@@ -1552,7 +1594,7 @@ export default function PubMap({
   }, [spoonsValueOn]);
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
-  const [experiencePolicyNow] = useState(() => Date.now());
+  const [experiencePolicyNow, setExperiencePolicyNow] = useState(() => Date.now());
   const [mapOverlay, setMapOverlay] = useState<MapOverlay>(() => {
     const restored = restoredMobileSession?.openSheet;
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
@@ -1592,6 +1634,9 @@ export default function PubMap({
     setMode,
     builtIds,
     setBuiltIds,
+    replaceBuiltIds,
+    reverseBuiltIds,
+    generatedPricing,
     routeMapped,
     setRouteMapped,
     planningOpen,
@@ -1600,6 +1645,7 @@ export default function PubMap({
     activateGeneratedPlan,
   } = useMapPlanCoordinator({
     mode: seed.mode,
+    routeDrinkIntent: routeDrinkIntentFromSearch(arrivalSearch),
     builtIds: seed.builtIds,
     routeMapped: seed.routeMapped,
     nightArea: restoredSession.nightArea,
@@ -1723,7 +1769,7 @@ export default function PubMap({
             return;
           }
           setMode("build");
-          setBuiltIds(hydration.crawl.venueIds);
+          replaceBuiltIds(hydration.crawl.venueIds);
           setRouteMapped(true);
           setFilters(hydration.filters);
           setAltStyle(hydration.altStyle);
@@ -1741,7 +1787,7 @@ export default function PubMap({
     arrivalSearch,
     cityId,
     seed,
-    setBuiltIds,
+    replaceBuiltIds,
     setCrawlHydrationPending,
     setFilters,
     setMode,
@@ -1774,7 +1820,7 @@ export default function PubMap({
   const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
-  const [mapListOpen, setMapListOpen] = useState(() => mapListOpenFromSearch(currentSearch()));
+  const [mapListOpen, setMapListOpen] = useState(() => mapListOpenFromSearch(arrivalSearch));
   const [mapListSortMode, setMapListSortMode] =
     useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
@@ -1796,42 +1842,6 @@ export default function PubMap({
     () => mergeLazyDetailPins(slimPins, detailById),
     [slimPins, detailById],
   );
-
-  // A shared crawl may name cell-pack venues that are outside the opening
-  // viewport. Resolve those stops through the existing detail lane so the
-  // route is real on first paint instead of silently dropping unavailable
-  // rows while the spatial loader quite correctly stays viewport-scoped.
-  const seededRouteIds = seed.builtIds;
-  useEffect(() => {
-    const knownIds = new Set(baseVenues.map((venue) => venue.id));
-    const missingRouteIds = seededRouteIds.filter(
-      (id) => !knownIds.has(id) && !isUkBaseId(id),
-    );
-    if (missingRouteIds.length === 0) return;
-    let cancelled = false;
-    void Promise.all(missingRouteIds.map((id) => warmVenueDetail(id))).then(
-      (results) => {
-        if (cancelled) return;
-        const found = results.flatMap((result) =>
-          result.status === "found" ? [result.venue] : [],
-        );
-        if (found.length === 0) return;
-        setDetailById((current) => {
-          const next = new Map(current);
-          let changed = false;
-          for (const venue of found) {
-            if (next.get(venue.id) === venue) continue;
-            next.set(venue.id, venue);
-            changed = true;
-          }
-          return changed ? next : current;
-        });
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [baseVenues, seededRouteIds]);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
@@ -1860,34 +1870,65 @@ export default function PubMap({
   const loadDrinkCategoryIndex = communityPrices.loadDrinkCategoryIndex;
   // `other` is submittable but never lensable, so it selects no map lens: its
   // pins would print a figure labelled with a name that identifies no drink.
-  const { mapDrinkLensCategory } = mapDrinkLensSelection({
-    drinkCategory: filters.drinkCategory,
-    experienceLens,
-    isMapLensDrinkCategory,
-    activeDrinkLane,
-    defaultDrinkLane: DEFAULT_DRINK_LANE,
-  });
   // The lane the reader put the map under, as the lane controls print it. An
   // experience view owns the map instead, and it stands the drink refinements
   // down, so the lane reads as the resting pint lane while one is on rather
   // than naming a drink the pins are not showing.
-  const activeMapDrinkLane: DrinkCategory = mapDrinkLensSelection({
-    drinkCategory: filters.drinkCategory,
-    experienceLens,
-    isMapLensDrinkCategory,
-    activeDrinkLane,
-    defaultDrinkLane: DEFAULT_DRINK_LANE,
-  }).activeMapDrinkLane;
+  const { mapDrinkLensCategory, activeMapDrinkLane } = useMemo(
+    () => mapDrinkLensSelection({
+      drinkCategory: filters.drinkCategory,
+      drinkSubtype: filters.drinkSubtype,
+      experienceLens,
+      isMapLensDrinkCategory,
+      activeDrinkLane,
+      defaultDrinkLane: DEFAULT_DRINK_LANE,
+    }),
+    [filters.drinkCategory, filters.drinkSubtype, experienceLens],
+  );
+  const drinkPriceSubtype = useMemo(
+    () => mapDrinkLensCategory ? parseDrinkSubtypeParam(filters.drinkSubtype, mapDrinkLensCategory)?.id ?? null : null,
+    [filters.drinkSubtype, mapDrinkLensCategory],
+  );
+  const drinkServingGroup = useMemo(
+    () => {
+      if (!mapDrinkLensCategory || searchParams.get("drink") !== mapDrinkLensCategory) return null;
+      const parameterSubtype = parseDrinkSubtypeParam(searchParams.get("sub"), mapDrinkLensCategory)?.id ?? null;
+      if (parameterSubtype !== drinkPriceSubtype) return null;
+      return listedServingGroup(mapDrinkLensCategory, searchParams.get("serving"), drinkPriceSubtype);
+    },
+    [mapDrinkLensCategory, searchParams, drinkPriceSubtype],
+  );
+  const drinkServingGroups = useMemo(
+    () => mapDrinkLensCategory
+      ? communityPrices.drinkServingGroups?.get(drinkCategoryIndexKey(mapDrinkLensCategory, null, drinkPriceSubtype)) ?? [] : [],
+    [mapDrinkLensCategory, communityPrices.drinkServingGroups, drinkPriceSubtype],
+  );
+  const drinkServingChoice = useRef<CrawlServingChoice | null>(null);
+  const changeDrinkServingGroup = useCallback((serving: string | null) => {
+    if (!mapDrinkLensCategory) return;
+    const params = new URLSearchParams(window.location.search);
+    const group = listedServingGroup(mapDrinkLensCategory, serving, drinkPriceSubtype);
+    drinkServingChoice.current = { category: mapDrinkLensCategory, subtype: drinkPriceSubtype, serving: group };
+    params.set("drink", mapDrinkLensCategory);
+    if (drinkPriceSubtype) params.set("sub", drinkPriceSubtype); else params.delete("sub");
+    if (group) params.set("serving", group); else params.delete("serving");
+    const state = { ...window.history.state };
+    delete state.__NA;
+    window.history.replaceState(state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`);
+  }, [mapDrinkLensCategory, drinkPriceSubtype]);
   useEffect(() => {
     if (mapDrinkLensCategory) {
-      loadDrinkCategoryIndex(mapDrinkLensCategory);
+      loadDrinkCategoryIndex(mapDrinkLensCategory, null, drinkPriceSubtype);
+      if (drinkServingGroup) loadDrinkCategoryIndex(mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype);
     }
-  }, [loadDrinkCategoryIndex, mapDrinkLensCategory]);
+  }, [loadDrinkCategoryIndex, mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype]);
   // Whichever cross-venue index is answering the map right now reports its own
   // completeness, so the price key never claims a read it did not finish.
   const drinkIndexStatus: CategoryPriceIndexStatus = useMemo(
     () =>
-      drinkIndexStatusFor(
+      mapDrinkLensCategory && (drinkServingGroup || drinkPriceSubtype)
+        ? communityPrices.drinkCategoryIndexStatus.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype)) ?? "idle"
+        : drinkIndexStatusFor(
         mapDrinkLensCategory,
         experienceLens,
         communityPrices.drinkCategoryIndexStatus,
@@ -1895,6 +1936,8 @@ export default function PubMap({
       ),
     [
       mapDrinkLensCategory,
+      drinkServingGroup,
+      drinkPriceSubtype,
       experienceLens,
       communityPrices.drinkCategoryIndexStatus,
       communityPrices.noAlcoholIndexStatus,
@@ -1903,25 +1946,70 @@ export default function PubMap({
   const drinkLensPrices = useMemo(
     () =>
       mapDrinkLensCategory
-        ? trustedDrinkLensPrices(
+        ? discoveryDrinkLensPrices(
             communityPrices.byVenueId,
             mapDrinkLensCategory,
+            [
+              ...(communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(mapDrinkLensCategory, null, drinkPriceSubtype)) ?? []),
+              ...(drinkServingGroup ? communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype)) ?? [] : []),
+            ],
             experiencePolicyNow,
+            drinkServingGroup,
+            drinkPriceSubtype,
           )
         : null,
     [
       communityPrices.byVenueId,
+      communityPrices.listedDrinkPrices,
+      drinkServingGroup,
+      drinkPriceSubtype,
       experiencePolicyNow,
       mapDrinkLensCategory,
     ],
+  );
+  const { restoredRouteCategory, restoredRouteSubtype, restoredRouteServing, restoredRouteIndexKey } = useMemo(
+    () => restoredDrinkSelection(generatedPricing), [generatedPricing],
+  );
+  useEffect(() => {
+    if (restoredRouteCategory) {
+      loadDrinkCategoryIndex(restoredRouteCategory, null, restoredRouteSubtype);
+      if (restoredRouteServing) loadDrinkCategoryIndex(restoredRouteCategory, restoredRouteServing, restoredRouteSubtype);
+    }
+  }, [loadDrinkCategoryIndex, restoredRouteCategory, restoredRouteServing, restoredRouteSubtype]);
+  // Cached observations keep their source dates, but a newly chosen view
+  // checks their authority at this read, rather than at the map's mount.
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setExperiencePolicyNow(Date.now());
+    });
+    return () => { cancelled = true; };
+  }, [
+    experienceLens,
+    mapDrinkLensCategory,
+    drinkServingGroup,
+    drinkPriceSubtype,
+    restoredRouteCategory,
+    restoredRouteServing,
+    restoredRouteSubtype,
+    spoonsValueOn,
+    communityPrices.byVenueId,
+    communityPrices.listedDrinkPrices,
+    communityPrices.listedNoAlcoholPrices,
+  ]);
+  const restoredRoutePriceNotice = useMemo(
+    () => restoredRoutePriceNoticeFor(mode === "build", restoredRouteIndexKey
+      ? communityPrices.drinkCategoryIndexStatus.get(restoredRouteIndexKey) ?? "idle" : null),
+    [mode, restoredRouteIndexKey, communityPrices.drinkCategoryIndexStatus],
   );
   const noAlcoholLensPrices = useMemo(
     () =>
       trustedNoAlcoholLensPrices(
         communityPrices.byVenueId,
         experiencePolicyNow,
+        communityPrices.listedNoAlcoholPrices,
       ),
-    [communityPrices.byVenueId, experiencePolicyNow],
+    [communityPrices.byVenueId, communityPrices.listedNoAlcoholPrices, experiencePolicyNow],
   );
   const venueSignals = useMemo(
     // The age gate reads the clock inside the merge (its `now` default) rather
@@ -2808,7 +2896,36 @@ export default function PubMap({
     () => hasSavedPubVenue(pubVenues, savedIds),
     [pubVenues, savedIds],
   );
-  const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  const venueById = useMemo(() => {
+    const byId = new Map(venues.map((venue) => [venue.id, venue]));
+    // Detail already resolved these old link IDs. Only the lookup gets aliases:
+    // pins and records keep their canonical identity, and the URL keeps order.
+    for (const id of builtIds) {
+      if (byId.has(id)) continue;
+      const canonicalId = getWarmedVenue(id)?.id;
+      const venue = canonicalId ? byId.get(canonicalId) : undefined;
+      if (venue) byId.set(id, venue);
+    }
+    return byId;
+  }, [builtIds, venues]);
+  const currentRoutePricing = useMemo(() => currentMapRoutePricing(
+    generatedPricing,
+    restoredRouteCategory ? discoveryDrinkLensPrices(
+      communityPrices.byVenueId, restoredRouteCategory,
+      [
+        ...(communityPrices.listedDrinkPrices.get(drinkCategoryIndexKey(restoredRouteCategory, null, restoredRouteSubtype)) ?? []),
+        ...(restoredRouteServing && restoredRouteIndexKey
+          ? communityPrices.listedDrinkPrices.get(restoredRouteIndexKey) ?? [] : []),
+      ], experiencePolicyNow, restoredRouteServing, restoredRouteSubtype,
+    ) : new Map(),
+    venueById,
+  ), [generatedPricing, venueById, restoredRouteCategory, restoredRouteServing, restoredRouteSubtype, restoredRouteIndexKey,
+    communityPrices.byVenueId, communityPrices.listedDrinkPrices, experiencePolicyNow]);
+  // Controls compare resolved pub identities; the shared route keeps its raw IDs.
+  const builtVenueIds = useMemo(
+    () => builtIds.map((id) => venueById.get(id)?.id ?? id),
+    [builtIds, venueById],
+  );
   // A shared planner link can name stops outside the opening viewport. The slim
   // shard loader quite correctly reads only the map the reader is looking at,
   // but the planner still owes the URL's ordered stops immediately. Warm those
@@ -2945,11 +3062,20 @@ export default function PubMap({
     drinkLensPrices,
     experienceLensPrices,
   );
-  const activeLensLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
+  const mapCanvasLensPrices = useMemo(() => mapDrinkLensCategory
+    ? new Map([...(drinkLensPrices ?? [])].filter(([, price]) => price.source === "listed"
+      && (mapDrinkLensCategory !== "beer" || drinkServingGroup === "pint")
+      && drinkServingGroup !== null && listedServingGroup(mapDrinkLensCategory, price.servingSize, drinkPriceSubtype) === drinkServingGroup))
+    : activeLensPrices, [mapDrinkLensCategory, drinkLensPrices, drinkServingGroup, drinkPriceSubtype, activeLensPrices]);
+  const activeLensBaseLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens, drinkPriceSubtype);
+  const activeLensLabel = useMemo(
+    () => mapDrinkLensCategory && drinkServingGroup ? `${activeLensBaseLabel} · ${drinkServingGroup}` : activeLensBaseLabel,
+    [mapDrinkLensCategory, drinkServingGroup, activeLensBaseLabel],
+  );
   // The name a heading wears is not always the name a sentence wants: the
   // no-alcohol lens is titled with a negative, and "no no-alcohol price
   // logged" hides the one fact that is about the pub.
-  const activeLensNoun = activeLensNounFor(mapDrinkLensCategory, experienceLens);
+  const activeLensNoun = activeLensNounFor(mapDrinkLensCategory, experienceLens, drinkPriceSubtype);
   const activeBand = useMemo(
     () => cityStoryBands.find((band) => band.id === activeBandId),
     [cityStoryBands, activeBandId],
@@ -2982,7 +3108,7 @@ export default function PubMap({
     let noAlcoholPriceCount = 0;
     let sourcedFoodPriceCount = 0;
     for (const price of experienceLensPrices?.values() ?? []) {
-      if (price.source === "community") noAlcoholPriceCount += 1;
+      if (price.source === "community" || price.source === "listed") noAlcoholPriceCount += 1;
       if (price.source === "sourced-anchor") sourcedFoodPriceCount += 1;
     }
     return experienceLensSummary(
@@ -3018,8 +3144,13 @@ export default function PubMap({
         drinkIndexStatus,
         mapListSortMode,
         venueSignals,
+        mapDrinkLensCategory ? drinkServingGroup : undefined,
+        drinkPriceSubtype,
       ),
     [
+      mapDrinkLensCategory,
+      drinkServingGroup,
+      drinkPriceSubtype,
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
@@ -3075,9 +3206,15 @@ export default function PubMap({
       return buildUkBasePubListModel(
         renderedBasePubs.filter((pub) => visibleIds.has(pub.id)),
         mapViewport.center,
+        undefined,
+        drinkLensPrices,
+        mapListSortMode,
+        mapDrinkLensCategory ? drinkServingGroup : undefined,
+        drinkPriceSubtype,
       );
     },
-    [cityId, mapViewport.center, renderedBasePubs, visibleVenueState],
+    [cityId, mapViewport.center, renderedBasePubs, visibleVenueState,
+      drinkLensPrices, mapListSortMode, mapDrinkLensCategory, drinkServingGroup, drinkPriceSubtype],
   );
   // The place the map is OVER, and whether it is off the curated city.
   // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
@@ -3192,6 +3329,7 @@ export default function PubMap({
       () => ({
         mode,
         filters,
+        routeDrinkIntent: mode === "build" ? generatedPricing?.context ?? null : null,
         builtIds,
         selectedVenueId,
         bandId: activeBandId,
@@ -3202,6 +3340,7 @@ export default function PubMap({
       [
         mode,
         filters,
+        generatedPricing,
         builtIds,
         selectedVenueId,
         activeBandId,
@@ -3212,6 +3351,7 @@ export default function PubMap({
     ),
     restoredMobileSession !== null,
     crawlHydrationPending,
+    drinkServingChoice,
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.
@@ -3350,12 +3490,24 @@ export default function PubMap({
   // keeps its richer area and provenance envelope and everything else is a
   // plain map search.
   const acceptStop1 = useCallback(() => {
-    const venue = selectedVenue;
+    const venue = selectedVenue ?? (selectedBasePub?.id === selectedVenueId && selectedBasePub.kind === "pub" ? selectedBasePub : null);
     if (!venue) return;
+    const price = drinkLensPrices?.get(venue.id);
+    const selectedEvidence = mapDrinkLensCategory
+      && (!drinkServingGroup || (price?.source === "listed"
+        && listedServingGroup(mapDrinkLensCategory, price.servingSize, drinkPriceSubtype) === drinkServingGroup))
+      ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: mapDrinkLensCategory, zeroProof: false,
+        drinkSubtype: drinkPriceSubtype, drinkServing: drinkServingGroup }) : null;
     const result = acceptMapVenue({
       cityId,
       acceptedVenueId: venue.id,
       search: currentSearch(),
+      ...(mapDrinkLensCategory ? { drinkRequest: {
+        drinkCategory: mapDrinkLensCategory,
+        ...(drinkPriceSubtype ? { drinkSubtype: drinkPriceSubtype } : {}),
+        drinkServing: drinkServingGroup,
+      } } : {}),
+      ...(selectedEvidence ? { selectedDrinkPriceEvidence: selectedEvidence } : {}),
     });
     if (!result.accepted || !result.telemetry || !result.destination) {
       setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
@@ -3365,7 +3517,7 @@ export default function PubMap({
     trackEvent("venue_accepted", result.telemetry);
     trackEvent("planning_handoff_opened", { from: result.telemetry.source, to: "plan" });
     if (typeof window !== "undefined") window.location.assign(result.destination);
-  }, [selectedVenue, cityId]);
+  }, [selectedVenue, selectedBasePub, selectedVenueId, cityId, mapDrinkLensCategory, drinkLensPrices, drinkServingGroup, drinkPriceSubtype]);
 
   const handleUkBasePubClick = useCallback(
     (pub: UkBasePub) => {
@@ -3485,7 +3637,7 @@ export default function PubMap({
         return;
       }
       setMode("build");
-      setBuiltIds(ids);
+      replaceBuiltIds(ids);
       setRouteMapped(true);
       setActiveCrawl(null);
       showLoadedRoute(ids[0]);
@@ -3539,7 +3691,7 @@ export default function PubMap({
     pendingNearMeRequest,
     refreshCountCoverage,
     setActiveCrawl,
-    setBuiltIds,
+    replaceBuiltIds,
     setMode,
     setRouteMapped,
     showLoadedRoute,
@@ -3564,10 +3716,13 @@ export default function PubMap({
   // clears the favourite too rather than leaving it set and inert.
   const changeDrinkLane = useCallback(
     (lane: DrinkCategory) => {
-      setFilters((current) => applyDrinkLane(current, lane));
+      const next = tapDrinkLane(filters, lane);
+      if (!next) return;
+      changeDrinkServingGroup(null);
+      setFilters(next);
       if (lane !== DEFAULT_DRINK_LANE) changeFavoritePint(null);
     },
-    [changeFavoritePint, setFilters],
+    [changeFavoritePint, filters, setFilters, changeDrinkServingGroup],
   );
 
   // The brand refinement inside the pint lane. It names the lane explicitly so
@@ -4127,10 +4282,12 @@ export default function PubMap({
 
   const toggleBuiltStop = useCallback((id: string) => {
     const venue = venueById.get(id);
+    const venueId = venue?.id ?? id;
     const pickable = !venue || isPubVenue(venue);
-    if (pickable && !builtIds.includes(id)) trackEvent("stop_added", { surface: "map" });
+    if (pickable && !builtVenueIds.includes(venueId)) trackEvent("stop_added", { surface: "map" });
     setBuiltIds((current) => {
-      if (current.includes(id)) return current.filter((existing) => existing !== id);
+      const matchesVenue = (existing: string) => (venueById.get(existing)?.id ?? existing) === venueId;
+      if (current.some(matchesVenue)) return current.filter((existing) => !matchesVenue(existing));
       if (!pickable) return current;
       return [...current, id];
     });
@@ -4141,23 +4298,23 @@ export default function PubMap({
     setMode("build");
     setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [builtIds, setBuiltIds, setMode, setRouteMapped, venueById]);
+  }, [builtVenueIds, setBuiltIds, setMode, setRouteMapped, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
   const reverseRoute = useCallback(() => {
-    setBuiltIds((current) => [...current].reverse());
+    reverseBuiltIds();
     setRouteMapped(true);
     setActiveCrawl(null);
-  }, [setBuiltIds, setRouteMapped]);
+  }, [reverseBuiltIds, setRouteMapped]);
 
   const clearBuilt = useCallback(() => {
-    setBuiltIds([]);
+    replaceBuiltIds([]);
     setRouteMapped(false);
     setActiveCrawl(null);
     // Explicit Clear also drops the refresh-safety net.
     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
-  }, [setBuiltIds, setRouteMapped]);
+  }, [replaceBuiltIds, setRouteMapped]);
 
   // Trust fix (§4.3): a pin tap INSPECTS ONLY, in both modes. It never mutates
   // the crawl — otherwise browsing pubs in build mode silently adds/removes
@@ -4179,7 +4336,7 @@ export default function PubMap({
   const loadCuratedCrawl = useCallback(
     (crawl: CuratedCrawl) => {
       setMode("build");
-      setBuiltIds(crawl.venueIds);
+      replaceBuiltIds(crawl.venueIds);
       setRouteMapped(true);
       setFilters((current) => filtersForCuratedCrawl(current, crawl));
       setAltStyle(crawl.altStyle ?? "pint"); // "kind of night" label for copy
@@ -4191,7 +4348,7 @@ export default function PubMap({
       dismissOnboarding,
       setActiveCrawl,
       setAltStyle,
-      setBuiltIds,
+      replaceBuiltIds,
       setFilters,
       setMode,
       setRouteMapped,
@@ -4209,7 +4366,7 @@ export default function PubMap({
     showLoadedRoute,
     dismissOnboarding,
     setMode,
-    setBuiltIds,
+    setBuiltIds: replaceBuiltIds,
     setRouteMapped,
     setActiveCrawl,
     setPlanningOpen: (open) => {
@@ -4600,11 +4757,20 @@ export default function PubMap({
     ukPlaces.length,
   ]);
   const limitedCoverageSearch = arrival.limitedCoverage;
+  // Search also finds venues hidden by the current canvas filters.
+  const searchExperienceLensPrices = useMemo(
+    () => experienceLens === "all" ? null
+      : lensPricesForVenues(venues, experienceLens, noAlcoholLensPrices),
+    [experienceLens, noAlcoholLensPrices, venues],
+  );
   const sharedMapSearchProps = {
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
     venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
+    lensPrices: activeLensPricesFor(experienceLens, drinkLensPrices, searchExperienceLensPrices),
+    lensCategoryLabel: activeLensNoun,
+    lensStatus: drinkIndexStatus,
     localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
     places: ukPlaces,
     includeLocalResults: !limitedCoverageSearch,
@@ -4621,7 +4787,7 @@ export default function PubMap({
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
-    activateGeneratedPlan(generated.context.nightArea, ids);
+    activateGeneratedPlan(generated.context.nightArea, ids, generated);
     markPalRouteActivation();
     setActiveCrawl(null);
     if (generated.context.nightArea) {
@@ -5278,9 +5444,11 @@ export default function PubMap({
   function renderPhoneDescribeForm() {
     return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
+        key="phone-plan-activation"
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
+        displayedRoute={route}
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
@@ -5323,12 +5491,13 @@ export default function PubMap({
       ) : null}
       <RoutePanel
         mode={mode}
+        generatedPricing={currentRoutePricing}
         crawlStyle={filters.crawlStyle}
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
         filteredVenues={filteredPubVenues}
-        builtIds={builtIds}
+        builtIds={builtVenueIds}
         activeVenueId={selectedVenueIdOrUndefined}
         venueSignals={venueSignals}
         crawlBlurb={activeCrawlBlurb}
@@ -5351,6 +5520,7 @@ export default function PubMap({
         poisPath={city.poisPath}
         onRoundStarted={setActiveRoundStartedCode}
       >
+        {restoredRoutePriceNotice ? <p role="status">{restoredRoutePriceNotice}</p> : null}
         {renderPlannerEmptyState()}
       </RoutePanel>
       {plannerFoot}
@@ -5391,6 +5561,9 @@ export default function PubMap({
               <PriceBadge
                 band={
                   selectedLensPrice.category === "beer"
+                    && (!drinkPriceSubtype || (drinkServingGroup === "pint"
+                      && selectedLensPrice.source === "listed"
+                      && listedServingGroup("beer", selectedLensPrice.servingSize, drinkPriceSubtype) === "pint"))
                     ? priceBand(selectedLensPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))
                     : null
                 }
@@ -5401,7 +5574,7 @@ export default function PubMap({
               <strong>Unknown</strong>
             )}
             <small>
-              {selectedLensPrice?.categoryLabel ??
+              {lensPriceCaption(selectedLensPrice, mapDrinkLensCategory !== null) ??
                 drinkLensUnknownRowLabel(
                   activeLensNoun?.toLowerCase() ?? "this view",
                   drinkIndexStatus,
@@ -5462,26 +5635,34 @@ export default function PubMap({
         {selectedVenueIsPub ? (
           <button
             type="button"
-            aria-pressed={builtIds.includes(selectedVenue.id)}
+            aria-pressed={builtVenueIds.includes(selectedVenue.id)}
             onClick={() => toggleBuiltStop(selectedVenue.id)}
           >
-            {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+            {builtVenueIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
           </button>
         ) : null}
       </div>
     );
   }
 
-  function renderVenuePanel() {
-    if (basePubOpen && selectedBasePub) {
+  function renderBasePubPanel(pub: UkBasePub) {
       return (
         <UnverifiedPubSheet
-          pub={selectedBasePub}
+          pub={pub}
+          onAcceptStop1={pub.kind === "pub" ? acceptStop1 : undefined}
+          acceptanceError={acceptanceError}
           communityPrices={communityPrices}
           experienceLens={experienceLens}
           drinkLensCategory={mapDrinkLensCategory}
+          drinkLensSubtype={drinkPriceSubtype}
+          drinkServingGroup={drinkServingGroup}
         />
       );
+  }
+
+  function renderVenuePanel() {
+    if (basePubOpen && selectedBasePub) {
+      return renderBasePubPanel(selectedBasePub);
     }
     if (!detailOpen) return null;
     if (!selectedVenue) {
@@ -5527,7 +5708,7 @@ export default function PubMap({
         <VenueInspector
           venue={selectedVenue}
           mode={mode}
-          inCrawl={builtIds.includes(selectedVenue.id)}
+          inCrawl={builtVenueIds.includes(selectedVenue.id)}
           // The UNMERGED drop signal on purpose: the sheet gives every source its
           // own row, so the "Latest Pint Drop price" line must stay the Pint Drop
           // price. The community submission gets its own dated row alongside it.
@@ -5693,7 +5874,7 @@ export default function PubMap({
         {experienceLens === "all" ? (
           <TabsContent value="prices" className="mobileMapFilters">
             <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-            {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
+            {activeMapDrinkLane === DEFAULT_DRINK_LANE && !drinkPriceSubtype ? (
               <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkBrand={filters.drinkBrand} onDrinkBrandChange={changeDrinkBrand} />
             ) : null}
             <MobilePriceChoices
@@ -5785,7 +5966,7 @@ export default function PubMap({
             ) : null}
             {/* Brand is a pint refinement. The drink itself is chosen on
                 the map's own lane chip, never in this drawer. */}
-            {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
+            {activeMapDrinkLane === DEFAULT_DRINK_LANE && !drinkPriceSubtype ? (
               <FavoritePintPicker
                 value={favoritePint}
                 onChange={changeFavoritePint}
@@ -5894,7 +6075,7 @@ export default function PubMap({
         tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
         priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤${formatGbp(filters.maxPrice)}` : "Price"}
         drinkFiltersActive={drinkFiltersActive}
-        drinkLaneLabel={drinkLaneLabel(activeMapDrinkLane)}
+        drinkLaneLabel={parseDrinkSubtypeParam(drinkPriceSubtype, activeMapDrinkLane)?.longLabel ?? drinkLaneLabel(activeMapDrinkLane)}
         drinkLaneSelected={activeMapDrinkLane !== DEFAULT_DRINK_LANE}
         experienceFilterLabel={
           experienceLens === "no-alcohol"
@@ -5935,7 +6116,11 @@ export default function PubMap({
           <>
             <DrinkLanePicker
               lane={activeMapDrinkLane}
+              drinkSubtype={drinkPriceSubtype}
               status={drinkIndexStatus}
+              servingGroups={drinkServingGroups}
+              servingGroup={drinkServingGroup}
+              onServingGroupChange={changeDrinkServingGroup}
               variant="sheet"
               onChange={(lane) => {
                 changeDrinkLane(lane);
@@ -6071,6 +6256,8 @@ export default function PubMap({
         onSelectUkBasePub={handleUkBasePubClick}
         onPrefetchVenue={prefetchVenueDetail}
         sortMode={mapListSortMode}
+        drinkCategory={mapDrinkLensCategory}
+        servingGroup={drinkServingGroup}
         onSortModeChange={setMapListSortMode}
         backLabel={mapListOpen && mapSurfaceId === "venue-list" ? mapSurfaceTrail.backLabel : null}
         onBack={mapSurfaceTrail.back}
@@ -6285,11 +6472,11 @@ export default function PubMap({
         onRouteStopClick={selectVenue}
         onVenuePrefetch={prefetchVenueDetail}
         venueSignals={venueSignals}
-        favoritePint={favoritePint}
+        favoritePint={experienceLens === "all" && activeMapDrinkLane === DEFAULT_DRINK_LANE && !drinkPriceSubtype ? favoritePint : null}
         drinkCategory={experienceLens === "all" ? filters.drinkCategory || null : null}
         whatsOnByVenue={whatsOnTonight.summary}
         provisionalVenueIds={provisionalVenueIds}
-        lensPrices={activeLensPrices}
+        lensPrices={mapCanvasLensPrices}
         spoonsValue={spoonsValueLane}
         lensNoun={activeLensNoun?.toLowerCase() ?? null}
         lensIndexStatus={drinkIndexStatus}
@@ -6362,10 +6549,14 @@ export default function PubMap({
         onFavoritePintChange={changeFavoritePint}
         drinkFiltersActive={drinkFiltersActive}
         drinkCategory={filters.drinkCategory}
+        drinkSubtype={drinkPriceSubtype}
         drinkBrand={filters.drinkBrand}
         onDrinkBrandChange={changeDrinkBrand}
         onDrinkLaneChange={changeDrinkLane}
         drinkLaneStatus={drinkIndexStatus}
+        drinkServingGroups={drinkServingGroups}
+        drinkServingGroup={drinkServingGroup}
+        onDrinkServingGroupChange={changeDrinkServingGroup}
         spoonsValueOn={spoonsValueOn}
         spoonsValueLens={spoonsValueLens}
         onSpoonsValueChange={changeSpoonsValue}

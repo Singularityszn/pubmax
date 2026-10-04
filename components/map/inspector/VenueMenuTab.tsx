@@ -60,6 +60,12 @@ export default function VenueMenuTab({
     [venue, foodUpdates],
   );
   const hubTiles = useMemo(() => menuHubTiles(venue, menuDrinks), [venue, menuDrinks]);
+  const publishedPrices = useMemo(() => [
+    ...(venue.listedBeerPrices ?? []),
+    ...(venue.listedCategoryPrices ?? []),
+  ], [venue]);
+  const publishedPricesUnavailable = venue.listedBeerPrices === null &&
+    venue.listedCategoryPrices === null;
   // Reset when the venue changes so a drinks drill-in never leaks across venues.
   type MenuView =
     | { mode: "hub" }
@@ -101,6 +107,8 @@ export default function VenueMenuTab({
           venueName={venue.name}
           venueId={venue.id}
           categoryFilter={menuView.category}
+          publishedPrices={publishedPrices}
+          publishedPricesUnavailable={publishedPricesUnavailable}
           onBack={() => setMenuView({ mode: "hub" })}
           backLabel="Menus"
         />

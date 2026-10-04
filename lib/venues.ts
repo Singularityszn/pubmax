@@ -167,6 +167,9 @@ export type Venue = {
   primaryBorough: string;
   visibleBoroughs: string[];
   prices: VenuePrice[];
+  /** Approved menu quotes on detail reads. Null means the bundle read failed. */
+  listedCategoryPrices?: import("@/lib/listedCategoryPrices").ListedCategoryPrice[] | null;
+  listedBeerPrices?: import("@/lib/listedCategoryPrices").ListedCategoryPrice[] | null;
   cheapestPrice: number | null;
   cheapestPint: string;
   averagePrice: number | null;

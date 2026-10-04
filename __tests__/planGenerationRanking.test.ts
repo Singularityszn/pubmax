@@ -289,3 +289,26 @@ describe("Plan generation evidence gaps", () => {
     expect(contextEvidenceGaps).toEqual([]);
   });
 });
+
+
+describe("Cider unknown-serving ranking neutrality", () => {
+  it("does not score unrelated cheap pints or the unknown-serving own Cider amount", () => {
+    const ciderContext = { ...AFTER_WORK_GROUP, budget: "value" as const, drinkCategory: "beer" as const,
+      drinkSubtype: "beer-cider", drinkServing: null };
+    const cheapBeer = venue(false, "cheap-generic-beer");
+    cheapBeer.cheapestPrice = 1;
+    const plough = venue(false, "venue-13xdb1p");
+    plough.cheapestPrice = 6.1;
+    const ownCider: ReadonlyMap<string, MapLensPrice> = new Map([[plough.id, {
+      venueId: plough.id, category: "beer", categoryLabel: "Beer", priceGbp: 3.65, source: "listed",
+      servingSize: null, drinkLabel: "Aspall 4.5%", sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/",
+      observedAt: "2026-09-21T18:27:31.674Z",
+    }]]);
+    const cheap = scoreVenueForPlan(cheapBeer, ciderContext, 0.5, [], [], null, undefined, undefined, ownCider);
+    const selected = scoreVenueForPlan(plough, ciderContext, 0.5, [], [], null, undefined, undefined, ownCider);
+    expect(cheap.score).toBe(selected.score);
+    expect([...cheap.reasons, ...selected.reasons].join(" ")).not.toMatch(/pints from|£/i);
+    const generic = scoreVenueForPlan(cheapBeer, { ...AFTER_WORK_GROUP, budget: "value", drinkCategory: "beer" }, 0.5, [], [], null);
+    expect(generic.reasons).toContain("pints from £1.00");
+  });
+});

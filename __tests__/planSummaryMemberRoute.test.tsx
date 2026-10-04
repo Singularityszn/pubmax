@@ -39,10 +39,10 @@ vi.mock("@/lib/planSessionCapability", () => ({
 }));
 // The children are not what these two rules are about; the route list is.
 vi.mock("@/components/plan/PlanRoute", () => ({
-  default: ({ stops }: { stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: { category: string; pence: number } }> }) =>
+  default: ({ stops, routeDrinkIntent }: { stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: { category: string; pence: number } }>; routeDrinkIntent?: unknown }) =>
     createElement(
       "ol",
-      { "data-testid": "plan-route" },
+      { "data-testid": "plan-route", "data-route-intent": JSON.stringify(routeDrinkIntent ?? null) },
       stops.map((stop) => createElement("li", { key: stop.venueId },
         stop.venueName,
         stop.selectedDrinkPriceEvidence
@@ -280,5 +280,153 @@ describe("a fresher canonical route", () => {
 
     // The editor is still the reader's own working copy.
     expect(container.querySelector(".planSummary__editor")).not.toBeNull();
+  });
+});
+
+describe("saved named Stop 1 refresh request", () => {
+  // Synthetic saved member-state boundary, not a fresh publisher observation.
+  const namedEvidence = {
+    category: "wine",
+    pence: 550,
+    serving: "125ml",
+    source: "listed",
+    sourceUrl: "https://pub.example/menu",
+    observedAt: "2026-09-29T10:40:17.846Z",
+    drinkLabel: "Chardonnay, Pays D’oc, France",
+    drinkSubtype: "wine-white",
+  } as const;
+
+  it.each([
+    { label: "named White wine", selectedEvidence: namedEvidence },
+    { label: "generic wine control", selectedEvidence: undefined },
+  ])("keeps $label intent in the actual Edit generation POST", async ({ selectedEvidence }) => {
+    const saved = memberState(["The George", "The Swan", "The Crown"], 7, { drinkCategory: "wine" });
+    const anchorVenueId = saved.stops[0].venueId;
+    const state = {
+      ...saved,
+      context: { ...saved.context, nightArea: "piccadilly-soho" },
+      plan: { ...saved.plan, anchorVenueId, anchorSource: "map-search" },
+      stops: saved.stops.map((stop, index) => ({
+        ...stop,
+        ...(index === 0 && selectedEvidence ? { selectedDrinkPriceEvidence: selectedEvidence } : {}),
+      })),
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/plans/generate") {
+        // Only inspect the outgoing request. A controlled refusal avoids
+        // inventing generation authority or persisting a pending route.
+        return Promise.resolve({
+          ...jsonResponse({ error: "Controlled generation refusal." }),
+          ok: false,
+          status: 503,
+        });
+      }
+      expect(init?.method ?? "GET").toBe("GET");
+      expect(String(input)).toBe(`/api/plans/${PLAN}`);
+      return Promise.resolve(jsonResponse(state));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await mountWithMemberRead(state);
+    expect(renderedStops()).toEqual([
+      selectedEvidence ? "The Georgewine:550" : "The George",
+      "The Swan",
+      "The Crown",
+    ]);
+    const control = editControl();
+    expect(control.disabled).toBe(false);
+    await act(async () => {
+      control.click();
+      await Promise.resolve();
+    });
+
+    const generationRequests = fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans/generate");
+    expect(generationRequests).toHaveLength(1);
+    const request = generationRequests[0][1];
+    expect(request).toMatchObject({ method: "POST", headers: { "content-type": "application/json" } });
+    expect(JSON.parse(String(request?.body))).toEqual({
+      context: state.context,
+      cityId: "london",
+      anchor: {
+        venueId: anchorVenueId, source: "map-search", acceptedArea: null, startsAt: state.plan.startTime,
+        ...(selectedEvidence ? { selectedDrinkRefresh: {
+          category: "wine", serving: "125ml", drinkLabel: "Chardonnay, Pays D’oc, France", drinkSubtype: "wine-white",
+        } } : {}),
+      },
+    });
+    expect(window.localStorage.getItem(`${PLAN_PENDING_ROUTE_PREFIX}${PLAN}`)).toBeNull();
+    expect(renderedStops()).toEqual([
+      selectedEvidence ? "The Georgewine:550" : "The George", "The Swan", "The Crown",
+    ]);
+  });
+});
+
+describe("saved refresh anchor evidence boundaries", () => {
+  const evidence = {
+    category: "wine", pence: 550, serving: "125ml", source: "listed",
+    sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T10:40:17.846Z",
+    drinkLabel: "Chardonnay, Pays D’oc, France", drinkSubtype: "wine-white",
+  } as const;
+
+  it.each([
+    { label: "ordered Stop 1 despite reversed DTO array", anchorIndex: 0, expectEvidence: true },
+    { label: "different anchor from ordered Stop 1", anchorIndex: 1, expectEvidence: false },
+    { label: "no anchor", anchorIndex: null, expectEvidence: false },
+  ])("qualifies $label without borrowing another stop's quote", async ({ anchorIndex, expectEvidence }) => {
+    // Direct DTO controls complement the mounted POST cases above. They do not
+    // prove browser rendering, server approval or persistence of these fixtures.
+    const { planSummaryGenerationBody } = await import("@/components/plan/PlanSummary");
+    const saved = memberState(["The George", "The Swan", "The Crown"], 7, { drinkCategory: "wine" });
+    const anchorVenueId = anchorIndex === null ? null : saved.stops[anchorIndex].venueId;
+    const state = {
+      ...saved,
+      context: { ...saved.context, nightArea: "piccadilly-soho" },
+      plan: { ...saved.plan, anchorVenueId, anchorSource: anchorVenueId ? "map-search" : null },
+      stops: saved.stops.map((stop, index) => ({
+        ...stop,
+        ...(index === 0 ? { selectedDrinkPriceEvidence: evidence } : {}),
+      })).reverse(),
+    };
+    const before = JSON.stringify(state);
+    expect(planSummaryGenerationBody(state as unknown as import("@/lib/plan").PlanState)).toEqual({
+      context: state.context,
+      cityId: "london",
+      ...(anchorVenueId ? { anchor: {
+        venueId: anchorVenueId, source: "map-search", acceptedArea: null, startsAt: state.plan.startTime,
+        ...(expectEvidence ? { selectedDrinkRefresh: {
+          category: "wine", serving: "125ml", drinkLabel: "Chardonnay, Pays D’oc, France", drinkSubtype: "wine-white",
+        } } : {}),
+      } } : {}),
+    });
+    expect(JSON.stringify(state)).toBe(before);
+  });
+});
+
+
+describe("saved Summary public Cider map handoff", () => {
+  // PlanRoute is the existing child boundary double above. Observe the real
+  // Summary prop, then independently call the real public URL serializer.
+  it.each([null, "pint", "500ml"])("passes saved Cider request with %s while excluding private saved context", async (drinkServing) => {
+    const base = memberState(["The George", "The Swan", "The Crown"], 9, { drinkCategory: "beer", zeroProof: false });
+    const state = { ...base, context: { ...base.context, drinkSubtype: "beer-cider", drinkServing,
+      memberToken: "private-member-canary", lat: 51.4615, lng: -0.173227 } };
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(state))));
+    await mountWithMemberRead(null);
+    const intent = JSON.parse(container.querySelector('[data-testid="plan-route"]')?.getAttribute("data-route-intent") ?? "null");
+    expect(intent).toEqual({ drinkCategory: "beer", drinkSubtype: "beer-cider", drinkServing, zeroProof: false });
+    const { buildCrawlMapHref, routeDrinkIntentFromSearch } = await import("@/lib/crawlUrl");
+    const href = buildCrawlMapHref(state.stops.map((stop) => stop.venueId), intent)!;
+    expect(routeDrinkIntentFromSearch(href.split("?")[1]!)).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-cider", zeroProof: false });
+    expect(new URLSearchParams(href.split("?")[1]!).get("routeServing")).toBe(drinkServing);
+    expect(href).not.toMatch(/private-member-canary|51\.4615|-0\.173227|nightArea|memberToken|pence|sourceUrl/);
+  });
+
+  it("zero-proof saved choice wins over stale alcoholic subtype and serving", async () => {
+    const base = memberState(["The George", "The Swan", "The Crown"], 9, { drinkCategory: "beer", zeroProof: true });
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({ ...base,
+      context: { ...base.context, drinkSubtype: "beer-cider", drinkServing: "pint" } }))));
+    await mountWithMemberRead(null);
+    expect(JSON.parse(container.querySelector('[data-testid="plan-route"]')?.getAttribute("data-route-intent") ?? "null"))
+      .toEqual({ zeroProof: true });
   });
 });

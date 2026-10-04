@@ -3449,9 +3449,9 @@ export default function PubMapCanvas({
     // base pins rather than curated venues, so it is passed through rather
     // than suspending the layer the way an experience view does.
     spoonsValue,
-    // A non-null lensPrices map is the one signal that an experience view owns
-    // the map, the same one the curated pins read below.
-    suspended: lensPrices !== null,
+    // Selected drinks retain base pubs and their venue-owned menu quotes.
+    // Food and no-alcohol experience views still suspend the neutral layer.
+    suspended: lensPrices !== null && drinkCategory === null,
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.

@@ -1,6 +1,7 @@
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { isDrinkCategory } from "@/lib/drinks";
 import {
+  cleanPublicDrinkRequest,
   isBudget,
   isDaypart,
   isNightAreaSlug,
@@ -21,11 +22,13 @@ import {
 } from "@/lib/planningIntent";
 import { isPlanIdempotencyKey } from "@/lib/planStore";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanPlanGenerationDrinkRefresh, type PlanGenerationDrinkRefresh } from "@/lib/planGenerationDrinkRefresh";
 
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
 
-const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor"] as const;
+const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor", "routeVenueIds"] as const;
 const ANCHOR_KEYS = ["venueId", "source", "acceptedArea", "startsAt"] as const;
 const NIGHT_PATCH_AREA_KEYS = ["kind", "id"] as const;
 const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
@@ -40,6 +43,8 @@ const CONTEXT_KEYS = [
   "budgetLimitPence",
   "zeroProof",
   "drinkCategory",
+  "drinkSubtype",
+  "drinkServing",
   "wetherspoonsPreferred",
   "atmosphere",
   "foodNeeds",
@@ -52,6 +57,8 @@ export type PlanGenerationAnchor = {
   source: PlanningIntentSource;
   acceptedArea: PlanningIntentArea;
   startsAt: string | null;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  selectedDrinkRefresh?: PlanGenerationDrinkRefresh;
 };
 
 type PlanGenerationRequest = {
@@ -62,6 +69,7 @@ type PlanGenerationRequest = {
   hasIntake: boolean;
   operationKey: string | null;
   anchor: PlanGenerationAnchor | null;
+  routeVenueIds?: string[];
 };
 
 type PlanGenerationRequestFailure = {
@@ -124,7 +132,13 @@ function canonicalIsoOrNull(value: unknown): string | null | undefined {
 /** Parse the optional acceptance anchor. `undefined` return rejects the request. */
 function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
   if (value === undefined || value === null) return null;
-  if (!isPlainRecord(value) || !hasExactKeys(value, ANCHOR_KEYS)) return undefined;
+  if (!isPlainRecord(value) || !(hasExactKeys(value, ANCHOR_KEYS)
+    || hasExactKeys(value, [...ANCHOR_KEYS, "selectedDrinkPriceEvidence"])
+    || hasExactKeys(value, [...ANCHOR_KEYS, "selectedDrinkRefresh"]))) return undefined;
+  const selected = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
+  if (Object.hasOwn(value, "selectedDrinkPriceEvidence") && !selected) return undefined;
+  const refresh = cleanPlanGenerationDrinkRefresh(value.selectedDrinkRefresh);
+  if (Object.hasOwn(value, "selectedDrinkRefresh") && !refresh) return undefined;
   if (typeof value.venueId !== "string" || !ANCHOR_VENUE_ID_PATTERN.test(value.venueId)) return undefined;
   if (typeof value.source !== "string" || !(PLANNING_INTENT_SOURCES as readonly string[]).includes(value.source)) {
     return undefined;
@@ -138,7 +152,16 @@ function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
     source: value.source as PlanningIntentSource,
     acceptedArea,
     startsAt,
+    ...(selected ? { selectedDrinkPriceEvidence: selected } : {}),
+    ...(refresh ? { selectedDrinkRefresh: refresh } : {}),
   };
+}
+
+/** A selected route is an exact public identity list, never a normalized hint. */
+function parseRouteVenueIds(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || !isPlanStopCount(value.length)) return undefined;
+  if (!value.every((id) => typeof id === "string" && /^[A-Za-z0-9:_-]{1,120}$/.test(id))) return undefined;
+  return new Set(value).size === value.length ? [...value] : undefined;
 }
 
 function strictList(value: unknown): string[] | null {
@@ -157,63 +180,80 @@ function isNullableIntegerInRange(value: unknown, min: number, max: number): val
   return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max);
 }
 
+function assignContextField(result: Partial<NightContext>, key: keyof NightContext, item: unknown): boolean {
+  switch (key) {
+    case "nightArea":
+      if (item !== null && !isNightAreaSlug(item)) return false;
+      result.nightArea = item as NightContext["nightArea"];
+      break;
+    case "daypart":
+      if (!isDaypart(item)) return false;
+      result.daypart = item;
+      break;
+    case "partyType":
+      if (!isPartyType(item)) return false;
+      result.partyType = item;
+      break;
+    case "groupSize":
+      if (!isNullableIntegerInRange(item, 1, 30)) return false;
+      result.groupSize = item;
+      break;
+    case "stopCount":
+      if (!isPlanStopCount(item)) return false;
+      result.stopCount = item;
+      break;
+    case "budget":
+      if (!isBudget(item)) return false;
+      result.budget = item;
+      break;
+    case "budgetLimitPence":
+      if (!isNullableIntegerInRange(item, 500, 50_000)) return false;
+      result.budgetLimitPence = item;
+      break;
+    case "zeroProof":
+      if (typeof item !== "boolean") return false;
+      result.zeroProof = item;
+      break;
+    case "drinkCategory":
+      if (item !== null && !isDrinkCategory(item)) return false;
+      result.drinkCategory = item as NightContext["drinkCategory"];
+      break;
+    case "drinkSubtype":
+    case "drinkServing":
+      if (item !== null && typeof item !== "string") return false;
+      result[key] = item;
+      break;
+    case "wetherspoonsPreferred":
+      if (typeof item !== "boolean") return false;
+      result.wetherspoonsPreferred = item;
+      break;
+    case "atmosphere":
+    case "foodNeeds":
+    case "accessibility":
+    case "transportConstraints": {
+      const list = strictList(item);
+      if (!list) return false;
+      result[key] = list;
+      break;
+    }
+  }
+  return true;
+}
+
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;
   const result: Partial<NightContext> = {};
   for (const key of Object.keys(value) as (keyof NightContext)[]) {
     const item = value[key];
-    switch (key) {
-      case "nightArea":
-        if (item !== null && !isNightAreaSlug(item)) return undefined;
-        result.nightArea = item as NightContext["nightArea"];
-        break;
-      case "daypart":
-        if (!isDaypart(item)) return undefined;
-        result.daypart = item;
-        break;
-      case "partyType":
-        if (!isPartyType(item)) return undefined;
-        result.partyType = item;
-        break;
-      case "groupSize":
-        if (!isNullableIntegerInRange(item, 1, 30)) return undefined;
-        result.groupSize = item;
-        break;
-      case "stopCount":
-        if (!isPlanStopCount(item)) return undefined;
-        result.stopCount = item;
-        break;
-      case "budget":
-        if (!isBudget(item)) return undefined;
-        result.budget = item;
-        break;
-      case "budgetLimitPence":
-        if (!isNullableIntegerInRange(item, 500, 50_000)) return undefined;
-        result.budgetLimitPence = item;
-        break;
-      case "zeroProof":
-        if (typeof item !== "boolean") return undefined;
-        result.zeroProof = item;
-        break;
-      case "drinkCategory":
-        if (item !== null && !isDrinkCategory(item)) return undefined;
-        result.drinkCategory = item as NightContext["drinkCategory"];
-        break;
-      case "wetherspoonsPreferred":
-        if (typeof item !== "boolean") return undefined;
-        result.wetherspoonsPreferred = item;
-        break;
-      case "atmosphere":
-      case "foodNeeds":
-      case "accessibility":
-      case "transportConstraints": {
-        const list = strictList(item);
-        if (!list) return undefined;
-        result[key] = list;
-        break;
-      }
-    }
+    if (!assignContextField(result, key, item)) return undefined;
+  }
+  if (Object.hasOwn(result, "drinkSubtype") || Object.hasOwn(result, "drinkServing")) {
+    if (result.zeroProof && (result.drinkSubtype || result.drinkServing)) return undefined;
+    const refinement = cleanPublicDrinkRequest({ drinkCategory: result.drinkCategory,
+      ...(result.drinkSubtype !== undefined ? { drinkSubtype: result.drinkSubtype } : {}),
+      ...(result.drinkServing !== undefined ? { drinkServing: result.drinkServing } : {}) });
+    if (!refinement && (result.drinkSubtype != null || result.drinkServing != null)) return undefined;
   }
   return result;
 }
@@ -280,6 +320,8 @@ export async function parsePlanGenerationRequest(
     if (!parsed.ok) return { ...parsed, status: 400 };
     intake = parsed.value;
   }
+  const routeVenueIds = Object.hasOwn(raw, "routeVenueIds") ? parseRouteVenueIds(raw.routeVenueIds) : undefined;
+  if (Object.hasOwn(raw, "routeVenueIds") && !routeVenueIds) return failure("Selected route is invalid.");
   const anchor = parseAnchor(raw.anchor);
   if (anchor === undefined) return failure("Acceptance anchor is invalid.");
   return {
@@ -294,6 +336,7 @@ export async function parsePlanGenerationRequest(
       // Anything that is not a well-formed key is ignored so the route mints one.
       operationKey: isPlanIdempotencyKey(raw.operationKey) ? raw.operationKey.trim() : null,
       anchor,
+      ...(routeVenueIds ? { routeVenueIds } : {}),
     },
   };
 }

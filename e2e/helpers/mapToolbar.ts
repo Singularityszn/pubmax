@@ -56,7 +56,7 @@ export async function expectMapToolbarReady(
 ): Promise<void> {
   await expect(mapToolbar(page)).toBeVisible({ timeout });
   await expect(
-    mapToolbar(page).getByRole("combobox", { name: "Search pubs" }),
+    mapToolbar(page).getByRole("combobox", { name: "Search places" }),
   ).toBeEditable({ timeout });
   await expect(async () => {
     await dismissVenueIndexRetryIfPresent(page);
@@ -68,7 +68,7 @@ export async function selectFirstToolbarVenue(
   query: string,
   timeout = 60_000,
 ): Promise<void> {
-  const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
+  const search = mapToolbar(page).getByRole("combobox", { name: "Search places" });
   // Exact group names only: "Venues across city maps" is a different lane whose
   // first "Soho" row can be a Birmingham tavern that opens another city's map.
   await waitForVenueIndexReady(page, timeout);

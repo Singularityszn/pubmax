@@ -7,6 +7,8 @@ import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeL
 import { journeyAddsTransit } from "@/lib/formatJourney";
 import { routeStopPlaceLabels } from "@/lib/routeStops";
 import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
+import { selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { isHttpUrl } from "@/lib/httpUrl";
 
 type VenueSignals = Map<
   string,
@@ -21,6 +23,8 @@ type RouteListProps = {
   onTheWayByLeg: Map<number, OnTheWayPoi[]>;
   journeyByToIndex?: Map<number, CrawlJourneyLegSummary>;
   onSelectVenue: (id: string) => void;
+  generatedDrinkLabel?: string | null;
+  generatedQuotes?: ReadonlyMap<string, SelectedDrinkPriceEvidence>;
 };
 
 export default function RouteList({
@@ -31,6 +35,8 @@ export default function RouteList({
   onTheWayByLeg,
   journeyByToIndex,
   onSelectVenue,
+  generatedDrinkLabel = null,
+  generatedQuotes,
 }: RouteListProps) {
   // A place line per stop, widened only where two stops share a name (see
   // lib/routeStops.ts). London has several Queens Heads.
@@ -48,6 +54,9 @@ export default function RouteList({
     <ol className="routeList">
       {route.map((venue, index) => {
         const signal = venueSignals.get(venue.id);
+        const quote = generatedQuotes?.get(venue.id);
+        const quoteDescription = selectedDrinkPriceDescription(quote);
+        const menuSource = quote?.source === "listed" && isHttpUrl(quote.sourceUrl) ? quote.sourceUrl : null;
         const dropCount = signal?.dropCount ?? 0;
         const leg = legSummary.legs[index];
         const onTheWay = onTheWayByLeg.get(index) ?? [];
@@ -84,12 +93,16 @@ export default function RouteList({
                 ) : null}
               </strong>
               <p>
-                {formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}
-                · {venue.cheapestPint}
+                {generatedDrinkLabel
+                  ? quoteDescription ?? `${generatedDrinkLabel} price not recorded`
+                  : <>{formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}· {venue.cheapestPint}</>}
               </p>
               <small>{placeLabels[index]}</small>
             </div>
           </button>
+          {generatedDrinkLabel && menuSource ? (
+            <a className="routeStopDirections" href={menuSource} target="_blank" rel="noopener noreferrer">Menu source</a>
+          ) : null}
           <a
             className="routeStopDirections"
             href={`https://www.google.com/maps/dir/?api=1&destination=${venue.latitude},${venue.longitude}&travelmode=walking`}

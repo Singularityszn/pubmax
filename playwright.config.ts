@@ -178,7 +178,10 @@ export default defineConfig({
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
+        "**/map-base-listed-price-list.spec.ts",
         "**/map-live-qa-0924.spec.ts",
+        "**/plan-selected-drink-journey.spec.ts",
+        "**/plan-route-map.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
@@ -289,6 +292,9 @@ export default defineConfig({
       // a real WebGL2 context (SwiftShader), so both run here.
       testMatch: [
         "**/map-gl.spec.ts",
+        // Saved Plan CTAs and Plan route maps assert the rendered minimap canvas.
+        "**/plan-selected-drink-journey.spec.ts",
+        "**/plan-route-map.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
         // The opening turn and the first-visit card's grip on the pins: both
@@ -310,6 +316,7 @@ export default defineConfig({
         "**/map-webgl-recovery.spec.ts",
         // UK base layer: asserts the zoom gate + a real tap on a painted pin.
         "**/map-uk-base-layer.spec.ts",
+        "**/map-base-listed-price-list.spec.ts",
         // /map/list opening List view, and a cold /map opening on London: both
         // need rendered venue rows and a real camera probe.
         "**/map-live-qa-0924.spec.ts",
@@ -394,7 +401,7 @@ export default defineConfig({
       {
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
-          : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
+          : `node scripts/run-with-restored-next-env.mjs npm run build${DISPOSABLE_PLAN_DB ? " && node scripts/e2e/run-disposable-plan-browser.mjs --install-menu-fixture" : ""} && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {

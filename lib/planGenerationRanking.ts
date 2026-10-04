@@ -4,6 +4,7 @@ import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
 import { CATEGORY_META } from "@/lib/drinks";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { PlanningWeather } from "@/lib/weatherSnapshots";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -23,9 +24,9 @@ function priceAndZeroProof(
       const price = drinkLensPrices?.get(venue.id);
       if (price?.category === category && price.priceGbp > 0) {
         score += Math.min(5, 10 / price.priceGbp);
-        reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
+        reasons.push(`${price.source === "listed" ? `listed ${price.servingSize ?? ""}` : "corroborated community"} ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
       }
-    } else if (!context.zeroProof) {
+    } else if (planUsesPintPrices(context)) {
       const price = venue.cheapestPrice;
       score += price === null ? 0 : Math.max(0, 7 - price);
       if (price !== null) reasons.push(`pints from ${formatGbp(price)}`);

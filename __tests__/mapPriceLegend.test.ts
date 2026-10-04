@@ -152,6 +152,24 @@ describe("mapPriceLegend", () => {
     expect(legend.hint).not.toContain("pint");
   });
 
+  it("explains neutral drink pins without claiming that venue prices are absent", () => {
+    const legend = mapPriceLegend({
+      kind: "drink",
+      label: "Whisky",
+      noun: "Whisky",
+      status: "ready",
+      renderedState: UNKNOWN_RENDERED_STATE,
+    });
+    expect(legend.rows.map((row) => row.tone)).toEqual(["grey"]);
+    expect(legend.rows[0]?.label).toBe("Price not shown on pins");
+    expect(legend.title).toBe("Whisky view");
+    expect(legend.priceCapFilter).toBe(false);
+    expect(legend.hint).toContain("servings cannot be compared");
+    expect(legend.hint).toContain("venue details");
+    expect(legend.hint).not.toContain("no current venue has");
+    expect(legend.clusterNote).toContain("servings cannot be compared");
+  });
+
   it("names coffee empty bands without pint or no-alcohol wording", () => {
     const noun = drinkLensPriceNoun("coffee");
     const legend = mapPriceLegend({
@@ -186,6 +204,27 @@ describe("mapPriceLegend", () => {
     );
     expect(legend.hint).toContain("alcohol-free or soft drink prices");
     expect(legend.rows.at(-1)?.label).not.toContain("No no-alcohol");
+  });
+
+  it("explains neutral no-alcohol pins without implying missing venue prices", () => {
+    const legend = mapPriceLegend({
+      kind: "drink",
+      label: "No-alcohol",
+      noun: NO_ALCOHOL_LENS_PRICE_NOUN,
+      status: "ready",
+      renderedState: UNKNOWN_RENDERED_STATE,
+    });
+
+    expect(legend.title).toBe("No-alcohol view");
+    expect(legend.rows).toEqual([
+      {
+        label: "Price not shown on pins",
+        symbol: "?",
+        tone: "grey",
+      },
+    ]);
+    expect(legend.noAlcoholNote).toContain("venue details");
+    expect(legend.priceCapFilter).toBe(false);
   });
 
   it("keeps a truncated read painting trusted prices, saying so", () => {
