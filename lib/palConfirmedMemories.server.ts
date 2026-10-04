@@ -37,18 +37,15 @@ function recalled(memory: PubPalMemory): PalRecalledMemory | null {
   return value ? { kind: memory.kind, label, value } : null;
 }
 
-/**
- * The newest confirmed memories of the account's own Pal. A store failure or a
- * missing Pal reads as no memories, so a turn never fails because of recall.
- */
-export async function confirmedPalMemoriesFor(ownerId: string): Promise<PalRecalledMemory[]> {
+/** The newest confirmed memories of the account's own Pal, or null when the store failed. A missing Pal has none. */
+async function readConfirmedPalMemories(ownerId: string): Promise<PalRecalledMemory[] | null> {
   let result: Awaited<ReturnType<typeof listPalMemoriesResult>>;
   try {
     result = await listPalMemoriesResult(ownerId);
   } catch {
-    return [];
+    return null;
   }
-  if (!result.ok) return [];
+  if (!result.ok) return result.error === "not_found" ? [] : null;
   const newestFirst = [...result.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const out: PalRecalledMemory[] = [];
   for (const memory of newestFirst) {
@@ -57,6 +54,14 @@ export async function confirmedPalMemoriesFor(ownerId: string): Promise<PalRecal
     if (out.length >= PAL_RECALL_MEMORY_LIMIT) break;
   }
   return out;
+}
+
+/**
+ * The confirmed memories a typed turn carries. A store failure reads as no
+ * memories, so a turn never fails because of recall.
+ */
+export async function confirmedPalMemoriesFor(ownerId: string): Promise<PalRecalledMemory[]> {
+  return (await readConfirmedPalMemories(ownerId)) ?? [];
 }
 
 /**
@@ -100,7 +105,8 @@ export async function recallPalMemoriesForConversation(
     return refuse("Saved memories are unavailable right now.");
   }
   if (!ownerId) return refuse("No saved memories are available in this conversation.");
-  const memories = await confirmedPalMemoriesFor(ownerId);
+  const memories = await readConfirmedPalMemories(ownerId);
+  if (!memories) return refuse("Saved memories are unavailable right now.");
   return {
     result: {
       ok: true,
