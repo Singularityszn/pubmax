@@ -7,7 +7,6 @@ import {
 } from "./helpers/mapSurfaceDrawers";
 import {
   expectMapToolbarReady,
-  mapToolbar,
   selectFirstToolbarVenue,
 } from "./helpers/mapToolbar";
 
@@ -63,21 +62,6 @@ async function openMap(page: Page, path = "/map"): Promise<void> {
     return;
   }
   await expectMapToolbarReady(page);
-}
-
-async function selectToolbarVenue(page: Page, query = "The French House"): Promise<void> {
-  const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
-  const option = page
-    .getByRole("listbox", { name: "Search suggestions" })
-    .getByRole("option", { name: new RegExp(query, "i") })
-    .first();
-  await expect(async () => {
-    await search.click();
-    await search.fill(query);
-    await expect(option).toBeVisible({ timeout: 2_000 });
-    await option.click();
-    await expect(page).toHaveURL(/sel=/, { timeout: 2_000 });
-  }).toPass({ timeout: 60_000 });
 }
 
 function planner(page: Page) {
@@ -265,7 +249,7 @@ test.describe("one Map surface history owner", () => {
     await prepareMap(page);
     await page.goto("/tonight", { waitUntil: "domcontentloaded" });
     await openMap(page, "/map?history-race=1");
-    await selectToolbarVenue(page);
+    await selectFirstToolbarVenue(page, "The French House");
     await expectSoleDrawer(page, "venue");
     await expect(page).toHaveURL(/\/map\?.*sel=/);
 
