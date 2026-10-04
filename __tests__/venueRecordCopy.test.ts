@@ -41,6 +41,9 @@ describe("venue record copy", () => {
       ["Waltham Forest", ["Darts", "Pool"], "Fancy a game of darts? This Waltham Forest local has a pool table too."],
       ["Kensington and Chelsea", ["Cocktails"], "Cocktails are served at this Kensington and Chelsea pub."],
       ["Croydon", ["Happy hour", "Cocktails"], "There's a happy hour at this Croydon pub, and you'll find cocktails here too."],
+      ["Camden", ["Darts", "Pool"], "Darts and pool are played at this Camden pub."],
+      ["Lambeth", ["Live music", "Pub quiz"], "Live music and a pub quiz are hosted at this Lambeth local."],
+      ["Westminster", ["Cocktails", "Live music"], "They host live music. Cocktails are served here too."],
     ] as const) {
       expect(validateVenueRecordCopyDraft(facts(borough, [...tags]), copy(description, [tags[0]])), description).not.toBeNull();
     }
@@ -181,6 +184,21 @@ describe("venue record copy", () => {
     ] as const) {
       expect(validateVenueRecordCopyDraft({ venueId: venue.id, borough, supportedTags: [...tags] }, copy(description, [tags[0]])), description).toBeNull();
     }
+  });
+
+  it("binds a passive participle to every feature it governs", () => {
+    const facts = { venueId: venue.id, borough: "Westminster", supportedTags: ["Cocktails", "Darts", "Karaoke", "Pub quiz"] };
+    for (const description of [
+      "Darts and cocktails are served up at this Westminster pub.",
+      "Darts are hosted here.",
+      "Cocktails are played here.",
+      "Karaoke is served here.",
+      "Cocktails and karaoke are hosted at this pub.",
+      "Darts are also served at this pub.",
+      "Cocktails, darts and a pub quiz are all served here.",
+      "Karaoke can be poured at this pub.",
+      "This pub has karaoke, and darts and cocktails are served here.",
+    ]) expect(validateVenueRecordCopyDraft(facts, copy(description, ["Cocktails"])), description).toBeNull();
   });
 
   it("stops displaying a claim after its supporting fact disappears", () => {

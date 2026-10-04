@@ -77,16 +77,47 @@ function fixture(mode = "ok", count = 1, amenities: Record<string, string> = { l
 afterEach(() => { for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 
 describe("pub copy generation CLI", () => {
-  it("prints projected spend without a network request and refuses a lower cap", () => {
+  it("prints projected spend without a network request by default and refuses removed cap flags", () => {
     const { run, dir } = fixture();
-    const dry = run("--dry-run");
+    const dry = run();
     expect(dry.status).toBe(0);
+    expect(JSON.parse(dry.stdout)).toMatchObject({ mode: "dry-run", runCapUsd: 15, runSpendUsd: 0 });
     expect(JSON.parse(dry.stdout).projectedSpendUsd).toBeGreaterThan(0);
+    for (const flag of [["--dry-run"], ["--cap-usd", "1"]]) {
+      const refused = run("--generate", ...flag);
+      expect(refused.status).toBe(1);
+      expect(refused.stderr).toContain(`unknown argument ${flag[0]}`);
+    }
     expect(() => readFileSync(path.join(dir, "request.json"))).toThrow();
-    const capped = run("--generate", "--cap-usd", "0.00001");
-    expect(capped.status).toBe(1);
-    expect(capped.stderr).toContain("projected spend exceeds task cap");
-    expect(() => readFileSync(path.join(dir, "request.json"))).toThrow();
+  });
+
+  it("caps each run at USD 15 without resetting lifetime or resumed run spend", () => {
+    const { run, dir } = fixture();
+    const checkpoint = { version: 1, actualSpendUsd: 20, runSpendUsd: 0, requests: 9, reservedUsd: 0, entries: {} };
+    writeFileSync(path.join(dir, "checkpoint.json"), JSON.stringify(checkpoint));
+    const result = run("--generate");
+    expect(result.status, result.stderr).toBe(0);
+    const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
+    expect(pack.runSpendUsd).toBeCloseTo(0.000185, 8);
+    expect(pack.actualSpendUsd).toBeCloseTo(20.000185, 8);
+    expect(JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8")).runSpendUsd).toBe(0);
+
+    rmSync(path.join(dir, "copy.json"));
+    writeFileSync(path.join(dir, "checkpoint.json"), JSON.stringify({ ...checkpoint, runSpendUsd: 14.9999 }));
+    const resumed = run("--generate");
+    expect(resumed.status).toBe(1);
+    expect(resumed.stderr).toContain("projected spend exceeds run cap");
+    expect(JSON.parse(resumed.stdout).runSpendUsd).toBe(14.9999);
+  });
+
+  it("resumes the published pack's valid entries and skips without a checkpoint", () => {
+    const { run, dir } = fixture("ok", 2);
+    expect(run("--generate").status).toBe(0);
+    rmSync(path.join(dir, "checkpoint.json"));
+    const resumed = run("--generate");
+    expect(resumed.status, resumed.stderr).toBe(0);
+    expect(JSON.parse(resumed.stdout.split("\n")[0]).pending).toBe(0);
+    expect(JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8")).requests).toBe(2);
   });
 
   it("publishes grounded copy, accounts for usage, and resumes without spending again", () => {
@@ -245,11 +276,8 @@ describe("pub copy generation CLI", () => {
     expect(run("--check").status).toBe(0);
   });
 
-  it("refuses publication without usage and refuses contradictory dry-run flags", () => {
+  it("refuses publication without usage", () => {
     const { run, dir } = fixture("missing-usage");
-    const dry = run("--generate", "--dry-run");
-    expect(dry.status).toBe(1);
-    expect(() => readFileSync(path.join(dir, "request.json"))).toThrow();
     const result = run("--generate");
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("missing model usage");

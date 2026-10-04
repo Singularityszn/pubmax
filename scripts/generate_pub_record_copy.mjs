@@ -14,8 +14,9 @@ import { groupVenuePrices } from "../lib/venues.ts";
 import { GROUNDING_VERSION, JUDGE_SKU, JUDGE_BATCH_SIZE, JUDGE_THINKING_TOKENS, judgeOutputTokens, JUDGE_PROMPT, judgeText, judgeResults, judgeSchema, scoreJudgeProbe } from "./lib/pubCopyGrounding.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const JOB_CAP_USD = 15;
-const LIVE_SPEND_CAP_USD = 1.75;
+// Each run may spend at most this much, projected and metered. Lifetime spend
+// is reported beside it and never reset.
+const RUN_CAP_USD = 15;
 const BATCH_SIZE = 10;
 const OUTPUT_TOKENS = 4096;
 const INSUFFICIENT = "insufficient-stored-facts";
@@ -41,26 +42,23 @@ const PROMPT = [
 ].join("\n");
 
 function options() {
-  const opts = { generate: false, check: false, dryRun: false, evaluateJudge: false, cap: JOB_CAP_USD,
+  const opts = { generate: false, check: false, evaluateJudge: false,
     dataset: path.join(ROOT, "public/data/pint_prices_app_dataset.json"),
     out: path.join(ROOT, VENUE_RECORD_COPY_TRACING_INCLUDE),
     checkpoint: path.join(ROOT, "data-harvest/pub-record-copy/checkpoint.json") };
-  const values = { "--dataset": "dataset", "--out": "out", "--checkpoint": "checkpoint", "--cap-usd": "cap" };
+  const values = { "--dataset": "dataset", "--out": "out", "--checkpoint": "checkpoint" };
   for (let i = 2; i < process.argv.length; i++) {
     const flag = process.argv[i];
     if (flag === "--evaluate-judge") opts.evaluateJudge = true;
     else if (flag === "--generate") opts.generate = true;
     else if (flag === "--check") opts.check = true;
-    else if (flag === "--dry-run") opts.dryRun = true;
     else if (values[flag]) {
       const value = process.argv[++i];
       if (!value || value.startsWith("--")) throw new Error(`missing value for ${flag}`);
-      opts[values[flag]] = values[flag] === "cap" ? Number(value) : path.resolve(value);
+      opts[values[flag]] = path.resolve(value);
     } else throw new Error(`unknown argument ${flag}`);
   }
-  if (!Number.isFinite(opts.cap) || opts.cap <= 0 || opts.cap > JOB_CAP_USD) throw new Error("--cap-usd must be positive and at most 15");
   if (opts.check && opts.generate) throw new Error("--check cannot generate");
-  if (opts.dryRun && opts.generate) throw new Error("--dry-run cannot generate");
   return opts;
 }
 
@@ -106,12 +104,17 @@ function checkPublishedCopy(facts, out) {
 }
 
 function loadSpendCheckpoint(file, out) {
-  // A fresh checkpoint continues the metered spend the published pack records.
+  // A fresh checkpoint continues the lifetime spend, entries and skips the
+  // published pack records, and starts a new run. A resumed checkpoint keeps its
+  // unfinished run's spend.
   const published = readJson(out, null);
-  const checkpoint = readJson(file, { version: 1, actualSpendUsd: published?.actualSpendUsd ?? 0, reservedUsd: 0,
-    requests: published?.requests ?? 0, entries: {} });
+  const entries = Object.fromEntries(Object.values(published?.venues ?? {}).map(({ venueId, borough, supportedTags, ...copy }) =>
+    [venueId, { venueId, borough, supportedTags, ...copy, inputHash: inputHashFor({ venueId, borough, supportedTags }) }]));
+  const checkpoint = readJson(file, { version: 1, actualSpendUsd: published?.actualSpendUsd ?? 0, runSpendUsd: 0,
+    reservedUsd: 0, requests: published?.requests ?? 0, entries, skipped: published?.skipped ?? {} });
+  checkpoint.runSpendUsd ??= 0;
   if (checkpoint.version !== 1 || !checkpoint.entries ||
-      ![checkpoint.actualSpendUsd, checkpoint.reservedUsd].every((n) => Number.isFinite(n) && n >= 0) ||
+      ![checkpoint.actualSpendUsd, checkpoint.runSpendUsd, checkpoint.reservedUsd].every((n) => Number.isFinite(n) && n >= 0) ||
       !Number.isSafeInteger(checkpoint.requests) || checkpoint.requests < 0) throw new Error("invalid spend checkpoint");
   checkpoint.actualSpendUsd = Math.max(checkpoint.actualSpendUsd, published?.actualSpendUsd ?? 0);
   checkpoint.requests = Math.max(checkpoint.requests, published?.requests ?? 0);
@@ -127,7 +130,9 @@ function settleUsage(checkpoint, body, reserve, sku) {
     Number.isSafeInteger(usage?.candidatesTokenCount) && usage.candidatesTokenCount >= 0 &&
     Number.isSafeInteger(output) && output >= 0;
   if (metered) {
-    checkpoint.actualSpendUsd += cost(input, output, sku);
+    const spend = cost(input, output, sku);
+    checkpoint.actualSpendUsd += spend;
+    checkpoint.runSpendUsd += spend;
     checkpoint.reservedUsd = Math.max(0, checkpoint.reservedUsd - reserve);
   }
 
@@ -186,6 +191,12 @@ async function evaluateJudge(probes, requestBatch, checkpoint) {
   if (results.some((row) => !row.passed)) throw new Error("grounding judge regression evaluation failed; no copy published");
 }
 
+/** A run ends only when it completes; an interrupted run resumes with its spend. */
+function endRun(checkpoint, file) {
+  checkpoint.runSpendUsd = 0;
+  writeJson(file, checkpoint);
+}
+
 async function main() {
   const opts = options();
   const raw = readFileSync(opts.dataset, "utf8");
@@ -219,15 +230,15 @@ async function main() {
   for (let i = 0; i < pending.length; i += JUDGE_BATCH_SIZE) judgeBatches.push(pending.slice(i, i + JUDGE_BATCH_SIZE));
   const evaluationBatches = [];
   for (let i = 0; i < probes.length; i += JUDGE_BATCH_SIZE) evaluationBatches.push(probes.slice(i, i + JUDGE_BATCH_SIZE));
-  const projectedSpendUsd = checkpoint.actualSpendUsd + (opts.evaluateJudge ?
+  const projectedSpendUsd = checkpoint.runSpendUsd + (opts.evaluateJudge ?
     evaluationBatches.reduce((sum, batch) => sum + judgeReserveFor(batch), 0) :
     batches.reduce((sum, batch) => sum + reserveFor(batch), 0) +
     judgeBatches.reduce((sum, batch) => sum + judgeReserveFor(batch), 0) +
     pending.reduce((sum, fact) => sum + reserveFor([fact]) + judgeReserveFor([fact]), 0));
   console.log(JSON.stringify({ model: FLASH_LITE_SKU.model, judgeModel: JUDGE_SKU.model, venues: facts.length, eligible: eligible.length,
-    pending: pending.length, batches: batches.length, projectedSpendUsd, taskCapUsd: opts.cap, liveSpendCapUsd: Math.min(opts.cap, LIVE_SPEND_CAP_USD),
+    pending: pending.length, batches: batches.length, projectedSpendUsd, runCapUsd: RUN_CAP_USD, runSpendUsd: checkpoint.runSpendUsd,
     actualSpendUsd: checkpoint.actualSpendUsd, releasedReservationUsd, mode: opts.generate ? "generate" : "dry-run" }));
-  if (projectedSpendUsd > opts.cap) throw new Error("projected spend exceeds task cap; no model call made");
+  if (projectedSpendUsd > RUN_CAP_USD) throw new Error("projected spend exceeds run cap; no model call made");
   if (!opts.generate) return;
   let token = "";
   let tokenAt = 0;
@@ -248,7 +259,7 @@ async function main() {
       const sku = judging ? JUDGE_SKU : FLASH_LITE_SKU;
       const maxOutputTokens = judging ? judgeOutputTokens(batch.length) : OUTPUT_TOKENS;
       const reserve = reserveText((judging ? JUDGE_PROMPT : "") + text, sku, maxOutputTokens + (judging ? JUDGE_THINKING_TOKENS : 0));
-      if (checkpoint.actualSpendUsd + checkpoint.reservedUsd + reserve > Math.min(opts.cap, LIVE_SPEND_CAP_USD)) throw new Error("spend cap reached");
+      if (checkpoint.runSpendUsd + checkpoint.reservedUsd + reserve > RUN_CAP_USD) throw new Error("run spend cap reached");
       if (Date.now() < nextCallAt) await new Promise((resolve) => setTimeout(resolve, nextCallAt - Date.now()));
       nextCallAt = Date.now() + pacingMs;
       // Reserve durably BEFORE sending. An interrupted/unknown response keeps its reservation.
@@ -316,6 +327,7 @@ async function main() {
   }
   if (opts.evaluateJudge) {
     await evaluateJudge(probes, requestBatch, checkpoint);
+    endRun(checkpoint, opts.checkpoint);
     return;
   }
   function retain(fact, entry) {
@@ -357,11 +369,14 @@ async function main() {
   }));
   writeJson(opts.out, { version: 2, model: FLASH_LITE_SKU.model, generatedAt: new Date().toISOString(),
     startedAt, sourceDataset: "public/data/pint_prices_app_dataset.json", sourceDatasetSha256: hash(raw),
-    groundingVersion: GROUNDING_VERSION, judgePricing: JUDGE_SKU, pricing: FLASH_LITE_SKU, taskCapUsd: opts.cap, projectedSpendUsd,
-    actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests, venues,
+    groundingVersion: GROUNDING_VERSION, judgePricing: JUDGE_SKU, pricing: FLASH_LITE_SKU, runCapUsd: RUN_CAP_USD, projectedSpendUsd,
+    runSpendUsd: checkpoint.runSpendUsd, actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests, venues,
     skipped: Object.fromEntries(facts.filter((fact) => !venues[fact.venueId]).map((fact) =>
       [fact.venueId, fact.supportedTags.length ? checkpoint.skipped[fact.venueId] : { reason: INSUFFICIENT }])) });
-  console.log(JSON.stringify({ publishedVenues: Object.keys(venues).length, skippedVenues: facts.length - Object.keys(venues).length, actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests }));
+  console.log(JSON.stringify({ publishedVenues: Object.keys(venues).length, skippedVenues: facts.length - Object.keys(venues).length,
+    runSpendUsd: checkpoint.runSpendUsd, actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests }));
+  endRun(checkpoint, opts.checkpoint);
 }
+
 
 main().catch((error) => { console.error(error.message); process.exitCode = 1; });

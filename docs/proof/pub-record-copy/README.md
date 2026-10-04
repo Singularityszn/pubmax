@@ -2,12 +2,14 @@
 
 Gemini 2.5 Flash-Lite wrote short descriptions and chose one to three supported
 vibe tags. A separate Gemini 2.5 Flash call judged each draft against the same
-stored facts. The final pack has 516 descriptions for 1,916 curated London
-pubs. Another 134 eligible pubs failed the publication gate twice and are
+stored facts. The final pack has 515 descriptions for 1,916 curated London
+pubs. Another 135 eligible pubs failed the publication gate twice and are
 listed as `invalid-copy-after-retry`; 1,266 have no eligible fact and are listed
 as `insufficient-stored-facts`. All 650 eligible pubs went through the writer
-and judge in the final regeneration. UK base pubs and non-pub anchors are
-outside this pack.
+and judge in the full regeneration. A later targeted run sent only the one
+published row the tightened passive-verb check rejected ("Darts and cocktails
+are served up"); its new drafts failed twice, so it is now a documented skip.
+UK base pubs and non-pub anchors are outside this pack.
 
 Both models received only venue IDs, boroughs and positive structured amenity
 labels: cocktails, alcohol-free options, live music, pub quiz, darts, pool,
@@ -41,10 +43,12 @@ passed only 75/138 and is retained as before evidence.
 Judge calls use at most five drafts, temperature zero and a 1,024-token
 thinking budget. Output and thinking costs are reserved before each call and
 metered separately from the Flash-Lite writer. The full regeneration projected
-USD 9.764765 before any call, under the fixed USD 15 task cap. A separate
-USD 1.75 actual-spend guard kept the run below Firstmate's USD 2 target.
-Final cumulative token-metered spend is USD 1.5628547 over 1,852 requests,
-including prior rounds and live judge evaluations. This is API usage accounting,
+USD 9.764765 before any call, under the fixed USD 15 cap, and a USD 1.75
+actual-spend guard then in place kept it below Firstmate's USD 2 target. The
+cap now applies per run: the targeted run projected USD 0.0222752 and spent
+USD 0.0031639 over three requests. Final lifetime token-metered spend is
+USD 1.5660186 over 1,855 requests, including prior rounds and live judge
+evaluations. This is API usage accounting,
 not an invoice. No quota override was changed.
 
 ## Before and after
@@ -72,8 +76,8 @@ no Google photo was stored as evidence.
 
 ## Checks
 
-`npm run generate:pub-copy -- --check` validates all 516 entries and the
-reasons for all 1,400 skips. Focused tests exercise independent judging,
+`npm run generate:pub-copy -- --check` validates all 515 entries and the
+reasons for all 1,401 skips. Focused tests exercise independent judging,
 malformed/truncated/contradictory verdicts, full claim coverage, draft and
 fact binding at runtime, retry once then skip, cumulative usage for both
 models, stale checkpoints, quota backoff, non-JSON errors, sparse pubs,

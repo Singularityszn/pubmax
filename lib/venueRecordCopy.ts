@@ -96,22 +96,32 @@ const BEFORE_FACT = new Set([
   "in", "find", "fancy", "enjoy", "try", "then", "got", "there's", "here's",
 ]);
 const PARTITIVE = new Set(["game", "bit", "round", "frame", "go"]);
-// After "<feature> is" only a presence word may follow, never a verdict.
-const AFTER_FACT_IS = new Set([
-  "on", "here", "available", "served", "poured", "mixed", "run", "hosted", "played", "sung", "featured", "offered",
-  "provided", "put", "in", "at", "a", "an",
-  "the", "part", "also", "all",
+const ALL_FEATURES = AMENITY_COPY.map(({ key }) => key);
+const STAGED: readonly AmenityKey[] = ["liveMusic", "pubQuiz", "karaoke"];
+const GAMES: readonly AmenityKey[] = ["darts", "pool"];
+const DRINKS: readonly AmenityKey[] = ["cocktails", "nonAlcoholic"];
+// After "<features> are" only a presence word or a participle that fits every
+// one of those features may follow, never a verdict: nobody serves darts.
+const AFTER_FACT_IS = new Map<string, readonly AmenityKey[]>([
+  ...["on", "here", "available", "featured", "offered", "provided", "in", "at", "a", "an", "the", "part"]
+    .map((word): [string, readonly AmenityKey[]] => [word, ALL_FEATURES]),
+  ["served", DRINKS], ["poured", DRINKS], ["mixed", DRINKS],
+  ["run", STAGED], ["hosted", STAGED], ["put", STAGED],
+  ["played", [...GAMES, "liveMusic"]], ["sung", ["karaoke"]],
 ]);
+const BE = new Set(["is", "are", "'s", "be", "been", "being"]);
+const BETWEEN_BE = new Set(["also", "all", "both", "can"]);
+const SUBJECT_LINK = new Set([",", "and", "or", "plus", "both", "a", "an", "the", "some", "its", "their"]);
 
 // Each verb may govern only the features it fits: nobody catches a cocktail.
 const VERB_FITS: ReadonlyArray<[RegExp, readonly AmenityKey[]]> = [
-  [/^(?:catch|catching|host|hosts|hosting|run|runs|running|puts on|put on|stages?)$/, ["liveMusic", "pubQuiz", "karaoke"]],
-  [/^(?:play|plays|playing|shoot|throw|throws)$/, ["darts", "pool"]],
+  [/^(?:catch|catching|host|hosts|hosting|run|runs|running|puts on|put on|stages?)$/, STAGED],
+  [/^(?:play|plays|playing|shoot|throw|throws)$/, GAMES],
   [/^(?:sing|sings|singing|belt|belts)$/, ["karaoke"]],
   [/^(?:join|joins|joining|enter|enters|take part in)$/, ["pubQuiz", "karaoke"]],
-  [/^(?:get|gets|grab|grabs|order|orders|sip|sips)$/, ["cocktails", "nonAlcoholic", "happyHour"]],
-  [/^(?:serve|serves|serving|pour|pours|pouring|mix|mixes|mixing|shake|shakes|shaking)$/, ["cocktails", "nonAlcoholic"]],
-  [/^(?:has|have|offers?|offering|does|do|features?|featuring|provides?|providing)$/, AMENITY_COPY.map(({ key }) => key)],
+  [/^(?:get|gets|grab|grabs|order|orders|sip|sips)$/, [...DRINKS, "happyHour"]],
+  [/^(?:serve|serves|serving|pour|pours|pouring|mix|mixes|mixing|shake|shakes|shaking)$/, DRINKS],
+  [/^(?:has|have|offers?|offering|does|do|features?|featuring|provides?|providing)$/, ALL_FEATURES],
 ];
 const VERBS = /\b(?:catch|catching|host|hosts|hosting|run|runs|running|puts on|put on|stages?|play|plays|playing|shoot|throw|throws|sing|sings|singing|belt|belts|join|joins|joining|enter|enters|take part in|get|gets|grab|grabs|order|orders|sip|sips|serve|serves|serving|pour|pours|pouring|mix|mixes|mixing|shake|shakes|shaking|has|have|offers?|offering|does|do|features?|featuring|provides?|providing)\b/g;
 
@@ -182,7 +192,7 @@ function claimsAreSupported(
   });
 }
 
-/** No modifier before a feature and no verdict after it. */
+/** No modifier before a feature, and no verdict or ill-fitting participle after it. */
 function factsStandPlain(text: string): boolean {
   const tokens = text.match(/fact_\w+|[a-z'-]+|[,?.;:]/g) ?? [];
   const introduced = tokens.every((token, index) => {
@@ -193,7 +203,19 @@ function factsStandPlain(text: string): boolean {
     return (before === "of" || before === "at") && PARTITIVE.has(tokens[index - 2] ?? "");
   });
   if (!introduced) return false;
-  return [...text.matchAll(/fact_\w+ +(?:is|are|'s) +([a-z'-]+)/g)].every((match) => AFTER_FACT_IS.has(match[1]));
+  return tokens.every((token, index) => {
+    if (!BE.has(token)) return true;
+    const after = tokens.slice(index + 1).find((next) => !BETWEEN_BE.has(next)) ?? "";
+    if (BE.has(after)) return true;
+    let at = index - 1;
+    while (at >= 0 && (BE.has(tokens[at]) || BETWEEN_BE.has(tokens[at]))) at--;
+    const subject: string[] = [];
+    for (; at >= 0 && (tokens[at].startsWith("fact_") || SUBJECT_LINK.has(tokens[at])); at--) {
+      if (tokens[at].startsWith("fact_")) subject.push(tokens[at].slice("fact_".length));
+    }
+    const fits: readonly string[] = AFTER_FACT_IS.get(after) ?? [];
+    return subject.every((key) => fits.includes(key));
+  });
 }
 
 export function validateVenueRecordCopyDraft(

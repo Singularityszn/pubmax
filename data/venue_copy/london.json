@@ -1,8 +1,8 @@
 {
   "version": 2,
   "model": "gemini-2.5-flash-lite",
-  "generatedAt": "2026-10-04T15:19:39.219Z",
-  "startedAt": "2026-10-04T14:24:11.767Z",
+  "generatedAt": "2026-10-04T16:05:29.035Z",
+  "startedAt": "2026-10-04T16:05:16.272Z",
   "sourceDataset": "public/data/pint_prices_app_dataset.json",
   "sourceDatasetSha256": "680ce1c0e7e1725d5d2a37ed106498478c7aacdf4f033b66da6084241645e9e3",
   "groundingVersion": 2,
@@ -16,10 +16,11 @@
     "inputUsdPerMillion": 0.1,
     "outputUsdPerMillion": 0.4
   },
-  "taskCapUsd": 15,
-  "projectedSpendUsd": 9.764764999999999,
-  "actualSpendUsd": 1.5628547000000002,
-  "requests": 1852,
+  "runCapUsd": 15,
+  "projectedSpendUsd": 0.022275200000000002,
+  "runSpendUsd": 0.0031639,
+  "actualSpendUsd": 1.5660186000000003,
+  "requests": 1855,
   "venues": {
     "venue-10ft2ey": {
       "venueId": "venue-10ft2ey",
@@ -1810,48 +1811,6 @@
           {
             "phrase": "Pub quiz",
             "reason": "The fact 'Pub quiz' supports the tag 'Pub quiz'.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          }
-        ]
-      }
-    },
-    "venue-15i2wst": {
-      "venueId": "venue-15i2wst",
-      "borough": "Westminster",
-      "supportedTags": [
-        "Cocktails",
-        "Darts"
-      ],
-      "description": "Darts and cocktails are served up at this Westminster pub.",
-      "vibeTags": [
-        "Cocktails",
-        "Darts"
-      ],
-      "grounding": {
-        "version": 2,
-        "verdict": "SUPPORTED",
-        "description": "Darts and cocktails are served up at this Westminster pub.",
-        "vibeTags": [
-          "Cocktails",
-          "Darts"
-        ],
-        "claims": [
-          {
-            "phrase": "Darts and cocktails are served up at this Westminster pub.",
-            "reason": "The fact 'Darts' supports 'Darts'. The fact 'Cocktails' supports 'cocktails'. The pub is located in Westminster. 'served up' is a semantically fitting verb for cocktails.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Cocktails",
-            "reason": "The fact 'Cocktails' supports the tag 'Cocktails'.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Darts",
-            "reason": "The fact 'Darts' supports the tag 'Darts'.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           }
@@ -21747,6 +21706,10 @@
     },
     "venue-15h14t5": {
       "reason": "insufficient-stored-facts"
+    },
+    "venue-15i2wst": {
+      "inputHash": "ade056e199cddf7f1689b18fb88dd7f0dcbcc082a1a8ae89f114a314e1e14f51",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-15iodj9": {
       "reason": "insufficient-stored-facts"
