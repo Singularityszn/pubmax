@@ -95,8 +95,9 @@ export function seededPintDropDraftForm(
   return { ...draftForm, price: priceSeed };
 }
 
-export function pintDropDraftStorageKey(venueId: string): string {
-  return `${DRAFT_KEY_PREFIX}${encodeURIComponent(venueId)}`;
+export function pintDropDraftStorageKey(venueId: string, owner?: string): string {
+  const venueKey = `${DRAFT_KEY_PREFIX}${encodeURIComponent(venueId)}`;
+  return owner === undefined ? venueKey : `${venueKey}:owner:${encodeURIComponent(owner)}`;
 }
 
 export function normalisePintDropDraft(value: unknown): PintDropDraft | null {
@@ -142,10 +143,11 @@ export function isEmptyPintDropDraft(draft: PintDropDraft): boolean {
 export function readPintDropDraft(
   storage: Pick<Storage, "getItem"> | null | undefined,
   venueId: string,
+  owner?: string,
 ): PintDropDraft | null {
   if (!storage || !venueId) return null;
   try {
-    const raw = storage.getItem(pintDropDraftStorageKey(venueId));
+    const raw = storage.getItem(pintDropDraftStorageKey(venueId, owner));
     if (!raw) return null;
     return normalisePintDropDraft(JSON.parse(raw));
   } catch {
@@ -157,9 +159,10 @@ export function writePintDropDraft(
   storage: Pick<Storage, "removeItem" | "setItem"> | null | undefined,
   venueId: string,
   draft: PintDropDraft,
+  owner?: string,
 ): void {
   if (!storage || !venueId) return;
-  const key = pintDropDraftStorageKey(venueId);
+  const key = pintDropDraftStorageKey(venueId, owner);
   try {
     if (isEmptyPintDropDraft(draft)) {
       storage.removeItem(key);
@@ -182,10 +185,11 @@ export function pintDropDraftForPersistence(draft: PintDropDraft, transientVoice
 export function clearPintDropDraft(
   storage: Pick<Storage, "removeItem"> | null | undefined,
   venueId: string,
+  owner?: string,
 ): void {
   if (!storage || !venueId) return;
   try {
-    storage.removeItem(pintDropDraftStorageKey(venueId));
+    storage.removeItem(pintDropDraftStorageKey(venueId, owner));
   } catch {
     // Same storage-failure posture as writes: fail soft.
   }

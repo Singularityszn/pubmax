@@ -116,6 +116,7 @@ import {
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
+  markProviderSignOut,
   readProviderAuthState,
   readProviderIdentityRevision,
   resolveSupabaseAuthState,
@@ -1029,6 +1030,7 @@ export function AuthProvider({
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
       await clearPersistedSession();
+      markProviderSignOut("supabase");
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
       // session went and its name stayed.

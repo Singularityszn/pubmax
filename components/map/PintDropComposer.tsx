@@ -48,7 +48,13 @@ type PintDropComposerProps = {
   lastTrainDecision?: LastPintDecision | null;
 };
 
-export default function PintDropComposer({
+export default function PintDropComposer(props: PintDropComposerProps) {
+  // Keep the map and hook mounted. Only the account's local disclosure and
+  // dictation lifecycle leave when a different confirmed owner arrives.
+  return <OwnedPintDropComposer key={props.state.draftOwner ?? "unknown"} {...props} />;
+}
+
+function OwnedPintDropComposer({
   venueId,
   state,
   venueName,
@@ -60,6 +66,8 @@ export default function PintDropComposer({
     authConfigured,
     signedIn,
     identityReady,
+    draftOwner = "keyless",
+    privateDraftHidden = false,
     setHandle,
     dropForm,
     setDropForm,
@@ -101,6 +109,7 @@ export default function PintDropComposer({
 
   const draftReady = useVenueDraft({
     venueId,
+    draftOwner,
     resetComposer,
     setDropForm,
     setVisibility,
@@ -202,6 +211,23 @@ export default function PintDropComposer({
       pintPhoto,
     ],
   );
+
+  useEffect(() => {
+    if (privateDraftHidden && listening) toggleListening();
+  }, [privateDraftHidden, listening, toggleListening]);
+
+  if (privateDraftHidden) {
+    // Keep the owner's draft lifecycle mounted for silent recovery, but put
+    // none of its fields, previews or prices in the signed-out/unknown DOM.
+    return (
+      <div className="dropComposer spillComposer" aria-label="Pint Drop composer">
+        <p className="spillSignedOutNote">{SPILL_SIGNED_OUT_DOOR_LINE}</p>
+        <Link href={`/login?mode=signin&from=${encodeURIComponent(pintDropDoorHref(venueId))}`} className="spillSubmitLink">
+          Sign in to post
+        </Link>
+      </div>
+    );
+  }
 
   if (!draftReady) {
     return (

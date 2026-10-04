@@ -55,6 +55,8 @@ export type ProviderIdentityRevisionStore = {
   signal: () => AbortSignal;
   accountRevision: () => number;
   accountSignal: () => AbortSignal;
+  signOutRevision: (provider: AuthProviderName) => number;
+  markSignOut: (provider: AuthProviderName) => number;
   set: (provider: AuthProviderName, identity: string | null) => number;
   setAuthState: (provider: AuthProviderName, state: ProviderAuthState) => number;
   authState: (provider: AuthProviderName) => ProviderAuthState;
@@ -81,6 +83,7 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     clerk: "unresolved",
     supabase: "unresolved",
   };
+  const signOutRevisions: Record<AuthProviderName, number> = { clerk: 0, supabase: 0 };
   const listeners = new Set<() => void>();
   const advanceRevision = (): number => {
     revision += 1;
@@ -103,6 +106,14 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     signal: () => revisionController.signal,
     accountRevision: () => accountRevision,
     accountSignal: () => accountController.signal,
+    signOutRevision: (provider) => signOutRevisions[provider],
+    markSignOut(provider) {
+      // Only an explicit user sign-out advances this boundary. A null session
+      // after a failed refresh must not destroy the same account's draft.
+      signOutRevisions[provider] += 1;
+      advanceAccountRevision();
+      return advanceRevision();
+    },
     set(provider, identity) {
       if (identities[provider] === identity) return revision;
       identities[provider] = identity;
@@ -131,3 +142,6 @@ export const setProviderIdentity = providerIdentityRevisionStore.set;
 export const setProviderAuthState = providerIdentityRevisionStore.setAuthState;
 export const readProviderAuthState = providerIdentityRevisionStore.authState;
 export const subscribeProviderIdentityRevision = providerIdentityRevisionStore.subscribe;
+
+export const readProviderSignOutRevision = providerIdentityRevisionStore.signOutRevision;
+export const markProviderSignOut = providerIdentityRevisionStore.markSignOut;

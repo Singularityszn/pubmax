@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/authContext";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountRevision, readProviderSignOutRevision } from "@/lib/authProviderRevision";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
@@ -196,6 +197,13 @@ function measureFieldsOf(form: {
   };
 }
 
+function emptyComposerForm() {
+  return {
+    price: "", drink: "", measure: DEFAULT_DRINK_MEASURE as DrinkMeasure,
+    measureLabel: "", note: "", era: "", withWho: "",
+  };
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -257,10 +265,33 @@ export function usePintDrops(
     configured: authConfigured,
     handle: accountHandle,
     identityResolved,
+    supabaseAuthState,
     getCurrentUserId,
   } = useAuth();
   const signedIn = Boolean(user && session);
   const identityReady = !authLoading && identityResolved;
+  const signOutRevision = readProviderSignOutRevision("supabase");
+  const [draftAuthority, setDraftAuthority] = useState(() => ({
+    owner: !authConfigured ? "keyless" : user && session ? `account:${user.id}` : null,
+    signOutRevision,
+  }));
+  const draftOwner = draftAuthority.owner;
+  const confirmedDraftOwner = !authConfigured
+    ? "keyless"
+    : user && session
+      ? `account:${user.id}`
+      : supabaseAuthState === "signed-out" && (
+          draftOwner === null || draftOwner === "signed-out" ||
+          signOutRevision !== draftAuthority.signOutRevision
+        ) ? "signed-out" : null;
+  const privateDraftHidden = authConfigured && !signedIn && draftOwner?.startsWith("account:") === true;
+  // Readiness and token changes are not account changes. A retained callback
+  // must compare its captured account boundary with the live authority.
+  const requestAccountRevision = readProviderAccountRevision();
+  const requestUserId = user?.id ?? null;
+  const ownsCurrentAccount = () =>
+    readProviderAccountRevision() === requestAccountRevision &&
+    getCurrentUserId() === requestUserId;
   const roundIdentity = useMemo(
     () =>
       authLoading
@@ -292,18 +323,7 @@ export function usePintDrops(
   const seedComposerPrice = useCallback((price: string | null) => {
     setConfirmSeed(price);
   }, []);
-  const [dropForm, setDropForm] = useState({
-    price: "",
-    drink: "",
-    // The SERVING the price is about (battle test D04). Defaults to the
-    // measure the pint lane already assumed, so the composer opens on the
-    // ordinary case and a half is one tap away rather than a free-text hope.
-    measure: DEFAULT_DRINK_MEASURE as DrinkMeasure,
-    measureLabel: "",
-    note: "",
-    era: "",
-    withWho: "",
-  });
+  const [dropForm, setDropForm] = useState(emptyComposerForm);
   // Visibility (issue #29 backbone; this composer is the first writer of it).
   // Additive field — defaults to `public`, matching the server default exactly.
   const [visibility, setVisibility] = useState<Visibility>(DEFAULT_VISIBILITY);
@@ -324,6 +344,26 @@ export function usePintDrops(
   // Abort in-flight city-scoped list fetches when city changes or a newer
   // refresh supersedes an older one (avoids stale London drops painting Manchester).
   const cityListAbortRef = useRef<AbortController | null>(null);
+
+  if (confirmedDraftOwner !== null && confirmedDraftOwner !== draftOwner) {
+    // Adjust before commit so no field or photo paints under the next account.
+    // The existing photo effect revokes the previous previews after removal.
+    setDraftAuthority({ owner: confirmedDraftOwner, signOutRevision });
+    setDropForm(emptyComposerForm());
+    setPintPhoto(null);
+    setVenuePhoto(null);
+    setReceiptPhoto(null);
+    setVisibility(DEFAULT_VISIBILITY);
+    setVibeTags([]);
+    setDropMsg(null);
+    setSubmitting(false);
+    setConfirmSeed(null);
+    setDropsByVenueId((current) => new Map(
+      [...current].map(([venueId, drops]) => [venueId, drops.filter((drop) =>
+        !drop.optimistic && shouldOptimisticallyAppearInFeed(drop.visibility ?? DEFAULT_VISIBILITY),
+      )]),
+    ));
+  }
 
   // Refresh the WHOLE drops layer from the public list (city-scoped). This is
   // the same read the initial load uses — so #29 visibility filtering re-applies —
@@ -469,15 +509,7 @@ export function usePintDrops(
       if (current) URL.revokeObjectURL(current.previewUrl);
       return null;
     });
-    setDropForm({
-      price: "",
-      drink: "",
-      measure: DEFAULT_DRINK_MEASURE,
-      measureLabel: "",
-      note: "",
-      era: "",
-      withWho: "",
-    });
+    setDropForm(emptyComposerForm());
     setVibeTags([]);
     setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
@@ -497,6 +529,7 @@ export function usePintDrops(
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
   ) {
+    if (!ownsCurrentAccount()) return;
     const storage = safeLocalStorage();
     if (!storage) return;
     const next = update(readOptimisticSpills(storage));
@@ -510,6 +543,7 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
+    if (!ownsCurrentAccount()) return;
     if (
       !spillHasSubmissionEvidence({
         price: dropForm.price,
@@ -527,6 +561,7 @@ export function usePintDrops(
     venueId: string,
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
+    if (!ownsCurrentAccount()) return;
     const submittedRound = captureRoundAppendSnapshot(
       roundIdentity,
       accountHandle,
@@ -621,6 +656,7 @@ export function usePintDrops(
         : {}),
     };
     setDropsByVenueId((current) => {
+      if (!ownsCurrentAccount()) return current;
       const next = new Map(current);
       next.set(venueId, [optimisticMapDrop, ...(next.get(venueId) ?? [])]);
       return next;
@@ -639,7 +675,7 @@ export function usePintDrops(
     const submittedPintFile = pintPhoto?.file ?? null;
     const submittedVenueFile = venuePhoto?.file ?? null;
     const submittedReceiptFile = receiptPhoto?.file ?? null;
-    clearPintDropDraft(safeSessionStorage(), venueId);
+    clearPintDropDraft(safeSessionStorage(), venueId, draftOwner === "keyless" ? undefined : draftOwner ?? undefined);
     const local = safeLocalStorage();
     if (local) {
       try {
@@ -658,10 +694,12 @@ export function usePintDrops(
     });
 
     const markFailed = (message: string) => {
+      if (!ownsCurrentAccount()) return;
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
       }
       setDropsByVenueId((current) => {
+        if (!ownsCurrentAccount()) return current;
         const next = new Map(current);
         next.set(
           venueId,
@@ -685,98 +723,106 @@ export function usePintDrops(
       setDropMsg({ ok: false, text: message });
     };
 
-    try {
-      // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
-      const body = new FormData();
-      body.set("venueId", venueId);
-      body.set("handle", submittedHandle);
-      body.set("drink", submittedDrink);
-      // The SERVING the price is about (battle test D04). Always sent, so
-      // the server never has to infer a measure from the drink text.
-      body.set("measure", submittedMeasure.measure);
-      body.set("measureLabel", submittedMeasure.measureLabel);
-      body.set("priceGbp", submittedPrice);
-      // "With" has no server column (frozen API contract) — folded into the
-      // note as a structured suffix ("— with @sam, @priya") at submit time, so
-      // every surface that renders passedDownNote gets it for free. See
-      // lib/spill.ts for the exact format.
-      body.set("passedDownNote", passedDownNote);
-      body.set("era", submittedEra);
-      body.set("visibility", submittedVisibility);
-      // Repeated field entries — the route also accepts one comma-separated
-      // value; the server re-filters against its allowlist either way.
-      for (const tag of submittedVibeTags) body.append("vibe_tags", tag);
-      if (trainFields) {
-        body.set("leaveByIso", trainFields.leaveByIso);
-        body.set("lastTrainDecision", trainFields.lastTrainDecision);
-      }
-      if (submittedPintFile) body.set("pint_photo", submittedPintFile);
-      if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
-      if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
+    return persistSubmittedDrop();
 
-      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        markFailed(errorMessageFrom(data, "Could not save that drop."));
-        return;
-      }
-      trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
-      notifyCheapPintPingQualified();
-
-      const reconciledDrop = {
-        ...(data.drop as PintDropDTO),
-        venueName: options?.venueName,
-        venueMapUrl: venueMapUrl(venueId),
-      };
-      if (publishToFeed) {
-        updateOptimisticFeedStorage((current) =>
-          reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
-        );
-      }
-      setDropsByVenueId((current) => {
-        const next = new Map(current);
-        next.set(venueId, [
-          data.drop,
-          ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
-        ]);
-        return next;
-      });
-
-      // Loop 2: if a Round is open, append this pub as a stop (existing
-      // addStop API). Fail-soft — the drop already landed.
-      const addedToNight = await appendPintDropStopToActiveRound({
-        round: submittedRound,
-        currentUserId: getCurrentUserId,
-        venueId,
-        venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
-        dropRef: pintDropId(data.drop),
-      });
-
-      const links: NonNullable<DropMsg["links"]> = [
-        { href: "/social", label: "Open Social" },
-      ];
-      if (addedToNight) {
-        links.push({
-          href: `/bar-tab/${encodeURIComponent(venueId)}`,
-          label: "Bar tab",
-        });
-        const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
-        if (cleanHandle) {
-          links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
+    async function persistSubmittedDrop() {
+      try {
+        // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
+        const body = new FormData();
+        body.set("venueId", venueId);
+        body.set("handle", submittedHandle);
+        body.set("drink", submittedDrink);
+        // The SERVING the price is about (battle test D04). Always sent, so
+        // the server never has to infer a measure from the drink text.
+        body.set("measure", submittedMeasure.measure);
+        body.set("measureLabel", submittedMeasure.measureLabel);
+        body.set("priceGbp", submittedPrice);
+        // "With" has no server column (frozen API contract) — folded into the
+        // note as a structured suffix ("— with @sam, @priya") at submit time, so
+        // every surface that renders passedDownNote gets it for free. See
+        // lib/spill.ts for the exact format.
+        body.set("passedDownNote", passedDownNote);
+        body.set("era", submittedEra);
+        body.set("visibility", submittedVisibility);
+        // Repeated field entries — the route also accepts one comma-separated
+        // value; the server re-filters against its allowlist either way.
+        for (const tag of submittedVibeTags) body.append("vibe_tags", tag);
+        if (trainFields) {
+          body.set("leaveByIso", trainFields.leaveByIso);
+          body.set("lastTrainDecision", trainFields.lastTrainDecision);
         }
+        if (submittedPintFile) body.set("pint_photo", submittedPintFile);
+        if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
+        if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
+
+        const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
+        if (!ownsCurrentAccount()) return;
+        const data = await response.json().catch(() => null);
+        if (!ownsCurrentAccount()) return;
+        if (!response.ok) {
+          markFailed(errorMessageFrom(data, "Could not save that drop."));
+          return;
+        }
+        trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
+        notifyCheapPintPingQualified();
+
+        const reconciledDrop = {
+          ...(data.drop as PintDropDTO),
+          venueName: options?.venueName,
+          venueMapUrl: venueMapUrl(venueId),
+        };
+        if (publishToFeed) {
+          updateOptimisticFeedStorage((current) =>
+            reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
+          );
+        }
+        setDropsByVenueId((current) => {
+          if (!ownsCurrentAccount()) return current;
+          const next = new Map(current);
+          next.set(venueId, [
+            data.drop,
+            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
+          ]);
+          return next;
+        });
+
+        // Loop 2: if a Round is open, append this pub as a stop (existing
+        // addStop API). Fail-soft — the drop already landed.
+        const addedToNight = await appendPintDropStopToActiveRound({
+          round: submittedRound,
+          currentUserId: getCurrentUserId,
+          venueId,
+          venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
+          dropRef: pintDropId(data.drop),
+        });
+        if (!ownsCurrentAccount()) return;
+
+        const links: NonNullable<DropMsg["links"]> = [
+          { href: "/social", label: "Open Social" },
+        ];
+        if (addedToNight) {
+          links.push({
+            href: `/bar-tab/${encodeURIComponent(venueId)}`,
+            label: "Bar tab",
+          });
+          const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
+          if (cleanHandle) {
+            links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
+          }
+        }
+        // What the second-reporter pass answered. A mint changes the standing of
+        // BOTH rows of the pair, and the row this browser holds for the earlier
+        // report predates it, so the lane is re-read rather than patched by hand.
+        const outcome = parseConfirmationOutcome(data.confirmationOutcome);
+        rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
+        setDropMsg({
+          ok: true,
+          text: dropReceiptText(addedToNight, outcome, submittedPrice),
+          links,
+        });
+      } catch {
+        if (ownsCurrentAccount()) markFailed("Network or storage error. Try again.");
       }
-      // What the second-reporter pass answered. A mint changes the standing of
-      // BOTH rows of the pair, and the row this browser holds for the earlier
-      // report predates it, so the lane is re-read rather than patched by hand.
-      const outcome = parseConfirmationOutcome(data.confirmationOutcome);
-      rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
-      setDropMsg({
-        ok: true,
-        text: dropReceiptText(addedToNight, outcome, submittedPrice),
-        links,
-      });
-    } catch {
-      markFailed("Network or storage error. Try again.");
     }
   }
 
@@ -850,13 +896,14 @@ export function usePintDrops(
     setConfirmSeed(null);
   }, []);
 
-  const mapDropsByVenueId = useMemo(
-    () =>
-      mapVenues
-        ? filterMapPintDropEntries(mapVenues, dropsByVenueId)
-        : dropsByVenueId,
-    [dropsByVenueId, mapVenues],
-  );
+  const mapDropsByVenueId = useMemo(() => {
+    const visible = privateDraftHidden ? new Map(
+      [...dropsByVenueId].map(([venueId, drops]) => [venueId, drops.filter((drop) =>
+        !drop.optimistic && shouldOptimisticallyAppearInFeed(drop.visibility ?? DEFAULT_VISIBILITY),
+      )]),
+    ) : dropsByVenueId;
+    return mapVenues ? filterMapPintDropEntries(mapVenues, visible) : visible;
+  }, [dropsByVenueId, mapVenues, privateDraftHidden]);
 
   const venueSignals = useMemo(() => {
     const signals = new Map<
@@ -937,6 +984,8 @@ export function usePintDrops(
     authConfigured,
     signedIn,
     identityReady,
+    draftOwner,
+    privateDraftHidden,
     composerOpen,
     setComposerOpen,
     closeComposer,
@@ -959,7 +1008,7 @@ export function usePintDrops(
     removePhoto,
     resetComposer,
     submitting,
-    dropMsg,
+    dropMsg: privateDraftHidden ? null : dropMsg,
     submitDrop,
     reportDrop,
   };

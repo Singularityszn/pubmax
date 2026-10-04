@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import {
   pintDropDraftForPersistence,
+  pintDropDraftStorageKey,
+  clearPintDropDraft,
   readPintDropDraft,
   seededPintDropDraftForm,
   writePintDropDraft,
@@ -9,10 +11,12 @@ import {
 import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { safeSessionStorage } from "@/lib/safeStorage";
+import { readProviderSignOutRevision } from "@/lib/authProviderRevision";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 type UseVenueDraftArgs = {
   venueId: string;
+  draftOwner: string | null;
   resetComposer: PintDropsState["resetComposer"];
   setDropForm: PintDropsState["setDropForm"];
   setVisibility: PintDropsState["setVisibility"];
@@ -32,12 +36,13 @@ type UseVenueDraftArgs = {
 };
 
 /**
- * Owns the venue-scoped draft lifecycle: hydrate on venue switch, persist on
+ * Owns the account-and-venue-scoped draft lifecycle: hydrate on venue switch, persist on
  * every edit, and gate the composer's first interactive paint. Returns
  * `draftReady` — false until the current venue's saved draft has hydrated.
  */
 export function useVenueDraft({
   venueId,
+  draftOwner,
   resetComposer,
   setDropForm,
   setVisibility,
@@ -48,24 +53,28 @@ export function useVenueDraft({
   transientVoiceNoteBaseline,
   priceSeed = null,
 }: UseVenueDraftArgs): boolean {
-  const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
-  if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
+  const storageOwner = draftOwner === "keyless" ? undefined : draftOwner ?? undefined;
+  const scope = draftOwner === null ? null : pintDropDraftStorageKey(venueId, storageOwner);
+  const [draftReadyScope, setDraftReadyScope] = useState<string | null>(null);
+  if (draftReadyScope !== null && draftReadyScope !== scope) {
     // React adjust-state-during-render pattern: block stale shared composer
     // state from painting under a newly selected pub while the venue draft
     // hydrates. The actual field reset happens in the effect below.
-    setDraftReadyVenueId(null);
+    setDraftReadyScope(null);
   }
-  const draftReady = draftReadyVenueId === venueId;
+  const draftReady = scope !== null && draftReadyScope === scope;
 
   useEffect(() => {
+    if (scope === null) return;
     let active = true;
+    const signOutRevision = readProviderSignOutRevision("supabase");
     async function hydrateVenueDraft() {
-      const draft = readPintDropDraft(safeSessionStorage(), venueId);
+      const draft = readPintDropDraft(safeSessionStorage(), venueId, storageOwner);
       if (!active) return;
       resetComposer();
       const seeded = seededPintDropDraftForm(draft?.form ?? null, priceSeed);
       if (draft) {
-        writePintDropDraft(safeSessionStorage(), venueId, draft);
+        writePintDropDraft(safeSessionStorage(), venueId, draft, storageOwner);
         if (seeded) setDropForm(seeded);
         setVisibility(draft.visibility);
         setVibeTags(draft.vibeTags);
@@ -73,16 +82,19 @@ export function useVenueDraft({
       } else if (seeded) {
         setDropForm(seeded);
       }
-      setDraftReadyVenueId(venueId);
+      setDraftReadyScope(scope);
     }
     void hydrateVenueDraft();
     return () => {
       active = false;
+      if (storageOwner?.startsWith("account:") && readProviderSignOutRevision("supabase") !== signOutRevision) {
+        clearPintDropDraft(safeSessionStorage(), venueId, storageOwner);
+      }
     };
-  }, [venueId, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
+  }, [venueId, scope, storageOwner, draftOwner, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
 
   useEffect(() => {
-    if (draftReadyVenueId !== venueId) return;
+    if (scope === null || draftReadyScope !== scope) return;
     writePintDropDraft(
       safeSessionStorage(),
       venueId,
@@ -92,8 +104,9 @@ export function useVenueDraft({
         vibeTags,
         updatedAt: new Date().toISOString(),
       }, transientVoiceNoteBaseline),
+      storageOwner,
     );
-  }, [venueId, draftReadyVenueId, dropForm, transientVoiceNoteBaseline, visibility, vibeTags]);
+  }, [venueId, scope, storageOwner, draftReadyScope, dropForm, transientVoiceNoteBaseline, visibility, vibeTags]);
 
   useEffect(() => {
     if (draftReady) markPubmaxTiming("pubmax:composer-interactive");
