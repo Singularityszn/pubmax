@@ -32,7 +32,7 @@ describe("opening-hours verification", () => {
     expect(snapshots[0]).toEqual({ rows: [], calls: 1 });
     expect(JSON.stringify(snapshots)).not.toMatch(/GOOGLE NAME|periods|20:00|fake-test-key/);
   });
-  it.each([429, 503])("reserves HTTP %s requests and stops without automatic retries", async (status) => {
+  it.each([400, 401, 403, 429, 503])("reserves HTTP %s requests and stops without automatic retries", async (status) => {
     const save = vi.fn();
     const fetchImpl = vi.fn(async () => new Response("unavailable", { status }));
     await expect(checkHours({ venues: [{ venueId: "a", googlePlaceId: "place-a", hours: { 1: [{ opens: "10:00", closes: "20:00" }] } }],

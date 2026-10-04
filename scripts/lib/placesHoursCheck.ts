@@ -71,6 +71,17 @@ export function compareHours(ours: WeeklyOpeningHours | null, periods: unknown):
 export type HoursVenue = { venueId: string; googlePlaceId: string; hours: WeeklyOpeningHours | null };
 export type HoursVerdictRow = { venueId: string; googlePlaceId: string; verdict: "match" | "mismatch" | "unknown"; verifiedAt: string };
 
+/** Match the enrichment runner: only a missing place or non-key invalid argument fails its row. */
+async function placeLevelFailure(response: Response): Promise<boolean> {
+  if (response.status === 404) return true;
+  if (response.status !== 400) return false;
+  const body = await response.json().catch(() => null);
+  const reasons = Array.isArray(body?.error?.details)
+    ? body.error.details.map((detail: { reason?: unknown } | null) => String(detail?.reason ?? "")) : [];
+  return body?.error?.status === "INVALID_ARGUMENT"
+    && !reasons.some((reason: string) => reason.startsWith("API_KEY"));
+}
+
 /** Responses never escape this loop. Checkpoint writes receive verdicts only. */
 export async function checkHours(options: {
   venues: HoursVenue[];
@@ -101,7 +112,7 @@ export async function checkHours(options: {
       { headers: { "X-Goog-Api-Key": options.apiKey, "X-Goog-FieldMask": "regularOpeningHours.periods" }, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000) },
     );
     if (!response.ok) {
-      if (response.status === 400 || response.status === 404) {
+      if (await placeLevelFailure(response)) {
         rows.push({ venueId: venue.venueId, googlePlaceId: venue.googlePlaceId,
           verdict: "unknown", verifiedAt: new Date().toISOString() });
         options.save(rows, calls);

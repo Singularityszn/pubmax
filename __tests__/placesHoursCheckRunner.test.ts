@@ -64,7 +64,7 @@ globalThis.fetch = async (input, init = {}) => {
     calls.push(url.split("/").at(-1));
     writeFileSync("calls.json", JSON.stringify(calls));
     if (process.env.FAKE_HOURS_FAILURE) return reply({}, 503);
-    if (process.env.FAKE_TERMINAL_STATUS && calls.length === 1) return reply({}, Number(process.env.FAKE_TERMINAL_STATUS));
+    if (process.env.FAKE_TERMINAL_STATUS && calls.length === 1) return reply({ error: { status: "INVALID_ARGUMENT", details: process.env.FAKE_INVALID_KEY ? [{ reason: "API_KEY_INVALID" }] : [] } }, Number(process.env.FAKE_TERMINAL_STATUS));
     return reply({ displayName: { text: "GOOGLE NAME NEVER STORE" }, regularOpeningHours: { periods: [
       { open: { day: 1, hour: 10 }, close: { day: 1, hour: 20 } }
     ] } });
@@ -73,10 +73,10 @@ globalThis.fetch = async (input, init = {}) => {
 };
 `);
 }
-function run(failure = false, monthUsage = 1100, terminalStatus = 0) {
+function run(failure = false, monthUsage = 1100, terminalStatus = 0, invalidKey = false) {
   return spawnSync(process.execPath, ["--import", "tsx", "--import", "./fake-google.mjs", "scripts/verify_pub_hours.mjs", "--write"], {
     cwd: FIXTURE, encoding: "utf8", env: { ...process.env, GOOGLE_PLACES_API_KEY: "fake-key",
-      PATH: `${path.join(FIXTURE, "bin")}:${process.env.PATH}`, FAKE_HOURS_FAILURE: failure ? "1" : "", FAKE_MONTH_USAGE: String(monthUsage), FAKE_TERMINAL_STATUS: String(terminalStatus || "") },
+      PATH: `${path.join(FIXTURE, "bin")}:${process.env.PATH}`, FAKE_HOURS_FAILURE: failure ? "1" : "", FAKE_MONTH_USAGE: String(monthUsage), FAKE_TERMINAL_STATUS: String(terminalStatus || ""), FAKE_INVALID_KEY: invalidKey ? "1" : "" },
   });
 }
 function read(file: string) { return JSON.parse(readFileSync(path.join(FIXTURE, file), "utf8")); }
@@ -170,4 +170,19 @@ it.each([400, 404])("records terminal Details HTTP %s as unknown and continues w
   expect(run(false, 1100, status).status).toBe(0);
   expect(read("calls.json")).toEqual(["place-one", "place-two"]);
   expect(read(file).rows).toEqual(output.rows);
+});
+
+it("stops on an invalid API key without marking pending venues unknown", () => {
+  fixture();
+  const result = run(false, 1100, 400, true);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("HTTP 400");
+  expect(read("calls.json")).toEqual(["place-one"]);
+  const output = read("data/places_verification/pub_hours_london.json");
+  expect(output.rows).toEqual([]);
+  expect(output.spend).toMatchObject({ calls: 1, estimatedUsd: 0.02 });
+  expect(read("quota-state.json")).toEqual({ search: "10", details: "10" });
+  expect(run().status).toBe(0);
+  expect(read("calls.json")).toEqual(["place-one", "place-two"]);
+  expect(read("data/places_verification/pub_hours_london.json").spend).toMatchObject({ calls: 3, estimatedUsd: 0.06 });
 });
