@@ -61,6 +61,8 @@ function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
 type AgentResponseEvent = {
   type?: string;
   agent_response_event?: { agent_response?: string };
+  agent_tool_request?: { tool_call_id?: string };
+  agent_tool_response?: { tool_call_id?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
     conversation_id?: string;
@@ -149,11 +151,40 @@ export async function runPalElevenLabsChatTurn(
     let conversationId = "";
     let userMessageSent = false;
     let latestReply = "";
+    const pendingToolCalls = new Set<string>();
+    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
+      const cards = turn?.cards ?? [];
+      const proposals = turn?.proposals ?? [];
+      const message =
+        agentMessage ||
+        (turn?.hints.length
+          ? composeAnswer(turn.hints, cards, [])
+          : cards.length > 0
+            ? composeAnswer([], cards, [])
+            : "Nothing sourced for that. Try a nearby area or a broader ask.");
+      return {
+        ok: true,
+        message,
+        cards,
+        proposals,
+        conversationId,
+        toolsUsed: turn?.toolsUsed ?? [],
+      };
+    };
     const timer = setTimeout(() => {
       if (settled) return;
-      settled = true;
-      ws.close();
-      resolve({ ok: false, code: "TIMEOUT" });
+      if (!latestReply || pendingToolCalls.size > 0) {
+        finish({ ok: false, code: "TIMEOUT" });
+        return;
+      }
+      const agentMessage = latestReply;
+      void (async () => {
+        try {
+          finish(answer(agentMessage, conversationId ? await readPubPalToolTurn(conversationId) : null));
+        } catch {
+          finish({ ok: false, code: "TIMEOUT" });
+        }
+      })();
     }, CHAT_TIMEOUT_MS);
 
     const finish = (outcome: PalElevenLabsChatOutcome) => {
@@ -183,6 +214,8 @@ export async function runPalElevenLabsChatTurn(
               client_events: [
                 "agent_response",
                 "agent_response_complete",
+                "agent_tool_request",
+                "agent_tool_response",
                 "conversation_initiation_metadata",
                 "ping",
               ],
@@ -244,29 +277,23 @@ export async function runPalElevenLabsChatTurn(
         return;
       }
 
+      if (payload.type === "agent_tool_request") {
+        if (!userMessageSent) return;
+        pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
+        return;
+      }
+
+      if (payload.type === "agent_tool_response") {
+        pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
+        return;
+      }
+
       if (payload.type === "agent_response_complete") {
         if (!userMessageSent) return;
         const agentMessage = latestReply;
         void (async () => {
           try {
-            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
-            const cards = turn?.cards ?? [];
-            const proposals = turn?.proposals ?? [];
-            const message =
-              agentMessage ||
-              (turn?.hints.length
-                ? composeAnswer(turn.hints, cards, [])
-                : cards.length > 0
-                  ? composeAnswer([], cards, [])
-                  : "Nothing sourced for that. Try a nearby area or a broader ask.");
-            finish({
-              ok: true,
-              message,
-              cards,
-              proposals,
-              conversationId,
-              toolsUsed: turn?.toolsUsed ?? [],
-            });
+            finish(answer(agentMessage, conversationId ? await waitForPubPalToolTurn(conversationId) : null));
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });
           }

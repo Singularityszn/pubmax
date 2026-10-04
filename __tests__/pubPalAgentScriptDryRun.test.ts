@@ -116,6 +116,26 @@ describe("pubpal:agent dry run", () => {
       PAL_VOICE_MAX_SESSION_SECONDS,
     );
   });
+  it("sends the voice events and the events typed chat needs to find the end of a turn", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const start = printed.indexOf("{");
+    const end = printed.lastIndexOf("}");
+    const body = JSON.parse(printed.slice(start, end + 1)) as {
+      conversation_config: { conversation: { client_events: string[] } };
+    };
+    expect(body.conversation_config.conversation.client_events).toEqual(
+      expect.arrayContaining([
+        "audio",
+        "interruption",
+        "user_transcript",
+        "agent_response",
+        "agent_tool_request",
+        "agent_tool_response",
+        "agent_response_complete",
+      ]),
+    );
+  });
+
   it("speaks a checking line before every tool and keeps confirm proposals uninterrupted", () => {
     const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
     const start = printed.indexOf("{");

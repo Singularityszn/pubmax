@@ -10,6 +10,13 @@ function agentResponse(text: string): Record<string, unknown> {
   return { type: "agent_response", agent_response_event: { agent_response: text } };
 }
 
+function toolRequest(id: string): Record<string, unknown> {
+  return {
+    type: "agent_tool_request",
+    agent_tool_request: { tool_name: "search_venues", tool_call_id: id, tool_type: "webhook" },
+  };
+}
+
 function responseComplete(): Record<string, unknown> {
   return { type: "agent_response_complete", agent_response_complete_event: { event_id: 1 } };
 }
@@ -302,7 +309,12 @@ describe("runPalElevenLabsChatTurn", () => {
       conversation_config_override?: { conversation?: { client_events?: string[] } };
     };
     expect(init?.conversation_config_override?.conversation?.client_events).toEqual(
-      expect.arrayContaining(["agent_response", "agent_response_complete"]),
+      expect.arrayContaining([
+        "agent_response",
+        "agent_response_complete",
+        "agent_tool_request",
+        "agent_tool_response",
+      ]),
     );
   });
 
@@ -335,5 +347,55 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  describe("on an agent that never sends agent_response_complete", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("returns the held reply at the chat timeout when no tool is running", async () => {
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 400, event: agentResponse(SOURCED_ANSWER) },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(27_000);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      await expect(pending).resolves.toMatchObject({
+        ok: true,
+        message: SOURCED_ANSWER,
+        conversationId: "conv_regression01",
+      });
+    });
+
+    it("times out rather than answer with a checking line while its tool runs", async () => {
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 10, event: toolRequest("call_1") },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(28_000);
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    });
   });
 });
