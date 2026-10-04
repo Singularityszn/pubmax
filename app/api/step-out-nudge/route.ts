@@ -44,6 +44,7 @@ async function requireOwner(request: Request) {
 function prefResponse(pref: {
   enabled: boolean;
   lastSentAt: string | null;
+  subscriptionToken: string | null;
 } | null) {
   const enabled = Boolean(pref?.enabled);
   const lastSentAt = pref?.lastSentAt ?? null;
@@ -52,6 +53,7 @@ function prefResponse(pref: {
     lastSentAt,
     canSend: enabled && canSendStepOutNudge(lastSentAt),
     maxPerWeek: 1,
+    subscriptionRetained: Boolean(pref?.subscriptionToken),
   };
 }
 

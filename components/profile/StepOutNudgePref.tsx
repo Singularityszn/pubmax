@@ -135,7 +135,9 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         );
         return;
       }
-      await unregisterWebPush();
+      if (body.subscriptionRetained === false) {
+        await unregisterWebPush();
+      }
       setPref({
         enabled: false,
         lastSentAt: null,
