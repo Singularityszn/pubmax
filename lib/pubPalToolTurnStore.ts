@@ -38,7 +38,7 @@ export type PubPalToolTurn = {
 };
 
 /** Where the conversation is happening. Only a typed chat can show a confirm card. */
-export type PubPalToolTurnSurface = "voice" | "text";
+type PubPalToolTurnSurface = "voice" | "text";
 
 type StoredTurn = PubPalToolTurn & { ownerId: string; surface: PubPalToolTurnSurface };
 
