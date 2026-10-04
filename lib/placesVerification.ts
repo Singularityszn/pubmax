@@ -301,3 +301,76 @@ export function projectedPlacesSpendUsd(input: {
   ) / 1000;
   return Math.round(usd * 100) / 100;
 }
+
+const OSM_REF = /^[nwr]\d+$/;
+
+/**
+ * Curated venue ids that stand in for a closed OSM row. The base pin is
+ * already dropped when that owner is on the map, so the owner id is the
+ * pin the curated layer would still draw. Only an exact OSM ref qualifies.
+ */
+export function curatedVenueIdsForClosedOsmRefs(
+  rows: readonly { osmRef: string; curatedVenueId: string }[],
+  closedOsmRefs: ReadonlySet<string>,
+): string[] {
+  if (closedOsmRefs.size === 0) return [];
+  const ids = new Set<string>();
+  for (const row of rows) {
+    if (!OSM_REF.test(row.osmRef) || !closedOsmRefs.has(row.osmRef)) continue;
+    if (row.curatedVenueId.length === 0) continue;
+    ids.add(row.curatedVenueId);
+  }
+  return [...ids].sort();
+}
+
+/**
+ * A later run must not forget a closure it did not re-check. A ref leaves
+ * only when this run name-matched an operational place, or when it is not a
+ * real OSM ref. A name-matched permanent closure always stays.
+ */
+export function mergeClosedOsmRefs(input: {
+  previous: readonly string[];
+  confirmedClosed: readonly string[];
+  confirmedOperational: readonly string[];
+}): string[] {
+  const closed = new Set(input.confirmedClosed.filter((ref) => OSM_REF.test(ref)));
+  const operational = new Set(
+    input.confirmedOperational.filter((ref) => OSM_REF.test(ref) && !closed.has(ref)),
+  );
+  const kept = new Set<string>();
+  for (const ref of input.previous) {
+    if (!OSM_REF.test(ref) || operational.has(ref)) continue;
+    kept.add(ref);
+  }
+  for (const ref of closed) kept.add(ref);
+  return [...kept].sort();
+}
+
+/**
+ * Put the daily overrides back, and only report success once both effective
+ * limits match the values read at the start. A failed attempt leaves the
+ * caller free to try again.
+ */
+export async function restoreQuotasUntilVerified(input: {
+  attempts: number;
+  expectedSearch: string;
+  expectedDetails: string;
+  attempt: () => Promise<{ search: string; details: string }>;
+}): Promise<{ search: string; details: string }> {
+  let lastError: unknown = new Error("quota restore failed");
+  const attempts = Math.max(1, input.attempts);
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const actual = await input.attempt();
+      if (actual.search === input.expectedSearch && actual.details === input.expectedDetails) {
+        return actual;
+      }
+      lastError = new Error(
+        `quota restore mismatch search=${actual.search} details=${actual.details}`,
+      );
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}

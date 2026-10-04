@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { WeeklyOpeningHours } from "@/lib/busyness";
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import { parseOsmOpeningHours } from "@/lib/nearDesk";
-import { omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
+import { omitClosedCuratedVenues, omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 import {
   PLACES_CAFE_DETAILS_FIELD_MASK,
   PLACES_MATCH_RADIUS_METERS,
@@ -20,8 +20,11 @@ import {
   isInShoreditchCoffeeBox,
   OSM_HOURS_VERDICTS,
   osmHoursVerdict,
+  curatedVenueIdsForClosedOsmRefs,
+  mergeClosedOsmRefs,
   osmRefFromLayerId,
   placesNameMatchesOsm,
+  restoreQuotasUntilVerified,
   pubClosureVerdict,
   projectedPlacesSpendUsd,
   textQueryForOsmVenue,
@@ -335,11 +338,74 @@ describe("committed Places verification files", () => {
     ) as { pubs: Record<string, unknown>[]; summary: Record<string, number> };
     const closed = JSON.parse(
       readFileSync(path.join(ROOT, "data/places_verification/closed_pubs.json"), "utf8"),
-    ) as { osmRefs: string[] };
+    ) as { osmRefs: string[]; curatedVenueIds: string[] };
     expect(ledger).not.toHaveProperty("closedForReview");
     for (const row of ledger.pubs) {
       expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "venueId", "verifiedAt"]);
     }
     expect(ledger.summary.closedPermanently).toBe(closed.osmRefs.length);
+    expect(closed.curatedVenueIds).toEqual([]);
+  });
+});
+
+describe("closed pubs stay hidden across a partial rerun", () => {
+  it("keeps a prior closure the new run did not re-check", () => {
+    expect(mergeClosedOsmRefs({
+      previous: ["n1", "n2"],
+      confirmedClosed: ["w9"],
+      confirmedOperational: [],
+    })).toEqual(["n1", "n2", "w9"]);
+  });
+
+  it("drops a prior closure only after a name-matched operational result", () => {
+    expect(mergeClosedOsmRefs({
+      previous: ["n1", "n2"],
+      confirmedClosed: [],
+      confirmedOperational: ["n1"],
+    })).toEqual(["n2"]);
+  });
+
+  it("keeps a name-matched permanent closure over an operational claim for the same ref", () => {
+    expect(mergeClosedOsmRefs({
+      previous: [],
+      confirmedClosed: ["n1"],
+      confirmedOperational: ["n1"],
+    })).toEqual(["n1"]);
+  });
+
+  it("resolves the curated owner of a closed OSM ref and leaves every other owner", () => {
+    const ids = curatedVenueIdsForClosedOsmRefs(
+      [
+        { osmRef: "n1", curatedVenueId: "venue-owner" },
+        { osmRef: "n2", curatedVenueId: "venue-open" },
+        { osmRef: "n3", curatedVenueId: "" },
+      ],
+      new Set(["n1", "n3"]),
+    );
+    expect(ids).toEqual(["venue-owner"]);
+    expect(omitClosedCuratedVenues(
+      [{ id: "venue-owner" }, { id: "venue-open" }],
+      new Set(ids),
+    )).toEqual([{ id: "venue-open" }]);
+  });
+
+  it("retries quota restoration and clears nothing until both limits match", async () => {
+    const seen: string[] = [];
+    await expect(restoreQuotasUntilVerified({
+      attempts: 2,
+      expectedSearch: "100",
+      expectedDetails: "60",
+      attempt: async () => {
+        seen.push("try");
+        if (seen.length === 1) throw new Error("transient");
+        return { search: "100", details: "60" };
+      },
+    })).resolves.toEqual({ search: "100", details: "60" });
+    await expect(restoreQuotasUntilVerified({
+      attempts: 1,
+      expectedSearch: "100",
+      expectedDetails: "60",
+      attempt: async () => ({ search: "500", details: "500" }),
+    })).rejects.toThrow(/mismatch/);
   });
 });

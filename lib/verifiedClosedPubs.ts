@@ -18,6 +18,31 @@ function closedRefSet(value: unknown): ReadonlySet<string> {
 
 export const VERIFIED_CLOSED_OSM_REFS: ReadonlySet<string> = closedRefSet(closedPubs);
 
+function closedCuratedIdSet(value: unknown): ReadonlySet<string> {
+  if (typeof value !== "object" || value === null) return new Set();
+  const ids = (value as { curatedVenueIds?: unknown }).curatedVenueIds;
+  if (!Array.isArray(ids)) return new Set();
+  return new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0));
+}
+
+/** Curated venue ids that own a closed OSM row. Resolved from that row, not guessed. */
+export const VERIFIED_CLOSED_CURATED_VENUE_IDS: ReadonlySet<string> = closedCuratedIdSet(closedPubs);
+
+export function isVerifiedClosedCuratedVenue(
+  id: string,
+  closedCuratedVenueIds: ReadonlySet<string> = VERIFIED_CLOSED_CURATED_VENUE_IDS,
+): boolean {
+  return closedCuratedVenueIds.has(id);
+}
+
+export function omitClosedCuratedVenues<T extends { id: string }>(
+  venues: readonly T[],
+  closedCuratedVenueIds: ReadonlySet<string> = VERIFIED_CLOSED_CURATED_VENUE_IDS,
+): T[] {
+  if (closedCuratedVenueIds.size === 0) return [...venues];
+  return venues.filter((venue) => !closedCuratedVenueIds.has(venue.id));
+}
+
 export function isVerifiedClosedPub(
   id: string,
   closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,

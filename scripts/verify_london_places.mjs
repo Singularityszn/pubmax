@@ -37,14 +37,18 @@ import {
   PLACES_TEXT_SEARCH_FIELD_MASK,
   PLACES_VERIFY_JOB_CAP_USD,
   cafeVerificationRow,
+  curatedVenueIdsForClosedOsmRefs,
   decideIdOnlyPlaceMatch,
   isInShoreditchCoffeeBox,
   matchRectangle,
+  mergeClosedOsmRefs,
   OSM_HOURS_VERDICTS,
   osmHoursVerdict,
+  placesNameMatchesOsm,
   pubClosureVerdict,
   projectedPlacesSpendUsd,
   pubVerificationRow,
+  restoreQuotasUntilVerified,
   textQueryForOsmVenue,
   weeklyHoursFromPlacesPeriods,
 } from "../lib/placesVerification.ts";
@@ -214,6 +218,54 @@ function osmHoursByRef() {
     }
   }
   return hours;
+}
+
+function previousClosedRefs() {
+  const path = join(OUT_DIR, "closed_pubs.json");
+  if (!existsSync(path)) return [];
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  return Array.isArray(parsed.osmRefs) ? parsed.osmRefs : [];
+}
+
+function confirmedClosureRefs(pubs, progress) {
+  const confirmedClosed = [];
+  const confirmedOperational = [];
+  for (const venue of pubs) {
+    const detail = progress.details[venue.id];
+    if (!detail || detail.skipped) continue;
+    if (detail.closure === "closed") confirmedClosed.push(venue.osmRef);
+    else if (detail.closure === "open" && detail.nameMatched === true && detail.operational === true) {
+      confirmedOperational.push(venue.osmRef);
+    }
+  }
+  return { confirmedClosed, confirmedOperational };
+}
+
+function curatedOwnersForClosedRefs(closedRefs) {
+  if (closedRefs.length === 0) return [];
+  const wanted = new Set(closedRefs);
+  const rows = [];
+  const root = join(ROOT, "public", "data", "uk_base", "packs");
+  const visit = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (name.endsWith(".json")) {
+        const body = JSON.parse(readFileSync(path, "utf8"));
+        for (const row of body.pubs ?? []) {
+          if (!Array.isArray(row) || row.length < 6) continue;
+          const osmRef = row[0];
+          const curatedVenueId = row[5];
+          if (typeof osmRef !== "string" || !wanted.has(osmRef)) continue;
+          if (typeof curatedVenueId !== "string") continue;
+          rows.push({ osmRef, curatedVenueId });
+        }
+      } else {
+        visit(path);
+      }
+    }
+  };
+  if (existsSync(root)) visit(root);
+  return curatedVenueIdsForClosedOsmRefs(rows, wanted);
 }
 
 function loadVenues() {
@@ -439,15 +491,22 @@ async function main() {
   let restoreNeeded = false;
   const restore = async () => {
     if (!restoreNeeded) return;
+    const actual = await restoreQuotasUntilVerified({
+      attempts: 3,
+      expectedSearch: String(originalSearch),
+      expectedDetails: String(originalDetails),
+      attempt: async () => {
+        const fresh = accessToken();
+        await setDailyOverrides(fresh, originalSearch, originalDetails);
+        const searchNow = await effectiveDailyLimit(fresh, SEARCH_METRIC);
+        const detailsNow = await effectiveDailyLimit(fresh, DETAILS_METRIC);
+        return { search: String(searchNow), details: String(detailsNow) };
+      },
+    });
     restoreNeeded = false;
-    const fresh = accessToken();
-    await setDailyOverrides(fresh, originalSearch, originalDetails);
-    const searchNow = await effectiveDailyLimit(fresh, SEARCH_METRIC);
-    const detailsNow = await effectiveDailyLimit(fresh, DETAILS_METRIC);
-    if (searchNow !== originalSearch || detailsNow !== originalDetails) {
-      throw new Error(`quota restore mismatch search=${searchNow} details=${detailsNow}`);
-    }
-    console.log(`restored daily quotas SearchTextRequest=${searchNow} GetPlaceRequest=${detailsNow}`);
+    console.log(
+      `restored daily quotas SearchTextRequest=${actual.search} GetPlaceRequest=${actual.details}`,
+    );
   };
   process.on("SIGINT", () => {
     restore().finally(() => process.exit(130));
@@ -507,7 +566,11 @@ async function main() {
       if (!read.status) {
         progress.details[venue.id] = { skipped: "unknown_status" };
       } else if (venue.kind === "pub") {
-        progress.details[venue.id] = { closure: pubClosureVerdict(read.status, venue.name, read.name) };
+        progress.details[venue.id] = {
+          closure: pubClosureVerdict(read.status, venue.name, read.name),
+          nameMatched: placesNameMatchesOsm(venue.name, read.name),
+          operational: read.status === "OPERATIONAL",
+        };
       } else {
         progress.details[venue.id] = cafeDetail(read, venue.osmHours);
       }
@@ -533,6 +596,13 @@ async function main() {
     }
     pubs.sort((a, b) => a.venueId.localeCompare(b.venueId));
     cafes.sort((a, b) => a.venueId.localeCompare(b.venueId));
+    const confirmed = confirmedClosureRefs(venues.pubs, progress);
+    const mergedClosedRefs = mergeClosedOsmRefs({
+      previous: previousClosedRefs(),
+      confirmedClosed: confirmed.confirmedClosed,
+      confirmedOperational: confirmed.confirmedOperational,
+    });
+    const curatedVenueIds = curatedOwnersForClosedRefs(mergedClosedRefs);
     closedRefs.sort();
 
     const skippedNoResult = all.filter((venue) => progress.searches[venue.id]?.reason === "no_result").length;
@@ -595,16 +665,20 @@ async function main() {
         ...cafeVerdictCounts(cafes),
         skippedNoResult,
         skippedAmbiguous,
-        closedPermanently: closedRefs.length,
+        closedPermanently: mergedClosedRefs.length,
         closedUnconfirmed: pubsForReview.length - closedRefs.length,
       },
       pubs,
     });
-    writeJson(join(OUT_DIR, "closed_pubs.json"), { verifiedAt: day, osmRefs: closedRefs });
+    writeJson(join(OUT_DIR, "closed_pubs.json"), {
+      verifiedAt: day,
+      osmRefs: mergedClosedRefs,
+      curatedVenueIds,
+    });
     writeJson(join(OUT_DIR, "shoreditch_cafes.json"), { verifiedAt: day, rows: cafes });
     if (existsSync(PROGRESS_PATH)) unlinkSync(PROGRESS_PATH);
     console.log(
-      `wrote verification: ${pubs.length} pubs, ${cafes.length} cafes, ${closedRefs.length} permanently closed`,
+      `wrote verification: ${pubs.length} pubs, ${cafes.length} cafes, ${mergedClosedRefs.length} permanently closed`,
     );
     pubsForReview.sort();
     console.log(`pubs for human review (${pubsForReview.length}):`);
