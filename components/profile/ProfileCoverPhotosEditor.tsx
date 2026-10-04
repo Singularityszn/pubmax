@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -78,6 +79,7 @@ export default function ProfileCoverPhotosEditor({
   heldCoverUrls,
   onProfileChanged,
 }: ProfileCoverPhotosEditorProps) {
+  const { session } = useAuth();
   const [covers, setCovers] = useState<ProfileCoverPhotoDTO[]>([]);
   const [status, setStatus] = useState<ProfileCoverReadState>("loading");
   const [busy, setBusy] = useState<Busy>("idle");
@@ -134,7 +136,7 @@ export default function ProfileCoverPhotosEditor({
       active = false;
       controller.abort();
     };
-  }, [base]);
+  }, [base, session]);
 
   /** Every write answers the whole profile AND, when the route carries it, the whole rotation. */
   function applyReply(body: unknown): void {
