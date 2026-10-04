@@ -2,7 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 import { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
 
-export function mapToolbar(page: Page) {
+function mapToolbar(page: Page) {
   return page.locator(".mapToolbar");
 }
 
