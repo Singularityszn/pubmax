@@ -6,8 +6,9 @@ Per-city OpenStreetMap pub extracts seed multi-city maps. Separate [Parallel web
 
 ```
 data/cities/{city}/
-  osm_pubs_raw.json   # raw Overpass response
-  osm_pubs.json       # normalized seed pack (ODbL)
+  osm_pubs_raw.json     # raw Overpass response
+  osm_pubs.json         # normalized seed pack (ODbL)
+  parallel_venues.json  # web discoveries, where a city has any (see ../parallel-discovery)
 
 public/data/cities/{city}/
   venues_slim.json             # complete slim index
