@@ -6,12 +6,21 @@ import "./venuePlacesDetails.css";
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const AMENITY_FIELDS = [
   ["outdoorSeating", "Outdoor seating"], ["servesBeer", "Beer"], ["servesWine", "Wine"],
-  ["servesCocktails", "Cocktails"], ["goodForGroups", "Good for groups"], ["liveMusic", "Live music"],
+  ["servesCocktails", "Cocktails"], ["goodForGroups", "Room for groups"], ["liveMusic", "Live music"],
+  ["goodForWatchingSports", "Live sport"], ["allowsDogs", "Dogs allowed"], ["servesBreakfast", "Breakfast"],
+  ["servesBrunch", "Brunch"], ["servesLunch", "Lunch"], ["servesDinner", "Dinner"],
+  ["servesVegetarianFood", "Vegetarian food"], ["menuForChildren", "Children's menu"], ["reservable", "Bookings"],
+  ["restroom", "Toilets"],
 ] as const;
-const ACCESS_LABELS = {
-  wheelchairAccessibleEntrance: "Step-free entry", wheelchairAccessibleRestroom: "Accessible toilet",
-  wheelchairAccessibleParking: "Accessible parking", wheelchairAccessibleSeating: "Accessible seating",
-} as const;
+const OPTION_GROUPS = [
+  ["accessibilityOptions", "Google Places accessibility", {
+    wheelchairAccessibleEntrance: "Step-free entry", wheelchairAccessibleRestroom: "Accessible toilet",
+    wheelchairAccessibleParking: "Accessible parking", wheelchairAccessibleSeating: "Accessible seating",
+  }],
+  ["paymentOptions", "Google Places payment", {
+    acceptsCreditCards: "Credit cards", acceptsDebitCards: "Debit cards", acceptsNfc: "Contactless", acceptsCashOnly: "Cash only",
+  }],
+] as const;
 const CONTACT_FIELDS = [["formattedAddress", "address"], ["nationalPhoneNumber", "phone"], ["websiteUri", "website"]] as const;
 
 const checked = (observedAt: string) =>
@@ -39,10 +48,13 @@ export default function VenuePlacesDetails({ venue, links = false, websiteLink =
     return usablePlacesObservation(observation, now) ? [{ label, ...observation }] : [];
   });
   const amenityDates = [...new Set(amenities.map((row) => row.observedAt))];
-  const access = usablePlacesObservation(record.accessibilityOptions, now) ? record.accessibilityOptions : null;
-  const accessLabels = access ? Object.entries(ACCESS_LABELS).flatMap(([field, label]) =>
-    access.value[field as keyof typeof ACCESS_LABELS] === true ? [label] : []) : [];
-  if (!hours && !phoneHref && !websiteHref && !copied.length && !rating && !count && !price && !summary && !amenities.length && !accessLabels.length) return null;
+  const options = OPTION_GROUPS.flatMap(([field, name, labels]) => {
+    const observation = record[field];
+    if (!usablePlacesObservation<Partial<Record<string, boolean>>>(observation, now)) return [];
+    const shown = Object.entries(labels).flatMap(([key, label]) => observation.value[key] === true ? [label] : []);
+    return shown.length ? [{ field, name, labels: shown, observedAt: observation.observedAt }] : [];
+  });
+  if (![hours, phoneHref, websiteHref, rating, count, price, summary].some(Boolean) && !copied.length && !amenities.length && !options.length) return null;
   const names = copied.map((row) => row.label);
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
   return (
@@ -66,12 +78,12 @@ export default function VenuePlacesDetails({ venue, links = false, websiteLink =
         </div>
         <small className="venuePlacesDetailsCredit">Google Places · Checked {checked(observedAt)}</small>
       </div>)}
-      {accessLabels.length ? <div>
-        <div className="accessibilityChips" aria-label="Google Places accessibility">
-          {accessLabels.map((label) => <span className="accessibilityChip" key={label}>{label}</span>)}
+      {options.map(({ field, name, labels, observedAt }) => <div key={field}>
+        <div className="accessibilityChips" aria-label={name}>
+          {labels.map((label) => <span className="accessibilityChip" key={label}>{label}</span>)}
         </div>
-        <small className="venuePlacesDetailsCredit">Google Places · Checked {checked(access!.observedAt)}</small>
-      </div> : null}
+        <small className="venuePlacesDetailsCredit">Google Places · Checked {checked(observedAt)}</small>
+      </div>)}
       {phoneHref || websiteHref ? <div className="venuePlacesDetailsLinks">
         {phoneHref ? <a href={phoneHref}>Call {venue.name}</a> : null}
         {websiteHref ? <a href={websiteHref} target="_blank" rel="noopener noreferrer">Pub website</a> : null}

@@ -4,11 +4,11 @@ import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { PLACES_REFRESH_DAYS, placesEnrichmentRecord, planPlacesEnrichment } from "../lib/placesEnrichment.ts";
+import { PLACES_EXTRAS_FIELD_MASK, PLACES_REFRESH_DAYS, placesEnrichmentRecord, planPlacesEnrichment } from "../lib/placesEnrichment.ts";
 import { restoreQuotasUntilVerified } from "../lib/placesVerification.ts";
 import { accessToken, dailyOverrideValue, effectiveDailyLimit, setDailyOverrides,
   monthPlacesRequests, SEARCH_METRIC, DETAILS_METRIC } from "./lib/googlePlacesQuota.mjs";
-import { PLACES_ENRICHMENT_STAMP, placesEnrichmentStamp } from "./lib/placesEnrichmentStamp.mjs";
+import { PLACES_ENRICHMENT_STAMP, placesEnrichmentStamp, readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKS = {
@@ -24,9 +24,7 @@ const CHECKPOINT = join(ROOT, `data/places_verification/${config.checkpoint}.jso
 const CAP_USD = config.cap;
 const REFRESH_MS = PLACES_REFRESH_DAYS * 86_400_000;
 const CORE_MASK = "regularOpeningHours.periods,regularOpeningHours.weekdayDescriptions,formattedAddress,nationalPhoneNumber,websiteUri";
-const MASK = options.pack.endsWith("_extras")
-  ? "rating,userRatingCount,priceLevel,editorialSummary,outdoorSeating,servesBeer,servesWine,servesCocktails,goodForGroups,liveMusic,accessibilityOptions"
-  : CORE_MASK;
+const MASK = options.pack.endsWith("_extras") ? PLACES_EXTRAS_FIELD_MASK : CORE_MASK;
 const read = (file) => JSON.parse(readFileSync(file, "utf8"));
 function write(file, value) {
   writeFileSync(`${file}.tmp`, `${JSON.stringify(value, null, 2)}\n`);
@@ -158,7 +156,7 @@ async function main() {
       addresses: venues.filter((row) => row.formattedAddress).length, phones: venues.filter((row) => row.nationalPhoneNumber).length,
       websites: venues.filter((row) => row.websiteUri).length, errors: previous.errors.length }, errors: previous.errors, venues };
     write(OUT, pack);
-    if (options.pack === "london") write(join(ROOT, PLACES_ENRICHMENT_STAMP), placesEnrichmentStamp(pack));
+    write(join(ROOT, PLACES_ENRICHMENT_STAMP), placesEnrichmentStamp(readPlacesEnrichmentPacks(ROOT)));
   };
   const restore = async () => {
     if (!restoreNeeded) return;

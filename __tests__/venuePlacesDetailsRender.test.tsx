@@ -49,8 +49,10 @@ it("renders no panel or call link for a venue without Google Places content", ()
 it("shows Google rating, venue price level and stated amenities with per-field dates without inventing a pint price", () => {
   const record = placesEnrichmentRecord("venue-uk-n1", "ChIJVerified123", {
     rating: 4.3, userRatingCount: 128, priceLevel: "PRICE_LEVEL_MODERATE",
-    servesCocktails: true, outdoorSeating: false, liveMusic: true,
+    servesCocktails: true, outdoorSeating: false, liveMusic: true, goodForGroups: false,
+    allowsDogs: true, goodForWatchingSports: true, servesDinner: false, menuForChildren: true,
     accessibilityOptions: { wheelchairAccessibleEntrance: true },
+    paymentOptions: { acceptsNfc: true, acceptsCreditCards: true, acceptsCashOnly: false },
     editorialSummary: { text: "A neighbourhood pub.", languageCode: "en" },
   }, "2025-02-02T09:00:00Z");
   record.userRatingCount!.observedAt = "2025-02-03T09:00:00Z";
@@ -66,6 +68,10 @@ it("shows Google rating, venue price level and stated amenities with per-field d
   expect(container.textContent).toContain("Cocktails");
   expect(container.textContent).toContain("Live music");
   expect(container.textContent).toContain("Step-free entry");
+  const amenities = [...container.querySelectorAll('[aria-label="Google Places amenities"] .amenity')].map((chip) => chip.textContent);
+  expect(amenities).toEqual(["No outdoor seating", "Cocktails", "No room for groups", "Live music", "Live sport", "Dogs allowed", "No dinner", "Children's menu"]);
+  const payment = [...container.querySelectorAll('[aria-label="Google Places payment"] .accessibilityChip')].map((chip) => chip.textContent);
+  expect(payment).toEqual(["Credit cards", "Contactless"]);
   expect(container.textContent).not.toContain("Beer garden");
   expect(container.textContent).toContain("A neighbourhood pub.");
   expect(venue.cheapestPrice).toBeNull();

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import path from "node:path";
 import { expect, it } from "vitest";
 
-it("builds only exact identity records and the oldest-row freshness stamp without changing observations, and removes retired runtime files", () => {
+it("builds only exact identity records and a freshness stamp dated by the oldest row of every pack without changing observations, and removes retired runtime files", () => {
   const root = process.cwd();
   mkdirSync(path.join(root, "test-results"), { recursive: true });
   const fixture = mkdtempSync(path.join(root, "test-results/places-builder-"));
@@ -23,7 +23,7 @@ it("builds only exact identity records and the oldest-row freshness stamp withou
     build();
     expect(readdirSync(output).sort()).toEqual(["node-123.json", "way-456.json"]);
     expect(JSON.parse(readFileSync(path.join(output, "node-123.json"), "utf8"))).toEqual(rows.slice(0, 2));
-    expect(stamp()).toEqual({ version: 1, ...head, observedAt: "2026-09-01T00:00:00Z" });
+    expect(stamp()).toEqual({ version: 1, observedAt: "2026-09-01T00:00:00Z", packs: { places_enrichment: { ...head, observedAt: "2026-09-01T00:00:00Z" } } });
     writeFileSync(source, JSON.stringify({ version: 1, ...head, venues: [rows[0]] }));
     writeFileSync(path.join(fixture, "data/places_enrichment_uk_cities.json"), JSON.stringify({ version: 1, venues: [rows[2]] }));
     writeFileSync(path.join(fixture, "data/places_enrichment_london_extras.json"), JSON.stringify({ version: 1, venues: [{
@@ -36,6 +36,9 @@ it("builds only exact identity records and the oldest-row freshness stamp withou
     expect(merged).toHaveLength(1);
     expect(merged[0].rating.value).toBe(4.2);
     expect(merged[0].formattedAddress).toEqual(rows[0].formattedAddress);
-    expect(stamp().observedAt).toBe("2026-10-04T00:00:00Z");
+    expect(stamp().observedAt).toBe("2026-10-02T00:00:00Z");
+    expect(Object.fromEntries(Object.entries(stamp().packs).map(([name, row]) => [name, (row as { observedAt: string }).observedAt]))).toEqual({
+      places_enrichment: "2026-10-04T00:00:00Z", places_enrichment_uk_cities: "2026-10-02T00:00:00Z", places_enrichment_london_extras: "2026-10-05T00:00:00Z",
+    });
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });

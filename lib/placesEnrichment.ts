@@ -6,8 +6,15 @@ import { parsePhoneNumber } from "@/lib/venueTruth";
 
 export type PlacesObservation<T> = { value: T; source: "google_places"; observedAt: string };
 type PlacesHours = { periods: unknown[]; weekdayDescriptions?: string[] };
-const BOOLEAN_FIELDS = ["outdoorSeating", "servesBeer", "servesWine", "servesCocktails", "goodForGroups", "liveMusic"] as const;
-const ACCESS_FIELDS = ["wheelchairAccessibleEntrance", "wheelchairAccessibleParking", "wheelchairAccessibleRestroom", "wheelchairAccessibleSeating"] as const;
+const BOOLEAN_FIELDS = ["outdoorSeating", "servesBeer", "servesWine", "servesCocktails", "goodForGroups", "liveMusic",
+  "allowsDogs", "goodForWatchingSports", "menuForChildren", "servesBreakfast", "servesBrunch", "servesLunch", "servesDinner",
+  "servesVegetarianFood", "reservable", "restroom"] as const;
+const OPTION_FIELDS = {
+  accessibilityOptions: ["wheelchairAccessibleEntrance", "wheelchairAccessibleParking", "wheelchairAccessibleRestroom", "wheelchairAccessibleSeating"],
+  paymentOptions: ["acceptsCreditCards", "acceptsDebitCards", "acceptsCashOnly", "acceptsNfc"],
+} as const;
+/** Every extras field bills under the one Enterprise + Atmosphere request, and each has a typed reader below. */
+export const PLACES_EXTRAS_FIELD_MASK = ["rating", "userRatingCount", "priceLevel", "editorialSummary", ...BOOLEAN_FIELDS, ...Object.keys(OPTION_FIELDS)].join(",");
 export const PLACES_PRICE_LABELS = {
   PRICE_LEVEL_FREE: "Free", PRICE_LEVEL_INEXPENSIVE: "£", PRICE_LEVEL_MODERATE: "££",
   PRICE_LEVEL_EXPENSIVE: "£££", PRICE_LEVEL_VERY_EXPENSIVE: "££££",
@@ -24,8 +31,7 @@ export type PlacesEnrichmentRecord = Partial<Record<typeof BOOLEAN_FIELDS[number
   userRatingCount?: PlacesObservation<number>;
   priceLevel?: PlacesObservation<keyof typeof PLACES_PRICE_LABELS>;
   editorialSummary?: PlacesObservation<{ text: string; languageCode?: string }>;
-  accessibilityOptions?: PlacesObservation<Partial<Record<typeof ACCESS_FIELDS[number], boolean>>>;
-};
+} & { -readonly [Field in keyof typeof OPTION_FIELDS]?: PlacesObservation<Partial<Record<typeof OPTION_FIELDS[Field][number], boolean>>> };
 
 /** Reserve the full Enterprise price for every attempt; shared free allowance is never borrowed. */
 export function planPlacesEnrichment(
@@ -76,13 +82,14 @@ export function placesEnrichmentRecord(
     record.editorialSummary = observe({ text: summary.text,
       ...(typeof summary.languageCode === "string" ? { languageCode: summary.languageCode } : {}) });
   }
-  const access = details.accessibilityOptions;
-  if (access && typeof access === "object") {
-    const value = Object.fromEntries(ACCESS_FIELDS.flatMap((field) => {
-      const flag = (access as Record<string, unknown>)[field];
-      return typeof flag === "boolean" ? [[field, flag]] : [];
+  for (const [field, keys] of Object.entries(OPTION_FIELDS) as [keyof typeof OPTION_FIELDS, readonly string[]][]) {
+    const options = details[field];
+    if (!options || typeof options !== "object") continue;
+    const value = Object.fromEntries(keys.flatMap((key) => {
+      const flag = (options as Record<string, unknown>)[key];
+      return typeof flag === "boolean" ? [[key, flag]] : [];
     }));
-    if (Object.keys(value).length) record.accessibilityOptions = observe(value);
+    if (Object.keys(value).length) record[field] = observe(value);
   }
   const raw = details.regularOpeningHours as PlacesHours | undefined;
   if (raw && weeklyHoursFromPlacesPeriods(raw.periods)) {

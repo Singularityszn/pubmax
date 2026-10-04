@@ -68,15 +68,19 @@ it("copies validated Google extras with their own source and observation date, p
     rating: 4.3, userRatingCount: 128, priceLevel: "PRICE_LEVEL_MODERATE",
     editorialSummary: { text: "A neighbourhood pub.", languageCode: "en" },
     outdoorSeating: false, servesBeer: true, servesWine: true, servesCocktails: true,
-    goodForGroups: true, liveMusic: false,
+    goodForGroups: true, liveMusic: false, allowsDogs: true, goodForWatchingSports: true, servesLunch: false, reservable: true,
     accessibilityOptions: { wheelchairAccessibleEntrance: true, wheelchairAccessibleRestroom: false, unknown: true },
+    paymentOptions: { acceptsNfc: true, acceptsCashOnly: false, acceptsCrypto: true },
   }, at);
   expect(row.rating).toEqual({ value: 4.3, source: "google_places", observedAt: at });
   expect(row.outdoorSeating?.value).toBe(false);
   expect(row.editorialSummary?.value).toEqual({ text: "A neighbourhood pub.", languageCode: "en" });
   expect(row.accessibilityOptions?.value).toEqual({ wheelchairAccessibleEntrance: true, wheelchairAccessibleRestroom: false });
+  expect([row.allowsDogs?.value, row.goodForWatchingSports?.value, row.servesLunch?.value, row.reservable?.value]).toEqual([true, true, false, true]);
+  expect(row.paymentOptions).toEqual({ value: { acceptsNfc: true, acceptsCashOnly: false }, source: "google_places", observedAt: at });
   const invalid = placesEnrichmentRecord("venue-uk-n1", "ChIJVerified0001", {
-    rating: 9, userRatingCount: -1, priceLevel: "cheap", outdoorSeating: "yes", editorialSummary: { text: "" },
+    rating: 9, userRatingCount: -1, priceLevel: "cheap", outdoorSeating: "yes", allowsDogs: "yes", editorialSummary: { text: "" },
+    paymentOptions: { acceptsNfc: "yes" },
   }, at);
   expect(Object.keys(invalid)).toEqual(["venueId", "googlePlaceId", "observedAt"]);
 });
