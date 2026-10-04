@@ -14,12 +14,9 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 }));
 
 import RoutePanel from "@/components/map/RoutePanel";
-import { decodeCrawlStory } from "@/lib/crawlStory";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
-import { publishAuthActionState } from "@/lib/authedFetch";
-import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -45,8 +42,6 @@ const props = {
 };
 
 beforeEach(() => {
-  setProviderIdentity("supabase", null);
-  publishAuthActionState({ status: "signed-out", identityResolved: true });
   localStorage.clear();
   vi.clearAllMocks();
   container = document.createElement("div");
@@ -144,21 +139,12 @@ describe("selected-drink hand-built Plan", () => {
     expect(reverse).toHaveBeenCalledOnce();
   });
 
-  it("omits pint amounts from both anonymous story links and permanent story requests", async () => {
-    const writeText = vi.fn<(href: string) => Promise<void>>().mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", Object.assign(Object.create(navigator), { clipboard: { writeText } }));
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ slug: "wine-plan" }), {
-      status: 201, headers: { "content-type": "application/json" },
-    }));
+  it("keeps Beer stories but withholds story entry when the reader would lose drink context and unknown totals", async () => {
+    await render({ route: [duke, dove] });
+    expect(button("Save as story")).toBeTruthy();
     await render({ drinkSelection: wine, route: [duke, dove] });
-    await act(async () => button("Save as story").click());
-    await act(async () => button("Copy share link").click());
-    const href = new URL(writeText.mock.calls[0]![0]);
-    const story = decodeCrawlStory(href.searchParams.get("s"));
-    expect(story?.stops.map((stop) => stop.priceGbp)).toEqual([null, null]);
-    await act(async () => button("Save a permanent link").click());
-    expect(fetchSpy).toHaveBeenCalledOnce();
-    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]!.body));
-    expect(body.stops.map((stop: { priceGbp: number | null }) => stop.priceGbp)).toEqual([null, null]);
+    expect(Array.from(container.querySelectorAll("button")).some((item) => item.textContent?.includes("Save as story"))).toBe(false);
+    await render({ drinkSelection: { drinkCategory: "beer", drinkBrand: "guinness", drinkSubtype: "" }, route: [duke, dove] });
+    expect(Array.from(container.querySelectorAll("button")).some((item) => item.textContent?.includes("Save as story"))).toBe(false);
   });
 });

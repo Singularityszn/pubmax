@@ -276,13 +276,12 @@ export default function RoutePanel({
         />
       ) : null}
 
-      {route.length >= 2 ? (
+      {route.length >= 2 && !drinkPresentation ? (
         <SaveCrawlStory
           stops={route.map((venue) => ({
             venueId: venue.id,
             name: venue.name,
-            // A category quote with an unknown serving cannot price a story stop.
-            priceGbp: drinkPresentation ? null : venue.cheapestPrice,
+            priceGbp: venue.cheapestPrice,
           }))}
           defaultTitle={crawlTitle}
         />
