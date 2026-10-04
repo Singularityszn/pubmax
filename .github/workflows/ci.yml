@@ -1,11 +1,10 @@
 name: CI
 
-# Self-hosted `pubmax-mac` runner (`karan-mac-pubmax`, macOS ARM64) while
-# GitHub-hosted minutes are billing-locked. History: Avrea and Blacksmith
-# carried jobs after the September 2026 allocation fault; hosted runners
-# stopped again when account payments failed. See docs/CI_RUNBOOK.md.
-# Effective RLS stays in rls-session.yml so this workflow stays lean. Job
-# timeout-minutes follow docs/CI_RUNBOOK.md (2× p95 on shared pubmax-mac).
+# GitHub-hosted ubuntu-latest. The repository is public, so CI does not run
+# on a personal Mac. Playwright jobs live in e2e.yml and performance.yml
+# and use macos-latest. Effective RLS stays in
+# rls-session.yml so this workflow stays lean. Job timeout-minutes are the
+# ceilings already measured for these jobs; see docs/CI_RUNBOOK.md.
 
 on:
   pull_request:
@@ -17,34 +16,31 @@ permissions:
   contents: read
 
 concurrency:
-  # One group per workflow, event and ref (repo-wide group blocked other branches).
-  # A newer pull request head supersedes older runs on the shared runner; main,
-  # nightly and dispatch runs finish. Rerun the latest run for the current head.
-  group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
+  # One group per workflow, event and ref. A newer pull request head
+  # supersedes older runs of this workflow. Main and dispatch runs finish.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
 jobs:
   review-scope:
     name: Review scope
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 11
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - name: Checkout full diff
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Check changed-file scope
         env:
@@ -54,22 +50,20 @@ jobs:
 
   lint-and-types:
     name: Lint and typecheck
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 31
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -87,22 +81,20 @@ jobs:
   production-build:
     name: Production build
     needs: [lint-and-types]
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 28
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -117,7 +109,7 @@ jobs:
   unit-tests:
     needs: [production-build]
     name: Unit tests (${{ matrix.shard }}/2)
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 22
     strategy:
       fail-fast: false
@@ -126,18 +118,16 @@ jobs:
         shard: [1, 2]
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -216,20 +206,19 @@ jobs:
   coverage:
     name: Coverage
     needs: [unit-tests]
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
       - name: Install dependencies
         run: |
           npm ci
@@ -292,20 +281,19 @@ jobs:
 
   freshness:
     name: Freshness release gate
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
       - name: Install dependencies
         run: |
           npm ci

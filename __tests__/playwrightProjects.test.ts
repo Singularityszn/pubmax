@@ -78,4 +78,21 @@ describe("Playwright project registration", () => {
       }
     }
   });
+
+  it("leaves CI at Playwright's default worker count and caps the local rig at two", async () => {
+    vi.stubEnv("CI", "true");
+    vi.resetModules();
+    const onCi = (await import("../playwright.config")).default;
+    expect(onCi.workers).toBeUndefined();
+    expect(onCi.retries).toBe(1);
+    expect(onCi.timeout).toBe(30_000);
+    expect(onCi.expect).toMatchObject({ timeout: 10_000 });
+
+    vi.stubEnv("CI", "");
+    vi.resetModules();
+    const local = (await import("../playwright.config")).default;
+    expect(local.workers).toBe(2);
+    expect(local.retries).toBe(0);
+    expect(local.timeout).toBe(30_000);
+  });
 });

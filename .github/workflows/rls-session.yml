@@ -1,8 +1,7 @@
 # Effective RLS session tests against real PostgreSQL 16 and PostgREST 14.
 #
 # The main `npm run ci` gate skips these tests loudly when local database
-# binaries are absent. This job is configured for push and pull-request proof,
-# but local proof remains required when GitHub cannot allocate a runner.
+# binaries are absent. This job is the push and pull-request proof.
 name: RLS session tests
 
 on:
@@ -15,44 +14,58 @@ permissions:
   contents: read
 
 concurrency:
-  # One group per workflow, event and ref (repo-wide group blocked other branches).
-  # A newer pull request head supersedes older runs on the shared runner; main,
-  # nightly and dispatch runs finish. Rerun the latest run for the current head.
-  group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
+  # A newer pull request head supersedes older runs of this workflow.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
 jobs:
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
           npm ci
           npm run deps:install-scripts
 
-      # macOS runners cannot use `services:` containers; Homebrew
-      # postgresql@16 + postgrest on the runner host back the session harness
-      # (scripts/rls/run-session-tests.mjs, scripts/rls/postgresHost.mjs).
-      - name: Ensure PostgreSQL 16 and PostgREST 14 on PATH
-        uses: ./.github/actions/pubmax-mac-postgres-path
+      # The harness starts its own cluster with initdb, so it needs the
+      # PostgreSQL 16 binaries, not a service container. PostgREST 14 is the
+      # HTTP boundary. Both land on PATH for the test step.
+      - name: Install PostgreSQL 16 and PostgREST 14
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/postgrest.tar.xz" \
+            https://github.com/PostgREST/postgrest/releases/download/v14.16/postgrest-v14.16-linux-static-x86-64.tar.xz
+          echo "36b8ae140f188cfcd6003494805bf35a41e895f88c12be9183d60f91782145c6  $RUNNER_TEMP/postgrest.tar.xz" \
+            | sha256sum --check
+          tar --extract --xz --file "$RUNNER_TEMP/postgrest.tar.xz" --directory "$RUNNER_TEMP"
+          chmod +x "$RUNNER_TEMP/postgrest"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP:$PATH"
+          initdb --version
+          postgres --version
+          psql --version
+          "$RUNNER_TEMP/postgrest" --version
 
       - name: Run effective RLS session tests
         run: npm run test:rls

@@ -20,6 +20,7 @@ import {
   __addMemoryCommentForTest,
   __resetMemoryComments,
 } from "@/lib/commentsStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops/comments";
@@ -44,6 +45,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryComments();
   __resetMemoryProfiles();
+  __resetPintDrops();
 });
 
 describe("GET /api/pint-drops/comments", () => {
@@ -155,9 +157,8 @@ describe("POST /api/pint-drops/comments", () => {
   });
 
   it("429s the 9th rapid comment on one drop from one actor", async () => {
-    // Distinct IP per case keeps the durable/actor key from bleeding across
-    // tests; the in-memory limiter keys on the drop id (unique below) so this
-    // block is self-contained. Limit is 8 → the 9th is limited.
+    // Distinct drop id keeps the generous per-drop budget out of the way; the
+    // actor cap (8/min) is the tighter bound for one device. Limit is 8 → 9th 429.
     const dropId = "drop-flood";
     const headers = { "x-forwarded-for": "198.51.100.9" };
     let last: Response | undefined;
@@ -166,6 +167,23 @@ describe("POST /api/pint-drops/comments", () => {
     }
     expect(last!.status).toBe(429);
     expect(await last!.json()).toEqual({ error: "Too many comments, slow down.", code: "RATE_LIMITED", retryable: true });
+  });
+
+  it("429s the 9th comment from one actor across different drops", async () => {
+    const headers = { "x-forwarded-for": "203.0.113.99" };
+    let last: Response | undefined;
+    for (let i = 0; i < 9; i++) {
+      last = await post(
+        { dropId: `drop-cross-${i}`, handle: "traveler", body: `note ${i}` },
+        headers,
+      );
+    }
+    expect(last!.status).toBe(429);
+    expect(await last!.json()).toEqual({
+      error: "Too many comments, slow down.",
+      code: "RATE_LIMITED",
+      retryable: true,
+    });
   });
 
   it("never leaks actor_hash/status/moderation fields in the created DTO", async () => {
