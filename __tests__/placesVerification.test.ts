@@ -346,15 +346,26 @@ describe("committed Places verification files", () => {
     const ledger = JSON.parse(
       readFileSync(path.join(ROOT, "data/places_verification/london.json"), "utf8"),
     ) as { pubs: Record<string, unknown>[]; summary: Record<string, number> };
-    const closed = JSON.parse(
-      readFileSync(path.join(ROOT, "data/places_verification/closed_pubs.json"), "utf8"),
-    ) as { osmRefs: string[]; curatedVenueIds: string[] };
     expect(ledger).not.toHaveProperty("closedForReview");
     for (const row of ledger.pubs) {
       expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "venueId", "verifiedAt"]);
     }
-    expect(ledger.summary.closedPermanently).toBe(closed.osmRefs.length);
-    expect(closed.curatedVenueIds).toEqual([]);
+    expect(ledger.summary.closedPermanently + ledger.summary.closedUnconfirmed)
+      .toBeLessThanOrEqual(ledger.summary.pubsVerified);
+  });
+
+  it("keeps closed_pubs.json a sorted set of OSM refs and their curated owners", () => {
+    const closed = JSON.parse(
+      readFileSync(path.join(ROOT, "data/places_verification/closed_pubs.json"), "utf8"),
+    ) as { verifiedAt: string; osmRefs: string[]; curatedVenueIds: string[] };
+    const sortedSet = (values: string[]) => [...new Set(values)].sort();
+    expect(Object.keys(closed).sort()).toEqual(["curatedVenueIds", "osmRefs", "verifiedAt"]);
+    expect(closed.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(closed.osmRefs).toEqual(sortedSet(closed.osmRefs));
+    for (const ref of closed.osmRefs) expect(ref).toMatch(/^[nwr]\d+$/);
+    expect(closed.curatedVenueIds).toEqual(sortedSet(closed.curatedVenueIds));
+    for (const id of closed.curatedVenueIds) expect(id).toMatch(/^venue-/);
+    if (closed.osmRefs.length === 0) expect(closed.curatedVenueIds).toEqual([]);
   });
 });
 

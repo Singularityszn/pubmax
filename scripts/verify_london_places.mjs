@@ -786,7 +786,7 @@ async function main() {
         ...cafeVerdictCounts(cafes),
         skippedNoResult,
         skippedAmbiguous,
-        closedPermanently: mergedClosedRefs.length,
+        closedPermanently: closedRefs.length,
         closedUnconfirmed: pubsForReview.length - closedRefs.length,
         ...(UK_CITIES ? {
           skippedUnknownStatus: skippedDetails("unknown_status"),
