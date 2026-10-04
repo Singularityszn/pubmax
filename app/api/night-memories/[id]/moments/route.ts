@@ -67,7 +67,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   } catch (error) {
     if (uploadedKey) await removeNightMomentPhoto(uploadedKey, ownerId);
     const message = error instanceof Error ? error.message : "That photo could not be saved.";
-    const status = contentType.includes("multipart/form-data") && /unavailable|storage|configure/i.test(message)
+    const status = contentType.includes("multipart/form-data") && /unavailable|storage|configure|bucket not found/i.test(message)
       ? 503
       : 400;
     return publicApiErrorFromStatus(message, status);

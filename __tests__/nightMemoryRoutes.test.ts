@@ -1,4 +1,18 @@
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const uploadState = vi.hoisted(() => ({ failure: null as Error | null }));
+
+vi.mock("@/lib/nightMomentMedia", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/nightMomentMedia")>();
+  return {
+    ...actual,
+    uploadNightMomentPhoto: async (...args: Parameters<typeof actual.uploadNightMomentPhoto>) => {
+      if (uploadState.failure) throw uploadState.failure;
+      return actual.uploadNightMomentPhoto(...args);
+    },
+  };
+});
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -33,10 +47,18 @@ const auth = (path: string, body?: unknown, token = "host") => new Request(`http
 });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 
+async function validJpegFile(): Promise<File> {
+  const bytes = await sharp({
+    create: { width: 1, height: 1, channels: 3, background: "#7d2838" },
+  }).jpeg().toBuffer();
+  return new File([new Uint8Array(bytes)], "night.jpg", { type: "image/jpeg" });
+}
+
 describe("Night Memory HTTP contract", () => {
   beforeEach(() => {
     __resetNightMemoryStore();
     __resetMemoryProfiles();
+    uploadState.failure = null;
   });
 
   it("requires an account and creates only a private Memory", async () => {
@@ -82,6 +104,28 @@ describe("Night Memory HTTP contract", () => {
     const refusalBody = await photoRefusal.json();
     expect(refusalBody.code).not.toBe(NIGHT_MEMORY_REFUSED_CODE);
     expect(keepServerMemoryAfterRefusal(photoRefusal.status, refusalBody.code)).toBe(true);
+  });
+
+  it("reports a missing Storage bucket as a retryable Moment upload failure", async () => {
+    const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Friday orbit" }));
+    const { memory } = await memoryResponse.json();
+    uploadState.failure = new Error("Bucket not found");
+
+    const form = new FormData();
+    form.set("photo", await validJpegFile());
+    const response = await ADD_MEMORY_MOMENT(
+      new Request(`http://localhost/api/night-memories/${memory.id}/moments`, {
+        method: "POST",
+        headers: { authorization: "Bearer host" },
+        body: form,
+      }),
+      ctx(memory.id),
+    );
+
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect(keepServerMemoryAfterRefusal(response.status, body.code)).toBe(true);
   });
 
   it("does not accept a client-supplied Plan completion link without an ownership binding", async () => {
