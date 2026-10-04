@@ -27,7 +27,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { parsePublicOverlay, type PublicHarvestOverlay } from "@/lib/harvestFold";
 import { discardBody } from "@/lib/responseBody";
 import type { UkBasePub } from "@/lib/ukBasePubs";
-import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
+import { COMMUNITY_PRICE_NOTE, formatPrice, type Venue } from "@/lib/venues";
 import { type PlacesEnrichmentRecord } from "@/lib/placesEnrichment";
 import { slimVenueToPin } from "@/lib/slimPins";
 import VenuePlacesDetails from "./VenuePlacesDetails";
@@ -92,6 +92,11 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
       ) : null}
     </div>
   );
+}
+
+/** Google Places content is more than a pin, so only a pub without it says the pin is all we know. */
+function knownHereLead(placeNoun: string, venue: Venue): string {
+  return venue.placesContent ? `We know this ${placeNoun} is here.` : `We know this ${placeNoun} is here, and that is all we know.`;
 }
 
 export default function UnverifiedPubSheet({
@@ -246,7 +251,7 @@ export default function UnverifiedPubSheet({
         </p>
       ) : pricesKnown ? (
         <p className="unverifiedPubLead">
-          We know this {placeNoun} is here. Nobody has
+          {knownHereLead(placeNoun, detailVenue)} Nobody has
           logged what a drink costs - <strong>be the first</strong>.
         </p>
       ) : readFailed ? (

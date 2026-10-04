@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Copy four venue fields from verified Places ids. Dry run is default. */
-import { existsSync, readFileSync, writeFileSync, renameSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -90,18 +90,8 @@ function currentPush(rows, reportRows, inputHash, refresh) {
 async function main() {
   const { live, usage, refresh } = runOptions();
   const dir = join(ROOT, "data/places_verification");
-  const verified = new Map();
-  for (const file of readdirSync(dir).sort((a, b) => (a === "london.json" ? -1 : b === "london.json" ? 1 : a.localeCompare(b)))) {
-    if (!file.endsWith(".json") || /(?:progress|review|pub_hours|closed_pubs)/.test(file)) continue;
-    const body = read(join(dir, file));
-    for (const row of body.pubs ?? []) {
-      const existing = verified.get(row.venueId);
-      if (existing && existing.googlePlaceId !== row.googlePlaceId) throw new Error("Conflicting verified place ids");
-      verified.set(row.venueId, { venueId: row.venueId, googlePlaceId: row.googlePlaceId });
-    }
-  }
+  const rows = (read(join(dir, "london.json")).pubs ?? []).map((row) => ({ venueId: row.venueId, googlePlaceId: row.googlePlaceId }));
   const report = read(join(dir, "pub_hours_london.json"));
-  const rows = [...verified.values()];
   if (!rows.length || !Array.isArray(report.rows)) throw new Error("Verified ledger and hours verdict report required");
   const inputHash = createHash("sha256").update(JSON.stringify({ rows, report: report.rows })).digest("hex");
   const { previous, plan, pending, budget } = currentPush(rows, report.rows, inputHash, refresh);

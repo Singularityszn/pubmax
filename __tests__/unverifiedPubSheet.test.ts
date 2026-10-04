@@ -294,6 +294,7 @@ describe("UnverifiedPubSheet", () => {
 
     expect(html).toContain("No price yet");
     expect(html).toContain("Nobody has logged");
+    expect(html).toContain("is here, and that is all we know.");
   });
 
   it("does not claim overlay absence on first paint", () => {

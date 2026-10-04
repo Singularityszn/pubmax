@@ -260,3 +260,16 @@ it("a run crossing a UTC month end counts each attempt against the month it was 
   expect(calls(dir)).toEqual(["ChIJVerified003", "ChIJVerified002", "ChIJVerified001"]);
   expect(pack(dir).spend).toMatchObject({ attemptedCalls: 3, reservedUsd: 0.06, month: "2026-11", monthAttemptedCalls: 1, monthReservedUsd: 0.02 });
 });
+
+it("reads only the London ledger, so another city ledger neither changes the push nor gets requested", () => {
+  const dir = fixture("runner-london-only");
+  expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
+  const before = readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8");
+  writeFileSync(path.join(dir, "data/places_verification/uk_cities.json"), JSON.stringify({ pubs: [{ venueId: "venue-uk-n1", googlePlaceId: "ChIJCity001" }] }));
+  const dry = run(dir, ["--dry-run"]);
+  expect(dry.status, dry.stderr).toBe(0);
+  expect(JSON.parse(dry.stdout.trim().split("\n")[0])).toMatchObject({ verified: 3, pending: 0 });
+  expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
+  expect(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8")).toBe(before);
+  expect(calls(dir)).not.toContain("ChIJCity001");
+});
