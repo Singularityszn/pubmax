@@ -3,6 +3,7 @@
 
 import { accountBoundFetch, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { discardBody } from "@/lib/responseBody";
 import type { PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
 const SAVE_FAILED = "Could not save that memory.";
@@ -25,6 +26,7 @@ export async function confirmPalMemoryProposal(
       request,
     );
     if (response.status === 401) {
+      discardBody(response);
       return { ok: false, error: "Sign in to keep a Pal memory.", needsSignIn: true };
     }
     if (!response.ok) {
