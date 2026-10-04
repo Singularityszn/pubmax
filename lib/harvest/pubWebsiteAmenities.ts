@@ -134,7 +134,17 @@ const POOL = /\bpool\b/i;
 const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party|parties|house))\b/i;
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
 const SPORT_SHOWN =
-  /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b|\bsky\b|\btnt\b|\bbt\b|\btelevised\b|\btackle\b|\bkick\b|\bvs\b/i;
+  /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
+const SPORT_VIEWING =
+  /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b|\bsports?\s+(?:pub|bar)s?\b/i;
+/** Team fixture copy must explicitly invite live viewing; a bare "vs" is not sport. */
+const LIVE_TEAM_FIXTURE = /\bwatch\s+[a-z][a-z0-9 &'-]{0,60}\s+vs\s+[a-z][a-z0-9 &'-]{0,60}\s+live\b/i;
+const NO_SPORT_VIEWING = new RegExp(
+  `\\b(?:no|without)\\s+(?:live\\s+|sky\\s+|tnt\\s+|bt\\s+)?(?:${SPORT_SHOWN.source}|\\b(?:screens?|screenings?|tvs?)\\b)|` +
+  `\\b(?:do\\s+not|don'?t|never)\\s+show\\s+(?:any\\s+)?(?:live\\s+)?(?:${SPORT_SHOWN.source})|` +
+  "\\b(?:not|aren'?t|isn'?t)\\s+(?:a\\s+)?sports?\\s+(?:pub|bar)s?\\b",
+  "i",
+);
 const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?sports\b/i;
 const LIVE_MUSIC =
   /\blive\b[^.]{0,20}\b(?:music|bands?|gigs?|jazz|folk|blues|soul|funk|country|singers?|vocals|acts?|artists)\b|\bbands?\b|\bgigs?\b|\bjazz\b|\bfolk\b|\bblues\b|\bopen mic\b|\bsingers?\b|\bsings? live\b|\bchoir\b|\bjams?\b|\bacoustic\b|\btrad\b|\bseisi|\bconcerts?\b|\btribute show\b|\bmusic venues?\b|\bmusic (?:nights?|events?)\b/i;
@@ -162,13 +172,19 @@ const DANGLING_INFINITIVE = /\bto (?:keep|make|get|give|take|bring|have)$/;
  * What a quote must say for each amenity to stand. Tea, coffee, soft drinks and
  * a kids' meal drink are not alcohol-free beer. Darts on the television is not
  * a dartboard, and a screen is not sport until something is shown on it. A
- * time range alone is not a happy hour. A key without an entry needs only the
+ * fixture or tournament name is not sport either until the quote says the pub
+ * shows it, or the pub calls itself a sports pub. A time range alone is not a
+ * happy hour. A key without an entry needs only the
  * quote.
  */
 const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) => boolean>> = {
   food: (quote) => !SITE_NAVIGATION.test(quote),
   liveSports: (quote) =>
-    SPORT_SHOWN.test(quote) && !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote),
+    !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote) &&
+    quote.split(/[.,;!?]|\b(?:but|however|yet|although|while)\b/i).some((clause) =>
+      (SPORT_SHOWN.test(clause) || LIVE_TEAM_FIXTURE.test(clause)) &&
+      SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause),
+    ),
   liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
   pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
   nonAlcoholic: (quote) => ALCOHOL_FREE.test(quote),

@@ -56,6 +56,92 @@ describe("parsePubAmenityModelJson", () => {
 });
 
 describe("keepEvidencedAmenities", () => {
+  it.each([
+    "WORLD CUP 2026",
+    "Autumn Nations 2026",
+    "No screens and no live sport at this pub.",
+    "We have no TVs for the football.",
+    "No Sky Sports here.",
+    "No TNT Sports here.",
+    "We do not show sport.",
+    "We dont show sport.",
+    "We don’t show sport.",
+    "Never show sport.",
+    "We do not show football.",
+    "We don't show rugby.",
+    "We don’t show cricket.",
+    "We never show boxing.",
+    "We never show football on our screens.",
+    "We never show rugby on our TVs.",
+    "We are not a sports pub.",
+    "We aren't a sports bar.",
+    "Watch televised news on our TVs.",
+    "Watch Sky documentaries on our screens.",
+    "Watch TNT dramas on our TVs.",
+    "Watch BT adverts on our screens.",
+    "Watch a kick tutorial on our TVs.",
+    "Watch a tackle tutorial on our screens.",
+    "Watch Alien vs Predator on our TVs.",
+    "Watch Liverpool vs Man City",
+    "Liverpool vs Man City live",
+  ])("does not publish a quote that does not say sport is shown here: %s", (quote) => {
+    const parsed = parsePubAmenityModelJson(JSON.stringify({
+      amenities: { liveSports: { value: true, evidence: quote } },
+    }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const kept = keepEvidencedAmenities(parsed.amenities, quote);
+    expect(kept).toEqual({});
+    expect(statedAmenities({ liveSports: quote })).toEqual({});
+    expect(pubSpecificEvidence([
+      { sourceUrl: "https://pub.example/", amenities: { liveSports: quote } },
+    ])).toEqual([]);
+    expect(stampAmenityColumns(liftSiteStamps({ live_sports: SITE_STAMP }), kept).row)
+      .toEqual({ live_sports: "" });
+  });
+
+  it.each([
+    "We show live sport on our Sky Sports screens.",
+    "Watch football on our TV screens.",
+    "No food, but we show live sport on our TV screens.",
+    "Live Sport",
+    "LIVE SPORTS",
+    "Sky Sports and TNT Sports",
+    "Live Premier League Football",
+    "Live sport on our TVs",
+    "Live Sports Screenings",
+    "Catch the rugby this season",
+    "Playing all the big matches",
+    "World Cup and Wimbledon matches screened in the garden.",
+    "No food, but we show live sport.",
+    "Sports pub",
+    "Sports bar, restaurant and rooms",
+    "The Crown is known as a \"Sports Pub\" for football and rugby.",
+    "A pub known for televised sport.",
+    "Live boxing on our screens.",
+    "Watch Liverpool vs Man City live",
+    "No Sky Sports, but we show live sport on TNT Sports.",
+    "We don't show football; we show rugby on our TVs.",
+    "We show live sport on TNT Sports, but no Sky Sports.",
+    "We show TNT Sports but no Sky Sports.",
+    "No screens in the dining room. Watch football on our bar TVs.",
+  ])("publishes affirmative televised sport evidence: %s", (quote) => {
+    const parsed = parsePubAmenityModelJson(JSON.stringify({
+      amenities: { liveSports: { value: true, evidence: quote } },
+    }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const kept = keepEvidencedAmenities(parsed.amenities, quote);
+    expect(kept).toEqual({ liveSports: quote });
+    expect(pubSpecificEvidence([
+      { sourceUrl: "https://pub.example/", amenities: kept },
+    ])).toEqual([{ sourceUrl: "https://pub.example/", amenities: { liveSports: quote } }]);
+    expect(stampAmenityColumns({ live_sports: "" }, kept).row)
+      .toEqual({ live_sports: SITE_STAMP });
+  });
+
   it("keeps a true value only when the quote is on the page", () => {
     const kept = keepEvidencedAmenities(
       {
