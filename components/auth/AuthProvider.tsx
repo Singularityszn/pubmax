@@ -301,8 +301,9 @@ export function AuthProvider({
   } | null>(null);
   /** Confirmation receipt after an unowned callback is accepted. */
   const [authSignedInNotice, setAuthSignedInNotice] = useState<string | null>(null);
-  const [socialProviders, setSocialProviders] =
-    useState<SocialAuthProviderAvailability>(NO_SOCIAL_AUTH_PROVIDERS);
+  const [socialProviderRead, setSocialProviders] =
+    useState<SocialAuthProviderAvailability | null>(null);
+  const socialProviders = socialProviderRead ?? NO_SOCIAL_AUTH_PROVIDERS;
   const [welcomeBack, setWelcomeBack] = useState<ResumeHint | null>(null);
   const [rejectedContributionAuth, setRejectedContributionAuth] =
     useState<AccountAuthSnapshot | null>(null);
@@ -1128,6 +1129,7 @@ export function AuthProvider({
       configured,
       clerkIntegrationConfigured,
       socialProviders,
+      socialProvidersResolved: !configured || socialProviderRead !== null,
       signInWithGoogle,
       signInWithApple,
       signInWithMicrosoft,
@@ -1157,6 +1159,7 @@ export function AuthProvider({
     configured,
     clerkIntegrationConfigured,
     socialProviders,
+    socialProviderRead,
     signInWithGoogle,
     signInWithApple,
     signInWithMicrosoft,

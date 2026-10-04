@@ -13,8 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
-  group: pubmax-mac-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 
@@ -22,9 +21,9 @@ jobs:
   # Speed is the product's claim, so a commit on main that slows a budgeted
   # route fails here the next night rather than being noticed on a phone weeks
   # later. Since 15 September 2026 this sweep runs nightly on main and on
-  # demand, not on every pull request: the GitHub free minutes cannot carry a
-  # 35-minute sweep per push, and the 2 vCPU GitHub-hosted box cannot measure
-  # a single commit repeatably (see the spread record below). A pull request
+  # demand, not on every pull request: free minutes cannot carry a 35-minute
+  # sweep per push, and a 2 vCPU box could not measure a single commit
+  # repeatably (see the spread record below). A pull request
   # that must prove a route dispatches this workflow against its branch. The ceilings
   # live in perf/route-budgets.json and docs/PERFORMANCE_BUDGETS.md owns the rule
   # for changing one. Every route the site serves a stranger is measured - all 34
@@ -38,10 +37,10 @@ jobs:
   # that wire, on top of a production build. It was 15 with nine routes on
   # loopback.
   # From 6 to 15 September 2026 the measurement ran on a 4 vCPU runner (Avrea,
-  # then Blacksmith) rather than the 2 vCPU every other job took. GitHub-hosted
-  # `ubuntu-latest` on a private repository is a 2 vCPU box, and on a 2 vCPU box
-  # the sweep could not measure itself, which is one reason the sweep left the
-  # pull-request path: the
+  # then Blacksmith). A private repository's 2 vCPU `ubuntu-latest` could not
+  # measure itself, which is one reason the sweep left the pull-request path.
+  # This job launches Playwright, so it runs on macos-latest with the law pins.
+  # Ubuntu font metrics do not match those pins. The
   # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
   # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
   # a route flipped between pass and fail on one commit. A ceiling is only a
@@ -54,7 +53,7 @@ jobs:
   # inside the old wall, since that work only happens on `if: failure()`.
   performance-budget:
     name: Performance budget
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: macos-latest
     timeout-minutes: 55
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
@@ -65,21 +64,19 @@ jobs:
         run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(node -p "Date.now()")" >> "$GITHUB_ENV"
 
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           # The ratchet check compares this branch's ceilings against the base
           # branch's, so it needs the base branch to compare against.
           fetch-depth: 0
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -116,7 +113,7 @@ jobs:
       # Chromium only: the budget is measured in one engine on purpose, so a run
       # is comparable to the one before it.
       - name: Install Chromium
-        uses: ./.github/actions/pubmax-mac-playwright
+        run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
@@ -131,6 +128,8 @@ jobs:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
+        # One worker, same cap as Browser law pins: four killed the single
+        # production server on this rig.
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
 
       # WAS IT THE BRANCH, OR WAS IT THE BOX?
@@ -172,7 +171,7 @@ jobs:
 
       - name: Keep the A/B evidence with the run
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: performance-budget-ab
           path: |
@@ -195,22 +194,20 @@ jobs:
   ux-lane-performance:
     name: UX lane performance
     needs: [performance-budget]
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: macos-latest
     timeout-minutes: 17
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -218,7 +215,7 @@ jobs:
           npm run deps:install-scripts
 
       - name: Install Chromium
-        uses: ./.github/actions/pubmax-mac-playwright
+        run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
@@ -229,6 +226,7 @@ jobs:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
+        # One worker, same cap as the budget sweep above.
         run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
 
       # The spec writes the table into its own Playwright output directory, so
@@ -238,7 +236,7 @@ jobs:
       # one and does not need a second red mark.
       - name: Upload UX lane table
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ux-lane-13-perf
           path: test-results/**/ux-lane-13-perf.md
