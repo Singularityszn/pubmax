@@ -103,9 +103,10 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    when that reply came after the last tool event and no tool is still
    running, on `agent_response_complete`. The script adds that event and the
    tool events to the agent's `conversation.client_events`, so the captain
-   re-runs `npm run pubpal:agent` to turn them on. On an agent without that event, a tool turn ends at the
-   22-second server deadline, which falls before the browser's 25-second
-   abort, and returns the reply held under the same rule, or a timeout.
+   re-runs `npm run pubpal:agent` to turn them on. On an agent without that
+   event, a tool turn ends at the 22-second server deadline, which falls
+   before the browser's 25-second abort, and returns the reply held under the
+   same rule, or a timeout.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.
