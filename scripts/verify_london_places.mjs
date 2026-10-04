@@ -474,12 +474,12 @@ function cafeDetail(read, osmHours) {
   return { osmHoursVerdict: osmHoursVerdict(osmHours, placesHours) };
 }
 
-function collectPub(venue, progress, day, pubs, closedRefs, pubsForReview) {
+function collectPub(venue, progress, pubs, closedRefs, pubsForReview) {
   const detail = progress.details[venue.id];
   const search = progress.searches[venue.id];
   if (!detail || detail.skipped || !search || search.outcome !== "matched") return;
   if (!["open", "closed", "closed_unconfirmed"].includes(detail.closure)) return;
-  pubs.push(pubVerificationRow(venue.id, search.placeId, day));
+  pubs.push(pubVerificationRow(venue.id, search.placeId, detail.observedAt));
   if (detail.closure === "closed") {
     closedRefs.push(venue.osmRef);
     pubsForReview.push(`${venue.id} ${venue.name}, ${venue.address}: closed, hidden from the map`);
@@ -488,7 +488,7 @@ function collectPub(venue, progress, day, pubs, closedRefs, pubsForReview) {
   }
 }
 
-function collectCafe(venue, progress, day, cafes, cafesForReview) {
+function collectCafe(venue, progress, cafes, cafesForReview) {
   const detail = progress.details[venue.id];
   const search = progress.searches[venue.id];
   if (detail?.skipped === "closed_permanently") {
@@ -496,7 +496,7 @@ function collectCafe(venue, progress, day, cafes, cafesForReview) {
   }
   if (!detail || detail.skipped || !search || search.outcome !== "matched") return;
   if (!OSM_HOURS_VERDICTS.includes(detail.osmHoursVerdict)) return;
-  cafes.push(cafeVerificationRow(venue.id, search.placeId, detail.osmHoursVerdict, day));
+  cafes.push(cafeVerificationRow(venue.id, search.placeId, detail.osmHoursVerdict, detail.observedAt));
   if (detail.osmHoursVerdict === "disagree") {
     cafesForReview.push(`${venue.id} ${venue.name}: OSM hours disagree with Google`);
   }
@@ -514,6 +514,12 @@ function cafeVerdictCounts(cafes) {
 
 function verifiedDay() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function validObservationDay(day) {
+  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const parsed = new Date(`${day}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day;
 }
 
 async function prepareVerification() {
@@ -678,7 +684,11 @@ async function main() {
     }
     let detailed = 0;
     for (const venue of matched) {
-      if (progress.details[venue.id]) continue;
+      if (progress.details[venue.id]) {
+        const saved = progress.details[venue.id];
+        if (saved.skipped || validObservationDay(saved.observedAt)) continue;
+        delete progress.details[venue.id];
+      }
       const placeId = progress.searches[venue.id].placeId;
       const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
       const read = await readDetails(apiKey, placeId, fieldMask);
@@ -686,16 +696,19 @@ async function main() {
         progress.details[venue.id] = { skipped: "budget_exhausted" };
         continue;
       }
+      const observedAt = verifiedDay();
       if (!read.status) {
         progress.details[venue.id] = { skipped: "unknown_status" };
       } else if (venue.kind === "pub") {
         progress.details[venue.id] = {
+          observedAt,
           closure: pubClosureVerdict(read.status, venue.name, read.name),
           nameMatched: placesNameMatchesOsm(venue.name, read.name),
           operational: read.status === "OPERATIONAL",
         };
       } else {
-        progress.details[venue.id] = cafeDetail(read, venue.osmHours);
+        const detail = cafeDetail(read, venue.osmHours);
+        progress.details[venue.id] = detail.skipped ? detail : { ...detail, observedAt };
       }
       detailed += 1;
       if (detailed % 100 === 0) {
@@ -712,10 +725,10 @@ async function main() {
     const pubsForReview = [];
     const cafesForReview = [];
     for (const venue of venues.pubs) {
-      collectPub(venue, progress, day, pubs, closedRefs, pubsForReview);
+      collectPub(venue, progress, pubs, closedRefs, pubsForReview);
     }
     for (const venue of venues.cafes) {
-      collectCafe(venue, progress, day, cafes, cafesForReview);
+      collectCafe(venue, progress, cafes, cafesForReview);
     }
     pubs.sort((a, b) => a.venueId.localeCompare(b.venueId));
     cafes.sort((a, b) => a.venueId.localeCompare(b.venueId));
