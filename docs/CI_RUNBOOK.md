@@ -19,11 +19,9 @@ runs-on: ubuntu-latest
 
 `__tests__/ciRunnerIsolation.test.ts` holds that label, and it holds the
 secret rule: a workflow that runs on `pull_request` does not reference
-`secrets`, and a repository secret other than `GITHUB_TOKEN` is passed only
-when the event is `push` or `schedule`. `GITHUB_TOKEN` is the job token.
-Refresh workflows that open a review PR do not trigger on `pull_request`, so
-a fork never receives that token. A manual `workflow_dispatch` does not
-receive Ticketmaster, Skiddle, Resend or Supabase secrets.
+`secrets`. Refresh workflows that open a review PR do not trigger on
+`pull_request`, so a fork never receives their job token or a repository
+secret.
 
 ### What a job installs
 
@@ -55,10 +53,8 @@ are retired. Do not register them again. A public repository's pull request
 code must not run on a personal machine, and that shared Mac was the
 browser-test timeout of 3-4 Oct 2026.
 
-`scripts/ci/setup-dedicated-runner-user.sh` and
-`scripts/ci/assert-runner-identity.sh` exit immediately and print `retired`.
-Neither workflow calls the identity check. There is no console-user guard and
-no shared browser queue: each hosted job is its own machine.
+There is no console-user guard and no shared browser queue: each hosted job
+is its own machine.
 `__tests__/browserJobConcurrency.test.ts` holds the browser jobs to that.
 
 ### Install scripts and credentials
@@ -124,7 +120,7 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | Job | Plane |
 | --- | --- |
 | What's-On bounded + official events refresh | Vercel `GET /api/cron/refresh-whats-on` (primary) |
-| What's-On GitHub recovery | `events-refresh.yml` (`workflow_dispatch` only; schedule disabled as duplicate; provider secrets only if the event is push or schedule) |
+| What's-On GitHub recovery | `events-refresh.yml` (`workflow_dispatch` only; schedule disabled as duplicate) |
 | Weather cache PR | `weather-refresh.yml` |
 | Drink price PR | `drink-price-refresh.yml` |
 | Performance budgets | `performance.yml` |
