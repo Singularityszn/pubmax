@@ -314,6 +314,20 @@
       "stalenessBudgetHours": 384,
       "refreshWorkflow": "manual (npm run verify:famous-venues -- --write, then npm run refresh:slim; build:slim alone rebuilds at the committed stamp). The budget is two weeks of lead before the earliest expiresAt still inside this slim build, derived by __tests__/helpers/currentFamousVenues.ts.",
       "gate": "The seed's own expiresAt. A rebuild that would drop a famous venue the last slim index shipped fails instead of writing a shorter index."
+    },
+    {
+      "id": "google_places_content",
+      "label": "Google Places venue hours and contacts",
+      "class": "episodic",
+      "artifact": "data/places_enrichment.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "observedAt"
+      },
+      "cadence": "Manual verified-id collection; each copied field expires independently after 30 days",
+      "stalenessBudgetHours": 720,
+      "refreshWorkflow": "npm run enrich:google-places -- --dry-run --usage; then --write --exclusive after shared-key jobs finish. Resume preserves per-field observation dates and cumulative attempt spend.",
+      "gate": "Verified place ids only, dated google_places fields, USD 85 attempt cap and checked daily-quota restoration. Oldest copied field dates this artifact."
     }
   ]
 }

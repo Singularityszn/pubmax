@@ -110,6 +110,7 @@
     "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
     "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs",
     "verify:london-places": "node --import tsx scripts/verify_london_places.mjs",
+    "enrich:google-places": "node --import tsx scripts/enrich_google_places.mjs",
     "test:chatgpt-map": "npm --prefix scripts/chatgpt-map ci --no-audit --no-fund && npm --prefix scripts/chatgpt-map test",
     "deps:install-scripts": "node scripts/ci/install-script-allowlist.mjs",
     "tavily:nightly": "tsx scripts/tavily-nightly-pass.mjs"

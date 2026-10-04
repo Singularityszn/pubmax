@@ -303,7 +303,7 @@ describe("committed Places verification files", () => {
     expect(ignored.trim().split("\n")).toHaveLength(3);
   });
 
-  it("stores our fields only", () => {
+  it("keeps verdict-only verification files separate from the dated content lane", () => {
     for (const file of [
       "data/places_verification/london.json",
       "data/places_verification/closed_pubs.json",
