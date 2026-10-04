@@ -61,6 +61,10 @@ describe("sports evidence publication", () => {
     "Sky Sports is unavailable at this pub.",
     "Sky Sports is not available at this pub.",
     "We are not subscribed to TNT Sports.",
+    "Sky Sports isn't available at this pub.",
+    "Sky Sports and TNT Sports aren't available.",
+    "We're not subscribed to TNT Sports.",
+    "We aren't subscribed to TNT Sports.",
   ])("refuses consolidated provider availability denials: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
@@ -281,6 +285,9 @@ describe("sports evidence publication", () => {
     "We don't show Sky Sports and we show TNT Sports.",
     "Rugby is broadcast on our TVs and football isn't shown.",
     "Football is not shown and our TVs are used to show rugby.",
+    "We show live football and rugby is not shown.",
+    "We have Sky Sports and rugby is not available.",
+    "We're not subscribed to TNT Sports and we show football on our TVs.",
   ])("retains an independent viewing proposition beside a denial: %s", (quote) => {
     expectSportsPublication(quote, true);
   });
@@ -296,6 +303,11 @@ describe("sports evidence publication", () => {
     "Football and rugby aren't shown on our screens.",
     "Cricket isn’t broadcast on our TVs.",
     "Our screens aren’t used to show cricket.",
+    "Sky Sports and football are not shown on our TVs.",
+    "Live football and rugby are not shown here.",
+    "TNT Sports and rugby are not available.",
+    "Live football and live rugby aren't shown.",
+    "We don't have football or Sky Sports.",
   ])("keeps a denial over its coordinated objects: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
@@ -307,6 +319,8 @@ describe("sports evidence publication", () => {
     "Cricket is shown on our screens.",
     "Rugby is broadcast on our TVs.",
     "Our screens are used to show football.",
+    "Live football and rugby are shown on our TVs.",
+    "Sky Sports and football are shown here.",
     "Sports pub",
   ])("retains explicit affirmative viewing evidence: %s", (quote) => {
     expectSportsPublication(quote, true);

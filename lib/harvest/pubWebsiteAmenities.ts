@@ -138,14 +138,15 @@ const SPORT_SHOWN =
   /\b(?:f1|formula\s*1)\b|\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
 const SPORT_VIEWING =
   /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b|\bsports?\s+(?:pub|bar)s?\b/i;
-const SPORT_PROVIDER = "\\b(?:sky|tnt|bt)\\s+sports?\\b";
-const SPORT_PROVIDER_OBJECTS = `${SPORT_PROVIDER}(?:\\s+(?:and|or)\\s+${SPORT_PROVIDER})*`;
-const BARE_SPORT_PROVIDERS = new RegExp(`^\\s*${SPORT_PROVIDER_OBJECTS}\\s*$`, "i");
-const SPORT_PROVIDER_SUBJECT = new RegExp(`^\\s*${SPORT_PROVIDER}`, "i");
-const NO_PROVIDER_AVAILABILITY = new RegExp(
+const SPORT_OBJECT =
+  "\\b(?:(?:sky|tnt|bt)\\s+sports?|(?:live\\s+)?(?:f1|formula\\s*1|sports?|football|footy|rugby|cricket|boxing))\\b";
+const SPORT_OBJECTS = `${SPORT_OBJECT}(?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*`;
+const BARE_SPORT_OBJECTS = new RegExp(`^\\s*${SPORT_OBJECTS}\\s*$`, "i");
+const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
+const NO_SPORT_AVAILABILITY = new RegExp(
   "\\b(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+have\\s+(?:any\\s+|access\\s+to\\s+)?|" +
-  "(?:are|is)\\s+not\\s+subscribed\\s+to\\s+)" + SPORT_PROVIDER_OBJECTS + "|" +
-  `${SPORT_PROVIDER_OBJECTS}\\s+(?:is|are)\\s+(?:unavailable|not\\s+available)\\b`,
+  "(?:(?:are|is)\\s+not|'re\\s+not|aren'?t|isn'?t)\\s+subscribed\\s+to\\s+)" + SPORT_OBJECTS + "|" +
+  `${SPORT_OBJECTS}\\s+(?:(?:is|are)\\s+(?:unavailable|not\\s+available)|(?:isn'?t|aren'?t)\\s+available)\\b`,
   "i",
 );
 const NO_SPORT_VIEWING = new RegExp(
@@ -161,13 +162,13 @@ const SPORT_CLAUSE_BOUNDARY = new RegExp(
   "[.,;!?]|\\b(?:but|however|yet|although|while)\\b|" +
   "\\band\\b(?=\\s+(?:no|without|do\\s+not|don'?t|never|" +
   "we\\s+(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+)?(?:have|show|watch|broadcast|screen|catch|play)|" +
-  "we\\s+are\\s+not\\s+subscribed\\s+to|" +
+  "we(?:\\s+are\\s+not|'re\\s+not|\\s+aren'?t)\\s+subscribed\\s+to|" +
   "(?:[\\w'-]+\\s+)+(?:is|are|isn'?t|aren'?t)\\s+(?:not\\s+)?(?:being\\s+)?" +
   "(?:unavailable|available|shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen)))\\b)",
   "i",
 );
 
-/** A provider list shares its following predicate; it is not a separate positive claim. */
+/** A sport or provider list shares its following predicate; it is not a separate positive claim. */
 function sportClauses(quote: string): string[] {
   const clauses: string[] = [];
   let start = 0;
@@ -175,8 +176,8 @@ function sportClauses(quote: string): string[] {
     const clause = quote.slice(start, boundary.index);
     const next = boundary.index + boundary[0].length;
     if (
-      boundary[0] === "and" && BARE_SPORT_PROVIDERS.test(clause) &&
-      SPORT_PROVIDER_SUBJECT.test(quote.slice(next))
+      boundary[0] === "and" && BARE_SPORT_OBJECTS.test(clause) &&
+      SPORT_SUBJECT.test(quote.slice(next))
     ) continue;
     clauses.push(clause);
     start = next;
@@ -222,7 +223,7 @@ const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) =
     sportClauses(quote).some((clause) =>
       SPORT_SHOWN.test(clause) &&
       SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause) &&
-      !NO_PROVIDER_AVAILABILITY.test(clause),
+      !NO_SPORT_AVAILABILITY.test(clause),
     ),
   liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
   pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
