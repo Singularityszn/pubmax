@@ -35,10 +35,32 @@ describe("opening-hours verification", () => {
   it("reserves failed requests and stops without automatic retries", async () => {
     const save = vi.fn();
     const fetchImpl = vi.fn(async () => new Response("quota", { status: 429 }));
-    await expect(checkHours({ venues: [{ venueId: "a", googlePlaceId: "place-a", hours: null }],
+    await expect(checkHours({ venues: [{ venueId: "a", googlePlaceId: "place-a", hours: { 1: [{ opens: "10:00", closes: "20:00" }] } }],
       apiKey: "test", maxCalls: 2, fetchImpl, save })).rejects.toThrow("HTTP 429");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(save).toHaveBeenCalledWith([], 1);
+  });
+  it("records pubs without stored hours as unknown without a Details call", async () => {
+    const save = vi.fn();
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      regularOpeningHours: { periods: [{ open: { day: 1, hour: 10 }, close: { day: 1, hour: 20 } }] },
+    }), { status: 200 }));
+    const result = await checkHours({
+      venues: [
+        { venueId: "a", googlePlaceId: "place-a", hours: null },
+        { venueId: "b", googlePlaceId: "place-b", hours: {} },
+        { venueId: "c", googlePlaceId: "place-c", hours: { 1: [{ opens: "10:00", closes: "20:00" }] } },
+        { venueId: "d", googlePlaceId: "place-d", hours: { 1: [{ opens: "10:00", closes: "21:00" }] } },
+        { venueId: "e", googlePlaceId: "place-e", hours: null },
+      ],
+      apiKey: "test", maxCalls: 1, fetchImpl, save,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith(expect.stringContaining("place-c"), expect.anything());
+    expect(result.calls).toBe(1);
+    expect(result.rows.map((row) => [row.venueId, row.verdict])).toEqual([
+      ["a", "unknown"], ["b", "unknown"], ["c", "match"], ["e", "unknown"],
+    ]);
   });
   it("recognises continuous hours across split periods and midnight, and rejects incomplete inputs", () => {
     expect(compareHours({ 1: [{ opens: "10:00", closes: "20:00" }] }, [

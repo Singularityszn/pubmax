@@ -1,4 +1,4 @@
-/* Service Usage quota and Monitoring calls follow the existing London verifier protocol. */
+/* Service Usage quota and Monitoring calls shared by the London Places verifiers. */
 import { execFileSync } from "node:child_process";
 
 const PROJECT = "projects/590118888791";
@@ -68,7 +68,7 @@ async function waitOperation(token, operation) {
   if (current.error) throw new Error(`quota override failed: ${current.error.message ?? "unknown"}`);
 }
 
-async function setDailyOverrides(token, searchValue, detailsValue) {
+async function setDailyOverrides(token, searchValue, detailsValue, reason) {
   const operation = await apiJson(
     `https://serviceusage.googleapis.com/v1beta1/${SERVICE}/consumerQuotaMetrics:importConsumerOverrides`,
     token,
@@ -83,7 +83,7 @@ async function setDailyOverrides(token, searchValue, detailsValue) {
           ],
         },
       }),
-      headers: { "X-Goog-Request-Reason": "london-osm-places-verify" },
+      headers: { "X-Goog-Request-Reason": reason },
     },
   );
   if (operation.name) await waitOperation(token, operation);

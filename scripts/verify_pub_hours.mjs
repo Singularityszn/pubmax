@@ -12,12 +12,13 @@ import { createHash } from "node:crypto";
 import { parseOsmOpeningHours } from "../lib/nearDesk.ts";
 import { restoreQuotasUntilVerified } from "../lib/placesVerification.ts";
 import { haversineMeters } from "./lib/geo.mjs";
-import { checkHours, planHoursCheck } from "./lib/placesHoursCheck.ts";
+import { checkHours, hasHours, planHoursCheck } from "./lib/placesHoursCheck.ts";
 import { accessToken, dailyOverrideValue, effectiveDailyLimit, setDailyOverrides,
   monthPlacesRequests, SEARCH_METRIC, DETAILS_METRIC } from "./lib/googlePlacesQuota.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CAP = 20;
+const REASON = "london-pub-hours-verify";
 const DAY = new Date().toISOString().slice(0, 10);
 const OUT = join(ROOT, "data/places_verification", "pub_hours_london.json");
 const REVIEW = join(ROOT, "data/places_verification", "pub_hours_review_london.json");
@@ -78,13 +79,14 @@ async function main() {
   // Monitoring may lag, so known prior Enterprise calls are also reserved.
   const token = live ? accessToken() : null;
   const monthUsage = live ? await monthPlacesRequests(token) : null;
-  const alreadyUsed = monthUsage === null ? null : Math.max(monthUsage, 1000 - (checkpoint?.spend.remainingFreeCalls ?? 1000));
-  const budget = planHoursCheck(pending.length, alreadyUsed, Math.max(0, CAP - priorUsd));
+  const reserved = checkpoint?.checkedOn?.slice(0, 7) === DAY.slice(0, 7) ? 1000 - checkpoint.spend.remainingFreeCalls : 0;
+  const alreadyUsed = monthUsage === null ? null : Math.max(monthUsage, reserved);
+  const budget = planHoursCheck(pending.filter((row) => hasHours(row.hours)).length, alreadyUsed, Math.max(0, CAP - priorUsd));
   console.log(JSON.stringify({ mode: live ? "live" : "dry-run", selected: venues.length,
-    storedHours: venues.filter((row) => row.hours !== null).length, pending: pending.length,
+    storedHours: venues.filter((row) => hasHours(row.hours)).length, pending: pending.length,
     monthToDatePlacesRequests: monthUsage, monthlyUsageRead: live,
     calls: budget.calls, projectedUsd: budget.projectedUsd, priorEstimatedUsd: priorUsd, capUsd: CAP }));
-  if (!live || !pending.length || !budget.calls) return;
+  if (!live || !budget.calls) return;
   const searchBefore = await dailyOverrideValue(token, SEARCH_METRIC);
   const detailsBefore = await dailyOverrideValue(token, DETAILS_METRIC);
   const save = (newRows, calls) => {
@@ -101,7 +103,7 @@ async function main() {
     await restoreQuotasUntilVerified({ attempts: 3, expectedSearch: String(searchBefore), expectedDetails: String(detailsBefore),
       attempt: async () => {
         const fresh = accessToken();
-        await setDailyOverrides(fresh, searchBefore, detailsBefore);
+        await setDailyOverrides(fresh, searchBefore, detailsBefore, REASON);
         return { search: String(await effectiveDailyLimit(fresh, SEARCH_METRIC)), details: String(await effectiveDailyLimit(fresh, DETAILS_METRIC)) };
       } });
     restoreNeeded = false;
@@ -109,11 +111,11 @@ async function main() {
   };
   const controller = new AbortController();
   const onSignal = () => { process.exitCode = 130; controller.abort(); };
-  process.once("SIGINT", onSignal);
-  process.once("SIGTERM", onSignal);
+  process.on("SIGINT", onSignal);
+  process.on("SIGTERM", onSignal);
   try {
     restoreNeeded = true;
-    await setDailyOverrides(token, searchBefore, Math.max(Number(detailsBefore), monthUsage + budget.calls));
+    await setDailyOverrides(token, searchBefore, Math.max(Number(detailsBefore), monthUsage + budget.calls), REASON);
     await checkHours({ venues: pending, maxCalls: budget.calls, apiKey, save, signal: controller.signal,
       pace: () => new Promise((resolve) => setTimeout(resolve, 150)) });
   } finally {

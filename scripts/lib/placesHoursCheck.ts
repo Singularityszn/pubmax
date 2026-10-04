@@ -35,9 +35,14 @@ function point(value: unknown): number | null {
   return day * 1440 + hour * 60 + minute;
 }
 
+/** Without stored hours every verdict is "unknown", so no Details call can change it. */
+export function hasHours(ours: WeeklyOpeningHours | null): ours is WeeklyOpeningHours {
+  return !!ours && Object.keys(ours).length > 0;
+}
+
 /** Compare complete weekly occupancy in memory, including split and overnight periods. */
 export function compareHours(ours: WeeklyOpeningHours | null, periods: unknown): "match" | "mismatch" | "unknown" {
-  if (!ours || !Object.keys(ours).length || !Array.isArray(periods) || !periods.length) return "unknown";
+  if (!hasHours(ours) || !Array.isArray(periods) || !periods.length) return "unknown";
   const local = new Uint8Array(WEEK);
   const google = new Uint8Array(WEEK);
   for (let day = 0; day < 7; day += 1) {
@@ -79,7 +84,12 @@ export async function checkHours(options: {
   const rows: HoursVerdictRow[] = [];
   let calls = 0;
   for (const venue of options.venues) {
-    if (calls >= options.maxCalls) break;
+    if (!hasHours(venue.hours)) {
+      rows.push({ venueId: venue.venueId, googlePlaceId: venue.googlePlaceId, verdict: "unknown", verifiedAt: new Date().toISOString() });
+      options.save(rows, calls);
+      continue;
+    }
+    if (calls >= options.maxCalls) continue;
     options.signal?.throwIfAborted();
     await options.pace?.();
     options.signal?.throwIfAborted();
