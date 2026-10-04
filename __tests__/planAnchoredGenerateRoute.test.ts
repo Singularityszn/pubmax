@@ -188,6 +188,82 @@ describe("POST /api/plans/generate — anchored", () => {
     delete process.env.PLAN_IDEMPOTENCY_SECRET;
   });
 
+  it("refreshes saved named Stop 1 when its current approved quote changes", async () => {
+    const { planSummaryGenerationBody } = await import("@/components/plan/PlanSummary");
+    const savedEvidence = { ...SELECTED_LISTED, drinkLabel: "Chardonnay", drinkSubtype: "wine-white" };
+    const saved = {
+      plan: { anchorVenueId: "anchor-venue", anchorSource: "map-search", startTime: null },
+      context: { nightArea: "clapham", drinkCategory: "wine", stopCount: 1 },
+      stops: [{ venueId: "anchor-venue", venueName: "Saved anchor", position: 0,
+        selectedDrinkPriceEvidence: savedEvidence }],
+    };
+    const current = listedQuote("anchor-venue", 9, "125ml", { drinkLabel: "Chardonnay",
+      sourceUrl: "https://pub.example/current-menu", observedAt: "2026-09-30T10:00:00.000Z" });
+    await withServingFixtures([claphamVenue("anchor-venue", 0)], [current], async () => {
+      const response = await generate(planSummaryGenerationBody(saved as unknown as import("@/lib/plan").PlanState));
+      const body = await response.json();
+      expect(body, JSON.stringify(body)).toMatchObject({ grounded: true, anchorVenueId: "anchor-venue" });
+      expect(body.stops[0].selectedDrinkPriceEvidence).toEqual({ category: "wine", pence: 900,
+        serving: "125ml", source: "listed", sourceUrl: "https://pub.example/current-menu",
+        observedAt: "2026-09-30T10:00:00.000Z", drinkLabel: "Chardonnay", drinkSubtype: "wine-white" });
+    });
+  });
+
+  it.each([
+    { label: "unchanged", price: 8, sourceUrl: SELECTED_LISTED.sourceUrl, observedAt: SERVING_OBSERVED },
+    { label: "amount", price: 9, sourceUrl: SELECTED_LISTED.sourceUrl, observedAt: SERVING_OBSERVED },
+    { label: "publisher link", price: 8, sourceUrl: "https://pub.example/new-menu", observedAt: SERVING_OBSERVED },
+    { label: "observation date", price: 8, sourceUrl: SELECTED_LISTED.sourceUrl, observedAt: "2026-09-30T10:00:00.000Z" },
+  ])("uses the current same named offer after $label changes", async ({ price, sourceUrl, observedAt }) => {
+    await withServingFixtures([claphamVenue("anchor-venue", 0)], [listedQuote("anchor-venue", price, "125ml",
+      { drinkLabel: "Chardonnay", sourceUrl, observedAt })], async () => {
+      const response = await generate({ context: { nightArea: "clapham", drinkCategory: "wine", stopCount: 1 },
+        anchor: { ...ANCHOR, selectedDrinkRefresh: {
+          category: "wine", serving: "125ml", drinkLabel: "Chardonnay", drinkSubtype: "wine-white",
+        } } });
+      const body = await response.json();
+      expect(body).toMatchObject({ grounded: true, anchorVenueId: "anchor-venue" });
+      expect(body.stops[0].selectedDrinkPriceEvidence).toEqual({ category: "wine", pence: price * 100,
+        serving: "125ml", source: "listed", sourceUrl, observedAt, drinkLabel: "Chardonnay", drinkSubtype: "wine-white" });
+    });
+  });
+
+  it.each([
+    { label: "expired-only offer", row: { observedAt: "2025-09-29T12:00:00.000Z" }, serving: "125ml", context: {} },
+    { label: "different name", row: { drinkLabel: "Sauvignon Blanc" }, serving: "125ml", context: {} },
+    { label: "different measure", row: {}, serving: "175ml", context: {} },
+    { label: "different requested subtype", row: {}, serving: "125ml", context: { drinkSubtype: "wine-red" } },
+  ])("keeps saved selection when no current exact offer exists: $label", async ({ row, serving, context }) => {
+    await withServingFixtures([claphamVenue("anchor-venue", 0)], [listedQuote("anchor-venue", 9, serving,
+      { drinkLabel: "Chardonnay", ...row })], async () => {
+      const response = await generate({ context: { nightArea: "clapham", drinkCategory: "wine", stopCount: 1, ...context },
+        anchor: { ...ANCHOR, selectedDrinkRefresh: {
+          category: "wine", serving: "125ml", drinkLabel: "Chardonnay", drinkSubtype: "wine-white",
+        } } });
+      const body = await response.json();
+      expect(body).toMatchObject({ grounded: false, outcome: "anchor-conflict", stops: [], routeReady: false });
+      expect(body.message).toContain("couldn't check a current price for that saved drink and serving");
+    });
+  });
+
+  it.each([
+    { label: "unknown", currentServing: undefined, grounded: true },
+    { label: "source-stated pint", currentServing: "pint", grounded: false },
+  ])("keeps unknown saved serving apart from $label serving", async ({ currentServing, grounded }) => {
+    await withServingFixtures([claphamVenue("anchor-venue", 0)], [listedQuote("anchor-venue", 9, currentServing,
+      { drinkLabel: "Chardonnay" })], async () => {
+      const response = await generate({ context: { nightArea: "clapham", drinkCategory: "wine", stopCount: 1 },
+        anchor: { ...ANCHOR, selectedDrinkRefresh: {
+          category: "wine", serving: null, drinkLabel: "Chardonnay", drinkSubtype: "wine-white",
+        } } });
+      const body = await response.json();
+      expect(body.grounded).toBe(grounded);
+      if (grounded) expect(body.stops[0].selectedDrinkPriceEvidence).toMatchObject({ serving: null,
+        drinkLabel: "Chardonnay", drinkSubtype: "wine-white", pence: 900 });
+      else expect(body).toMatchObject({ outcome: "anchor-conflict", stops: [] });
+    });
+  });
+
   it("keeps an eligible category offer discoverable beyond closer unpriced backups without ranking its unknown measure", async () => {
     // Business-contract fixtures, not claims about a real menu: all pubs fit
     // the existing Clapham radius, but the sole current gin offer is farther
@@ -580,6 +656,36 @@ describe("anchored generation for an accepted canonical UK base pub", () => {
     process.env.PLAN_IDEMPOTENCY_SECRET = "a".repeat(48);
   });
   afterEach(() => { basePlanPack.result = { status: "missing" }; delete process.env.PLAN_IDEMPOTENCY_SECRET; });
+
+  it("refreshes named quote on canonical base-anchor response without promoting the pub", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(SERVING_NOW);
+    basePlanPack.result = { status: "ready", pub: basePlanPack.pub };
+    resolvePlanningAnchorMock.mockImplementation(async (input) => {
+      const actual = await vi.importActual<typeof import("@/lib/planningAnchor.server")>("@/lib/planningAnchor.server");
+      return actual.resolvePlanningAnchor(input);
+    });
+    loadConciergeVenuesMock.mockResolvedValueOnce([]);
+    listedBundleFixture.status = "ready";
+    listedBundleFixture.rows = [listedQuote(basePlanPack.pub.id, 9, "125ml", {
+      drinkLabel: "Chardonnay", sourceUrl: "https://pub.example/current-base-menu", observedAt: SERVING_OBSERVED,
+    })];
+    try {
+      const response = await generate({ query: "Quiet wine in Soho for two", cityId: "london",
+        anchor: { venueId: basePlanPack.pub.id, source: "near", acceptedArea: null, startsAt: null,
+          selectedDrinkRefresh: { category: "wine", serving: "125ml", drinkLabel: "Chardonnay", drinkSubtype: "wine-white" } } });
+      const body = await response.json();
+      expect(body, JSON.stringify(body)).toMatchObject({ grounded: true, outcome: "anchor-only",
+        routeReady: false, anchorVenueId: basePlanPack.pub.id });
+      expect(body.stops).toHaveLength(1);
+      expect(body.stops[0]).toMatchObject({ venueId: basePlanPack.pub.id, venueName: basePlanPack.pub.name,
+        estimatedPintPricePence: null, priceEvidence: null,
+        selectedDrinkPriceEvidence: { category: "wine", pence: 900, serving: "125ml", source: "listed",
+          sourceUrl: "https://pub.example/current-base-menu", observedAt: SERVING_OBSERVED,
+          drinkLabel: "Chardonnay", drinkSubtype: "wine-white" } });
+      expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, [basePlanPack.pub.id], body.operationKey))
+        .toMatchObject({ ok: true, anchored: true, outcome: "anchor-only", anchorVenueId: basePlanPack.pub.id });
+    } finally { clock.mockRestore(); listedBundleFixture.rows = null; }
+  });
 
   it("keeps the real base pub as an honest anchor-only draft when no curated companions exist", async () => {
     basePlanPack.result = { status: "ready", pub: basePlanPack.pub };

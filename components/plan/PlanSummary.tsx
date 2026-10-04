@@ -17,6 +17,7 @@ import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planP
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { cleanPublicDrinkRequest } from "@/lib/nightPlanning";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { planGenerationDrinkRefreshFromEvidence } from "@/lib/planGenerationDrinkRefresh";
 
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
@@ -237,13 +238,15 @@ export function planSummaryGenerationBody(state: PlanState): Record<string, unkn
   const selectedDrinkPriceEvidence = firstStop && firstStop.venueId === state.plan.anchorVenueId
     ? cleanSelectedDrinkPriceEvidence(firstStop.selectedDrinkPriceEvidence)
     : null;
+  const selectedDrinkRefresh = planGenerationDrinkRefreshFromEvidence(selectedDrinkPriceEvidence);
   const anchor = state.plan.anchorVenueId && state.plan.anchorSource
     ? {
         venueId: state.plan.anchorVenueId,
         source: state.plan.anchorSource,
         acceptedArea: null,
         startsAt: state.plan.startTime,
-        ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+        ...(selectedDrinkRefresh ? { selectedDrinkRefresh }
+          : selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
       }
     : null;
   const cityId = state.context?.nightArea

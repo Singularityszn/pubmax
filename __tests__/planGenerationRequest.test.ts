@@ -166,3 +166,38 @@ describe("Cider bounded generation context", () => {
     expect(await parsePlanGenerationRequest(request({ context }), NOW)).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
   });
 });
+
+describe("saved named anchor refresh envelope", () => {
+  const selection = { category: "wine", serving: "125ml", drinkLabel: "Chardonnay", drinkSubtype: "wine-white" };
+  const anchor = { venueId: "venue-a", source: "map-search", acceptedArea: null, startsAt: null };
+
+  it.each(["125ml", null])("admits quote-free identity with source serving %s", async (serving) => {
+    const result = await parsePlanGenerationRequest(request({ anchor: {
+      ...anchor, selectedDrinkRefresh: { ...selection, serving },
+    } }), NOW);
+    expect(result).toMatchObject({ ok: true, value: { anchor: {
+      ...anchor, selectedDrinkRefresh: { ...selection, serving },
+    } } });
+  });
+
+  it.each([
+    { ...selection, pence: 800 },
+    { ...selection, sourceUrl: "https://pub.example/menu" },
+    { ...selection, observedAt: "2026-09-29T12:00:00.000Z" },
+    { ...selection, drinkLabel: " Chardonnay" },
+    { ...selection, drinkSubtype: "wine-red" },
+    { ...selection, serving: " 125ml" },
+    { ...selection, serving: undefined },
+    { ...selection, category: "beer", drinkSubtype: null },
+  ])("rejects malformed identity or old quote authority %j", async (selectedDrinkRefresh) => {
+    expect(await parsePlanGenerationRequest(request({ anchor: { ...anchor, selectedDrinkRefresh } }), NOW))
+      .toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
+  });
+
+  it("rejects combined fresh acceptance and saved refresh modes", async () => {
+    expect(await parsePlanGenerationRequest(request({ anchor: { ...anchor, selectedDrinkRefresh: selection,
+      selectedDrinkPriceEvidence: { ...selection, pence: 800, source: "listed",
+        sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T12:00:00.000Z" },
+    } }), NOW)).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
+  });
+});
