@@ -171,10 +171,16 @@ function assertCurrentFamousVenueRows(rows, now) {
 const FAMOUS_SLIM_KINDS = new Set(["bar", "food", "restaurant"]);
 
 /** Famous venue ids in a slim payload, the set a later rebuild must not shrink. */
-function shippedFamousVenueIds(payload) {
+function shippedFamousVenueIds(payload, seedIds) {
   const rows = Array.isArray(payload?.rows) ? payload.rows : [];
   return rows
-    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind))
+    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind) && (
+      seedIds.has(row.id) ||
+      // An anchored record remains protected even after its seed is removed.
+      // Sourced presence bars have no famous-seed anchor claim.
+      [row.anchorLabel, row.anchorCourse, row.anchorObservedAt, row.anchorSourceUrl]
+        .some((value) => value !== undefined)
+    ))
     .map((row) => row.id);
 }
 
@@ -213,7 +219,7 @@ function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   const allowedRemovals = new Set(removedIds);
   const lapsed = [];
   const removed = [];
-  for (const id of shippedFamousVenueIds(lastSlim)) {
+  for (const id of shippedFamousVenueIds(lastSlim, seedIds)) {
     if (keptIds.has(id)) continue;
     if (seedIds.has(id)) lapsed.push(id);
     else if (!allowedRemovals.has(id)) removed.push(id);
