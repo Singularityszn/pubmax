@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 // Seed-borough coverage status for the price flywheel (PLG Wave 2).
 // Status copy only: never a leaderboard, never a stranger feed, never a claim
 // that a failed read means the borough is empty.
@@ -104,6 +106,6 @@ export function boroughCoverageSummary(
 }
 
 /** Map href that opens the patch browse without inventing a selected pub. */
-export function boroughCoverageMapHref(mapQuery: string): string {
+export function boroughCoverageMapHref(mapQuery: string): Route {
   return `/map?q=${encodeURIComponent(mapQuery)}`;
 }

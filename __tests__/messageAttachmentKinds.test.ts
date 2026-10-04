@@ -10,6 +10,7 @@
 //  • AN EVENT CARD IS THE PLAN'S ANONYMOUS PREVIEW. A message is not a
 //    capability, so no venue, no stop and no crew member may cross.
 
+import type { Route } from "next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -92,7 +93,7 @@ describe("the ids each kind stores", () => {
   });
 
   it("builds its two links through one helper each", () => {
-    expect(messageContactProfileUrl("sam")).toBe("/u/sam");
+    expect(messageContactProfileUrl("sam")).toBe("/u/sam" as Route);
     expect(messageEventPlanUrl(PLAN_ID)).toBe(`/plan/${PLAN_ID}`);
   });
 
@@ -102,7 +103,7 @@ describe("the ids each kind stores", () => {
         handle: "sam",
         displayName: "Sam",
         avatarUrl: null,
-        profileUrl: "/u/sam",
+        profileUrl: "/u/sam" as Route,
       }),
     ).toBe("Sam, @sam. Open profile");
     expect(
@@ -113,7 +114,7 @@ describe("the ids each kind stores", () => {
         startLabel: "19:00",
         stopCount: 3,
         routeReady: true,
-        planUrl: "/plan/x",
+        planUrl: "/plan/x" as Route,
       }),
     ).toBe("Ken's plan in Shoreditch, from 19:00. Open the plan");
     // The stop COUNT is the card's own line, never part of the link name.
@@ -146,7 +147,7 @@ describe("a contact card is the PUBLIC profile and nothing else", () => {
       handle: "sam",
       displayName: "Sam Smith",
       avatarUrl: "/api/avatar/profile-sam/gen-7",
-      profileUrl: "/u/sam",
+      profileUrl: "/u/sam" as Route,
     });
     // The WHOLE serialized card, not the fields somebody remembered to check.
     const serialized = JSON.stringify(card);

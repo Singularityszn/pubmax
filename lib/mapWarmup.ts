@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { getCity, parseCityId } from "@/lib/cities";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 
@@ -171,7 +172,7 @@ function warmMapCanvasModule(): void {
 }
 
 export type MapRoutePrefetcher = {
-  prefetch: (href: string) => void;
+  prefetch: (href: Route) => void;
 };
 
 /**
@@ -179,9 +180,9 @@ export type MapRoutePrefetcher = {
  * the slim venue (+ POI/transit) payloads the canvas will request next.
  * Best-effort only — navigation never depends on success.
  */
-export function warmNavRoute(
+export function warmNavRoute<T extends string>(
   router: MapRoutePrefetcher,
-  href: string,
+  href: Route<T>,
   seen: Set<string> = warmedRoutes,
 ): void {
   // A fragment never reaches the server, so it is no part of what to warm.
@@ -189,7 +190,8 @@ export function warmNavRoute(
   // address the click then had to reconcile, and the landed URL lost its
   // fragment: the price receipt's "See your impact" link stopped scrolling to
   // the contribution card it names.
-  const prefetchHref = href.split("#")[0]?.split("?")[0] || href;
+  // The path part of a Route is itself a Route.
+  const prefetchHref = (href.split("#")[0]?.split("?")[0] || href) as Route;
   const isMapRoute = prefetchHref === "/map" || prefetchHref.startsWith("/map/");
   if (isMapRoute) warmMapCanvasModule();
   if (!prefetchHref || seen.has(prefetchHref)) return;
@@ -223,9 +225,9 @@ export function warmNavRoute(
  * Prefetches the Next.js route chunk and the city slim (+ POI/transit) payloads
  * once per session. Does not prefetch full venue detail.
  */
-export function warmMapRoute(
+export function warmMapRoute<T extends string>(
   router: MapRoutePrefetcher,
-  href = "/map",
+  href: Route<T> = "/map",
   seen: Set<string> = warmedRoutes,
 ): void {
   warmNavRoute(router, href, seen);

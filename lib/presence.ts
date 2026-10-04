@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 // Browser-safe presence contract shared by client lenses and the server store.
 // No Supabase, no venue index, no fs/path imports.
 
@@ -21,7 +23,7 @@ export type PresenceDTO = {
   handle: string;
   venueId: string;
   venueName: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
   at: string;
   provenance?: "demo";
   /** Approved owned avatar serve path for linked handles only. */

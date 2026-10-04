@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -360,8 +361,8 @@ describe("governed drink brand landing page", () => {
         landing: model,
         mapSelectableVenueIds: new Set(["venue-1"]),
         areaPages: [
-          { href: "/area/clapham/drink/guinness", label: "Clapham" },
-          { href: "/area/victoria/drink/guinness", label: "Victoria" },
+          { href: "/area/clapham/drink/guinness" as Route, label: "Clapham" },
+          { href: "/area/victoria/drink/guinness" as Route, label: "Victoria" },
         ],
       }),
     );

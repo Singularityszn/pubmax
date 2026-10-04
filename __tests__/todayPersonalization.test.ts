@@ -52,7 +52,7 @@ function weather(temp: string): WeatherBrief {
 
 function pick(
   id: string,
-  overrides: Partial<TonightPickDto> = {},
+  overrides: Partial<Omit<TonightPickDto, "href" | "external">> = {},
 ): TonightPickDto {
   return {
     id,

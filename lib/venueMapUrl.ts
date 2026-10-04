@@ -1,11 +1,13 @@
 // Client-safe map deep-link helper. Kept out of lib/venueIndex.ts so browser
 // components never pull in Node `fs` (Turbopack rejects that at build time).
 
+import type { Route } from "next";
+
 import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 
 /** Canonical "open this pub on the map" link — `?sel=` selects the venue on load. */
-export function venueMapUrl(id: string): string {
+export function venueMapUrl(id: string): Route {
   return cityAwareMapPath(
     cityIdFromVenueId(id),
     `sel=${encodeURIComponent(id)}`,
@@ -24,7 +26,7 @@ export type VenueAcceptanceSource = "near" | "map-search" | "tonight" | "pal";
  * just inspected it) and `src` fixes the acceptance origin so the Map never has
  * to guess it from the current UI. City-aware exactly like the browse link.
  */
-export function venueAcceptUrl(id: string, source: VenueAcceptanceSource): string {
+export function venueAcceptUrl(id: string, source: VenueAcceptanceSource): Route {
   return cityAwareMapPath(
     cityIdFromVenueId(id),
     `sel=${encodeURIComponent(id)}&accept=1&src=${encodeURIComponent(source)}`,

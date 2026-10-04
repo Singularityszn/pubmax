@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { describe, expect, it } from "vitest";
 import { buildTabs, shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import { navPathMatches } from "@/components/nav/navigationModel";
@@ -61,14 +62,14 @@ describe("mobile tab bar contract", () => {
   });
 
   it("accepts the preferred-city Map destination, and Places keeps its own", () => {
-    const tabs = buildTabs("/u/you", "/map/glasgow");
+    const tabs = buildTabs("/u/you" as Route, "/map/glasgow" as Route);
     expect(tabs.find((tab) => tab.label === "Map")?.href).toBe("/map/glasgow");
     // Places is where the city is CHOSEN, so it never follows the chosen one.
     expect(tabs.find((tab) => tab.label === "Places")?.href).toBe("/places");
   });
 
   it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
-    const tabs = buildTabs("/u/karan");
+    const tabs = buildTabs("/u/karan" as Route);
     const you = tabs.find((tab) => tab.label === "You");
     expect(you?.href).toBe("/u/karan");
     expect(you?.match).toEqual(["/u"]);

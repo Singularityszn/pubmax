@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import "server-only";
 
 // Durable saved-pub LISTS (cc_plan2 §5). ONE store interface, TWO implementations
@@ -31,6 +32,8 @@ import { cleanText } from "@/lib/textClean";
 import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
 import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { profilePath } from "@/lib/appLink";
+import { savedListPath } from "@/lib/savedListUrl";
 
 // The list a pub is filed under is now free text (story 33): the seven built-ins
 // are the SUGGESTED defaults, but a handle can create its own named lists too.
@@ -71,7 +74,7 @@ export function cleanNote(value: unknown): string {
 export type SavedPubDTO = {
   venueId: string;
   venueName: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
   listType: ListType;
   note?: string;
   savedAt: string;
@@ -642,9 +645,9 @@ type SavedListFollowCounts = {
 
 type FollowedSavedListDTO = {
   ownerHandle: string;
-  ownerProfileUrl: string;
+  ownerProfileUrl: Route;
   listType: ListType;
-  listUrl: string;
+  listUrl: Route;
   savedCount: number;
   followerCount: number;
   followedAt: string;
@@ -677,10 +680,6 @@ function isSelfListFollow(followerHandle: string, ownerHandle: string): boolean 
   return follower !== "" && follower === owner;
 }
 
-function listUrl(ownerHandle: string, listType: string): string {
-  return `/u/${encodeURIComponent(ownerHandle)}/lists/${encodeURIComponent(listType)}`;
-}
-
 function listSummary(
   ownerHandle: string,
   listType: string,
@@ -690,9 +689,9 @@ function listSummary(
 ): FollowedSavedListDTO {
   return {
     ownerHandle,
-    ownerProfileUrl: `/u/${encodeURIComponent(ownerHandle)}`,
+    ownerProfileUrl: profilePath(ownerHandle),
     listType,
-    listUrl: listUrl(ownerHandle, listType),
+    listUrl: savedListPath(ownerHandle, listType),
     savedCount,
     followerCount,
     followedAt,

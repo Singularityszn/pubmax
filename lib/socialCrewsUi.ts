@@ -16,6 +16,7 @@
 // only through the link its host sends (crewId + invitationId), the same way a
 // plan invite already travels in lib/planCrewInviteUrl.ts.
 
+import type { Route } from "next";
 import type {
   SocialCrewListItemDTO,
   SocialCrewListPageDTO,
@@ -132,8 +133,8 @@ export const CREW_LIST_UNAVAILABLE_COPY =
  * still refuses anybody who is not the named target, so the link is a pointer,
  * never authority.
  */
-export function crewInvitePath(crewId: string, invitationId: string): string {
-  return `/social/crews/${encodeURIComponent(crewId)}?invitation=${encodeURIComponent(invitationId)}`;
+export function crewInvitePath(crewId: string, invitationId: string): Route {
+  return `/social/crews/${encodeURIComponent(crewId)}?invitation=${encodeURIComponent(invitationId)}` as Route;
 }
 
 export function crewInviteUrl(
@@ -145,8 +146,8 @@ export function crewInviteUrl(
   return origin ? `${origin.replace(/\/$/, "")}${path}` : path;
 }
 
-export function crewPath(crewId: string): string {
-  return `/social/crews/${encodeURIComponent(crewId)}`;
+export function crewPath(crewId: string): Route {
+  return `/social/crews/${encodeURIComponent(crewId)}` as Route;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

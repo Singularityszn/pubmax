@@ -136,7 +136,7 @@ describe("clean-main CI release gate", () => {
     // them: it builds the merge base in a worktree.
     const needsHeap = steps.filter(
       (step) =>
-        /npm run build|next build|npx tsc --noEmit|playwright test|scripts\/perf-ab\.mjs/.test(
+        /npm run build|next build|npm run typecheck|npx tsc --noEmit|playwright test|scripts\/perf-ab\.mjs/.test(
           step.run,
         ) && !/npm run build:slim/.test(step.run),
     );

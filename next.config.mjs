@@ -194,6 +194,10 @@ const nextConfig = {
   typescript: {
     tsconfigPath: "./tsconfig.build.json",
   },
+  // Checks next/link hrefs and router.push/replace/prefetch against the App
+  // Router. A string built at runtime is typed `Route` where it is built, never
+  // at the link. `npm run typecheck` runs `next typegen` so tsc sees the types.
+  typedRoutes: true,
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
   // Browser source maps for PostHog error deobfuscation (no third-party upload).

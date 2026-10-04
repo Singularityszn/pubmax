@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
@@ -65,7 +66,7 @@ export default function PricedLandingRows({
   rowAction,
 }: {
   rows: readonly PricedLandingRow[];
-  rowAction?: (row: PricedLandingRow) => { href: string; label: string };
+  rowAction?: (row: PricedLandingRow) => { href: Route; label: string };
 }) {
   return (
     <ol className="drinkBrandDirectory__list" role="list">

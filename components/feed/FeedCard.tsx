@@ -1,6 +1,8 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
+import { barTabPath } from "@/lib/appLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -622,7 +624,7 @@ function PubOverflowActions({
   onPrefetch,
 }: {
   venueId: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
   onPrefetch: () => void;
 }) {
   return (
@@ -641,7 +643,7 @@ function PubOverflowActions({
       ) : null}
       <Link
         className="feedCardAction"
-        href={venueId ? `/bar-tab/${encodeURIComponent(venueId)}` : mapUrl || "/map"}
+        href={venueId ? barTabPath(venueId) : mapUrl || "/map"}
       >
         Pub
       </Link>

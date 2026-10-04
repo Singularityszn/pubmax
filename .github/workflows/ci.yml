@@ -81,7 +81,8 @@ jobs:
       - name: Typecheck
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
-        run: npx tsc --noEmit
+        # Generates the typedRoutes link types before the native tsc pass.
+        run: npm run typecheck
 
   production-build:
     name: Production build

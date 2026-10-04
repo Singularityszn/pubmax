@@ -14,6 +14,7 @@
 // account. With one, "this account" and "all accounts" are the same act and
 // printing both would be a choice about nothing.
 
+import type { Route } from "next";
 import { useState } from "react";
 
 import AccountSwitcher from "@/components/auth/AccountSwitcher";
@@ -43,7 +44,7 @@ export default function AccountDeviceControls({
   deviceAccounts?: readonly DeviceAccountRecord[];
   /** Absent on a host that has not wired the switcher: the card is unchanged. */
   onSwitchAccount?: (userId: string) => Promise<DeviceAccountSwitchOutcome>;
-  addAccountHref?: string;
+  addAccountHref?: Route;
   onSignOut: (scope: SignOutScope) => void;
   signOutDisabled?: boolean;
   signOutClassName?: string;

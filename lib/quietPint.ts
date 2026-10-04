@@ -19,6 +19,7 @@
 //   - a verified price is surfaced when we have one, never fabricated when we
 //     don't. No em dashes in any copy this module builds.
 
+import type { Route } from "next";
 import { estimateBusyness } from "@/lib/busyness";
 import { formatGbp } from "@/lib/formatGbp";
 import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
@@ -82,7 +83,7 @@ type QuietPintRow = {
   /** "£4.80" when a verified price exists for this venue, else null. */
   priceLabel: string | null;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
-  mapHref: string;
+  mapHref: Route;
 };
 
 export type QuietPintModule = {

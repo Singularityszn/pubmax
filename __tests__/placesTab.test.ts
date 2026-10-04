@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -274,7 +275,7 @@ describe("Places sets the one city Map, Out and Near follow", () => {
     expect(readPreferredCity()).toBe("manchester");
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("manchester");
     expect(preferredCityMapHref()).toBe("/map/manchester");
-    expect(buildTabs("/u/you", preferredCityMapHref()).find(
+    expect(buildTabs("/u/you" as Route, preferredCityMapHref()).find(
       (tab) => tab.label === "Map",
     )?.href).toBe("/map/manchester");
   });

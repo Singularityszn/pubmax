@@ -29,6 +29,7 @@
 // `now`), and the day rotation is the London calendar day so every visitor on a
 // given day sees the same pub.
 
+import type { Route } from "next";
 import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
 import { internalLanguageFindings } from "@/lib/heritageLanguageGate.mjs";
 import { heritagePlaceConflict } from "@/lib/heritagePlaceConflict.mjs";
@@ -62,7 +63,7 @@ export type PubOfTheDayCard = {
   sourceLabel: string;
   sourceRef: string | null;
   /** The ONE internal action: this pub, on the map. */
-  mapHref: string;
+  mapHref: Route;
   /** Which markers earned the sentence its place. Diagnostics, never printed. */
   markers: PubOfTheDayMarkerId[];
 };
