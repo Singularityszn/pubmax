@@ -37,6 +37,7 @@ import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
+import { omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 
 export const UK_BASE_MANIFEST_PATH = "/data/uk_base/manifest.json";
 export const UK_BASE_SHARD_VERSION = 1;
@@ -360,7 +361,10 @@ const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
  * serves `/data/*.json` stale-while-revalidate, and duplicating the whole shard pack into
  * IndexedDB to re-paint a layer that carries no prices is not worth the quota.
  */
-export function createUkBaseLoader(): UkBaseLoader {
+export function createUkBaseLoader(options?: {
+  /** Test seam. Production reads the committed closed-pub refs. */
+  closedOsmRefs?: ReadonlySet<string>;
+}): UkBaseLoader {
   let manifestPromise: Promise<ShardManifest | null> | null = null;
   // Insertion-ordered LRU: re-reading a shard moves it to the back.
   const resident = new Map<string, UkBasePub[]>();
@@ -432,8 +436,11 @@ export function createUkBaseLoader(): UkBaseLoader {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const pubs = parseUkBaseShardForEntry(await response.json(), entry);
         if (!pubs) throw new Error("Invalid UK base shard");
-        touch(entry.url, pubs);
-        return { status: "ready" as const, pubs };
+        // Shard rows stay on disk. A pub verified permanently closed is
+        // omitted from the drawable set the map already reads.
+        const visible = omitVerifiedClosedPubs(pubs, options?.closedOsmRefs);
+        touch(entry.url, visible);
+        return { status: "ready" as const, pubs: visible };
       })
       .catch(() => ({ status: "unavailable" as const, pubs: [] }))
       .finally(() => {
