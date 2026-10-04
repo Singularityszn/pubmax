@@ -131,6 +131,7 @@ type PubPalToolTurnStore = {
   register(conversationId: string, input: OwnedWrite): Promise<void>;
   read(conversationId: string): Promise<PubPalToolTurn | null>;
   readOwned(conversationId: string, ownerId: string): Promise<PubPalToolTurn | null>;
+  ownerOf(conversationId: string): Promise<string | null>;
   touch(conversationId: string, ownerId: string): Promise<boolean>;
   appendOwnedUserTurn(
     conversationId: string,
@@ -197,6 +198,12 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     const turn = memoryTurns.get(conversationId);
     if (!turn || turn.ownerId !== ownerId) return null;
     return publicTurn(turn);
+  },
+
+  async ownerOf(conversationId) {
+    if (!isPubPalConversationId(conversationId)) return null;
+    pruneMemory(Date.now());
+    return memoryTurns.get(conversationId)?.ownerId ?? null;
   },
 
   async touch(conversationId, ownerId) {
@@ -395,6 +402,24 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     });
   },
 
+  async ownerOf(conversationId) {
+    if (!isPubPalConversationId(conversationId)) return null;
+    return guard<string | null>({
+      context: "owner-of",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.ownerOf(conversationId),
+          onProduction: async () => null,
+        }),
+      run: async () => {
+        const lookup = await lookupStoredRow(conversationId);
+        return lookup.status === "owned" ? lookup.turn.ownerId : null;
+      },
+    });
+  },
+
   async touch(conversationId, ownerId) {
     assertConversationId(conversationId);
     return guard<boolean>({
@@ -514,6 +539,11 @@ export async function readOwnedPubPalToolTurn(
   ownerId: string,
 ): Promise<PubPalToolTurn | null> {
   return pubPalToolTurnStore().readOwned(conversationId, ownerId);
+}
+
+/** The account that bound this live conversation, or null once it has expired or was never bound. */
+export async function readPubPalToolTurnOwner(conversationId: string): Promise<string | null> {
+  return pubPalToolTurnStore().ownerOf(conversationId);
 }
 
 export async function touchPubPalToolTurn(

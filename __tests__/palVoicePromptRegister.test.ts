@@ -6,6 +6,7 @@ import {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,
   PAL_VOICE_GET_HOME_REGISTER_RULES,
   PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
+  PAL_VOICE_RECALL_MEMORIES_RULE,
   buildPalVoiceOverrides,
 } from "@/lib/palVoiceOverrides";
 
@@ -45,6 +46,13 @@ describe("Pub Pal voice prompt register", () => {
     expect(overrides.firstMessage).toContain("Ripley");
   });
 
+  it("asks the agent to read confirmed memories through the recall tool, not a prompt slot", () => {
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    expect(prompt).toContain(PAL_VOICE_RECALL_MEMORIES_RULE);
+    expect(PAL_VOICE_RECALL_MEMORIES_RULE).toContain("recall_memories");
+    expect(PAL_VOICE_RECALL_MEMORIES_RULE).toMatch(/never treat a memory as a fact about a pub/i);
+  });
+
   it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {
     expect(pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS)).not.toContain("{{");
   });
@@ -54,6 +62,7 @@ describe("Pub Pal voice prompt register", () => {
       PAL_VOICE_GET_HOME_REGISTER_INTRO,
       ...PAL_VOICE_GET_HOME_REGISTER_RULES,
       PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
+      PAL_VOICE_RECALL_MEMORIES_RULE,
     ];
     for (const line of strings) {
       expect(line).not.toMatch(/!/);

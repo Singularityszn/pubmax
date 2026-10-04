@@ -93,6 +93,11 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
+   One more webhook, `recall_memories`, is Pal-only. It returns the memories the
+   person confirmed or corrected (never `completed_plan` rows) for the account
+   that opened the conversation, read from the server-side conversation binding
+   and never from the request body. Typed chat puts the same lines ahead of the
+   ask on the server, so it does not need the tool.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.
