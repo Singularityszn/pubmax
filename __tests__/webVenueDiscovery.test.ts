@@ -36,8 +36,36 @@ describe("Tavily venue discovery", () => {
   });
 
   it("reads names and streets, not list numbers, labels or opening hours", () => {
-    const text = "7. The Gin Bar\nWhere: 2-3 Queen Street M3 1HE\n\nSunday until 10am. Restaurant daily 11am to 10pm\nBar to 12.30am. Court Lane, Manchester M3 2AW";
+    const text = "7. The Gin Bar\nCocktail bar\nWhere: 2-3 Queen Street M3 1HE\n\nSunday until 10am. Restaurant daily 11am to 10pm\nBar to 12.30am. Court Lane, Manchester M3 2AW";
     expect(read("https://www.designmynight.com/manchester/bars", text).candidates.map((row) => [row.name, row.address])).toEqual([["The Gin Bar", "2-3 Queen Street M3 1HE"]]);
+  });
+
+  it.each([
+    ["Fuzion Noodle Bar", "264 Wilmslow Road", "Noodles, ramen and bubble tea."],
+    ["Sakura Sushi Bar", "12 Oxford Road", "Fresh sushi, bento boxes and green tea."],
+    ["Squeeze Juice Bar", "8 Peter Street", "Cold-pressed juices and smoothies."],
+    ["Smokestack Bar & Grill", "3 Quay Street", "Burgers, wings and bubble tea shakes."],
+  ])("does not read %s as a drinking venue from its name alone", (name, street, blurb) => {
+    const host = name.toLowerCase().split(" ")[0];
+    const text = `**${name}**\n\n${street}\n\nManchester\n\nM3 2BY\n\n${blurb}`;
+    expect(read(`https://www.${host}.example/`, text, `${name} | Home`).candidates).toEqual([]);
+  });
+
+  it("reads drinking identity stated outside the name", () => {
+    const pub = "**Smokestack Bar & Grill**\n\n3 Quay Street\n\nManchester\n\nM3 2BY\n\nCraft beers on draught and cocktails until late.";
+    expect(read("https://www.smokestack.example/", pub, "Smokestack Bar & Grill").candidates).toMatchObject([{ name: "Smokestack Bar & Grill", kind: "bar" }]);
+    const listing = ["Noodle Hall", "Pub, in Salford", "Cask Ale", "4 Mill Street, Salford, M3 6BB"].join("\n");
+    expect(read("https://camra.org.uk/pubs/location/salford", listing).candidates).toMatchObject([{ name: "Noodle Hall", kind: "pub" }]);
+  });
+
+  it("withdraws a stored row whose only drinking word is its name", () => {
+    const row = { name: "Fuzion Noodle Bar", kind: "bar", address: "264 Wilmslow Road, Fallowfield M14 6JR", postcode: "M14 6JR", locality: "Manchester", website: "https://fuzionnoodlebar.co.uk/",
+      sourceUrls: ["https://fuzionnoodlebar.co.uk/"], evidence: [{ url: "https://fuzionnoodlebar.co.uk/", excerpt: "Fuzion Noodle Bar | 264 Wilmslow Road Fallowfield M14 6JR" }],
+      observedAt, lat: 53.44, lng: -2.22, coordinatePrecision: "postcode-centroid" };
+    expect(() => validateDiscoveryPack({ city: "manchester", venues: [{ ...row, provider: "tavily" }] }, manchester)).toThrow("Invalid Parallel venue evidence");
+    expect(() => validateDiscoveryPack({ city: "manchester", venues: [{ ...row, provider: "parallel" }] }, manchester)).toThrow("Invalid Parallel venue evidence");
+    const stated = { ...row, evidence: [...row.evidence, { url: row.sourceUrls[0], excerpt: "Asian beers and cocktails served all day" }] };
+    expect(validateDiscoveryPack({ city: "manchester", venues: [{ ...stated, provider: "tavily" }] }, manchester).venues).toHaveLength(1);
   });
 
   it("adds nothing from an article that is neither a venue's own site nor a listing", () => {
@@ -65,6 +93,12 @@ describe("Tavily venue discovery", () => {
     ["Bristol Beer Factory", "https://www.bristol247.com/food-and-drink/bristol-beer-factory", { displayName: "Bristol" }],
     ["The Bar", "https://barsandpubs.example/the-bar", { displayName: "Manchester" }],
     ["Green Park Brasserie & Bar", "https://green-park-brasserie-and-bar.uk-rest.com/", { displayName: "Bath" }],
+    ["Echo Bar", "https://www.liverpoolecho.co.uk/whats-on/echo-bar", { displayName: "Liverpool" }],
+    ["Evening Star", "https://www.manchestereveningnews.co.uk/whats-on/evening-star", { displayName: "Manchester" }],
+    ["Postal Bar", "https://www.bristolpost.co.uk/whats-on/postal-bar", { displayName: "Bristol" }],
+    ["Mailbox Tap", "https://www.birminghammail.co.uk/whats-on/mailbox-tap", { displayName: "Birmingham" }],
+    ["Livewire Bar", "https://www.glasgowlive.co.uk/whats-on/livewire", { displayName: "Glasgow" }],
+    ["Evening Post Inn", "https://www.yorkshireeveningpost.co.uk/whats-on/evening-post-inn", { displayName: "Leeds" }],
   ])("does not treat a news or directory host as %s's own site", (name, url, city) => {
     expect(ownSiteFor(name, url, city)).toBeNull();
   });
@@ -87,9 +121,9 @@ describe("Tavily venue discovery", () => {
 
   it.each([
     [{ status: 404 }, true], [{ status: 410 }, true], [{ status: 408 }, false], [{ status: 429 }, false], [{ status: 503 }, false],
-    [{ error: "HTTP 404 Not Found" }, true], [{ error: "Failed to fetch url" }, true],
+    [{ error: "HTTP 404 Not Found" }, true], [{ error: "Failed to fetch url" }, false], [{ error: "Error fetching content" }, false],
     [{ error: "Request timed out" }, false], [{ error: "Server error 500" }, false], [{ error: "Rate limit exceeded" }, false],
-  ])("settles a page read only when it is gone or refused: %j", (failure, definitive) => {
+  ])("settles a page read by itself only when it is gone: %j", (failure, definitive) => {
     expect(readFailureIsDefinitive(failure)).toBe(definitive);
   });
 

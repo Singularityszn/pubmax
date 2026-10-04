@@ -12,23 +12,25 @@
     "restaurant"
   ],
   "oldestObservedAt": "2026-10-04T10:15:57.563Z",
-  "newestObservedAt": "2026-10-04T13:24:53.372Z",
+  "newestObservedAt": "2026-10-04T13:57:20.915Z",
   "cities": [
     {
       "city": "birmingham",
       "complete": false,
       "districts": 42,
       "slices": 168,
-      "slicesComplete": 154,
+      "slicesComplete": 166,
+      "slicesWithSkips": 12,
+      "skippedSources": 12,
       "taskRuns": 675,
-      "webSearches": 135,
-      "pagesRead": 559,
-      "researched": 2073,
+      "webSearches": 155,
+      "pagesRead": 630,
+      "researched": 2070,
       "added": 0,
-      "retained": 133,
-      "duplicates": 34,
-      "rejected": 1982,
-      "totalAccepted": 133,
+      "retained": 130,
+      "duplicates": 33,
+      "rejected": 1986,
+      "totalAccepted": 130,
       "usage": {
         "parallel": {
           "calls": 1527,
@@ -36,9 +38,9 @@
           "estimatedCostUsd": 67.62
         },
         "tavily": {
-          "calls": 241,
-          "credits": 201,
-          "estimatedCostUsd": 1.608
+          "calls": 336,
+          "credits": 243,
+          "estimatedCostUsd": 1.944
         }
       }
     },
@@ -47,16 +49,18 @@
       "complete": false,
       "districts": 21,
       "slices": 84,
-      "slicesComplete": 80,
+      "slicesComplete": 83,
+      "slicesWithSkips": 4,
+      "skippedSources": 4,
       "taskRuns": 110,
-      "webSearches": 140,
-      "pagesRead": 503,
-      "researched": 509,
+      "webSearches": 141,
+      "pagesRead": 531,
+      "researched": 506,
       "added": 0,
-      "retained": 25,
+      "retained": 23,
       "duplicates": 4,
-      "rejected": 579,
-      "totalAccepted": 28,
+      "rejected": 565,
+      "totalAccepted": 26,
       "usage": {
         "parallel": {
           "calls": 328,
@@ -64,26 +68,28 @@
           "estimatedCostUsd": 11.115
         },
         "tavily": {
-          "calls": 256,
-          "credits": 199,
-          "estimatedCostUsd": 1.592
+          "calls": 312,
+          "credits": 223,
+          "estimatedCostUsd": 1.784
         }
       }
     },
     {
       "city": "glasgow",
-      "complete": false,
+      "complete": true,
       "districts": 26,
       "slices": 104,
-      "slicesComplete": 99,
+      "slicesComplete": 104,
+      "slicesWithSkips": 5,
+      "skippedSources": 5,
       "taskRuns": 75,
-      "webSearches": 215,
-      "pagesRead": 948,
-      "researched": 315,
+      "webSearches": 218,
+      "pagesRead": 954,
+      "researched": 310,
       "added": 0,
       "retained": 21,
-      "duplicates": 13,
-      "rejected": 516,
+      "duplicates": 10,
+      "rejected": 475,
       "totalAccepted": 24,
       "usage": {
         "parallel": {
@@ -92,9 +98,9 @@
           "estimatedCostUsd": 7.615
         },
         "tavily": {
-          "calls": 416,
-          "credits": 351,
-          "estimatedCostUsd": 2.808
+          "calls": 511,
+          "credits": 387,
+          "estimatedCostUsd": 3.096
         }
       }
     },
@@ -103,16 +109,18 @@
       "complete": false,
       "districts": 52,
       "slices": 208,
-      "slicesComplete": 192,
+      "slicesComplete": 195,
+      "slicesWithSkips": 16,
+      "skippedSources": 17,
       "taskRuns": 0,
-      "webSearches": 361,
-      "pagesRead": 1053,
-      "researched": 154,
+      "webSearches": 378,
+      "pagesRead": 1109,
+      "researched": 138,
       "added": 0,
-      "retained": 39,
-      "duplicates": 50,
-      "rejected": 252,
-      "totalAccepted": 40,
+      "retained": 36,
+      "duplicates": 49,
+      "rejected": 219,
+      "totalAccepted": 37,
       "usage": {
         "parallel": {
           "calls": 208,
@@ -120,9 +128,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 597,
-          "credits": 498,
-          "estimatedCostUsd": 3.984
+          "calls": 823,
+          "credits": 561,
+          "estimatedCostUsd": 4.488
         },
         "firecrawl": {
           "calls": 128,
@@ -133,19 +141,21 @@
     },
     {
       "city": "durham",
-      "complete": false,
+      "complete": true,
       "districts": 1,
       "slices": 4,
-      "slicesComplete": 2,
+      "slicesComplete": 4,
+      "slicesWithSkips": 0,
+      "skippedSources": 0,
       "taskRuns": 8,
       "webSearches": 7,
-      "pagesRead": 25,
-      "researched": 50,
+      "pagesRead": 38,
+      "researched": 49,
       "added": 0,
-      "retained": 9,
+      "retained": 8,
       "duplicates": 1,
-      "rejected": 44,
-      "totalAccepted": 9,
+      "rejected": 46,
+      "totalAccepted": 8,
       "usage": {
         "parallel": {
           "calls": 20,
@@ -153,9 +163,9 @@
           "estimatedCostUsd": 0.8
         },
         "tavily": {
-          "calls": 12,
-          "credits": 12,
-          "estimatedCostUsd": 0.096
+          "calls": 15,
+          "credits": 13,
+          "estimatedCostUsd": 0.104
         }
       }
     },
@@ -164,16 +174,18 @@
       "complete": false,
       "districts": 35,
       "slices": 140,
-      "slicesComplete": 127,
+      "slicesComplete": 131,
+      "slicesWithSkips": 13,
+      "skippedSources": 14,
       "taskRuns": 0,
-      "webSearches": 231,
-      "pagesRead": 639,
-      "researched": 118,
+      "webSearches": 247,
+      "pagesRead": 657,
+      "researched": 117,
       "added": 0,
-      "retained": 25,
+      "retained": 24,
       "duplicates": 41,
-      "rejected": 191,
-      "totalAccepted": 25,
+      "rejected": 153,
+      "totalAccepted": 24,
       "usage": {
         "parallel": {
           "calls": 140,
@@ -181,9 +193,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 379,
-          "credits": 311,
-          "estimatedCostUsd": 2.488
+          "calls": 543,
+          "credits": 383,
+          "estimatedCostUsd": 3.064
         }
       }
     },
@@ -192,16 +204,18 @@
       "complete": false,
       "districts": 14,
       "slices": 56,
-      "slicesComplete": 53,
+      "slicesComplete": 51,
+      "slicesWithSkips": 4,
+      "skippedSources": 4,
       "taskRuns": 0,
-      "webSearches": 107,
-      "pagesRead": 427,
-      "researched": 35,
+      "webSearches": 110,
+      "pagesRead": 417,
+      "researched": 31,
       "added": 0,
-      "retained": 7,
+      "retained": 5,
       "duplicates": 7,
-      "rejected": 103,
-      "totalAccepted": 7,
+      "rejected": 81,
+      "totalAccepted": 5,
       "usage": {
         "parallel": {
           "calls": 56,
@@ -209,9 +223,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 185,
-          "credits": 160,
-          "estimatedCostUsd": 1.28
+          "calls": 249,
+          "credits": 198,
+          "estimatedCostUsd": 1.584
         }
       }
     },
@@ -221,15 +235,17 @@
       "districts": 2,
       "slices": 8,
       "slicesComplete": 7,
+      "slicesWithSkips": 1,
+      "skippedSources": 1,
       "taskRuns": 0,
-      "webSearches": 17,
+      "webSearches": 18,
       "pagesRead": 109,
-      "researched": 23,
+      "researched": 13,
       "added": 0,
-      "retained": 4,
+      "retained": 3,
       "duplicates": 10,
-      "rejected": 29,
-      "totalAccepted": 4,
+      "rejected": 18,
+      "totalAccepted": 3,
       "usage": {
         "parallel": {
           "calls": 8,
@@ -237,26 +253,28 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 32,
-          "credits": 28,
-          "estimatedCostUsd": 0.224
+          "calls": 43,
+          "credits": 36,
+          "estimatedCostUsd": 0.288
         }
       }
     },
     {
       "city": "oxford",
-      "complete": true,
+      "complete": false,
       "districts": 4,
       "slices": 16,
-      "slicesComplete": 16,
+      "slicesComplete": 15,
+      "slicesWithSkips": 1,
+      "skippedSources": 1,
       "taskRuns": 0,
       "webSearches": 31,
-      "pagesRead": 145,
-      "researched": 25,
+      "pagesRead": 140,
+      "researched": 20,
       "added": 0,
       "retained": 9,
-      "duplicates": 13,
-      "rejected": 40,
+      "duplicates": 9,
+      "rejected": 34,
       "totalAccepted": 9,
       "usage": {
         "parallel": {
@@ -265,9 +283,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 56,
-          "credits": 53,
-          "estimatedCostUsd": 0.424
+          "calls": 72,
+          "credits": 59,
+          "estimatedCostUsd": 0.472
         }
       }
     },
@@ -276,15 +294,17 @@
       "complete": false,
       "districts": 5,
       "slices": 20,
-      "slicesComplete": 19,
+      "slicesComplete": 15,
+      "slicesWithSkips": 2,
+      "skippedSources": 2,
       "taskRuns": 0,
-      "webSearches": 44,
-      "pagesRead": 220,
-      "researched": 8,
+      "webSearches": 45,
+      "pagesRead": 185,
+      "researched": 7,
       "added": 0,
       "retained": 4,
       "duplicates": 3,
-      "rejected": 40,
+      "rejected": 22,
       "totalAccepted": 4,
       "usage": {
         "parallel": {
@@ -293,26 +313,28 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 88,
-          "credits": 75,
-          "estimatedCostUsd": 0.6
+          "calls": 134,
+          "credits": 98,
+          "estimatedCostUsd": 0.784
         }
       }
     },
     {
       "city": "llandudno",
-      "complete": true,
+      "complete": false,
       "districts": 5,
       "slices": 20,
-      "slicesComplete": 20,
+      "slicesComplete": 19,
+      "slicesWithSkips": 0,
+      "skippedSources": 0,
       "taskRuns": 0,
       "webSearches": 27,
-      "pagesRead": 47,
+      "pagesRead": 44,
       "researched": 0,
       "added": 0,
       "retained": 0,
       "duplicates": 0,
-      "rejected": 15,
+      "rejected": 10,
       "totalAccepted": 0,
       "usage": {
         "parallel": {
@@ -321,18 +343,18 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 39,
-          "credits": 32,
-          "estimatedCostUsd": 0.256
+          "calls": 53,
+          "credits": 37,
+          "estimatedCostUsd": 0.296
         }
       }
     }
   ],
   "allCitiesComplete": false,
-  "failedSlices": 59,
-  "firstFailure": "birmingham/B15/bar: 1 pages not read yet (robots unreachable for www.datathistle.com); rerun to resume",
+  "failedSlices": 38,
+  "firstFailure": "birmingham/B70/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B21/searchchtype/old-age); rerun to resume",
   "usage": {
-    "calls": 5034,
+    "calls": 5824,
     "byEndpoint": {
       "parallel /v1/search 200": 10,
       "parallel /v1/tasks/runs 422": 1,
@@ -341,14 +363,14 @@
       "parallel /v1/tasks/runs/{run_id}/result 200": 871,
       "parallel /v1/tasks/runs/{run_id}/result 408": 13,
       "parallel /v1/tasks/runs 402": 823,
-      "tavily /search 200": 1315,
+      "tavily /search 200": 1377,
       "firecrawl /v2/scrape 200": 109,
       "firecrawl /v2/scrape 429": 14,
       "firecrawl /v2/scrape 500": 2,
       "firecrawl /v2/scrape 408": 1,
       "firecrawl /v2/scrape 402": 2,
-      "tavily /extract 200": 970,
-      "tavily /extract 429": 10,
+      "tavily /extract 200": 1696,
+      "tavily /extract 429": 12,
       "tavily /search 429": 6
     },
     "byCity": {
@@ -359,9 +381,9 @@
           "estimatedCostUsd": 67.62
         },
         "tavily": {
-          "calls": 241,
-          "credits": 201,
-          "estimatedCostUsd": 1.608
+          "calls": 336,
+          "credits": 243,
+          "estimatedCostUsd": 1.944
         }
       },
       "leeds": {
@@ -371,9 +393,9 @@
           "estimatedCostUsd": 11.115
         },
         "tavily": {
-          "calls": 256,
-          "credits": 199,
-          "estimatedCostUsd": 1.592
+          "calls": 312,
+          "credits": 223,
+          "estimatedCostUsd": 1.784
         }
       },
       "glasgow": {
@@ -383,9 +405,9 @@
           "estimatedCostUsd": 7.615
         },
         "tavily": {
-          "calls": 416,
-          "credits": 351,
-          "estimatedCostUsd": 2.808
+          "calls": 511,
+          "credits": 387,
+          "estimatedCostUsd": 3.096
         }
       },
       "durham": {
@@ -395,9 +417,9 @@
           "estimatedCostUsd": 0.8
         },
         "tavily": {
-          "calls": 12,
-          "credits": 12,
-          "estimatedCostUsd": 0.096
+          "calls": 15,
+          "credits": 13,
+          "estimatedCostUsd": 0.104
         }
       },
       "manchester": {
@@ -407,9 +429,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 597,
-          "credits": 498,
-          "estimatedCostUsd": 3.984
+          "calls": 823,
+          "credits": 561,
+          "estimatedCostUsd": 4.488
         },
         "firecrawl": {
           "calls": 128,
@@ -424,9 +446,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 379,
-          "credits": 311,
-          "estimatedCostUsd": 2.488
+          "calls": 543,
+          "credits": 383,
+          "estimatedCostUsd": 3.064
         }
       },
       "bristol": {
@@ -436,9 +458,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 185,
-          "credits": 160,
-          "estimatedCostUsd": 1.28
+          "calls": 249,
+          "credits": 198,
+          "estimatedCostUsd": 1.584
         }
       },
       "bath": {
@@ -448,9 +470,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 32,
-          "credits": 28,
-          "estimatedCostUsd": 0.224
+          "calls": 43,
+          "credits": 36,
+          "estimatedCostUsd": 0.288
         }
       },
       "oxford": {
@@ -460,9 +482,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 56,
-          "credits": 53,
-          "estimatedCostUsd": 0.424
+          "calls": 72,
+          "credits": 59,
+          "estimatedCostUsd": 0.472
         }
       },
       "cambridge": {
@@ -472,9 +494,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 88,
-          "credits": 75,
-          "estimatedCostUsd": 0.6
+          "calls": 134,
+          "credits": 98,
+          "estimatedCostUsd": 0.784
         }
       },
       "llandudno": {
@@ -484,9 +506,9 @@
           "estimatedCostUsd": 0
         },
         "tavily": {
-          "calls": 39,
-          "credits": 32,
-          "estimatedCostUsd": 0.256
+          "calls": 53,
+          "credits": 37,
+          "estimatedCostUsd": 0.296
         }
       },
       "none": {
@@ -497,6 +519,6 @@
         }
       }
     },
-    "estimatedCostUsd": 105.53
+    "estimatedCostUsd": 108.074
   }
 }

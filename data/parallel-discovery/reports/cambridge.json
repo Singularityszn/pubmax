@@ -2,14 +2,72 @@
   "city": "cambridge",
   "districts": 5,
   "slices": 20,
-  "slicesComplete": 19,
+  "slicesComplete": 15,
   "incompleteSlices": [
-    "CB1/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume"
+    "CB2/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://bills-website.co.uk/restaurants/cambridge); rerun to resume",
+    "CB4/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://theportlandarms.co.uk/wp); rerun to resume",
+    "CB4/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge); rerun to resume",
+    "CB5/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://cipr.co.uk/CIPR/CIPR/Events/Event_Display_Groups.aspx?EventKey=EA22071403); rerun to resume",
+    "CB5/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge); rerun to resume"
+  ],
+  "skippedSources": [
+    {
+      "district": "CB1",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/411/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:13:13.181Z"
+    },
+    {
+      "district": "CB3",
+      "category": "bar",
+      "url": "https://www.hyatt.com/hyatt-centric/en-US/stnct-hyatt-centric-cambridge/dining",
+      "host": "www.hyatt.com",
+      "reason": "robots HTTP 429",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:13:11.972Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-04T14:13:17.159Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-04T14:13:22.296Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:13:22.296Z"
+    }
   ],
   "taskRuns": 0,
-  "webSearches": 44,
-  "pagesRead": 220,
-  "researched": 8,
+  "webSearches": 45,
+  "pagesRead": 185,
+  "researched": 7,
   "added": 0,
   "retained": [
     {
@@ -52,163 +110,91 @@
   "rejected": [
     {
       "name": "https://forums.ybw.com/misc/location-info?location=Live+in+Cambridge.",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.jobsite.co.uk/jobs/management?cmpId=1304123&cmp=1",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186225-d8381282-Reviews-196-Cambridge_Cambridgeshire_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "Honest Burgers",
-      "reason": "missing-drinking-evidence"
+      "reason": "unreadable: landed outside the source fence"
     },
     {
       "name": "https://www.thegreenmantrumpington.com",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.tripadvisor.com/Restaurant_Review-g186225-d4309443-Reviews-The_Alma_Public_House-Cambridge_Cambridgeshire_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://crystalroof.co.uk/report/postcode/CB21BQ/overview",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://flatironsteak.co.uk/restaurant/cambridge",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://area360.uk/postcode/CB21HS",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.crosscountrytrains.co.uk/blog/food-and-drink/secret-cocktail-bars-in-cambridge",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.opentable.com/r/novi-cocktail-bar",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.thefork.co.uk/restaurants/cambridge-c666094/cocktail-bar-t2591",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://cambridge.cylex-uk.co.uk/newnham/cocktails.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Wheeler+St%2C+Cambridge+CB2+3QE",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://bills-website.co.uk/restaurants/cambridge",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.folkandhoney.co.uk/all-our-uk-gigs/venues?letter=t",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://flatironsteak.co.uk/restaurant/cambridge",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.hyatt.com/hyatt-centric/en-US/stnct-hyatt-centric-cambridge/dining",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.tripadvisor.com/Restaurant_Review-g186225-d1730347-Reviews-The_Red_Bull-Cambridge_Cambridgeshire_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://dutch.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://uk.indeed.com/q-cocktail-bartender-l-cambridge-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?letter=n&strana=2",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://theportlandarms.co.uk/wp",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://uk.indeed.com/q-wet-led-pub-manager-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://the-folio-bar-kitchen.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://uk.indeed.com/q-bar-staff-l-cambridge-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://theportlandarms.co.uk/wp",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.theploughfenditton.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://thecornerhousepub.co",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.tripadvisor.com/Restaurant_Review-g186225-d33018740-Reviews-Byron_s_Bear-Cambridge_Cambridgeshire_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://m.yelp.ca/search?find_desc=Pubs&find_loc=6-8+Quayside%2C+Cambridge+CB5+8AB",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://cipr.co.uk/CIPR/CIPR/Events/Event_Display_Groups.aspx?EventKey=EA22071403",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.postcodearea.co.uk/postaltowns/cambridge/cb58ne",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://thecornerhousepub.co",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Cambridge+CB5+8HZ",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://uk.indeed.com/q-part-time-bar-jobs.html?start=10",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     }
   ],
   "outputPath": "data/cities/cambridge/parallel_venues.json"

@@ -38,7 +38,8 @@
         "postcode": "LS2 7EW",
         "quality": 1
       },
-      "id": "venue-lds-fk8iy"
+      "id": "venue-lds-fk8iy",
+      "provider": "parallel"
     },
     {
       "name": "The End",
@@ -74,7 +75,8 @@
         "postcode": "LS1 6NJ",
         "quality": 1
       },
-      "id": "venue-lds-1no9pxs"
+      "id": "venue-lds-1no9pxs",
+      "provider": "parallel"
     },
     {
       "name": "The Cut & Craft Leeds",
@@ -110,7 +112,8 @@
         "postcode": "LS1 6AX",
         "quality": 1
       },
-      "id": "venue-lds-1dzk9eh"
+      "id": "venue-lds-1dzk9eh",
+      "provider": "parallel"
     },
     {
       "name": "The Banksia",
@@ -146,7 +149,8 @@
         "postcode": "LS1 4AE",
         "quality": 1
       },
-      "id": "venue-lds-teft4u"
+      "id": "venue-lds-teft4u",
+      "provider": "parallel"
     },
     {
       "name": "Restaurant Bar & Grill Leeds",
@@ -182,7 +186,8 @@
         "postcode": "LS1 2ES",
         "quality": 1
       },
-      "id": "venue-lds-111qh3y"
+      "id": "venue-lds-111qh3y",
+      "provider": "parallel"
     },
     {
       "name": "Rita's Leeds",
@@ -218,7 +223,8 @@
         "postcode": "LS1 3HQ",
         "quality": 1
       },
-      "id": "venue-lds-3f49ii"
+      "id": "venue-lds-3f49ii",
+      "provider": "parallel"
     },
     {
       "name": "Farrands",
@@ -254,7 +260,8 @@
         "postcode": "LS1 4AG",
         "quality": 1
       },
-      "id": "venue-lds-uz9izu"
+      "id": "venue-lds-uz9izu",
+      "provider": "parallel"
     },
     {
       "name": "Below Stairs",
@@ -287,40 +294,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f893942a9e706aeb0",
-      "id": "venue-lds-vznuu"
-    },
-    {
-      "name": "Boom Battle Bar Leeds",
-      "kind": "bar",
-      "address": "S43, Victoria Gate, Harewood Street, Leeds LS2 7AR",
-      "postcode": "LS2 7AR",
-      "locality": "Leeds",
-      "website": "https://boombattlebar.com/uk/leeds",
-      "lat": 53.798229,
-      "lng": -1.538422,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://boombattlebar.com/uk/leeds/contact-us"
-      ],
-      "evidence": [
-        {
-          "url": "https://boombattlebar.com/uk/leeds/contact-us",
-          "excerpt": "AT BOOM BATTLE BAR LEEDS"
-        },
-        {
-          "url": "https://boombattlebar.com/uk/leeds/contact-us",
-          "excerpt": "S43, Victoria Gate, Harewood Street, LS2 7AR"
-        }
-      ],
-      "observedAt": "2026-10-04T11:26:24.937Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/LS2%207AR",
-        "observedAt": "2026-10-04T11:26:24.959Z",
-        "postcode": "LS2 7AR",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fab7843d3fe922929",
-      "id": "venue-lds-1h1ptc"
+      "id": "venue-lds-vznuu",
+      "provider": "parallel"
     },
     {
       "name": "Napoleons Casino & Restaurant Leeds",
@@ -353,7 +328,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9523fc14800d1ffc",
-      "id": "venue-lds-fmcfis"
+      "id": "venue-lds-fmcfis",
+      "provider": "parallel"
     },
     {
       "name": "Arcade Club Leeds",
@@ -390,7 +366,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f838ecb4e45f60e54",
-      "id": "venue-lds-bwtlmt"
+      "id": "venue-lds-bwtlmt",
+      "provider": "parallel"
     },
     {
       "name": "The East Village",
@@ -423,7 +400,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa34d444a997d704f",
-      "id": "venue-lds-117f590"
+      "id": "venue-lds-117f590",
+      "provider": "parallel"
     },
     {
       "name": "Victoria Social",
@@ -460,7 +438,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f95251ea67f68ab1c",
-      "id": "venue-lds-1pdaeje"
+      "id": "venue-lds-1pdaeje",
+      "provider": "parallel"
     },
     {
       "name": "Kesar Restaurant & Bar",
@@ -497,7 +476,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f95251ea67f68ab1c",
-      "id": "venue-lds-1d6rbps"
+      "id": "venue-lds-1d6rbps",
+      "provider": "parallel"
     },
     {
       "name": "No 14 Restaurant & Bar",
@@ -534,7 +514,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f95251ea67f68ab1c",
-      "id": "venue-lds-pvpq9q"
+      "id": "venue-lds-pvpq9q",
+      "provider": "parallel"
     },
     {
       "name": "Nyla’s Chapel Allerton",
@@ -568,7 +549,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9d6c7b9e93435c4a",
-      "id": "venue-lds-ko9y1z"
+      "id": "venue-lds-ko9y1z",
+      "provider": "parallel"
     },
     {
       "name": "Chophaus",
@@ -601,7 +583,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8755c8a6a21da24c",
-      "id": "venue-lds-4byeb"
+      "id": "venue-lds-4byeb",
+      "provider": "parallel"
     },
     {
       "name": "Bar on Park Lane",
@@ -634,7 +617,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faff01a943a491955",
-      "id": "venue-lds-1ywwz2p"
+      "id": "venue-lds-1ywwz2p",
+      "provider": "parallel"
     },
     {
       "name": "The Clock Inn",
@@ -671,7 +655,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb3e26cc09c14dbb5",
-      "id": "venue-lds-1jxoauc"
+      "id": "venue-lds-1jxoauc",
+      "provider": "parallel"
     },
     {
       "name": "DMC Brewery & Taproom",
@@ -708,7 +693,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa882bcc5e0f1d963",
-      "id": "venue-lds-yqpcr0"
+      "id": "venue-lds-yqpcr0",
+      "provider": "parallel"
     },
     {
       "name": "Brewery Wharf Tavern",
@@ -741,36 +727,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8dde3c4022249652",
-      "id": "venue-lds-18i7pnx"
-    },
-    {
-      "name": "Inkwell Bar",
-      "kind": "bar",
-      "address": "Clayton Hotel, City Walk, Sweet Street, Leeds LS11 9AT",
-      "postcode": "LS11 9AT",
-      "locality": "Leeds",
-      "website": "https://www.claytonhotels.com/leeds/dining",
-      "lat": 53.788422,
-      "lng": -1.547728,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://leeds.camra.org.uk/pubguide"
-      ],
-      "evidence": [
-        {
-          "url": "https://leeds.camra.org.uk/pubguide",
-          "excerpt": "Inkwell Bar Clayton Hotel, City Walk, Sweet Street Leeds LS11 9AT"
-        }
-      ],
-      "observedAt": "2026-10-04T11:27:25.811Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/LS11%209AT",
-        "observedAt": "2026-10-04T11:27:25.836Z",
-        "postcode": "LS11 9AT",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fa853cb8364f9241b",
-      "id": "venue-lds-9i571z"
+      "id": "venue-lds-18i7pnx",
+      "provider": "parallel"
     },
     {
       "name": "The Holbeck",
@@ -808,7 +766,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9ae5d9afd1844c22",
-      "id": "venue-lds-din2dl"
+      "id": "venue-lds-din2dl",
+      "provider": "parallel"
     },
     {
       "name": "West Park Lounge",
@@ -845,7 +804,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb7aa2ad07f6ad2b4",
-      "id": "venue-lds-xso151"
+      "id": "venue-lds-xso151",
+      "provider": "parallel"
     },
     {
       "name": "Adel Tap",
@@ -878,7 +838,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbca6f13577a288ad",
-      "id": "venue-lds-dseyeu"
+      "id": "venue-lds-dseyeu",
+      "provider": "parallel"
     },
     {
       "name": "Ego at The Wellington, Shadwell",
@@ -912,7 +873,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbe2870b3bb24432a",
-      "id": "venue-lds-1k9wwyx"
+      "id": "venue-lds-1k9wwyx",
+      "provider": "parallel"
     },
     {
       "name": "The Fishermans Lodge",
@@ -949,7 +911,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa5adce03477364b3",
-      "id": "venue-lds-1dshprx"
+      "id": "venue-lds-1dshprx",
+      "provider": "parallel"
     },
     {
       "name": "Kasa Rosa",
@@ -982,7 +945,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8db1d6261a9b4936",
-      "id": "venue-lds-eopqpi"
+      "id": "venue-lds-eopqpi",
+      "provider": "parallel"
     }
   ]
 }

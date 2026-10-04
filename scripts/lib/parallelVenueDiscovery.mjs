@@ -37,6 +37,10 @@ function sourceBelongsToVenue(url, website) {
 export const GENERIC_NAME_WORDS = new Set(["the", "and", "bar", "bars", "pub", "pubs", "inn", "restaurant", "restaurants", "kitchen", "club", "lounge", "tavern", "hotel", "cafe", "grill", "wine", "cocktail", "cocktails", "brewery", "taproom", "beer", "tap", "arms", "house", "great", "united", "kingdom", "england", "scotland", "wales"]);
 const NOT_OWN_SITE_HOST = /(?:^|[.-])(?:news|live|echo|post|times|herald|gazette|chronicle|mirror|guardian|evening|mail|express|telegraph|independent|observer|journal|argus|standard|bbc|tripadvisor|yelp|foursquare|timeout|trip|booking|expedia|wikipedia|reddit|tiktok)(?:[.-]|$)|247\./i;
 
+// A news or aggregator site, however its name is run together:
+// liverpoolecho, manchestereveningnews, bristolpost, glasgowlive.
+const NEWS_LABEL = /^(?:news|bbc)|(?:echo|news|post|mail|live|times|herald|gazette|chronicle|mirror|telegraph|express|argus|standard|journal|observer|guardian|independent|247)$|tripadvisor|yelp|foursquare|timeout|expedia|booking|wikipedia|reddit|tiktok/;
+
 export const words = (value) => normalizeVenueIdentityName(value).split(/\s+/).map((word) => word.replace(/[^a-z0-9]/g, "")).filter(Boolean);
 
 // The page vouches for its own venue only when its registered domain carries
@@ -47,10 +51,28 @@ export function ownSiteFor(name, landedUrl, city) {
   if (NOT_OWN_SITE_HOST.test(hostname)) return null;
   const labels = hostname.split(".");
   const registrable = labels.slice(/^(?:co|org|ac|gov|net|ltd|plc|me)\.uk$/.test(labels.slice(-2).join(".")) ? -3 : -2).join(".");
+  if (NEWS_LABEL.test(registrable.split(".")[0].replace(/[^a-z0-9]/g, ""))) return null;
   const host = registrable.replace(/[^a-z0-9]/g, "");
   const cityWords = new Set(words(city.displayName));
   const distinctive = words(name).filter((word) => word.length >= 4 && !GENERIC_NAME_WORDS.has(word) && !cityWords.has(word));
   return distinctive.some((word) => host.includes(word)) ? `${new URL(landedUrl).origin}/` : null;
+}
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const PUB_OR_BAR_EVIDENCE = /\b(?:pub|public house|bar|beers?|cocktails?|ales?|lagers?)\b/i;
+const RESTAURANT_ALCOHOL = /\b(?:beers?|cocktails?|draught|lagers?|wine list|wines|spirits|alcoholic drinks)\b/i;
+
+// A venue's own name is not evidence of what it serves: "Fuzion Noodle Bar"
+// or "Bar & Grill" says nothing about alcohol, so the name is struck from the
+// quotes before the drinking test.
+export function withoutName(quotes, name) {
+  const venue = text(name);
+  return venue ? String(quotes).replace(new RegExp(escapeRegExp(venue), "gi"), " ") : String(quotes);
+}
+
+export function statesDrinking(kind, quotes, name) {
+  const rest = withoutName(quotes, name);
+  return kind === "restaurant" ? RESTAURANT_ALCOHOL.test(rest) : PUB_OR_BAR_EVIDENCE.test(rest);
 }
 
 export function inCity(lat, lng, city) {
@@ -126,7 +148,7 @@ export function parseTaskVenues(result, city, observedAt, { local = false } = {}
     else if (!evidence.length) reason = "missing-venue-specific-citation";
     else if (!citationBindsIdentity({ name, address, evidence }, city, { local })) reason = "citation-does-not-bind-name-and-address";
     else if (/\b(?:permanently closed|closed permanently|ceased trading)\b/i.test(quotes)) reason = "closed-venue";
-    else if (kind === "restaurant" ? !/\b(?:beers?|cocktails?|draught|lagers?|wine list|wines|spirits|alcoholic drinks)\b/i.test(quotes) : !/\b(?:pub|public house|bar|beers?|cocktails?|ales?|lagers?)\b/i.test(quotes)) reason = "missing-drinking-evidence";
+    else if (!statesDrinking(kind, quotes, name)) reason = "missing-drinking-evidence";
     if (reason) { rejected.push({ name, reason }); continue; }
     const citedNumbers = new Set((quotes.match(/[-+]?\d+(?:\.\d+)?/g) ?? []).map(Number));
     const pointIsCited = inCity(row.lat, row.lng, city) && citedNumbers.has(row.lat) && citedNumbers.has(row.lng);
@@ -172,7 +194,8 @@ export function validateDiscoveryPack(pack, city) {
       || !Array.isArray(row.sourceUrls) || !row.sourceUrls.length || !row.sourceUrls.every(allowedEvidenceUrl)
       || !Array.isArray(row.evidence) || !row.evidence.length || !row.evidence.every((entry) => row.sourceUrls.includes(entry.url) && text(entry.excerpt))
       || (webRow(row) && !row.sourceUrls.every((url) => isListingUrl(url) || ownSiteFor(row.name, url, city)))
-      || !citationBindsIdentity(row, city, { local: webRow(row) })) {
+      || !citationBindsIdentity(row, city, { local: webRow(row) })
+      || !statesDrinking(row.kind, row.evidence.map((entry) => entry.excerpt).join(" "), row.name)) {
       throw new Error(`Invalid Parallel venue evidence: ${text(row?.name) || "unnamed"}`);
     }
   }

@@ -96,64 +96,6 @@
       "id": "venue-bri-tfvd28"
     },
     {
-      "name": "Industry Bar & Kitchen",
-      "kind": "bar",
-      "address": "141 Gloucester Road, Bishopston, Bristol BS7 8BA",
-      "postcode": "BS7 8BA",
-      "locality": "Bristol",
-      "website": "https://www.industrybarandkitchen.co.uk/",
-      "lat": 51.473863,
-      "lng": -2.591249,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.industrybarandkitchen.co.uk"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.industrybarandkitchen.co.uk",
-          "excerpt": "Industry Bar & Kitchen, \n\n141 Gloucester Road, \n\nBishopston, \n\nBristol,\n\nBS7 8BA"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:32.054Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/BS7%208BA",
-        "observedAt": "2026-10-04T12:52:32.882Z",
-        "postcode": "BS7 8BA",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-bri-1imxsrk"
-    },
-    {
-      "name": "Westbury Park Pub & Kitchen",
-      "kind": "pub",
-      "address": "Northumbria Drive, Henleaze, Bristol BS9 4HP",
-      "postcode": "BS9 4HP",
-      "locality": "Bristol",
-      "website": "https://www.westburyparkpub.co.uk/",
-      "lat": 51.481587,
-      "lng": -2.612346,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.westburyparkpub.co.uk"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.westburyparkpub.co.uk",
-          "excerpt": "Westbury Park Pub & Kitchen, Northumbria Drive,\n\nHenleaze, Bristol, BS9 4HP"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:37.141Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/BS9%204HP",
-        "observedAt": "2026-10-04T12:52:36.510Z",
-        "postcode": "BS9 4HP",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-bri-16raiop"
-    },
-    {
       "name": "The Kings Head",
       "kind": "pub",
       "address": "Bridgwater Road, Bedminster Down, Bristol BS13 8AE",

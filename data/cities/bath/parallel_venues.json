@@ -9,35 +9,6 @@
   ],
   "venues": [
     {
-      "name": "The Champagne Bar at Abbey Hotel Bath",
-      "kind": "bar",
-      "address": "1 North Parade, Bath BA1 1LF",
-      "postcode": "BA1 1LF",
-      "locality": "Bath",
-      "website": null,
-      "lat": 51.380638,
-      "lng": -2.357643,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.visitbath.co.uk/food-and-drink/bars-and-cocktail-bars"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.visitbath.co.uk/food-and-drink/bars-and-cocktail-bars",
-          "excerpt": "[The Champagne Bar at Abbey Hotel Bath]\n\n    ### Address\n\n    1 North Parade, Bath, BA1 1LF"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:46.901Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/BA1%201LF",
-        "observedAt": "2026-10-04T12:52:44.798Z",
-        "postcode": "BA1 1LF",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-bat-9g5hlz"
-    },
-    {
       "name": "Hudson Bar & Grill",
       "kind": "pub",
       "address": "14 London Road, Bath BA1 5BU",

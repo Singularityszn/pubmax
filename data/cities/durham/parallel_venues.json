@@ -44,7 +44,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
-      "id": "venue-dur-n53aox"
+      "id": "venue-dur-n53aox",
+      "provider": "parallel"
     },
     {
       "name": "John's Bar",
@@ -77,7 +78,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
-      "id": "venue-dur-8ti4sg"
+      "id": "venue-dur-8ti4sg",
+      "provider": "parallel"
     },
     {
       "name": "Cuth's Bar",
@@ -114,7 +116,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
-      "id": "venue-dur-1q8gqaa"
+      "id": "venue-dur-1q8gqaa",
+      "provider": "parallel"
     },
     {
       "name": "Dunelm Club",
@@ -152,7 +155,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
-      "id": "venue-dur-ftudml"
+      "id": "venue-dur-ftudml",
+      "provider": "parallel"
     },
     {
       "name": "Cosy Club Durham",
@@ -185,7 +189,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb8242d40cc9c2cb4",
-      "id": "venue-dur-n4gbj0"
+      "id": "venue-dur-n4gbj0",
+      "provider": "parallel"
     },
     {
       "name": "Turkish Kitchen Meze & Grill",
@@ -222,7 +227,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbedffbe4ceba9ead",
-      "id": "venue-dur-v0muyx"
+      "id": "venue-dur-v0muyx",
+      "provider": "parallel"
     },
     {
       "name": "Hotel Indigo Rotunda Bar",
@@ -292,35 +298,6 @@
       "provider": "parallel",
       "runId": "trun_ce5fd53e0016415f92fab25c0a2858e0",
       "id": "venue-dur-ocx10"
-    },
-    {
-      "name": "19Twenty Bar & Grill",
-      "kind": "bar",
-      "address": "19-20 Elvet Bridge, Durham DH1 3AA",
-      "postcode": "DH1 3AA",
-      "locality": "Durham",
-      "website": "https://19twenty.uk/",
-      "lat": 54.776326,
-      "lng": -1.574332,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://19twenty.uk"
-      ],
-      "evidence": [
-        {
-          "url": "https://19twenty.uk",
-          "excerpt": "19Twenty Bar & Grill  \n19-20 Elvet Bridge  \nDurham  \nDH1 3AA"
-        }
-      ],
-      "observedAt": "2026-10-04T12:50:48.276Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/DH1%203AA",
-        "observedAt": "2026-10-04T12:50:48.368Z",
-        "postcode": "DH1 3AA",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-dur-lgcx28"
     }
   ]
 }

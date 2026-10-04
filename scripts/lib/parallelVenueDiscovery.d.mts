@@ -11,6 +11,8 @@ export const GENERIC_NAME_WORDS: Set<string>;
 export function words(value: unknown): string[];
 export function ownSiteFor(name: unknown, landedUrl: string, city: { displayName: string }): string | null;
 export function allowedEvidenceUrl(value: unknown): boolean;
+export function withoutName(quotes: string, name: unknown): string;
+export function statesDrinking(kind: string, quotes: string, name: unknown): boolean;
 export function inCity(lat: unknown, lng: unknown, city: DiscoveryCity): boolean;
 export function citationBindsIdentity(row: { name: string; address: string; evidence: Array<{ excerpt: string }> }, city: DiscoveryCity, options?: { local?: boolean }): boolean;
 export function unseenNames(rows: Array<{ name?: unknown } | null>, known: Array<{ name: string }>): string[];

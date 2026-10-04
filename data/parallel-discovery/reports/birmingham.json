@@ -2,27 +2,329 @@
   "city": "birmingham",
   "districts": 42,
   "slices": 168,
-  "slicesComplete": 154,
+  "slicesComplete": 166,
   "incompleteSlices": [
-    "B2/pub: 2 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B2/bar: 1 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume",
-    "B2/restaurant: 1 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume",
-    "B15/bar: 1 pages not read yet (robots unreachable for www.datathistle.com); rerun to resume",
-    "B17/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B17/bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B23/bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B70/cocktail-bar: 1 pages not read yet (robots unreachable for www.thevine.co.uk); rerun to resume",
-    "B70/restaurant: 1 pages not read yet (robots unreachable for www.thevine.co.uk); rerun to resume",
-    "B72/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B73/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B73/bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B73/cocktail-bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "B76/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume"
+    "B23/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B42/searchchtype/visual-impairment); rerun to resume",
+    "B70/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B21/searchchtype/old-age); rerun to resume"
+  ],
+  "skippedSources": [
+    {
+      "district": "B2",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/1/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.864Z"
+    },
+    {
+      "district": "B15",
+      "category": "bar",
+      "url": "https://www.datathistle.com/places/location:B15%202TT(52.4490,-1.9309)",
+      "host": "www.datathistle.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:09.567Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:15.564Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:21.370Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:08:21.370Z"
+    },
+    {
+      "district": "B17",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/s/41/41644/Hillyfields/Harborne",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.865Z"
+    },
+    {
+      "district": "B17",
+      "category": "bar",
+      "url": "https://www.beerintheevening.com/pubs/s/41/41644/Hillyfields/Harborne",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.867Z"
+    },
+    {
+      "district": "B23",
+      "category": "bar",
+      "url": "https://www.beerintheevening.com/pubs/s/17/17398/Swan/Erdington",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.867Z"
+    },
+    {
+      "district": "B70",
+      "category": "cocktail-bar",
+      "url": "https://www.thevine.co.uk",
+      "host": "www.thevine.co.uk",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:19.273Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:25.122Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:31.033Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:08:31.033Z"
+    },
+    {
+      "district": "B70",
+      "category": "restaurant",
+      "url": "https://www.thevine.co.uk",
+      "host": "www.thevine.co.uk",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:19.273Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:25.122Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:31.033Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:08:31.033Z"
+    },
+    {
+      "district": "B72",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/s/32/3214/Bottle_of_Sack/Sutton_Coldfield",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.867Z"
+    },
+    {
+      "district": "B73",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.867Z"
+    },
+    {
+      "district": "B73",
+      "category": "bar",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.867Z"
+    },
+    {
+      "district": "B73",
+      "category": "cocktail-bar",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.868Z"
+    },
+    {
+      "district": "B76",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:09:44.991Z"
+    }
   ],
   "taskRuns": 675,
-  "webSearches": 135,
-  "pagesRead": 559,
-  "researched": 2073,
+  "webSearches": 155,
+  "pagesRead": 630,
+  "researched": 2070,
   "added": 0,
   "retained": [
     {
@@ -32,10 +334,6 @@
     {
       "name": "Piccolino",
       "id": "venue-bhm-1li0nzy"
-    },
-    {
-      "name": "Pushkar Cocktail Bar & Dining",
-      "id": "venue-bhm-1jc7x0t"
     },
     {
       "name": "Chez Mal Brasserie & Bar",
@@ -374,10 +672,6 @@
       "id": "venue-bhm-fuqk5p"
     },
     {
-      "name": "The Asylum Bar and Venue",
-      "id": "venue-bhm-nvaaho"
-    },
-    {
       "name": "African Village Restaurant and Late Bar",
       "id": "venue-bhm-ol7k7s"
     },
@@ -416,10 +710,6 @@
     {
       "name": "Yardley Ex Service Mens Club",
       "id": "venue-bhm-1h6e58m"
-    },
-    {
-      "name": "O'Mahoney's Bar & Grill",
-      "id": "venue-bhm-5fqr4"
     },
     {
       "name": "Holiday Inn Express Birmingham - South A45",
@@ -558,8 +848,8 @@
       "id": "venue-bhm-1gg3rw7"
     }
   ],
-  "totalAccepted": 133,
-  "repeats": 68,
+  "totalAccepted": 130,
+  "repeats": 58,
   "duplicates": [
     {
       "name": "52 Gas Street",
@@ -722,11 +1012,6 @@
       "matchedId": "way/117318709"
     },
     {
-      "name": "ORyan cocktail bar",
-      "matchedName": "ORyan Cocktail Bar",
-      "matchedId": "node/12796214867"
-    },
-    {
       "name": "1000 Trades On The Park",
       "matchedName": "1000 Trades On The Park",
       "matchedId": "node/12688193702"
@@ -865,6 +1150,10 @@
     {
       "name": "Lucarelli Italian Restaurant",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Pushkar Cocktail Bar & Dining",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Turtle Bay Brindleyplace",
@@ -1120,15 +1409,11 @@
     },
     {
       "name": "https://www.cntraveller.com/gallery/birmingham-bars",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.hyattrestaurants.com/en/birmingham/bar/the-gentleman-scholar",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.meetbirmingham.com/listing/the-victoria/132307101",
-      "reason": "unreadable: extract: Error fetching content"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Las Iguanas",
@@ -1149,6 +1434,10 @@
     {
       "name": "Piccolino Birmingham",
       "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Pushkar Cocktail Bar & Dining",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Aluna",
@@ -1284,19 +1573,19 @@
     },
     {
       "name": "https://www.hyattrestaurants.com/en/birmingham/bar/the-gentleman-scholar/menu/f24b2c4b-9eb3-4475-a298-7798f0702b12",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?find_near=tap-and-spile-birmingham&cflt=wine_bars",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://actress-bishop.wheree.com/menu",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.reddit.com/r/BirminghamUK/comments/1qupjku/best_nonchain_places_to_eat_in_and_around_the_city",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Merlin's Cafe Bar",
@@ -1356,19 +1645,23 @@
     },
     {
       "name": "https://www.thetrocaderobirmingham.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/west-midlands",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.cntraveller.com/gallery/birmingham-bars",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186402-d7316748-Reviews-The_Briar_Rose-Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "The Cocktail Club Birmingham",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Merlins Café Bar",
@@ -1440,15 +1733,19 @@
     },
     {
       "name": "https://www.cntraveller.com/gallery/birmingham-bars",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.thetrocaderobirmingham.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186402-d7316748-Reviews-The_Briar_Rose-Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.fullers.co.uk/blog/pubs-articles/managing-the-old-joint-stock",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Fox and Chance",
@@ -1620,11 +1917,15 @@
     },
     {
       "name": "https://www.opentable.com/r/fumo-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.thetrocaderobirmingham.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Bushwackers",
@@ -1768,19 +2069,19 @@
     },
     {
       "name": "https://www.cntraveller.com/gallery/birmingham-bars",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.theroyalbirmingham.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://thetravelista.net/travel/destination-guides/a-foodie-guide-to-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.eatdrinkmeet.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Saint Paul's House",
@@ -1956,15 +2257,15 @@
     },
     {
       "name": "https://uk.indeed.com/m/jobs?q=Wine+Wine&l=Birmingham",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.eatdrinkmeet.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=35+Ludgate+Hill%2C+Birmingham+B3+1EH%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "White Tower",
@@ -2096,11 +2397,11 @@
     },
     {
       "name": "https://m.yelp.com/search?cflt=bars&find_loc=Hurst+St%2C+Arcadian+Centre%2C+Birmingham+B5+4TD",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://fleetmilne.co.uk/property/beorma-tower-birmingham-b5-5ah-40",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Boho Beer Garden",
@@ -2427,6 +2728,10 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "Holte Pub",
+      "reason": "missing-drinking-evidence"
+    },
+    {
       "name": "Christophers Lounge",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -2437,6 +2742,10 @@
     {
       "name": "Digger Inn",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Shanahans Motel & Sports Bar",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "W xyz Bar",
@@ -2732,15 +3041,15 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_near=lloyds-bar-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.low-places.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://passing-fancies.wheree.com/menu",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Sophy Birmingham",
@@ -2904,15 +3213,15 @@
     },
     {
       "name": "https://mapcarta.com/W62237921",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.thefightingcocksmoseley.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=112+Alcester+Rd%2C+Birmingham+B13+8EF%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "The Pub at Moseley",
@@ -3172,19 +3481,19 @@
     },
     {
       "name": "https://www.ticketsource.com/whats-on/kings-heath-birmingham/hare-and-hounds-pub",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/hare-amp;-hounds-kings-heath-v2166",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.birmingham.gov.uk/directory_record/138098/hare_and_hounds_kings_heath",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Byzantium",
@@ -3264,15 +3573,15 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=milkshakebars&find_loc=&find_near=positika-birmingham&start=10",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/hare-amp;-hounds-kings-heath-v2166",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.ticketsource.com/khcomedyfest/the-real-housewives-of-birmingham/e-zpxama",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Loco Lounge",
@@ -3384,7 +3693,7 @@
     },
     {
       "name": "https://www.thewhiteswanpub.com",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "1900 Bar",
@@ -3448,7 +3757,11 @@
     },
     {
       "name": "https://www.thewhiteswanpub.com",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.lokiwine.co.uk",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Smoke + Ash",
@@ -3461,6 +3774,10 @@
     {
       "name": "The Blue Piano",
       "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Boom Battle Bar Birmingham Broad Street",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Barbara’s Bier Haus Birmingham",
@@ -3508,7 +3825,7 @@
     },
     {
       "name": "https://www.thefork.co.uk/restaurants/birmingham-c671699/cocktail-bar-t2591",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Smoke + Ash",
@@ -3529,6 +3846,10 @@
     {
       "name": "Bratby Bar",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Boom Battle Bar Birmingham Broad Street",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Simpsons",
@@ -3688,15 +4009,11 @@
     },
     {
       "name": "https://www.opentable.com/r/mellows-bar-and-restaurant-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=milkshakebars&find_loc=&find_near=positika-birmingham&start=10",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.simplyhired.co.uk/search?q=bar+staff&l=b16+8nd",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Praza by Pushkar",
@@ -3872,15 +4189,23 @@
     },
     {
       "name": "https://www.thejunctionharborne.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.eatdrinkmeet.co.uk/find-a-location/venue/birmingham/the-junction",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186402-d8413188-Reviews-The_Bell_Harborne-Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "name": "https://area360.uk/postcode/B179NE",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Metchley+Ln%2C+Birmingham+B17+0HT",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.birmingham.gov.uk/directory_record/138079/the_junction_harborne",
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Bell Harborne",
@@ -4004,11 +4329,15 @@
     },
     {
       "name": "https://www.thejunctionharborne.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.com/r/harborne-stores-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://crystalroof.co.uk/postcodes/B17",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Bell Harborne",
@@ -4100,19 +4429,15 @@
     },
     {
       "name": "https://www.thejunctionharborne.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Metchley+Ln%2C+Birmingham+B17+0HT",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://streetscan.co.uk/postcode/b17-8jt",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://oakmans.co.uk/estate-agents/city-centre",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Bell Harborne",
@@ -4371,6 +4696,10 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "The Asylum Bar and Venue",
+      "reason": "missing-drinking-evidence"
+    },
+    {
       "name": "Burning Soul Brewery",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -4417,6 +4746,10 @@
     {
       "name": "Dose Bar & Lounge",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Asylum Bar and Venue",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Hockley Social Club",
@@ -4568,11 +4901,15 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_near=hare-and-hounds-birmingham-2",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://historicengland.org.uk/listing/the-list/list-entry/1450468",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/B236SZ/overview",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Swan Erdington",
@@ -4829,6 +5166,10 @@
     {
       "name": "The William Tyler",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "O'Mahoney's Bar & Grill",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Yardley Ex Service Mens Club",
@@ -5227,16 +5568,12 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g1173580-d17327733-Reviews-Tradita-Sheldon_Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
       "name": "https://bottega-prosecco-bar-birmingham-airport.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.ubereats.com/gb/store/the-journeys-end-sizzling-pubs/NLKPc-0XWJm4rFZZH7Udeg",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Boulevard",
@@ -5415,28 +5752,24 @@
       "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "https://directory.birminghampost.co.uk/search/birmingham/pubs",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
       "name": "https://www.opentable.co.uk/r/la-romana-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/la-romana-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://the-bull-s-head-3133257.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.thefork.co.uk/restaurant/toby-carvery-hall-green-r634481",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.ubereats.com/gb/store/the-bulls-head-birmingham-ember-inns/XAtLXX2DU9-jdgsXRbmf_w",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Bear & Staff",
@@ -5524,11 +5857,7 @@
     },
     {
       "name": "https://www.yelp.ca/search?cflt=bars&find_near=the-country-girl-birmingham",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186402-d6651854-Reviews-Goose-Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "The Bear & Staff",
@@ -5541,6 +5870,10 @@
     {
       "name": "The Selly Park Tavern",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Oba's Kitchen, Lounge, Bar & Games",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Yakinori Selly Oak",
@@ -5692,15 +6025,11 @@
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Pubs&find_loc=Birmingham+B30",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.cntraveller.com/gallery/birmingham-bars",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "The Cotteridge Inn",
-      "reason": "missing-drinking-evidence"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Birmingham Brewing Company Taproom",
@@ -6264,15 +6593,15 @@
     },
     {
       "name": "https://www.bestwestern.com/en_US/book/hotels-in-birmingham/castle-bromwich-hall-hotel-bw-signature-collection/propertyCode.84283.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=50d+Lozells+Rd%2C+50B%2C+Birmingham+B19+2TJ",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://castlebromwichpc.gov.uk/weekly-events",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Hickory's Smokehouse Castle Bromwich",
@@ -6420,35 +6749,31 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Birmingham+B43+7DN",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yell.com/s/bars+and+wine+bars-waterloo+road+b14+kings+heath+birmingham.html",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186402-d4458892-Reviews-The_Old_Horns-Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.com/r/scott-arms-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.co.uk/r/oak-bar-and-grill-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=delivery&find_loc=M6+Toll",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?find_desc=Nightlife&find_loc=36A+Birmingham+Road%2C+Great+Barr%2C+Birmingham+B43+6NS%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/hamstead-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "The Cat & Fiddle",
@@ -6492,23 +6817,23 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Birmingham+B43+7DN",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/hamstead-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.stonehouserestaurants.co.uk/nationalsearch/eastandwestmidlands/themaltshovelgreatbarr/drink-menu",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://the-registry-walsall.wheree.com/menu",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=delivery&find_loc=M6+Toll",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "The Golden Hind",
@@ -6640,31 +6965,23 @@
     },
     {
       "name": "https://no1-public-house.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://birmingham.cylex-uk.co.uk/bars-pubs",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Cranbourne+Road%2C+Birmingham+B44+0BX%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186402-d2091270-Reviews-Golden_Hind-Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186402-d3367137-Reviews-or45-Boars_Head_World_Buffet-Birmingham_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://tequila-lime-mexican-restaurant-and-cocktail-bar-1.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=irish&find_loc=College+Road%2C+Birmingham+B44+8DP%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "The Golden Hind",
@@ -6724,7 +7041,7 @@
     },
     {
       "name": "https://www.just-eat.co.uk/restaurants-ruby-convenience-store-birmingham-b44/menu",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Craft Inn",
@@ -6753,6 +7070,10 @@
     {
       "name": "Kotokuraba Restaurant and Bar",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Avenue Bar Restaurant & Grill",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Craft Inn",
@@ -6801,6 +7122,10 @@
     {
       "name": "Night Inn Banqueting Suite",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Avenue Bar Restaurant & Grill",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Ivy Bush",
@@ -6872,6 +7197,10 @@
     },
     {
       "name": "1000 Trades on the Park",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "ORyan cocktail bar",
       "reason": "missing-drinking-evidence"
     },
     {
@@ -7203,20 +7532,12 @@
       "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "THE ANGELS BAR",
-      "reason": "postcode-does-not-geocode-inside-city"
-    },
-    {
       "name": "https://www.opentable.com/r/the-sandwell-west-brom-west-bromwich",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://mapcarta.com/W1321994497",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B21/searchchtype/old-age",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Soho Tavern West Bromwich",
@@ -7336,19 +7657,27 @@
     },
     {
       "name": "https://west-bromwich.cylex-uk.co.uk/company/flirts-26977885.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.co.uk/r/the-sportsman-club-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/restaurant-1896-bromwich",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_loc=2C+Bromford+Lane%2C+West+Bromwich+B70+7HP%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/HotelsNear-g186424-d34347550-zfd2-Worcester_Scrub_Hill_Railway_Station-Worcester_Worcestershire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g504214-d17727741-Reviews-The_Clock_House-West_Bromwich_Sandwell_West_Midlands_England.html",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "The Interceptor",
@@ -7427,12 +7756,8 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "https://onyx-bar-and-restaurant.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
       "name": "https://www.opentable.com/r/restaurant-1896-bromwich",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Cagney's",
@@ -7552,11 +7877,7 @@
     },
     {
       "name": "https://www.ubereats.com/gb/store/daily-fish-bar/KpGlllmrQ6mXtpnG2suyYw",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://whatnightout.uk/birmingham/venues/cagneys-bar-grill-74669",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Red Lion",
@@ -7616,7 +7937,7 @@
     },
     {
       "name": "https://www.tripadvisor.com/Restaurant_Review-g504214-d2213244-Reviews-Red_Lion_Pub-West_Bromwich_Sandwell_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Cagneys",
@@ -7735,14 +8056,6 @@
       "reason": "postcode-does-not-geocode-inside-city"
     },
     {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g190731-d33142500-Reviews-The_Royal-The_Royal_Town_of_Sutton_Coldfield_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://visitbirmingham.com/listing/slug-and-lettuce-sutton-coldfield/158737101",
-      "reason": "unreadable: extract: Error fetching content"
-    },
-    {
       "name": "Distillery",
       "reason": "missing-drinking-evidence"
     },
@@ -7800,27 +8113,23 @@
     },
     {
       "name": "https://www.opentable.co.uk/r/mutiny-loft-sutton-coldfield",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://crystalroof.co.uk/postcodes/B72",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://streetscan.co.uk/postcode/b72-1up",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "Simpsons Gin Bar",
-      "reason": "postcode-does-not-geocode-inside-city"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=26-28+High+Street%2C+Sutton+Coldfield+B72+1UP%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://economicsbydesign.com/tools/place-based-value/england/pharmacy/fhv66",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Gate Sutton Coldfield",
@@ -7875,28 +8184,16 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "https://suttonsportssocialclub.co.uk/about",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
       "name": "https://simpsons-bar.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g190731-d14984398-Reviews-Slug_Lettuce_Sutton_Coldfield-The_Royal_Town_of_Sutton_Coldfield_West_Midlands_E.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://uk.indeed.com/q-cocktail-bar-l-birmingham-b32-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g190731-d32964198-Reviews-Ash_Sutton_Coldfield-The_Royal_Town_of_Sutton_Coldfield_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.opentable.co.uk/r/slug-and-lettuce-sutton-coldfield-sutton",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Gate Sutton Coldfield",
@@ -7964,19 +8261,15 @@
     },
     {
       "name": "https://bonds-bar.wheree.com/menu",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.opentable.com/r/mutiny-loft-sutton-coldfield",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=10A+Beeches+Walk%2C+The+Royal+Town+of+Sutton+Coldfield+B73+6HN",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g190731-d32964198-Reviews-Ash_Sutton_Coldfield-The_Royal_Town_of_Sutton_Coldfield_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "The Boldmere Tap",
@@ -8028,15 +8321,15 @@
     },
     {
       "name": "https://mapcarta.com/W81597120",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=10A+Beeches+Walk%2C+The+Royal+Town+of+Sutton+Coldfield+B73+6HN",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://visitbirmingham.com/listing/travelodge-birmingham-sutton-coldfield/20592101",
-      "reason": "unreadable: extract: Error fetching content"
+      "name": "https://www.thefork.co.uk/restaurant/station-sutton-coldfield-r844231",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "The Boldmere Tap",
@@ -8096,11 +8389,31 @@
     },
     {
       "name": "https://mapcarta.com/W137190819",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=10A+Beeches+Walk%2C+The+Royal+Town+of+Sutton+Coldfield+B73+6HN",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/B735LN/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurant/station-sutton-coldfield-r844231",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://streetscan.co.uk/postcode/b73-6ln",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://birmingham.cmis.uk.com/Birmingham/Document.ashx?czJKcaeAi5tUFL1DTL2UE4zNRBcoShgo=bmwQ%2BKjVoyovsX4chti5KBeHIYmKwS6%2BJqSqFPjfdBtF1kUUaUJIBg%3D%3D&rUzwRPf%2BZ3zd4E7Ikn8Lyw%3D%3D=pwRE6AGJFLDNlh225F5QMaQWCtPHwdhUfCZ%2FLUQzgA2uL5jNRG4jdQ%3D%3D&mCTIbCubSFfXsDGW9IXnlg%3D%3D=hFflUdN3100%3D&kCx1AnS9%2FpWZQ40DXFvdEw%3D%3D=hFflUdN3100%3D&uJovDxwdjMPoYv%2BAJvYtyA%3D%3D=ctNJFf55vVA%3D&FgPlIEJYlotS%2BYGoBi5olA%3D%3D=NHdURQburHA%3D&d9Qjj0ag1Pd993jsyOJqFvmyB7X0CSQK=ctNJFf55vVA%3D&WGewmoAfeNR9xqBux0r1Q8Za60lavYmz=ctNJFf55vVA%3D&WGewmoAfeNQ16B2MHuCpMRKZMwaG1PaO=ctNJFf55vVA%3D",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/omnia-restaurant-birmingham",
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Boldmere Tap",
@@ -8128,23 +8441,27 @@
     },
     {
       "name": "https://www.thefork.co.uk/restaurants/birmingham-c671699/cocktail-bar-t2591",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://visitbirmingham.com/listing/travelodge-birmingham-sutton-coldfield/20592101",
-      "reason": "unreadable: extract: Error fetching content"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://birmingham.cmis.uk.com/Birmingham/Document.ashx?czJKcaeAi5tUFL1DTL2UE4zNRBcoShgo=bmwQ%2BKjVoyovsX4chti5KBeHIYmKwS6%2BJqSqFPjfdBtF1kUUaUJIBg%3D%3D&rUzwRPf%2BZ3zd4E7Ikn8Lyw%3D%3D=pwRE6AGJFLDNlh225F5QMaQWCtPHwdhUfCZ%2FLUQzgA2uL5jNRG4jdQ%3D%3D&mCTIbCubSFfXsDGW9IXnlg%3D%3D=hFflUdN3100%3D&kCx1AnS9%2FpWZQ40DXFvdEw%3D%3D=hFflUdN3100%3D&uJovDxwdjMPoYv%2BAJvYtyA%3D%3D=ctNJFf55vVA%3D&FgPlIEJYlotS%2BYGoBi5olA%3D%3D=NHdURQburHA%3D&d9Qjj0ag1Pd993jsyOJqFvmyB7X0CSQK=ctNJFf55vVA%3D&WGewmoAfeNR9xqBux0r1Q8Za60lavYmz=ctNJFf55vVA%3D&WGewmoAfeNQ16B2MHuCpMRKZMwaG1PaO=ctNJFf55vVA%3D",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=10A+Beeches+Walk%2C+The+Royal+Town+of+Sutton+Coldfield+B73+6HN",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/omnia-restaurant-birmingham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://sutton-coldfield.cylex-uk.co.uk/cocktail-bars",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.thefork.com/restaurants/birmingham-c671699/cocktail-t2591",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Station Sutton Coldfield",
@@ -8256,27 +8573,23 @@
     },
     {
       "name": "https://minworth.cylex-uk.co.uk/company/sizzling-pubs-hare-and-hounds--birmingham-27663792.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=St+John%27s+Church+Hall+Walmley+Road%2C+Sutton+Coldfield+B76+1QN%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/ShowUserReviews-g190731-d3324560-r568249717-The_Dog_and_Doublet-The_Royal_Town_of_Sutton_Coldfield_West_Midlands_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.cockinnwishaw.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.co.uk/r/vintage-inn-the-white-horse-sutton-coldfield",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://www.simplyhired.co.uk/search?q=pub&l=birmingham+b76+1qp",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "name": "https://www.eatdrinkmeet.co.uk/find-a-location/venue/sutton-coldfield/the-cock-inn",
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Oak",
@@ -8428,7 +8741,7 @@
     },
     {
       "name": "https://www.cockinnwishaw.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "The Bulls Head at Barston",
@@ -8484,27 +8797,15 @@
     },
     {
       "name": "https://mapcarta.com/W97533696",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Unit+2+Bannerley+Road%2C+Birmingham+B33%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://whatnightout.uk/birmingham/venues/damson-pub-solihull-78645",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.findmypub.com/lease-tenancy-pubs/england/west+midlands/west+midlands/solihull",
       "reason": "unreadable: extract: 404 page not found"
-    },
-    {
-      "name": "https://www.meetbirmingham.com/listing/malt-shovel/112877101",
-      "reason": "unreadable: extract: Error fetching content"
-    },
-    {
-      "name": "https://visitbirmingham.com/listing/malt-shovel/112877101",
-      "reason": "unreadable: extract: Error fetching content"
     },
     {
       "name": "Bull's Head",
