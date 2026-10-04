@@ -47,10 +47,12 @@ PR or service is authorised. No default upload to 0x0.st.
 - `agent-browser --version`: 0.38.2. No release browser session was switched.
 - Legacy `@vercel/before-and-after` 0.0.4 CLI runs, but npm marks it deprecated.
   Current formatter is the supported path for existing media.
-- FFmpeg and ffprobe 9.0.2 installed from official Homebrew core. libx264 and
-  macOS capture source found. The `ass` subtitle filter is missing, so the
-  annotated screen recorder's full toolchain check fails. Actual recording and
-  OS Screen Recording permission were not exercised. Screenshots remain usable.
+- FFmpeg and ffprobe 9.0.2 installed from official Homebrew core. The ordinary
+  variant lacked `ass`, so the separate keg-only `ffmpeg-full` variant was
+  installed. With its bin directory scoped to the doctor command, libx264,
+  subtitle filter and macOS capture-source checks pass. Existing default PATH
+  and shell startup files remain unchanged. Actual recording and OS Screen
+  Recording permission were not exercised. Screenshot capture was exercised.
 - No new shared Playwright browser download or global script approval occurred.
 - No dependency configuration or missing credentials may be called runtime
   provider proof.
