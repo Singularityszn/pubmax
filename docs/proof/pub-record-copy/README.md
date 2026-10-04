@@ -1,11 +1,10 @@
 # Grounded pub copy
 
 Gemini wrote a one-sentence description and chose one to three vibe tags for
-649 of the 1,916 curated pubs in the stored London price dataset. Another
-1,266 pubs have no stored fact the summary may state, so they get no copy and
-are listed as `insufficient-stored-facts`. One pub failed validation twice and
-is listed as `invalid-copy-after-retry`. Country-wide base pubs and non-pub
-anchors are outside this pack.
+all 650 of the 1,916 curated pubs in the stored London price dataset that have
+a fact the summary may state. The other 1,266 pubs get no copy and are listed
+as `insufficient-stored-facts`. No pub failed validation after its retry.
+Country-wide base pubs and non-pub anchors are outside this pack.
 
 The model saw a venue ID, its borough and its supported amenities: cocktails,
 alcohol-free options, live music, pub quiz, darts, pool, happy hour and
@@ -13,19 +12,23 @@ karaoke. Food, live sport and beer garden were left to the Overview chips, so
 the summary never repeats them. Names, free text, prices, hours, URLs and
 Google Places content were excluded. No page, Places or search request was made.
 
-Publication checks facts, not wording. Every word must state a supported fact,
-name the pub's borough or London, or be a connective that states nothing. The
-sentence must name the pub and at least one supported fact, and no fact may
-repeat. The detail reader runs the same check against current pub fields, so a
-removed supporting amenity suppresses the old copy.
+Publication checks facts, not wording. Each part of the sentence must be a
+whole phrase of a supported fact, the pub's borough or London directly before
+"pub" or "local", or a connective that states nothing. So "happy" or "live"
+never stands alone, "out of" cannot deny a fact, and "Camden has cocktails" or
+"The City of London pub" fails. The pub must be the subject, at least one fact
+must be named and none twice. The detail reader runs the same check against
+current pub fields, so a removed supporting amenity suppresses the old copy.
+Every pub was regenerated under these rules.
 
-Cumulative token-metered spend is USD 0.0806508 over 462 requests. That
-includes the USD 0.0496627 and 197 requests of the earlier sentence-picking
-run, a 30-pub sample used to tune the prompt, a first full run stopped to
-tighten the prompt, and runs stopped by quota and authentication responses
-then resumed from the checkpoint. The final resumed run projected USD 0.1992889
-before calling. This is API-usage accounting, not an invoice. No quota override
-was changed. The task cap was USD 15.
+Cumulative token-metered spend is USD 0.1007636 over 548 requests. That
+includes USD 0.0806508 over 462 requests from earlier rounds: the original
+sentence-picking run, prompt-tuning samples, and runs stopped by quota and
+authentication responses then resumed from the checkpoint. The final
+regeneration of all 650 eligible pubs projected USD 4.8374817 before calling
+and met no quota response, so it stayed on the global endpoint. This is
+API-usage accounting, not an invoice. No quota override was changed. The task
+cap was USD 15.
 
 ## Before and after
 
@@ -35,9 +38,9 @@ food and a beer garden alone, both already shown as chips, so it now
 [returns no copy](api-after-skipped.json). The Yorkshire Grey has cocktails,
 live music and happy hour on record, and now returns and shows:
 
-> This Camden local has cocktails, live music and happy hour drinks.
+> This Camden pub has cocktails and a happy hour, plus live music.
 
-Its tags are Cocktails, Live music and Happy hour.
+Its tags are Cocktails, Happy hour and Live music.
 
 | Proof | Before (George) | After (The Yorkshire Grey) |
 | --- | --- | --- |
@@ -52,11 +55,12 @@ no Google photo was stored as evidence.
 
 ## Checks
 
-`npm run generate:pub-copy -- --check` validated all 649 entries and the
-documented reason for all 1,267 skips. Focused tests exercise the CLI,
-grounding, durable spend reservations and their release on the next run,
-unbilled non-JSON error pages, per-pub retention and retry, skip coverage,
-exponential quota backoff, the server reader and the rendered summary. They
+`npm run generate:pub-copy -- --check` validated all 650 entries and the
+documented reason for all 1,266 skips. Focused tests exercise the CLI,
+grounding, each review probe as a rejection, durable spend reservations and
+their release on the next run, unbilled non-JSON error pages, per-pub
+retention and retry, skip coverage, exponential quota backoff and the move to
+`europe-west2`, the server reader and the rendered summary. They
 also read the published pack through the existing detail lookup. Runtime
 tracing includes the generated JSON. At 1440, 390 and 320 pixels the summary
 showed with no document horizontal overflow.
