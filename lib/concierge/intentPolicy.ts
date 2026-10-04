@@ -77,7 +77,7 @@ function wholePhraseInText(text: string, phrase: string): boolean {
 }
 
 /** Area phrase the regex path already extracts. Shared so candidates match it. */
-export function extractAreaPhrase(text: string): string | undefined {
+function extractAreaPhrase(text: string): string | undefined {
   const areaMatch = text.match(
     /\b(?:near|around|in)\s+([\p{L}][\p{L}' .-]*?)(?=\s+(?:for|with|under|below|max|not)\b|\s*,|[.!?]|$)/iu,
   );
@@ -93,6 +93,38 @@ export function extractExplicitBudget(text: string): number | undefined {
   const n = Number(explicitBudget);
   if (!Number.isFinite(n)) return undefined;
   return Math.min(15, Math.max(3, n));
+}
+
+/** Words that end an area phrase: "in Shoreditch tonight" names Shoreditch, not "Shoreditch tonight". */
+const AREA_TRAILING_TIME =
+  /\s+(?:tonight|today|tomorrow|now|later|this\s+(?:evening|afternoon|morning|weekend)|(?:at|on|from|after|before)\b.*)$/iu;
+
+/**
+ * The area a keyless parse plans in. A known area named inside the phrase wins,
+ * so "in Shoreditch tonight" is Shoreditch. With no "in", "near" or "around",
+ * a known area named anywhere in the request is used, so "a Shoreditch crawl"
+ * is not planned across the whole city. An unlisted phrase is kept without
+ * its trailing time words.
+ */
+export function deterministicAreaInText(
+  text: string,
+  knownAreas: readonly string[],
+): string | undefined {
+  const extracted = extractAreaPhrase(text);
+  const known = longestKnownAreaIn(extracted ?? text, knownAreas);
+  if (known) return known;
+  if (!extracted) return undefined;
+  return extracted.replace(AREA_TRAILING_TIME, "").trim() || undefined;
+}
+
+function longestKnownAreaIn(text: string, knownAreas: readonly string[]): string | undefined {
+  let best: string | undefined;
+  for (const area of knownAreas) {
+    const trimmed = area.trim();
+    if (!wholePhraseInText(text, trimmed)) continue;
+    if (!best || trimmed.length > best.length) best = trimmed;
+  }
+  return best;
 }
 
 /**
