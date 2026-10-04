@@ -71,8 +71,10 @@ function availabilityFromApiPayload(
 
 /**
  * Read which social providers are enabled. The browser calls the same-origin
- * route so a signed-out page does not open a third-party connection. `fresh`
- * skips the shared cache and is the recheck immediately before OAuth starts.
+ * route so a signed-out page does not open a third-party connection. Credentials
+ * stay `same-origin` so a Vercel deployment-protection cookie is sent on that
+ * read and is not attached to any other host. `fresh` skips the shared cache
+ * and is the recheck immediately before OAuth starts.
  * Unknown is distinct from an all-disabled response so callers can fail closed
  * without claiming the read succeeded.
  */
@@ -87,7 +89,7 @@ export async function loadSocialAuthProviders(
   try {
     const response = await withAuthFetchTimeout(fetchImpl)(
       socialAuthProvidersUrl(options.fresh === true),
-      { credentials: "omit" },
+      { credentials: "same-origin" },
     );
     if (!response.ok) return null;
     return availabilityFromApiPayload(await response.json());

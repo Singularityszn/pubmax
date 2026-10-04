@@ -158,7 +158,7 @@ describe("same-origin social auth provider availability", () => {
     expect(fetchImpl).toHaveBeenCalledWith(
       SOCIAL_AUTH_PROVIDERS_PATH,
       expect.objectContaining({
-        credentials: "omit",
+        credentials: "same-origin",
         signal: expect.any(AbortSignal),
       }),
     );
@@ -181,7 +181,7 @@ describe("same-origin social auth provider availability", () => {
     });
     expect(fetchImpl).toHaveBeenCalledWith(
       `${SOCIAL_AUTH_PROVIDERS_PATH}?fresh=1`,
-      expect.objectContaining({ credentials: "omit" }),
+      expect.objectContaining({ credentials: "same-origin" }),
     );
   });
 
