@@ -1,6 +1,10 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isAskToolName } from "@/lib/ask/types";
+import {
+  PAL_RECALL_MEMORIES_TOOL,
+  recallPalMemoriesForConversation,
+} from "@/lib/palConfirmedMemories.server";
 import { assertPubPalLlmAuth } from "@/lib/pubPalLlmAuth";
 import {
   invokePubPalAskTool,
@@ -23,7 +27,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
   const { toolName } = await context.params;
   const normalized = toolName.trim();
-  if (!isAskToolName(normalized)) {
+  const recall = normalized === PAL_RECALL_MEMORIES_TOOL;
+  if (!recall && !isAskToolName(normalized)) {
     return publicApiError("That tool is not available.", "TOOL_NOT_ALLOWED", 404);
   }
 
@@ -51,6 +56,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       retryable: true,
     });
   }
+  if (recall) return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
   const outcome = await invokePubPalAskTool({
     toolName: normalized,
     args,

@@ -3,6 +3,11 @@ import "server-only";
 import { composeAnswer } from "@/lib/ask/runAsk";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
+import {
+  confirmedPalMemoriesFor,
+  palMemoryPreamble,
+  type PalRecalledMemory,
+} from "@/lib/palConfirmedMemories.server";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
@@ -49,11 +54,19 @@ async function priorOwnedAsks(threadId: unknown, ownerId: string): Promise<PubPa
     .slice(-6);
 }
 
-function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
-  if (priorAsks.length === 0) return query;
+/** The typed turn as the agent reads it: confirmed memories, earlier asks, then the ask itself. */
+function userMessageText(
+  query: string,
+  priorAsks: PubPalFenceTurn[],
+  memories: PalRecalledMemory[] = [],
+): string {
+  const preamble = palMemoryPreamble(memories);
+  if (priorAsks.length === 0 && preamble.length === 0) return query;
   return [
-    "My earlier asks in this chat, oldest first:",
-    ...priorAsks.map((turn) => `- ${turn.content}`),
+    ...preamble,
+    ...(priorAsks.length > 0
+      ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
+      : []),
     `Now: ${query}`,
   ].join("\n");
 }
@@ -139,6 +152,9 @@ export async function runPalElevenLabsChatTurn(
       toolsUsed: [],
     };
   }
+
+  // Read from the signed-in owner's own Pal, never from the request body.
+  const memories = await confirmedPalMemoriesFor(input.ownerId);
 
   let signedUrl: string;
   try {
@@ -282,7 +298,7 @@ export async function runPalElevenLabsChatTurn(
             });
             userMessageSent = true;
             ws.send(
-              JSON.stringify({ type: "user_message", text: userMessageText(query, turns) }),
+              JSON.stringify({ type: "user_message", text: userMessageText(query, turns, memories) }),
             );
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });

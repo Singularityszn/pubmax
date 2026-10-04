@@ -107,6 +107,11 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    event, a tool turn ends at the 22-second server deadline, which falls
    before the browser's 25-second abort, and returns the reply held under the
    same rule, or a timeout.
+   One more webhook, `recall_memories`, is Pal-only. It returns the memories the
+   person confirmed or corrected (never `completed_plan` rows) for the account
+   that opened the conversation, read from the server-side conversation binding
+   and never from the request body. Typed chat puts the same lines ahead of the
+   ask on the server, so it does not need the tool.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.

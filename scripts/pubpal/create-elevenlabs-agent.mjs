@@ -47,7 +47,7 @@ const LLM_SECRET_NAME = "PUBMAXX_PUB_PAL_LLM_SECRET";
 const AGENT_NAME = "PUBMAXX Pub Pal";
 const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 
-/** Short descriptions aligned with lib/ask/tools.ts allowlist. */
+/** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only recall tool. */
 const TOOL_DESCRIPTIONS = {
   search_venues:
     "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
@@ -74,6 +74,8 @@ const TOOL_DESCRIPTIONS = {
     "Places to sit and work from cafe, co-working and library rows only.",
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
+  recall_memories:
+    "Read the preferences this person confirmed for their Pal to remember. Read-only. Never facts about a pub.",
 };
 
 function loadDotEnv() {
@@ -132,6 +134,9 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   search_venues: {
     conversation_id: conversationIdProperty(),
     query: { type: "string", description: "The venue search ask." },
+  },
+  recall_memories: {
+    conversation_id: conversationIdProperty(),
   },
 };
 

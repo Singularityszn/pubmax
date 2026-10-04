@@ -151,6 +151,8 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
 }));
 
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "@/lib/pubPalStore";
 
 describe("runPalElevenLabsChatTurn", () => {
   beforeEach(() => {
@@ -240,6 +242,29 @@ describe("runPalElevenLabsChatTurn", () => {
       }),
     );
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("quiet pubs in Soho");
+  });
+
+  it("puts the owner's own confirmed memories ahead of the ask, and no one else's", async () => {
+    __resetPubPalStore();
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const strangerId = "22222222-2222-4222-8222-222222222222";
+    for (const [id, value] of [[ownerId, "Cask ale, no lager"], [strangerId, "Stranger's rooftop bars"]] as const) {
+      expect((await createPubPalResult(id, { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Morrow" })).ok).toBe(true);
+      expect((await confirmPalMemoryResult(id, { kind: "drink_preference", value })).ok).toBe(true);
+    }
+
+    const outcome = await runPalElevenLabsChatTurn({ query: "a pub in Soho tonight", ownerId });
+
+    expect(outcome.ok).toBe(true);
+    expect(wsState.userMessageText).toBe(
+      [
+        "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
+        "- Drinks: Cask ale, no lager",
+        "Now: a pub in Soho tonight",
+      ].join("\n"),
+    );
+    expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("Cask ale");
+    __resetPubPalStore();
   });
 
   it("keeps a fence from a browser-sent earlier ask that never reached the store", async () => {
