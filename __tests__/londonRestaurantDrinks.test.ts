@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -56,10 +57,53 @@ describe("London restaurant drinks evidence", () => {
     expect(statesRestaurantDrinks("Beer-battered cod, and a pint of lager to go with it", "Example")).toBe(true);
   });
 
+  it("does not read a dish, an ingredient list or an idiom that names a drink as a drink served", () => {
+    for (const line of [
+      "Prawn Cocktail",
+      "Joe's shrimp cocktail, tempura shrimp, brandy mayo",
+      "Tarboush Fruit Cocktail",
+      "Native Lobster Cocktail",
+      "Grilled beef patty, tomato, lettuce, pickles, coleslaw, and cocktail sauce",
+      "SAKE TERIYAKI",
+      "Sake x 3 pcs",
+      "strawberry grape, sake lees, white chocolate",
+      "Steamed Seabass £17.50 Add + Sake & soya ponzu",
+      "chives, yuzu, sake, soy",
+      "Champagne Pearl Vintage Cake",
+      "Haozhan Champagne Cod",
+      "BRAISED LEEKS, WHITE CRAB AND CHAMPAGNE VINAIGRETTE 14",
+      "1. Apple cider vinaigrette",
+      "Meatballs in a red wine & tomato sauce",
+      "Deep fried breaded olives with beef, pork and white wine filling.",
+      "Creamy Arborio rice simmered with fresh seafood, white wine and saffron.",
+      "Prawns, green peas, sun dried tomato, white wine and Italian herbs.",
+      "Mussels, cherry tomato, garlic, chilli, parsley & white wine with pizza dough crust",
+      "Feta, tomato sauce, white wine",
+      "Sauté new potatoes, spring onion, samphire, white wine cream sauce",
+      "Grilled whole trout in wine, capers, olives and tomato sauce served with vegetables",
+      "Sweetheart cabbage wok fried with garlic, fresh chilli and rice wine.",
+      "Virgin-Gin Mule",
+      "A place of abundance, high spirits and generosity.",
+      "Gan gin gan yuu – As you eat, so you are",
+      "The Whisky Experience at Kanishka",
+    ]) {
+      expect(statesRestaurantDrinks(line, "Example"), line).toBe(false);
+    }
+    expect(drinksEvidence("INGREDIENTS: RICE, EGGS, SOY SAUCE(WATER, SALT, SPIRITS, WHEAT), SESAME OIL", "Example")).toEqual({});
+    expect(drinksEvidence("Sauces: Hollandaise (1,4,7) Pepper (1,4,7,9) Red Wine (1,7,14)", "Example")).toEqual({});
+    expect(statesRestaurantDrinks("Oysters paired with wine, champagne and more", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("Prawn cocktail, and a glass of champagne", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("Free bottle of champagne & cake on us", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("Coffee, wine and cake all afternoon", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("Fresh sushi with a selection of sake or Japanese beer", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("The wine experience at Trattoria Example", "Trattoria Example")).toBe(true);
+  });
+
   it("settles a bring-your-own or no-alcohol restaurant as not pouring, whatever else the page says", () => {
     expect(drinksEvidence("Great curries and beers nearby.\nWe are BYOB - no corkage charge.", "Example")).toEqual({ refused: "We are BYOB - no corkage charge." });
     expect(drinksEvidence("Please note we do not serve alcohol on the premises.", "Example").refused).toBeTruthy();
     expect(drinksEvidence("No alcohol served to under 18s. Cocktails from 5pm.", "Example")).toEqual({ quote: "No alcohol served to under 18s. Cocktails from 5pm." });
+    expect(drinksEvidence("Our Baker Street branch does not offer alcoholic beverages. Guests may bring their own wine or spirits.", "Example").refused).toBeTruthy();
   });
 
   it("ignores copyright footers", () => {
@@ -90,6 +134,16 @@ describe("London restaurant drinks evidence", () => {
     expect(searchBindsSite(candidate, { url: "https://www.tripadvisor.co.uk/fenice", content: "W1D 4TQ" })).toBeNull();
   });
 
+  it("binds a street address only as whole words, so 1 High Street is not 221 or 11 High Street", () => {
+    const candidate = { name: "Trattoria Fenice", postcode: null, street: "High Street", housenumber: "1" };
+    const site = "https://www.trattoriafenice.co.uk/";
+    expect(searchBindsSite(candidate, { url: site, content: "Find us at 1 High Street, Barnet" })).toBe(site);
+    expect(searchBindsSite(candidate, { url: site, content: "1 High Street" })).toBe(site);
+    expect(searchBindsSite(candidate, { url: site, content: "Find us at 221 High Street, Acton" })).toBeNull();
+    expect(searchBindsSite(candidate, { url: site, content: "Find us at 11 High Street, Acton" })).toBeNull();
+    expect(searchBindsSite(candidate, { url: site, content: "Find us at 1 High Streetly Road" })).toBeNull();
+  });
+
   it("keeps OSM restaurants that state nothing about alcohol, and leaves out those that state it either way", () => {
     const element = (tags: Record<string, string>) => ({ type: "node", id: 7, lat: 51.51, lon: -0.13, tags: { amenity: "restaurant", name: "Fenice", ...tags } });
     expect(restaurantCandidate(element({ "addr:postcode": "W1D 4TQ", website: "https://fenice.co.uk" }), { statesAlcohol })).toMatchObject({ osmId: "node/7", postcode: "W1D 4TQ", website: "https://fenice.co.uk/" });
@@ -105,8 +159,20 @@ describe("London restaurant drinks evidence", () => {
     expect(check([row({ evidence: [{ ...row().evidence[0], robots: { outcome: "refused", checkedAt: observedAt } }] })])).not.toEqual([]);
     expect(check([row({ evidence: [{ ...row().evidence[0], observedAt: "yesterday" }] })])).not.toEqual([]);
     expect(check([row({ evidence: [{ ...row().evidence[0], excerpt: "Trattoria Example, Soho" }] })])).not.toEqual([]);
+    expect(check([row({ evidence: [{ ...row().evidence[0], excerpt: "Native Lobster Cocktail" }] })])).not.toEqual([]);
     expect(check([row({ lat: 53.48, lng: -2.24 })])).not.toEqual([]);
     expect(check([row(), row()])).toEqual(["node/101: repeated"]);
+  });
+
+  const overpassCache = path.join(process.cwd(), "data-harvest/london-restaurant-drinks/overpass.json");
+  it.skipIf(existsSync(overpassCache))("refuses a replay without the cached Overpass answer, and fetches and writes nothing", () => {
+    const evidencePath = path.join(process.cwd(), "data/london_restaurant_drinks/evidence.json");
+    const before = readFileSync(evidencePath, "utf8");
+    const run = spawnSync(process.execPath, ["scripts/harvest_london_restaurant_drinks.mjs", "--replay"], { cwd: process.cwd(), encoding: "utf8", timeout: 30_000 });
+    expect(run.status).not.toBe(0);
+    expect(run.stderr).toContain("--replay reads data-harvest/london-restaurant-drinks/overpass.json and it is missing");
+    expect(existsSync(overpassCache)).toBe(false);
+    expect(readFileSync(evidencePath, "utf8")).toBe(before);
   });
 
   it("the committed pack passes its own check", () => {

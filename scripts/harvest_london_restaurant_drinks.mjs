@@ -12,7 +12,7 @@
 // Run:
 //   node scripts/harvest_london_restaurant_drinks.mjs                 # spend, resume caches
 //   node scripts/harvest_london_restaurant_drinks.mjs --search-limit=0 # tagged sites only
-//   node scripts/harvest_london_restaurant_drinks.mjs --replay          # no network, rebuild from caches
+//   node scripts/harvest_london_restaurant_drinks.mjs --replay          # no network, rebuild from caches, refuse if one is missing
 //   node scripts/harvest_london_restaurant_drinks.mjs --check           # validate the committed pack
 //
 // TAVILY_API_KEY comes from the environment. The script never reads a key file.
@@ -51,17 +51,15 @@ const TAVILY_CREDIT_USD = 0.008;
 const CHARING_CROSS = { lat: 51.5073, lng: -0.1276 };
 
 function parseArgs(argv) {
-  const options = { replay: false, check: false, refreshOsm: false, searchLimit: Infinity, limit: Infinity, help: false };
+  const options = { replay: false, check: false, refreshOsm: false, searchLimit: Infinity, help: false };
   for (const arg of argv) {
     if (arg === "--replay") options.replay = true;
     else if (arg === "--check") options.check = true;
     else if (arg === "--refresh-osm") options.refreshOsm = true;
     else if (arg === "--help") options.help = true;
     else if (arg.startsWith("--search-limit=")) options.searchLimit = Number(arg.slice(15));
-    else if (arg.startsWith("--limit=")) options.limit = Number(arg.slice(8));
     else throw new Error(`Unknown argument ${arg}; run with --help`);
   }
-  if (!(options.limit > 0)) throw new Error("--limit takes a number of restaurants, 1 or more");
   if (!(options.searchLimit >= 0)) throw new Error("--search-limit takes a number of restaurants, 0 or more");
   return options;
 }
@@ -105,10 +103,11 @@ function distanceKm(a, b) {
   return Math.sqrt(x * x + y * y) * 6371;
 }
 
-async function osmRestaurants(refresh) {
+async function osmRestaurants({ refresh, spend }) {
   const file = path.join(RAW, "overpass.json");
   let raw = refresh ? null : await readJson(file);
   if (!raw) {
+    if (!spend) throw new Error(`--replay reads ${path.relative(ROOT, file)} and it is missing; run without --replay to fetch it`);
     const [south, west, north, east] = GREATER_LONDON_BBOX;
     raw = await fetchOverpass(`[out:json][timeout:180];\n(nwr["amenity"="restaurant"](${south},${west},${north},${east}););\nout center tags;`, { allowStale: true });
     await writeJson(file, raw);
@@ -357,16 +356,15 @@ async function check() {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("usage: node scripts/harvest_london_restaurant_drinks.mjs [--search-limit=<n>] [--limit=<n>] [--refresh-osm] [--replay] [--check]");
+    console.log("usage: node scripts/harvest_london_restaurant_drinks.mjs [--search-limit=<n>] [--refresh-osm] [--replay] [--check]");
     return;
   }
   if (options.check) return check();
 
   const spend = !options.replay;
   const tavily = tavilyClient(spend);
-  const osm = await osmRestaurants(options.refreshOsm && spend);
-  // --limit is a trial knob: the restaurants nearest the centre, nothing else.
-  const candidates = Number.isFinite(options.limit) ? [...osm.candidates].sort(nearestCentreFirst).slice(0, options.limit) : osm.candidates;
+  const osm = await osmRestaurants({ refresh: options.refreshOsm && spend, spend });
+  const { candidates } = osm;
   const counts = { osmRestaurants: osm.elements, candidates: candidates.length, siteFromOsm: 0, searched: 0, siteFromSearch: 0, noSite: 0, notSearched: 0,
     robotsRefused: 0, robotsSkipped: 0, unreadable: 0, landedOffSite: 0, refusesAlcohol: 0, noEvidence: 0, pending: 0, accepted: 0 };
 
@@ -374,7 +372,12 @@ async function main() {
   const byId = new Map(candidates.map((candidate) => [candidate.osmId, candidate]));
   const state = await readSites(sites, byId, tavily, robotsAsker(spend));
   const rows = publishedRows(state, byId, counts);
-  if (counts.pending && spend) console.warn(`${counts.pending} restaurant(s) still pending a read; rerun to resume.`);
+  // A replay answers only from the caches; one that leaves a restaurant
+  // pending is missing some of them and must not replace the committed pack.
+  if (counts.pending && !spend) {
+    throw new Error(`--replay left ${counts.pending} restaurant(s) pending: their cached search, robots answer or page read is missing (or --search-limit differs from the run that cached them). Nothing was written.`);
+  }
+  if (counts.pending) console.warn(`${counts.pending} restaurant(s) still pending a read; rerun to resume.`);
   const spent = await writeOutputs({ rows, osmBase: osm.osmBase, counts, searchLimit: options.searchLimit, usage: tavily.usage });
   console.log(JSON.stringify({ counts, lastRunTavily: spent }, null, 2));
 }

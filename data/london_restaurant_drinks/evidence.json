@@ -172,27 +172,6 @@
       ]
     },
     {
-      "osmId": "node/259569252",
-      "kind": "restaurant",
-      "name": "Goya",
-      "address": "34, Lupus Street, London, SW1V 3EB",
-      "lat": 51.4884009,
-      "lng": -0.1374885,
-      "website": "https://www.goyarestaurant.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://www.goyarestaurant.co.uk/menu",
-          "excerpt": "Meatballs in a red wine & tomato sauce",
-          "observedAt": "2026-10-04T22:31:39.249Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:30:00.449Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/259774384",
       "kind": "restaurant",
       "name": "Sketch",
@@ -692,27 +671,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:09:40.238Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/317291386",
-      "kind": "restaurant",
-      "name": "Busaba",
-      "address": "22, Store Street, London, WC1E 7DF",
-      "lat": 51.5195455,
-      "lng": -0.1325118,
-      "website": "https://www.busaba.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.busaba.com/",
-          "excerpt": "Gan gin gan yuu – As you eat, so you are",
-          "observedAt": "2026-10-04T22:22:48.111Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:09:40.528Z"
           }
         }
       ]
@@ -1411,27 +1369,6 @@
       ]
     },
     {
-      "osmId": "node/522089531",
-      "kind": "restaurant",
-      "name": "Sorrento",
-      "address": "376, Norwood Road, London, SE27 9AA",
-      "lat": 51.4338129,
-      "lng": -0.103872,
-      "website": "https://sorrento-norwood.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://sorrento-norwood.com/menu/",
-          "excerpt": "Deep fried breaded olives with beef, pork and white wine filling.",
-          "observedAt": "2026-10-04T22:31:35.492Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.457Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/522091448",
       "kind": "restaurant",
       "name": "Four Hundred Rabbits",
@@ -1978,27 +1915,6 @@
       ]
     },
     {
-      "osmId": "node/690719946",
-      "kind": "restaurant",
-      "name": "Kiku",
-      "address": "17, Half Moon Street, London, W1J 7BE",
-      "lat": 51.5067293,
-      "lng": -0.1456606,
-      "website": "https://www.kikurestaurant.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.kikurestaurant.co.uk/",
-          "excerpt": "SAKE TERIYAKI",
-          "observedAt": "2026-10-04T22:23:15.255Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:10:16.242Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/691728906",
       "kind": "restaurant",
       "name": "Akoko",
@@ -2104,27 +2020,6 @@
       ]
     },
     {
-      "osmId": "node/751822960",
-      "kind": "restaurant",
-      "name": "Cafe Amisha",
-      "address": "161, Grange Road, London, SE1 3GH",
-      "lat": 51.4952172,
-      "lng": -0.0767401,
-      "website": "https://cafeamisha.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://cafeamisha.com/",
-          "excerpt": "Creamy Arborio rice simmered with fresh seafood, white wine and saffron for an authentic taste of the Italian coast.",
-          "observedAt": "2026-10-04T22:23:19.321Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:10:24.938Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/796777946",
       "kind": "restaurant",
       "name": "The Lampery",
@@ -2183,27 +2078,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:10:27.485Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/821344571",
-      "kind": "restaurant",
-      "name": "MotherMash",
-      "address": "4, New Row, London, WC2N 4LH",
-      "lat": 51.5110319,
-      "lng": -0.1264246,
-      "website": "https://www.mothermash.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.mothermash.co.uk/menu",
-          "excerpt": "Chicken, garlic with white wine",
-          "observedAt": "2026-10-04T22:31:42.024Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.460Z"
           }
         }
       ]
@@ -2666,27 +2540,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:10:55.541Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/1314925493",
-      "kind": "restaurant",
-      "name": "500 Degrees",
-      "address": "71, Clapham Common South Side, London, SW4 9DA",
-      "lat": 51.4561149,
-      "lng": -0.1439833,
-      "website": "https://500degreesbrixton.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://500degreesbrixton.co.uk/",
-          "excerpt": "Extra virgin olive oil, touch of garlic, prawns, green peas, sun dried tomato, white wine and Italian herbs.",
-          "observedAt": "2026-10-04T22:23:47.191Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:10:58.777Z"
           }
         }
       ]
@@ -3658,27 +3511,6 @@
       ]
     },
     {
-      "osmId": "node/2627120349",
-      "kind": "restaurant",
-      "name": "Kokoro",
-      "address": "162, High Street, Sutton, SM1 1LX",
-      "lat": 51.3647761,
-      "lng": -0.1935663,
-      "website": "https://kokorouk.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://kokorouk.com/menu?cate=hearty-bowl",
-          "excerpt": "INGREDIENTS: RICE, EGGS, SPRING ONION, VEGETABLE OIL, SOY SAUCE(WATER, DEFATTED SOYBEAN, HIGH FRUCTOSE CORN SYRUP, SALT, SPIRITS, WHEAT, SODIUM BENZOATE, YEAST EXTRACT), BLACK PEPPER, SALT, SESAME OIL(SOYBEAN OIL, SESAME OIL )",
-          "observedAt": "2026-10-04T22:31:43.335Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.466Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/2642857004",
       "kind": "restaurant",
       "name": "Brasserie Blanc",
@@ -4372,27 +4204,6 @@
       ]
     },
     {
-      "osmId": "node/3378994793",
-      "kind": "restaurant",
-      "name": "Roti King",
-      "address": "40, Doric Way, London, NW1 1LH",
-      "lat": 51.5290041,
-      "lng": -0.132048,
-      "website": "https://rotiking.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://rotiking.com/food-drink",
-          "excerpt": "Please note that our Euston restaurant does not sell alcoholic drinks.",
-          "observedAt": "2026-10-04T22:31:47.719Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.471Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/3384439952",
       "kind": "restaurant",
       "name": "Nando's",
@@ -4598,27 +4409,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:12:04.462Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/3782252275",
-      "kind": "restaurant",
-      "name": "Little Napoli",
-      "address": "428, Uxbridge Road, London, W12 0NR",
-      "lat": 51.5065481,
-      "lng": -0.2382142,
-      "website": "https://littlenapoli.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://littlenapoli.co.uk/wp-content/uploads/2026/06/Little-Napoli-A3-June-2026.pdf",
-          "excerpt": "Black Truﬄe & Porcini Risotto 19.95 Creamy Arborio rice cooked with porcini and wild mushrooms, white wine, and Parmesan, ﬁnished with black truﬄe shavings, fresh parsley, and a touch of truﬄe oil.",
-          "observedAt": "2026-10-04T22:31:47.719Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.473Z"
           }
         }
       ]
@@ -5779,27 +5569,6 @@
       ]
     },
     {
-      "osmId": "node/4778412049",
-      "kind": "restaurant",
-      "name": "Joe Allen",
-      "address": "2, Burleigh Street, London, WC2E 7PX",
-      "lat": 51.5111264,
-      "lng": -0.1204476,
-      "website": "https://www.joeallen.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://www.joeallen.co.uk/menu",
-          "excerpt": "Joe's shrimp cocktail, tempura shrimp, brandy mayo",
-          "observedAt": "2026-10-04T22:32:49.701Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:48.876Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/4784656734",
       "kind": "restaurant",
       "name": "Butlers Wharf Chop House",
@@ -6451,48 +6220,6 @@
       ]
     },
     {
-      "osmId": "node/5575643421",
-      "kind": "restaurant",
-      "name": "Tarboush",
-      "address": "57, Market Street, Watford, WD18 0PR",
-      "lat": 51.6542718,
-      "lng": -0.3991818,
-      "website": "https://tarboushwatford.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://tarboushwatford.co.uk/restaurant-menu/",
-          "excerpt": "Tarboush Fruit Cocktail",
-          "observedAt": "2026-10-04T22:31:57.287Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.484Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/5577635550",
-      "kind": "restaurant",
-      "name": "Mother Mash",
-      "address": "26, Ganton Street, London, W1F 7QZ",
-      "lat": 51.5129198,
-      "lng": -0.1393343,
-      "website": "https://www.mothermash.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.mothermash.co.uk/menu",
-          "excerpt": "Chicken, garlic with white wine",
-          "observedAt": "2026-10-04T22:31:42.024Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.460Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/5579276529",
       "kind": "restaurant",
       "name": "The Good Front Room",
@@ -6908,27 +6635,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:28.484Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/5961454998",
-      "kind": "restaurant",
-      "name": "Yida Sushi",
-      "address": "246, St Paul's Road, London, N1 2LJ",
-      "lat": 51.546702,
-      "lng": -0.0993061,
-      "website": "https://yidasushi.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://yidasushi.co.uk/menu",
-          "excerpt": "Steamed Seabass£17.50Add +Sake & soya ponzu",
-          "observedAt": "2026-10-04T22:31:57.287Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.485Z"
           }
         }
       ]
@@ -9769,27 +9475,6 @@
       ]
     },
     {
-      "osmId": "node/9459156175",
-      "kind": "restaurant",
-      "name": "Oslo Court",
-      "address": "Charlbert Street, London, NW8 7EN",
-      "lat": 51.5332722,
-      "lng": -0.1671444,
-      "website": "https://oslocourtrestaurant.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://oslocourtrestaurant.co.uk/",
-          "excerpt": "Native Lobster Cocktail",
-          "observedAt": "2026-10-04T22:27:16.800Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:16:11.398Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/9503581183",
       "kind": "restaurant",
       "name": "Da Shack",
@@ -9937,27 +9622,6 @@
       ]
     },
     {
-      "osmId": "node/9631126808",
-      "kind": "restaurant",
-      "name": "Hala Garden",
-      "address": "50, Hanworth Road, Hounslow, TW3 1UF",
-      "lat": 51.4686938,
-      "lng": -0.3591884,
-      "website": "http://mawalgarden.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "http://mawalgarden.co.uk/menu-cat/drinks",
-          "excerpt": "Fruit Cocktail juice",
-          "observedAt": "2026-10-04T22:32:21.803Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.707Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/9678562673",
       "kind": "restaurant",
       "name": "Daffodil Mulligan",
@@ -9974,27 +9638,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:16:13.548Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/9735194430",
-      "kind": "restaurant",
-      "name": "Indian Essence",
-      "address": "176-178, Petts Wood Road, Orpington, BR5 1LG",
-      "lat": 51.3904842,
-      "lng": 0.0755874,
-      "website": "https://indianessence.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://indianessence.co.uk/",
-          "excerpt": "The Whisky Experience at Kanishka",
-          "observedAt": "2026-10-04T22:27:21.794Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:16:14.377Z"
           }
         }
       ]
@@ -10100,27 +9743,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:16:16.162Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/9846743610",
-      "kind": "restaurant",
-      "name": "Roti King",
-      "address": "16, Arches Lane, London, SW11 8AB",
-      "lat": 51.4826435,
-      "lng": -0.1469994,
-      "website": "https://rotiking.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://rotiking.com/food-drink",
-          "excerpt": "Please note that our Euston restaurant does not sell alcoholic drinks.",
-          "observedAt": "2026-10-04T22:31:47.719Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.471Z"
           }
         }
       ]
@@ -10819,27 +10441,6 @@
       ]
     },
     {
-      "osmId": "node/10982837028",
-      "kind": "restaurant",
-      "name": "The Salad Project",
-      "address": "1, Old Broad Street, London, EC2N 1DW",
-      "lat": 51.5142644,
-      "lng": -0.0860159,
-      "website": "https://www.saladproject.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.saladproject.co.uk/",
-          "excerpt": "1. Apple cider vinaigrette",
-          "observedAt": "2026-10-04T22:27:45.699Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:16:42.184Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/10983693860",
       "kind": "restaurant",
       "name": "Taro",
@@ -11260,27 +10861,6 @@
       ]
     },
     {
-      "osmId": "node/11673171657",
-      "kind": "restaurant",
-      "name": "Vapiano",
-      "address": "50, Eastbourne Terrace, London, W2 6LG",
-      "lat": 51.5151797,
-      "lng": -0.1766834,
-      "website": "https://uk.vapiano.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://uk.vapiano.com/menu/",
-          "excerpt": "Classic beef lasagna, made with red wine & Italian tomato sauce",
-          "observedAt": "2026-10-04T22:32:25.555Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.735Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/11708224569",
       "kind": "restaurant",
       "name": "Kitchen Table",
@@ -11360,27 +10940,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:16:57.058Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/11822802969",
-      "kind": "restaurant",
-      "name": "Roti King",
-      "address": "97, Lower Marsh, London, SE1 7AB",
-      "lat": 51.5013569,
-      "lng": -0.111818,
-      "website": "https://rotiking.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://rotiking.com/food-drink",
-          "excerpt": "Please note that our Euston restaurant does not sell alcoholic drinks.",
-          "observedAt": "2026-10-04T22:31:47.719Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.471Z"
           }
         }
       ]
@@ -11911,27 +11470,6 @@
       ]
     },
     {
-      "osmId": "node/12532111157",
-      "kind": "restaurant",
-      "name": "Cake Box",
-      "address": "483, Norwood Road, London, SE27 9DJ",
-      "lat": 51.4359056,
-      "lng": -0.1041366,
-      "website": "https://www.cakebox.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.cakebox.com/",
-          "excerpt": "Champagne Pearl Vintage Cake",
-          "observedAt": "2026-10-04T22:28:12.891Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:17:17.463Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/12534891851",
       "kind": "restaurant",
       "name": "Bobo Social",
@@ -12032,27 +11570,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:17:19.176Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/12607702665",
-      "kind": "restaurant",
-      "name": "Roti King",
-      "address": "6, Artillery Lane, London, E1 7LS",
-      "lat": 51.5183819,
-      "lng": -0.0789866,
-      "website": "https://rotiking.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://rotiking.com/food-drink",
-          "excerpt": "Please note that our Euston restaurant does not sell alcoholic drinks.",
-          "observedAt": "2026-10-04T22:31:47.719Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.471Z"
           }
         }
       ]
@@ -12247,27 +11764,6 @@
       ]
     },
     {
-      "osmId": "node/12677622201",
-      "kind": "restaurant",
-      "name": "Ambassador's Clubhouse",
-      "address": "25, Heddon Street, London, W1B 4BH",
-      "lat": 51.5110986,
-      "lng": -0.1397758,
-      "website": "https://ambassadorsclubhouse.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://ambassadorsclubhouse.com/",
-          "excerpt": "A place of abundance, high spirits and generosity.",
-          "observedAt": "2026-10-04T22:28:23.048Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:17:27.496Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/12712976283",
       "kind": "restaurant",
       "name": "Bone Daddies",
@@ -12410,27 +11906,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:17:31.244Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/12878824642",
-      "kind": "restaurant",
-      "name": "Cappadocia",
-      "address": "64, High Street, Walton-on-Thames, KT12 1BU",
-      "lat": 51.3839833,
-      "lng": -0.4173545,
-      "website": "https://cappadociawalton.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://cappadociawalton.co.uk/",
-          "excerpt": "Diced fillet of Scottish beef cooked in red wine (optional) in a clay hot pot with fresh herbs, mushrooms, shallots & parsnips served with rice flamed at your table (Allow 15-20 min waiting time).",
-          "observedAt": "2026-10-04T22:28:22.962Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:17:31.226Z"
           }
         }
       ]
@@ -13066,27 +12541,6 @@
       ]
     },
     {
-      "osmId": "node/13522407804",
-      "kind": "restaurant",
-      "name": "Masalchi by Atul Kochhar",
-      "address": "2, Wembley Park Boulevard, Wembley, HA9 0HP",
-      "lat": 51.5583839,
-      "lng": -0.2803695,
-      "website": "https://masalchi.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://masalchi.co.uk/",
-          "excerpt": "The Whisky Experience at Kanishka",
-          "observedAt": "2026-10-04T22:28:35.837Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:17:44.046Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/13522407806",
       "kind": "restaurant",
       "name": "Estadio Lounge",
@@ -13192,27 +12646,6 @@
       ]
     },
     {
-      "osmId": "node/13550924174",
-      "kind": "restaurant",
-      "name": "馥园 Haozhan",
-      "address": "8, Gerrard Street, London, W1D 5PJ",
-      "lat": 51.5120579,
-      "lng": -0.1305923,
-      "website": "https://haozhanchinatown.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://haozhanchinatown.co.uk",
-          "excerpt": "Haozhan Champagne Cod",
-          "observedAt": "2026-10-04T22:31:31.469Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:29:54.125Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/13550924184",
       "kind": "restaurant",
       "name": "Royal Dragon",
@@ -13250,27 +12683,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:17:44.599Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/13564039701",
-      "kind": "restaurant",
-      "name": "Upstairs",
-      "address": "4, The Polygon, London, SW4 0JG",
-      "lat": 51.4634965,
-      "lng": -0.1414404,
-      "website": "https://trinity-upstairs.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://trinity-upstairs.co.uk/",
-          "excerpt": "BRAISED LEEKS, WHITE CRAB AND CHAMPAGNE VINAIGRETTE 14",
-          "observedAt": "2026-10-04T22:28:38.276Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:17:45.783Z"
           }
         }
       ]
@@ -14032,27 +13444,6 @@
       ]
     },
     {
-      "osmId": "node/14103931712",
-      "kind": "restaurant",
-      "name": "Tala",
-      "address": "397, North End Road, London, SW6 1NR",
-      "lat": 51.4831128,
-      "lng": -0.2005441,
-      "website": "https://www.talafastfood.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.talafastfood.co.uk/",
-          "excerpt": "Grilled beef patty, tomato, lettuce, pickles, coleslaw, and cocktail sauce",
-          "observedAt": "2026-10-04T22:28:55.614Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:17:55.824Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/14116168339",
       "kind": "restaurant",
       "name": "Yatri",
@@ -14489,27 +13880,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:18:05.420Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/31305421",
-      "kind": "restaurant",
-      "name": "Hainan House",
-      "address": "88, Upper Street, London, N1 0NP",
-      "lat": 51.5369887,
-      "lng": -0.1034347,
-      "website": "https://www.hainanhouse.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://www.hainanhouse.co.uk/_files/ugd/bc3024_1a5efd57f6534d36922ce860ef406577.pdf",
-          "excerpt": "炒包菜 Wok Fried Cabbage Sweetheart cabbage wok fried with garlic, fresh chilli and rice wine. 炒四季豆 Wok Fried Green Bean Crunchy green beans wok fried with dried shrimp and fermented black bean sauce.",
-          "observedAt": "2026-10-04T22:33:00.406Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:48.901Z"
           }
         }
       ]
@@ -15439,27 +14809,6 @@
       ]
     },
     {
-      "osmId": "way/146986825",
-      "kind": "restaurant",
-      "name": "Apulia",
-      "address": "50, Long Lane, London, EC1A 9EJ",
-      "lat": 51.5189554,
-      "lng": -0.1003985,
-      "website": "https://apuliarestaurant.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://apuliarestaurant.co.uk",
-          "excerpt": "Salted biscuits made with wine and extra-virgin olive oil",
-          "observedAt": "2026-10-04T22:31:39.862Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:30:00.954Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/147098337",
       "kind": "restaurant",
       "name": "Pho",
@@ -15476,27 +14825,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:13:40.270Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/148008532",
-      "kind": "restaurant",
-      "name": "Royal China Club",
-      "address": "40-42, Baker Street, London",
-      "lat": 51.5183521,
-      "lng": -0.1554869,
-      "website": "https://www.royalchinagroup.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://www.royalchinagroup.co.uk/menus",
-          "excerpt": "Please note that our Baker Street branch does not offer alcoholic beverages. Guests are welcome to bring their own wine or spirits, with corkage fees applicable.",
-          "observedAt": "2026-10-04T22:32:56.128Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:48.893Z"
           }
         }
       ]
@@ -15733,27 +15061,6 @@
       ]
     },
     {
-      "osmId": "way/157779712",
-      "kind": "restaurant",
-      "name": "Busaba",
-      "address": "",
-      "lat": 51.5138475,
-      "lng": -0.1340603,
-      "website": "https://busaba.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://busaba.com/",
-          "excerpt": "Gan gin gan yuu – As you eat, so you are",
-          "observedAt": "2026-10-04T22:29:25.281Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:28.653Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/159922585",
       "kind": "restaurant",
       "name": "Enoteca da Luca",
@@ -15859,27 +15166,6 @@
       ]
     },
     {
-      "osmId": "way/161642833",
-      "kind": "restaurant",
-      "name": "Sushimania",
-      "address": "1257, High Road, London, N20 0EW",
-      "lat": 51.6300179,
-      "lng": -0.1752711,
-      "website": "https://sushimania.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://sushimania.co.uk/menu",
-          "excerpt": "Sake x 3 pcs",
-          "observedAt": "2026-10-04T22:32:34.724Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.762Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/163034468",
       "kind": "restaurant",
       "name": "Street Burger",
@@ -15980,27 +15266,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:18:31.209Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/163923530",
-      "kind": "restaurant",
-      "name": "Hanoi Pho 21",
-      "address": "56, Paul Street, London",
-      "lat": 51.5241026,
-      "lng": -0.0840279,
-      "website": "https://www.hanoipho21.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.hanoipho21.com/",
-          "excerpt": "Tender stewed beef in aromatic broth. Ingredients: Stewed beef, Red Wine, Onions, Spices, Broth, tomato, rice noodles, Herbs, vegetables",
-          "observedAt": "2026-10-04T22:29:25.281Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:31.336Z"
           }
         }
       ]
@@ -16552,48 +15817,6 @@
       ]
     },
     {
-      "osmId": "way/217965546",
-      "kind": "restaurant",
-      "name": "Amjadia",
-      "address": "15, Picton Place, London, W1U 1BW",
-      "lat": 51.5152256,
-      "lng": -0.1511287,
-      "website": "https://amjadia.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://amjadia.co.uk/our-menu/",
-          "excerpt": "Prawn Cocktail",
-          "observedAt": "2026-10-04T22:32:34.724Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.935Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/219055840",
-      "kind": "restaurant",
-      "name": "Ukai",
-      "address": "240, Portobello Road, London, W11 1QR",
-      "lat": 51.5176786,
-      "lng": -0.2061984,
-      "website": "http://ukai.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "http://ukai.co.uk/",
-          "excerpt": "chives, yuzu, sake, soy",
-          "observedAt": "2026-10-04T22:29:41.894Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:46.704Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/224040342",
       "kind": "restaurant",
       "name": "Cilicia",
@@ -16967,48 +16190,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:28.901Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/279088483",
-      "kind": "restaurant",
-      "name": "Tigermilk",
-      "address": "127, Charing Cross Road, London, WC2H 0EW",
-      "lat": 51.515211,
-      "lng": -0.1302896,
-      "website": "https://tigermilkrestaurants.com/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://tigermilkrestaurants.com/en/restaurants/london",
-          "excerpt": "Virgin-Gin Mule",
-          "observedAt": "2026-10-04T22:31:30.512Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:29:55.388Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/279541970",
-      "kind": "restaurant",
-      "name": "Suvlaki",
-      "address": "21, Bateman Street, London, W1D 3AL",
-      "lat": 51.514239,
-      "lng": -0.1314009,
-      "website": "https://www.suvlaki.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://www.suvlaki.co.uk",
-          "excerpt": "Feta, tomato sauce, white wine",
-          "observedAt": "2026-10-04T22:31:30.512Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:29:55.325Z"
           }
         }
       ]
@@ -17875,27 +17056,6 @@
       ]
     },
     {
-      "osmId": "way/367087931",
-      "kind": "restaurant",
-      "name": "Zonzo",
-      "address": "342, Edgware Road, London, W2 1EA",
-      "lat": 51.5210664,
-      "lng": -0.1711798,
-      "website": "https://zonzorestaurant.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://zonzorestaurant.com/",
-          "excerpt": "PAN STIR CHICKEN BREAST WITH WHITE WINE,",
-          "observedAt": "2026-10-04T22:30:18.774Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:19:41.771Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/369251666",
       "kind": "restaurant",
       "name": "28°-50° Wine Workshop & Kitchen",
@@ -18148,27 +17308,6 @@
       ]
     },
     {
-      "osmId": "way/431995382",
-      "kind": "restaurant",
-      "name": "Kokoro",
-      "address": "32, The Quadrant, Richmond, TW9 1DN",
-      "lat": 51.4623751,
-      "lng": -0.3024796,
-      "website": "https://kokorouk.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://kokorouk.com/menu?cate=hearty-bowl",
-          "excerpt": "INGREDIENTS: RICE, EGGS, SPRING ONION, VEGETABLE OIL, SOY SAUCE(WATER, DEFATTED SOYBEAN, HIGH FRUCTOSE CORN SYRUP, SALT, SPIRITS, WHEAT, SODIUM BENZOATE, YEAST EXTRACT), BLACK PEPPER, SALT, SESAME OIL(SOYBEAN OIL, SESAME OIL )",
-          "observedAt": "2026-10-04T22:31:43.335Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.466Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/432267482",
       "kind": "restaurant",
       "name": "Zizzi",
@@ -18332,27 +17471,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:30:00.129Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/441808902",
-      "kind": "restaurant",
-      "name": "Kokoro",
-      "address": "6, Victoria Road, Surbiton, KT6 4JU",
-      "lat": 51.3929821,
-      "lng": -0.3051682,
-      "website": "https://kokorouk.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://kokorouk.com/menu?cate=hearty-bowl",
-          "excerpt": "INGREDIENTS: RICE, EGGS, SPRING ONION, VEGETABLE OIL, SOY SAUCE(WATER, DEFATTED SOYBEAN, HIGH FRUCTOSE CORN SYRUP, SALT, SPIRITS, WHEAT, SODIUM BENZOATE, YEAST EXTRACT), BLACK PEPPER, SALT, SESAME OIL(SOYBEAN OIL, SESAME OIL )",
-          "observedAt": "2026-10-04T22:31:43.335Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.466Z"
           }
         }
       ]
@@ -18778,48 +17896,6 @@
       ]
     },
     {
-      "osmId": "way/488955510",
-      "kind": "restaurant",
-      "name": "La Fiamma Ristorante Italiano",
-      "address": "Hampton Court Road, East Molesey, KT8 9BY",
-      "lat": 51.4069076,
-      "lng": -0.3385373,
-      "website": "http://www.lafiamma.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "http://www.lafiamma.co.uk/",
-          "excerpt": "Pan-fried tiger prawns with garlic and white wine, served in a bed of leaves.",
-          "observedAt": "2026-10-04T22:30:37.676Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:19:59.727Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/501692147",
-      "kind": "restaurant",
-      "name": "Masons Bar & Restaurant",
-      "address": "155-157, Ingrave Road, Brentwood, CM13 2AA",
-      "lat": 51.6123303,
-      "lng": 0.319953,
-      "website": "https://masonsrestaurant.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://masonsrestaurant.co.uk/",
-          "excerpt": "Sauté new potatoes, spring onion, samphire, white wine cream sauce",
-          "observedAt": "2026-10-04T22:30:37.676Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:19:57.978Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/502509276",
       "kind": "restaurant",
       "name": "Le Café du Marché",
@@ -19130,27 +18206,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:48.887Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/552690191",
-      "kind": "restaurant",
-      "name": "Il Castelletto",
-      "address": "17, Bury Place, London, WC1A 2JB",
-      "lat": 51.5183785,
-      "lng": -0.1244617,
-      "website": "https://www.ilcastelletto.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://www.ilcastelletto.co.uk/our-menu-mixed",
-          "excerpt": "Grilled whole trout in wine, capers, olives and tomato sauce served with vegetables",
-          "observedAt": "2026-10-04T22:31:34.095Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:29:56.654Z"
           }
         }
       ]
@@ -19660,27 +18715,6 @@
       ]
     },
     {
-      "osmId": "way/737910744",
-      "kind": "restaurant",
-      "name": "San Marco",
-      "address": "10, London Street, London, W2 1HL",
-      "lat": 51.5154348,
-      "lng": -0.1744925,
-      "website": "https://sanmarcorestaurantlondon.com/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://sanmarcorestaurantlondon.com",
-          "excerpt": "Avocado filled with prawns & topped with cocktail sauce",
-          "observedAt": "2026-10-04T22:31:41.523Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:30:04.826Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/744654196",
       "kind": "restaurant",
       "name": "E3 Vegan",
@@ -19844,27 +18878,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:20:29.205Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/801736111",
-      "kind": "restaurant",
-      "name": "Grill off the Green",
-      "address": "10B, Kew Green, Richmond, TW9 3BH",
-      "lat": 51.4834398,
-      "lng": -0.2861587,
-      "website": "https://grilloffthegreen.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://grilloffthegreen.com/",
-          "excerpt": "Sauces: 3 Hollandaise (1,4,7,14) Bearnaise (1,4,7,14) Pepper (1,4,7,9,14) Red Wine (1,7,14) Chimmichurri (1,7)",
-          "observedAt": "2026-10-04T22:30:56.773Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:20:29.489Z"
           }
         }
       ]
@@ -20369,27 +19382,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:20:43.377Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/962703067",
-      "kind": "restaurant",
-      "name": "Casa Fofò",
-      "address": "158, Sandringham Road, London, E8 2HS",
-      "lat": 51.5499295,
-      "lng": -0.0641736,
-      "website": "https://www.casafofolondon.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.casafofolondon.co.uk/",
-          "excerpt": "strawberry grape, sake lees, white chocolate",
-          "observedAt": "2026-10-04T22:31:08.824Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:20:45.253Z"
           }
         }
       ]
@@ -21167,27 +20159,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:21:07.355Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/1334006359",
-      "kind": "restaurant",
-      "name": "Figo Brentwood",
-      "address": "92, High Street, Brentwood, CM14 4AP",
-      "lat": 51.6195686,
-      "lng": 0.2993809,
-      "website": "https://figorestaurant.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://figorestaurant.co.uk/menu-brentwood/",
-          "excerpt": "Mussels, cherry tomato, garlic, chilli, parsley & white wine with pizza dough crust",
-          "observedAt": "2026-10-04T22:31:27.466Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:21:07.219Z"
           }
         }
       ]

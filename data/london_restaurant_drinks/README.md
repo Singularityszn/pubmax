@@ -71,6 +71,10 @@ the ignored `data-harvest/london-restaurant-drinks/`, so a failed run resumes.
 A Tavily rate limit that outlasts eight retries leaves that restaurant
 `pending` for the next run. `--search-limit` caps how many untagged restaurants
 are searched, nearest Charing Cross first. `--refresh-osm` asks Overpass again.
+`--replay` never fetches: it refuses to start without the cached Overpass
+answer, and it refuses to write when a restaurant ends `pending` because a
+cached search, robots answer or page read is missing. Replay with the
+`--search-limit` of the run that filled the caches.
 
 `report.json` records the last run's outcome counts and Tavily spend, and the
 running total of every run's spend. Tavily is costed at $0.008 a credit; the
@@ -83,11 +87,20 @@ The 4 October 2026 run read 9,801 OSM restaurants in the Greater London box.
 1,500 nearest Charing Cross were searched and 312 sites were bound; the other
 3,980 were not searched.
 
-Of the 4,261 sites, 1,018 restaurants state alcohol on their own site and are
-published (1,016 are new to the London layer; OSM already shipped 2). 47 sites
-say they do not serve alcohol. 2,029 sites were read and state nothing. 229
-were refused by robots, 524 could not reach robots, and 414 Tavily could not
-read.
+Of the 4,261 sites, that run accepted 1,018 restaurants as stating alcohol on
+their own site. 47 sites said they do not serve alcohol. 2,029 sites were read
+and stated nothing. 229 were refused by robots, 524 could not reach robots, and
+414 Tavily could not read.
+
+The classifier was then tightened so a dish, an ingredient list or an idiom
+that names a drink is not evidence: a prawn or fruit cocktail, cocktail sauce,
+champagne cod, a cider vinaigrette, white wine and saffron, sake meaning salmon,
+"high spirits", and a line that says a branch does not sell alcohol. The 49
+committed rows whose quote failed the tightened check were removed without a
+new read, so `evidence.json` holds 969 restaurants (967 are new to the London
+layer; OSM already shipped 2). `report.json` still holds that run's counts,
+including its 1,018 accepted; the next run that reads the pages again replaces
+them.
 
 `report.json` counts 1,997 Tavily credits. The first full run stopped on a
 rate limit before writing its report, so its 146 searches (about 146 credits)

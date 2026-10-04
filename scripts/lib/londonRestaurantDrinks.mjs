@@ -40,12 +40,14 @@ export function taggedOwnSite(website) {
 const POSTCODE = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/gi;
 const compactPostcode = (value) => String(value ?? "").toUpperCase().replace(/\s+/g, "");
 const fold = (value) => String(value ?? "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * A search result binds a restaurant's own site only when its host carries a
  * distinctive word of the name (the shared own-site rule) and its text states
- * this restaurant's postcode, or its house number and street. Two restaurants
- * with one name stay apart that way.
+ * this restaurant's postcode, or its house number and street as whole words,
+ * so 1 High Street is not 221 High Street. Two restaurants with one name stay
+ * apart that way.
  */
 export function searchBindsSite(candidate, result) {
   if (!allowedEvidenceUrl(result?.url) || NOT_OWN_SITE.test(hostOf(result.url))) return null;
@@ -54,8 +56,10 @@ export function searchBindsSite(candidate, result) {
   const text = `${result.title ?? ""}\n${result.content ?? ""}\n${result.raw_content ?? ""}`;
   const postcode = compactPostcode(candidate.postcode);
   const statedPostcodes = (text.match(POSTCODE) ?? []).map(compactPostcode);
-  const street = candidate.street && candidate.housenumber ? fold(`${candidate.housenumber} ${candidate.street}`) : null;
-  const bound = (postcode && statedPostcodes.includes(postcode)) || (street && fold(text).includes(street));
+  const street = candidate.street && candidate.housenumber
+    ? new RegExp(`(?:^|[^0-9a-z])${escapeRegExp(fold(`${candidate.housenumber} ${candidate.street}`))}(?![0-9a-z])`)
+    : null;
+  const bound = (postcode && statedPostcodes.includes(postcode)) || (street && street.test(fold(text)));
   return bound ? result.url : null;
 }
 
@@ -68,34 +72,57 @@ export function searchQuery(candidate) {
 // out ("drinks", "bar" alone), and the phrases below are struck before the
 // test so an alcohol-free beer or a ginger beer cannot pass as one.
 const DRINK_WORDS = /\b(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|draught|ciders?|prosecco|champagne|cava|sake|soju|spirits|whiske?y|gin|negronis?|spritz|aperitivo|sommelier|by the glass|fully licensed|licensed (?:bar|restaurant)|alcoholic drinks)\b/;
-const NOT_ALCOHOL = /\b(?:non[- ]?alcoholic|alcohol[- ]free|low (?:and|&) no|no (?:and|&) low|zero[- ](?:alcohol|proof)|0(?:\.0)?%|de-?alcoholi[sz]ed|ginger|root|birch|soft)(?:[- ]+[a-z]+){0,2}?[- ]+(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|ciders?|spirits|gin|prosecco|sake|drinks)\b/g;
+const NOT_ALCOHOL = /\b(?:non[- ]?alcoholic|alcohol[- ]free|low (?:and|&) no|no (?:and|&) low|zero[- ](?:alcohol|proof)|0(?:\.0)?%|de-?alcoholi[sz]ed|ginger|root|birch|soft|virgin)(?:[- ]+[a-z]+){0,2}?[- ]+(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|ciders?|spirits|gin|prosecco|sake|drinks)\b/g;
 
-// A drink cooked into a dish is an ingredient, not a drink served: beer
-// batter, a red wine jus, cider vinegar, a sake tare.
-const INGREDIENT = /\b(?:wines?|beers?|lagers?|ales|ciders?|sake|whiske?y|gin|champagne|prosecco|cava)[- ](?:batter(?:ed)?|sauce|jus|vinegar|reduction|glaze[ds]?|braised|poached|marinated|marinade|tare|butter|jelly|gravy|cured|dressing|risotto|mustard|syrup|caramel)\b|\b(?:in|with) (?:a )?(?:red |white )?wine (?:and \w+ )?(?:sauce|jus|reduction)\b|\bcooking (?:wine|sake)\b/g;
+// A drink cooked into a dish, or named by one, is an ingredient, not a drink
+// served: beer batter, a red wine jus, cider vinegar, a sake tare, champagne
+// cod, a cider vinaigrette, sake lees, a prawn cocktail, cocktail sauce, white
+// wine and saffron, trout grilled in wine, and sake meaning salmon on a sushi
+// menu.
+const FOOD = "(?:garlic|tomato(?:es)?|saffron|herbs|chilli|parsley|olive oil|cream|shallots?|onions?|mushrooms?|prawns|mussels|soya?|yuzu|ponzu|mirin|sauce)";
+const INGREDIENT = new RegExp([
+  String.raw`\b(?:wines?|beers?|lagers?|ales|ciders?|sake|whiske?y|gin|champagne|prosecco|cava)[- ](?:batter(?:ed)?|sauce|jus|vinegar|reduction|glaze[ds]?|braised|poached|marinated|marinade|tare|butter|cream|jelly|gravy|cured|dressing|risotto|mustard|syrup|caramel)\b`,
+  String.raw`\b(?:in|with) (?:a )?(?:red |white )?wine (?:and \w+ )?(?:sauce|jus|reduction)\b`,
+  String.raw`\bcooking (?:wine|sake)\b`,
+  String.raw`\b(?:wines?|beers?|ciders?|sake|champagne|prosecco)(?: (?!and\b)[a-z]+){0,2} (?:vinaigrette|cod|cakes?|lees|filling)\b`,
+  String.raw`\b(?:prawn|shrimp|fruit|lobster|crab|seafood|avocado) cocktails?\b`,
+  String.raw`\bcocktail (?:sauce|sausages?|sticks?)\b`,
+  String.raw`\bsake (?:teriyaki|nigiri|sashimi|maki|roll|don|x ?\d)`,
+  String.raw`\b(?:(?:red|white|rice) )?(?:wine|sake) (?:and|&|with) (?:[a-z-]+ )?${FOOD}\b`,
+  String.raw`\b${FOOD},? (?:(?:and|&|with) )?(?:(?:red|white|rice) )?(?:wine|sake)\b`,
+  String.raw`\b(?:cooked|simmered|braised|stewed|poached|fried|stir|steamed|grilled|baked|roasted) (?:[a-z-]+ ){0,3}(?:in|with) (?:a )?(?:(?:red|white|rice) )?(?:wine|sake|beer|cider)\b`,
+].join("|"), "g");
+
+// Words that carry a drink word and pour nothing: a mood, a Thai saying, and
+// a drink served at some other venue (the venue's own name is struck first,
+// so "the wine experience at" with no name left after it still counts).
+const IDIOM = /\b(?:high|in good|raise the|lift the) spirits\b|\bgan gin\b|\b(?:whiske?y|wines?|gin|sake|cocktails?|beers?) experience at [a-z]+/g;
 
 // A page that says the restaurant does not pour settles it, whatever else the
 // site says: bring-your-own, unlicensed, or a stated no-alcohol house.
-const REFUSES_ALCOHOL = /\b(?:byob?|bring your own (?:bottle|wine|drinks?|alcohol|booze|beer)|unlicen[cs]ed|not licen[cs]ed|(?:do not|don't|dont|does not|doesn't) serve (?:any )?alcohol|no alcohol (?:is )?(?:served|on the premises|allowed)(?! to)|alcohol is not (?:served|permitted|sold)|we are (?:a )?(?:dry|alcohol[- ]free)|alcohol[- ]free (?:restaurant|venue|establishment|premises))\b/;
+const REFUSES_ALCOHOL = /\b(?:byob?|bring your own (?:bottle|wine|drinks?|alcohol|booze|beer)|unlicen[cs]ed|not licen[cs]ed|(?:do not|don't|dont|does not|doesn't) (?:serve|offer|sell) (?:any )?alcohol(?:ic (?:drinks|beverages))?|no alcohol (?:is )?(?:served|on the premises|allowed)(?! to)|alcohol is not (?:served|permitted|sold)|we are (?:a )?(?:dry|alcohol[- ]free)|alcohol[- ]free (?:restaurant|venue|establishment|premises))\b/;
 
 const clean = (line) => line.replace(/[*_#>`\\|]/g, " ").replace(/\[([^\]]*)\]/g, "$1").replace(/\s+/g, " ").trim();
 
+// The quote read without the venue's own name and without every phrase above
+// that names a drink without pouring one.
+const drinkText = (quote, name) => withoutName(quote, name).replace(NOT_ALCOHOL, " ").replace(INGREDIENT, " ").replace(IDIOM, " ");
+
 /** True when the quote, read without the venue's own name, states alcohol. */
 export function statesRestaurantDrinks(quote, name) {
-  const rest = withoutName(quote, name).replace(NOT_ALCOHOL, " ").replace(INGREDIENT, " ");
-  return DRINK_WORDS.test(rest);
+  return DRINK_WORDS.test(drinkText(quote, name));
 }
 
 // Page furniture that can carry a drink word without saying what this
-// restaurant pours: copyright footers and legal lines.
-const FURNITURE = /©|\bcopyright\b|all rights reserved|registered (?:in england|office|company)|company (?:no|number)/;
+// restaurant pours: copyright footers, legal lines, ingredient declarations
+// and sauce lists.
+const FURNITURE = /©|\bcopyright\b|all rights reserved|registered (?:in england|office|company)|company (?:no|number)|\b(?:ingredients|sauces) ?:/;
 const DRINK_WORDS_ALL = new RegExp(DRINK_WORDS.source, "g");
 
 // How much a line says: one point per distinct drink word, so "cocktails,
 // wine and craft beer" outranks a passing "prosecco".
 function drinkScore(line, name) {
-  const rest = withoutName(line, name).replace(NOT_ALCOHOL, " ").replace(INGREDIENT, " ");
-  return new Set(rest.match(DRINK_WORDS_ALL) ?? []).size;
+  return new Set(drinkText(line, name).match(DRINK_WORDS_ALL) ?? []).size;
 }
 
 /**
