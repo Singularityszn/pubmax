@@ -397,15 +397,14 @@ function restampFromEvidence() {
   );
 }
 
-/** Recovered observations must still identify a current pub and permitted citations. */
-function recoverableObservation(entry, pub) {
+/** Validate recorded observations against current source permission and their original date. */
+function validObservation(entry, pub) {
   const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
   const quotes = (value) => record(value) && Object.entries(value).every(([key, quote]) =>
     PUB_WEBSITE_AMENITY_KEYS.includes(key) && typeof quote === "string");
   const permitted = (url) => typeof url === "string" && isHarvestableOperatorUrl(url);
   if (!record(entry) || entry.status !== "ok" || !pub) return false;
   if (typeof entry.name !== "string" || !entry.name.trim()) return false;
-  if (entry.name !== pub.name || entry.venueId !== pub.venueId) return false;
   if (entry.website !== undefined && entry.website !== pub.website) return false;
   if (!permitted(pub.website) || !permitted(entry.sourceUrl)) return false;
   const day = entry.verifiedAt;
@@ -416,6 +415,18 @@ function recoverableObservation(entry, pub) {
   if (entry.pages !== undefined && (!Array.isArray(entry.pages) || !entry.pages.every((page) =>
     record(page) && permitted(page.sourceUrl) && quotes(page.amenities)))) return false;
   return true;
+}
+
+/** Positive facts require the original pub identity and venue mapping. */
+function recoverableObservation(entry, pub) {
+  return validObservation(entry, pub) && entry.name === pub.name && entry.venueId === pub.venueId;
+}
+
+/** Current OSM id and recorded website preserve exclusion across name or mapping changes. */
+function recoverableOwnership(entry, pub) {
+  if (!validObservation(entry, pub)) return false;
+  // Legacy records lack website continuity, so retain their strict identity fallback.
+  return entry.website === pub.website || recoverableObservation(entry, pub);
 }
 
 /** The committed evidence with this run's pages laid over it. */
@@ -681,7 +692,7 @@ async function main() {
   // Published peers still own their permitted pages. Recover ownership only:
   // removed quotes must never return from a published checkpoint.
   const ownership = Object.entries(byOsmId).flatMap(([osmId, entry]) => {
-    if (!recoverableObservation(entry, currentPubs.get(osmId))) return [];
+    if (!recoverableOwnership(entry, currentPubs.get(osmId))) return [];
     return (entry.pages?.length ? entry.pages : [entry]).map((page) => ({
       osmId,
       sourceUrl: page.sourceUrl,

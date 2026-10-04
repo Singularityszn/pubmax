@@ -380,6 +380,80 @@ describe("pub website amenities CLI permission and page citations", () => {
 
 describe("pub website amenities CLI checkpoint publication", () => {
   it.each([
+    { kind: "name casing", name: "SYNTHETIC EXAMPLE PUB", matched: 2 },
+    { kind: "name and loses its slim mapping", name: "Renamed Example House", matched: 1 },
+  ])("refuses a pending shared quote after its empty published peer changes $kind", ({ name, matched }) => {
+    const cli = createSharedHomepageCli();
+    cli.write("fixture.json", { ...cli.read("fixture.json"), amenityResults: [{}] });
+    expect(cli.run(["--limit", "1"]).status).toBe(0);
+    expect(cli.output().evidence.rows).toEqual([]);
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"),
+      amenityResults: [{ liveSports: { value: true, evidence: SPORTS_QUOTE } }],
+      failure: { operation: "rename", path: EVIDENCE },
+    });
+    const interrupted = cli.run();
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    const pending = cli.read(CHECKPOINT).byOsmId["node/synthetic-2"];
+    expect(pending).toMatchObject({
+      publication: "pending", verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE },
+    });
+    const pubs = cli.read("data/osm/uk/uk_osm_pubs.json");
+    pubs.pubs[0].name = name;
+    cli.write("data/osm/uk/uk_osm_pubs.json", pubs);
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z",
+    });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    expect(resumed.stdout).toContain(`"matchedSlimVenues":${matched}`);
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows, resumed.stdout).toEqual([]);
+    expect(dataset.map((row: typeof PRICE_ROW) => row.live_sports)).toEqual(["", ""]);
+    for (const row of dataset) {
+      expect(row).toMatchObject({ price_gbp: 5.75, price_observed_at: "2026-09-20", scraped_at_values: "2026-09-20T12:00:00Z" });
+    }
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-2"]).toEqual({ ...pending, publication: "published" });
+    const before = { dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) };
+    for (const args of [[], ["--restamp"]]) {
+      expect(cli.run(args).status).toBe(0);
+      expect(cli.calls()).toEqual([]);
+      expect({ dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) }).toEqual(before);
+    }
+  });
+
+  it("keeps removed published quotes absent after their pub changes name", () => {
+    const cli = createCli(pagesWithLinkedLanding());
+    expect(cli.run().status).toBe(0);
+    expect(cli.output().evidence.rows).toHaveLength(1);
+    const checkpoint = cli.readText(CHECKPOINT);
+    cli.write(EVIDENCE, { ...cli.read(EVIDENCE), rows: [] });
+    const pubs = cli.read("data/osm/uk/uk_osm_pubs.json");
+    pubs.pubs[0].name = "Renamed Example House";
+    cli.write("data/osm/uk/uk_osm_pubs.json", pubs);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {}, now: "2026-10-04T12:00:00Z" });
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+    expect(cli.readText(CHECKPOINT)).toBe(checkpoint);
+  });
+
+  it.each(["SYNTHETIC EXAMPLE PUB", "Renamed Example House"])("refuses positive fact recovery after its current pub changes name to %s", (name) => {
+    const cli = createCli(pagesWithLinkedLanding());
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: { operation: "rename", path: EVIDENCE } });
+    expect(cli.run().status).toBe(1);
+    const checkpoint = cli.readText(CHECKPOINT);
+    const pubs = cli.read("data/osm/uk/uk_osm_pubs.json");
+    pubs.pubs[0].name = name;
+    cli.write("data/osm/uk/uk_osm_pubs.json", pubs);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z" });
+    expect(cli.run().status).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
+    expect(cli.readText(CHECKPOINT)).toBe(checkpoint);
+  });
+
+  it.each([
     { operation: "rename", path: EVIDENCE },
     { operation: "write", path: `${CHECKPOINT}.tmp`, occurrence: 2 },
   ])("refuses shared-page recovery beside an empty published peer after $operation $path", (failure) => {
