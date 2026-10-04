@@ -1,61 +1,65 @@
 # Grounded pub copy
 
-Gemini wrote one or two sentences of free prose and chose one to three vibe
-tags for 585 of the 1,916 curated pubs in the stored London price dataset.
-Another 65 pubs with supported facts failed the claim check twice and are
-listed as `invalid-copy-after-retry`. The other 1,266 pubs have no fact the
-summary may state, so they get no copy and are listed as
-`insufficient-stored-facts`. Country-wide base pubs and non-pub anchors are
+Gemini 2.5 Flash-Lite wrote short descriptions and chose one to three supported
+vibe tags. A separate Gemini 2.5 Flash call judged each draft against the same
+stored facts. The final pack has 516 descriptions for 1,916 curated London
+pubs. Another 134 eligible pubs failed the publication gate twice and are
+listed as `invalid-copy-after-retry`; 1,266 have no eligible fact and are listed
+as `insufficient-stored-facts`. All 650 eligible pubs went through the writer
+and judge in the final regeneration. UK base pubs and non-pub anchors are
 outside this pack.
 
-The model saw a venue ID, its borough and its supported amenities: cocktails,
-alcohol-free options, live music, pub quiz, darts, pool, happy hour and
-karaoke. Food, live sport and beer garden were left to the Overview chips, so
-the summary never repeats them. Names, free text, prices, hours, URLs and
-Google Places content were excluded. No page, Places or search request was made.
+Both models received only venue IDs, boroughs and positive structured amenity
+labels: cocktails, alcohol-free options, live music, pub quiz, darts, pool,
+happy hour and karaoke. The judge additionally received the draft. Food, live
+sport and beer garden remain in the Overview chips. Names, free text, prices,
+hours, URLs and Google Places content were excluded. No page, Places or search
+request was made.
 
-Publication checks claims, not wording. The prose may name only the pub's
-supported features, each once, with a verb that fits: nobody catches a
-cocktail, and "a pub quiz with darts" fails. A closed feature list rejects any
-other feature, including the three Overview chip facts. The word before a
-feature may only introduce it, so "strong cocktails", "two pool tables" and
-"cheapish cocktails" fail; after "<feature> is" only a presence word may
-follow, so "the cocktails are strong" fails. A past-tense governing verb is a
-lapse unless passive ("hosted live music" fails, "cocktails are served here"
-passes). Class lexicons reject denial, lapse, hedge, frequency, schedule, mood,
-quality and superlatives, reputation, age, crowd, price and quantity words.
-They are lists, so a claim worded outside them and away from a feature can
-still pass. No proper noun may appear except the borough and London, and
-neither may lead a sentence: "Camden has cocktails" and "The City of London
-pub" fail. The detail reader runs the same check against current pub fields,
-so a removed supporting amenity suppresses the old copy.
-Every eligible pub was regenerated at temperature 0.7 under the claim check.
-Later rounds tightened it and regenerated only the rows it newly rejected
-through the checkpoint: nine, then fourteen. Openings vary: the most common
-two-word starts are "You can" (82), "This place" (81) and "Fancy a" (74), and
-513 of 585 descriptions are distinct.
+Deterministic draft checks enforce format, supported tags and recognised
+feature terms. Their feature and claim regexes are deny-lists, not a complete
+semantic check. The judge reviews every factual or implied claim and returns
+SUPPORTED or UNSUPPORTED, with quoted claims and an offending phrase for a
+rejection. Publication requires every claim supported, full draft coverage,
+a complete response and an unambiguous verdict. Each failed pub gets one new
+draft and judge attempt, then a documented skip. Runtime requires judge
+evidence bound to the exact description, tags and current stored fact snapshot;
+it makes no model call. Changed facts or unjudged copy suppress the summary.
+A model verdict is a semantic check, not a guarantee that arbitrary prose
+cannot slip through.
 
-Cumulative token-metered spend is USD 0.1393247 over 932 requests. That
-includes USD 0.1007636 over 548 requests from earlier rounds, three 30-pub
-samples used to tune the prompt and claim check, the full regeneration, which
-projected USD 4.7380852 before calling, and the nine-row and fourteen-row
-reruns, which projected USD 0.2044006 and USD 0.2458473. None met a quota
-response, so all stayed on the global endpoint. This is API-usage accounting,
-not an invoice. No quota override was changed. The task cap was USD 15.
+The [live regression evaluation](judge-evaluation.json) covers 138 reviewer
+probes and positive controls. Raw Flash judge results passed 136 cases.
+Firstmate authorised two scoring exceptions: probe-25 is scored through the
+complete publication gate, which deterministically rejects its duplicated,
+capitalised Cocktails; probe-56 is scored on the UNSUPPORTED verdict, despite
+its offending phrase being non-verbatim. Both are documented beside their
+unchanged raw responses. The resulting authorised score is 138/138. No further
+evaluation round was run. The [first Flash-Lite trial](judge-evaluation-first-attempt.json)
+passed only 75/138 and is retained as before evidence.
+
+Judge calls use at most five drafts, temperature zero and a 1,024-token
+thinking budget. Output and thinking costs are reserved before each call and
+metered separately from the Flash-Lite writer. The full regeneration projected
+USD 9.764765 before any call, under the fixed USD 15 task cap. A separate
+USD 1.75 actual-spend guard kept the run below Firstmate's USD 2 target.
+Final cumulative token-metered spend is USD 1.5628547 over 1,852 requests,
+including prior rounds and live judge evaluations. This is API usage accounting,
+not an invoice. No quota override was changed.
 
 ## Before and after
 
 Before this change the selected-pub API had no `recordCopy`, and George's
 Overview tab showed its address and actions only. George's stored fields hold
 food and a beer garden alone, both already shown as chips, so it now
-[returns no copy](api-after-skipped.json). The Yorkshire Grey has cocktails,
+[returns no copy](api-after-skipped.json). The Pregnant Man has cocktails,
 live music and happy hour on record, and now returns and shows:
 
-> Happy hour runs here, and they also serve cocktails and have live music.
+> This place does cocktails and puts on live music.
 
-Its tags are Happy hour, Cocktails and Live music.
+Its tags are Cocktails, Live music, Happy hour.
 
-| Proof | Before (George) | After (The Yorkshire Grey) |
+| Proof | Before (George) | After (The Pregnant Man) |
 | --- | --- | --- |
 | Selected-pub API | [Before](api-before.json) | [After](api-after.json) |
 | Desktop, 1440 by 1000 | [Before](before-desktop.png) | [After](after-desktop.png) |
@@ -68,14 +72,26 @@ no Google photo was stored as evidence.
 
 ## Checks
 
-`npm run generate:pub-copy -- --check` validated all 585 entries and the
-documented reason for all 1,331 skips. Focused tests exercise the CLI,
-grounding, each review probe as a rejection (unsupported features, negations,
-mood, reputation, lapse, hedge, schedule, price and quantity claims, feature
-modifiers, borough subjects and misfit verbs), durable spend reservations and
-their release on the next run, unbilled non-JSON error pages, per-pub
-retention and retry, skip coverage, exponential quota backoff and the move to
-`europe-west2`, the server reader and the rendered summary. They
-also read the published pack through the existing detail lookup. Runtime
-tracing includes the generated JSON. At 1440, 390 and 320 pixels the summary
-showed with no document horizontal overflow.
+`npm run generate:pub-copy -- --check` validates all 516 entries and the
+reasons for all 1,400 skips. Focused tests exercise independent judging,
+malformed/truncated/contradictory verdicts, full claim coverage, draft and
+fact binding at runtime, retry once then skip, cumulative usage for both
+models, stale checkpoints, quota backoff, non-JSON errors, sparse pubs,
+the selected-venue reader and rendered summary. CI tests use mocked model
+responses, without live LLM calls. The live evaluation above is separate proof.
+
+`npm run verify:no-mistakes` ran the repository `npm run verify` gate and
+exited zero: coverage passed 19,298 tests, PostgreSQL proofs passed, and data,
+types, dead code, freshness and audit gates passed. Lint reported 16 existing
+complexity warnings and no errors. Three durable feeds were unmeasurable
+without credentials and were explicitly not reported fresh. The existing
+dev-only audit waivers remained in place.
+
+The isolated `NEXT_DIST_DIR=.next-pub-copy` production build passed. Fresh
+Chrome screenshots show the exact final API description and tags at 1440 by
+1000, 390 by 844 and 320 by 700 pixels, with no document horizontal overflow.
+The 320-pixel screenshot uses the sheet's Expand button so the full summary
+and wrapped tags are visible. Before screenshots show the earlier no-copy
+selected-pub surface. Keyless production preview reports unavailable durable
+busyness and visit-note feeds; these screenshots prove copy integration, not
+those store-backed features or a deployment.
