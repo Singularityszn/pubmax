@@ -163,7 +163,7 @@ function createCli(
   ], {
     cwd: root,
     // Deliberate allowlist: no ambient credentials, HOME, NODE_OPTIONS or cloud config.
-    env: { PATH: path.dirname(process.execPath), TSX_TSCONFIG_PATH: path.join(root, "tsconfig.json") },
+    env: { PATH: path.dirname(process.execPath), TSX_TSCONFIG_PATH: path.join(root, "tsconfig.json") } as unknown as NodeJS.ProcessEnv,
     encoding: "utf8",
   });
   const readText = (relative: string) => readFileSync(path.join(root, relative), "utf8");
@@ -565,19 +565,64 @@ describe("pub website amenities CLI checkpoint publication", () => {
   });
 
   it.each([
-    { amenities: { liveSports: { value: true, evidence: SPORTS_QUOTE } }, skipCounts: {} },
-    { amenities: {}, skipCounts: { ok: 1 } },
-  ])("counts unused pubs once across a recovered replay of published evidence ($skipCounts)", ({ amenities, skipCounts }) => {
-    const cli = createCli(pagesWithLinkedLanding(), amenities);
-    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: { operation: "write", path: `${CHECKPOINT}.tmp`, occurrence: 2 } });
+    { operation: "write", path: `${DATASET}.tmp` },
+    { operation: "rename", path: DATASET },
+    { operation: "write", path: `${EVIDENCE}.tmp` },
+    { operation: "rename", path: EVIDENCE },
+    { operation: "write", path: `${CHECKPOINT}.tmp`, occurrence: 2 },
+  ].flatMap((failure) => [
+    {
+      failure,
+      kind: "mixed-page positive",
+      pages: () => {
+        const pages = pagesWithLinkedLanding();
+        pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+        return pages;
+      },
+      amenities: { food: { value: true, evidence: FOOD_QUOTE }, liveSports: { value: true, evidence: SPORTS_QUOTE } },
+      skipCounts: { ok: 3, "robots-denied": 2 },
+      rows: 2,
+    },
+    { failure, kind: "empty", pages: () => pagesWithLinkedLanding(), amenities: {}, skipCounts: { ok: 4, "robots-denied": 2 }, rows: 0 },
+    {
+      failure,
+      kind: "robots-denied",
+      pages: () => ({ "https://first.example/robots.txt": { body: "User-agent: *\nDisallow: /", type: "text/plain" } }),
+      amenities: {},
+      skipCounts: { ok: 3, "robots-denied": 2, "robots-disallowed": 1 },
+      rows: 0,
+    },
+  ]))("publishes uninterrupted counters for a $kind pub after $failure.operation $failure.path", ({ failure, pages, amenities, skipCounts, rows }) => {
+    const prior = { version: 1, actualSpendUsd: 1.25, skipCounts: { ok: 3, "robots-denied": 2 }, rows: [] };
+    const control = createCli(pages(), amenities);
+    control.write(EVIDENCE, prior);
+    const uninterrupted = control.run();
+    expect(uninterrupted.status, uninterrupted.stderr).toBe(0);
+    const expected = control.read(EVIDENCE);
+    expect(expected).toMatchObject({ publications: 1, skipCounts });
+    expect(expected.rows).toHaveLength(rows);
+
+    const cli = createCli(pages(), amenities);
+    cli.write(EVIDENCE, prior);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure });
     const interrupted = cli.run();
     expect(interrupted.status, interrupted.stderr).toBe(1);
-    expect(cli.read(EVIDENCE).skipCounts).toEqual(skipCounts);
-    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {} });
+    expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z" });
     const resumed = cli.run();
     expect(resumed.status, resumed.stderr).toBe(0);
     expect(cli.calls()).toEqual([]);
-    expect(cli.read(EVIDENCE).skipCounts).toEqual(skipCounts);
+    expect({ ...cli.read(EVIDENCE), projected: null }).toEqual({ ...expected, projected: null });
+    expect(cli.readText(DATASET)).toBe(control.readText(DATASET));
+    expect(cli.readText(CHECKPOINT)).toBe(control.readText(CHECKPOINT));
+
+    const before = { dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) };
+    for (const args of [[], ["--restamp"]]) {
+      const rerun = cli.run(args);
+      expect(rerun.status, rerun.stderr).toBe(0);
+      expect(cli.calls()).toEqual([]);
+      expect({ dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) }).toEqual(before);
+    }
   });
 
   it("keeps already published reruns byte-identical without external calls", () => {
