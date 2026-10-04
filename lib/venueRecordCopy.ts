@@ -10,8 +10,8 @@ export type VenueCopyFacts = {
 };
 
 // Food, live sport and beer garden are left to the Overview chips. A tag a chip
-// also prints uses the chip's words. `terms` are every way prose may name the
-// feature; naming one the pub's stored fields do not support fails.
+// also prints uses the chip's words. Recognised feature terms are checked here;
+// a separate Gemini grounding judge checks every claim before publication.
 const AMENITY_COPY = [
   { key: "cocktails", tag: "Cocktails", terms: /\bcocktails?\b/g },
   { key: "nonAlcoholic", tag: "Alcohol-free options", terms: /\b(?:alcohol-free|non-alcoholic|low-alcohol|zero-alcohol)\b(?: (?:options|drinks|beers?|pints?))?/g },
@@ -39,9 +39,8 @@ const UNSUPPORTED_FEATURES = new RegExp(`\\b(?:${[
   "theatre", "jazz", "folk", "blues", "acoustic", "reggae", "indie", "punk", "metal", "tables?",
 ].join("|")})\\b`);
 
-// Claims no stored field can back, by class. Each class is closed as a class,
-// not word by word: a lone "happy" or "live" is mood, any superlative is a
-// quality claim, and a past-tense governing verb outside the passive is a lapse.
+// Fast rejection heuristics. These lists are not a complete semantic check;
+// publication also requires a separate grounding-judge verdict.
 const PASSIVE = "(?<!\\b(?:is|are|be|been|being) )";
 const SUPERLATIVE_EXCEPTIONS = [
   "rest", "west", "guests?", "test", "interest", "request", "quest", "honest", "nest", "chest", "pest", "suggest",
@@ -197,15 +196,7 @@ function factsStandPlain(text: string): boolean {
   return [...text.matchAll(/fact_\w+ +(?:is|are|'s) +([a-z'-]+)/g)].every((match) => AFTER_FACT_IS.has(match[1]));
 }
 
-/**
- * Free prose is checked for its claims, not its wording. It may name only the
- * pub's supported features, each once and with a verb that fits, and must
- * deny none. It makes no mood, quality, crowd, price or schedule claim and
- * names no person, brand or place but the pub's borough and London. The pub is
- * the subject and the sentence never leads with its borough. A pub with no
- * supported fact gets no copy. Unknown facts fail closed.
- */
-export function validateVenueRecordCopy(
+export function validateVenueRecordCopyDraft(
   facts: VenueCopyFacts | null,
   value: unknown,
 ): VenueRecordCopy | null {
@@ -222,4 +213,24 @@ export function validateVenueRecordCopy(
 
   if (!placesFollowThePub(description, facts.borough) || !claimsAreSupported(description, facts.borough, stated)) return null;
   return { description, vibeTags: vibeTags as string[] };
+}
+
+/** Published copy must carry a supported judge verdict bound to this exact draft and fact snapshot. */
+export function validateVenueRecordCopy(facts: VenueCopyFacts | null, value: unknown): VenueRecordCopy | null {
+  const copy = validateVenueRecordCopyDraft(facts, value);
+  if (!copy || !facts) return null;
+  const entry = value as Record<string, unknown>;
+  if (entry.borough !== facts.borough || JSON.stringify(entry.supportedTags) !== JSON.stringify(facts.supportedTags)) return null;
+  const grounding = entry.grounding as Record<string, unknown> | undefined;
+  if (!grounding || grounding.version !== 2 || grounding.verdict !== "SUPPORTED" ||
+      grounding.description !== copy.description || JSON.stringify(grounding.vibeTags) !== JSON.stringify(copy.vibeTags) ||
+      !Array.isArray(grounding.claims) || grounding.claims.length === 0) return null;
+  const fullText = [copy.description, ...copy.vibeTags].join("\n");
+  if (!grounding.claims.every((claim) => claim && typeof claim === "object" &&
+      claim.verdict === "SUPPORTED" && typeof claim.phrase === "string" && claim.phrase.trim() &&
+      fullText.includes(claim.phrase) && claim.offendingPhrase === "")) return null;
+  let uncovered = fullText;
+  for (const claim of grounding.claims) uncovered = uncovered.split(claim.phrase).join(" ");
+  if (/[A-Za-z]/.test(uncovered)) return null;
+  return copy;
 }

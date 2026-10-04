@@ -41,12 +41,19 @@ function fixture(mode = "ok", count = 1, amenities: Record<string, string> = { l
         return new Response('<html>Service Unavailable</html>', {status:503});
       const request = JSON.parse(init.body);
       writeFileSync(${JSON.stringify(path.join(dir, "request.json"))}, init.body);
-      const choices = JSON.parse(request.contents[0].parts[0].text.split('VENUES:\\n')[1]);
-      const rows = choices.map(c => ({ venueId: c.venueId, description: 'A Hackney pub with live music and a pub quiz.', vibeTags: ['Live music', 'Pub quiz'] }));
+      const judging = request.contents[0].parts[0].text.includes('DRAFTS:');
+      const choices = JSON.parse(request.contents[0].parts[0].text.split(judging ? 'DRAFTS:\\n' : 'VENUES:\\n')[1]);
+      let rows = choices.map(c => ({ venueId: c.venueId, description: 'A Hackney pub with live music and a pub quiz.', vibeTags: ['Live music', 'Pub quiz'] }));
       const invented = 'A cosy Hackney pub with live music.';
       if (${JSON.stringify(mode)} === 'partial') rows[0].description = invented;
       if (${JSON.stringify(mode)} === 'invent') rows[0].description = invented;
       if (${JSON.stringify(mode)} === 'recover' && calls === 1) rows[0].description = invented;
+      if (judging) rows = choices.map(c => ({venueId: c.venueId, verdict: 'SUPPORTED', claims:
+        [c.description, ...c.vibeTags].map(phrase => ({phrase, verdict:'SUPPORTED', offendingPhrase:''}))}));
+      if (judging && ['judge-reject','judge-recover'].includes(${JSON.stringify(mode)}) &&
+        (${JSON.stringify(mode)} === 'judge-reject' || calls === 2)) rows[0] = {venueId: choices[0].venueId,
+          verdict:'UNSUPPORTED',claims:[{phrase:choices[0].description,verdict:'UNSUPPORTED',offendingPhrase:'pub'}]};
+      if (judging && ${JSON.stringify(mode)} === 'judge-malformed') rows[0].claims = [];
       const failed = ${JSON.stringify(path.join(dir, "transport-failed"))};
       if (${JSON.stringify(mode)} === 'transport' && !existsSync(failed)) {
         writeFileSync(failed, '');
@@ -87,7 +94,7 @@ describe("pub copy generation CLI", () => {
     const result = run("--generate");
     expect(result.status, result.stderr).toBe(0);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
-    expect(pack.actualSpendUsd).toBeCloseTo(0.00003, 8);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.000185, 8);
     expect(Object.values(pack.venues)).toEqual([expect.objectContaining({
       borough: "Hackney", supportedTags: ["Live music", "Pub quiz"],
       description: "A Hackney pub with live music and a pub quiz.", vibeTags: ["Live music", "Pub quiz"],
@@ -98,8 +105,11 @@ describe("pub copy generation CLI", () => {
     expect(request).not.toContain("Fixture Pub");
     expect(request).not.toContain("Beer garden");
     expect(JSON.parse(request).tools).toBeUndefined();
+    expect(readFileSync(path.join(dir, "url.txt"), "utf8")).toContain("/models/gemini-2.5-flash:generateContent");
+    expect(JSON.parse(request).generationConfig.temperature).toBe(0);
+    expect(JSON.parse(request).systemInstruction).toBeDefined();
     expect(run("--generate").status).toBe(0);
-    expect(JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8")).requests).toBe(1);
+    expect(JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8")).requests).toBe(2);
     expect(run("--check").status).toBe(0);
   });
 
@@ -124,7 +134,7 @@ describe("pub copy generation CLI", () => {
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
     expect(Object.keys(pack.venues)).toHaveLength(1);
     expect(Object.keys(pack.skipped)).toHaveLength(1);
-    expect(pack.requests).toBe(2);
+    expect(pack.requests).toBe(3);
     const request = JSON.parse(readFileSync(path.join(dir, "request.json"), "utf8"));
     const retryChoices = JSON.parse(request.contents[0].parts[0].text.split("VENUES:\n")[1]);
     expect(retryChoices).toHaveLength(1);
@@ -138,8 +148,8 @@ describe("pub copy generation CLI", () => {
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(readFileSync(path.join(dir, "waits.json"), "utf8"))).toEqual([6000, 12000]);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
-    expect(pack.requests).toBe(3);
-    expect(pack.actualSpendUsd).toBeCloseTo(0.00003, 8);
+    expect(pack.requests).toBe(4);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.000185, 8);
   });
 
   it("retains a reservation after an unknown transport outcome and releases it on the next run", () => {
@@ -156,7 +166,7 @@ describe("pub copy generation CLI", () => {
     expect(JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8")).reservedUsd).toBe(0);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
     expect(Object.keys(pack.venues)).toHaveLength(1);
-    expect(pack.actualSpendUsd).toBeCloseTo(0.00003, 8);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.000185, 8);
   });
 
   it("moves to europe-west2 after fifteen minutes of global quota responses", () => {
@@ -170,7 +180,7 @@ describe("pub copy generation CLI", () => {
     expect(Math.max(...waits)).toBe(60000);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
     expect(Object.keys(pack.venues)).toHaveLength(1);
-    expect(pack.actualSpendUsd).toBeCloseTo(0.00003, 8);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.000185, 8);
   });
 
   it("retries an unbilled non-JSON error page without keeping its reservation", () => {
@@ -178,8 +188,8 @@ describe("pub copy generation CLI", () => {
     const result = run("--generate");
     expect(result.status, result.stderr).toBe(0);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
-    expect(pack.requests).toBe(2);
-    expect(pack.actualSpendUsd).toBeCloseTo(0.00003, 8);
+    expect(pack.requests).toBe(3);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.000185, 8);
     expect(JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8")).reservedUsd).toBe(0);
   });
 
@@ -194,14 +204,24 @@ describe("pub copy generation CLI", () => {
     expect(run("--check").status).toBe(0);
   });
 
+  it("does not let a stale checkpoint reduce published metered spend", () => {
+    const { run, dir } = fixture();
+    writeFileSync(path.join(dir, "copy.json"), JSON.stringify({ actualSpendUsd: 0.14, requests: 932 }));
+    writeFileSync(path.join(dir, "checkpoint.json"), JSON.stringify({version: 1, actualSpendUsd: 0.05, requests: 197, reservedUsd: 0, entries: {}}));
+    expect(run("--generate").status).toBe(0);
+    const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
+    expect(pack.requests).toBe(934);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.140185, 8);
+  });
+
   it("continues the cumulative spend recorded by an existing pack", () => {
     const { run, dir } = fixture();
     writeFileSync(path.join(dir, "copy.json"), JSON.stringify({ version: 1, actualSpendUsd: 0.0496627, requests: 197 }));
     const result = run("--generate");
     expect(result.status, result.stderr).toBe(0);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
-    expect(pack.requests).toBe(198);
-    expect(pack.actualSpendUsd).toBeCloseTo(0.0496927, 8);
+    expect(pack.requests).toBe(199);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.0498477, 8);
   });
 
   it("retries rejected copy within the reserved budget and includes both billed responses", () => {
@@ -209,8 +229,20 @@ describe("pub copy generation CLI", () => {
     const result = run("--generate");
     expect(result.status, result.stderr).toBe(0);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
-    expect(pack.requests).toBe(2);
-    expect(pack.actualSpendUsd).toBeCloseTo(0.00006, 8);
+    expect(pack.requests).toBe(3);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.000215, 8);
+  });
+
+  it.each(["judge-reject", "judge-malformed", "judge-recover"])("judges independently and fails closed for %s", (mode) => {
+    const { run, dir } = fixture(mode);
+    const result = run("--generate");
+    expect(result.status, result.stderr).toBe(0);
+    const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
+    expect(pack.requests).toBe(4);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.00037, 8);
+    expect(Object.keys(pack.venues)).toHaveLength(mode === "judge-recover" ? 1 : 0);
+    if (mode !== "judge-recover") expect(Object.values(pack.skipped)).toEqual([expect.objectContaining({reason: "invalid-copy-after-retry"})]);
+    expect(run("--check").status).toBe(0);
   });
 
   it("refuses publication without usage and refuses contradictory dry-run flags", () => {

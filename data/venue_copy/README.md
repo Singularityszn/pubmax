@@ -21,33 +21,34 @@ chip's words. A pub with none of those facts gets no copy and is listed in
 
 Gemini 2.5 Flash-Lite writes one or two sentences of free prose at
 temperature 0.7 and picks one to three of the pub's supported tags.
-Publication checks claims, not wording. Every feature the prose names must be
-one of the pub's supported facts, each named once; a closed feature list
-catches the rest, including food, beer gardens, sport, screens, drinks styles,
-music genres, board games, tables, rooms and events. The check is structural
-where it can be. The word before a feature may only introduce it (a
-determiner, a joining word, a verb, or "a game of"), so any adjective, number
-or price there fails: "strong cocktails", "two pool tables", "cheapish
-cocktails". After "<feature> is" only a presence word may follow, so "the
-cocktails are strong" fails. A past-tense governing verb outside the passive
-is a lapse ("hosted live music"), while "cocktails are served here" passes.
-Feature-to-feature ties ("with", "during") fail. Class lexicons also reject
-denial, lapse, hedge and frequency, schedule, mood, quality and any
-superlative, reputation, age, crowd, price and quantity words. They are lists:
-a claim worded outside them and away from a feature can still pass, and the
-runtime reader would not catch it either. A lone "happy" or
-"live" counts as mood. Each verb must fit its feature: a pub has, serves or
-hosts things, and people catch live music, play darts or pool, sing karaoke
-and get cocktails, so "catch cocktails" or "a pub quiz with darts" fails. No
-proper noun may appear except the pub's borough and London, and no sentence
-may lead with them: "Camden has cocktails" and "The City of London pub" fail.
-Each pub is validated independently. Valid rows survive a failed batch; a
-failed pub gets one individual retry, then no generated copy and an
-`invalid-copy-after-retry` skip.
+Drafts first pass deterministic format, supported-tag and recognised-feature
+checks. The feature regexes and claim lexicons are heuristic deny-lists, not
+complete semantic checks. They cannot prove that arbitrary prose is grounded.
+
+A separate Gemini 2.5 Flash call at temperature zero judges the facts plus the exact
+draft description and tags. It must classify every factual or implied claim
+as `SUPPORTED` or `UNSUPPORTED`, quoting the offending phrase for unsupported
+claims. Only the supplied positive features and borough may support a claim;
+mood, quality, reputation, quantity, prices, schedules, absence, changed facts,
+extra features and inferred relationships are unsupported. Each sentence and
+tag must be covered by quoted claims. Judge calls handle at most five drafts
+and have a per-batch output-token budget. A missing, malformed, duplicate,
+contradictory or truncated verdict fails closed. Only a fully `SUPPORTED`
+draft is retained. A failed pub gets one new draft and judge attempt, then an
+`invalid-copy-after-retry` skip. Passing pubs survive a rejected batch.
+
+The judge is a model-based semantic check, not a mathematical guarantee.
+Reviewer probes are exercised against the actual judge with
+`npm run generate:pub-copy -- --generate --evaluate-judge`. This development
+command records its responses in `docs/proof/pub-record-copy/judge-evaluation.json`
+and spends the same metered budget. CI uses mocked judge responses to prove
+protocol handling, publication refusal and retry behavior, without live calls.
 
 Each entry records the borough and supported tags it was written from. The
 existing venue-detail reader adds `recordCopy` after revalidating the entry
-against the pub's current structured fields. The Overview tab shows that
+against the pub's current structured fields. A published entry must also carry
+a supported judge verdict bound to its exact description, tags and fact
+snapshot; unjudged or changed copy is refused. The runtime does not call Gemini. The Overview tab shows that
 description and its tags. A missing or invalid pack shows no generated copy. A
 removed supporting amenity suppresses the old copy until the pack is
 regenerated. A pub added to the dataset later shows no copy until then.
@@ -62,9 +63,10 @@ double their spacing on HTTP 429 up to one minute, and recover toward three
 seconds after successful responses. After fifteen minutes of unbroken quota
 responses on the global endpoint, the run moves to region `europe-west2` and
 says so; fifteen more there stop the run, and rerunning resumes from the
-checkpoint. The fixed USD 15 cap cannot be raised by a flag;
-`--cap-usd` can lower it. Projection allows HTTP retries for each batch and one
-individual grounding retry per pub, and uses UTF-8 bytes plus framing room as a
+checkpoint. A USD 1.75 actual-spend guard keeps this run below the approved USD 2 target.
+The fixed USD 15 worst-case projection cap cannot be raised by a flag;
+`--cap-usd` can lower it. Projection includes draft and judge calls and one individual draft-and-judge
+retry per pub. Unbilled non-200 HTTP retries do not increase projected spend. The projection uses UTF-8 bytes plus framing room as a
 conservative input-token bound. Each call reserves its maximum cost in a durable
 checkpoint before sending. Successful responses replace that reservation with
 token-metered spend, including thinking tokens. Non-200 responses are not
@@ -74,11 +76,14 @@ Reported spend is calculated from API token usage, not a billing invoice.
 
 Checkpoint: `data-harvest/pub-record-copy/checkpoint.json`, ignored by git.
 Without one, spend and request counts continue from the published pack.
-Reruns resume only validated entries whose structured inputs still match.
+Reruns resume only judge-approved entries whose structured inputs still match.
+A changed grounding version invalidates earlier entries and skips. A stale
+checkpoint cannot reduce spend or requests recorded by the published pack.
 Spend remains cumulative across resumed runs. Output is replaced atomically
 only after every pub has valid copy or a documented skip and every reservation
 is settled. Matching skipped inputs are not retried on resume.
 
 Pricing: [Vertex AI standard pricing](https://cloud.google.com/vertex-ai/generative-ai/pricing),
-USD 0.10 per million text input tokens and USD 0.40 per million output tokens,
-checked 4 October 2026. Model calls include no tool or search charges.
+Writer: USD 0.10 per million text input tokens and USD 0.40 per million output
+tokens. Judge: USD 0.30 per million text input tokens and USD 2.50 per million
+output tokens, checked 4 October 2026. Model calls include no tool or search charges.

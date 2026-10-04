@@ -1,0 +1,2595 @@
+[
+  {
+    "venueId": "probe-0",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Camden pub with live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-1",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney local favourite with live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-2",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live jazz and a pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-3",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live music and a beer garden.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-4",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live music and food.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-5",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live music and free wifi.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-6",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Live music",
+      "Pub quiz"
+    ],
+    "description": "A Hackney pub with live music and karaoke.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-7",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live music and live sport on the big screens.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-8",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live music and real ales.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-9",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live music on 3 nights.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-10",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A Hackney pub with live music, and catch live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-12",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A cosy Hackney pub with live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-13",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A friendly Hackney local where you catch live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-14",
+    "borough": "Camden",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A happy Camden local with karaoke.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-15",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A historic Hackney pub with a pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-16",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A lively Hackney local with live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-17",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "A pub in Hackney, London.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-18",
+    "borough": "Lambeth",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "At this Lambeth pub you can get a pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-19",
+    "borough": "Camden",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Camden has cocktails, karaoke and live music at this pub.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-20",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Cheap pints and live music at this Hackney pub.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-21",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Cocktails are gone from this pub.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-22",
+    "borough": "Ealing",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Ealing has this pub with cocktails and a quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-23",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Fancy a game of pool? This place has tables.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-24",
+    "borough": "City of London",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Fancy a pint and a game of pool? This City of London pub serves cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-25",
+    "borough": "Lambeth",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Fancy some cocktails? This Lambeth place does Cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED",
+    "scoring": "publication-gate"
+  },
+  {
+    "venueId": "probe-26",
+    "borough": "Greenwich",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Greenwich is where this pub has cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-27",
+    "borough": "Kensington and Chelsea",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Head to Kensington and Chelsea for cocktails and live music at this pub.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-28",
+    "borough": "Camden",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "In Camden you can get cocktails at this pub.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-29",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Live music and a pub quiz, all in Hackney.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-30",
+    "borough": "Lambeth",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Live music and karaoke are what this Lambeth pub is known for.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-31",
+    "borough": "Westminster",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Live music and karaoke are what this Westminster pub is known for.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-32",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Live music tonight at this Hackney pub.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-33",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Regulars pack this Hackney pub for live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-34",
+    "borough": "City of London",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "The City of London pub has cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-35",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "The best cocktails are at this pub.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-36",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "The best pub quiz in Hackney is at this local.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-37",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Live music",
+      "Pub quiz"
+    ],
+    "description": "There's live music here, though this Hackney pub doesn't run a pub quiz.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-38",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "They do cocktails and a pub quiz, with happy hour.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-39",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "They specialise in cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-40",
+    "borough": "Camden",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Camden pub has cocktails and drinks.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-41",
+    "borough": "Camden",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Camden pub is out of cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-42",
+    "borough": "Ealing",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Ealing pub gets cocktails and hosts a pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-43",
+    "borough": "Greenwich",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Greenwich pub hosts live music, cocktails and a pub quiz.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-44",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Hackney pub catches live music and serves cocktails.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-45",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Live music",
+      "Pub quiz"
+    ],
+    "description": "This Hackney pub has live music but no pub quiz.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-46",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Hackney pub has live music without the fuss of a pub quiz.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-47",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Hackney pub runs a pub quiz every Tuesday.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-48",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Hackney pub, on Mare Street, has live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-49",
+    "borough": "Hammersmith and Fulham",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Hammersmith and Fulham pub hosts darts, a quiz, and happy hour.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-50",
+    "borough": "Hounslow",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Hounslow pub has a pool table for you to play.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-51",
+    "borough": "Islington",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Islington local plays darts.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-52",
+    "borough": "Islington",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Islington pub specialises in cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-53",
+    "borough": "Lambeth",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Lambeth local is where you can get a pub quiz and karaoke.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-54",
+    "borough": "Waltham Forest",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Waltham Forest pub has cocktails and a pub quiz with darts.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-55",
+    "borough": "Westminster",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Westminster pub is known for its cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-56",
+    "borough": "Westminster",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Westminster pub is where you can catch live music and cocktails.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED",
+    "scoring": "rejection-verdict"
+  },
+  {
+    "venueId": "probe-57",
+    "borough": "Westminster",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This Westminster pub specialises in cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-58",
+    "borough": "Camden",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This live Camden pub has cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-59",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub axed karaoke and serves cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-60",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub banned karaoke and serves cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-61",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub dropped its pub quiz but serves cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-62",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub excels at cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-63",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has a dingy pool table.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-64",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has dartboards.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-65",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has darts, with a pool table.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-66",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has dreadful cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-67",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has given up its pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-68",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has happy hours.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-69",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has overpriced cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-70",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has scrapped its pub quiz but serves cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-71",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has several pool tables.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-72",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub has two pool tables.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-73",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosted live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-74",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts a pub quiz and a raffle.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-75",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts a pub quiz, with karaoke.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-76",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts karaoke after the pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-77",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts karaoke and drag shows.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-78",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts live music and stand-up.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-79",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts live music in summer.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-80",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts live music twice a week.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-81",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts live music. Tickets sell out.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-82",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts occasional live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-83",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub is famous for its pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-84",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub is shut but serves cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-85",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub is the go-to for cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-86",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub might host a pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-87",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub once hosted live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-88",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub previously hosted live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-89",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub rarely hosts live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-90",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub runs pub quizzes.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-91",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves a range of cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-92",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cheapish cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-93",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and a raffle.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-94",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and beer.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-95",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and coffee.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-96",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and dancing.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-97",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and is closing soon.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-98",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and lager.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-99",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and poker.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-100",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and sandwiches.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-101",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and shots.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-102",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails and singing.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-103",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails for a fiver.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-104",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails till midnight.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-105",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails, but the pub quiz is rubbish.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-106",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves disappointing cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-107",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves dozens of cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-108",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves mediocre cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-109",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves pricy cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-110",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves the finest cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-111",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves watered-down cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-112",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves weak cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-113",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub sometimes hosts live music.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-114",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub stopped hosting karaoke.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-115",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub used to run a pub quiz.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-116",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub's cocktails are strong.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-117",
+    "borough": "Waltham Forest",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "What a pub. In Waltham Forest it has cocktails and karaoke.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-118",
+    "borough": "Lambeth",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "You can get a pub quiz and karaoke at this Lambeth pub.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-119",
+    "borough": "Merton",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "You can get cocktails and play pub quiz at this Merton local.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-120",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "You can grab cocktails here during their happy hour.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "probe-121",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "You'll find pool tables here.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "control-0",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub serves cocktails.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "SUPPORTED"
+  },
+  {
+    "venueId": "control-1",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "You can play pool here or join the pub quiz.",
+    "vibeTags": [
+      "Pool"
+    ],
+    "expected": "SUPPORTED"
+  },
+  {
+    "venueId": "control-2",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "Fancy a cocktail? This pub serves them.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "SUPPORTED"
+  },
+  {
+    "venueId": "control-3",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Alcohol-free options",
+      "Live music",
+      "Pub quiz",
+      "Darts",
+      "Pool",
+      "Happy hour",
+      "Karaoke"
+    ],
+    "description": "This pub hosts live music and has darts.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "SUPPORTED"
+  },
+  {
+    "venueId": "extra-125",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub hosts karaoke before the pub quiz.",
+    "vibeTags": [
+      "Karaoke"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-126",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub serves cocktails galore.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-127",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub serves cocktails to die for.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-128",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub serves cocktails worth the trip.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-129",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub serves cocktails people rave about.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-130",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub has a pool table upstairs.",
+    "vibeTags": [
+      "Pool"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-131",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub hosts live music on occasion.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-132",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub hosts live music now and again.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-133",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub hosts live music on the odd night.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-134",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub serves cocktails by the jug.",
+    "vibeTags": [
+      "Cocktails"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-135",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub does live music, pub quizzes and karaoke.",
+    "vibeTags": [
+      "Live music"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-136",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub hosts a pub quiz and poker.",
+    "vibeTags": [
+      "Pool"
+    ],
+    "expected": "UNSUPPORTED"
+  },
+  {
+    "venueId": "extra-137",
+    "borough": "Hackney",
+    "supportedTags": [
+      "Cocktails",
+      "Live music",
+      "Pub quiz",
+      "Karaoke",
+      "Pool",
+      "Darts",
+      "Happy hour"
+    ],
+    "description": "This pub hosts karaoke, which is ticketed.",
+    "vibeTags": [
+      "Karaoke"
+    ],
+    "expected": "UNSUPPORTED"
+  }
+]

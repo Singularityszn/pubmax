@@ -7,12 +7,15 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { FLASH_LITE_SKU, spendFromTokenCounts } from "../lib/harvest/pubWebsiteAmenities.ts";
-import { copyFactsForVenue, validateVenueRecordCopy } from "../lib/venueRecordCopy.ts";
+import { copyFactsForVenue, validateVenueRecordCopy, validateVenueRecordCopyDraft } from "../lib/venueRecordCopy.ts";
 import { VENUE_RECORD_COPY_TRACING_INCLUDE } from "../lib/venueRecordCopyFile.mjs";
 import { groupVenuePrices } from "../lib/venues.ts";
 
+import { GROUNDING_VERSION, JUDGE_SKU, JUDGE_BATCH_SIZE, JUDGE_THINKING_TOKENS, judgeOutputTokens, JUDGE_PROMPT, judgeText, judgeResults, judgeSchema, scoreJudgeProbe } from "./lib/pubCopyGrounding.ts";
+
 const ROOT = path.resolve(import.meta.dirname, "..");
 const JOB_CAP_USD = 15;
+const LIVE_SPEND_CAP_USD = 1.75;
 const BATCH_SIZE = 10;
 const OUTPUT_TOKENS = 4096;
 const INSUFFICIENT = "insufficient-stored-facts";
@@ -38,14 +41,15 @@ const PROMPT = [
 ].join("\n");
 
 function options() {
-  const opts = { generate: false, check: false, dryRun: false, cap: JOB_CAP_USD,
+  const opts = { generate: false, check: false, dryRun: false, evaluateJudge: false, cap: JOB_CAP_USD,
     dataset: path.join(ROOT, "public/data/pint_prices_app_dataset.json"),
     out: path.join(ROOT, VENUE_RECORD_COPY_TRACING_INCLUDE),
     checkpoint: path.join(ROOT, "data-harvest/pub-record-copy/checkpoint.json") };
   const values = { "--dataset": "dataset", "--out": "out", "--checkpoint": "checkpoint", "--cap-usd": "cap" };
   for (let i = 2; i < process.argv.length; i++) {
     const flag = process.argv[i];
-    if (flag === "--generate") opts.generate = true;
+    if (flag === "--evaluate-judge") opts.evaluateJudge = true;
+    else if (flag === "--generate") opts.generate = true;
     else if (flag === "--check") opts.check = true;
     else if (flag === "--dry-run") opts.dryRun = true;
     else if (values[flag]) {
@@ -72,12 +76,16 @@ function writeJson(file, value) {
 }
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
-const cost = (inputTokens, outputTokens) => spendFromTokenCounts({ inputTokens, outputTokens,
-  inputUsdPerMillion: FLASH_LITE_SKU.inputUsdPerMillion, outputUsdPerMillion: FLASH_LITE_SKU.outputUsdPerMillion });
+const cost = (inputTokens, outputTokens, sku = FLASH_LITE_SKU) => spendFromTokenCounts({ inputTokens, outputTokens,
+  inputUsdPerMillion: sku.inputUsdPerMillion, outputUsdPerMillion: sku.outputUsdPerMillion });
 const textFor = (batch) => `${PROMPT}\n${JSON.stringify(batch.map(({ venueId, borough, supportedTags }) =>
   ({ venueId, borough, facts: supportedTags })))}`;
 // One UTF-8 byte per input token is deliberately conservative, with framing room.
-const reserveFor = (batch) => cost(Buffer.byteLength(textFor(batch), "utf8") + 4096, OUTPUT_TOKENS);
+const reserveText = (text, sku = FLASH_LITE_SKU, outputTokens = OUTPUT_TOKENS) => cost(Buffer.byteLength(text, "utf8") + 4096, outputTokens, sku);
+const reserveFor = (batch) => reserveText(textFor(batch));
+const judgeReserveFor = (batch) => reserveText(judgeText(batch.map((fact) => ({ ...fact,
+  description: "X".repeat(180), vibeTags: fact.supportedTags.slice(0, 3) }))), JUDGE_SKU, judgeOutputTokens(batch.length) + JUDGE_THINKING_TOKENS);
+const inputHashFor = (fact) => hash(JSON.stringify({ fact, groundingVersion: GROUNDING_VERSION }));
 
 function checkPublishedCopy(facts, out) {
   const pack = readJson(out);
@@ -105,11 +113,13 @@ function loadSpendCheckpoint(file, out) {
   if (checkpoint.version !== 1 || !checkpoint.entries ||
       ![checkpoint.actualSpendUsd, checkpoint.reservedUsd].every((n) => Number.isFinite(n) && n >= 0) ||
       !Number.isSafeInteger(checkpoint.requests) || checkpoint.requests < 0) throw new Error("invalid spend checkpoint");
+  checkpoint.actualSpendUsd = Math.max(checkpoint.actualSpendUsd, published?.actualSpendUsd ?? 0);
+  checkpoint.requests = Math.max(checkpoint.requests, published?.requests ?? 0);
   checkpoint.skipped ??= {};
   return checkpoint;
 }
 
-function settleUsage(checkpoint, body, reserve) {
+function settleUsage(checkpoint, body, reserve, sku) {
   const usage = body?.usageMetadata;
   const input = usage?.promptTokenCount;
   const output = (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0);
@@ -117,7 +127,7 @@ function settleUsage(checkpoint, body, reserve) {
     Number.isSafeInteger(usage?.candidatesTokenCount) && usage.candidatesTokenCount >= 0 &&
     Number.isSafeInteger(output) && output >= 0;
   if (metered) {
-    checkpoint.actualSpendUsd += cost(input, output);
+    checkpoint.actualSpendUsd += cost(input, output, sku);
     checkpoint.reservedUsd = Math.max(0, checkpoint.reservedUsd - reserve);
   }
 
@@ -134,7 +144,7 @@ function copyFrom(body, batch) {
   const normalized = [];
   for (const fact of batch) {
     const matching = complete ? rows.filter((row) => row?.venueId === fact.venueId) : [];
-    const copy = matching.length === 1 ? validateVenueRecordCopy(fact, matching[0]) : null;
+    const copy = matching.length === 1 ? validateVenueRecordCopyDraft(fact, matching[0]) : null;
     if (copy) normalized.push({ ...fact, ...copy });
   }
   return normalized;
@@ -150,6 +160,30 @@ function reportQuotaFailure(body, location) {
   }
   console.error(JSON.stringify({ httpStatus: 429, model: FLASH_LITE_SKU.model, region: location,
     quota: Object.keys(quota).length ? quota : "not reported by provider" }));
+}
+
+async function evaluateJudge(probes, requestBatch, checkpoint) {
+  const results = [];
+  for (let i = 0; i < probes.length; i += JUDGE_BATCH_SIZE) {
+    const batch = probes.slice(i, i + JUDGE_BATCH_SIZE);
+    const body = await requestBatch(batch, true);
+    // Evaluate the actual judge's verdict independently of deterministic draft heuristics.
+    const candidate = body.candidates?.[0];
+    let rows;
+    try { rows = JSON.parse(candidate?.content?.parts?.map((part) => part.text ?? "").join("")).rows; } catch { rows = []; }
+    for (const probe of batch) {
+      const matches = Array.isArray(rows) ? rows.filter((row) => row.venueId === probe.venueId) : [];
+      const row = matches.length === 1 ? matches[0] : null;
+      const passed = scoreJudgeProbe(probe, row, candidate?.finishReason === "STOP");
+      results.push({ venueId: probe.venueId, description: probe.description, expected: probe.expected, scoring: probe.scoring ?? "judge-and-quoted-phrase", passed, response: row });
+    }
+  }
+  writeJson(path.join(ROOT, "docs/proof/pub-record-copy/judge-evaluation.json"), {
+    evaluatedAt: new Date().toISOString(), model: JUDGE_SKU.model, groundingVersion: GROUNDING_VERSION,
+    actualSpendUsd: checkpoint.actualSpendUsd, passed: results.filter((row) => row.passed).length, total: results.length, results });
+  console.log(JSON.stringify({ judgeEvaluationPassed: results.filter((row) => row.passed).length, total: results.length,
+    actualSpendUsd: checkpoint.actualSpendUsd }));
+  if (results.some((row) => !row.passed)) throw new Error("grounding judge regression evaluation failed; no copy published");
 }
 
 async function main() {
@@ -168,21 +202,30 @@ async function main() {
   // An earlier unknown outcome is released so it can never block a later run.
   const releasedReservationUsd = checkpoint.reservedUsd;
   checkpoint.reservedUsd = 0;
+  const probes = opts.evaluateJudge ? readJson(path.join(ROOT, "scripts/fixtures/pubCopyJudgeProbes.json")) : [];
   const eligible = facts.filter((fact) => fact.supportedTags.length > 0);
   const pending = eligible.filter((fact) => {
     const entry = checkpoint.entries[fact.venueId];
-    const inputHash = hash(JSON.stringify(fact));
+    const inputHash = inputHashFor(fact);
     if (checkpoint.skipped[fact.venueId]?.inputHash === inputHash) return false;
     return entry?.inputHash !== inputHash || !validateVenueRecordCopy(fact, entry);
   });
   const batches = [];
   for (let i = 0; i < pending.length; i += BATCH_SIZE) batches.push(pending.slice(i, i + BATCH_SIZE));
   // Allow HTTP retries for each batch and one single-pub grounding retry per pending pub.
-  const projectedSpendUsd = checkpoint.actualSpendUsd +
-    batches.reduce((sum, batch) => sum + reserveFor(batch) * 3, 0) +
-    pending.reduce((sum, fact) => sum + reserveFor([fact]) * 3, 0);
-  console.log(JSON.stringify({ model: FLASH_LITE_SKU.model, venues: facts.length, eligible: eligible.length,
-    pending: pending.length, batches: batches.length, projectedSpendUsd, taskCapUsd: opts.cap,
+  // Non-200 HTTP retries are unbilled. Count one draft and judge pass plus one
+  // individual retry per pub; transport uncertainty retains its reservation.
+  const judgeBatches = [];
+  for (let i = 0; i < pending.length; i += JUDGE_BATCH_SIZE) judgeBatches.push(pending.slice(i, i + JUDGE_BATCH_SIZE));
+  const evaluationBatches = [];
+  for (let i = 0; i < probes.length; i += JUDGE_BATCH_SIZE) evaluationBatches.push(probes.slice(i, i + JUDGE_BATCH_SIZE));
+  const projectedSpendUsd = checkpoint.actualSpendUsd + (opts.evaluateJudge ?
+    evaluationBatches.reduce((sum, batch) => sum + judgeReserveFor(batch), 0) :
+    batches.reduce((sum, batch) => sum + reserveFor(batch), 0) +
+    judgeBatches.reduce((sum, batch) => sum + judgeReserveFor(batch), 0) +
+    pending.reduce((sum, fact) => sum + reserveFor([fact]) + judgeReserveFor([fact]), 0));
+  console.log(JSON.stringify({ model: FLASH_LITE_SKU.model, judgeModel: JUDGE_SKU.model, venues: facts.length, eligible: eligible.length,
+    pending: pending.length, batches: batches.length, projectedSpendUsd, taskCapUsd: opts.cap, liveSpendCapUsd: Math.min(opts.cap, LIVE_SPEND_CAP_USD),
     actualSpendUsd: checkpoint.actualSpendUsd, releasedReservationUsd, mode: opts.generate ? "generate" : "dry-run" }));
   if (projectedSpendUsd > opts.cap) throw new Error("projected spend exceeds task cap; no model call made");
   if (!opts.generate) return;
@@ -193,7 +236,8 @@ async function main() {
   let location = "global";
   let quotaSince = null;
   const startedAt = new Date().toISOString();
-  async function requestBatch(batch) {
+  async function requestBatch(batch, judging = false) {
+    const text = judging ? judgeText(batch).slice(JUDGE_PROMPT.length - "DRAFTS:\n".length) : textFor(batch);
     let retries = 0;
     for (;;) {
       if (!token || Date.now() - tokenAt > 20 * 60 * 1000) {
@@ -201,8 +245,10 @@ async function main() {
         tokenAt = Date.now();
         if (!token) throw new Error("gcloud authentication unavailable");
       }
-      const reserve = reserveFor(batch);
-      if (checkpoint.actualSpendUsd + checkpoint.reservedUsd + reserve > opts.cap) throw new Error("spend cap reached");
+      const sku = judging ? JUDGE_SKU : FLASH_LITE_SKU;
+      const maxOutputTokens = judging ? judgeOutputTokens(batch.length) : OUTPUT_TOKENS;
+      const reserve = reserveText((judging ? JUDGE_PROMPT : "") + text, sku, maxOutputTokens + (judging ? JUDGE_THINKING_TOKENS : 0));
+      if (checkpoint.actualSpendUsd + checkpoint.reservedUsd + reserve > Math.min(opts.cap, LIVE_SPEND_CAP_USD)) throw new Error("spend cap reached");
       if (Date.now() < nextCallAt) await new Promise((resolve) => setTimeout(resolve, nextCallAt - Date.now()));
       nextCallAt = Date.now() + pacingMs;
       // Reserve durably BEFORE sending. An interrupted/unknown response keeps its reservation.
@@ -213,14 +259,15 @@ async function main() {
       let body;
       try {
         const host = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
-        response = await fetch(`https://${host}/v1/projects/pubmaxx/locations/${location}/publishers/google/models/${FLASH_LITE_SKU.model}:generateContent`, {
+        response = await fetch(`https://${host}/v1/projects/pubmaxx/locations/${location}/publishers/google/models/${sku.model}:generateContent`, {
           method: "POST", signal: AbortSignal.timeout(90_000),
           headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: textFor(batch) }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: OUTPUT_TOKENS,
-              thinkingConfig: { thinkingBudget: 0 }, responseMimeType: "application/json",
-              responseSchema: { type: "OBJECT", required: ["rows"], properties: {
+            ...(judging ? {systemInstruction: {parts: [{text: JUDGE_PROMPT}]}} : {}),
+            contents: [{ role: "user", parts: [{ text }] }],
+            generationConfig: { temperature: judging ? 0 : 0.7, maxOutputTokens,
+              thinkingConfig: { thinkingBudget: judging ? JUDGE_THINKING_TOKENS : 0 }, responseMimeType: "application/json",
+              responseSchema: judging ? judgeSchema(batch.map((fact) => fact.venueId)) : { type: "OBJECT", required: ["rows"], properties: {
                 rows: { type: "ARRAY", minItems: batch.length, maxItems: batch.length, items: { type: "OBJECT", required: ["venueId", "description", "vibeTags"], properties: {
                   venueId: { type: "STRING", enum: batch.map((fact) => fact.venueId) },
                   description: { type: "STRING" },
@@ -262,13 +309,17 @@ async function main() {
       }
       quotaSince = null;
       pacingMs = Math.max(3_000, Math.floor(pacingMs * 0.8));
-      settleUsage(checkpoint, body, reserve);
+      settleUsage(checkpoint, body, reserve, sku);
       writeJson(opts.checkpoint, checkpoint);
       return body;
     }
   }
+  if (opts.evaluateJudge) {
+    await evaluateJudge(probes, requestBatch, checkpoint);
+    return;
+  }
   function retain(fact, entry) {
-    const inputHash = hash(JSON.stringify(fact));
+    const inputHash = inputHashFor(fact);
     if (entry) {
       checkpoint.entries[fact.venueId] = { ...entry, inputHash };
       delete checkpoint.skipped[fact.venueId];
@@ -279,7 +330,12 @@ async function main() {
     writeJson(opts.checkpoint, checkpoint);
   }
   for (const [batchIndex, batch] of batches.entries()) {
-    const normalized = copyFrom(await requestBatch(batch), batch);
+    const drafts = copyFrom(await requestBatch(batch), batch);
+    const normalized = [];
+    for (let i = 0; i < drafts.length; i += JUDGE_BATCH_SIZE) {
+      const judgeBatch = drafts.slice(i, i + JUDGE_BATCH_SIZE);
+      normalized.push(...judgeResults(await requestBatch(judgeBatch, true), judgeBatch));
+    }
     const failed = [];
     for (const fact of batch) {
       const entry = normalized.find((row) => row.venueId === fact.venueId);
@@ -287,7 +343,8 @@ async function main() {
       else failed.push(fact);
     }
     for (const fact of failed) {
-      const retried = copyFrom(await requestBatch([fact]), [fact]);
+      const retryDrafts = copyFrom(await requestBatch([fact]), [fact]);
+      const retried = retryDrafts.length ? judgeResults(await requestBatch(retryDrafts, true), retryDrafts) : [];
       retain(fact, retried[0]);
     }
     if ((batchIndex + 1) % 10 === 0 || batchIndex === batches.length - 1)
@@ -295,12 +352,12 @@ async function main() {
   }
   if (checkpoint.reservedUsd > 0.000000001) throw new Error("unresolved spend reservations; copy retained in checkpoint, publication refused");
   const venues = Object.fromEntries(eligible.filter((fact) => !checkpoint.skipped[fact.venueId]).map((fact) => {
-    const { venueId, borough, supportedTags, description, vibeTags } = checkpoint.entries[fact.venueId];
-    return [venueId, { venueId, borough, supportedTags, description, vibeTags }];
+    const { venueId, borough, supportedTags, description, vibeTags, grounding } = checkpoint.entries[fact.venueId];
+    return [venueId, { venueId, borough, supportedTags, description, vibeTags, grounding }];
   }));
   writeJson(opts.out, { version: 2, model: FLASH_LITE_SKU.model, generatedAt: new Date().toISOString(),
     startedAt, sourceDataset: "public/data/pint_prices_app_dataset.json", sourceDatasetSha256: hash(raw),
-    pricing: FLASH_LITE_SKU, taskCapUsd: opts.cap, projectedSpendUsd,
+    groundingVersion: GROUNDING_VERSION, judgePricing: JUDGE_SKU, pricing: FLASH_LITE_SKU, taskCapUsd: opts.cap, projectedSpendUsd,
     actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests, venues,
     skipped: Object.fromEntries(facts.filter((fact) => !venues[fact.venueId]).map((fact) =>
       [fact.venueId, fact.supportedTags.length ? checkpoint.skipped[fact.venueId] : { reason: INSUFFICIENT }])) });

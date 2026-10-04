@@ -7,7 +7,11 @@ vi.mock("node:fs/promises", () => ({ readFile: read }));
 const venue = { id: "venue-test", kind: "pub", primaryBorough: "Hackney", amenities: { liveMusic: true } } as unknown as Venue;
 const pack = { version: 2, model: "gemini-2.5-flash-lite", venues: {
   "venue-test": { venueId: "venue-test", borough: "Hackney", supportedTags: ["Live music"],
-    description: "A Hackney pub with live music.", vibeTags: ["Live music"] },
+    description: "A Hackney pub with live music.", vibeTags: ["Live music"],
+    grounding: { version: 2, verdict: "SUPPORTED", description: "A Hackney pub with live music.", vibeTags: ["Live music"], claims: [
+      {phrase: "A Hackney pub with live music.", verdict: "SUPPORTED", offendingPhrase: ""},
+      {phrase: "Live music", verdict: "SUPPORTED", offendingPhrase: ""},
+    ] } },
 } };
 
 beforeEach(() => { vi.resetModules(); read.mockReset(); });

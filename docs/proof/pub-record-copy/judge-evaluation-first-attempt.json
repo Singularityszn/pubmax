@@ -1,0 +1,3916 @@
+{
+  "evaluatedAt": "2026-10-04T14:04:18.825Z",
+  "model": "gemini-2.5-flash-lite",
+  "groundingVersion": 1,
+  "actualSpendUsd": 0.14883000000000024,
+  "passed": 75,
+  "total": 138,
+  "results": [
+    {
+      "venueId": "probe-0",
+      "description": "A Camden pub with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-0",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Camden pub with live music.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Camden"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-1",
+      "description": "A Hackney local favourite with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-1",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney local favourite with live music.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-2",
+      "description": "A Hackney pub with live jazz and a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-2",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live jazz and a pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "live jazz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Cocktails"
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-3",
+      "description": "A Hackney pub with live music and a beer garden.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-3",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music and a beer garden.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "beer garden"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-4",
+      "description": "A Hackney pub with live music and food.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-4",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music and food.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "food"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-5",
+      "description": "A Hackney pub with live music and free wifi.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-5",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music and free wifi.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "free wifi"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-6",
+      "description": "A Hackney pub with live music and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-6",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music and karaoke.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "karaoke"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-7",
+      "description": "A Hackney pub with live music and live sport on the big screens.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-7",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music and live sport on the big screens.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "live sport on the big screens"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-8",
+      "description": "A Hackney pub with live music and real ales.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-8",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music and real ales.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "real ales"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-9",
+      "description": "A Hackney pub with live music on 3 nights.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-9",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music on 3 nights.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "on 3 nights"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-10",
+      "description": "A Hackney pub with live music, and catch live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-10",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A Hackney pub with live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "and catch live music",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "catch live music"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-12",
+      "description": "A cosy Hackney pub with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-12",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "A cosy Hackney pub with live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-13",
+      "description": "A friendly Hackney local where you catch live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-13",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "A friendly Hackney local where you catch live music",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "catch live music"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-14",
+      "description": "A happy Camden local with karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-14",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "A happy Camden local with karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-15",
+      "description": "A historic Hackney pub with a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-15",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "A historic Hackney pub with a pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-16",
+      "description": "A lively Hackney local with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-16",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "A lively Hackney local with live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-17",
+      "description": "A pub in Hackney, London.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-17",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "A pub in Hackney, London",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-18",
+      "description": "At this Lambeth pub you can get a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-18",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "At this Lambeth pub you can get a pub quiz",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "get a pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-19",
+      "description": "Camden has cocktails, karaoke and live music at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-19",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Camden has cocktails, karaoke and live music at this pub",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-20",
+      "description": "Cheap pints and live music at this Hackney pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-20",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cheap pints and live music at this Hackney pub",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Cheap pints"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-21",
+      "description": "Cocktails are gone from this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-21",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails are gone from this pub.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Cocktails are gone from this pub."
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Cocktails are gone from this pub."
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-22",
+      "description": "Ealing has this pub with cocktails and a quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-22",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Ealing has this pub with cocktails and a quiz.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-23",
+      "description": "Fancy a game of pool? This place has tables.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-23",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Fancy a game of pool?",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This place has tables.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "This place has tables."
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-24",
+      "description": "Fancy a pint and a game of pool? This City of London pub serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-24",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Fancy a pint and a game of pool?",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This City of London pub serves cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-25",
+      "description": "Fancy some cocktails? This Lambeth place does Cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-25",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Fancy some cocktails?",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This Lambeth place does Cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-26",
+      "description": "Greenwich is where this pub has cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-26",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Greenwich is where this pub has cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-27",
+      "description": "Head to Kensington and Chelsea for cocktails and live music at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-27",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Head to Kensington and Chelsea for cocktails and live music at this pub.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-28",
+      "description": "In Camden you can get cocktails at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-28",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "In Camden you can get cocktails at this pub.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-29",
+      "description": "Live music and a pub quiz, all in Hackney.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-29",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Live music and a pub quiz, all in Hackney.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Live music and a pub quiz, all in Hackney."
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Live music and a pub quiz, all in Hackney."
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-30",
+      "description": "Live music and karaoke are what this Lambeth pub is known for.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-30",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Live music and karaoke are what this Lambeth pub is known for.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-31",
+      "description": "Live music and karaoke are what this Westminster pub is known for.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-31",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Live music and karaoke are what this Westminster pub is known for.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-32",
+      "description": "Live music tonight at this Hackney pub.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-32",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Live music tonight at this Hackney pub.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-33",
+      "description": "Regulars pack this Hackney pub for live music.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-33",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Regulars pack this Hackney pub for live music.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-34",
+      "description": "The City of London pub has cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-34",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "The City of London pub has cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-35",
+      "description": "The best cocktails are at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-35",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "The best cocktails are at this pub.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "The best cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-36",
+      "description": "The best pub quiz in Hackney is at this local.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-36",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "The best pub quiz in Hackney is at this local.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "The best pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-37",
+      "description": "There's live music here, though this Hackney pub doesn't run a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-37",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "There's live music here, though this Hackney pub doesn't run a pub quiz.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-38",
+      "description": "They do cocktails and a pub quiz, with happy hour.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-38",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "They do cocktails and a pub quiz, with happy hour.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-39",
+      "description": "They specialise in cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-39",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "They specialise in cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "specialise in cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-40",
+      "description": "This Camden pub has cocktails and drinks.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-40",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Camden pub has cocktails and drinks.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-41",
+      "description": "This Camden pub is out of cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-41",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Camden pub is out of cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "is out of cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Cocktails"
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-42",
+      "description": "This Ealing pub gets cocktails and hosts a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-42",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Ealing pub gets cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "and hosts a pub quiz.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-43",
+      "description": "This Greenwich pub hosts live music, cocktails and a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-43",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Greenwich pub hosts live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": ", cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "and a pub quiz.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-44",
+      "description": "This Hackney pub catches live music and serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-44",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Hackney pub catches live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "and serves cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-45",
+      "description": "This Hackney pub has live music but no pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-45",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Hackney pub has live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "but no pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "no pub quiz"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-46",
+      "description": "This Hackney pub has live music without the fuss of a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-46",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Hackney pub has live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "without the fuss of a pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "without the fuss of a pub quiz"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-47",
+      "description": "This Hackney pub runs a pub quiz every Tuesday.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-47",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Hackney pub runs a pub quiz every Tuesday.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "runs a pub quiz every Tuesday"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-48",
+      "description": "This Hackney pub, on Mare Street, has live music.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-48",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Hackney pub, on Mare Street, has live music.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-49",
+      "description": "This Hammersmith and Fulham pub hosts darts, a quiz, and happy hour.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-49",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Hammersmith and Fulham pub hosts darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": ", a quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": ", and happy hour.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-50",
+      "description": "This Hounslow pub has a pool table for you to play.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-50",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Hounslow pub has a pool table",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "for you to play.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "for you to play"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-51",
+      "description": "This Islington local plays darts.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-51",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Islington local plays darts.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-52",
+      "description": "This Islington pub specialises in cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-52",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Islington pub specialises in cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-53",
+      "description": "This Lambeth local is where you can get a pub quiz and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-53",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Lambeth local is where you can get a pub quiz and karaoke.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-54",
+      "description": "This Waltham Forest pub has cocktails and a pub quiz with darts.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-54",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Waltham Forest pub has cocktails and a pub quiz with darts.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-55",
+      "description": "This Westminster pub is known for its cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-55",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Westminster pub is known for its cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-56",
+      "description": "This Westminster pub is where you can catch live music and cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-56",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Westminster pub is where you can catch live music and cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-57",
+      "description": "This Westminster pub specialises in cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-57",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This Westminster pub specialises in cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-58",
+      "description": "This live Camden pub has cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-58",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This live Camden pub has cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-59",
+      "description": "This pub axed karaoke and serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-59",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub axed karaoke and serves cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "axed karaoke"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "axed karaoke"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-60",
+      "description": "This pub banned karaoke and serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-60",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub banned karaoke and serves cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "banned karaoke"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "banned karaoke"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-61",
+      "description": "This pub dropped its pub quiz but serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-61",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dropped its pub quiz"
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub dropped its pub quiz but serves cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dropped its pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-62",
+      "description": "This pub excels at cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-62",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub excels at cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "excels at cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-63",
+      "description": "This pub has a dingy pool table.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-63",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dingy pool table"
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has a dingy pool table.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dingy pool table"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-64",
+      "description": "This pub has dartboards.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-64",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has dartboards.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-65",
+      "description": "This pub has darts, with a pool table.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-65",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has darts, with a pool table.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-66",
+      "description": "This pub has dreadful cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-66",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dreadful cocktails"
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has dreadful cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dreadful cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dreadful cocktails"
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-67",
+      "description": "This pub has given up its pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-67",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "given up its pub quiz"
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has given up its pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "given up its pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-68",
+      "description": "This pub has happy hours.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-68",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has happy hours.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-69",
+      "description": "This pub has overpriced cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-69",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "overpriced cocktails"
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has overpriced cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "overpriced cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "overpriced cocktails"
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-70",
+      "description": "This pub has scrapped its pub quiz but serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-70",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "scrapped its pub quiz"
+          },
+          {
+            "phrase": "Darts",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Happy hour",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub has scrapped its pub quiz but serves cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "scrapped its pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-71",
+      "description": "This pub has several pool tables.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-71",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub has several pool tables.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "several pool tables"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-72",
+      "description": "This pub has two pool tables.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-72",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub has two pool tables.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "two pool tables"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-73",
+      "description": "This pub hosted live music.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-73",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosted live music.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-74",
+      "description": "This pub hosts a pub quiz and a raffle.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-74",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts a pub quiz and a raffle.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "a raffle"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-75",
+      "description": "This pub hosts a pub quiz, with karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-75",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts a pub quiz, with karaoke.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "with karaoke"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-76",
+      "description": "This pub hosts karaoke after the pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-76",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke after the pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "after the pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-77",
+      "description": "This pub hosts karaoke and drag shows.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-77",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke and drag shows.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "drag shows"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-78",
+      "description": "This pub hosts live music and stand-up.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-78",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music and stand-up.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "stand-up"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-79",
+      "description": "This pub hosts live music in summer.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-79",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music in summer.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "in summer"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-80",
+      "description": "This pub hosts live music twice a week.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-80",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music twice a week.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "twice a week"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-81",
+      "description": "This pub hosts live music. Tickets sell out.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-81",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Tickets sell out.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Tickets sell out."
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-82",
+      "description": "This pub hosts occasional live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-82",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts occasional live music.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "occasional live music"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-83",
+      "description": "This pub is famous for its pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-83",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub is famous for its pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "famous for its pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-84",
+      "description": "This pub is shut but serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-84",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub is shut but serves cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "is shut"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-85",
+      "description": "This pub is the go-to for cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-85",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub is the go-to for cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "is the go-to for"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-86",
+      "description": "This pub might host a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-86",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub might host a pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "might host a pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-87",
+      "description": "This pub once hosted live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-87",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub once hosted live music.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "once hosted"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-88",
+      "description": "This pub previously hosted live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-88",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub previously hosted live music.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "previously hosted"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-89",
+      "description": "This pub rarely hosts live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-89",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub rarely hosts live music.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "rarely hosts"
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-90",
+      "description": "This pub runs pub quizzes.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-90",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub runs pub quizzes.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-91",
+      "description": "This pub serves a range of cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-91",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves a range of cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-92",
+      "description": "This pub serves cheapish cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-92",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cheapish cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "cheapish"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-93",
+      "description": "This pub serves cocktails and a raffle.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-93",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and a raffle.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "a raffle"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-94",
+      "description": "This pub serves cocktails and beer.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-94",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and beer.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "beer"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-95",
+      "description": "This pub serves cocktails and coffee.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-95",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and coffee.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "coffee"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-96",
+      "description": "This pub serves cocktails and dancing.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-96",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and dancing.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dancing"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-97",
+      "description": "This pub serves cocktails and is closing soon.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-97",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and is closing soon.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "is closing soon"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-98",
+      "description": "This pub serves cocktails and lager.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-98",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and lager.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "lager"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-99",
+      "description": "This pub serves cocktails and poker.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-99",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and poker.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "poker"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-100",
+      "description": "This pub serves cocktails and sandwiches.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-100",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and sandwiches.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "sandwiches"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-101",
+      "description": "This pub serves cocktails and shots.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-101",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and shots.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-102",
+      "description": "This pub serves cocktails and singing.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-102",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and singing.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "singing"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-103",
+      "description": "This pub serves cocktails for a fiver.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-103",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails for a fiver.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "for a fiver"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-104",
+      "description": "This pub serves cocktails till midnight.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-104",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails till midnight.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "till midnight"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-105",
+      "description": "This pub serves cocktails, but the pub quiz is rubbish.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-105",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails, but the pub quiz is rubbish.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "but the pub quiz is rubbish"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-106",
+      "description": "This pub serves disappointing cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-106",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves disappointing cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "disappointing"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-107",
+      "description": "This pub serves dozens of cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-107",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves dozens of cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "dozens of"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-108",
+      "description": "This pub serves mediocre cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-108",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves mediocre cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "mediocre"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-109",
+      "description": "This pub serves pricy cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-109",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves pricy cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "pricy"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-110",
+      "description": "This pub serves the finest cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-110",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves the finest cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "the finest"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-111",
+      "description": "This pub serves watered-down cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-111",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves watered-down cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "watered-down cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-112",
+      "description": "This pub serves weak cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-112",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves weak cocktails.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "weak cocktails"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-113",
+      "description": "This pub sometimes hosts live music.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-113",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub sometimes hosts live music.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-114",
+      "description": "This pub stopped hosting karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-114",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub stopped hosting karaoke.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "stopped hosting karaoke"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-115",
+      "description": "This pub used to run a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-115",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub used to run a pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "used to run a pub quiz"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-116",
+      "description": "This pub's cocktails are strong.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-116",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub's cocktails are strong.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "cocktails are strong"
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-117",
+      "description": "What a pub. In Waltham Forest it has cocktails and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-117",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "In Waltham Forest it has cocktails and karaoke.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-118",
+      "description": "You can get a pub quiz and karaoke at this Lambeth pub.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-118",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "You can get a pub quiz and karaoke at this Lambeth pub.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-119",
+      "description": "You can get cocktails and play pub quiz at this Merton local.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-119",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "You can get cocktails and play pub quiz at this Merton local.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-120",
+      "description": "You can grab cocktails here during their happy hour.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-120",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "You can grab cocktails here during their happy hour.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "probe-121",
+      "description": "You'll find pool tables here.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "probe-121",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "You'll find pool tables here.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "control-0",
+      "description": "This pub serves cocktails.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-0",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "control-1",
+      "description": "You can play pool here or join the pub quiz.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-1",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "You can play pool here or join the pub quiz.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "control-2",
+      "description": "Fancy a cocktail? This pub serves them.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-2",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "Fancy a cocktail?",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "This pub serves them.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "control-3",
+      "description": "This pub hosts live music and has darts.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-3",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music and has darts.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-125",
+      "description": "This pub hosts karaoke before the pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-125",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke before the pub quiz.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "before the pub quiz"
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-126",
+      "description": "This pub serves cocktails galore.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-126",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails galore.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-127",
+      "description": "This pub serves cocktails to die for.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-127",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails to die for.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-128",
+      "description": "This pub serves cocktails worth the trip.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-128",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails worth the trip.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-129",
+      "description": "This pub serves cocktails people rave about.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-129",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails people rave about.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-130",
+      "description": "This pub has a pool table upstairs.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-130",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub has a pool table upstairs.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-131",
+      "description": "This pub hosts live music on occasion.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-131",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music on occasion.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-132",
+      "description": "This pub hosts live music now and again.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-132",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music now and again.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-133",
+      "description": "This pub hosts live music on the odd night.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-133",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music on the odd night.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-134",
+      "description": "This pub serves cocktails by the jug.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-134",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails by the jug.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Cocktails",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-135",
+      "description": "This pub does live music, pub quizzes and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-135",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub does live music, pub quizzes and karaoke.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Live music",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Pub quiz",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-136",
+      "description": "This pub hosts a pub quiz and poker.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-136",
+        "verdict": "UNSUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts a pub quiz and poker.",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "poker"
+          },
+          {
+            "phrase": "Pool",
+            "verdict": "UNSUPPORTED",
+            "offendingPhrase": "Pool"
+          }
+        ]
+      }
+    },
+    {
+      "venueId": "extra-137",
+      "description": "This pub hosts karaoke, which is ticketed.",
+      "expected": "UNSUPPORTED",
+      "passed": false,
+      "response": {
+        "venueId": "extra-137",
+        "verdict": "SUPPORTED",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke, which is ticketed.",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          },
+          {
+            "phrase": "Karaoke",
+            "verdict": "SUPPORTED",
+            "offendingPhrase": ""
+          }
+        ]
+      }
+    }
+  ]
+}

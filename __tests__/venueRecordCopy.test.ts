@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { copyFactsForVenue, validateVenueRecordCopy } from "@/lib/venueRecordCopy";
+import { copyFactsForVenue, validateVenueRecordCopyDraft } from "@/lib/venueRecordCopy";
 import type { Venue } from "@/lib/venues";
 
 const venue = {
@@ -20,7 +20,7 @@ describe("venue record copy", () => {
   });
 
   it("accepts natural prose that claims only supported facts", () => {
-    expect(validateVenueRecordCopy(copyFactsForVenue(venue), copy(
+    expect(validateVenueRecordCopyDraft(copyFactsForVenue(venue), copy(
       "Fancy a pub quiz? This Hackney local runs one, and you can catch live music too.", ["Pub quiz", "Live music"],
     ))).toEqual({
       description: "Fancy a pub quiz? This Hackney local runs one, and you can catch live music too.",
@@ -42,7 +42,7 @@ describe("venue record copy", () => {
       ["Kensington and Chelsea", ["Cocktails"], "Cocktails are served at this Kensington and Chelsea pub."],
       ["Croydon", ["Happy hour", "Cocktails"], "There's a happy hour at this Croydon pub, and you'll find cocktails here too."],
     ] as const) {
-      expect(validateVenueRecordCopy(facts(borough, [...tags]), copy(description, [tags[0]])), description).not.toBeNull();
+      expect(validateVenueRecordCopyDraft(facts(borough, [...tags]), copy(description, [tags[0]])), description).not.toBeNull();
     }
   });
 
@@ -68,7 +68,7 @@ describe("venue record copy", () => {
       copy("A pub in Hackney, London."),
       copy("Live music and a pub quiz, all in Hackney."),
       { ...copy("A Hackney pub with live music."), venueId: "venue-other" },
-    ]) expect(validateVenueRecordCopy(facts, entry), entry.description).toBeNull();
+    ]) expect(validateVenueRecordCopyDraft(facts, entry), entry.description).toBeNull();
   });
 
   it("rejects negated features and unverifiable mood, quality, crowd, price and schedule claims", () => {
@@ -87,7 +87,7 @@ describe("venue record copy", () => {
       "Cheap pints and live music at this Hackney pub.",
       "This Hackney pub runs a pub quiz every Tuesday.",
       "Live music tonight at this Hackney pub.",
-    ]) expect(validateVenueRecordCopy(facts, copy(description)), description).toBeNull();
+    ]) expect(validateVenueRecordCopyDraft(facts, copy(description)), description).toBeNull();
   });
 
   it("rejects reputation, specialty, cessation and negative evaluative claims", () => {
@@ -109,7 +109,7 @@ describe("venue record copy", () => {
       "This pub has overpriced cocktails.",
       "This pub serves cocktails, but the pub quiz is rubbish.",
       "This pub serves a range of cocktails.",
-    ]) expect(validateVenueRecordCopy(facts, copy(description, ["Cocktails"])), description).toBeNull();
+    ]) expect(validateVenueRecordCopyDraft(facts, copy(description, ["Cocktails"])), description).toBeNull();
   });
 
   it("rejects lapse, hedge, schedule, quality, price and quantity claims by structure, not by word", () => {
@@ -146,7 +146,7 @@ describe("venue record copy", () => {
       "You'll find pool tables here.",
       "Fancy a game of pool? This place has tables.",
       "You can grab cocktails here during their happy hour.",
-    ]) expect(validateVenueRecordCopy(facts, copy(description, ["Cocktails"])), description).toBeNull();
+    ]) expect(validateVenueRecordCopyDraft(facts, copy(description, ["Cocktails"])), description).toBeNull();
   });
 
   it("rejects review probes: fact fragments, borough subjects, absence and awkward verb pairings", () => {
@@ -158,7 +158,7 @@ describe("venue record copy", () => {
       "Camden has cocktails, karaoke and live music at this pub.",
       "In Camden you can get cocktails at this pub.",
       "This Camden pub has cocktails and drinks.",
-    ]) expect(validateVenueRecordCopy(camden, copy(description, ["Cocktails"])), description).toBeNull();
+    ]) expect(validateVenueRecordCopyDraft(camden, copy(description, ["Cocktails"])), description).toBeNull();
     for (const [borough, tags, description] of [
       ["Ealing", ["Cocktails", "Pub quiz"], "Ealing has this pub with cocktails and a quiz."],
       ["Greenwich", ["Cocktails"], "Greenwich is where this pub has cocktails."],
@@ -179,20 +179,20 @@ describe("venue record copy", () => {
       ["Kensington and Chelsea", ["Cocktails", "Live music"], "Head to Kensington and Chelsea for cocktails and live music at this pub."],
       ["Lambeth", ["Cocktails"], "Fancy some cocktails? This Lambeth place does Cocktails."],
     ] as const) {
-      expect(validateVenueRecordCopy({ venueId: venue.id, borough, supportedTags: [...tags] }, copy(description, [tags[0]])), description).toBeNull();
+      expect(validateVenueRecordCopyDraft({ venueId: venue.id, borough, supportedTags: [...tags] }, copy(description, [tags[0]])), description).toBeNull();
     }
   });
 
   it("stops displaying a claim after its supporting fact disappears", () => {
     const entry = copy("A Hackney pub with live music.");
     const updated = { ...venue, amenities: { ...venue.amenities, liveMusic: false } } as Venue;
-    expect(validateVenueRecordCopy(copyFactsForVenue(updated), entry)).toBeNull();
+    expect(validateVenueRecordCopyDraft(copyFactsForVenue(updated), entry)).toBeNull();
   });
 
   it("supports no copy for a pub with only chip facts and excludes non-pubs", () => {
     const sparse = copyFactsForVenue({ ...venue, amenities: { food: true, beerGarden: true } } as unknown as Venue);
     expect(sparse).toEqual({ venueId: venue.id, borough: "Hackney", supportedTags: [] });
-    expect(validateVenueRecordCopy(sparse, copy("A pub in Hackney, London.", []))).toBeNull();
+    expect(validateVenueRecordCopyDraft(sparse, copy("A pub in Hackney, London.", []))).toBeNull();
     expect(copyFactsForVenue({ ...venue, primaryBorough: "Unknown" })?.borough).toBeNull();
     expect(copyFactsForVenue({ ...venue, kind: "restaurant" })).toBeNull();
   });
