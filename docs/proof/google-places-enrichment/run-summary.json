@@ -36,5 +36,7 @@
   "quotaBefore": {
     "search": "100",
     "details": "60"
-  }
+  },
+  "monthToDatePlacesRequestsAfterRun": 18482,
+  "observedRequestIncrease": 3053
 }

@@ -2,7 +2,7 @@
 
 Collected 4 October 2026, after the closure lane released the shared API key. Current monthly Places request usage was read immediately before collection: 15,429. Dry-run projection was 3,053 Details calls at USD20 per thousand, or USD61.06, below the authorised USD85 task cap. All four fields share one Enterprise request; there is no second contact-field charge.
 
-The completed run made 3,053 requests with zero HTTP errors. Listed-rate spend is USD61.06, with no free allowance assumed. This is request-ledger spend, not a billing-invoice reconciliation. Both original daily limits were restored and checked: Search 100, Details 60. See [run-summary.json](run-summary.json).
+The completed run made 3,053 requests with zero HTTP errors. Monitoring usage afterwards was 18,482, exactly 3,053 above the pre-run count. Listed-rate spend is USD61.06, with no free allowance assumed. This is request-ledger spend, not a billing-invoice reconciliation. Both original daily limits were restored and checked: Search 100, Details 60. See [run-summary.json](run-summary.json).
 
 Copied fields cover 2,935 regular schedules, 3,053 addresses, 2,807 national phone numbers and 2,627 websites. All 676 previously incomparable pubs were requested; 639 produced usable regular hours. All 249 mismatches now have Google regular hours. The other 37 incomparable pubs have no usable schedule in this artifact; missing values remain unknown. Every returned field has its own request timestamp and source. The registry uses the oldest field timestamp. Runtime freshness is checked per field over 30 days.
 
