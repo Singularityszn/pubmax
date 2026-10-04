@@ -430,7 +430,7 @@ function recoverableOwnership(entry, pub) {
 }
 
 /** The committed evidence with this run's pages laid over it. */
-function mergeEvidence(previous, fresh, ownership) {
+function mergeEvidence(previous, fresh, ownership, recovered) {
   const skipCounts = { ...(previous?.skipCounts ?? {}) };
   const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
   for (const [osmId, entry] of fresh) {
@@ -451,7 +451,9 @@ function mergeEvidence(previous, fresh, ownership) {
     }
   }
   const rows = pubSpecificPages(candidates, ownership).sort((a, b) => a.osmId.localeCompare(b.osmId));
-  const unused = candidates.length - rows.length;
+  const keptPubs = new Set(rows.map((row) => row.osmId));
+  const unused = new Set(candidates.map((row) => row.osmId)
+    .filter((osmId) => !keptPubs.has(osmId) && !recovered.has(osmId))).size;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts };
 }
@@ -559,6 +561,7 @@ async function main() {
       entry.publication = "published";
     }
   }
+  const recovered = new Set(fresh.keys());
   const robots = createRobotsChecker();
   const queue = pubs.filter((pub) => !Object.hasOwn(byOsmId, pub.osmId));
   const work = limit === null ? queue : queue.slice(0, limit);
@@ -642,10 +645,6 @@ async function main() {
     const evidencedPages = [];
     for (const page of pages) {
       const amenities = keepEvidencedAmenities(parsed.amenities, page.text);
-      // A quote present on both pages needs only its first actual citation.
-      for (const key of Object.keys(amenities)) {
-        if (key in kept) delete amenities[key];
-      }
       Object.assign(kept, amenities);
       // Empty pages still identify their owner when another pub cites them.
       evidencedPages.push({ sourceUrl: page.sourceUrl, amenities });
@@ -699,7 +698,7 @@ async function main() {
       amenities: {},
     }));
   });
-  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh, ownership);
+  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh, ownership, recovered);
   const evidence = withStampFigures({
     version: 1,
     model: FLASH_LITE_SKU.model,
