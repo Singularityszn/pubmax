@@ -22,6 +22,7 @@ type RouteMetricsProps = {
   journeyTotalMinutes: number | null;
   journeyLoading: boolean;
   routeLength: number;
+  pricedStopCount: number;
   stopNoun: string;
   routeHeritageCount: number;
   routeWaterCount: number;
@@ -36,6 +37,7 @@ export default function RouteMetrics({
   journeyTotalMinutes,
   journeyLoading,
   routeLength,
+  pricedStopCount,
   stopNoun,
   routeHeritageCount,
   routeWaterCount,
@@ -46,7 +48,13 @@ export default function RouteMetrics({
       <div>
         <BadgePoundSterling size={17} />
         <span>{summaryTotal === null ? "Not recorded" : formatPrice(summaryTotal)}</span>
-        <small>{summaryTotal === null ? "round total" : "estimated round"}</small>
+        <small>
+          {summaryTotal === null
+            ? "round total"
+            : pricedStopCount < routeLength
+              ? `known subtotal · ${pricedStopCount} of ${routeLength} stops priced`
+              : "estimated round"}
+        </small>
       </div>
       <div
         title="Haversine (straight-line) distance between stops. Walking distance will be longer."

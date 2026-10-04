@@ -126,6 +126,7 @@ export default function RoutePanel({
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
   const drinkPresentation = mapPlanDrinkPresentation(drinkSelection);
+  const pricedStopCount = route.filter((venue) => typeof venue.cheapestPrice === "number").length;
   const drinkCoverageNote = drinkPresentation
     ? drinkLensCoverageNote(drinkPresentation.priceNoun, drinkPriceStatus)
     : null;
@@ -230,13 +231,14 @@ export default function RoutePanel({
       {stopsFirst ? stopsList : null}
 
       <RouteMetrics
-        summaryTotal={drinkPresentation ? null : summary.total}
+        summaryTotal={drinkPresentation || pricedStopCount === 0 ? null : summary.total}
         summaryDistance={summary.distance}
         legSummary={legSummary}
         pace={pace}
         journeyTotalMinutes={journeyTotalMinutes}
         journeyLoading={journeyLoading}
         routeLength={route.length}
+        pricedStopCount={pricedStopCount}
         stopNoun={stopNoun}
         routeHeritageCount={routeHeritageCount}
         routeWaterCount={routeWaterCount}
