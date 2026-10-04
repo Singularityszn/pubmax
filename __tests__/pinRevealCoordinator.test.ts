@@ -136,6 +136,20 @@ function harness({
 }
 
 describe("pin reveal coordinator", () => {
+  it("requires the basemap on a pin-free overview and preserves tile failure ownership", () => {
+    const overview = {
+      basemapPainted: true,
+      venueData: "pending" as const,
+      filteredVenueCount: 0,
+      pinsPaintable: false,
+      pinsExpected: false,
+    };
+    expect(revealTimeoutNotice("timeout", "none", overview)).toBeNull();
+    expect(revealTimeoutNotice("timeout", "none", { ...overview, basemapPainted: false })).toEqual(BASEMAP_RETRY_NOTICE);
+    expect(revealTimeoutNotice("timeout", "errors", overview)).toBeNull();
+    expect(revealTimeoutNotice("timeout", "none", { ...overview, pinsExpected: true })).toEqual(VENUE_DATA_RETRY_NOTICE);
+  });
+
   it("names the signal that missed, and says nothing when none did", () => {
     const nothingReady = {
       basemapPainted: false,

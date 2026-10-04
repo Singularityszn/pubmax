@@ -232,6 +232,8 @@ type PubMapCanvasProps = {
   filteredVenueCount?: number;
   /** Parent's slim venue read has settled for the active city. */
   venueDataReady: boolean;
+  /** A national arrival waits for the basemap below the pub zoom gate. */
+  nationalBrowse?: boolean;
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
@@ -523,6 +525,7 @@ export default function PubMapCanvas({
   venues,
   filteredVenueCount = venues.length,
   venueDataReady,
+  nationalBrowse,
   route,
   selectedVenueId,
   onVenueClick,
@@ -947,6 +950,10 @@ export default function PubMapCanvas({
     features: [],
   });
   const venueDataReadyRef = useRef(venueDataReady);
+  const nationalBrowseRef = useRef(nationalBrowse);
+  useLayoutEffect(() => {
+    nationalBrowseRef.current = nationalBrowse;
+  }, [nationalBrowse]);
   useLayoutEffect(() => {
     venueDataReadyRef.current = venueDataReady;
   }, [venueDataReady]);
@@ -1744,6 +1751,8 @@ export default function PubMapCanvas({
       if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
       return map.isSourceLoaded("pubs");
     };
+    const isNationalOverview = () =>
+      nationalBrowseRef.current && map.getZoom() < UK_BASE_MIN_ZOOM;
     // A pin-owned ceiling notice clears on its own signal, never the basemap's:
     // the background is already painted in that case, so a notice keyed on the
     // basemap would retire on the very next frame while the pub data was still
@@ -1932,12 +1941,10 @@ export default function PubMapCanvas({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
-      hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
-      // On a phone, local pub GeoJSON is the useful content that the reader
-      // is waiting for. Do not hold its first painted frame behind remote
-      // basemap tiles; tile failures still use their independent classifier
-      // and retry lane below.
-      requiresBasemapPaint: !phoneFirstImpression,
+      hasPinsPaintable: () => isNationalOverview() || !phoneFirstImpression || hasPinsPaintable(),
+      // Phone city arrivals wait for local pub GeoJSON. The pin-free national
+      // overview instead requires its basemap, with the same compositor gate.
+      requiresBasemapPaint: !!isNationalOverview() || !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       compositeConfirmFrames: phoneFirstImpression
         ? PHONE_PIN_COMPOSITE_CONFIRM_FRAMES
@@ -1978,6 +1985,7 @@ export default function PubMapCanvas({
               : "pending",
           filteredVenueCount: filteredVenueCountRef.current,
           pinsPaintable: hasPinsPaintable(),
+          pinsExpected: !isNationalOverview(),
         });
         if (timeoutNotice) {
           // Name the signal that missed. A painted basemap with missing pub

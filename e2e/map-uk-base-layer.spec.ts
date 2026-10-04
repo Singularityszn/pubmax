@@ -340,27 +340,40 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
 });
 
-test("a fresh national overview stays below the UK base gate and fetches no data", async ({
-  page,
-}) => {
-  test.setTimeout(120_000);
-  const requests = ukBaseRequests(page);
+for (const viewport of [VIEWPORT, { width: 1440, height: 900 }]) {
+  test(`a fresh national overview becomes usable without pub data at ${viewport.width}px`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize(viewport);
+    const requests = ukBaseRequests(page);
+    const curatedRequests: string[] = [];
+    page.on("request", (request) => {
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.startsWith("/data/venues_slim")) curatedRequests.push(pathname);
+    });
 
-  const response = await page.goto("/map?uk=1");
-  expect(response?.status()).toBe(200);
-  const wrap = page.locator(".mapCanvasWrap");
-  await expect(wrap).toHaveAttribute("data-uk-base-status", "zoom_required", {
-    timeout: 30_000,
+    const response = await page.goto("/map?uk=1");
+    expect(response?.status()).toBe(200);
+    const wrap = page.locator(".mapCanvasWrap");
+    await expect(wrap).toHaveAttribute("data-uk-base-status", "zoom_required", {
+      timeout: 30_000,
+    });
+    await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 10_000 });
+    await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+    await expect(page.getByText("Zoom in to load pubs on the map.", { exact: false })).toBeVisible();
+
+    await page.waitForTimeout(1800);
+    // The national gazetteer (places.json) loads for search and browse; below the
+    // zoom gate the manifest and cell shards must stay unfetched.
+    expect(requests.filter((url) => url.endsWith("places.json"))).toHaveLength(1);
+    expect(
+      requests.filter(
+        (url) => !url.endsWith("places.json"),
+      ),
+    ).toEqual([]);
+    expect(curatedRequests).toEqual([]);
+    await testInfo.attach("national-overview", { body: await page.screenshot(), contentType: "image/png" });
   });
-  await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
-
-  await page.waitForTimeout(1800);
-  // The national gazetteer (places.json) loads for search and browse; below the
-  // zoom gate the manifest and cell shards must stay unfetched.
-  expect(requests.filter((url) => url.endsWith("places.json"))).toHaveLength(1);
-  expect(
-    requests.filter(
-      (url) => !url.endsWith("places.json"),
-    ),
-  ).toEqual([]);
-});
+}

@@ -119,10 +119,13 @@ export function revealTimeoutNotice(
     venueData: VenueDataOutcome;
     filteredVenueCount: number;
     pinsPaintable: boolean;
+    /** An intentional national overview below the zoom gate owes no pins. */
+    pinsExpected?: boolean;
   },
 ): RevealTimeoutNotice | null {
   if (reason !== "timeout" || currentOwner === "errors") return null;
   if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
+  if (signals.pinsExpected === false) return null;
   if (signals.venueData !== "ready") return VENUE_DATA_RETRY_NOTICE;
   // An empty filtered collection is a valid answer, not a paint failure.
   if (signals.filteredVenueCount === 0) return null;
