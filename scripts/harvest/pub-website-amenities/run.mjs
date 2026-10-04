@@ -268,6 +268,7 @@ function loadCheckpoint() {
     return {
       spentUsd: Number(parsed.spentUsd ?? 0),
       byOsmId: parsed.byOsmId && typeof parsed.byOsmId === "object" ? parsed.byOsmId : {},
+      pendingPublication: parsed.pendingPublication,
     };
   } catch (error) {
     if (error?.code === "ENOENT") return { spentUsd: 0, byOsmId: {} };
@@ -430,7 +431,7 @@ function recoverableOwnership(entry, pub) {
 }
 
 /** The committed evidence with this run's pages laid over it. */
-function mergeEvidence(previous, fresh, ownership, recovered) {
+function mergeEvidence(previous, fresh, ownership) {
   const skipCounts = { ...(previous?.skipCounts ?? {}) };
   const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
   for (const [osmId, entry] of fresh) {
@@ -452,10 +453,34 @@ function mergeEvidence(previous, fresh, ownership, recovered) {
   }
   const rows = pubSpecificPages(candidates, ownership).sort((a, b) => a.osmId.localeCompare(b.osmId));
   const keptPubs = new Set(rows.map((row) => row.osmId));
-  const unused = new Set(candidates.map((row) => row.osmId)
-    .filter((osmId) => !keptPubs.has(osmId) && !recovered.has(osmId))).size;
+  const unused = new Set(candidates.map((row) => row.osmId).filter((osmId) => !keptPubs.has(osmId))).size;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts };
+}
+
+/** Pending observations the evidence file does not carry yet, with the spend their batch started from. */
+function recoverPending(checkpoint, previous, currentPubs) {
+  const stored = checkpoint.pendingPublication;
+  const batchPublished = Number.isInteger(stored?.publications) && stored.publications === previous?.publications;
+  const fresh = new Map();
+  for (const [osmId, entry] of Object.entries(checkpoint.byOsmId)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    if (entry.publication === "pending" && batchPublished) {
+      entry.publication = "published";
+    } else if (entry.publication === "pending" || (entry.publication === undefined && previous === null)) {
+      const recoverable = entry.status === "ok"
+        ? recoverableObservation(entry, currentPubs.get(osmId))
+        : typeof entry.status === "string";
+      if (!recoverable) continue;
+      entry.publication = "pending";
+      fresh.set(osmId, entry);
+    } else if (entry.publication === undefined) {
+      // Existing publication may have deliberately removed this legacy row.
+      entry.publication = "published";
+    }
+  }
+  const unpublished = !batchPublished && Number.isFinite(stored?.spentUsd) ? { spentUsd: stored.spentUsd } : null;
+  return { fresh, batch: unpublished ?? (fresh.size > 0 ? { spentUsd: checkpoint.spentUsd } : null) };
 }
 
 async function main() {
@@ -548,20 +573,10 @@ async function main() {
   const startSpent = spent;
   const byOsmId = checkpoint.byOsmId;
   const previous = readEvidence();
-  const fresh = new Map();
   const currentPubs = new Map(pubs.map((pub) => [pub.osmId, pub]));
-  for (const [osmId, entry] of Object.entries(byOsmId)) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-    if (entry.publication === "pending" || (entry.publication === undefined && previous === null)) {
-      if (!recoverableObservation(entry, currentPubs.get(osmId))) continue;
-      entry.publication = "pending";
-      fresh.set(osmId, entry);
-    } else if (entry.publication === undefined) {
-      // Existing publication may have deliberately removed this legacy row.
-      entry.publication = "published";
-    }
-  }
-  const recovered = new Set(fresh.keys());
+  const recovered = recoverPending(checkpoint, previous, currentPubs);
+  const fresh = recovered.fresh;
+  let batch = recovered.batch;
   const robots = createRobotsChecker();
   const queue = pubs.filter((pub) => !Object.hasOwn(byOsmId, pub.osmId));
   const work = limit === null ? queue : queue.slice(0, limit);
@@ -571,7 +586,7 @@ async function main() {
 
   const save = () => {
     writeChain = writeChain.then(() => {
-      const next = { spentUsd: spent, byOsmId };
+      const next = { spentUsd: spent, byOsmId, ...(batch ? { pendingPublication: batch } : {}) };
       const temp = `${CHECKPOINT_PATH}.tmp`;
       writeFileSync(temp, JSON.stringify(next));
       renameSync(temp, CHECKPOINT_PATH);
@@ -677,6 +692,7 @@ async function main() {
       if (done) {
         done.publication = "pending";
         fresh.set(work[index].osmId, done);
+        batch ??= { spentUsd: startSpent };
       }
       if ((index + 1) % 10 === 0) await save();
       if ((index + 1) % 25 === 0) {
@@ -686,6 +702,7 @@ async function main() {
     }
   });
   await Promise.all(workers);
+  if (batch) batch.publications = (previous?.publications ?? 0) + 1;
   await save();
 
   // Published peers still own their permitted pages. Recover ownership only:
@@ -698,7 +715,7 @@ async function main() {
       amenities: {},
     }));
   });
-  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh, ownership, recovered);
+  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh, ownership);
   const evidence = withStampFigures({
     version: 1,
     model: FLASH_LITE_SKU.model,
@@ -713,13 +730,15 @@ async function main() {
       outputTokensPerCall: MAX_OUTPUT_TOKENS,
       spendUsd: Number(projected.toFixed(4)),
     },
-    actualSpendUsd: Number(((previous?.actualSpendUsd ?? 0) + spent - startSpent).toFixed(4)),
+    actualSpendUsd: Number(((previous?.actualSpendUsd ?? 0) + spent - (batch?.spentUsd ?? startSpent)).toFixed(4)),
     jobCapUsd: JOB_SPEND_CAP_USD,
+    publications: batch ? batch.publications : previous?.publications,
     skipCounts,
     rows: evidenceRows,
   }, previous, stampDataset(evidenceRows));
   writeEvidence(evidence);
   for (const [osmId] of fresh) byOsmId[osmId].publication = "published";
+  if (!Object.values(byOsmId).some((entry) => entry?.publication === "pending")) batch = null;
   await save();
   console.log(
     JSON.stringify({
