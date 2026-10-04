@@ -524,6 +524,10 @@ function validObservationDay(day) {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day;
 }
 
+function settledDetail(saved) {
+  return Boolean(saved?.skipped || validObservationDay(saved?.observedAt));
+}
+
 async function prepareVerification() {
   const priorArg = process.argv.find((arg) => arg.startsWith("--prior-details="));
   if (priorArg && (!DRY_RUN || !UK_CITIES)) throw new Error("--prior-details is dry-run only");
@@ -686,11 +690,8 @@ async function main() {
     }
     let detailed = 0;
     for (const venue of matched) {
-      if (progress.details[venue.id]) {
-        const saved = progress.details[venue.id];
-        if (saved.skipped || validObservationDay(saved.observedAt)) continue;
-        delete progress.details[venue.id];
-      }
+      if (settledDetail(progress.details[venue.id])) continue;
+      delete progress.details[venue.id];
       const placeId = progress.searches[venue.id].placeId;
       const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
       const read = await readDetails(apiKey, placeId, fieldMask);
