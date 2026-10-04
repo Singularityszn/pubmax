@@ -136,9 +136,8 @@ const KARAOKE = /\bkar(?:aoke|oake)\b/i;
 /** Bare games or versus fixtures do not identify sport; require explicit sporting words. */
 const SPORT_SHOWN =
   /\b(?:f1|formula\s*1)\b|\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
-const DUAL_USE_VIEWING_VERB = "shows?|screens?|broadcasts";
 const VIEWING_VERB = "showcas(?:e|es)|watch(?:es)?|catch(?:es)?";
-const FINITE_VIEWING_VERB = `${DUAL_USE_VIEWING_VERB}|${VIEWING_VERB}`;
+const FINITE_VIEWING_VERB = `shows?|screens?|broadcasts|${VIEWING_VERB}`;
 const VIEWING_PARTICIPLE = "show(?:n|ing|casing)|watching|screen(?:ed|ing)|televised|broadcast(?:ing)?|catching|playing";
 const SPORT_VIEWING = new RegExp(
   `\\b(?:${FINITE_VIEWING_VERB}|${VIEWING_PARTICIPLE}|screenings?|tvs?|viewings?|projectors?)\\b|` +
@@ -154,17 +153,13 @@ const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
 const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
 const SPORT_ADJUNCT =
   "(?:here|there|(?:(?:every|each|on|at|this|next)\\s+)?(?:(?:mon|tues|wednes|thurs|fri|satur|sun)days?|days?|nights?|weekends?|weeks?|mornings?|afternoons?|evenings?))\\b";
-const OBJECT_DETERMINER =
-  "(?:every|each|all|most|some|any|an?|the|this|these|those|my|your|our|their|its|his|her|both|many|more|few|several|enough|" +
-  "one|two|three|four|five|six|seven|eight|nine|ten|\\d+)\\s+";
-/** A viewed-content object read from its first word: a closed determiner, partitive and modifier prefix, then sport, games, action or them. */
-const VIEWED_OBJECT =
-  `(?:(?:${OBJECT_DETERMINER}(?:of\\s+)?)*(?:(?:big|live|international|six)\\s+)*|[a-z]+['\u2019]s\\s+)` +
-  `(?:${SPORT_SHOWN.source}|\\b(?:games?|action|them)\\b)`;
-/** Shows, screens and broadcasts are verbs only before a viewed-content object; otherwise they can be denied nouns. */
+/**
+ * A sport subject's own predicate after a comma-attached sports denial. Shows, screens and broadcasts
+ * are also nouns, so alone they never split the denial; such a remainder stays unconfirmed evidence,
+ * not a claim that the venue lacks sport.
+ */
 const SPORT_REMAINDER_PREDICATE = new RegExp(
   `^\\s*${SPORT_OBJECT}((?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*)\\s+(?:(?:is|are|isn'?t|aren'?t)\\b|(will)\\b|` +
-  `(?:${DUAL_USE_VIEWING_VERB})\\s+${VIEWED_OBJECT}|` +
   `(?:(has|have)|${VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:((?:on|in|at|from|for|with|of)\\b)|\\w))`,
   "i",
 );

@@ -67,6 +67,25 @@ describe("sports evidence publication", () => {
     expectSportsPublication(quote, false);
   });
 
+  // Conservative policy also reverses these historical positives: a dual-use
+  // viewing word after a comma-attached sports denial is no independent claim.
+  it.each([
+    "We don't have Sky Sports, TNT Sports shows every match.",
+    "We don't have Sky Sports, BT Sport shows all the Champions League games.",
+    "We don't have Sky Sports, TNT Sports and BT Sport show every match.",
+    "We don't have Sky Sports, TNT Sports or BT Sport shows every match.",
+    "We don't have Sky Sports, TNT Sports shows every game.",
+    "We don't have Sky Sports, BT Sport shows all the action on our big screens.",
+    "Without Sky Sports, TNT Sports shows every match.",
+    "No Sky Sports, TNT Sports shows every match.",
+    "We don't have Sky Sports, TNT Sports or BT Sport, football shows every match.",
+    "No Sky Sports or TNT Sports, football broadcasts every game.",
+    "We don't show rugby, cricket screens every match on our TVs.",
+    "We don't show rugby, cricket broadcasts every match in the bar.",
+  ])("leaves historically inferred comma-only dual-use claims unconfirmed: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
   it.each([
     "We don't show rugby, cricket broadcasts on TV.",
     "We do not show rugby, football shows in the bar.",
@@ -79,192 +98,46 @@ describe("sports evidence publication", () => {
     expectSportsPublication(quote, false);
   });
 
+  // Shows, screens and broadcasts are also nouns, so after a comma-attached sports
+  // denial they alone never establish an independent claim. Unconfirmed is not a
+  // claim that the venue lacks sport; only a clear separate predicate publishes.
   it.each([
     "We don't have Sky Sports, TNT Sports screens at the bar.",
-    "We don't have Sky Sports, TNT Sports screens throughout the pub.",
-    "We don't show rugby, cricket broadcasts across all our TVs.",
-    "We don't have Sky Sports, TNT Sports broadcasts from the bar.",
-    "We don't show cricket, football broadcasts at the weekend.",
     "We don't have Sky Sports, TNT Sports screen in the bar.",
-    "We don't show rugby, football show during the match.",
-  ])("leaves dual-use viewing nouns with only a location or time adjunct under the comma denial: %s", (quote) => {
-    expectSportsPublication(quote, false);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports screens football at the bar.",
-    "We don't have Sky Sports, TNT Sports is screened at the bar.",
-    "We don't have Sky Sports, TNT Sports screens every match throughout the pub.",
-    "We don't have Sky Sports, TNT Sports is shown throughout the pub.",
-    "We don't show rugby, cricket broadcasts every match across all our TVs.",
-    "We don't show rugby, cricket is broadcast across all our TVs.",
-    "We don't have Sky Sports, TNT Sports broadcasts football from the bar.",
-    "We don't have Sky Sports, TNT Sports is broadcast from the bar.",
-    "We don't show cricket, football broadcasts every game at the weekend.",
-    "We don't show cricket, football is broadcast at the weekend.",
-    "We don't have Sky Sports, TNT Sports screen football in the bar.",
-    "We don't have Sky Sports, TNT Sports are screened in the bar.",
-    "We don't show rugby, football show every game during the season.",
-    "We don't show rugby, football is shown during the season.",
-  ])("retains paired clear direct-object and passive predicates beside comma denials: %s", (quote) => {
-    expectSportsPublication(quote, true);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports screens around the bar.",
-    "We don't have Sky Sports, TNT Sports screens near the bar.",
-    "We don't have Sky Sports, TNT Sports screens by the bar.",
-    "We don't have Sky Sports, TNT Sports screens behind the bar.",
-    "We don't have Sky Sports, TNT Sports screens upstairs.",
-    "We don't have Sky Sports, TNT Sports screens inside the pub.",
-    "We don't have Sky Sports, TNT Sports screens over the bar.",
-    "We don't have Sky Sports, TNT Sports screens above the bar.",
-    "We don't have Sky Sports, TNT Sports screens anywhere.",
-    "We don't have Sky Sports, TNT Sports screens with sound.",
-    "We don't have Sky Sports, TNT Sports screens for the big games.",
-    "We don't show rugby, cricket broadcasts tonight.",
-    "We don't show rugby, cricket broadcasts before kick-off.",
-    "We don't show rugby, cricket broadcasts after work.",
-    "We don't show rugby, cricket broadcasts all season.",
-    "We don't show rugby, cricket broadcasts over the weekend.",
-  ])("leaves dual-use viewing nouns without an object under the comma denial: %s", (quote) => {
-    expectSportsPublication(quote, false);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports screens every match around the bar.",
-    "We don't have Sky Sports, TNT Sports is screened around the bar.",
-    "We don't have Sky Sports, TNT Sports screens football upstairs.",
-    "We don't have Sky Sports, TNT Sports is shown upstairs.",
-    "We don't have Sky Sports, TNT Sports screens the big games with sound.",
-    "We don't have Sky Sports, TNT Sports is screened with sound.",
-    "We don't have Sky Sports, TNT Sports screens our matches behind the bar.",
-    "We don't have Sky Sports, TNT Sports is broadcast behind the bar.",
-    "We don't show rugby, cricket broadcasts each game tonight.",
-    "We don't show rugby, cricket is broadcast tonight.",
-    "We don't show rugby, cricket broadcasts all the matches over the weekend.",
-    "We don't show rugby, cricket is broadcast over the weekend.",
-    "We don't show rugby, cricket broadcasts live matches before kick-off.",
-    "We don't show rugby, cricket is broadcast before kick-off.",
-    "We don't show rugby, football show every game all season.",
-    "We don't show rugby, football is shown all season.",
-  ])("retains clear objects and passives for dual-use viewing verbs beside comma denials: %s", (quote) => {
-    expectSportsPublication(quote, true);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports shows all matches.",
-    "We don't have Sky Sports, TNT Sports shows a match every week.",
-    "We don't have Sky Sports, TNT Sports shows big games.",
-    "We don't have Sky Sports, TNT Sports shows most games.",
-    "We don't have Sky Sports, TNT Sports shows Six Nations.",
-    "We don't have Sky Sports, TNT Sports shows Champions League games.",
-    "We don't have Sky Sports, TNT Sports shows fixtures.",
-    "We don't have Sky Sports, TNT Sports shows them.",
-    "We don't have Sky Sports, TNT Sports broadcasts Wimbledon.",
-    "We don't show rugby, football shows any match.",
-    "We don't show rugby, cricket broadcasts international matches.",
-    "No Sky Sports, TNT Sports shows all matches.",
-    "We don't have Sky Sports, TNT Sports screens live football in the bar.",
-    "We don't show rugby, cricket broadcasts every match all the time.",
-    "We don't show rugby, cricket broadcasts every match the whole weekend.",
-    "We do not show rugby, cricket broadcasts every match all the time.",
-    "We do not show rugby, cricket broadcasts every match the whole weekend.",
-  ])("retains viewed content objects with ordinary modifiers beside comma denials: %s", (quote) => {
-    expectSportsPublication(quote, true);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports screens live in the bar.",
-    "We don't show rugby, cricket broadcasts all the time.",
-    "We don't show rugby, cricket broadcasts the whole weekend.",
-    "We do not show rugby, cricket broadcasts all the time.",
-    "We do not show rugby, cricket broadcasts the whole weekend.",
-    "We don't have Sky Sports, TNT Sports screens before the games.",
-    "We don't show rugby, cricket broadcasts during the big matches.",
-  ])("leaves dual-use viewing nouns with only a determiner, time or location under the comma denial: %s", (quote) => {
-    expectSportsPublication(quote, false);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports shows each of the matches.",
-    "We don't have Sky Sports, TNT Sports shows every one of the matches.",
-    "We don't have Sky Sports, TNT Sports shows all the big live games.",
-    "We don't have Sky Sports, TNT Sports shows all of the matches.",
-    "We don't have Sky Sports, TNT Sports shows most of the games.",
-    "We don't have Sky Sports, TNT Sports shows some of the football.",
-    "No Sky Sports, TNT Sports shows all of the big matches.",
-  ])("retains partitive and stacked-modifier viewed content objects beside comma denials: %s", (quote) => {
-    expectSportsPublication(quote, true);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports shows these matches.",
-    "We don't have Sky Sports, TNT Sports shows those games.",
-    "We don't have Sky Sports, TNT Sports shows their matches.",
-    "We don't have Sky Sports, TNT Sports shows both matches.",
-    "We don't have Sky Sports, TNT Sports shows this match.",
-    "We don't have Sky Sports, TNT Sports shows many games.",
-    "We don't have Sky Sports, TNT Sports shows more football.",
-    "We don't have Sky Sports, TNT Sports shows two matches a day.",
-    "We don't have Sky Sports, TNT Sports shows 3 matches a day.",
-    "We don't have Sky Sports, TNT Sports shows today's match.",
-    "No Sky Sports, TNT Sports shows these matches.",
-    "We don't have Sky Sports, TNT Sports shows a few of their games.",
-  ])("retains demonstrative, possessive, quantifier and numeral objects beside comma denials: %s", (quote) => {
-    expectSportsPublication(quote, true);
-  });
-
-  it.each([
-    "We don't have Sky Sports, TNT Sports screens that football fans love.",
-    "We don't have Sky Sports, TNT Sports screens this weekend.",
-    "We don't have Sky Sports, TNT Sports screens their bar.",
-  ])("leaves dual-use viewing nouns before a determiner without viewed content under the comma denial: %s", (quote) => {
-    expectSportsPublication(quote, false);
-  });
-
-  // Unsupported by the bounded recognizer, so conservatively unconfirmed: the
-  // relative-ambiguous "that", adjectives outside the closed modifier set, and
-  // a possessive noun not immediately followed by viewed content.
-  it.each([
-    "We don't have Sky Sports, TNT Sports shows that match.",
-    "We don't have Sky Sports, TNT Sports shows the whole match.",
-    "We don't have Sky Sports, TNT Sports shows every single match.",
-    "We don't have Sky Sports, TNT Sports shows the biggest matches.",
-    "We don't have Sky Sports, TNT Sports shows all the major matches.",
-    "We don't have Sky Sports, TNT Sports shows European football.",
-    "We don't have Sky Sports, TNT Sports shows today's big match.",
-  ])("leaves unsupported object prefixes unconfirmed: %s", (quote) => {
-    expectSportsPublication(quote, false);
-  });
-
-  // A dual-use verb's object is recognised from its first word: a closed
-  // determiner, quantifier, partitive or modifier prefix, then viewed content.
-  // Any other first word leaves the remainder unconfirmed rather than searching
-  // later words for sport, so unlisted adjectives ("shows exciting matches") are
-  // conservatively declined.
-  it.each([
+    "We don't show cricket, football broadcasts at the weekend.",
     "We don't have Sky Sports, TNT Sports screens around the sports bar.",
-    "We don't have Sky Sports, TNT Sports screens over the match.",
-    "We don't have Sky Sports, TNT Sports screens since the match.",
-    "We don't have Sky Sports, TNT Sports screens outside the match.",
-    "We don't have Sky Sports, TNT Sports screens like the big sports bars.",
-    "We don't show rugby, cricket broadcasts against the World Cup.",
-    "We don't show rugby, cricket broadcasts beyond the match.",
-    "We don't show rugby, cricket broadcasts under the sports bar.",
-    "We don't show rugby, cricket broadcasts so sports fans go elsewhere.",
-    "We don't show rugby, cricket broadcasts because sports fans go elsewhere.",
-    "We don't show rugby, cricket broadcasts when sports fans visit.",
-    "We don't have Sky Sports, TNT Sports screens unless the match is huge.",
+    "We don't show rugby, cricket broadcasts this World Cup.",
+    "We don't have Sky Sports, TNT Sports screens this football season.",
+    "We don't have Sky Sports, TNT Sports screens two match days a week.",
     "We don't have Sky Sports, TNT Sports screens that show football.",
-    "We don't have Sky Sports, TNT Sports screens which show football.",
-    "We don't have Sky Sports, TNT Sports screens showing football.",
-    "No Sky Sports, TNT Sports screens that show football.",
-    "No Sky Sports, TNT Sports screens around the sports bar.",
+    "We don't show rugby, cricket broadcasts all the time.",
+    "We don't have Sky Sports, TNT Sports screens football at the bar.",
+    "We don't have Sky Sports, TNT Sports shows these matches.",
+    "We don't have Sky Sports, TNT Sports shows all of the matches.",
+    "We don't have Sky Sports, TNT Sports shows every single match.",
+    "We don't show rugby, cricket broadcasts every match all the time.",
+    "No Sky Sports, TNT Sports shows all matches.",
+    "No Sky Sports, TNT Sports screens this football season.",
     "Without Sky Sports, TNT Sports screens over the match, we focus on food.",
-    "We don't have Sky Sports, TNT Sports shows exciting matches.",
-  ])("leaves dual-use viewing nouns before an unrecognised object start under the comma denial: %s", (quote) => {
+  ])("leaves dual-use viewing words after a comma-attached sports denial unconfirmed: %s", (quote) => {
     expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't have Sky Sports, TNT Sports is screened at the bar.",
+    "We don't show cricket, football is broadcast at the weekend.",
+    "We don't show rugby, cricket is broadcast tonight.",
+    "We don't show rugby, football is shown all season.",
+    "We don't have Sky Sports, TNT Sports will show every match.",
+    "We don't have Sky Sports, but TNT Sports shows every match.",
+    "No Sky Sports, but TNT Sports shows every match.",
+    "We don't show rugby, but cricket screens every match on our TVs.",
+    "We don't have Sky Sports and we show TNT Sports.",
+    "We don't have pool tables, TNT Sports shows every match.",
+    "TNT Sports shows every match.",
+    "Cricket broadcasts every match in the bar.",
+  ])("retains clear passive, modal, contrast, standalone and unrelated-denial positives: %s", (quote) => {
+    expectSportsPublication(quote, true);
   });
 
   it.each([
@@ -272,8 +145,6 @@ describe("sports evidence publication", () => {
     "We don't show rugby, cricket is broadcast on our TVs.",
     "We don't show rugby, football is shown on all our TVs.",
     "We don't have pool tables and we show football on our TVs.",
-    "We don't show rugby, cricket screens every match on our TVs.",
-    "We don't show rugby, cricket broadcasts every match in the bar.",
   ])("retains clear viewing predicates with prepositional locations beside denials: %s", (quote) => {
     expectSportsPublication(quote, true);
   });
@@ -370,28 +241,18 @@ describe("sports evidence publication", () => {
     "We have Sky Sports, rugby is not available.",
     "We don't have Sky Sports, TNT Sports or BT Sport, we show football on our TVs.",
     "Live football, rugby and cricket are not shown, we have TNT Sports.",
-    "We don't have Sky Sports, TNT Sports shows every match.",
-    "We don't have Sky Sports, BT Sport shows all the Champions League games.",
     "We don't have Sky Sports, TNT Sports has every match on our screens.",
     "We don't show rugby, football will be shown on all our TVs.",
-    "We don't have Sky Sports, TNT Sports and BT Sport show every match.",
-    "We don't have Sky Sports, TNT Sports or BT Sport shows every match.",
     "We don't show rugby, football and F1 will be shown on all our TVs.",
-    "We don't have Sky Sports, TNT Sports shows every game.",
-    "We don't have Sky Sports, BT Sport shows all the action on our big screens.",
     "We don't have Sky Sports, TNT Sports has it all on our screens.",
     "Without Sky Sports, football is still shown on our TVs.",
-    "Without Sky Sports, TNT Sports shows every match.",
-    "No Sky Sports, TNT Sports shows every match.",
     "No Sky Sports, football is shown on all our TVs via TNT.",
     "No Sky Sports, TNT Sports is available.",
     "We don't show rugby or cricket, football is shown on our TVs.",
     "We don't show rugby, cricket and F1, football is shown on our TVs.",
     "We don't have Sky Sports or TNT Sports, football is shown on our TVs.",
-    "We don't have Sky Sports, TNT Sports or BT Sport, football shows every match.",
     "No rugby or cricket, football is shown on our TVs.",
     "Without Sky Sports, TNT Sports or BT Sport, football is shown on our TVs.",
-    "No Sky Sports or TNT Sports, football broadcasts every game.",
   ])("retains independent affirmative clauses beside comma denials: %s", (quote) => {
     expectSportsPublication(quote, true);
   });
