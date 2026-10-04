@@ -249,7 +249,8 @@ other stores to migrate.
 `scripts/check_review_scope.mjs` reports changed source, migration, generated,
 evidence, test, configuration, documentation, skill-pack, and other paths.
 It warns when a review crosses more than two runtime domains or more
-than 150 files. It fails only when generated or skill-pack paths are present.
+than 150 files. Its failing checks are owned by
+`docs/rules/scripts-ci-gates-and-audits.md`.
 Migration files remain in their own category and do not add a runtime domain.
 CI passes the pull request base and head SHAs to the script, so the report
 matches the reviewed diff rather than the checkout's default range.
