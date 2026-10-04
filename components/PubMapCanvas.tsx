@@ -512,8 +512,12 @@ const PUB_PIN_LAYERS = [
   "cluster-count",
 ] as const;
 
-
-
+function experienceViewSuspendsBasePubs(
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+  drinkCategory: string | null,
+): boolean {
+  return lensPrices !== null && drinkCategory === null;
+}
 
 export default function PubMapCanvas({
   venues,
@@ -3451,7 +3455,7 @@ export default function PubMapCanvas({
     spoonsValue,
     // Selected drinks retain base pubs and their venue-owned menu quotes.
     // Food and no-alcohol experience views still suspend the neutral layer.
-    suspended: lensPrices !== null && drinkCategory === null,
+    suspended: experienceViewSuspendsBasePubs(lensPrices, drinkCategory),
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.
