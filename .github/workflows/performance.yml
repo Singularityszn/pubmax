@@ -56,6 +56,14 @@ jobs:
     name: Performance budget
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 55
+    # Shares pubmax-mac-browser with Browser tests. This job starts its own
+    # production server and Chromium; on 3-4 Oct 2026 several such jobs at
+    # once pushed host load to ~79 and timed out specs that pass when the
+    # machine is quiet. The queue waits. Lint and unit tests are not in it.
+    concurrency:
+      group: pubmax-mac-browser
+      cancel-in-progress: false
+      queue: max
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
       # measuring deadline from the wall MINUS what the sweep and the merge-base
@@ -131,6 +139,8 @@ jobs:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
+        # One worker, same cap as Browser law pins: four killed the single
+        # production server on this rig.
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
 
       # WAS IT THE BRANCH, OR WAS IT THE BOX?
@@ -197,6 +207,12 @@ jobs:
     needs: [performance-budget]
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 17
+    # Same pubmax-mac-browser slot as the budget sweep above and as Browser
+    # tests: one web server plus Chromium on this Mac.
+    concurrency:
+      group: pubmax-mac-browser
+      cancel-in-progress: false
+      queue: max
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -229,6 +245,7 @@ jobs:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
+        # One worker, same cap as the budget sweep above.
         run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
 
       # The spec writes the table into its own Playwright output directory, so
