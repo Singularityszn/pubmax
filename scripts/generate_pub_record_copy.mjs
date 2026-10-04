@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { FLASH_LITE_SKU, spendFromTokenCounts } from "../lib/harvest/pubWebsiteAmenities.ts";
-import { COPY_CONNECTIVE_WORDS, copyFactsForVenue, copyWordsForTag, validateVenueRecordCopy } from "../lib/venueRecordCopy.ts";
+import { COPY_CONNECTIVE_WORDS, copyFactsForVenue, copyPhrasesForTag, validateVenueRecordCopy } from "../lib/venueRecordCopy.ts";
 import { VENUE_RECORD_COPY_TRACING_INCLUDE } from "../lib/venueRecordCopyFile.mjs";
 import { groupVenuePrices } from "../lib/venues.ts";
 
@@ -17,13 +17,18 @@ const BATCH_SIZE = 10;
 const OUTPUT_TOKENS = 4096;
 const INSUFFICIENT = "insufficient-stored-facts";
 const INVALID = "invalid-copy-after-retry";
+// Quota responses on the global endpoint for this long move the run to one region.
+const QUOTA_FALLBACK_MS = 15 * 60 * 1000;
+const FALLBACK_LOCATION = "europe-west2";
 const PROMPT = [
   "Write one short description and choose vibe tags for each London pub using ONLY its supplied stored facts.",
   "Return JSON {rows:[{venueId:string,description:string,vibeTags:string[]}]}, one row per supplied venue.",
   "description: ONE plain sentence of 20 to 140 characters, starting with a capital letter and ending with a full stop.",
-  "Make the pub, or the local, the subject: the facts belong to it, never to the borough. Name the supplied facts, each once. You may name the supplied borough or London, spelt and capitalised exactly. Add nothing else: no filler, no repetition.",
-  "Write like a Londoner telling a mate: dry and direct, never salesy. Vary the sentence shape between venues.",
-  `Use no word except these, the words of the venue's borough and the words listed for its facts: ${COPY_CONNECTIVE_WORDS.join(", ")}.`,
+  "The pub, or the local, is always the subject: the facts belong to it, never to the borough or London.",
+  "You may name the supplied borough or London only as a word directly before pub or local, spelt and capitalised exactly, as in \"this Camden pub\".",
+  "Name the supplied facts, each once, using one of the exact phrases listed for each fact. Add nothing else: no filler, no repetition.",
+  "Write like a Londoner telling a mate: dry, direct and grammatical, never salesy. Vary the sentence shape between venues.",
+  `Besides the borough, London and the fact phrases, use no word except these: ${COPY_CONNECTIVE_WORDS.join(", ")}.`,
   "Use no digits, apostrophes or punctuation other than commas, hyphens and the final full stop.",
   "vibeTags: one to three of the venue's fact tags, copied exactly, most distinctive first.",
   "Never mention the pub name, food, beer gardens, sport, prices, hours, history, mood or clientele.",
@@ -69,7 +74,7 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 const cost = (inputTokens, outputTokens) => spendFromTokenCounts({ inputTokens, outputTokens,
   inputUsdPerMillion: FLASH_LITE_SKU.inputUsdPerMillion, outputUsdPerMillion: FLASH_LITE_SKU.outputUsdPerMillion });
 const textFor = (batch) => `${PROMPT}\n${JSON.stringify(batch.map(({ venueId, borough, supportedTags }) =>
-  ({ venueId, borough, facts: supportedTags.map((tag) => ({ tag, words: copyWordsForTag(tag) })) })))}`;
+  ({ venueId, borough, facts: supportedTags.map((tag) => ({ tag, phrases: copyPhrasesForTag(tag) })) })))}`;
 // One UTF-8 byte per input token is deliberately conservative, with framing room.
 const reserveFor = (batch) => cost(Buffer.byteLength(textFor(batch), "utf8") + 4096, OUTPUT_TOKENS);
 
@@ -134,7 +139,7 @@ function copyFrom(body, batch) {
   return normalized;
 }
 
-function reportQuotaFailure(body) {
+function reportQuotaFailure(body, location) {
   const quota = {};
   for (const detail of body?.error?.details ?? []) {
     for (const key of ["quota_metric", "quota_limit", "quota_location", "quota_limit_value", "service"]) {
@@ -142,7 +147,7 @@ function reportQuotaFailure(body) {
       if (typeof value === "string" && /^[a-zA-Z0-9_./:-]{1,300}$/.test(value)) quota[key] = value;
     }
   }
-  console.error(JSON.stringify({ httpStatus: 429, model: FLASH_LITE_SKU.model, region: "global",
+  console.error(JSON.stringify({ httpStatus: 429, model: FLASH_LITE_SKU.model, region: location,
     quota: Object.keys(quota).length ? quota : "not reported by provider" }));
 }
 
@@ -184,10 +189,12 @@ async function main() {
   let tokenAt = 0;
   let nextCallAt = 0;
   let pacingMs = 3_000;
+  let location = "global";
+  let quotaSince = null;
   const startedAt = new Date().toISOString();
   async function requestBatch(batch) {
-    // Quota responses back off to the one-minute ceiling before giving up.
-    for (let attempt = 0; attempt < 8; attempt++) {
+    let retries = 0;
+    for (;;) {
       if (!token || Date.now() - tokenAt > 20 * 60 * 1000) {
         token = execFileSync("gcloud", ["auth", "print-access-token"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
         tokenAt = Date.now();
@@ -204,7 +211,8 @@ async function main() {
       let response;
       let body;
       try {
-        response = await fetch(`https://aiplatform.googleapis.com/v1/projects/pubmaxx/locations/global/publishers/google/models/${FLASH_LITE_SKU.model}:generateContent`, {
+        const host = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
+        response = await fetch(`https://${host}/v1/projects/pubmaxx/locations/${location}/publishers/google/models/${FLASH_LITE_SKU.model}:generateContent`, {
           method: "POST", signal: AbortSignal.timeout(90_000),
           headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -234,23 +242,29 @@ async function main() {
         if (response.status === 429) {
           pacingMs = Math.min(60_000, pacingMs * 2);
           nextCallAt = Date.now() + pacingMs;
-        }
-        if (response.status === 429 ? attempt < 7 : [401, 503].includes(response.status) && attempt < 2) {
-          if (response.status !== 429) await new Promise((resolve) => setTimeout(resolve, 30_000 * (attempt + 1)));
+          quotaSince ??= Date.now();
+          if (Date.now() - quotaSince <= QUOTA_FALLBACK_MS) continue;
+          if (location === "global") {
+            location = FALLBACK_LOCATION;
+            quotaSince = Date.now();
+            console.log(JSON.stringify({ quotaFallbackLocation: location }));
+            continue;
+          }
+          reportQuotaFailure(body, location);
+        } else if ([401, 503].includes(response.status) && retries < 2) {
+          retries++;
+          await new Promise((resolve) => setTimeout(resolve, 30_000 * retries));
           continue;
-        }
-        if (response.status === 429) {
-          reportQuotaFailure(body);
         }
         const quota = /quota/i.test(body?.error?.message ?? "") ? " quota exhausted" : "";
         throw new Error(`Gemini HTTP ${response.status}${quota}; no venue copy published`);
       }
+      quotaSince = null;
       pacingMs = Math.max(3_000, Math.floor(pacingMs * 0.8));
       settleUsage(checkpoint, body, reserve);
       writeJson(opts.checkpoint, checkpoint);
       return body;
     }
-    throw new Error("model request attempts exhausted");
   }
   function retain(fact, entry) {
     const inputHash = hash(JSON.stringify(fact));

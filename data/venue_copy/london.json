@@ -1,8 +1,8 @@
 {
   "version": 2,
   "model": "gemini-2.5-flash-lite",
-  "generatedAt": "2026-10-04T11:58:47.847Z",
-  "startedAt": "2026-10-04T11:58:30.673Z",
+  "generatedAt": "2026-10-04T12:42:43.768Z",
+  "startedAt": "2026-10-04T12:35:28.080Z",
   "sourceDataset": "public/data/pint_prices_app_dataset.json",
   "sourceDatasetSha256": "680ce1c0e7e1725d5d2a37ed106498478c7aacdf4f033b66da6084241645e9e3",
   "pricing": {
@@ -11,9 +11,9 @@
     "outputUsdPerMillion": 0.4
   },
   "taskCapUsd": 15,
-  "projectedSpendUsd": 0.19928890000000005,
-  "actualSpendUsd": 0.08065080000000006,
-  "requests": 462,
+  "projectedSpendUsd": 4.837481699999994,
+  "actualSpendUsd": 0.1007636000000001,
+  "requests": 548,
   "venues": {
     "venue-10ft2ey": {
       "venueId": "venue-10ft2ey",
@@ -32,7 +32,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Kingston upon Thames pub.",
+      "description": "This Kingston upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -54,7 +54,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this City of London pub.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -65,7 +65,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Hammersmith and Fulham pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -117,7 +117,7 @@
       "supportedTags": [
         "Happy hour"
       ],
-      "description": "A happy hour is on at this Croydon pub.",
+      "description": "This Croydon pub has a happy hour.",
       "vibeTags": [
         "Happy hour"
       ]
@@ -154,7 +154,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "You can get cocktails, live music and pub quiz in this Lambeth local.",
+      "description": "This Lambeth pub has cocktails and live music too, plus a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -168,7 +168,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Hackney pub hosts cocktails and live music.",
+      "description": "This Hackney pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -180,7 +180,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Merton pub where you can get cocktails.",
+      "description": "This Merton pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -193,11 +193,11 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This Camden local has cocktails, live music and happy hour drinks.",
+      "description": "This Camden pub has cocktails and a happy hour, plus live music.",
       "vibeTags": [
         "Cocktails",
-        "Live music",
-        "Happy hour"
+        "Happy hour",
+        "Live music"
       ]
     },
     "venue-11nrwqy": {
@@ -219,7 +219,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Get cocktails, live music and pub quizzes at this Lambeth local.",
+      "description": "This Lambeth pub has cocktails and live music, plus a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -232,7 +232,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Greenwich pub.",
+      "description": "This Greenwich pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -256,7 +256,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -268,7 +268,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "This Lambeth pub has live music and you can play darts.",
+      "description": "This Lambeth pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -280,7 +280,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "You can get a quiz at this Islington pub.",
+      "description": "You can get a pub quiz at this Islington local.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -292,7 +292,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Westminster pub hosts live music and has cocktails.",
+      "description": "This Westminster pub is where you can catch live music and cocktails.",
       "vibeTags": [
         "Live music",
         "Cocktails"
@@ -304,7 +304,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Kingston upon Thames pub.",
+      "description": "This Kingston upon Thames pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -327,7 +327,7 @@
         "Live music",
         "Pool"
       ],
-      "description": "You can play pool or catch live music at this Lewisham pub.",
+      "description": "This Lewisham pub has live music and pool.",
       "vibeTags": [
         "Live music",
         "Pool"
@@ -340,7 +340,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Westminster pub has live music and cocktails too.",
+      "description": "This Westminster local has live music and cocktails.",
       "vibeTags": [
         "Live music",
         "Cocktails"
@@ -352,7 +352,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub in Greenwich has cocktails.",
+      "description": "This Greenwich pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -364,7 +364,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Lambeth pub has cocktails and runs pub quizzes.",
+      "description": "This Lambeth local has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -376,7 +376,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Hounslow pub.",
+      "description": "This Hounslow pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -387,7 +387,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "This Sutton pub hosts karaoke.",
+      "description": "This Sutton pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -400,7 +400,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Lambeth pub has cocktails and a pub quiz too.",
+      "description": "This Lambeth pub has cocktails, a pub quiz, and happy hour.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz",
@@ -413,7 +413,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Harrow pub has cocktails and drinks.",
+      "description": "This Harrow pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -425,7 +425,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "You can play darts and pool in this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has darts and pool.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -440,7 +440,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Waltham Forest local has cocktails, live music, darts and pool.",
+      "description": "This Waltham Forest pub has cocktails, live music, darts, and pool.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -453,7 +453,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Southwark has live music at this pub.",
+      "description": "This Southwark pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -466,11 +466,11 @@
         "Pub quiz",
         "Darts"
       ],
-      "description": "You can get cocktails and play darts at this Camden pub.",
+      "description": "This Camden pub has cocktails, a pub quiz, and darts.",
       "vibeTags": [
         "Cocktails",
-        "Darts",
-        "Pub quiz"
+        "Pub quiz",
+        "Darts"
       ]
     },
     "venue-13j0gkl": {
@@ -479,7 +479,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Ealing has live music at this pub.",
+      "description": "This Ealing pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -490,7 +490,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "This Newham pub has a pool table.",
+      "description": "This Newham pub has pool.",
       "vibeTags": [
         "Pool"
       ]
@@ -501,7 +501,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Lambeth pub hosts quizzes.",
+      "description": "This Lambeth pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -526,10 +526,10 @@
         "Cocktails",
         "Karaoke"
       ],
-      "description": "This Wandsworth pub has cocktails and karaoke.",
+      "description": "This Wandsworth local has cocktails and karaoke.",
       "vibeTags": [
-        "Karaoke",
-        "Cocktails"
+        "Cocktails",
+        "Karaoke"
       ]
     },
     "venue-13xdb1p": {
@@ -539,7 +539,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Get cocktails or a quiz at this Wandsworth local.",
+      "description": "This Wandsworth pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -551,7 +551,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "This local pub has alcohol-free options.",
+      "description": "This City of London pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -562,7 +562,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Southwark pub has cocktails.",
+      "description": "This Southwark local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -573,7 +573,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this City of London pub.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -586,7 +586,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Hammersmith and Fulham pub hosts live music and pub quizzes.",
+      "description": "This Hammersmith and Fulham pub has live music, a pub quiz and a happy hour.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -612,7 +612,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Westminster pub has cocktails, live music, and karaoke.",
+      "description": "This Westminster local has cocktails, live music and karaoke.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -638,7 +638,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A pub quiz runs at this Hackney local.",
+      "description": "This Hackney pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -651,7 +651,7 @@
         "Pub quiz",
         "Pool"
       ],
-      "description": "This Islington pub hosts live music and a pub quiz, plus you can play pool.",
+      "description": "This Islington pub has live music, a pool table and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -664,7 +664,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "You can get karaoke at this Greenwich pub.",
+      "description": "This Greenwich pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -677,7 +677,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "You can get cocktails, live music and a pub quiz in this Islington pub.",
+      "description": "This Islington pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -701,7 +701,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -714,7 +714,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Haringey pub has live music, karaoke and cocktails.",
+      "description": "This Haringey pub has cocktails, live music and karaoke.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -728,7 +728,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Hammersmith and Fulham pub hosts live music and pub quizzes.",
+      "description": "This Hammersmith and Fulham pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -754,7 +754,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This Hammersmith and Fulham pub has live music and happy hour drinks.",
+      "description": "This Hammersmith and Fulham pub has live music and a happy hour.",
       "vibeTags": [
         "Live music",
         "Happy hour"
@@ -768,7 +768,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This City of London pub has live music, cocktails and happy hour drinks.",
+      "description": "This City of London pub has cocktails, live music and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -781,7 +781,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Greenwich pub.",
+      "description": "This Greenwich pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -792,7 +792,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails and drinks in this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -815,10 +815,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Catch live music and cocktails in this Barnet borough pub.",
+      "description": "This Barnet pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-16co4ye": {
@@ -827,7 +827,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "A Hackney pub where you can catch live music.",
+      "description": "This Hackney pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -838,7 +838,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Ealing pub has cocktails and drinks.",
+      "description": "This Ealing pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -849,7 +849,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "Get quizzes at this Islington pub.",
+      "description": "This Islington pub hosts pub quizzes.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -873,10 +873,10 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "A Richmond upon Thames pub with live music, cocktails, and quizzes.",
+      "description": "This Richmond upon Thames pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
-        "Live music",
         "Cocktails",
+        "Live music",
         "Pub quiz"
       ]
     },
@@ -886,7 +886,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Lambeth local has live music.",
+      "description": "This Lambeth pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -899,7 +899,7 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "This Lambeth pub has darts and pool.",
+      "description": "This Lambeth local has darts, a pool table, and karaoke.",
       "vibeTags": [
         "Darts",
         "Pool",
@@ -914,7 +914,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "You can get live music and a quiz at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has live music, a pub quiz, and a happy hour.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -927,7 +927,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "A City of London pub with a pool table.",
+      "description": "This City of London pub has a pool table.",
       "vibeTags": [
         "Pool"
       ]
@@ -939,7 +939,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Camden pub hosts live music and quizzes.",
+      "description": "This Camden pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -951,7 +951,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Greenwich pub.",
+      "description": "This Greenwich pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -998,7 +998,7 @@
         "Pub quiz",
         "Pool"
       ],
-      "description": "This Sutton pub has a pub quiz and pool.",
+      "description": "This Sutton pub hosts a pub quiz and has a pool table.",
       "vibeTags": [
         "Pub quiz",
         "Pool"
@@ -1012,11 +1012,11 @@
         "Happy hour",
         "Karaoke"
       ],
-      "description": "You can play pool and sing karaoke at this Hackney pub.",
+      "description": "This Hackney pub has a pool table, a happy hour and karaoke.",
       "vibeTags": [
         "Pool",
-        "Karaoke",
-        "Happy hour"
+        "Happy hour",
+        "Karaoke"
       ]
     },
     "venue-17donco": {
@@ -1027,11 +1027,11 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Hammersmith and Fulham pub hosts live music and karaoke too.",
+      "description": "This Hammersmith and Fulham pub hosts live music, a pub quiz and karaoke.",
       "vibeTags": [
         "Live music",
-        "Karaoke",
-        "Pub quiz"
+        "Pub quiz",
+        "Karaoke"
       ]
     },
     "venue-17hwv2n": {
@@ -1042,11 +1042,11 @@
         "Alcohol-free options",
         "Happy hour"
       ],
-      "description": "This City of London pub has cocktails, alcohol-free options and happy hour drinks.",
+      "description": "This City of London pub has cocktails, alcohol-free options and a happy hour.",
       "vibeTags": [
         "Cocktails",
-        "Alcohol-free options",
-        "Happy hour"
+        "Happy hour",
+        "Alcohol-free options"
       ]
     },
     "venue-17lpd96": {
@@ -1056,10 +1056,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This pub in Kingston upon Thames hosts live music and cocktails.",
+      "description": "This Kingston upon Thames pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-17nbxyh": {
@@ -1069,7 +1069,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "A Tower Hamlets pub with cocktails and pub quizzes.",
+      "description": "This Tower Hamlets pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -1081,7 +1081,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This City of London local has cocktails.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1093,7 +1093,7 @@
         "Darts",
         "Happy hour"
       ],
-      "description": "Westminster local where you can play darts and get happy hour drinks.",
+      "description": "This Westminster pub has darts and a happy hour.",
       "vibeTags": [
         "Darts",
         "Happy hour"
@@ -1106,7 +1106,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Ealing has this pub with cocktails and a quiz.",
+      "description": "This Ealing pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -1118,7 +1118,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Kensington and Chelsea local with cocktails.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1129,7 +1129,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Richmond upon Thames pub with cocktails.",
+      "description": "This Richmond upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1140,7 +1140,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Southwark local with live music.",
+      "description": "This Southwark pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -1153,11 +1153,11 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Southwark pub has cocktails, a pub quiz and happy hour.",
+      "description": "This Southwark local has cocktails, a happy hour and a pub quiz.",
       "vibeTags": [
         "Cocktails",
-        "Pub quiz",
-        "Happy hour"
+        "Happy hour",
+        "Pub quiz"
       ]
     },
     "venue-1876d15": {
@@ -1167,7 +1167,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Catch live music and a pub quiz at this Greenwich pub.",
+      "description": "This Greenwich pub hosts live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -1180,7 +1180,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Ealing pub hosts live music and karaoke.",
+      "description": "This Ealing local has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -1192,7 +1192,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "You can get a pub quiz in this Kensington and Chelsea local.",
+      "description": "This Kensington and Chelsea pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1203,7 +1203,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Greenwich pub where you can get cocktails.",
+      "description": "This Greenwich pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1214,7 +1214,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Islington pub runs quizzes.",
+      "description": "This Islington pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1225,7 +1225,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "Play darts at this Camden pub.",
+      "description": "This Camden local has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -1248,7 +1248,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "This local pub has live music and darts.",
+      "description": "This Sutton pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -1260,7 +1260,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A Newham pub with a quiz.",
+      "description": "This Newham pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1271,7 +1271,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Merton pub has quizzes.",
+      "description": "This Merton pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1282,7 +1282,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Catch live music at this Islington pub.",
+      "description": "This Islington pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -1306,7 +1306,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Lambeth pub where you can get cocktails.",
+      "description": "This Lambeth pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1328,7 +1328,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "You can get live music at this Southwark pub.",
+      "description": "This Southwark pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -1339,7 +1339,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Westminster local with cocktails.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1350,7 +1350,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "Karaoke is on at this Newham pub.",
+      "description": "This Newham pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -1362,10 +1362,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Southwark pub has cocktails and live music.",
+      "description": "This Southwark pub has live music and cocktails.",
       "vibeTags": [
-        "Cocktails",
-        "Live music"
+        "Live music",
+        "Cocktails"
       ]
     },
     "venue-1ae0qgz": {
@@ -1375,7 +1375,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Islington pub hosts a quiz and has happy hour drinks.",
+      "description": "This Islington pub hosts a pub quiz and a happy hour.",
       "vibeTags": [
         "Pub quiz",
         "Happy hour"
@@ -1389,7 +1389,7 @@
         "Alcohol-free options",
         "Live music"
       ],
-      "description": "Get cocktails, alcohol-free options and live music in this Wandsworth pub.",
+      "description": "This Wandsworth pub has cocktails, alcohol-free options and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -1402,7 +1402,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A pub quiz runs at this Tower Hamlets local.",
+      "description": "This Tower Hamlets pub has pub quizzes.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1414,7 +1414,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "Play darts and pool at this Camden pub.",
+      "description": "This Camden pub has darts and a pool table.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -1428,7 +1428,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Kingston upon Thames pub has cocktails, live music and a quiz.",
+      "description": "This Kingston upon Thames pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -1464,7 +1464,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Hounslow pub hosts live music and pub quizzes.",
+      "description": "This Hounslow pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -1476,7 +1476,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1487,7 +1487,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Camden pub hosts live music.",
+      "description": "This Camden pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -1499,7 +1499,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Southwark pub hosts live music and a quiz.",
+      "description": "This Southwark pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -1512,7 +1512,7 @@
         "Cocktails",
         "Happy hour"
       ],
-      "description": "Get cocktails or happy hour drinks in this Westminster pub.",
+      "description": "You can get cocktails and a happy hour at this Westminster pub.",
       "vibeTags": [
         "Cocktails",
         "Happy hour"
@@ -1527,7 +1527,7 @@
         "Pub quiz",
         "Pool"
       ],
-      "description": "This Westminster pub has cocktails, live music, a quiz and pool.",
+      "description": "This Westminster pub has cocktails, live music, a quiz, and pool.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -1542,10 +1542,10 @@
         "Darts",
         "Happy hour"
       ],
-      "description": "You can play darts or a pub quiz at this Hammersmith and Fulham pub, plus happy hour.",
+      "description": "This Hammersmith and Fulham pub hosts darts, a quiz, and happy hour.",
       "vibeTags": [
-        "Pub quiz",
         "Darts",
+        "Pub quiz",
         "Happy hour"
       ]
     },
@@ -1556,7 +1556,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Wandsworth pub has darts and a pool table.",
+      "description": "This Wandsworth pub has darts and pool.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -1569,7 +1569,7 @@
         "Cocktails",
         "Happy hour"
       ],
-      "description": "This Tower Hamlets pub has cocktails and happy hour.",
+      "description": "This Tower Hamlets pub has cocktails and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Happy hour"
@@ -1581,7 +1581,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub in Islington has cocktails.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1603,7 +1603,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Lambeth pub.",
+      "description": "This Lambeth pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1615,7 +1615,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Hounslow pub has darts and a pool table.",
+      "description": "This Hounslow pub has darts and pool.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -1629,7 +1629,7 @@
         "Pub quiz",
         "Darts"
       ],
-      "description": "This Waltham Forest pub has cocktails and hosts a pub quiz.",
+      "description": "This Waltham Forest pub has cocktails and a pub quiz with darts.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz",
@@ -1643,10 +1643,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Wandsworth has this pub with live music and cocktails.",
+      "description": "This Wandsworth pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-1d1fitg": {
@@ -1656,10 +1656,10 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "A Wandsworth pub with a pub quiz and cocktails.",
+      "description": "This Wandsworth pub has cocktails and a pub quiz.",
       "vibeTags": [
-        "Pub quiz",
-        "Cocktails"
+        "Cocktails",
+        "Pub quiz"
       ]
     },
     "venue-1d1tez": {
@@ -1668,7 +1668,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Camden pub hosts live music.",
+      "description": "This Camden pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -1679,7 +1679,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "Kingston upon Thames has this pub with a pub quiz.",
+      "description": "This Kingston upon Thames pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1701,7 +1701,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Lambeth pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1712,7 +1712,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Tower Hamlets pub hosts a quiz.",
+      "description": "This Tower Hamlets pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1724,7 +1724,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This local has live music and runs pub quizzes.",
+      "description": "This Barnet pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -1739,11 +1739,11 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Brent pub has cocktails, live music, and a pub quiz.",
+      "description": "This Brent pub has cocktails, live music, a pub quiz and karaoke.",
       "vibeTags": [
         "Cocktails",
         "Live music",
-        "Pub quiz"
+        "Karaoke"
       ]
     },
     "venue-1dafrop": {
@@ -1753,7 +1753,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Islington pub has cocktails and runs pub quizzes.",
+      "description": "This Islington pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -1765,7 +1765,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Harrow pub with cocktails.",
+      "description": "This Harrow pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1776,7 +1776,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Islington pub is where you can get cocktails.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1788,10 +1788,10 @@
         "Cocktails",
         "Pool"
       ],
-      "description": "The City of London pub has cocktails and a pool table.",
+      "description": "This City of London pub has cocktails and a pool table.",
       "vibeTags": [
-        "Pool",
-        "Cocktails"
+        "Cocktails",
+        "Pool"
       ]
     },
     "venue-1dqfi1i": {
@@ -1800,7 +1800,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Lewisham pub runs a quiz.",
+      "description": "This Lewisham pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -1811,7 +1811,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Kensington and Chelsea has this pub with cocktails.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1824,11 +1824,11 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "You can get cocktails, alcohol-free options and a pub quiz in this Kensington and Chelsea local.",
+      "description": "This Kensington and Chelsea pub has cocktails, alcohol-free options and a pub quiz.",
       "vibeTags": [
-        "Pub quiz",
+        "Cocktails",
         "Alcohol-free options",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-1dydno": {
@@ -1840,8 +1840,8 @@
       ],
       "description": "This Ealing pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-1dyrfr0": {
@@ -1850,7 +1850,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Hackney pub with cocktails.",
+      "description": "This Hackney pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1863,11 +1863,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Lambeth pub hosts a pub quiz and live music.",
+      "description": "This Lambeth pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
-        "Pub quiz",
+        "Cocktails",
         "Live music",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-1eg7mqg": {
@@ -1876,7 +1876,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "A Westminster pub with live music.",
+      "description": "This Westminster pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -1889,7 +1889,7 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "You can play pool or sing karaoke at this Camden pub with live music.",
+      "description": "This Camden pub has live music, pool and karaoke.",
       "vibeTags": [
         "Live music",
         "Pool",
@@ -1902,7 +1902,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "This Tower Hamlets pub has a dartboard.",
+      "description": "This Tower Hamlets pub has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -1913,7 +1913,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Tower Hamlets local.",
+      "description": "This Tower Hamlets pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1927,11 +1927,11 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "This Greenwich pub has live music and karaoke.",
+      "description": "This Greenwich pub has live music, darts and pool.",
       "vibeTags": [
         "Live music",
-        "Karaoke",
-        "Darts"
+        "Darts",
+        "Pool"
       ]
     },
     "venue-1f5ygjb": {
@@ -1955,7 +1955,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Southwark local where you can get cocktails.",
+      "description": "This Southwark pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1967,7 +1967,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Merton pub has cocktails and runs a pub quiz.",
+      "description": "This Merton pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -1979,7 +1979,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2017,7 +2017,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "You can catch live music or karaoke at this Newham pub.",
+      "description": "This Newham local has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -2030,7 +2030,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Tower Hamlets pub hosts cocktails and a pub quiz.",
+      "description": "This Tower Hamlets pub has cocktails and pub quizzes.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -2092,7 +2092,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "This Wandsworth pub has darts.",
+      "description": "This Wandsworth local has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -2138,7 +2138,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2150,7 +2150,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This local pub in Hammersmith and Fulham has live music and karaoke.",
+      "description": "This Hammersmith and Fulham pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -2163,10 +2163,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Camden pub has live music and cocktails.",
+      "description": "This Camden pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-1gz2vse": {
@@ -2176,7 +2176,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Catch live music or a pub quiz in this Camden local.",
+      "description": "This Camden pub has live music and pub quizzes.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -2192,11 +2192,11 @@
         "Happy hour",
         "Karaoke"
       ],
-      "description": "This Haringey pub has live music, darts, pool, happy hour, and karaoke.",
+      "description": "This Haringey pub has live music, darts, pool, a happy hour and karaoke.",
       "vibeTags": [
         "Live music",
         "Darts",
-        "Karaoke"
+        "Pool"
       ]
     },
     "venue-1h8gb3j": {
@@ -2205,7 +2205,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A City of London pub with cocktails.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2228,7 +2228,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "This Southwark pub has live music and a dartboard.",
+      "description": "This Southwark pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -2241,7 +2241,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This City of London pub hosts live music and karaoke.",
+      "description": "This City of London pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -2257,11 +2257,11 @@
         "Happy hour",
         "Karaoke"
       ],
-      "description": "This Tower Hamlets pub has live music and a pub quiz.",
+      "description": "This Tower Hamlets pub has cocktails, live music, a pub quiz, happy hour and karaoke.",
       "vibeTags": [
+        "Cocktails",
         "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-1hz0avt": {
@@ -2271,7 +2271,7 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "You can get alcohol-free options at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has alcohol-free options and a pub quiz.",
       "vibeTags": [
         "Alcohol-free options",
         "Pub quiz"
@@ -2284,7 +2284,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Islington pub has cocktails and runs pub quizzes.",
+      "description": "This Islington pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -2296,7 +2296,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Islington pub.",
+      "description": "This Islington pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -2307,7 +2307,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Ealing pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2318,7 +2318,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Greenwich pub.",
+      "description": "This Greenwich pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2340,7 +2340,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "You can play darts at this Bromley pub.",
+      "description": "This Bromley pub has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -2353,7 +2353,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This Enfield pub has live music, cocktails and happy hour.",
+      "description": "This Enfield pub has cocktails, live music and happy hour.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -2366,7 +2366,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Richmond upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2380,11 +2380,11 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Lambeth pub hosts live music and a pub quiz.",
+      "description": "This Lambeth pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
+        "Cocktails",
         "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-1jdhzak": {
@@ -2393,7 +2393,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Lambeth local with cocktails.",
+      "description": "This Lambeth local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2404,7 +2404,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "You can get karaoke at this Brent pub.",
+      "description": "This Brent pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -2426,7 +2426,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "You can play darts in this Westminster pub.",
+      "description": "This Westminster local has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -2449,7 +2449,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub hosts live music and also pub quizzes.",
+      "description": "This Wandsworth pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -2464,11 +2464,11 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Tower Hamlets pub has cocktails, darts and pool.",
+      "description": "This Tower Hamlets local has cocktails, a pub quiz, darts and a pool table.",
       "vibeTags": [
         "Cocktails",
-        "Darts",
-        "Pool"
+        "Pub quiz",
+        "Darts"
       ]
     },
     "venue-1jy17e7": {
@@ -2479,10 +2479,10 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "A Lambeth pub with live music, cocktails and a quiz.",
+      "description": "This Lambeth pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
-        "Live music",
         "Cocktails",
+        "Live music",
         "Pub quiz"
       ]
     },
@@ -2493,10 +2493,10 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub hosts quizzes and you can get cocktails.",
+      "description": "This Wandsworth pub has cocktails and a pub quiz.",
       "vibeTags": [
-        "Pub quiz",
-        "Cocktails"
+        "Cocktails",
+        "Pub quiz"
       ]
     },
     "venue-1k6m737": {
@@ -2516,7 +2516,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Westminster pub has cocktails.",
+      "description": "You can get cocktails at this Westminster pub.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -2530,7 +2530,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "You can get live music, a quiz, darts or pool in this Croydon pub.",
+      "description": "This Croydon pub has live music, a pub quiz, darts and a pool table.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -2544,7 +2544,7 @@
         "Pub quiz",
         "Darts"
       ],
-      "description": "A Southwark pub with a quiz and darts.",
+      "description": "This Southwark pub has a pub quiz and darts.",
       "vibeTags": [
         "Pub quiz",
         "Darts"
@@ -2557,7 +2557,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Lambeth local has cocktails and live music.",
+      "description": "This Lambeth pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -2571,7 +2571,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "An Ealing pub with cocktails, live music and a quiz.",
+      "description": "This Ealing pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -2585,7 +2585,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Waltham Forest pub hosts live music and a quiz.",
+      "description": "This Waltham Forest pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -2597,7 +2597,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "A Sutton pub with live music.",
+      "description": "This Sutton pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -2608,7 +2608,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Lambeth pub runs a quiz.",
+      "description": "This Lambeth pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -2631,7 +2631,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Hounslow pub has live music and a quiz.",
+      "description": "This Hounslow pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -2643,7 +2643,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Southwark pub hosts quizzes.",
+      "description": "This Southwark pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -2655,7 +2655,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "You can catch live music and play darts at this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -2681,7 +2681,7 @@
         "Darts",
         "Karaoke"
       ],
-      "description": "This Bromley pub has live music, quizzes, darts, and karaoke.",
+      "description": "This Bromley pub has live music, a pub quiz, darts and karaoke.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -2695,7 +2695,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This local pub in Sutton hosts live music and a pub quiz.",
+      "description": "This Sutton pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -2718,7 +2718,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "The City of London pub has alcohol-free options.",
+      "description": "This City of London pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -2730,7 +2730,7 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "This Croydon pub has pool and karaoke.",
+      "description": "This Croydon pub has a pool table and karaoke.",
       "vibeTags": [
         "Pool",
         "Karaoke"
@@ -2743,7 +2743,7 @@
         "Cocktails",
         "Happy hour"
       ],
-      "description": "Get cocktails and happy hour drinks at this Islington pub.",
+      "description": "This Islington pub has cocktails and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Happy hour"
@@ -2767,7 +2767,7 @@
         "Live music",
         "Pool"
       ],
-      "description": "This Southwark pub has live music and a pool table.",
+      "description": "This Southwark local has live music and a pool table.",
       "vibeTags": [
         "Live music",
         "Pool"
@@ -2782,11 +2782,11 @@
         "Happy hour",
         "Karaoke"
       ],
-      "description": "You can get cocktails and play pub quiz or karaoke in this Islington pub.",
+      "description": "This Islington pub has cocktails, a pub quiz, a happy hour and karaoke.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz",
-        "Karaoke"
+        "Happy hour"
       ]
     },
     "venue-1mk5cdp": {
@@ -2811,7 +2811,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Bromley pub hosts live music and pub quizzes.",
+      "description": "This Bromley local has live music, a pub quiz, darts and pool.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -2837,7 +2837,7 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "Get cocktails, alcohol-free options and play pub quiz in this Wandsworth pub.",
+      "description": "This Wandsworth pub has cocktails, alcohol-free options and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options",
@@ -2852,7 +2852,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Hammersmith and Fulham pub hosts live music, karaoke and cocktails.",
+      "description": "This Hammersmith and Fulham pub has cocktails, live music and karaoke.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -2877,7 +2877,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Wandsworth pub has live music and cocktails.",
+      "description": "This Wandsworth pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -2894,6 +2894,19 @@
         "Cocktails"
       ]
     },
+    "venue-1n6phz5": {
+      "venueId": "venue-1n6phz5",
+      "borough": "Westminster",
+      "supportedTags": [
+        "Cocktails",
+        "Pub quiz"
+      ],
+      "description": "This Westminster pub has cocktails and a pub quiz.",
+      "vibeTags": [
+        "Cocktails",
+        "Pub quiz"
+      ]
+    },
     "venue-1nne3xf": {
       "venueId": "venue-1nne3xf",
       "borough": "Lewisham",
@@ -2901,10 +2914,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "You can get cocktails and live music in this Lewisham pub.",
+      "description": "This Lewisham pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-1nrh4ug": {
@@ -2913,7 +2926,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A Hounslow pub where you can play a quiz.",
+      "description": "This Hounslow pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -2926,11 +2939,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Hackney pub has live music, a quiz, and cocktails.",
+      "description": "This Hackney pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
+        "Cocktails",
         "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-1ntd4m": {
@@ -2942,11 +2955,11 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Tower Hamlets pub hosts a pub quiz and karaoke.",
+      "description": "This Tower Hamlets pub has cocktails, live music, a pub quiz and karaoke.",
       "vibeTags": [
-        "Pub quiz",
-        "Karaoke",
-        "Live music"
+        "Cocktails",
+        "Live music",
+        "Pub quiz"
       ]
     },
     "venue-1nzscr5": {
@@ -2955,7 +2968,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Camden pub hosts quizzes.",
+      "description": "This Camden pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -2967,7 +2980,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Kensington and Chelsea pub hosts live music and pub quizzes.",
+      "description": "This Kensington and Chelsea pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -2990,7 +3003,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Westminster pub.",
+      "description": "This Westminster pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -3002,10 +3015,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Get cocktails and live music in this Wandsworth pub.",
+      "description": "This Wandsworth pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-1oc32ra": {
@@ -3025,7 +3038,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3038,7 +3051,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub has cocktails, live music and a pub quiz.",
+      "description": "This Wandsworth pub has cocktails, live music and pub quizzes.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -3051,7 +3064,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Southwark pub with cocktails.",
+      "description": "This Southwark pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3063,7 +3076,7 @@
         "Live music",
         "Pool"
       ],
-      "description": "This Lambeth pub has live music and you can play pool.",
+      "description": "This Lambeth pub has live music and a pool table.",
       "vibeTags": [
         "Live music",
         "Pool"
@@ -3075,7 +3088,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Merton pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3090,9 +3103,9 @@
         "Happy hour",
         "Karaoke"
       ],
-      "description": "This Wandsworth pub has karaoke, live music, a pub quiz, happy hour and cocktails.",
+      "description": "This Wandsworth pub has cocktails, live music, pub quizzes, a happy hour and karaoke.",
       "vibeTags": [
-        "Karaoke",
+        "Cocktails",
         "Live music",
         "Pub quiz"
       ]
@@ -3114,7 +3127,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "Karaoke is on at this Lambeth pub.",
+      "description": "This Lambeth pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -3125,7 +3138,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Lambeth pub hosts quizzes.",
+      "description": "This Lambeth pub hosts a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3139,7 +3152,7 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "This Hammersmith and Fulham pub has cocktails, live music, and pool.",
+      "description": "This Hammersmith and Fulham pub has cocktails, live music, a pool table and karaoke.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -3153,7 +3166,7 @@
         "Cocktails",
         "Happy hour"
       ],
-      "description": "This pub in the City of London has cocktails and happy hour drinks.",
+      "description": "This City of London pub has cocktails and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Happy hour"
@@ -3165,7 +3178,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This local pub hosts quizzes.",
+      "description": "This Merton pub runs pub quizzes.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3178,11 +3191,11 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "This Lambeth local has cocktails, alcohol-free options, and a pub quiz.",
+      "description": "This Lambeth pub has a pub quiz, cocktails and alcohol-free options.",
       "vibeTags": [
+        "Pub quiz",
         "Cocktails",
-        "Alcohol-free options",
-        "Pub quiz"
+        "Alcohol-free options"
       ]
     },
     "venue-1pvqxca": {
@@ -3191,7 +3204,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "A Southwark pub where you can play darts.",
+      "description": "This Southwark pub has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -3203,7 +3216,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Wandsworth pub has darts and pool.",
+      "description": "This Wandsworth pub has darts and a pool table.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -3216,7 +3229,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Wandsworth pub has live music and karaoke.",
+      "description": "This Wandsworth pub hosts live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -3228,7 +3241,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Ealing pub hosts quizzes.",
+      "description": "This Ealing pub is where you can get a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3240,7 +3253,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Catch live music and a pub quiz in this Hammersmith and Fulham local.",
+      "description": "This Hammersmith and Fulham pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -3253,7 +3266,7 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "Greenwich has this pub with cocktails and alcohol-free options.",
+      "description": "This Greenwich pub has cocktails and alcohol-free options.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options"
@@ -3276,7 +3289,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A Wandsworth pub where you can play a pub quiz.",
+      "description": "This Wandsworth pub has pub quizzes.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3288,7 +3301,7 @@
         "Cocktails",
         "Pool"
       ],
-      "description": "You can get cocktails and play pool at this City of London pub.",
+      "description": "This City of London pub has cocktails and a pool table.",
       "vibeTags": [
         "Cocktails",
         "Pool"
@@ -3311,7 +3324,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Westminster pub.",
+      "description": "This Westminster pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -3356,7 +3369,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "You can catch live music or karaoke at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -3381,7 +3394,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "This Lambeth pub has a dartboard.",
+      "description": "You can play darts in this Lambeth local.",
       "vibeTags": [
         "Darts"
       ]
@@ -3404,7 +3417,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Hackney local has cocktails and live music.",
+      "description": "This Hackney pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -3417,7 +3430,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "You can get cocktails and play pub quiz in this Kingston upon Thames pub.",
+      "description": "This Kingston upon Thames local has cocktails and pub quizzes.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -3440,7 +3453,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this City of London pub.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3451,7 +3464,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Hackney pub has a pub quiz.",
+      "description": "This Hackney local runs a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3473,7 +3486,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Westminster pub.",
+      "description": "This Westminster pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -3486,11 +3499,11 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Southwark pub hosts live music, karaoke and a pub quiz.",
+      "description": "This Southwark pub has live music and hosts a pub quiz plus karaoke.",
       "vibeTags": [
         "Live music",
-        "Karaoke",
-        "Pub quiz"
+        "Pub quiz",
+        "Karaoke"
       ]
     },
     "venue-1t8siin": {
@@ -3500,7 +3513,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "You can catch live music and a pub quiz at this Westminster pub.",
+      "description": "This Westminster pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -3513,7 +3526,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This Wandsworth pub has live music and happy hour drinks.",
+      "description": "This Wandsworth pub has live music and a happy hour.",
       "vibeTags": [
         "Live music",
         "Happy hour"
@@ -3527,11 +3540,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Westminster pub hosts live music and pub quizzes.",
+      "description": "This Westminster pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
+        "Cocktails",
         "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-1tmo1hz": {
@@ -3551,7 +3564,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "You can catch a pub quiz at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3562,7 +3575,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This pub in Kingston upon Thames has cocktails.",
+      "description": "This Kingston upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3576,11 +3589,11 @@
         "Pool",
         "Happy hour"
       ],
-      "description": "This Croydon pub has cocktails, live music, pool and happy hour.",
+      "description": "This Croydon pub has cocktails, live music, a pool table and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Live music",
-        "Happy hour"
+        "Pool"
       ]
     },
     "venue-1tp8n10": {
@@ -3590,7 +3603,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "A Hounslow pub with live music and a pub quiz.",
+      "description": "This Hounslow pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -3603,10 +3616,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Hackney pub hosts live music and you can get cocktails.",
+      "description": "This Hackney pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-1txotyw": {
@@ -3616,7 +3629,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "You can catch live music and a pub quiz in this Brent pub.",
+      "description": "This Brent pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -3628,7 +3641,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This local pub hosts pub quizzes.",
+      "description": "This Camden pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3650,7 +3663,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Hackney pub.",
+      "description": "This Hackney pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -3664,8 +3677,8 @@
       ],
       "description": "This Islington pub has cocktails and live music.",
       "vibeTags": [
-        "Cocktails",
-        "Live music"
+        "Live music",
+        "Cocktails"
       ]
     },
     "venue-1udcg54": {
@@ -3675,7 +3688,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "You can get live music and karaoke in this Sutton pub.",
+      "description": "This Sutton pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -3687,7 +3700,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Westminster pub with cocktails.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3698,7 +3711,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Greenwich pub hosts a quiz.",
+      "description": "This Greenwich pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3734,7 +3747,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Get cocktails and live music at this Westminster local.",
+      "description": "This Westminster pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -3746,7 +3759,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Islington local has cocktails.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3759,7 +3772,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Kensington and Chelsea pub hosts cocktails, live music and a pub quiz.",
+      "description": "This Kensington and Chelsea pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -3772,7 +3785,7 @@
       "supportedTags": [
         "Happy hour"
       ],
-      "description": "A City of London pub with happy hour.",
+      "description": "This City of London pub has a happy hour.",
       "vibeTags": [
         "Happy hour"
       ]
@@ -3783,7 +3796,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Hackney pub runs a quiz.",
+      "description": "This Hackney pub hosts pub quizzes.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -3807,11 +3820,11 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "You can get cocktails, alcohol-free options and play a pub quiz in this Kingston upon Thames pub.",
+      "description": "This Kingston upon Thames pub has cocktails, alcohol-free options and a pub quiz.",
       "vibeTags": [
-        "Pub quiz",
         "Cocktails",
-        "Alcohol-free options"
+        "Alcohol-free options",
+        "Pub quiz"
       ]
     },
     "venue-1w54puk": {
@@ -3820,7 +3833,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Westminster pub with cocktails.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3831,7 +3844,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3842,7 +3855,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Lewisham local.",
+      "description": "This Lewisham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -3853,7 +3866,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Hounslow pub.",
+      "description": "This Hounslow pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -3865,10 +3878,10 @@
         "Cocktails",
         "Happy hour"
       ],
-      "description": "Get cocktails and happy hour drinks at this Merton pub.",
+      "description": "This Merton local has cocktails and a happy hour.",
       "vibeTags": [
-        "Happy hour",
-        "Cocktails"
+        "Cocktails",
+        "Happy hour"
       ]
     },
     "venue-1wxa6rs": {
@@ -3890,7 +3903,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Camden pub with cocktails.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3901,7 +3914,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Hackney pub hosts live music.",
+      "description": "This Hackney pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -3935,7 +3948,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "You can play darts and pool in this Southwark pub.",
+      "description": "This Southwark local has darts and pool.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -3960,7 +3973,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Westminster local.",
+      "description": "This Westminster local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3973,7 +3986,7 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Wandsworth pub hosts live music, pub quizzes and karaoke.",
+      "description": "This Wandsworth pub has live music, a pub quiz and karaoke.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -3986,7 +3999,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Bexley pub hosts live music.",
+      "description": "This Bexley pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -4011,7 +4024,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "You can get cocktails and play a pub quiz in this Wandsworth local.",
+      "description": "This Wandsworth pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -4024,7 +4037,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub has cocktails and runs a pub quiz.",
+      "description": "This Wandsworth pub has cocktails and a quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -4039,11 +4052,11 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Tower Hamlets pub hosts live music and karaoke.",
+      "description": "This Tower Hamlets pub has live music, karaoke, cocktails and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Karaoke",
-        "Pub quiz"
+        "Cocktails"
       ]
     },
     "venue-1y75r7": {
@@ -4053,10 +4066,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Wandsworth local has cocktails and live music.",
+      "description": "This Wandsworth pub has live music and cocktails.",
       "vibeTags": [
-        "Cocktails",
-        "Live music"
+        "Live music",
+        "Cocktails"
       ]
     },
     "venue-1yd70c7": {
@@ -4076,7 +4089,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Lambeth pub.",
+      "description": "This Lambeth pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4088,7 +4101,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "This Hackney pub hosts live music and you can play darts.",
+      "description": "This Hackney pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -4100,7 +4113,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A Hounslow pub where you can catch a quiz.",
+      "description": "This Hounslow pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -4123,7 +4136,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Haringey pub has live music and runs a quiz.",
+      "description": "This Haringey pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -4136,7 +4149,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "Catch live music or karaoke at this Southwark pub.",
+      "description": "This Southwark pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -4150,11 +4163,11 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "This Kensington and Chelsea pub has alcohol-free options and runs a pub quiz.",
+      "description": "This Kensington and Chelsea pub has cocktails, alcohol-free options and a pub quiz.",
       "vibeTags": [
-        "Pub quiz",
+        "Cocktails",
         "Alcohol-free options",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-1yrzxrw": {
@@ -4163,7 +4176,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Hillingdon pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4174,7 +4187,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "You can get a quiz at this Ealing pub.",
+      "description": "This Ealing pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -4185,7 +4198,7 @@
       "supportedTags": [
         "Happy hour"
       ],
-      "description": "This Southwark pub has a happy hour.",
+      "description": "This Southwark local has a happy hour.",
       "vibeTags": [
         "Happy hour"
       ]
@@ -4197,7 +4210,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Hounslow pub has live music and a pub quiz.",
+      "description": "This Hounslow local has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -4210,7 +4223,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "You can play darts and pool in this Enfield pub.",
+      "description": "This Enfield pub has darts and pool.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -4236,7 +4249,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Get cocktails and live music at this City of London pub.",
+      "description": "This City of London pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -4261,11 +4274,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Haringey pub hosts live music and pub quizzes.",
+      "description": "This Haringey pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
+        "Cocktails",
         "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-2hnvjb": {
@@ -4287,11 +4300,11 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "You can get cocktails and happy hour drinks at this Lambeth pub, plus live music.",
+      "description": "This Lambeth pub has cocktails, live music and a happy hour.",
       "vibeTags": [
         "Cocktails",
-        "Happy hour",
-        "Live music"
+        "Live music",
+        "Happy hour"
       ]
     },
     "venue-2k18dw": {
@@ -4303,11 +4316,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Barking and Dagenham pub hosts live music, a pub quiz, cocktails and alcohol-free options.",
+      "description": "This Barking and Dagenham pub has cocktails, alcohol-free options, live music and a pub quiz.",
       "vibeTags": [
-        "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Cocktails",
+        "Alcohol-free options",
+        "Live music"
       ]
     },
     "venue-2mrjmq": {
@@ -4316,7 +4329,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "This Kensington and Chelsea pub hosts karaoke.",
+      "description": "This Kensington and Chelsea pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -4339,7 +4352,7 @@
         "Cocktails",
         "Happy hour"
       ],
-      "description": "You can get cocktails and happy hour drinks in this Croydon pub.",
+      "description": "This Croydon pub has cocktails and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Happy hour"
@@ -4352,10 +4365,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Lambeth local hosts live music and cocktails.",
+      "description": "This Lambeth pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-2xghrm": {
@@ -4364,7 +4377,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "The City of London pub has alcohol-free options.",
+      "description": "This City of London pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -4412,7 +4425,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "Catch live music, happy hour drinks, and pub quizzes in this Haringey local.",
+      "description": "This Haringey pub has live music, a pub quiz, and happy hour.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -4436,7 +4449,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A pub quiz runs at this Southwark local.",
+      "description": "This Southwark pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -4459,7 +4472,7 @@
         "Live music",
         "Pool"
       ],
-      "description": "You can get live music and pool at this Bexley pub.",
+      "description": "This Bexley pub has live music and a pool table.",
       "vibeTags": [
         "Live music",
         "Pool"
@@ -4471,7 +4484,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Kensington and Chelsea has this pub with cocktails.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4483,7 +4496,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This pub hosts live music and also runs pub quizzes.",
+      "description": "This Hackney pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -4495,7 +4508,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "The City of London pub has darts.",
+      "description": "This City of London pub has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -4506,7 +4519,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "Southwark has a pub with pool.",
+      "description": "This Southwark pub has pool.",
       "vibeTags": [
         "Pool"
       ]
@@ -4544,11 +4557,11 @@
         "Pub quiz",
         "Darts"
       ],
-      "description": "This Wandsworth pub has cocktails, live music, darts and a pub quiz.",
+      "description": "This Wandsworth pub has live music, a pub quiz, cocktails and darts.",
       "vibeTags": [
-        "Cocktails",
         "Live music",
-        "Darts"
+        "Pub quiz",
+        "Cocktails"
       ]
     },
     "venue-4xq37k": {
@@ -4557,7 +4570,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Richmond upon Thames has a pub with cocktails.",
+      "description": "This Richmond upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4580,7 +4593,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This pub hosts live music and has happy hour drinks.",
+      "description": "This Islington pub has live music and a happy hour.",
       "vibeTags": [
         "Live music",
         "Happy hour"
@@ -4594,7 +4607,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Tower Hamlets has this pub with cocktails, live music, and pub quizzes.",
+      "description": "This Tower Hamlets pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -4607,7 +4620,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "This Islington pub has darts.",
+      "description": "This Islington local has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -4619,7 +4632,7 @@
         "Live music",
         "Pool"
       ],
-      "description": "You can get live music and play pool in this Tower Hamlets pub.",
+      "description": "This Tower Hamlets pub has live music and pool.",
       "vibeTags": [
         "Live music",
         "Pool"
@@ -4631,7 +4644,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Tower Hamlets pub hosts quizzes.",
+      "description": "This Tower Hamlets local has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -4642,7 +4655,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Lambeth local is where you can get cocktails.",
+      "description": "This Lambeth pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4667,7 +4680,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Islington pub hosts live music and pub quizzes.",
+      "description": "This Islington pub hosts live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -4680,7 +4693,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "You can play darts and pool at this Camden pub.",
+      "description": "This Camden pub has darts and pool.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -4692,7 +4705,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Westminster has this pub with cocktails.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4703,7 +4716,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Wandsworth pub.",
+      "description": "This Wandsworth local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4728,7 +4741,7 @@
         "Cocktails",
         "Pool"
       ],
-      "description": "This Waltham Forest pub has cocktails and a pool table.",
+      "description": "This Waltham Forest local has cocktails and pool.",
       "vibeTags": [
         "Cocktails",
         "Pool"
@@ -4740,7 +4753,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "You can catch live music at this Lewisham pub.",
+      "description": "This Lewisham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -4753,10 +4766,10 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Southwark pub hosts a quiz and has cocktails plus happy hour drinks.",
+      "description": "This Southwark pub has cocktails, pub quizzes and a happy hour.",
       "vibeTags": [
-        "Pub quiz",
         "Cocktails",
+        "Pub quiz",
         "Happy hour"
       ]
     },
@@ -4766,7 +4779,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A pub quiz is on at this Brent local.",
+      "description": "This Brent pub has pub quizzes.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -4779,10 +4792,11 @@
         "Pool",
         "Happy hour"
       ],
-      "description": "This Hammersmith and Fulham local has live music and a pool table.",
+      "description": "This Hammersmith and Fulham pub has live music, pool and a happy hour.",
       "vibeTags": [
         "Live music",
-        "Pool"
+        "Pool",
+        "Happy hour"
       ]
     },
     "venue-7dkj4q": {
@@ -4792,7 +4806,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Westminster has this pub with cocktails and live music.",
+      "description": "This Westminster pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -4805,7 +4819,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "A Southwark pub where you can get cocktails and play pub quiz.",
+      "description": "This Southwark pub has cocktails and pub quizzes.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -4818,7 +4832,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Camden has this pub with cocktails and a quiz.",
+      "description": "This Camden pub has cocktails and pub quizzes.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -4832,7 +4846,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Greenwich pub has live music, darts and a pool table.",
+      "description": "This Greenwich pub has live music, darts and pool.",
       "vibeTags": [
         "Live music",
         "Darts",
@@ -4894,7 +4908,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "You can get cocktails and play pub quiz in this Wandsworth pub.",
+      "description": "This Wandsworth pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -4907,7 +4921,7 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "This local pub has alcohol-free options and runs pub quizzes.",
+      "description": "This Camden pub has alcohol-free options and a pub quiz.",
       "vibeTags": [
         "Alcohol-free options",
         "Pub quiz"
@@ -4919,7 +4933,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Lewisham pub hosts live music.",
+      "description": "This Lewisham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -4930,7 +4944,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Ealing has a pub with cocktails.",
+      "description": "This Ealing pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4941,7 +4955,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Wandsworth pub with cocktails.",
+      "description": "This Wandsworth pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -4964,7 +4978,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This local pub hosts live music and a pub quiz.",
+      "description": "This Sutton pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -5000,7 +5014,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this City of London pub.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5012,10 +5026,10 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Camden pub hosts quizzes and has happy hour drinks.",
+      "description": "This Camden pub has a happy hour and a pub quiz.",
       "vibeTags": [
-        "Pub quiz",
-        "Happy hour"
+        "Happy hour",
+        "Pub quiz"
       ]
     },
     "venue-97l8m": {
@@ -5024,7 +5038,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Hillingdon pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5036,7 +5050,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Hackney pub has cocktails and runs pub quizzes.",
+      "description": "This Hackney pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -5048,7 +5062,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A pub in Tower Hamlets where you can play pub quizzes.",
+      "description": "This Tower Hamlets pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -5060,10 +5074,10 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "This Greenwich pub has cocktails and alcohol-free options.",
+      "description": "This Greenwich pub has alcohol-free options and cocktails.",
       "vibeTags": [
-        "Cocktails",
-        "Alcohol-free options"
+        "Alcohol-free options",
+        "Cocktails"
       ]
     },
     "venue-9fb18e": {
@@ -5073,7 +5087,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Kingston upon Thames pub hosts live music and pub quizzes.",
+      "description": "This Kingston upon Thames pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -5088,7 +5102,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Haringey pub has cocktails, live music, pub quizzes and happy hour.",
+      "description": "This Haringey pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -5102,7 +5116,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Catch live music and pub quizzes at this Tower Hamlets pub.",
+      "description": "This Tower Hamlets pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -5117,7 +5131,7 @@
         "Darts",
         "Happy hour"
       ],
-      "description": "You can get cocktails and play darts at this Lewisham pub with live music and happy hour.",
+      "description": "This Lewisham pub has cocktails, live music, darts and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -5141,7 +5155,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5154,7 +5168,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "Catch live music and happy hour drinks or cocktails at this Camden pub.",
+      "description": "This Camden pub has cocktails, live music and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -5167,7 +5181,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This local pub hosts live music.",
+      "description": "This Haringey pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5178,7 +5192,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "This local pub has alcohol-free options.",
+      "description": "This City of London pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -5200,7 +5214,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "This local pub hosts karaoke.",
+      "description": "This Waltham Forest pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -5212,7 +5226,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Wandsworth pub has live music and cocktails.",
+      "description": "This Wandsworth pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -5225,7 +5239,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This local pub has cocktails and a pub quiz.",
+      "description": "This Merton pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -5238,7 +5252,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "You can get cocktails and play a quiz at this Ealing pub.",
+      "description": "This Ealing pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -5252,7 +5266,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Greenwich local has a pub quiz, darts and a pool table.",
+      "description": "This Greenwich pub has a pub quiz, darts and a pool table.",
       "vibeTags": [
         "Pub quiz",
         "Darts",
@@ -5266,7 +5280,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "Catch live music and play darts at this Westminster pub.",
+      "description": "This Westminster pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -5291,7 +5305,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Haringey pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5313,7 +5327,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "This local pub hosts karaoke.",
+      "description": "This Bexley pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -5326,11 +5340,11 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Camden pub has karaoke, a quiz and cocktails.",
+      "description": "This Camden pub has cocktails, a pub quiz and karaoke.",
       "vibeTags": [
-        "Karaoke",
+        "Cocktails",
         "Pub quiz",
-        "Cocktails"
+        "Karaoke"
       ]
     },
     "venue-bb3byd": {
@@ -5340,7 +5354,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Lambeth pub hosts live music and karaoke.",
+      "description": "This Lambeth pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -5353,7 +5367,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Camden pub hosts live music and pub quizzes.",
+      "description": "This Camden pub hosts live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -5366,7 +5380,7 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "You can get cocktails and alcohol-free options at this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has cocktails and alcohol-free options.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options"
@@ -5378,7 +5392,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Hounslow pub.",
+      "description": "This Hounslow pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5401,7 +5415,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Southwark pub has live music and a pub quiz.",
+      "description": "This Southwark pub has live music and also a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -5413,7 +5427,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Catch live music at this Lewisham local.",
+      "description": "This Lewisham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5424,7 +5438,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "This local pub in the City of London has alcohol-free options.",
+      "description": "This City of London pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -5436,7 +5450,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Get cocktails and live music at this Lambeth pub.",
+      "description": "This Lambeth pub has cocktails plus live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -5460,7 +5474,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Islington pub hosts live music and pub quizzes.",
+      "description": "This Islington pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -5496,7 +5510,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This local pub has live music.",
+      "description": "This Hounslow pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5507,7 +5521,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Camden pub hosts live music.",
+      "description": "This Camden pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5519,7 +5533,7 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "This Merton pub has cocktails and alcohol-free options.",
+      "description": "This Merton pub has cocktails plus alcohol-free options.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options"
@@ -5531,7 +5545,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Kingston upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5542,7 +5556,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5556,7 +5570,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "You can get cocktails, live music, a pub quiz, and happy hour drinks at this Lambeth pub.",
+      "description": "This Lambeth pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -5571,7 +5585,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This local pub has cocktails, a quiz and happy hour.",
+      "description": "This Kingston upon Thames pub has cocktails, a pub quiz and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz",
@@ -5586,11 +5600,10 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "A pub in Ealing where you can catch live music, play a pub quiz, and get cocktails.",
+      "description": "This Ealing pub has cocktails and live music too.",
       "vibeTags": [
-        "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-djy3xd": {
@@ -5599,7 +5612,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Southwark pub hosts quizzes.",
+      "description": "This Southwark pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -5610,7 +5623,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5643,7 +5656,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5667,7 +5680,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This local pub hosts live music.",
+      "description": "This Brent pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5680,7 +5693,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Hackney pub hosts live music, darts and pool.",
+      "description": "This Hackney pub has live music, darts and a pool table.",
       "vibeTags": [
         "Live music",
         "Darts",
@@ -5694,7 +5707,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "You can catch live music and play darts in this Lambeth pub.",
+      "description": "This Lambeth pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -5706,7 +5719,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5717,7 +5730,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Lambeth pub hosts quizzes.",
+      "description": "This Lambeth local has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -5731,7 +5744,7 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "You can get cocktails and live music at this Enfield pub.",
+      "description": "This Enfield pub has cocktails, live music, a pub quiz and a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -5759,7 +5772,7 @@
         "Alcohol-free options",
         "Pub quiz"
       ],
-      "description": "Wandsworth pub with cocktails and alcohol-free options.",
+      "description": "This Wandsworth pub has cocktails, alcohol-free options and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options",
@@ -5785,7 +5798,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Tower Hamlets pub with cocktails.",
+      "description": "This Tower Hamlets pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5798,7 +5811,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub has cocktails, live music and quizzes.",
+      "description": "This Wandsworth pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -5811,7 +5824,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Kensington and Chelsea pub with cocktails.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5822,7 +5835,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Tower Hamlets pub hosts quizzes.",
+      "description": "This Tower Hamlets pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -5834,7 +5847,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Camden pub with cocktails and a pub quiz.",
+      "description": "This Camden pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -5857,7 +5870,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Waltham Forest pub.",
+      "description": "This Waltham Forest pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5881,11 +5894,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Lewisham pub hosts live music and pub quizzes.",
+      "description": "This Lewisham pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
+        "Cocktails",
         "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Pub quiz"
       ]
     },
     "venue-fp1ush": {
@@ -5894,7 +5907,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Camden pub.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5916,7 +5929,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Camden pub.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5939,7 +5952,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This Lewisham pub has live music and happy hour drinks.",
+      "description": "This Lewisham pub has live music and a happy hour.",
       "vibeTags": [
         "Live music",
         "Happy hour"
@@ -5951,7 +5964,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Hillingdon pub does cocktails.",
+      "description": "This Hillingdon pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5973,7 +5986,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Southwark pub.",
+      "description": "This Southwark pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5984,7 +5997,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Southwark local with cocktails.",
+      "description": "This Southwark pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6006,7 +6019,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Merton pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6017,7 +6030,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "A Camden pub where you can play pool.",
+      "description": "This Camden pub has a pool table.",
       "vibeTags": [
         "Pool"
       ]
@@ -6028,7 +6041,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Westminster local.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6039,7 +6052,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Southwark pub has cocktails and drinks.",
+      "description": "This Southwark pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6050,7 +6063,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Richmond upon Thames pub.",
+      "description": "This Richmond upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6061,7 +6074,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "This Westminster pub has alcohol-free options and drinks.",
+      "description": "This Westminster pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -6085,7 +6098,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Islington pub.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6108,7 +6121,7 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "Wandsworth local with cocktails and alcohol-free options.",
+      "description": "This Wandsworth pub has alcohol-free options and cocktails.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options"
@@ -6120,7 +6133,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Camden pub where you can get cocktails.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6131,7 +6144,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Westminster pub hosts live music.",
+      "description": "This Westminster pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -6142,7 +6155,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Camden pub.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6175,7 +6188,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Hounslow pub.",
+      "description": "This Hounslow pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -6198,7 +6211,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "You can catch live music and a pub quiz in this Ealing local.",
+      "description": "This Ealing pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -6212,7 +6225,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Hounslow pub hosts darts and pool with cocktails too.",
+      "description": "This Hounslow pub has cocktails, darts and pool.",
       "vibeTags": [
         "Cocktails",
         "Darts",
@@ -6225,7 +6238,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Tower Hamlets pub.",
+      "description": "This Tower Hamlets pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -6237,7 +6250,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Get cocktails and a pub quiz at this Merton local.",
+      "description": "This Merton pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -6261,7 +6274,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Tower Hamlets pub has darts and a pool table.",
+      "description": "This Tower Hamlets pub has darts and pool.",
       "vibeTags": [
         "Darts",
         "Pool"
@@ -6273,7 +6286,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6286,11 +6299,11 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Hounslow pub has a happy hour with cocktails and a pub quiz.",
+      "description": "This Hounslow pub has cocktails, a happy hour and a pub quiz.",
       "vibeTags": [
         "Cocktails",
-        "Pub quiz",
-        "Happy hour"
+        "Happy hour",
+        "Pub quiz"
       ]
     },
     "venue-k0cxyo": {
@@ -6299,7 +6312,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Brent pub.",
+      "description": "This Brent pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -6313,7 +6326,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Ealing pub hosts live music, a pub quiz, darts and pool.",
+      "description": "This Ealing pub has live music, a pub quiz and darts.",
       "vibeTags": [
         "Live music",
         "Pub quiz",
@@ -6326,7 +6339,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6350,7 +6363,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Camden pub.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6362,7 +6375,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This local pub has live music and karaoke.",
+      "description": "This Bexley pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -6375,7 +6388,7 @@
         "Live music",
         "Happy hour"
       ],
-      "description": "This Lambeth pub has live music and happy hour drinks.",
+      "description": "This Lambeth pub has live music and a happy hour.",
       "vibeTags": [
         "Live music",
         "Happy hour"
@@ -6389,7 +6402,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "In Islington, this pub has cocktails, live music and a pub quiz.",
+      "description": "This Islington pub has cocktails, live music and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -6402,7 +6415,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Ealing local has cocktails.",
+      "description": "This Ealing pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6413,7 +6426,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6424,7 +6437,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Greenwich pub is where you can get cocktails.",
+      "description": "This Greenwich pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6436,7 +6449,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Lambeth local hosts live music and karaoke.",
+      "description": "This Lambeth local runs live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -6449,7 +6462,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "You can get cocktails and live music at this Lambeth pub.",
+      "description": "This Lambeth pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -6461,7 +6474,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Greenwich pub with cocktails.",
+      "description": "This Greenwich pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6484,7 +6497,7 @@
         "Cocktails",
         "Pool"
       ],
-      "description": "This Lambeth pub has cocktails and a pool table.",
+      "description": "This Lambeth local has cocktails and a pool table.",
       "vibeTags": [
         "Cocktails",
         "Pool"
@@ -6509,7 +6522,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Camden pub has live music, darts and a pool table.",
+      "description": "This Camden local has live music, darts and a pool table.",
       "vibeTags": [
         "Live music",
         "Darts",
@@ -6536,7 +6549,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Get cocktails and live music at this Kensington and Chelsea pub.",
+      "description": "This Kensington and Chelsea pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -6548,7 +6561,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Westminster pub.",
+      "description": "This Westminster pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -6559,7 +6572,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "This Hounslow pub has a pool table for you to play.",
+      "description": "This Hounslow local has a pool table.",
       "vibeTags": [
         "Pool"
       ]
@@ -6570,7 +6583,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "You can catch live music at this Lewisham pub.",
+      "description": "This Lewisham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -6582,7 +6595,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Islington pub has cocktails and a pub quiz.",
+      "description": "This Islington pub has cocktails and pub quizzes.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -6594,7 +6607,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Bexley pub.",
+      "description": "This Bexley pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -6606,7 +6619,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Ealing local hosts cocktails and a pub quiz.",
+      "description": "This Ealing local has cocktails and quizzes.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -6618,7 +6631,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Kingston upon Thames pub.",
+      "description": "This Kingston upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6630,10 +6643,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Tower Hamlets pub has live music and cocktails.",
+      "description": "This Tower Hamlets pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-ndsqvq": {
@@ -6644,10 +6657,10 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "You can play pool, darts or karaoke at this Islington pub.",
+      "description": "This Islington local has darts, pool and karaoke.",
       "vibeTags": [
-        "Pool",
         "Darts",
+        "Pool",
         "Karaoke"
       ]
     },
@@ -6659,11 +6672,11 @@
         "Darts",
         "Karaoke"
       ],
-      "description": "This Southwark pub has live music, karaoke and darts.",
+      "description": "This Southwark pub has live music, darts and karaoke.",
       "vibeTags": [
         "Live music",
-        "Karaoke",
-        "Darts"
+        "Darts",
+        "Karaoke"
       ]
     },
     "venue-nm6egd": {
@@ -6675,8 +6688,8 @@
       ],
       "description": "This Camden pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-nyowgc": {
@@ -6699,7 +6712,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub has live music and also runs a pub quiz.",
+      "description": "This Wandsworth pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -6711,7 +6724,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Lewisham pub.",
+      "description": "This Lewisham pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6723,10 +6736,10 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Greenwich pub has live music and karaoke.",
+      "description": "This Greenwich pub has karaoke and live music.",
       "vibeTags": [
-        "Live music",
-        "Karaoke"
+        "Karaoke",
+        "Live music"
       ]
     },
     "venue-ogyxlc": {
@@ -6746,7 +6759,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "This local pub has a pool table.",
+      "description": "This Ealing pub has pool.",
       "vibeTags": [
         "Pool"
       ]
@@ -6757,7 +6770,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this City of London pub.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6771,10 +6784,11 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Islington pub has cocktails and live music.",
+      "description": "This Islington pub has cocktails, live music, a pub quiz, and a happy hour.",
       "vibeTags": [
         "Cocktails",
-        "Live music"
+        "Live music",
+        "Pub quiz"
       ]
     },
     "venue-oyjara": {
@@ -6797,11 +6811,11 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "This Southwark pub has cocktails, a pub quiz, pool, and karaoke.",
+      "description": "This Southwark pub has cocktails, a pool table and a pub quiz.",
       "vibeTags": [
         "Cocktails",
-        "Pub quiz",
-        "Pool"
+        "Pool",
+        "Pub quiz"
       ]
     },
     "venue-p99zi1": {
@@ -6811,7 +6825,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This local pub in Richmond upon Thames hosts live music and pub quizzes.",
+      "description": "This Richmond upon Thames pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -6840,11 +6854,11 @@
         "Happy hour",
         "Karaoke"
       ],
-      "description": "This Waltham Forest pub has darts, pool, karaoke, live music, cocktails, a pub quiz and happy hour.",
+      "description": "This Waltham Forest pub has karaoke, darts, cocktails, a pool table, live music, a pub quiz and a happy hour.",
       "vibeTags": [
         "Karaoke",
         "Darts",
-        "Live music"
+        "Cocktails"
       ]
     },
     "venue-pelryu": {
@@ -6853,7 +6867,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -6865,7 +6879,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Westminster pub hosts live music and cocktails.",
+      "description": "This Westminster pub has cocktails and live music.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -6877,7 +6891,7 @@
       "supportedTags": [
         "Karaoke"
       ],
-      "description": "Karaoke is on at this Lambeth pub.",
+      "description": "This Lambeth pub has karaoke.",
       "vibeTags": [
         "Karaoke"
       ]
@@ -6888,7 +6902,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A pub quiz is on at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -6914,11 +6928,11 @@
         "Alcohol-free options",
         "Live music"
       ],
-      "description": "Get live music, cocktails or alcohol-free options at this Greenwich pub.",
+      "description": "This Greenwich pub has alcohol-free options, cocktails and live music.",
       "vibeTags": [
+        "Alcohol-free options",
         "Cocktails",
-        "Live music",
-        "Alcohol-free options"
+        "Live music"
       ]
     },
     "venue-qkjsbo": {
@@ -6929,7 +6943,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Waltham Forest pub has a pub quiz, darts and pool.",
+      "description": "This Waltham Forest pub has a pub quiz and darts too.",
       "vibeTags": [
         "Pub quiz",
         "Darts",
@@ -6943,7 +6957,7 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Islington pub has cocktails and live music.",
+      "description": "You can get cocktails and live music at this Islington pub.",
       "vibeTags": [
         "Cocktails",
         "Live music"
@@ -6955,7 +6969,7 @@
       "supportedTags": [
         "Darts"
       ],
-      "description": "Darts is on at this Islington pub.",
+      "description": "This Islington pub has darts.",
       "vibeTags": [
         "Darts"
       ]
@@ -6966,7 +6980,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Tower Hamlets pub hosts quizzes.",
+      "description": "A pub quiz is on at this Tower Hamlets pub.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -6978,7 +6992,7 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "You can get cocktails and alcohol-free options in this Westminster pub.",
+      "description": "This Westminster pub has cocktails and alcohol-free options.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options"
@@ -7001,7 +7015,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7012,7 +7026,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Westminster pub has cocktails.",
+      "description": "You can get cocktails at this Westminster pub.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7023,7 +7037,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This local pub has cocktails.",
+      "description": "This Merton pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7046,7 +7060,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This local pub hosts live music and pub quizzes.",
+      "description": "This Kensington and Chelsea pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -7071,7 +7085,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "You can get cocktails plus live music and pub quizzes at this Hammersmith and Fulham pub.",
+      "description": "This Hammersmith and Fulham pub has cocktails, live music, and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -7095,7 +7109,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7106,7 +7120,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Camden pub where you can get cocktails.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7130,7 +7144,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Bexley pub hosts quizzes.",
+      "description": "This Bexley pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -7154,7 +7168,7 @@
         "Alcohol-free options",
         "Live music"
       ],
-      "description": "Wandsworth has this pub with cocktails, alcohol-free options and live music.",
+      "description": "This Wandsworth pub has cocktails, alcohol-free options, and live music.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options",
@@ -7167,7 +7181,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Tower Hamlets pub.",
+      "description": "This Tower Hamlets pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7178,7 +7192,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Hounslow pub is where you can get cocktails.",
+      "description": "This Hounslow pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7189,7 +7203,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "A Greenwich pub where you can play a pub quiz.",
+      "description": "This Greenwich pub hosts quizzes.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -7201,7 +7215,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Get cocktails and play pub quiz at this Merton local.",
+      "description": "This Merton pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -7215,10 +7229,10 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Waltham Forest pub has cocktails and live music too.",
+      "description": "This Waltham Forest pub has live music, cocktails and a pub quiz.",
       "vibeTags": [
-        "Cocktails",
         "Live music",
+        "Cocktails",
         "Pub quiz"
       ]
     },
@@ -7239,7 +7253,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This local pub has live music.",
+      "description": "This Kensington and Chelsea pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -7261,7 +7275,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "You can catch live music at this Hounslow pub.",
+      "description": "This Hounslow pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -7274,7 +7288,7 @@
         "Darts",
         "Pool"
       ],
-      "description": "This Hackney pub hosts live music, darts and pool.",
+      "description": "This Hackney pub has live music, darts and a pool table.",
       "vibeTags": [
         "Live music",
         "Darts",
@@ -7288,7 +7302,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub has cocktails and runs pub quizzes.",
+      "description": "This Wandsworth pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -7301,7 +7315,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Tower Hamlets pub hosts live music and karaoke.",
+      "description": "This Tower Hamlets pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -7324,7 +7338,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7335,7 +7349,7 @@
       "supportedTags": [
         "Happy hour"
       ],
-      "description": "This Waltham Forest pub has happy hour drinks.",
+      "description": "This Waltham Forest pub has a happy hour.",
       "vibeTags": [
         "Happy hour"
       ]
@@ -7346,7 +7360,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Westminster pub.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7359,11 +7373,11 @@
         "Darts",
         "Karaoke"
       ],
-      "description": "This City of London pub hosts karaoke and has darts.",
+      "description": "This City of London pub has cocktails, darts and karaoke.",
       "vibeTags": [
-        "Karaoke",
+        "Cocktails",
         "Darts",
-        "Cocktails"
+        "Karaoke"
       ]
     },
     "venue-uuri2": {
@@ -7373,7 +7387,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "A Waltham Forest pub where you can get cocktails and play pub quiz.",
+      "description": "This Waltham Forest pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -7386,10 +7400,10 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "This Kingston upon Thames pub has alcohol-free options and cocktails.",
+      "description": "This Kingston upon Thames pub has cocktails and alcohol-free options.",
       "vibeTags": [
-        "Alcohol-free options",
-        "Cocktails"
+        "Cocktails",
+        "Alcohol-free options"
       ]
     },
     "venue-uwqipn": {
@@ -7398,7 +7412,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "You can get alcohol-free options at this Kingston upon Thames pub.",
+      "description": "This Kingston upon Thames pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -7410,7 +7424,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Lambeth pub where you can get cocktails and play quizzes.",
+      "description": "This Lambeth pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -7423,10 +7437,10 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "This Hounslow pub has karaoke and a pub quiz.",
+      "description": "You can get a pub quiz and karaoke at this Hounslow local.",
       "vibeTags": [
-        "Karaoke",
-        "Pub quiz"
+        "Pub quiz",
+        "Karaoke"
       ]
     },
     "venue-v42x21": {
@@ -7437,11 +7451,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Catch live music and play pub quiz with cocktails at this Greenwich pub.",
+      "description": "This Greenwich pub hosts live music, cocktails and a pub quiz.",
       "vibeTags": [
         "Live music",
-        "Pub quiz",
-        "Cocktails"
+        "Cocktails",
+        "Pub quiz"
       ]
     },
     "venue-v86nyn": {
@@ -7450,7 +7464,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Wandsworth pub has cocktails.",
+      "description": "This Wandsworth local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7462,7 +7476,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "This Croydon pub has darts and live music.",
+      "description": "This Croydon pub has live music and darts.",
       "vibeTags": [
         "Live music",
         "Darts"
@@ -7475,7 +7489,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Wandsworth pub hosts live music and pub quizzes.",
+      "description": "This Wandsworth pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -7487,7 +7501,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "You can get a pub quiz at this Haringey local.",
+      "description": "This Haringey local has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -7511,7 +7525,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Get cocktails at this Westminster pub.",
+      "description": "This Westminster local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7522,7 +7536,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Islington local has cocktails.",
+      "description": "This Islington pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7545,7 +7559,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Wandsworth pub has live music and karaoke.",
+      "description": "This Wandsworth local has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -7557,7 +7571,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "You can play pool at this Tower Hamlets local.",
+      "description": "This Tower Hamlets pub has a pool table.",
       "vibeTags": [
         "Pool"
       ]
@@ -7592,7 +7606,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Camden pub has cocktails.",
+      "description": "This Camden local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7604,7 +7618,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "Get cocktails and play pub quizzes at this Hackney local.",
+      "description": "This Hackney pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -7618,10 +7632,10 @@
         "Pub quiz",
         "Happy hour"
       ],
-      "description": "This Tower Hamlets pub hosts happy hour and cocktails.",
+      "description": "This Tower Hamlets local has cocktails, a happy hour and a pub quiz.",
       "vibeTags": [
-        "Happy hour",
         "Cocktails",
+        "Happy hour",
         "Pub quiz"
       ]
     },
@@ -7632,7 +7646,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "This Islington local has live music and karaoke.",
+      "description": "This Islington pub has live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -7646,10 +7660,10 @@
         "Live music",
         "Darts"
       ],
-      "description": "This Haringey pub has live music, cocktails and darts.",
+      "description": "This Haringey local has cocktails, live music and darts.",
       "vibeTags": [
-        "Live music",
         "Cocktails",
+        "Live music",
         "Darts"
       ]
     },
@@ -7659,7 +7673,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This Islington pub hosts quizzes.",
+      "description": "This Islington pub hosts a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -7671,10 +7685,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Hackney local has live music and cocktails.",
+      "description": "This Hackney pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-wxvqr3": {
@@ -7684,10 +7698,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "You can get cocktails and live music at this Haringey pub.",
+      "description": "This Haringey pub has cocktails and live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-x2hh3d": {
@@ -7696,7 +7710,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Hammersmith and Fulham has this pub with cocktails.",
+      "description": "This Hammersmith and Fulham pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7707,7 +7721,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Greenwich is where this pub has cocktails.",
+      "description": "This Greenwich pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7719,7 +7733,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Hammersmith and Fulham pub has cocktails and runs pub quizzes.",
+      "description": "This Hammersmith and Fulham pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -7731,7 +7745,7 @@
       "supportedTags": [
         "Alcohol-free options"
       ],
-      "description": "The City of London pub has alcohol-free options.",
+      "description": "This City of London pub has alcohol-free options.",
       "vibeTags": [
         "Alcohol-free options"
       ]
@@ -7742,7 +7756,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "This Southwark pub hosts live music.",
+      "description": "This Southwark pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -7753,7 +7767,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "You can play pool at this Lambeth pub.",
+      "description": "This Lambeth pub has a pool table.",
       "vibeTags": [
         "Pool"
       ]
@@ -7775,7 +7789,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Westminster pub.",
+      "description": "This Westminster pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -7786,7 +7800,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Catch live music at this Lewisham pub.",
+      "description": "This Lewisham pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -7798,7 +7812,7 @@
         "Cocktails",
         "Pub quiz"
       ],
-      "description": "This Waltham Forest pub has cocktails and runs pub quizzes.",
+      "description": "This Waltham Forest pub has cocktails and a pub quiz.",
       "vibeTags": [
         "Cocktails",
         "Pub quiz"
@@ -7811,10 +7825,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "This Tower Hamlets pub has cocktails and live music.",
+      "description": "This Tower Hamlets pub has live music and cocktails.",
       "vibeTags": [
-        "Cocktails",
-        "Live music"
+        "Live music",
+        "Cocktails"
       ]
     },
     "venue-xz63w6": {
@@ -7847,7 +7861,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "You can get cocktails in this Kingston upon Thames pub.",
+      "description": "This Kingston upon Thames pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7858,7 +7872,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This City of London pub is where you can get cocktails.",
+      "description": "This City of London pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7882,7 +7896,7 @@
         "Live music",
         "Darts"
       ],
-      "description": "This Lambeth pub has cocktails and live music or darts.",
+      "description": "This Lambeth pub has cocktails, live music and darts.",
       "vibeTags": [
         "Cocktails",
         "Live music",
@@ -7895,7 +7909,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "Camden has this pub with cocktails.",
+      "description": "This Camden pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7917,7 +7931,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "A Westminster pub with cocktails.",
+      "description": "This Westminster pub has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -7930,11 +7944,11 @@
         "Happy hour",
         "Karaoke"
       ],
-      "description": "This Westminster pub has cocktails, happy hour, and karaoke.",
+      "description": "This Westminster pub has cocktails, a happy hour and karaoke.",
       "vibeTags": [
-        "Cocktails",
         "Happy hour",
-        "Karaoke"
+        "Karaoke",
+        "Cocktails"
       ]
     },
     "venue-ywzy0i": {
@@ -7946,10 +7960,10 @@
         "Pub quiz",
         "Karaoke"
       ],
-      "description": "You can get cocktails, live music, a pub quiz, or karaoke at this Lambeth pub.",
+      "description": "This Lambeth pub has cocktails, live music, karaoke and pub quizzes.",
       "vibeTags": [
-        "Cocktails",
         "Live music",
+        "Karaoke",
         "Pub quiz"
       ]
     },
@@ -7961,11 +7975,11 @@
         "Darts",
         "Karaoke"
       ],
-      "description": "This Islington pub has live music, darts and karaoke.",
+      "description": "This Islington pub has live music, karaoke and darts.",
       "vibeTags": [
         "Live music",
-        "Darts",
-        "Karaoke"
+        "Karaoke",
+        "Darts"
       ]
     },
     "venue-z7k2qx": {
@@ -7974,7 +7988,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "You can catch live music at this pub in Richmond upon Thames.",
+      "description": "This Richmond upon Thames pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -7985,7 +7999,7 @@
       "supportedTags": [
         "Pub quiz"
       ],
-      "description": "This City of London pub hosts quizzes.",
+      "description": "This City of London pub has a pub quiz.",
       "vibeTags": [
         "Pub quiz"
       ]
@@ -7997,7 +8011,7 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "This Hammersmith and Fulham pub has live music and runs a quiz.",
+      "description": "This Hammersmith and Fulham pub has live music and a pub quiz.",
       "vibeTags": [
         "Live music",
         "Pub quiz"
@@ -8009,7 +8023,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is on at this Tower Hamlets pub.",
+      "description": "This Tower Hamlets pub has live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -9335,10 +9349,6 @@
     },
     "venue-1n6ephn": {
       "reason": "insufficient-stored-facts"
-    },
-    "venue-1n6phz5": {
-      "inputHash": "4df6dec3abdff843de1290fca961611a5ac16c50e01176d8e9353d2c7a2800ce",
-      "reason": "invalid-copy-after-retry"
     },
     "venue-1n77hkl": {
       "reason": "insufficient-stored-facts"

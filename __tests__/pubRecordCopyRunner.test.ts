@@ -30,9 +30,12 @@ function fixture(mode = "ok", count = 1, amenities: Record<string, string> = { l
     };
     globalThis.fetch = async (url, init) => {
       calls++;
-      if (!url.startsWith('https://aiplatform.googleapis.com/')) throw new Error('unexpected network');
+      if (!['https://aiplatform.googleapis.com/', 'https://europe-west2-aiplatform.googleapis.com/'].some((host) => url.startsWith(host))) throw new Error('unexpected network');
+      writeFileSync(${JSON.stringify(path.join(dir, "url.txt"))}, url);
       writeFileSync( ${JSON.stringify(path.join(dir, "waits.json"))}, JSON.stringify(waits));
       if (${JSON.stringify(mode)} === 'rate-limit' && calls < 3)
+        return new Response(JSON.stringify({error:{message:"quota"}}), {status:429});
+      if (${JSON.stringify(mode)} === 'global-quota' && url.includes('/locations/global/'))
         return new Response(JSON.stringify({error:{message:"quota"}}), {status:429});
       if (${JSON.stringify(mode)} === 'html-error' && calls < 2)
         return new Response('<html>Service Unavailable</html>', {status:503});
@@ -151,6 +154,20 @@ describe("pub copy generation CLI", () => {
     expect(resumed.status, resumed.stderr).toBe(0);
     expect(JSON.parse(resumed.stdout.split("\n")[0]).releasedReservationUsd).toBe(reservedUsd);
     expect(JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8")).reservedUsd).toBe(0);
+    const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
+    expect(Object.keys(pack.venues)).toHaveLength(1);
+    expect(pack.actualSpendUsd).toBeCloseTo(0.00003, 8);
+  });
+
+  it("moves to europe-west2 after fifteen minutes of global quota responses", () => {
+    const { run, dir } = fixture("global-quota");
+    const result = run("--generate");
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('{"quotaFallbackLocation":"europe-west2"}');
+    expect(readFileSync(path.join(dir, "url.txt"), "utf8")).toContain("https://europe-west2-aiplatform.googleapis.com/v1/projects/pubmaxx/locations/europe-west2/");
+    const waits = JSON.parse(readFileSync(path.join(dir, "waits.json"), "utf8"));
+    expect(waits.slice(0, 5)).toEqual([6000, 12000, 24000, 48000, 60000]);
+    expect(Math.max(...waits)).toBe(60000);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
     expect(Object.keys(pack.venues)).toHaveLength(1);
     expect(pack.actualSpendUsd).toBeCloseTo(0.00003, 8);

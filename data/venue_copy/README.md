@@ -21,10 +21,15 @@ chip's words. A pub with none of those facts gets no copy and is listed in
 
 Gemini 2.5 Flash-Lite writes a short description in its own words and picks one
 to three of the pub's supported tags. Publication checks facts, not wording.
-Every word of the description must state a supported fact, name the pub's
-borough, or be a connective that states nothing. It must name at least one
-supported fact. Mood, age and clientele words are not in that vocabulary, so a
-claim that a pub is cosy, lively or historic fails. Each pub is validated
+The sentence is read left to right. Each part must be a whole phrase of a
+supported fact ("live music", "a happy hour", "a pool table"), the pub's
+borough or London used directly before "pub" or "local", or a connective that
+states nothing. A fact phrase's single words never stand alone, so "happy" or
+"live" cannot describe a pub. The sentence must name at least one supported
+fact, name none twice, and keep the pub as its subject: "Camden has cocktails"
+fails. Mood, age, clientele and absence words such as "cosy", "historic" or
+"out" are not in the vocabulary, so those claims fail. Nor is "the", which
+would call one pub the only one in its borough. Each pub is validated
 independently. Valid rows survive a failed batch; a failed pub gets one
 individual retry, then no generated copy and an `invalid-copy-after-retry` skip.
 
@@ -39,11 +44,13 @@ regenerated. A pub added to the dataset later shows no copy until then.
 or prove that an amenity is available tonight. `sourceDatasetSha256` records
 the input file as provenance; a later price refresh does not invalidate the pack.
 
-Calls use authenticated `gcloud` on Vertex AI project `pubmaxx`, global region.
-No API key is required or copied. Calls start three seconds apart, double their
-spacing on HTTP 429 up to one minute, and recover toward three seconds after
-successful responses. A batch stops the run after eight quota responses in a
-row; rerunning resumes from the checkpoint. The fixed USD 15 cap cannot be raised by a flag;
+Calls use authenticated `gcloud` on Vertex AI project `pubmaxx`, global
+endpoint. No API key is required or copied. Calls start three seconds apart,
+double their spacing on HTTP 429 up to one minute, and recover toward three
+seconds after successful responses. After fifteen minutes of unbroken quota
+responses on the global endpoint, the run moves to region `europe-west2` and
+says so; fifteen more there stop the run, and rerunning resumes from the
+checkpoint. The fixed USD 15 cap cannot be raised by a flag;
 `--cap-usd` can lower it. Projection allows HTTP retries for each batch and one
 individual grounding retry per pub, and uses UTF-8 bytes plus framing room as a
 conservative input-token bound. Each call reserves its maximum cost in a durable

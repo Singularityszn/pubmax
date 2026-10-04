@@ -2,11 +2,11 @@
   "venueId": "venue-11n9s46",
   "name": "The Yorkshire Grey",
   "recordCopy": {
-    "description": "This Camden local has cocktails, live music and happy hour drinks.",
+    "description": "This Camden pub has cocktails and a happy hour, plus live music.",
     "vibeTags": [
       "Cocktails",
-      "Live music",
-      "Happy hour"
+      "Happy hour",
+      "Live music"
     ]
   }
 }

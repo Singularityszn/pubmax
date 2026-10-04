@@ -21,9 +21,9 @@ describe("venue record copy", () => {
 
   it("accepts free-form wording that states only supported facts", () => {
     expect(validateVenueRecordCopy(copyFactsForVenue(venue), copy(
-      "Live music and a pub quiz at this Hackney local, in London.", ["Pub quiz", "Live music"],
+      "Live music and a pub quiz at this Hackney local.", ["Pub quiz", "Live music"],
     ))).toEqual({
-      description: "Live music and a pub quiz at this Hackney local, in London.",
+      description: "Live music and a pub quiz at this Hackney local.",
       vibeTags: ["Pub quiz", "Live music"],
     });
   });
@@ -50,6 +50,39 @@ describe("venue record copy", () => {
       copy("Hackney has live music and a pub quiz."),
       { ...copy("A Hackney pub with live music."), venueId: "venue-other" },
     ]) expect(validateVenueRecordCopy(facts, entry), entry.description).toBeNull();
+  });
+
+  it("accepts whole fact phrases with a place name directly before the pub", () => {
+    const facts = (borough: string, supportedTags: string[]) => ({ venueId: venue.id, borough, supportedTags });
+    for (const [borough, tags, description] of [
+      ["Camden", ["Cocktails", "Live music", "Happy hour"], "This Camden local has cocktails, live music and a happy hour."],
+      ["City of London", ["Cocktails"], "This City of London pub has cocktails."],
+      ["Tower Hamlets", ["Live music", "Pool"], "You can catch live music and play pool at this Tower Hamlets pub."],
+      ["Hounslow", ["Pool"], "This Hounslow pub has a pool table."],
+    ] as const) {
+      expect(validateVenueRecordCopy(facts(borough, [...tags]), copy(description, [tags[0]])), description).not.toBeNull();
+    }
+  });
+
+  it("rejects fact fragments as mood, absence connectives, borough subjects and awkward copy", () => {
+    const camden = { venueId: venue.id, borough: "Camden", supportedTags: ["Cocktails", "Live music", "Happy hour", "Karaoke"] };
+    for (const description of [
+      "A happy Camden local with karaoke.",
+      "This live Camden pub has cocktails.",
+      "This Camden pub is out of cocktails.",
+      "Camden has cocktails, karaoke and live music at this pub.",
+      "In Camden you can get cocktails at this pub.",
+      "This Camden pub has cocktails and drinks.",
+    ]) expect(validateVenueRecordCopy(camden, copy(description, ["Cocktails"])), description).toBeNull();
+    for (const [borough, tags, description] of [
+      ["Ealing", ["Cocktails", "Pub quiz"], "Ealing has this pub with cocktails and a quiz."],
+      ["Greenwich", ["Cocktails"], "Greenwich is where this pub has cocktails."],
+      ["City of London", ["Cocktails"], "The City of London pub has cocktails."],
+      ["Merton", ["Cocktails", "Pub quiz"], "You can get cocktails and play pub quiz at this Merton local."],
+      ["Hounslow", ["Pool"], "This Hounslow pub has a pool table for you to play."],
+    ] as const) {
+      expect(validateVenueRecordCopy({ venueId: venue.id, borough, supportedTags: [...tags] }, copy(description, [tags[0]])), description).toBeNull();
+    }
   });
 
   it("stops displaying a claim after its supporting fact disappears", () => {
