@@ -18,6 +18,7 @@ const SECOND_PUB = "https://first.example/pub-two";
 const LANDING = "https://landing.example/pub";
 const MODEL = "https://aiplatform.googleapis.com/v1/projects/pubmaxx/locations/global/publishers/google/models/gemini-2.5-flash-lite:generateContent";
 const OBSERVED_AT = "2026-10-01";
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PRICE_ROW = {
   pub_name: "Synthetic Example Pub",
   address: "",
@@ -103,7 +104,7 @@ globalThis.fetch = async (input, options) => {
       : config.amenities;
     return new Response(JSON.stringify({
       candidates: [{ content: { parts: [{ text: JSON.stringify({ amenities }) }] } }],
-      usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50 },
+      usageMetadata: config.usageMetadata ?? { promptTokenCount: 100, candidatesTokenCount: 50 },
     }), { headers: { "content-type": "application/json" } });
   }
   calls.push({ kind: "fetch", url });
@@ -395,6 +396,72 @@ describe("pub website amenities CLI permission and page citations", () => {
 
 
 describe("pub website amenities CLI checkpoint publication", () => {
+  it("recovers a paid pending batch when unrelated evidence has the same publication counter", () => {
+    const pages = pagesWithLinkedLanding();
+    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    const cli = createCli(pages, {
+      food: { value: true, evidence: FOOD_QUOTE },
+      liveSports: { value: true, evidence: SPORTS_QUOTE },
+    });
+    const prior = { version: 1, publications: 4, actualSpendUsd: 1.25, skipCounts: { ok: 3 }, rows: [] };
+    cli.write(EVIDENCE, prior);
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"), failure: { operation: "rename", path: EVIDENCE },
+      usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 500 },
+    });
+    const interrupted = cli.run();
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    expect(cli.calls().filter((call) => call.kind === "model")).toHaveLength(1);
+    const pending = cli.read(CHECKPOINT);
+    expect(pending.pendingPublication).toMatchObject({ publications: 5, spentUsd: 0 });
+    expect(pending.spentUsd).toBeCloseTo(0.0003, 8);
+    expect(pending.byOsmId["node/synthetic-1"]).toMatchObject({
+      publication: "pending", verifiedAt: OBSERVED_AT,
+      amenities: { food: FOOD_QUOTE, liveSports: SPORTS_QUOTE },
+    });
+    expect(cli.read(EVIDENCE)).toEqual(prior);
+
+    const unrelated = {
+      osmId: "node/unrelated", name: "Unrelated Synthetic Pub", venueId: "unrelated-venue",
+      sourceUrl: "https://unrelated.example/", verifiedAt: "2026-09-30", amenities: { food: FOOD_QUOTE },
+    };
+    cli.write(EVIDENCE, {
+      ...prior, publications: 5, publicationBatchId: "39da3e1e-31fa-4ca7-8a74-2844d1c65cbb",
+      actualSpendUsd: 2, skipCounts: { ok: 7 }, rows: [unrelated],
+    });
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z",
+    });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows).toEqual([
+      expect.objectContaining({ osmId: "node/synthetic-1", sourceUrl: HOME, verifiedAt: OBSERVED_AT, amenities: { food: FOOD_QUOTE } }),
+      expect.objectContaining({ osmId: "node/synthetic-1", sourceUrl: LANDING, verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE } }),
+      unrelated,
+    ]);
+    expect(dataset[0]).toMatchObject({ food: "y", live_sports: "y" });
+    expect(cli.read(EVIDENCE)).toMatchObject({
+      publications: 6, publicationBatchId: pending.pendingPublication.id,
+      actualSpendUsd: 2.0003, skipCounts: { ok: 7 },
+    });
+    expect(pending.pendingPublication.id).toMatch(UUID_V4);
+    expect(cli.read(CHECKPOINT).spentUsd).toBe(pending.spentUsd);
+    expect(cli.read(CHECKPOINT).pendingPublication).toBeUndefined();
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-1"]).toEqual({
+      ...pending.byOsmId["node/synthetic-1"], publication: "published",
+    });
+    const before = { dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE), checkpoint: cli.readText(CHECKPOINT) };
+    for (const args of [[], ["--restamp"]]) {
+      const rerun = cli.run(args);
+      expect(rerun.status, rerun.stderr).toBe(0);
+      expect(cli.calls()).toEqual([]);
+      expect({ dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE), checkpoint: cli.readText(CHECKPOINT) }).toEqual(before);
+    }
+  });
+
   it.each([
     { kind: "name casing", name: "SYNTHETIC EXAMPLE PUB", matched: 2 },
     { kind: "name and loses its slim mapping", name: "Renamed Example House", matched: 1 },
@@ -601,6 +668,7 @@ describe("pub website amenities CLI checkpoint publication", () => {
     const expected = control.read(EVIDENCE);
     expect(expected).toMatchObject({ publications: 1, skipCounts });
     expect(expected.rows).toHaveLength(rows);
+    expect(expected.publicationBatchId).toMatch(UUID_V4);
 
     const cli = createCli(pages(), amenities);
     cli.write(EVIDENCE, prior);
@@ -608,11 +676,15 @@ describe("pub website amenities CLI checkpoint publication", () => {
     const interrupted = cli.run();
     expect(interrupted.status, interrupted.stderr).toBe(1);
     expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    const batchId = cli.read(CHECKPOINT).pendingPublication.id;
+    expect(batchId).toMatch(UUID_V4);
+    expect(batchId).not.toBe(expected.publicationBatchId);
     cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z" });
     const resumed = cli.run();
     expect(resumed.status, resumed.stderr).toBe(0);
     expect(cli.calls()).toEqual([]);
-    expect({ ...cli.read(EVIDENCE), projected: null }).toEqual({ ...expected, projected: null });
+    expect(cli.read(EVIDENCE).publicationBatchId).toBe(batchId);
+    expect({ ...cli.read(EVIDENCE), projected: null, publicationBatchId: expected.publicationBatchId }).toEqual({ ...expected, projected: null });
     expect(cli.readText(DATASET)).toBe(control.readText(DATASET));
     expect(cli.readText(CHECKPOINT)).toBe(control.readText(CHECKPOINT));
 
