@@ -7,6 +7,9 @@ import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeL
 import { journeyAddsTransit } from "@/lib/formatJourney";
 import { routeStopPlaceLabels } from "@/lib/routeStops";
 import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
+import { mapPlanDrinkPriceDescription, type MapPlanDrinkPresentation } from "@/lib/mapPlanDrinkPresentation";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 
 type VenueSignals = Map<
   string,
@@ -15,6 +18,9 @@ type VenueSignals = Map<
 
 type RouteListProps = {
   route: Venue[];
+  drinkPresentation?: MapPlanDrinkPresentation | null;
+  drinkPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  drinkPriceStatus?: CategoryPriceIndexStatus;
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
   legSummary: RouteLegsSummary;
@@ -25,6 +31,9 @@ type RouteListProps = {
 
 export default function RouteList({
   route,
+  drinkPresentation,
+  drinkPrices,
+  drinkPriceStatus,
   activeVenueId,
   venueSignals,
   legSummary,
@@ -84,8 +93,9 @@ export default function RouteList({
                 ) : null}
               </strong>
               <p>
-                {formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}
-                · {venue.cheapestPint}
+                {drinkPresentation
+                  ? mapPlanDrinkPriceDescription(drinkPresentation, venue.id, drinkPrices, drinkPriceStatus)
+                  : <>{formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)} · {venue.cheapestPint}</>}
               </p>
               <small>{placeLabels[index]}</small>
             </div>
