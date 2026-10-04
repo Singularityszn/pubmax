@@ -403,6 +403,44 @@ for (const viewport of [VIEWPORT, { width: 1440, height: 900 }]) {
       ).toEqual([]);
       expect(curatedRequests).toEqual([]);
       await testInfo.attach("national-overview", { body: await page.screenshot(), contentType: "image/png" });
+
+      if (experience !== "all" || viewport.width !== 1440) return;
+
+      const cityTrigger = page.getByRole("button", {
+        name: "Map area: UK. Change city", exact: true,
+      });
+      const cityMenu = page.getByRole("listbox", { name: "Choose city map" });
+      await expect(async () => {
+        await cityTrigger.click();
+        await expect(cityMenu).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+
+      const areaDialog = page.locator('.chooseAreaDesktop[role="dialog"]');
+      await expect(async () => {
+        await cityMenu.getByRole("button", { name: "This area", exact: true }).click();
+        await expect(areaDialog).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(areaDialog.getByRole("heading", { name: "Choose an area" })).toBeVisible();
+
+      await expect(async () => {
+        await areaDialog.getByRole("button", { name: /^Camden/ }).click();
+        await expect(areaDialog).toBeHidden({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(page.getByRole("button", {
+        name: "Map area: Camden. Change city", exact: true,
+      })).toBeVisible();
+      await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+        timeout: 30_000,
+      });
+      await expect
+        .poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), {
+          timeout: 30_000,
+        })
+        .toBeGreaterThan(0);
+      await testInfo.attach("national-to-camden", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
     });
   }
 }
