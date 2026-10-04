@@ -114,6 +114,27 @@ describe("schema-level report", () => {
     });
   });
 
+  it("opens a shared-label gap at the unapplied file, not at the label's first file", () => {
+    const migrations = [
+      "20260717065012_0038_plan_ending_selection.sql",
+      "20260717120000_0039_push_tokens.sql",
+      "20260717130000_0040_pint_drop_daily_dedupe.sql",
+      "20260721000000_0038_night_contributor_withdrawn.sql",
+      "20260721120000_0046_after.sql",
+    ];
+    const appliedText = [
+      "20260717065012\t0038_plan_ending_selection",
+      "20260717120000\t0039_push_tokens",
+      "20260717130000\t0040_pint_drop_daily_dedupe",
+      "20260721120000\t0046_after",
+    ].join("\n");
+
+    expect(compareSchemaLevel(migrations, appliedText)).toEqual({
+      missing: ["0038"],
+      outOfOrder: ["0046"],
+    });
+  });
+
   it("reports a Local-only row of a pasted supabase migration list as missing", () => {
     const migrations = [
       "20260927120000_0159_supabase_hygiene.sql",

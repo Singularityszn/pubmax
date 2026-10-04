@@ -24,8 +24,9 @@
 // when one of the migrations it carries is unapplied, by the rules in
 // migration-apply-list.mjs. Two files with the same label and name are one
 // migration, re-timestamped. A label is out of order when it is applied and
-// an earlier label, in timestamp apply order, is missing. Exit 0 after a
-// report. Exit 1 when the invocation itself is wrong.
+// an unapplied migration precedes it. The gap is that unapplied file, not
+// the first file that shares its label. Exit 0 after a report. Exit 1 when
+// the invocation itself is wrong.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -49,7 +50,9 @@ export const APPLIED_LIST_SQL =
   "select version, coalesce(name, '') as name from supabase_migrations.schema_migrations order by version";
 
 // Compares repo filenames, oldest timestamp first, with a pasted or fetched
-// applied list. Labels are reported once, in the order their first file appears.
+// applied list. A label is reported once. Its gap opens at the unapplied
+// migration, so a later file that reuses an earlier label does not pull
+// the labels between those two files into the out-of-order list.
 export function compareSchemaLevel(migrations, appliedText) {
   const unapplied = new Set(
     unappliedMigrations(
@@ -59,36 +62,53 @@ export function compareSchemaLevel(migrations, appliedText) {
       parseAppliedNames(appliedText),
     ),
   );
-  const migrationsByLabel = new Map();
-  const order = [];
+  const files = [];
+  const nameApplied = new Map();
 
   for (const filename of migrations) {
     const label = labelOf(filename);
     if (!label) continue;
-    if (!migrationsByLabel.has(label)) {
-      migrationsByLabel.set(label, new Map());
-      order.push(label);
-    }
-    const byName = migrationsByLabel.get(label);
     const name = descriptiveNameOf(filename);
-    byName.set(name, byName.get(name) === true || !unapplied.has(filename));
+    const key = `${label}\0${name}`;
+    nameApplied.set(key, nameApplied.get(key) === true || !unapplied.has(filename));
+    files.push({ label, key });
   }
 
-  const applied = new Set();
-  for (const label of order) {
-    if ([...migrationsByLabel.get(label).values()].every(Boolean)) applied.add(label);
+  const labelApplied = new Map();
+  for (const { label, key } of files) {
+    const applied = nameApplied.get(key) === true;
+    labelApplied.set(label, labelApplied.has(label) ? labelApplied.get(label) && applied : applied);
   }
 
   const missing = [];
   const outOfOrder = [];
+  const seenMissing = new Set();
+  const seenOutOfOrder = new Set();
+  const startedBeforeGap = new Set();
   let gap = false;
-  for (const label of order) {
-    if (!applied.has(label)) {
-      missing.push(label);
+
+  for (const { label, key } of files) {
+    if (nameApplied.get(key) !== true) {
       gap = true;
+      if (!seenMissing.has(label)) {
+        seenMissing.add(label);
+        missing.push(label);
+      }
       continue;
     }
-    if (gap) outOfOrder.push(label);
+    if (!gap) {
+      startedBeforeGap.add(label);
+      continue;
+    }
+    if (
+      labelApplied.get(label) &&
+      !startedBeforeGap.has(label) &&
+      !seenMissing.has(label) &&
+      !seenOutOfOrder.has(label)
+    ) {
+      seenOutOfOrder.add(label);
+      outOfOrder.push(label);
+    }
   }
 
   return { missing, outOfOrder };
