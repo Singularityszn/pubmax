@@ -94,6 +94,14 @@ describe("sports evidence publication", () => {
     "No football, rugby and cricket shown here.",
     "No Sky Sports, TNT Sports or BT Sport is available here.",
     "No football, rugby or cricket are shown here.",
+    "We don't show football, rugby or cricket broadcasts here.",
+    "We don't show football, rugby or cricket broadcasts on our screens.",
+    "We don't have Sky Sports, TNT Sports or BT Sport screens in the bar.",
+    "We don't show football, rugby or cricket shows here.",
+    "We don't show rugby, cricket screens every Sunday.",
+    "We don't show rugby, cricket broadcasts here.",
+    "We don't show football, rugby and cricket screens every Sunday.",
+    "No Sky Sports, TNT Sports, and BT Sport is available here.",
   ])("refuses shared denials over supported sport and provider lists: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
@@ -134,6 +142,11 @@ describe("sports evidence publication", () => {
     "We don't have Sky Sports, TNT Sports shows on every screen.",
     "We don't show rugby, football shows on all our TVs.",
     "We don't have Sky Sports, TNT Sports has it all on our screens.",
+    "Without Sky Sports, football is still shown on our TVs.",
+    "Without Sky Sports, TNT Sports shows every match.",
+    "No Sky Sports, TNT Sports shows every match.",
+    "No Sky Sports, football is shown on all our TVs via TNT.",
+    "No Sky Sports, TNT Sports is available.",
   ])("retains independent affirmative clauses beside comma denials: %s", (quote) => {
     expectSportsPublication(quote, true);
   });
