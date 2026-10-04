@@ -28,7 +28,7 @@ describe("venue record copy", () => {
     });
     const facts = (borough: string, supportedTags: string[]) => ({ venueId: venue.id, borough, supportedTags });
     for (const [borough, tags, description] of [
-      ["Camden", ["Cocktails", "Live music", "Happy hour"], "Shaken cocktails, a happy hour and live bands keep this Camden local ticking over."],
+      ["Camden", ["Cocktails", "Live music", "Happy hour"], "Cocktails, a happy hour and live bands keep this Camden local ticking over."],
       ["City of London", ["Cocktails"], "This City of London pub knows its way round a cocktail."],
       ["Tower Hamlets", ["Live music", "Pool"], "Rack up a frame of pool or catch a live set at this Tower Hamlets boozer."],
       ["Hounslow", ["Darts", "Karaoke"], "Throw darts, then sing karaoke at this Hounslow pub. It's that sort of local."],
@@ -38,6 +38,9 @@ describe("venue record copy", () => {
       ["Waltham Forest", ["Cocktails", "Karaoke"], "This place in Waltham Forest has cocktails and karaoke."],
       ["Sutton", ["Pool", "Pub quiz"], "You can play pool here or join the pub quiz."],
       ["Ealing", ["Cocktails", "Pub quiz"], "You can get cocktails and take part in a pub quiz at this Ealing local."],
+      ["Waltham Forest", ["Darts", "Pool"], "Fancy a game of darts? This Waltham Forest local has a pool table too."],
+      ["Kensington and Chelsea", ["Cocktails"], "Cocktails are served at this Kensington and Chelsea pub."],
+      ["Croydon", ["Happy hour", "Cocktails"], "There's a happy hour at this Croydon pub, and you'll find cocktails here too."],
     ] as const) {
       expect(validateVenueRecordCopy(facts(borough, [...tags]), copy(description, [tags[0]])), description).not.toBeNull();
     }
@@ -106,6 +109,43 @@ describe("venue record copy", () => {
       "This pub has overpriced cocktails.",
       "This pub serves cocktails, but the pub quiz is rubbish.",
       "This pub serves a range of cocktails.",
+    ]) expect(validateVenueRecordCopy(facts, copy(description, ["Cocktails"])), description).toBeNull();
+  });
+
+  it("rejects lapse, hedge, schedule, quality, price and quantity claims by structure, not by word", () => {
+    const facts = { venueId: venue.id, borough: "Westminster", supportedTags: ["Cocktails", "Live music", "Pub quiz", "Karaoke", "Pool", "Happy hour"] };
+    for (const description of [
+      "This pub previously hosted live music.",
+      "This pub hosted live music.",
+      "This pub has scrapped its pub quiz but serves cocktails.",
+      "This pub axed karaoke and serves cocktails.",
+      "This pub is shut but serves cocktails.",
+      "This pub serves cocktails and is closing soon.",
+      "This pub rarely hosts live music.",
+      "This pub sometimes hosts live music.",
+      "This pub hosts occasional live music.",
+      "This pub might host a pub quiz.",
+      "This pub hosts live music twice a week.",
+      "This pub hosts live music in summer.",
+      "This pub serves cocktails till midnight.",
+      "This pub excels at cocktails.",
+      "This pub is the go-to for cocktails.",
+      "This pub serves the finest cocktails.",
+      "This pub serves mediocre cocktails.",
+      "This pub serves weak cocktails.",
+      "This pub serves watered-down cocktails.",
+      "This pub serves disappointing cocktails.",
+      "This pub has a dingy pool table.",
+      "This pub's cocktails are strong.",
+      "This pub serves cocktails for a fiver.",
+      "This pub serves cheapish cocktails.",
+      "This pub serves pricy cocktails.",
+      "This pub has two pool tables.",
+      "This pub has several pool tables.",
+      "This pub serves dozens of cocktails.",
+      "You'll find pool tables here.",
+      "Fancy a game of pool? This place has tables.",
+      "You can grab cocktails here during their happy hour.",
     ]) expect(validateVenueRecordCopy(facts, copy(description, ["Cocktails"])), description).toBeNull();
   });
 

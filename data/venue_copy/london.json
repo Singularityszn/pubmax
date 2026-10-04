@@ -1,8 +1,8 @@
 {
   "version": 2,
   "model": "gemini-2.5-flash-lite",
-  "generatedAt": "2026-10-04T13:41:43.615Z",
-  "startedAt": "2026-10-04T13:41:35.553Z",
+  "generatedAt": "2026-10-04T13:50:02.978Z",
+  "startedAt": "2026-10-04T13:49:37.753Z",
   "sourceDataset": "public/data/pint_prices_app_dataset.json",
   "sourceDatasetSha256": "680ce1c0e7e1725d5d2a37ed106498478c7aacdf4f033b66da6084241645e9e3",
   "pricing": {
@@ -11,9 +11,9 @@
     "outputUsdPerMillion": 0.4
   },
   "taskCapUsd": 15,
-  "projectedSpendUsd": 0.20440060000000024,
-  "actualSpendUsd": 0.13835430000000024,
-  "requests": 923,
+  "projectedSpendUsd": 0.24584730000000024,
+  "actualSpendUsd": 0.13932470000000025,
+  "requests": 932,
   "venues": {
     "venue-10ft2ey": {
       "venueId": "venue-10ft2ey",
@@ -67,11 +67,11 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Fancy cocktails, live music, and a pub quiz? This Haringey venue offers all three.",
+      "description": "You can catch live music or test your knowledge at the pub quiz here. They also serve cocktails.",
       "vibeTags": [
-        "Cocktails",
         "Live music",
-        "Pub quiz"
+        "Pub quiz",
+        "Cocktails"
       ]
     },
     "venue-10vcsnf": {
@@ -143,10 +143,10 @@
         "Live music",
         "Pub quiz"
       ],
-      "description": "Fancy a pub quiz? They do that here, alongside live music and cocktails.",
+      "description": "This place hosts live music and a pub quiz. They do serve cocktails.",
       "vibeTags": [
-        "Pub quiz",
         "Live music",
+        "Pub quiz",
         "Cocktails"
       ]
     },
@@ -293,7 +293,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is what this place does.",
+      "description": "Catch some live music at this venue.",
       "vibeTags": [
         "Live music"
       ]
@@ -2889,11 +2889,11 @@
         "Pool",
         "Karaoke"
       ],
-      "description": "Fancy cocktails, live music, or maybe a game of pool? This Hammersmith and Fulham pub does them all, plus karaoke.",
+      "description": "You can get cocktails and catch live music here. They also have a pool table and karaoke.",
       "vibeTags": [
         "Cocktails",
         "Live music",
-        "Karaoke"
+        "Pool"
       ]
     },
     "venue-1pq1x5j": {
@@ -2903,7 +2903,7 @@
         "Cocktails",
         "Happy hour"
       ],
-      "description": "You can grab cocktails here during their happy hour.",
+      "description": "This place does cocktails and has a happy hour.",
       "vibeTags": [
         "Cocktails",
         "Happy hour"
@@ -3015,7 +3015,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "You'll find pool tables here.",
+      "description": "This place has a pool table.",
       "vibeTags": [
         "Pool"
       ]
@@ -3099,19 +3099,6 @@
       "vibeTags": [
         "Live music",
         "Karaoke"
-      ]
-    },
-    "venue-1rzudoh": {
-      "venueId": "venue-1rzudoh",
-      "borough": "Lambeth",
-      "supportedTags": [
-        "Cocktails",
-        "Happy hour"
-      ],
-      "description": "Fancy a cocktail? This Lambeth pub offers them alongside happy hour.",
-      "vibeTags": [
-        "Cocktails",
-        "Happy hour"
       ]
     },
     "venue-1s4b2rs": {
@@ -3540,7 +3527,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is what this Hackney pub is about.",
+      "description": "This place hosts live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -4053,7 +4040,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is what this Lewisham pub offers.",
+      "description": "You can catch live music here.",
       "vibeTags": [
         "Live music"
       ]
@@ -4680,7 +4667,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is what this venue runs.",
+      "description": "This Hammersmith and Fulham pub puts on live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5523,10 +5510,10 @@
         "Cocktails",
         "Live music"
       ],
-      "description": "Live music and cocktails are what this Tower Hamlets pub offers.",
+      "description": "This place does cocktails and hosts live music.",
       "vibeTags": [
-        "Live music",
-        "Cocktails"
+        "Cocktails",
+        "Live music"
       ]
     },
     "venue-h9wppr": {
@@ -5642,7 +5629,7 @@
       "supportedTags": [
         "Live music"
       ],
-      "description": "Live music is what this Tower Hamlets pub offers.",
+      "description": "This place hosts live music.",
       "vibeTags": [
         "Live music"
       ]
@@ -5914,7 +5901,7 @@
         "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "They offer alcohol-free options alongside cocktails.",
+      "description": "You can get cocktails and alcohol-free options at this Newham pub.",
       "vibeTags": [
         "Cocktails",
         "Alcohol-free options"
@@ -6124,7 +6111,7 @@
       "supportedTags": [
         "Pool"
       ],
-      "description": "Fancy a game of pool? This place has tables.",
+      "description": "Fancy a game of pool? This Ealing pub has you covered.",
       "vibeTags": [
         "Pool"
       ]
@@ -8977,6 +8964,10 @@
     },
     "venue-1rw0hg7": {
       "reason": "insufficient-stored-facts"
+    },
+    "venue-1rzudoh": {
+      "inputHash": "a665a8b282583370478de2c3c86e3958a6cbbd63502839f1756aef94640c4e6e",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-1s1ffqx": {
       "reason": "insufficient-stored-facts"
