@@ -258,24 +258,45 @@ function writtenSource(written: unknown): { host: string; page: string } | null 
 /** A quote one host repeats word for word for several pubs, stored folded. */
 type ChainQuote = { host: string; key: PubWebsiteAmenityKey; quote: string };
 
-/**
- * Pages and quotes proven chain-wide, and the pubs that have read each page.
- * A harvest keeps only the pubs that pass the chain rule, and a pub that kept
- * no amenity or failed never reaches the evidence file, so those pubs are gone
- * from the next run's count. The committed list remembers every reader.
- */
-export type ChainDenylist = { pages: string[]; quotes: ChainQuote[]; readers: Record<string, string[]> };
+/** A quote on one host and the pubs that have stated it. */
+type QuoteReaders = ChainQuote & { readers: string[] };
 
-export const EMPTY_CHAIN_DENYLIST: ChainDenylist = { pages: [], quotes: [], readers: {} };
+/**
+ * Pages and quotes proven chain-wide, the pubs that have read each page and
+ * the pubs that have stated each quote. A harvest keeps only the pubs that
+ * pass the chain rule, and a pub that kept no amenity or failed never reaches
+ * the evidence file, so those pubs are gone from the next run's count. The
+ * committed list remembers every reader.
+ */
+export type ChainDenylist = {
+  pages: string[];
+  quotes: ChainQuote[];
+  readers: Record<string, string[]>;
+  quoteReaders: QuoteReaders[];
+};
+
+export const EMPTY_CHAIN_DENYLIST: ChainDenylist = { pages: [], quotes: [], readers: {}, quoteReaders: [] };
 
 const quoteId = (host: string, key: string, quote: string) => `${host}\u0000${key}\u0000${foldText(quote)}`;
+
+const isOsmIdList = (osmIds: unknown): osmIds is string[] =>
+  Array.isArray(osmIds) && osmIds.every((osmId) => typeof osmId === "string" && osmId);
+
+function parseChainQuote(item: unknown): ChainQuote {
+  const entry = (item ?? {}) as Record<string, unknown>;
+  const source = writtenSource(entry.host);
+  if (!source || source.page !== source.host || typeof entry.quote !== "string" || !KEY_SET.has(String(entry.key))) {
+    throw new Error("chain denylist quote needs host, amenity key and quote");
+  }
+  return { host: source.host, key: entry.key as PubWebsiteAmenityKey, quote: foldText(entry.quote) };
+}
 
 /** Read a committed denylist. A malformed file throws, because a silent empty list lets chain pages back in. */
 export function parseChainDenylist(data: unknown): ChainDenylist {
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("chain denylist is not an object");
   const record = data as Record<string, unknown>;
-  if (!Array.isArray(record.pages) || !Array.isArray(record.quotes)) {
-    throw new Error("chain denylist needs pages and quotes arrays");
+  if (!Array.isArray(record.pages) || !Array.isArray(record.quotes) || !Array.isArray(record.quoteReaders)) {
+    throw new Error("chain denylist needs pages, quotes and quoteReaders arrays");
   }
   if (!record.readers || typeof record.readers !== "object" || Array.isArray(record.readers)) {
     throw new Error("chain denylist needs a readers object");
@@ -285,23 +306,19 @@ export function parseChainDenylist(data: unknown): ChainDenylist {
     if (!key) throw new Error("chain denylist page is not a page");
     return key;
   });
-  const quotes = record.quotes.map((item) => {
-    const entry = (item ?? {}) as Record<string, unknown>;
-    const source = writtenSource(entry.host);
-    if (!source || source.page !== source.host || typeof entry.quote !== "string" || !KEY_SET.has(String(entry.key))) {
-      throw new Error("chain denylist quote needs host, amenity key and quote");
-    }
-    return { host: source.host, key: entry.key as PubWebsiteAmenityKey, quote: foldText(entry.quote) };
-  });
+  const quotes = record.quotes.map(parseChainQuote);
   const readers: Record<string, string[]> = {};
   for (const [page, osmIds] of Object.entries(record.readers as Record<string, unknown>)) {
     const key = writtenSource(page)?.page;
-    if (!key || !Array.isArray(osmIds) || !osmIds.every((osmId) => typeof osmId === "string" && osmId)) {
-      throw new Error("chain denylist readers need a page and the osm ids that read it");
-    }
+    if (!key || !isOsmIdList(osmIds)) throw new Error("chain denylist readers need a page and the osm ids that read it");
     readers[key] = [...(readers[key] ?? []), ...osmIds];
   }
-  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, { pages, quotes, readers });
+  const quoteReaders = record.quoteReaders.map((item) => {
+    const osmIds = (item as Record<string, unknown> | null)?.readers;
+    if (!isOsmIdList(osmIds)) throw new Error("chain denylist quote readers need the osm ids that stated the quote");
+    return { ...parseChainQuote(item), readers: osmIds };
+  });
+  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, { pages, quotes, readers, quoteReaders });
 }
 
 /**
@@ -328,16 +345,20 @@ export function mergeChainDenylists(a: ChainDenylist, b: ChainDenylist): ChainDe
     readers[page] = [...new Set([...(a.readers[page] ?? []), ...(b.readers[page] ?? [])])].sort();
   }
   const pages = [...new Set([...a.pages, ...b.pages, ...pagesProvenByReaders(readers)])].sort();
-  const quotes = new Map<string, ChainQuote>();
-  for (const entry of [...a.quotes, ...b.quotes]) {
-    const folded = { ...entry, quote: foldText(entry.quote) };
-    quotes.set(quoteId(folded.host, folded.key, folded.quote), folded);
+  const quoteReaders = new Map<string, QuoteReaders>();
+  for (const entry of [...a.quoteReaders, ...b.quoteReaders]) {
+    const id = quoteId(entry.host, entry.key, entry.quote);
+    const seen = quoteReaders.get(id)?.readers ?? [];
+    quoteReaders.set(id, { ...entry, quote: foldText(entry.quote), readers: [...new Set([...seen, ...entry.readers])].sort() });
   }
-  return {
-    pages,
-    quotes: [...quotes.entries()].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([, entry]) => entry),
-    readers,
-  };
+  const quotes = new Map<string, ChainQuote>();
+  const provenByReaders = [...quoteReaders.values()].filter((entry) => entry.readers.length > 1);
+  for (const { host, key, quote } of [...a.quotes, ...b.quotes, ...provenByReaders]) {
+    quotes.set(quoteId(host, key, quote), { host, key, quote: foldText(quote) });
+  }
+  const byId = <T>(entries: Map<string, T>) =>
+    [...entries.entries()].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([, entry]) => entry);
+  return { pages, quotes: byId(quotes), readers, quoteReaders: byId(quoteReaders) };
 }
 
 /** Whether a URL is a page already proven chain-wide. The harvest asks this before it fetches. */
@@ -355,29 +376,24 @@ function sourcedRows<T extends PubEvidenceRow>(rows: readonly T[]) {
 
 /**
  * What these rows prove chain-wide. Each row is a pub that read its source
- * page, with or without amenities. A page is proven once more than one pub
- * has read it with its query, fragment and trailing slash set aside, the home
- * page of a host once several pubs have read that host, and a quote once more
- * than one pub on one host repeats it word for word.
+ * page, with the quotes it stated if any. A page is proven once more than one
+ * pub has read it with its query, fragment and trailing slash set aside, the
+ * home page of a host once several pubs have read that host, and a quote once
+ * more than one pub on one host has stated it word for word.
  */
 export function provenChainEvidence<T extends PubEvidenceRow>(rows: readonly T[]): ChainDenylist {
   const sourced = sourcedRows(rows);
   const readers: Record<string, string[]> = {};
   for (const { row, page } of sourced) readers[page] = [...(readers[page] ?? []), row.osmId];
-  const quotes = new Map<string, { entry: ChainQuote; pubs: Set<string> }>();
-  for (const { row, host } of sourced) {
-    for (const [key, quote] of Object.entries(row.amenities ?? {}) as [PubWebsiteAmenityKey, string][]) {
-      const id = quoteId(host, key, String(quote));
-      const seen = quotes.get(id) ?? { entry: { host, key, quote: foldText(String(quote)) }, pubs: new Set<string>() };
-      seen.pubs.add(row.osmId);
-      quotes.set(id, seen);
-    }
-  }
-  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, {
-    pages: [],
-    quotes: [...quotes.values()].filter((item) => item.pubs.size > 1).map((item) => item.entry),
-    readers,
-  });
+  const quoteReaders = sourced.flatMap(({ row, host }) =>
+    (Object.entries(row.amenities ?? {}) as [PubWebsiteAmenityKey, string][]).map(([key, quote]) => ({
+      host,
+      key,
+      quote: String(quote),
+      readers: [row.osmId],
+    })),
+  );
+  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, { pages: [], quotes: [], readers, quoteReaders });
 }
 
 /**

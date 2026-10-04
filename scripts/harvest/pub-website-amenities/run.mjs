@@ -18,12 +18,12 @@
 //
 // A page or quote proven chain-wide stays in
 // data/amenities/london_pub_website_chain_pages.json, with every pub that has
-// read each page, whatever came of the read. The harvest reads it before
-// fetching and skips a pub whose page is on it, every stamp goes through it,
-// and a harvest adds its readers and what they prove. A pub that kept no
-// amenity, failed, or read a chain-wide page never reaches the evidence file,
-// so without the list a later run that reads one of those pages alone would
-// take it for the pub's own.
+// read each page, whatever came of the read, and every pub that has stated
+// each quote. The harvest reads it before fetching and skips a pub whose page
+// is on it, every stamp goes through it, and a harvest adds its readers and
+// what they prove. A pub that kept no amenity, failed, or read a chain-wide
+// page never reaches the evidence file, so without the list a later run that
+// reads one of those pages or quotes alone would take it for the pub's own.
 //
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
@@ -402,14 +402,15 @@ function restampFromEvidence() {
 /**
  * The committed evidence with this run's pages laid over it, and the chain
  * list with this run's readers and what they prove. Every pub that read a
- * page is a reader, whatever came of the read.
+ * page is a reader, whatever came of the read, and its quotes count before
+ * the chain rule drops any of them.
  */
 function mergeEvidence(previous, fresh, knownChainPages) {
   const skipCounts = { ...(previous?.skipCounts ?? {}) };
   const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
   const reads = [];
   for (const [osmId, entry] of fresh) {
-    if (entry.sourceUrl) reads.push({ osmId, sourceUrl: entry.sourceUrl });
+    if (entry.sourceUrl) reads.push({ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} });
     if (entry.status !== "ok") {
       const status = entry.status ?? "unknown";
       skipCounts[status] = (skipCounts[status] ?? 0) + 1;

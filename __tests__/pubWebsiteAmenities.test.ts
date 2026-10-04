@@ -371,7 +371,7 @@ describe("chain denylist", () => {
     { osmId: "e", sourceUrl: "https://pubs.example/pubs/george", amenities: { liveSports: "Watch Liverpool vs Man City live" } },
   ];
 
-  it("records the shared pages, the shared host's home page, the repeated quotes and every page's readers", () => {
+  it("records the shared pages, the shared host's home page, the repeated quotes and every reader", () => {
     expect(provenChainEvidence(youngsRows)).toEqual({
       pages: ["youngs.co.uk", "youngs.co.uk/food-drink"],
       quotes: [{ host: "pubs.example", key: "liveSports", quote: "watch liverpool vs man city live" }],
@@ -381,6 +381,12 @@ describe("chain denylist", () => {
         "youngs.co.uk": ["c"],
         "youngs.co.uk/food-drink": ["a", "b"],
       },
+      quoteReaders: [
+        { host: "pubs.example", key: "beerGarden", quote: "a hidden garden", readers: ["d"] },
+        { host: "pubs.example", key: "liveSports", quote: "watch liverpool vs man city live", readers: ["d", "e"] },
+        { host: "youngs.co.uk", key: "beerGarden", quote: "pub gardens", readers: ["a"] },
+        { host: "youngs.co.uk", key: "cocktails", quote: "secret cocktail bars", readers: ["c"] },
+      ],
     });
   });
 
@@ -396,6 +402,29 @@ describe("chain denylist", () => {
       pages: ["chain.example/locations"],
       readers: { "chain.example/locations": ["a", "b"] },
     });
+  });
+
+  it("proves a quote stated by one pub on a chain page and by another pub on a later run", () => {
+    const firstRun = provenChainEvidence([
+      { osmId: "a", sourceUrl: "https://chain.example/locations", amenities: { food: "Stacked burgers" } },
+      { osmId: "c", sourceUrl: "https://chain.example/locations?pub=c", amenities: {} },
+    ]);
+    expect(firstRun.pages).toEqual(["chain.example/locations"]);
+    expect(firstRun.quotes).toEqual([]);
+    const secondRun = [
+      {
+        osmId: "b",
+        sourceUrl: "https://chain.example/bars/b",
+        amenities: { food: "stacked  burgers", beerGarden: "a hidden garden" },
+      },
+    ];
+    expect(pubSpecificEvidence(secondRun)).toHaveLength(1);
+    expect(pubSpecificEvidence(secondRun, firstRun)).toEqual([
+      { osmId: "b", sourceUrl: "https://chain.example/bars/b", amenities: { beerGarden: "a hidden garden" } },
+    ]);
+    expect(mergeChainDenylists(firstRun, provenChainEvidence(secondRun)).quotes).toEqual([
+      { host: "chain.example", key: "food", quote: "stacked burgers" },
+    ]);
   });
 
   it("proves a shared host's home page from readers of its other pages on an earlier run", () => {
@@ -445,7 +474,7 @@ describe("chain denylist", () => {
   });
 
   it("asks about a URL the way the chain rule reads a page", () => {
-    const denylist = { pages: ["youngs.co.uk/our-pubs"], quotes: [], readers: {} };
+    const denylist = { pages: ["youngs.co.uk/our-pubs"], quotes: [], readers: {}, quoteReaders: [] };
     expect(isChainPage("https://WWW.youngs.co.uk/our-pubs/?PubID=7#map", denylist)).toBe(true);
     expect(isChainPage("https://youngs.co.uk/our-pubs", denylist)).toBe(true);
     expect(isChainPage("https://www.youngs.co.uk/our-pubs/the-plough", denylist)).toBe(false);
@@ -460,17 +489,29 @@ describe("chain denylist", () => {
           pages: ["b.example", "a.example"],
           quotes: [{ host: "a.example", key: "food", quote: "Sunday  Roasts" }],
           readers: { "c.example/x": ["2", "1"] },
+          quoteReaders: [
+            { host: "e.example", key: "pool", quote: "Pool  Table", readers: ["4"] },
+            { host: "f.example", key: "food", quote: "pies", readers: ["6"] },
+          ],
         },
         {
           pages: ["a.example"],
           quotes: [{ host: "a.example", key: "food", quote: "sunday roasts" }],
           readers: { "c.example/x": ["1"], "d.example": ["3"] },
+          quoteReaders: [{ host: "e.example", key: "pool", quote: "pool table", readers: ["5", "4"] }],
         },
       ),
     ).toEqual({
       pages: ["a.example", "b.example", "c.example/x"],
-      quotes: [{ host: "a.example", key: "food", quote: "sunday roasts" }],
+      quotes: [
+        { host: "a.example", key: "food", quote: "sunday roasts" },
+        { host: "e.example", key: "pool", quote: "pool table" },
+      ],
       readers: { "c.example/x": ["1", "2"], "d.example": ["3"] },
+      quoteReaders: [
+        { host: "e.example", key: "pool", quote: "pool table", readers: ["4", "5"] },
+        { host: "f.example", key: "food", quote: "pies", readers: ["6"] },
+      ],
     });
   });
 
@@ -479,12 +520,20 @@ describe("chain denylist", () => {
       pages: ["https://WWW.Chain.example/Our-Pubs/", "www.chain.example"],
       quotes: [{ host: "https://WWW.Youngs.co.uk", key: "beerGarden", quote: "Pub Gardens" }],
       readers: { "WWW.Crown.example/": ["a"] },
+      quoteReaders: [{ host: "WWW.Swan.example", key: "food", quote: "Pies", readers: ["s"] }],
     });
     expect(denylist).toEqual({
       pages: ["chain.example", "chain.example/Our-Pubs"],
       quotes: [{ host: "youngs.co.uk", key: "beerGarden", quote: "pub gardens" }],
       readers: { "crown.example": ["a"] },
+      quoteReaders: [{ host: "swan.example", key: "food", quote: "pies", readers: ["s"] }],
     });
+    expect(
+      pubSpecificEvidence(
+        [{ osmId: "t", sourceUrl: "https://swan.example/menu", amenities: { food: "pies", beerGarden: "a hidden garden" } }],
+        denylist,
+      ),
+    ).toEqual([{ osmId: "t", sourceUrl: "https://swan.example/menu", amenities: { beerGarden: "a hidden garden" } }]);
     expect(
       pubSpecificEvidence(
         [{ osmId: "b", sourceUrl: "https://www.youngs.co.uk/the-plough", amenities: { beerGarden: "Pub Gardens" } }],
@@ -496,19 +545,22 @@ describe("chain denylist", () => {
   it("refuses a malformed list rather than reading it as empty", () => {
     expect(() => parseChainDenylist(null)).toThrow();
     expect(() => parseChainDenylist({ pages: [] })).toThrow();
-    expect(() => parseChainDenylist({ pages: [], quotes: [] })).toThrow();
-    expect(() => parseChainDenylist({ pages: [1], quotes: [], readers: {} })).toThrow();
+    const empty = { pages: [], quotes: [], readers: {}, quoteReaders: [] };
+    expect(parseChainDenylist(empty)).toEqual(EMPTY_CHAIN_DENYLIST);
+    expect(() => parseChainDenylist({ pages: [], quotes: [], readers: {} })).toThrow();
+    expect(() => parseChainDenylist({ pages: [], quotes: [], quoteReaders: [] })).toThrow();
+    expect(() => parseChainDenylist({ ...empty, pages: [1] })).toThrow();
+    expect(() => parseChainDenylist({ ...empty, quotes: [{ host: "a.example", key: "nope", quote: "free wifi" }] })).toThrow();
+    expect(() => parseChainDenylist({ ...empty, quotes: [{ host: "a.example/pubs", key: "food", quote: "food" }] })).toThrow();
+    expect(() => parseChainDenylist({ ...empty, readers: { "a.example": "x" } })).toThrow();
+    expect(() => parseChainDenylist({ ...empty, readers: { "a.example": [""] } })).toThrow();
+    expect(() => parseChainDenylist({ ...empty, quoteReaders: [{ host: "a.example", key: "food", quote: "pies" }] })).toThrow();
     expect(() =>
-      parseChainDenylist({ pages: [], quotes: [{ host: "a.example", key: "wifi", quote: "free wifi" }], readers: {} }),
+      parseChainDenylist({ ...empty, quoteReaders: [{ host: "a.example/pubs", key: "food", quote: "pies", readers: ["a"] }] }),
     ).toThrow();
-    expect(() =>
-      parseChainDenylist({ pages: [], quotes: [{ host: "a.example/pubs", key: "food", quote: "food" }], readers: {} }),
-    ).toThrow();
-    expect(() => parseChainDenylist({ pages: [], quotes: [], readers: { "a.example": "x" } })).toThrow();
-    expect(() => parseChainDenylist({ pages: [], quotes: [], readers: { "a.example": [""] } })).toThrow();
   });
 
-  it("commits a sorted list that holds the chain pages the first harvest proved, every evidence pub as a reader and no page the evidence uses", () => {
+  it("commits a sorted list that holds the chain proof and readers of every first-harvest pub and no page the evidence uses", () => {
     const root = path.resolve(__dirname, "..");
     const raw = JSON.parse(readFileSync(path.join(root, "data/amenities/london_pub_website_chain_pages.json"), "utf8"));
     const denylist = parseChainDenylist(raw);
@@ -527,6 +579,13 @@ describe("chain denylist", () => {
       host: "socialpubandkitchen.co.uk",
       key: "liveSports",
       quote: "watch liverpool vs man city live",
+    });
+    expect(new Set(Object.values(denylist.readers).flat()).size).toBeGreaterThanOrEqual(1261);
+    expect(new Set(denylist.quoteReaders.flatMap((entry) => entry.readers)).size).toBeGreaterThanOrEqual(1261);
+    expect(denylist.readers).toMatchObject({
+      "craftunionpubs.com/brewery-tap-brentwood": ["node/10018880685"],
+      "jdwetherspoon.com/pubs/the-greyhound-bromley": ["node/11067789496"],
+      "stormbirdcamberwell.com": ["node/12572448581"],
     });
     const evidence = JSON.parse(
       readFileSync(path.join(root, "data/amenities/london_pub_website_evidence.json"), "utf8"),

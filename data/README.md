@@ -55,8 +55,9 @@ re-export run `npm run harvest:pub-website-amenities -- --restamp`. It stamps
 `data/amenities/london_pub_website_evidence.json` back onto the dataset with no
 fetch and no model call; the script header owns the details. Pages and quotes
 proven chain-wide stay in `data/amenities/london_pub_website_chain_pages.json`,
-with every pub that has read each page, so a later harvest skips those pages,
-no stamp uses them and a page read by pubs on different runs is still proven.
+with every pub that has read each page or stated each quote, so a later
+harvest skips those pages, no stamp uses them and a page or quote seen by pubs
+on different runs is still proven.
 
 The 2026-09-04 re-collection read 964 pages with no errors and re-observed 2,624
 of the 2,788 priced rows (94.1%); 55 prices had moved. The other 164 priced rows
