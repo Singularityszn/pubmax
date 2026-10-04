@@ -63,9 +63,10 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
           if (!current() || !response.ok) {
             discardBody(response);
             if (!current()) return;
+            const { status } = response;
             // A storage outage and an absent/hidden cover both answer 404. Keep
             // that ambiguity private and retry briefly before giving up.
-            if ([404, 408, 429].includes(response.status) || response.status >= 500) {
+            if ([404, 408, 429].includes(status) || status >= 500) {
               const retryAfter = response.headers.get("Retry-After");
               const seconds = Number(retryAfter);
               retryAfterMs = retryAfter
