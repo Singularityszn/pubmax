@@ -56,6 +56,7 @@ import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
+import VenueRecordSummary from "./VenueRecordSummary";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
@@ -948,6 +949,7 @@ export default function VenueOverviewTab({
       hidden={tab !== "overview"}
     >
       <p className="venueAddress">{venue.address}</p>
+      <VenueRecordSummary copy={venue.recordCopy} />
       <VenueActionStrip venue={venue} />
       <VenueOccupancyRow
         venueId={venue.id}

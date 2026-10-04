@@ -18,6 +18,7 @@ import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
 import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
+import { enrichVenueWithRecordCopy } from "@/lib/venueRecordCopy.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -324,6 +325,8 @@ async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLo
     venue = slimVenueToPin(venueLookup.slimVenue);
   }
   if (!venue) return { status: "unavailable" };
+
+  venue = await enrichVenueWithRecordCopy(venue);
 
   try {
     const enriched = await enrichVenueForDetail(venue);

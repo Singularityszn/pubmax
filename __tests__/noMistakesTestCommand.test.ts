@@ -17,6 +17,7 @@
 // DEPLOYMENT_VERSION=local so a checkout never stamps HEAD over `local`, and
 // run-with-restored-bundled-data.mjs to git-restore bundled trees on exit.
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -111,9 +112,11 @@ describe("the no-mistakes repository test command", () => {
     expect(env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
     expect(env.DEPLOYMENT_VERSION).toBe("local");
 
-    const committed = JSON.parse(
-      readFileSync(join(ROOT, "public/data/cities/bath/venues_slim.manifest.json"), "utf8"),
-    ).revision;
+    // Plain verify rebuilds working files first. The pipeline contract concerns
+    // the committed artifact, regardless of any local builder's revision stamp.
+    const committed = JSON.parse(execFileSync("git", [
+      "show", "HEAD:public/data/cities/bath/venues_slim.manifest.json",
+    ], { cwd: ROOT, encoding: "utf8" })).revision;
     // A run worktree is a git checkout, so git always names a HEAD there.
     const stamped = requireDataRevision(env, {
       workingTreeSha: "0123456789abcdef0123456789abcdef01234567",

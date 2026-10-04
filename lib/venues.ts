@@ -50,6 +50,7 @@ import {
 } from "@/lib/venueTruth";
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type { VenueRecordCopy } from "@/lib/venueRecordCopy";
 
 export type CrawlStyle =
   | "balanced"
@@ -225,6 +226,8 @@ export type Venue = {
   imageUrl: string;
   description: string;
   dataQualityNotes: string[];
+  /** Gemini-written copy, validated against this pub's stored structured fields. */
+  recordCopy?: VenueRecordCopy;
   sourceDatasets: string[];
   curation: VenueCuration;
   // Nearest-station TfL fare zone (1–6, occasionally 7–9 at the London edge).
