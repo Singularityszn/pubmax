@@ -2,10 +2,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PAL_GREETING = "Hello, I'm your Pub Pal. What kind of night are you planning?";
 const SOURCED_ANSWER = "Two Soho picks with listed pints under five pounds.";
+const CHECKING_LINE = "Let me check prices near Soho.";
+
+type ScriptedEvent = { afterMs: number; event: Record<string, unknown> };
+
+function agentResponse(text: string): Record<string, unknown> {
+  return { type: "agent_response", agent_response_event: { agent_response: text } };
+}
+
+function toolRequest(id: string): Record<string, unknown> {
+  return {
+    type: "agent_tool_request",
+    agent_tool_request: { tool_name: "search_venues", tool_call_id: id, tool_type: "webhook" },
+  };
+}
+
+function toolResponse(id: string): Record<string, unknown> {
+  return {
+    type: "agent_tool_response",
+    agent_tool_response: { tool_name: "search_venues", tool_call_id: id, is_error: false },
+  };
+}
+
+function responseComplete(): Record<string, unknown> {
+  return { type: "agent_response_complete", agent_response_complete_event: { event_id: 1 } };
+}
 
 const wsState = vi.hoisted(() => ({
   lastInitPayload: null as unknown,
   userMessageText: null as string | null,
+  /** What the agent sends after the user message. Null sends the answer and the turn end. */
+  replyScript: null as ScriptedEvent[] | null,
+  /** False until the mock sends a tool response, as the webhook fills the store first. */
+  storeFilled: true,
 }));
 
 class MockElevenLabsWebSocket {
@@ -43,13 +72,17 @@ class MockElevenLabsWebSocket {
     }
     if (payload.type === "user_message") {
       wsState.userMessageText = payload.text ?? null;
+      if (wsState.replyScript) {
+        let at = 0;
+        for (const step of wsState.replyScript) {
+          at += step.afterMs;
+          setTimeout(() => this.emit("message", { data: JSON.stringify(step.event) }), at);
+        }
+        return;
+      }
       queueMicrotask(() => {
-        this.emit("message", {
-          data: JSON.stringify({
-            type: "agent_response",
-            agent_response_event: { agent_response: SOURCED_ANSWER },
-          }),
-        });
+        this.emit("message", { data: JSON.stringify(agentResponse(SOURCED_ANSWER)) });
+        this.emit("message", { data: JSON.stringify(responseComplete()) });
       });
     }
   }
@@ -59,6 +92,9 @@ class MockElevenLabsWebSocket {
   }
 
   private emit(type: string, event: unknown): void {
+    if (type === "message" && String((event as { data?: unknown }).data).includes('"agent_tool_response"')) {
+      wsState.storeFilled = true;
+    }
     for (const listener of this.listeners[type] ?? []) listener(event);
   }
 }
@@ -108,7 +144,9 @@ const storeMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/pubPalToolTurnStore", () => ({
   registerPubPalToolTurn: storeMocks.registerPubPalToolTurn,
-  readPubPalToolTurn: vi.fn(async () => toolTurnPayload),
+  readPubPalToolTurn: vi.fn(async () =>
+    wsState.storeFilled ? toolTurnPayload : { ...toolTurnPayload, cards: [], toolsUsed: [] },
+  ),
   readOwnedPubPalToolTurn: storeMocks.readOwnedPubPalToolTurn,
 }));
 
@@ -118,6 +156,8 @@ describe("runPalElevenLabsChatTurn", () => {
   beforeEach(() => {
     wsState.lastInitPayload = null;
     wsState.userMessageText = null;
+    wsState.replyScript = null;
+    wsState.storeFilled = true;
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
     vi.stubGlobal(
@@ -272,5 +312,203 @@ describe("runPalElevenLabsChatTurn", () => {
 
     expect(storeMocks.readOwnedPubPalToolTurn).not.toHaveBeenCalled();
     expect(wsState.userMessageText).toBe("quiet pubs");
+  });
+
+  it("asks for the turn-complete event so it can tell the checking line from the answer", async () => {
+    await runPalElevenLabsChatTurn({
+      query: "quiet pubs",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const init = wsState.lastInitPayload as {
+      conversation_config_override?: { conversation?: { client_events?: string[] } };
+    };
+    expect(init?.conversation_config_override?.conversation?.client_events).toEqual(
+      expect.arrayContaining([
+        "agent_response",
+        "agent_response_complete",
+        "agent_tool_request",
+        "agent_tool_response",
+      ]),
+    );
+  });
+
+  it("answers a turn that asks for no tool on its first reply, without waiting for the turn end", async () => {
+    wsState.replyScript = [{ afterMs: 0, event: agentResponse(SOURCED_ANSWER) }];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  }, 5_000);
+
+  it("answers with the reply after the tool, not the checking line said before it", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+      { afterMs: 50, event: toolRequest("call_1") },
+      { afterMs: 900, event: toolResponse("call_1") },
+      { afterMs: 50, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  it("waits through a chained second tool asked for more than 600 ms after its checking line", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+      { afterMs: 20, event: toolRequest("call_1") },
+      { afterMs: 300, event: toolResponse("call_1") },
+      { afterMs: 20, event: agentResponse("Now the trains.") },
+      { afterMs: 800, event: toolRequest("call_2") },
+      { afterMs: 300, event: toolResponse("call_2") },
+      { afterMs: 20, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  it("ignores a turn end that arrives while a tool is still running", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+      { afterMs: 20, event: toolRequest("call_1") },
+      { afterMs: 10, event: responseComplete() },
+      { afterMs: 300, event: toolResponse("call_1") },
+      { afterMs: 600, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  it("ignores a turn end for the checking line that comes before its tool request", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+      { afterMs: 10, event: responseComplete() },
+      { afterMs: 20, event: toolRequest("call_1") },
+      { afterMs: 300, event: toolResponse("call_1") },
+      { afterMs: 600, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  it("ignores a turn end between the tool response and the reply after it", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+      { afterMs: 20, event: toolRequest("call_1") },
+      { afterMs: 300, event: toolResponse("call_1") },
+      { afterMs: 10, event: responseComplete() },
+      { afterMs: 600, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  describe("on an agent that never sends agent_response_complete", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("returns the held tool reply before the browser's 25 s abort", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 10, event: toolRequest("call_1") },
+        { afterMs: 400, event: toolResponse("call_1") },
+        { afterMs: 50, event: agentResponse(SOURCED_ANSWER) },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(21_000);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(settled).toBe(true);
+
+      await expect(pending).resolves.toMatchObject({
+        ok: true,
+        message: SOURCED_ANSWER,
+        conversationId: "conv_regression01",
+      });
+    });
+
+    it("times out rather than answer with a checking line when no reply follows its tool", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 10, event: toolRequest("call_1") },
+        { afterMs: 400, event: toolResponse("call_1") },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(22_000);
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    });
+
+    it("times out rather than answer with a checking line while its tool runs", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 10, event: toolRequest("call_1") },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(22_000);
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    });
   });
 });
