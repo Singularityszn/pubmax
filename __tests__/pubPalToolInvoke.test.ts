@@ -101,11 +101,12 @@ describe("propose_plan over the Pal webhook", () => {
     };
   }
 
-  // The live agent sent the first ask and answered that it could not plan a
-  // Shoreditch crawl: "tonight" was read as part of the area.
+  // The live agent sent these asks and answered that it could not plan a
+  // Shoreditch crawl: "tonight" was read as part of the area, and a bare
+  // "Shoreditch crawl" planned three pubs across London.
   it.each([
     "Plan me a 3 pub crawl in Shoreditch tonight",
-    "Can you plan a crawl around Shoreditch?",
+    "Can you plan a Shoreditch crawl?",
   ])("drafts three Shoreditch stops for %j", async (query) => {
     const result = await planFor(query);
 

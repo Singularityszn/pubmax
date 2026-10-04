@@ -148,6 +148,15 @@ describe("parseConciergeIntent keyless fallback", () => {
 
   it.each([
     "Can you plan a Shoreditch crawl?",
+    "plan me a shoreditch pub crawl tonight",
+    "Best Shoreditch pubs for 4",
+  ])("reads a known area named just before a night out in %j", async (text) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).toBe("Shoreditch");
+  });
+
+  it.each([
     "Plan a crawl for Victoria's birthday",
     "a crawl along the Victoria line",
   ])("does not read an area named without a preposition in %j", async (text) => {

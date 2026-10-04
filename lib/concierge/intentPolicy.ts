@@ -97,11 +97,16 @@ export function extractExplicitBudget(text: string): number | undefined {
 
 const AREA_PREPOSITIONS = ["in", "near", "around", "at"] as const;
 
+/** Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs". */
+const AREA_NIGHT_NOUNS = /^\s+(?:pub\s+)?(?:crawl|crawls|pubs?|bars?|drinks|pints?)\b/iu;
+
 /**
  * The area a keyless parse plans in. A known area named after "in", "near",
- * "around" or "at" wins, so "in Shoreditch tonight" is Shoreditch, and so does
- * a request that is only the area's name. A known area named anywhere else is
- * not read as the area: "a crawl along the Victoria line" plans across London.
+ * "around" or "at" wins, so "in Shoreditch tonight" is Shoreditch. So does a
+ * request that is only the area's name, and a known area directly before a
+ * night-out noun, so "a Shoreditch crawl" is Shoreditch. A known area named
+ * anywhere else is not read as the area: "a crawl along the Victoria line"
+ * plans across London.
  */
 export function deterministicAreaInText(
   text: string,
@@ -113,7 +118,18 @@ export function deterministicAreaInText(
 function namesKnownArea(text: string, area: string): boolean {
   const whole = text.trim().replace(/[.!?]+$/u, "").trim();
   if (whole.toLocaleLowerCase("en-GB") === area.toLocaleLowerCase("en-GB")) return true;
-  return AREA_PREPOSITIONS.some((preposition) => wholePhraseInText(text, `${preposition} ${area}`));
+  if (AREA_PREPOSITIONS.some((preposition) => wholePhraseInText(text, `${preposition} ${area}`))) {
+    return true;
+  }
+  return knownAreaBeforeNightNoun(text, area);
+}
+
+function knownAreaBeforeNightNoun(text: string, area: string): boolean {
+  const pattern = new RegExp(`\\b${escapeRegExp(area)}\\b`, "giu");
+  for (const match of text.matchAll(pattern)) {
+    if (AREA_NIGHT_NOUNS.test(text.slice(match.index + match[0].length))) return true;
+  }
+  return false;
 }
 
 function longestKnownAreaNamedIn(
