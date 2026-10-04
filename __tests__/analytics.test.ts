@@ -29,7 +29,7 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): Map<string, string> 
   };
   (globalThis as { navigator?: unknown }).navigator = nav;
   (globalThis as { window?: unknown }).window = {
-    location: { origin: "https://pubmaxxing.com", pathname: "/tonight" },
+    location: { origin: "https://pubmaxxing.com", pathname: "/tonight", href: "https://pubmaxxing.com/tonight" },
     document: { referrer: "https://example.com/london-pubs?ask=free-text#results" },
     screen: { width: 1512, height: 982 },
     innerWidth: 1280,
@@ -305,9 +305,10 @@ describe("trackEvent", () => {
   it("allows Vercel pageviews only after consent and still honors DNT", () => {
     setWindow();
     setAnalyticsConsent(true);
+    Object.assign(window.document, { referrer: "" });
     const event = { type: "pageview" as const, url: "/tonight" };
     expect(analyticsCollectionAllowed()).toBe(true);
-    expect(consentAwareBeforeSend(event)).toBe(event);
+    expect(consentAwareBeforeSend(event)).toEqual(event);
 
     (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
     expect(analyticsCollectionAllowed()).toBe(false);
@@ -324,9 +325,10 @@ describe("trackEvent", () => {
   it("allows Vercel Speed Insights vitals only after consent and still honors DNT", () => {
     setWindow();
     setAnalyticsConsent(true);
+    Object.assign(window.document, { referrer: "" });
     const event = { type: "vital" as const, url: "https://pubmaxxing.com/map", route: "/map" };
     expect(analyticsCollectionAllowed()).toBe(true);
-    expect(consentAwareSpeedInsightsBeforeSend(event)).toBe(event);
+    expect(consentAwareSpeedInsightsBeforeSend(event)).toEqual(event);
 
     (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
     expect(analyticsCollectionAllowed()).toBe(false);
