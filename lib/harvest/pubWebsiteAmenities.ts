@@ -146,20 +146,27 @@ const SPORT_VIEWING = new RegExp(
 );
 const SPORT_OBJECT =
   "\\b(?:(?:sky|tnt|bt)\\s+sports?|(?:live\\s+)?(?:f1|formula\\s*1|sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing))\\b";
-const SPORT_OBJECTS = `${SPORT_OBJECT}(?:(?:\\s+(?:and|or)\\s+|\\s*,\\s*(?:(?:and|or)\\s+)?)${SPORT_OBJECT})*`;
+const SPORT_LIST_SEPARATOR = "(?:\\s+(?:and|or)\\s+|\\s*,\\s*(?:(?:and|or)\\s+)?)";
+const SPORT_OBJECTS = `${SPORT_OBJECT}(?:${SPORT_LIST_SEPARATOR}${SPORT_OBJECT})*`;
 const BARE_SPORT_OBJECTS = new RegExp(`^\\s*${SPORT_OBJECTS}\\s*$`, "i");
 const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
 const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
 const SPORT_ADJUNCT =
   "(?:here|there|(?:(?:every|each|on|at|this|next)\\s+)?(?:(?:mon|tues|wednes|thurs|fri|satur|sun)days?|days?|nights?|weekends?|weeks?|mornings?|afternoons?|evenings?))\\b";
-const SPORT_COPULA = "(?:is|are|isn'?t|aren'?t|will)\\b";
-const SPORT_VERB = `(?:${FINITE_VIEWING_VERB}|has|have)\\s+(?!${SPORT_ADJUNCT})`;
-const SPORT_ITEM_PREDICATE = new RegExp(`^\\s*${SPORT_OBJECT}\\s+(?:${SPORT_COPULA}|${SPORT_VERB}\\w)`, "i");
+const SPORT_COPULA = "(?:is|are|isn'?t|aren'?t)\\b";
+const SPORT_VERB = `(?:${FINITE_VIEWING_VERB}|has|have)`;
+const SPORT_VERB_OBJECT = `\\s+(?!${SPORT_ADJUNCT}|(?:on|in|at|from|for|with|of)\\b)\\w`;
+const SPORT_ITEM_PREDICATE = new RegExp(`^\\s*${SPORT_OBJECT}\\s+(?:${SPORT_COPULA}|will\\b|${SPORT_VERB}\\s+(?!${SPORT_ADJUNCT})\\w)`, "i");
 const SPORT_LIST_PREDICATE = new RegExp(
-  `^\\s*${SPORT_OBJECTS}\\s+(?:${SPORT_COPULA}|${SPORT_VERB}(?!(?:on|in|at|from|for|with|of)\\b)\\w)`,
+  `^\\s*${SPORT_OBJECT}(?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*\\s+(?:${SPORT_COPULA}|will\\b|${SPORT_VERB}${SPORT_VERB_OBJECT})`,
+  "i",
+);
+const DENIED_ITEM_PREDICATE = new RegExp(
+  `^\\s*${SPORT_OBJECT}\\s+(?:${SPORT_COPULA}|(?:${FINITE_VIEWING_VERB})${SPORT_VERB_OBJECT})`,
   "i",
 );
 const DENIED_SPORT_LIST = new RegExp(`\\b(?:no|without)\\s+${SPORT_OBJECTS}\\s*$`, "i");
+const CONTINUED_SPORT_LIST = new RegExp(`${SPORT_OBJECT}${SPORT_LIST_SEPARATOR}${SPORT_OBJECT}\\s*$`, "i");
 const NO_SPORT_AVAILABILITY = new RegExp(
   "\\b(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+have\\s+(?:any\\s+|access\\s+to\\s+)?|" +
   "(?:(?:are|is)\\s+not|'re\\s+not|aren'?t|isn'?t)\\s+subscribed\\s+to\\s+)" + SPORT_OBJECTS + "|" +
@@ -194,13 +201,15 @@ function sportClauses(quote: string): string[] {
     const next = boundary.index + boundary[0].length;
     const following = quote.slice(next).replace(/^\s*(?:and|or)\s+/, "");
     const list = clause.replace(/,\s*$/, "");
+    const continued = CONTINUED_SPORT_LIST.test(list);
     if (
       (boundary[0] === "and" || boundary[0] === ",") && SPORT_SUBJECT.test(following) &&
       (BARE_SPORT_OBJECTS.test(list) ||
-        (DENIED_SPORT_LIST.test(list) && (boundary[0] === "and" || !SPORT_ITEM_PREDICATE.test(quote.slice(next)))) || (
+        (DENIED_SPORT_LIST.test(list) &&
+          (boundary[0] === "and" || continued || !DENIED_ITEM_PREDICATE.test(quote.slice(next)))) || (
         boundary[0] === "," && SPORT_OBJECT_END.test(clause) &&
         (NO_SPORT_AVAILABILITY.test(clause) || NO_SPORT_VIEWING.test(clause)) &&
-        !SPORT_ITEM_PREDICATE.test(following) && !SPORT_LIST_PREDICATE.test(following)
+        (continued || (!SPORT_ITEM_PREDICATE.test(following) && !SPORT_LIST_PREDICATE.test(following)))
       ))
     ) continue;
     clauses.push(clause);
