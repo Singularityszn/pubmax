@@ -261,11 +261,15 @@ describe("famous venue seeds", () => {
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
       const lastSlim = committedSlim();
       const [template] = seedRows();
+      const stampMs = Date.parse(lastSlim.generatedAt);
+      const dayMs = 24 * 60 * 60 * 1000;
+      const observedAt = new Date(stampMs + dayMs).toISOString().slice(0, 10);
+      const expiresAt = new Date(stampMs + 31 * dayMs).toISOString().slice(0, 10);
       const added = {
         ...template,
         id: `${template.id}-added`,
-        observedAt: "2026-10-02",
-        expiresAt: "2026-11-01",
+        observedAt,
+        expiresAt,
       };
       const seed = [...seedRows(), added];
       expect(() =>
@@ -277,7 +281,7 @@ describe("famous venue seeds", () => {
       const refreshed = famousRowsForRebuild(seed, {
         lastSlim,
         removedIds: [],
-        refreshAt: new Date("2026-10-02T12:00:00.000Z"),
+        refreshAt: new Date(`${observedAt}T12:00:00.000Z`),
       });
       expect(keptIds(refreshed)).toContain(added.id);
     });
