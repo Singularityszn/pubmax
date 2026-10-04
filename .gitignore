@@ -136,3 +136,9 @@ data/places_enrichment_stamp.json.tmp
 
 # Generated from copied Places observations before dev/build; runtime reads only requested OSM files.
 data/generated/places_enrichment/
+data/places_verification/enrichment_uk_cities_progress.json*
+data/places_verification/enrichment_london_extras_progress.json*
+data/places_verification/enrichment_uk_cities_extras_progress.json*
+data/places_enrichment_uk_cities.json.tmp
+data/places_enrichment_london_extras.json.tmp
+data/places_enrichment_uk_cities_extras.json.tmp

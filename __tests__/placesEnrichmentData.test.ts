@@ -58,3 +58,21 @@ it("dates google_places_content from the committed stamp of the pack, never the 
   expect(read("data/places_enrichment_stamp.json")).toEqual(placesEnrichmentStamp(pack));
   expect(resolution.observedAt).toBe(pack.observedAt);
 });
+
+it("keeps UK core copies inside their verified ledger and the shared task cap", () => {
+  const pack = read("data/places_enrichment_uk_cities.json");
+  const verified = new Map(read("data/places_verification/uk_cities.json").pubs.map((row: { venueId: string; googlePlaceId: string }) => [row.venueId, row.googlePlaceId]));
+  expect(new Set(pack.venues.map((row: { venueId: string }) => row.venueId)).size).toBe(pack.venues.length);
+  for (const row of pack.venues) {
+    expect(row.googlePlaceId).toBe(verified.get(row.venueId));
+    for (const field of ["regularOpeningHours", "formattedAddress", "nationalPhoneNumber", "websiteUri"]) {
+      if (!row[field]) continue;
+      expect(row[field].source).toBe("google_places");
+      expect(row[field].observedAt).toBe(row.observedAt);
+    }
+  }
+  expect(pack.spend.usdPerThousand).toBe(20);
+  expect(pack.spend.reservedUsd).toBe(pack.spend.attemptedCalls * 20 / 1000);
+  expect(pack.spend.reservedUsd).toBeLessThanOrEqual(28);
+  expect(pack.spend.monthReservedUsd).toBeLessThanOrEqual(28);
+});
