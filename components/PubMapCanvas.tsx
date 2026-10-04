@@ -1944,7 +1944,7 @@ export default function PubMapCanvas({
       hasPinsPaintable: () => isNationalOverview() || !phoneFirstImpression || hasPinsPaintable(),
       // Phone city arrivals wait for local pub GeoJSON. The pin-free national
       // overview instead requires its basemap, with the same compositor gate.
-      requiresBasemapPaint: !!isNationalOverview() || !phoneFirstImpression,
+      requiresBasemapPaint: () => !!isNationalOverview() || !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       compositeConfirmFrames: phoneFirstImpression
         ? PHONE_PIN_COMPOSITE_CONFIRM_FRAMES
