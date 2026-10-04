@@ -86,9 +86,7 @@ async function main() {
     storedHours: venues.filter((row) => hasHours(row.hours)).length, pending: pending.length,
     monthToDatePlacesRequests: monthUsage, monthlyUsageRead: live,
     calls: budget.calls, projectedUsd: budget.projectedUsd, priorEstimatedUsd: priorUsd, capUsd: CAP }));
-  if (!live || !budget.calls) return;
-  const searchBefore = await dailyOverrideValue(token, SEARCH_METRIC);
-  const detailsBefore = await dailyOverrideValue(token, DETAILS_METRIC);
+  if (!live) return;
   const save = (newRows, calls) => {
     const rows = [...priorRows, ...newRows];
     write(OUT, { version: 1, inputHash: fingerprint, checkedOn: DAY,
@@ -97,6 +95,12 @@ async function main() {
         remainingFreeCalls: Math.max(0, budget.freeCalls - calls) }, rows });
     write(REVIEW, { version: 1, checkedOn: DAY, rows: rows.filter((row) => row.verdict === "mismatch") });
   };
+  if (!budget.calls) {
+    await checkHours({ venues: pending, maxCalls: 0, apiKey, save });
+    return;
+  }
+  const searchBefore = await dailyOverrideValue(token, SEARCH_METRIC);
+  const detailsBefore = await dailyOverrideValue(token, DETAILS_METRIC);
   let restoreNeeded = false;
   const restore = async () => {
     if (!restoreNeeded) return;

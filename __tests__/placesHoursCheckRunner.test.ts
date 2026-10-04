@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
 
@@ -116,10 +116,40 @@ it("reserves free calls only within the checkpoint's own month", () => {
   exhausted(`${new Date().toISOString().slice(0, 7)}-01`);
   expect(run(false, 0).status).toBe(0);
   expect(read("calls.json")).toEqual(["place-one"]);
+  expect(read(file).rows.map((row: { verdict: string }) => row.verdict)).toEqual(["unknown"]);
   exhausted("2000-01-01");
   expect(run(false, 0).status).toBe(0);
   expect(read("calls.json")).toEqual(["place-one", "place-two"]);
   const output = read(file);
   expect(output.spend).toMatchObject({ calls: 3, estimatedUsd: 20, remainingFreeCalls: 0 });
-  expect(output.rows.map((row: { verdict: string }) => row.verdict)).toEqual(["match", "mismatch", "unknown"]);
+  expect(output.rows.map((row: { verdict: string }) => row.verdict)).toEqual(["unknown", "match", "mismatch"]);
+});
+
+it("persists unknown verdicts at exhausted budget without Details calls or quota changes", () => {
+  fixture();
+  expect(run(true).status).toBe(1);
+  const file = "data/places_verification/pub_hours_london.json";
+  const prior = read(file);
+  json(file, { ...prior, spend: { ...prior.spend, estimatedUsd: 20, remainingFreeCalls: 0 } });
+  const result = run();
+  expect(result.status, result.stderr).toBe(0);
+  const output = read(file);
+  expect(output.rows).toEqual([expect.objectContaining({ venueId: "venue-osm-n3", verdict: "unknown" })]);
+  expect(output.spend).toEqual({ ...prior.spend, estimatedUsd: 20, remainingFreeCalls: 0 });
+  expect(read("calls.json")).toEqual(["place-one"]);
+  expect(read("quota-history.json")).toEqual(["1102", "10"]);
+  expect(read("data/places_verification/pub_hours_review_london.json").rows).toEqual([]);
+  expect(run().status).toBe(0);
+  expect(read(file).rows).toEqual(output.rows);
+});
+it("completes an all-missing-hours checkpoint with zero paid calls", () => {
+  fixture();
+  json("data/osm/uk/uk_osm_pubs.json", { pubs: [{ osmId: "node/1" }, { osmId: "node/2" }, { osmId: "node/3" }] });
+  const result = run();
+  expect(result.status, result.stderr).toBe(0);
+  const output = read("data/places_verification/pub_hours_london.json");
+  expect(output.rows.map((row: { verdict: string }) => row.verdict)).toEqual(["unknown", "unknown", "unknown"]);
+  expect(output.spend).toMatchObject({ calls: 0, estimatedUsd: 0 });
+  expect(existsSync(path.join(FIXTURE, "calls.json"))).toBe(false);
+  expect(existsSync(path.join(FIXTURE, "quota-history.json"))).toBe(false);
 });
