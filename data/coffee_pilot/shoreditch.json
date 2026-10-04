@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "area": "shoreditch",
+  "checkedOn": "2026-10-03",
+  "rows": [
+    {
+      "venueId": "venue-osm-w271641406",
+      "venueName": "Crosstown",
+      "drink": "flat white",
+      "priceGbp": 3.7,
+      "sourceUrl": "https://www.crosstown.co.uk/project/flat-white/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w271641406",
+      "venueName": "Crosstown",
+      "drink": "latte",
+      "priceGbp": 3.8,
+      "sourceUrl": "https://www.crosstown.co.uk/project/latte/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w271641406",
+      "venueName": "Crosstown",
+      "drink": "matcha latte",
+      "priceGbp": 3.9,
+      "sourceUrl": "https://www.crosstown.co.uk/project/matcha-latte/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w165491345",
+      "venueName": "Shoreditch Artist Cafe",
+      "drink": "flat white",
+      "priceGbp": 3.95,
+      "sourceUrl": "https://artistcafelondon.co.uk/hot-drink/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w165491345",
+      "venueName": "Shoreditch Artist Cafe",
+      "drink": "latte",
+      "priceGbp": 3.95,
+      "sourceUrl": "https://artistcafelondon.co.uk/hot-drink/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w165491345",
+      "venueName": "Shoreditch Artist Cafe",
+      "drink": "matcha latte",
+      "priceGbp": 4.7,
+      "sourceUrl": "https://artistcafelondon.co.uk/matcha/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w157236283",
+      "venueName": "Santo Remedio",
+      "drink": "flat white",
+      "priceGbp": 4.5,
+      "sourceUrl": "https://www.santoremedio.co.uk/_files/ugd/c2f308_bfe760d238244e68a332fa60ba7ad723.pdf",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w157236283",
+      "venueName": "Santo Remedio",
+      "drink": "latte",
+      "priceGbp": 4.5,
+      "sourceUrl": "https://www.santoremedio.co.uk/_files/ugd/c2f308_bfe760d238244e68a332fa60ba7ad723.pdf",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w637312561",
+      "venueName": "Love Churros",
+      "drink": "flat white",
+      "priceGbp": 3.75,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0778/8865/1598/files/Screenshot_2026-04-08_at_11.07.37.png",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w637312561",
+      "venueName": "Love Churros",
+      "drink": "latte",
+      "priceGbp": 3.8,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0778/8865/1598/files/Screenshot_2026-04-08_at_11.07.37.png",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w373262256",
+      "venueName": "Franzè & Evans",
+      "drink": "flat white",
+      "priceGbp": 3.8,
+      "sourceUrl": "https://franzeevans.com/s/FE-Menu-Weekday-101-Oct-2025.pdf",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w373262256",
+      "venueName": "Franzè & Evans",
+      "drink": "latte",
+      "priceGbp": 3.8,
+      "sourceUrl": "https://franzeevans.com/s/FE-Menu-Weekday-101-Oct-2025.pdf",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w373262256",
+      "venueName": "Franzè & Evans",
+      "drink": "matcha latte",
+      "priceGbp": 4,
+      "sourceUrl": "https://franzeevans.com/s/FE-Menu-Weekday-101-Oct-2025.pdf",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n12110401801",
+      "venueName": "Vintage Cafe",
+      "drink": "flat white",
+      "priceGbp": 3.45,
+      "sourceUrl": "https://www.vintagecafeshoreditch.co.uk/menu/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n12110401801",
+      "venueName": "Vintage Cafe",
+      "drink": "latte",
+      "priceGbp": 3.55,
+      "sourceUrl": "https://www.vintagecafeshoreditch.co.uk/menu/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n12110401801",
+      "venueName": "Vintage Cafe",
+      "drink": "matcha latte",
+      "priceGbp": 4.15,
+      "sourceUrl": "https://www.vintagecafeshoreditch.co.uk/menu/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w637312549",
+      "venueName": "Jujuhome Cha",
+      "drink": "matcha latte",
+      "priceGbp": 5.5,
+      "sourceUrl": "https://www.jujuhomecha.com/pages/menu",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n13646215319",
+      "venueName": "gram'n degrees",
+      "drink": "flat white",
+      "priceGbp": 4.7,
+      "sourceUrl": "https://gramndegrees.co.uk/product/flat-white/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n13646215319",
+      "venueName": "gram'n degrees",
+      "drink": "latte",
+      "priceGbp": 4.95,
+      "sourceUrl": "https://gramndegrees.co.uk/product/latte/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w164687436",
+      "venueName": "The Bike Shed",
+      "drink": "flat white",
+      "priceGbp": 4.25,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0441/8895/8871/files/Digital_Drinks_AW_2025.pdf?v=1762938027",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w164687436",
+      "venueName": "The Bike Shed",
+      "drink": "latte",
+      "priceGbp": 4.5,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0441/8895/8871/files/Digital_Drinks_AW_2025.pdf?v=1762938027",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n13684996801",
+      "venueName": "Gecko Coffeehouse",
+      "drink": "flat white",
+      "priceGbp": 4.2,
+      "sourceUrl": "https://geckocoffee.house/pages/menu",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n13684996801",
+      "venueName": "Gecko Coffeehouse",
+      "drink": "latte",
+      "priceGbp": 4.2,
+      "sourceUrl": "https://geckocoffee.house/pages/menu",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n13684996801",
+      "venueName": "Gecko Coffeehouse",
+      "drink": "matcha latte",
+      "priceGbp": 4.5,
+      "sourceUrl": "https://geckocoffee.house/pages/menu",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n14022302823",
+      "venueName": "Urban Baristas",
+      "drink": "flat white",
+      "priceGbp": 4.3,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n14022302823",
+      "venueName": "Urban Baristas",
+      "drink": "latte",
+      "priceGbp": 4.4,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n14022302823",
+      "venueName": "Urban Baristas",
+      "drink": "matcha latte",
+      "priceGbp": 4.5,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n4959842421",
+      "venueName": "Holy Shot",
+      "drink": "flat white",
+      "priceGbp": 4,
+      "sourceUrl": "https://holyshotcoffee.co.uk/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n4959842421",
+      "venueName": "Holy Shot",
+      "drink": "latte",
+      "priceGbp": 4.2,
+      "sourceUrl": "https://holyshotcoffee.co.uk/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-n4959842421",
+      "venueName": "Holy Shot",
+      "drink": "matcha latte",
+      "priceGbp": 4.8,
+      "sourceUrl": "https://holyshotcoffee.co.uk/",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    }
+  ]
+}

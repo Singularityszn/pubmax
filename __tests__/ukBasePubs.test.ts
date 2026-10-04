@@ -371,6 +371,19 @@ describe("createUkBaseLoader", () => {
     ).toEqual({ status: "ready", pubs: [] });
   });
 
+  it("omits a verified-closed pub from the drawable set and leaves the shard row in place", async () => {
+    const loader = createUkBaseLoader({ closedOsmRefs: new Set(["n1"]) });
+    const { pubs } = await loader.pubsForBounds({
+      west: -0.19,
+      south: 51.42,
+      east: -0.17,
+      north: 51.44,
+    });
+    expect(pubs.map((pub) => pub.name)).toEqual(["The Bell"]);
+    expect(parseUkBaseShard(BODIES["/data/uk_base/a.json"])).toHaveLength(2);
+    expect(loader.find("venue-uk-n1")).toBeNull();
+  });
+
   it("find() resolves a resident pub by id and nothing else", async () => {
     const loader = createUkBaseLoader();
     await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 });

@@ -12,6 +12,7 @@ import {
   resetVenueOsmIndexForTests,
 } from "@/lib/venueIndexOsm";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
@@ -264,10 +265,13 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
 }
 
 export async function lookupVenueDetail(requestedId: string): Promise<VenueDetailLookupResult> {
-  if (!isVenueDetailId(requestedId)) return { status: "missing" };
+  if (!isVenueDetailId(requestedId) || isVerifiedClosedCuratedVenue(requestedId)) {
+    return { status: "missing" };
+  }
   const aliasResult = await lookupCanonicalVenueId(requestedId);
   if (aliasResult.status === "unavailable") return aliasResult;
   const id = aliasResult.venueId;
+  if (isVerifiedClosedCuratedVenue(id)) return { status: "missing" };
   const cached = cachedDetails.get(id);
   if (cached) {
     try {

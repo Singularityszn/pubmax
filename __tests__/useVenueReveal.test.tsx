@@ -2,7 +2,7 @@
 
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   VENUE_REVEAL_CINEMA_MS,
@@ -48,6 +48,7 @@ describe("useVenueReveal", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     act(() => root.unmount());
     container.remove();
   });
@@ -79,6 +80,8 @@ describe("useVenueReveal", () => {
   });
 
   it("applies tap-relative elapsed time before a late skeleton paints", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-29T22:00:00.000Z"));
     const startedAt = Date.now() - 300;
 
     await act(async () => {
@@ -90,7 +93,6 @@ describe("useVenueReveal", () => {
     const elapsed = Number.parseFloat(
       skeleton?.style.getPropertyValue("--venue-reveal-elapsed") ?? "NaN",
     );
-    expect(elapsed).toBeGreaterThanOrEqual(300);
-    expect(elapsed).toBeLessThan(700);
+    expect(elapsed).toBe(300);
   });
 });

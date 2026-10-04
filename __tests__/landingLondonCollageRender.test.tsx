@@ -14,27 +14,16 @@ import {
 describe("the founder London collage on the landing", () => {
   const html = renderToStaticMarkup(createElement(LandingLondonCollage));
 
-  it("renders every photograph with alt text and both formats", () => {
-    for (const photo of LONDON_COLLAGE_PHOTOS) {
-      expect(html).toContain(`alt="${photo.alt}"`);
-      expect(html).toContain(londonCollageSrc(photo, 640, "avif"));
-      expect(html).toContain(londonCollageSrc(photo, 640, "webp"));
-      expect(html).toContain(photo.caption);
-    }
-  });
-
-  it("names the founder credit and lazy-loads every tile", () => {
+  it("renders every tile and caption but defers the photographs to the client", () => {
+    expect(html).toContain("Streets the map sits on.");
     expect(html).toContain(LONDON_COLLAGE_CREDIT);
-    expect(html.match(/loading="lazy"/g)?.length ?? 0).toBe(LONDON_COLLAGE_PHOTOS.length);
-    expect(html).not.toContain("fetchpriority=");
-    expect(html).not.toContain('rel="preload"');
-  });
-
-  it("fixes dimensions on every image so the mosaic cannot shift layout", () => {
     for (const photo of LONDON_COLLAGE_PHOTOS) {
-      expect(html).toContain(`width="${photo.width}"`);
-      expect(html).toContain(`height="${photo.height}"`);
+      expect(html).toContain(`data-collage-id="${photo.id}"`);
+      expect(html).toContain(photo.caption);
+      expect(html).not.toContain(`alt="${photo.alt}"`);
     }
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain('rel="preload"');
   });
 
   it("advertises each photograph's real encoded width as its widest candidate", () => {
