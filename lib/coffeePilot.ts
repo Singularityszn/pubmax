@@ -35,6 +35,9 @@ export type CoffeePilotPrice = {
 
 export type CoffeePilotRow = CoffeePilotPrice & { venueId: string };
 
+/** Where the map's read of the pilot stands. */
+export type CoffeePilotStatus = "idle" | "loading" | "ready" | "failed";
+
 /** A pilot cafe on the map. `prices` is in COFFEE_PILOT_DRINKS order. */
 export type CoffeePilotCafe = {
   id: string;
@@ -45,57 +48,6 @@ export type CoffeePilotCafe = {
   lng: number;
   prices: CoffeePilotPrice[];
 };
-
-function isPilotDrink(value: unknown): value is CoffeePilotDrink {
-  return (COFFEE_PILOT_DRINKS as readonly unknown[]).includes(value);
-}
-
-function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The listed rows of a pilot file. A row that does not have the shape is
- * dropped rather than drawn, so a drifted file can lose a pin but cannot put a
- * figure with no page behind it on the map.
- */
-export function coffeePilotRows(file: unknown): CoffeePilotRow[] {
-  if (typeof file !== "object" || file === null) return [];
-  const rows = (file as Record<string, unknown>).rows;
-  if (!Array.isArray(rows)) return [];
-  const out: CoffeePilotRow[] = [];
-  for (const raw of rows) {
-    if (typeof raw !== "object" || raw === null) continue;
-    const row = raw as Record<string, unknown>;
-    if (
-      typeof row.venueId !== "string" ||
-      !isPilotDrink(row.drink) ||
-      typeof row.priceGbp !== "number" ||
-      !Number.isFinite(row.priceGbp) ||
-      row.priceGbp <= 0 ||
-      !isHttpUrl(row.sourceUrl) ||
-      typeof row.observedAt !== "string" ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(row.observedAt) ||
-      row.standing !== "listed"
-    ) {
-      continue;
-    }
-    out.push({
-      venueId: row.venueId,
-      drink: row.drink,
-      priceGbp: row.priceGbp,
-      sourceUrl: row.sourceUrl,
-      observedAt: row.observedAt,
-    });
-  }
-  return out;
-}
 
 /** The London venue shards that can hold a pilot cafe. */
 export function coffeePilotShards(shards: readonly ShardEntry[]): ShardEntry[] {

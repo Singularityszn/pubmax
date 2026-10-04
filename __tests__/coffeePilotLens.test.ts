@@ -17,11 +17,11 @@ import {
   coffeePilotCafes,
   coffeePilotDay,
   coffeePilotPinLabel,
-  coffeePilotRows,
   coffeePilotShards,
   coffeePilotSourceLine,
   coffeePilotToGeoJSON,
   type CoffeePilotCafe,
+  type CoffeePilotRow,
 } from "@/lib/coffeePilot";
 import { LONDON_VENUE_MANIFEST_PATH, loadCoffeePilotCafes } from "@/lib/coffeePilotLoader";
 import { parseLondonVenueManifest, type LondonVenue } from "@/lib/londonVenueShards";
@@ -52,58 +52,23 @@ const cafe = (overrides: Partial<LondonVenue> = {}): LondonVenue => ({
   ...overrides,
 });
 
-const row = (overrides: Record<string, unknown> = {}) => ({
+const row = (overrides: Partial<CoffeePilotRow> = {}): CoffeePilotRow => ({
   venueId: "venue-osm-n1",
-  venueName: "Example Cafe",
   drink: "flat white",
   priceGbp: 3.4,
   sourceUrl: "https://example.test/menu",
   observedAt: "2026-10-03",
-  standing: "listed",
   ...overrides,
-});
-
-describe("coffee pilot rows", () => {
-  it("keeps every committed row", () => {
-    expect(coffeePilotRows(pilotFile)).toHaveLength(pilotFile.rows.length);
-  });
-
-  it("drops a row that is not a listed price for one of the three drinks", () => {
-    const rows = coffeePilotRows({
-      rows: [
-        row(),
-        row({ drink: "coffee" }),
-        row({ standing: "estimate" }),
-        row({ priceGbp: 0 }),
-        row({ sourceUrl: "not a page" }),
-        row({ observedAt: "yesterday" }),
-        null,
-      ],
-    });
-    expect(rows).toEqual([
-      {
-        venueId: "venue-osm-n1",
-        drink: "flat white",
-        priceGbp: 3.4,
-        sourceUrl: "https://example.test/menu",
-        observedAt: "2026-10-03",
-      },
-    ]);
-    expect(coffeePilotRows(null)).toEqual([]);
-    expect(coffeePilotRows({ rows: "x" })).toEqual([]);
-  });
 });
 
 describe("coffee pilot cafes", () => {
   it("keeps three drinks as three facts, in menu order", () => {
     const [joined] = coffeePilotCafes(
-      coffeePilotRows({
-        rows: [
-          row({ drink: "matcha latte", priceGbp: 4.5 }),
-          row({ drink: "latte", priceGbp: 3.8 }),
-          row({ drink: "flat white", priceGbp: 3.7 }),
-        ],
-      }),
+      [
+        row({ drink: "matcha latte", priceGbp: 4.5 }),
+        row({ drink: "latte", priceGbp: 3.8 }),
+        row({ drink: "flat white", priceGbp: 3.7 }),
+      ],
       [cafe()],
     );
     expect(joined.prices.map((price) => [price.drink, price.priceGbp])).toEqual([
@@ -115,19 +80,14 @@ describe("coffee pilot cafes", () => {
 
   it("draws only a row the layer places as a cafe", () => {
     const joined = coffeePilotCafes(
-      coffeePilotRows({
-        rows: [row(), row({ venueId: "venue-osm-n2" }), row({ venueId: "venue-osm-n3" })],
-      }),
+      [row(), row({ venueId: "venue-osm-n2" }), row({ venueId: "venue-osm-n3" })],
       [cafe(), cafe({ id: "venue-osm-n2", kind: "bar" })],
     );
     expect(joined.map((item) => item.id)).toEqual(["venue-osm-n1"]);
   });
 
   it("names the drink on the pin, and an absent flat white is never borrowed", () => {
-    const [onlyMatcha] = coffeePilotCafes(
-      coffeePilotRows({ rows: [row({ drink: "matcha latte", priceGbp: 5.5 })] }),
-      [cafe()],
-    );
+    const [onlyMatcha] = coffeePilotCafes([row({ drink: "matcha latte", priceGbp: 5.5 })], [cafe()]);
     expect(coffeePilotPinLabel(onlyMatcha)).toBe("£5.50 matcha latte");
     expect(onlyMatcha.prices.map((price) => price.drink)).toEqual(["matcha latte"]);
     const empty: CoffeePilotCafe = { ...onlyMatcha, prices: [] };

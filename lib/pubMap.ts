@@ -20,6 +20,7 @@ import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobile
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
+import type { CoffeePilotStatus } from "@/lib/coffeePilot";
 import { isLondonVenueId } from "@/lib/londonVenueShards";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import {
@@ -788,6 +789,24 @@ export function openingViewportFrom(
  */
 export function isRecordlessMapSelection(id: string): boolean {
   return isUkBaseId(id) || isLondonVenueId(id);
+}
+
+/**
+ * The Shoreditch pilot cafe a selection opens, and whether the selection should
+ * be let go. A cafe opens only while the coffee lens is on, so leaving the lens
+ * closes its sheet and the pint map stays the pint map. A `venue-osm-` id the
+ * pilot cannot place once its read has settled has no sheet to open either.
+ */
+export function coffeePilotSelection<Cafe>(input: {
+  lensOn: boolean;
+  selectedVenueId: string;
+  status: CoffeePilotStatus;
+  byId: ReadonlyMap<string, Cafe>;
+}): { cafe: Cafe | null; release: boolean } {
+  if (!isLondonVenueId(input.selectedVenueId)) return { cafe: null, release: false };
+  const cafe = input.lensOn ? input.byId.get(input.selectedVenueId) ?? null : null;
+  const settled = input.status === "ready" || input.status === "failed";
+  return { cafe, release: !cafe && (!input.lensOn || settled) };
 }
 
 /**

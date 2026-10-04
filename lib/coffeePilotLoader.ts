@@ -5,9 +5,9 @@
 
 import {
   coffeePilotCafes,
-  coffeePilotRows,
   coffeePilotShards,
   type CoffeePilotCafe,
+  type CoffeePilotRow,
 } from "@/lib/coffeePilot";
 import {
   parseLondonVenueManifest,
@@ -44,5 +44,5 @@ export async function loadCoffeePilotCafes(
       return shard;
     }),
   );
-  return coffeePilotCafes(coffeePilotRows(pilot.default), shards.flat());
+  return coffeePilotCafes(pilot.default.rows as readonly CoffeePilotRow[], shards.flat());
 }

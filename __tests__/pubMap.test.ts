@@ -23,6 +23,7 @@ import {
   ambientBannerLaneOpen,
   builtStopCountFor,
   coordinatedMapOverlay,
+  coffeePilotSelection,
   crawlJourneysWanted,
   drinkFiltersActiveFor,
   drinkIndexStatusFor,
@@ -1030,6 +1031,45 @@ describe("mapSelectionFrame", () => {
     });
     expect(answer.detailOpen).toBe(true);
     expect(answer.resolvable).toBe(false);
+  });
+});
+
+describe("coffeePilotSelection", () => {
+  const crosstown = { id: "venue-osm-w271641406" };
+  const byId = new Map([[crosstown.id, crosstown]]);
+
+  it("opens a pilot cafe while the coffee lens is on", () => {
+    expect(
+      coffeePilotSelection({ lensOn: true, selectedVenueId: crosstown.id, status: "ready", byId }),
+    ).toEqual({ cafe: crosstown, release: false });
+  });
+
+  it("closes the cafe sheet and lets the selection go when the reader leaves the coffee lens", () => {
+    expect(
+      coffeePilotSelection({ lensOn: false, selectedVenueId: crosstown.id, status: "ready", byId }),
+    ).toEqual({ cafe: null, release: true });
+  });
+
+  it("holds a cafe selection while the pilot is still being read", () => {
+    expect(
+      coffeePilotSelection({ lensOn: true, selectedVenueId: crosstown.id, status: "loading", byId: new Map() }),
+    ).toEqual({ cafe: null, release: false });
+  });
+
+  it("lets go of a cafe the settled read could not place", () => {
+    for (const status of ["ready", "failed"] as const) {
+      expect(
+        coffeePilotSelection({ lensOn: true, selectedVenueId: "venue-osm-n9", status, byId }),
+      ).toEqual({ cafe: null, release: true });
+    }
+  });
+
+  it("leaves every other selection alone", () => {
+    for (const selectedVenueId of ["", "v1", "venue-uk-9"]) {
+      expect(
+        coffeePilotSelection({ lensOn: false, selectedVenueId, status: "ready", byId }),
+      ).toEqual({ cafe: null, release: false });
+    }
   });
 });
 

@@ -270,6 +270,11 @@ const CoffeePilotSheet = dynamic(
   () => import("@/components/map/CoffeePilotSheet"),
   { ssr: false },
 );
+// Only ever mounted when the coffee lens could not read the pilot.
+const CoffeePilotLoadFailed = dynamic(
+  () => import("@/components/map/CoffeePilotLoadFailed"),
+  { ssr: false },
+);
 const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
   ssr: false,
 });
@@ -392,7 +397,6 @@ import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import { useCoffeePilotCafes } from "@/components/map/useCoffeePilotCafes";
 import type { CoffeePilotCafe } from "@/lib/coffeePilot";
-import { isLondonVenueId } from "@/lib/londonVenueShards";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
@@ -601,6 +605,7 @@ import {
   drinkIndexStatusFor,
   firstIdOf,
   crawlJourneysWanted,
+  coffeePilotSelection,
   mapArrivalFrame,
   mapDrinkLensSelection,
   isRecordlessMapSelection,
@@ -1895,14 +1900,17 @@ export default function PubMap({
   }, [loadDrinkCategoryIndex, mapDrinkLensCategory]);
   // The Shoreditch coffee pilot (lib/coffeePilot.ts) draws its cafes while the
   // coffee lane owns a London map, and resolves a selected `venue-osm-` id to
-  // its cafe, so a reloaded ?sel= link still opens that cafe's sheet.
+  // its cafe, so a reloaded ?sel= link under the coffee lane still opens that
+  // cafe's sheet.
   const coffeePilotLensOn = isLondon && mapDrinkLensCategory === "coffee";
-  const coffeePilot = useCoffeePilotCafes(
-    coffeePilotLensOn || isLondonVenueId(selectedVenueId),
-  );
-  const selectedCoffeeCafe = isLondonVenueId(selectedVenueId)
-    ? coffeePilot.byId.get(selectedVenueId) ?? null
-    : null;
+  const coffeePilot = useCoffeePilotCafes(coffeePilotLensOn);
+  const coffeePilotPick = coffeePilotSelection({
+    lensOn: coffeePilotLensOn,
+    selectedVenueId,
+    status: coffeePilot.status,
+    byId: coffeePilot.byId,
+  });
+  const selectedCoffeeCafe = coffeePilotPick.cafe;
   // Whichever cross-venue index is answering the map right now reports its own
   // completeness, so the price key never claims a read it did not finish.
   const drinkIndexStatus: CategoryPriceIndexStatus = useMemo(
@@ -3400,16 +3408,17 @@ export default function PubMap({
   // while it IS the selection.
   const basePubOpen = mapSelection.basePubOpen;
   const coffeeCafeOpen = mapSelection.coffeeCafeOpen;
-  // A `venue-osm-` id the pilot does not hold, or one the pilot could not be
-  // read to place, has no sheet to open: let it go rather than hold a skeleton.
+  // A `venue-osm-` id off the coffee lens, or one the pilot does not hold or
+  // could not be read to place, has no sheet to open: let it go rather than
+  // hold a skeleton.
+  const releaseCoffeeSelection = coffeePilotPick.release;
   useEffect(() => {
-    if (!isLondonVenueId(selectedVenueId) || coffeeCafeOpen) return;
-    if (coffeePilot.status !== "ready" && coffeePilot.status !== "failed") return;
+    if (!releaseCoffeeSelection) return;
     const unresolved = selectedVenueId;
     queueMicrotask(() => {
       setSelectedVenueId((current) => (current === unresolved ? "" : current));
     });
-  }, [coffeeCafeOpen, coffeePilot.status, selectedVenueId, setSelectedVenueId]);
+  }, [releaseCoffeeSelection, selectedVenueId, setSelectedVenueId]);
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
   // because the id alone could not say which shard cell a shared/reloaded
   // link should stream. Empty for curated selections, which clears the param.
@@ -5511,9 +5520,6 @@ export default function PubMap({
   }
 
   function renderVenuePanel() {
-    if (coffeeCafeOpen && selectedCoffeeCafe) {
-      return <CoffeePilotSheet cafe={selectedCoffeeCafe} />;
-    }
     if (basePubOpen && selectedBasePub) {
       return (
         <UnverifiedPubSheet
@@ -5631,7 +5637,11 @@ export default function PubMap({
     );
   }
 
-  const venuePanel = renderVenuePanel();
+  const venuePanel = selectedCoffeeCafe ? (
+    <CoffeePilotSheet cafe={selectedCoffeeCafe} />
+  ) : (
+    renderVenuePanel()
+  );
   const storyPanel = renderStoryPanel();
   const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
@@ -6268,6 +6278,21 @@ export default function PubMap({
     ) : null;
   }
 
+  function renderCoffeePilotLoadFailed() {
+    const visible =
+      coffeePilotLensOn &&
+      coffeePilot.status === "failed" &&
+      trimmedMapQuery.length === 0 &&
+      !mapCanvasUnavailable &&
+      mapOverlay !== "search" &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen;
+    return visible ? <CoffeePilotLoadFailed onRetry={coffeePilot.retry} /> : null;
+  }
+
   /* The map itself. Full-bleed base layer; every panel slides in over it.
 
      When the canvas cannot be shown at all - its module never loaded, or it
@@ -6784,6 +6809,7 @@ export default function PubMap({
         {renderMapLoadingChrome()}
         {renderMapCanvas()}
         {renderMapSearchEmptyState()}
+        {renderCoffeePilotLoadFailed()}
         {renderDesktopToolbar()}
         {renderDesktopMapOverlays()}
 
