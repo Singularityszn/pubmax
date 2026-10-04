@@ -1,6 +1,6 @@
 /** One stderr line per failing check, printed after the JSON report. */
 export const REVIEW_SCOPE_HINTS: Readonly<
-  Record<"generated" | "skill-pack" | "pipeline-data", string>
+  Record<"generated" | "skill-pack" | "ci-data" | "ci-flake", string>
 >;
 
 export const MAX_REVIEW_FILES: number;
@@ -57,17 +57,20 @@ export function changedFilesFromGit(
   head: string,
   cwd: string,
 ): string[];
-/** Subject prefix of a commit the no-mistakes pipeline wrote. */
-export const PIPELINE_COMMIT_SUBJECT: RegExp;
+/** Subject prefix of a no-mistakes CI-step fix commit. */
+export const CI_FIX_COMMIT_SUBJECT: RegExp;
+
+/** Known-flake specs another lane owns, which a CI repair may not edit. */
+export const KNOWN_FLAKE_SPECS: readonly string[];
 
 export type BranchCommit = { sha: string; subject: string; paths: string[] };
 
-/** Bundled-data paths that no-mistakes pipeline commits touched. */
-export function pipelineDataChurn(
-  commits: readonly BranchCommit[],
-): Array<{ sha: string; path: string }>;
+export type CiFixChurn = { sha: string; path: string; category: "ci-data" | "ci-flake" };
+
+/** Bundled-data and known-flake paths that no-mistakes CI-step fix commits touched. */
+export function ciFixChurn(commits: readonly BranchCommit[]): CiFixChurn[];
 export function commitsFromGit(base: string, head: string, cwd: string): BranchCommit[];
 export function runReviewScopeCli(
   argv?: string[],
   cwd?: string,
-): ReviewScopeReport & { pipelineChurn: Array<{ sha: string; path: string }> };
+): ReviewScopeReport & { ciChurn: CiFixChurn[] };

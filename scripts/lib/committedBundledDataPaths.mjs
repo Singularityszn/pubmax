@@ -3,8 +3,9 @@
 // pick up generator churn. A builder can also write a shard file HEAD does not
 // have, and `git restore` leaves an untracked file alone, so a restore also
 // removes the untracked files the wrapped command created.
-// .no-mistakes.yaml protects the same trees, because a CI repair runs
-// builders outside any wrapper (fence: __tests__/noMistakesProtectedPaths.test.ts).
+// A no-mistakes CI repair runs builders outside any wrapper, so the Review
+// scope check fails a CI-step commit that touches these trees
+// (scripts/check_review_scope.mjs).
 
 import { spawnSync } from "node:child_process";
 import { rmSync } from "node:fs";

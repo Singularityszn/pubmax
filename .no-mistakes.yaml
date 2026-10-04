@@ -13,34 +13,3 @@ commands:
   # The Push step commits what a step leaves behind. In a git checkout the slim
   # shard builders stamp HEAD over the committed "local" marker, so pin it.
   test: "npm run verify:no-mistakes"
-
-# An automatic Review, Test, Document, Lint or CI commit that would include a
-# dirty protected path is refused, and the step parks for the operator. The CI
-# step runs no repository command, so a CI repair that runs a builder outside
-# scripts/run-with-restored-*.mjs leaves stamped shards behind: on PR 1862 one
-# such commit carried 111 public/data files and next-env.d.ts.
-# Like commands.*, this list is read ONLY from the origin/main copy.
-# Fence: __tests__/noMistakesProtectedPaths.test.ts
-protected_paths:
-  # Bundled data: every data file under COMMITTED_BUNDLED_DATA_PATHS
-  # (scripts/lib/committedBundledDataPaths.mjs), but not the README files the
-  # Document step keeps current. A `*` never crosses a `/` and there is no
-  # negation, so each depth is its own pattern. The fence fails when a tracked
-  # data file sits deeper than the last one.
-  - "public/data/*.json"
-  - "public/data/*/*.json"
-  - "public/data/*/*.geojson"
-  - "public/data/*/*/*.json"
-  - "public/data/*/*/*/*.json"
-  - "public/data/*/*/*/*/*.json"
-  # next dev and next build rewrite its route-types import.
-  - "next-env.d.ts"
-  # Known flakes another lane owns. A CI fixer that edits one is chasing a
-  # flake on someone else's code: CI repairs rewrote this spec on PRs 1862,
-  # 1870, 1880, 1909 and 1950. Re-run the check instead.
-  - "e2e/map-surface-history.spec.ts"
-
-ci:
-  # Re-run a failed check once before the CI fixer reads it as a defect, so a
-  # known flake that passes on a second attempt never reaches an agent.
-  rerun_transient: 1

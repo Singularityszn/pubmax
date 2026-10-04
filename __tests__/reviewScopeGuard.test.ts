@@ -1,15 +1,16 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
 import {
   changedFilesFromGit,
+  ciFixChurn,
   commitsFromGit,
+  KNOWN_FLAKE_SPECS,
   MAX_REVIEW_FILES,
   MAX_RUNTIME_DOMAINS,
-  pipelineDataChurn,
   REVIEW_SCOPE_HINTS,
   summarizeReviewScope,
 } from "../scripts/check_review_scope.mjs";
@@ -501,81 +502,107 @@ describe("review scope guard", () => {
   });
 });
 
-describe("pipeline commits and bundled data", () => {
-  it("flags bundled data in a no-mistakes commit, whatever the step", () => {
-    const churn = pipelineDataChurn([
+describe("CI-step fix commits", () => {
+  it("flags bundled data and a known-flake spec in a no-mistakes(ci) commit", () => {
+    const churn = ciFixChurn([
       {
         sha: "ci",
         subject: "no-mistakes(ci): Browser law pins failed",
-        paths: ["e2e/map-surface-history.spec.ts", "public/data/venues_slim.core.json"],
+        paths: ["e2e/map-surface-history.spec.ts", "lib/plan.ts", "public/data/venues_slim.core.json"],
       },
-      { sha: "doc", subject: "no-mistakes(document): Refresh docs", paths: ["public/data/uk_base/a.json"] },
     ]);
 
     expect(churn).toEqual([
-      { sha: "ci", path: "public/data/venues_slim.core.json" },
-      { sha: "doc", path: "public/data/uk_base/a.json" },
+      { sha: "ci", path: "e2e/map-surface-history.spec.ts", category: "ci-flake" },
+      { sha: "ci", path: "public/data/venues_slim.core.json", category: "ci-data" },
     ]);
   });
 
-  it("leaves a person's data commit, a revert and the data READMEs alone", () => {
+  it("names only known-flake specs that exist", () => {
+    expect(KNOWN_FLAKE_SPECS).toContain("e2e/map-surface-history.spec.ts");
+    for (const spec of KNOWN_FLAKE_SPECS) expect(existsSync(join(process.cwd(), spec))).toBe(true);
+  });
+
+  it("leaves data-lane review and document fixes, other pipeline subjects, people and READMEs alone", () => {
     expect(
-      pipelineDataChurn([
+      ciFixChurn([
+        { sha: "review", subject: "no-mistakes(review): Rebuild shards", paths: ["public/data/venues_slim.json"] },
+        { sha: "doc", subject: "no-mistakes(document): Refresh docs", paths: ["public/data/uk_base/a.json"] },
+        {
+          sha: "test",
+          subject: "no-mistakes(test): Pin the flake",
+          paths: ["e2e/map-surface-history.spec.ts"],
+        },
+        { sha: "fallback", subject: "no-mistakes: apply agent fixes", paths: ["public/data/venues_slim.json"] },
         { sha: "author", subject: "feat(data): add pubs", paths: ["public/data/venues_slim.json"] },
         {
           sha: "revert",
           subject: 'Revert "no-mistakes(ci): Browser law pins failed"',
-          paths: ["public/data/venues_slim.json"],
+          paths: ["public/data/venues_slim.json", "e2e/map-surface-history.spec.ts"],
         },
         {
-          sha: "doc",
-          subject: "no-mistakes(document): Correct price docs",
+          sha: "ci-notes",
+          subject: "no-mistakes(ci): Correct price notes",
           paths: ["public/data/uk_prices/README.md", "public/data/AGENTS.md"],
         },
       ]),
     ).toEqual([]);
   });
 
-  it("fails the CLI on churn a later revert hid from the net diff", () => {
-    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-pipeline-"));
+  it("fails the CLI on CI churn a later revert hid from the net diff, and passes a review data fix", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-ci-fix-"));
     const git = (...args: string[]) =>
       execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+    const scope = (base: string, head: string) =>
+      spawnSync(
+        process.execPath,
+        [join(process.cwd(), "scripts/check_review_scope.mjs"), "--base", base, "--head", head, "--repo", repo],
+        { encoding: "utf8" },
+      );
 
     try {
       git("init", "-q");
       git("config", "user.email", "review-scope@example.invalid");
       git("config", "user.name", "Review Scope Test");
       mkdirSync(join(repo, "public/data"), { recursive: true });
+      mkdirSync(join(repo, "e2e"), { recursive: true });
       writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"local"}\n');
+      writeFileSync(join(repo, "e2e/map-surface-history.spec.ts"), "// spec\n");
       git("add", ".");
       git("commit", "-qm", "seed");
       const base = git("rev-parse", "HEAD");
 
-      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"746811cfdddc"}\n');
-      mkdirSync(join(repo, "e2e"), { recursive: true });
-      writeFileSync(join(repo, "e2e/flake.spec.ts"), "// retried\n");
+      mkdirSync(join(repo, "scripts"), { recursive: true });
+      writeFileSync(join(repo, "scripts/build_slim_index.mjs"), "// fixed builder\n");
+      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"rebuilt"}\n');
       git("add", "-A");
-      git("commit", "-qm", "no-mistakes(ci): Browser law pins failed");
+      git("commit", "-qm", "no-mistakes(review): Fix the slim builder and rebuild shards");
+      const reviewed = git("rev-parse", "HEAD");
+
+      const reviewOnly = scope(base, reviewed);
+      expect(reviewOnly.status).toBe(0);
+      expect(JSON.parse(reviewOnly.stdout).ciChurn).toEqual([]);
+
+      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"746811cfdddc"}\n');
+      writeFileSync(join(repo, "e2e/map-surface-history.spec.ts"), "// retried\n");
+      git("commit", "-qam", "no-mistakes(ci): Browser law pins failed");
       const churned = git("rev-parse", "HEAD");
       git("revert", "--no-edit", churned);
       const head = git("rev-parse", "HEAD");
 
-      expect(commitsFromGit(base, head, repo).map((commit) => commit.paths)).toEqual([
-        ["e2e/flake.spec.ts", "public/data/venues_slim.json"],
-        ["e2e/flake.spec.ts", "public/data/venues_slim.json"],
+      expect(commitsFromGit(reviewed, head, repo).map((commit) => commit.paths)).toEqual([
+        ["e2e/map-surface-history.spec.ts", "public/data/venues_slim.json"],
+        ["e2e/map-surface-history.spec.ts", "public/data/venues_slim.json"],
       ]);
-      expect(summarizeReviewScope(changedFilesFromGit(base, head, repo)).ok).toBe(true);
+      expect(summarizeReviewScope(changedFilesFromGit(reviewed, head, repo)).ok).toBe(true);
 
-      const result = spawnSync(
-        process.execPath,
-        [join(process.cwd(), "scripts/check_review_scope.mjs"), "--base", base, "--head", head, "--repo", repo],
-        { encoding: "utf8" },
-      );
+      const result = scope(base, head);
       expect(result.status).toBe(1);
-      expect(JSON.parse(result.stdout).pipelineChurn).toEqual([
-        { sha: churned, path: "public/data/venues_slim.json" },
+      expect(JSON.parse(result.stdout).ciChurn).toEqual([
+        { sha: churned, path: "e2e/map-surface-history.spec.ts", category: "ci-flake" },
+        { sha: churned, path: "public/data/venues_slim.json", category: "ci-data" },
       ]);
-      expect(result.stderr).toBe(`${REVIEW_SCOPE_HINTS["pipeline-data"]}\n`);
+      expect(result.stderr).toBe(`${REVIEW_SCOPE_HINTS["ci-data"]}\n${REVIEW_SCOPE_HINTS["ci-flake"]}\n`);
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

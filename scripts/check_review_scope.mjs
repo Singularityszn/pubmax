@@ -4,7 +4,8 @@
 // dependency-free so CI can run it before installing the application.
 //
 // It FAILS on two things: generated or skill-pack output in a human review,
-// and a no-mistakes pipeline commit that touches committed bundled data.
+// and a no-mistakes CI-step fix commit that touches committed bundled data or
+// a known-flake spec another lane owns.
 // The file count and the runtime-domain count are warnings, because a wide
 // review is a judgement and a machine-written file in one is not. The single
 // exception is a REGENERATED LANE, declared below: output the same diff can be
@@ -21,8 +22,10 @@ export const REVIEW_SCOPE_HINTS = {
     "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
   "skill-pack":
     "A skill pack in this diff sits outside the project skill root. Move it under .agents/skills/; rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
-  "pipeline-data":
-    "A no-mistakes pipeline commit in this branch changed committed bundled data. Builder churn is never part of an automatic fix: drop those paths from the commit, and keep .no-mistakes.yaml protected_paths covering them.",
+  "ci-data":
+    "A no-mistakes(ci) commit in this branch changed committed bundled data. Builder churn is never part of a CI repair: rewrite the branch without those paths; rule: docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command",
+  "ci-flake":
+    "A no-mistakes(ci) commit in this branch edited a known-flake spec in KNOWN_FLAKE_SPECS (scripts/check_review_scope.mjs). Re-run the check instead, and rewrite the branch without that edit; rule: docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command",
 };
 
 export const MAX_REVIEW_FILES = 150;
@@ -319,29 +322,34 @@ function parseNameStatus(line) {
 }
 
 /**
- * THE PIPELINE NEVER COMMITS BUNDLED DATA.
+ * A CI REPAIR NEVER COMMITS BUNDLED DATA OR ANOTHER LANE'S FLAKE.
  *
- * A no-mistakes step commits whatever its agent left in the run worktree. On
- * PR 1862 a CI repair ran a builder outside the restore wrappers and committed
- * 111 stamped public/data files. A later revert hid it from the net diff, so
- * this check reads every pipeline commit, not the diff. A person may commit
- * regenerated data; an automatic fix may not. The README files beside the
- * data stay open to the Document step.
+ * The no-mistakes CI step runs no repository command, so a CI repair that
+ * runs a builder itself is outside the restore wrappers. On PR 1862 one such
+ * repair committed 111 stamped public/data files, and CI repairs rewrote
+ * e2e/map-surface-history.spec.ts on PRs 1862, 1870, 1880, 1909 and 1950. A
+ * later revert hides a commit from the net diff, so this check reads every
+ * CI-step commit, not the diff. Review and Document fixes on a data branch
+ * may commit regenerated shards; only a CI repair may not.
  */
-export const PIPELINE_COMMIT_SUBJECT = /^no-mistakes\([a-z-]+\):/;
+export const CI_FIX_COMMIT_SUBJECT = /^no-mistakes\(ci\):/;
+
+/** Specs another lane owns that fail intermittently. A CI repair re-runs them, never edits them. */
+export const KNOWN_FLAKE_SPECS = ["e2e/map-surface-history.spec.ts"];
 
 /**
- * Bundled-data paths that pipeline commits touched.
+ * Bundled-data and known-flake paths that CI-step fix commits touched.
  * @param {{ sha: string, subject: string, paths: string[] }[]} commits
  */
-export function pipelineDataChurn(commits) {
+export function ciFixChurn(commits) {
   return commits
-    .filter((commit) => PIPELINE_COMMIT_SUBJECT.test(commit.subject))
+    .filter((commit) => CI_FIX_COMMIT_SUBJECT.test(commit.subject))
     .flatMap((commit) =>
-      commit.paths
-        .map(normalizeReviewPath)
-        .filter(isBundledDataFile)
-        .map((path) => ({ sha: commit.sha, path })),
+      commit.paths.map(normalizeReviewPath).flatMap((path) => {
+        if (isBundledDataFile(path)) return [{ sha: commit.sha, path, category: "ci-data" }];
+        if (KNOWN_FLAKE_SPECS.includes(path)) return [{ sha: commit.sha, path, category: "ci-flake" }];
+        return [];
+      }),
     );
 }
 
@@ -386,8 +394,8 @@ export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cw
   const args = parseArgs(argv);
   const files = changedFilesFromGit(args.base, args.head, args.repo ?? cwd);
   const scope = summarizeReviewScope(files);
-  const pipelineChurn = pipelineDataChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd));
-  const report = { ...scope, pipelineChurn, ok: scope.ok && pipelineChurn.length === 0 };
+  const ciChurn = ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd));
+  const report = { ...scope, ciChurn, ok: scope.ok && ciChurn.length === 0 };
   console.log(JSON.stringify({ base: args.base, head: args.head, ...report }, null, 2));
   return report;
 }
@@ -397,9 +405,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     const report = runReviewScopeCli();
     if (!report.ok) {
       for (const [category, hint] of Object.entries(REVIEW_SCOPE_HINTS)) {
-        if (report.forbidden.some((item) => item.category === category)) console.error(hint);
+        if ([...report.forbidden, ...report.ciChurn].some((item) => item.category === category)) {
+          console.error(hint);
+        }
       }
-      if (report.pipelineChurn.length > 0) console.error(REVIEW_SCOPE_HINTS["pipeline-data"]);
       process.exitCode = 1;
     }
   } catch (error) {
