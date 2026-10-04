@@ -3,7 +3,7 @@ import path from "node:path";
 import { expect, it } from "vitest";
 
 import { readFreshnessArtifact, resolveDatasetStamp } from "@/lib/freshnessArtifact";
-import { placesEnrichmentStamp } from "../scripts/lib/placesEnrichmentStamp.mjs";
+import { placesEnrichmentStamp, readPlacesEnrichmentPacks } from "../scripts/lib/placesEnrichmentStamp.mjs";
 
 const root = path.resolve(__dirname, "..");
 const read = (file: string) => JSON.parse(readFileSync(path.join(root, file), "utf8"));
@@ -46,8 +46,10 @@ it("keeps copied content limited to verified identities and individually dated a
   expect(pack.summary.errors).toBe(pack.errors.length);
 });
 
-it("dates google_places_content from the committed stamp of the pack, never the full pack", () => {
-  const pack = read("data/places_enrichment.json");
+it("dates google_places_content from the oldest row of every published pack through the committed stamp, never a full pack", () => {
+  const packs = readPlacesEnrichmentPacks(root);
+  expect(Object.keys(packs)).toEqual(expect.arrayContaining(["places_enrichment", "places_enrichment_uk_cities"]));
+  const oldest = Object.values(packs).flatMap((pack) => pack.venues.map((row) => row.observedAt)).sort()[0];
   const dataset = read("data/freshness_registry.json").datasets.find((row: { id: string }) => row.id === "google_places_content");
   const opened: (string | null)[] = [];
   const resolution = resolveDatasetStamp(root, dataset, (dir, relPath) => {
@@ -55,6 +57,24 @@ it("dates google_places_content from the committed stamp of the pack, never the 
     return readFreshnessArtifact(dir, relPath);
   });
   expect(opened).toEqual(["data/places_enrichment_stamp.json"]);
-  expect(read("data/places_enrichment_stamp.json")).toEqual(placesEnrichmentStamp(pack));
-  expect(resolution.observedAt).toBe(pack.observedAt);
+  expect(read("data/places_enrichment_stamp.json")).toEqual(placesEnrichmentStamp(packs));
+  expect(resolution.observedAt).toBe(oldest);
+});
+
+it("keeps UK core copies inside their verified ledger and the shared task cap", () => {
+  const pack = read("data/places_enrichment_uk_cities.json");
+  const verified = new Map(read("data/places_verification/uk_cities.json").pubs.map((row: { venueId: string; googlePlaceId: string }) => [row.venueId, row.googlePlaceId]));
+  expect(new Set(pack.venues.map((row: { venueId: string }) => row.venueId)).size).toBe(pack.venues.length);
+  for (const row of pack.venues) {
+    expect(row.googlePlaceId).toBe(verified.get(row.venueId));
+    for (const field of ["regularOpeningHours", "formattedAddress", "nationalPhoneNumber", "websiteUri"]) {
+      if (!row[field]) continue;
+      expect(row[field].source).toBe("google_places");
+      expect(row[field].observedAt).toBe(row.observedAt);
+    }
+  }
+  expect(pack.spend.usdPerThousand).toBe(20);
+  expect(pack.spend.reservedUsd).toBe(pack.spend.attemptedCalls * 20 / 1000);
+  expect(pack.spend.reservedUsd).toBeLessThanOrEqual(28);
+  expect(pack.spend.monthReservedUsd).toBeLessThanOrEqual(28);
 });

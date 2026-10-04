@@ -77,7 +77,8 @@ it("dry run makes no calls; live copy follows priority, preserves dates on resum
   const before = readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8");
   expect(JSON.parse(before).spend.reservedUsd).toBe(0.06);
   const { version, inputHash, observedAt, spend, summary, venues } = JSON.parse(before);
-  expect(JSON.parse(readFileSync(path.join(dir, "data/places_enrichment_stamp.json"), "utf8"))).toEqual({ version, inputHash, observedAt, spend, summary });
+  expect(version).toBe(1);
+  expect(JSON.parse(readFileSync(path.join(dir, "data/places_enrichment_stamp.json"), "utf8"))).toEqual({ version, observedAt, packs: { places_enrichment: { inputHash, observedAt, spend, summary } } });
   expect(observedAt).toBe(venues.map((row: { observedAt: string }) => row.observedAt).sort()[0]);
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   expect(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8")).toBe(before);
@@ -272,4 +273,42 @@ it("reads only the London ledger, so another city ledger neither changes the pus
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   expect(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8")).toBe(before);
   expect(calls(dir)).not.toContain("ChIJCity001");
+});
+
+it("enriches the explicit UK pack independently of a completed London resume", () => {
+  const dir = fixture("runner-uk-pack");
+  expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
+  const london = readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8");
+  writeFileSync(path.join(dir, "data/places_verification/uk_cities.json"), JSON.stringify({ pubs: [{ venueId: "venue-uk-n4", googlePlaceId: "ChIJCity0004" }] }));
+  const result = run(dir, ["--write", "--exclusive", "--pack=uk_cities"]);
+  expect(result.status, result.stderr).toBe(0);
+  expect(calls(dir).at(-1)).toBe("ChIJCity0004");
+  expect(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8")).toBe(london);
+  const uk = JSON.parse(readFileSync(path.join(dir, "data/places_enrichment_uk_cities.json"), "utf8"));
+  expect(uk.spend.reservedUsd).toBe(0.02);
+  expect(uk.venues[0].formattedAddress.source).toBe("google_places");
+  const stamp = JSON.parse(readFileSync(path.join(dir, "data/places_enrichment_stamp.json"), "utf8"));
+  expect(Object.keys(stamp.packs)).toEqual(["places_enrichment", "places_enrichment_uk_cities"]);
+  expect(stamp.packs.places_enrichment_uk_cities).toEqual({ inputHash: uk.inputHash, observedAt: uk.observedAt, spend: uk.spend, summary: uk.summary });
+  expect(stamp.observedAt).toBe([JSON.parse(london).observedAt, uk.observedAt].sort()[0]);
+  expect(run(dir, ["--write", "--exclusive", "--pack=uk_cities"]).status).toBe(0);
+  expect(calls(dir)).toHaveLength(4);
+});
+
+it("shares the USD 28 task cap across UK core and both extras packs, including failed attempts and fresh clones", () => {
+  const dir = fixture("runner-task-cap");
+  writeFileSync(path.join(dir, "data/places_verification/uk_cities.json"), JSON.stringify({ pubs: [{ venueId: "venue-uk-n4", googlePlaceId: "ChIJCity0004" }] }));
+  const file = path.join(dir, "data/places_enrichment_uk_cities.json");
+  writeFileSync(file, JSON.stringify({ version: 1, spend: { attemptedCalls: 1398, monthAttemptedCalls: 1398, month: MONTH }, venues: [], errors: [] }));
+  const args = ["--write", "--exclusive", "--pack=london_extras"];
+  const live = run(dir, args, "all");
+  expect(live.status, live.stderr).toBe(1);
+  const extra = JSON.parse(readFileSync(path.join(dir, "data/places_enrichment_london_extras.json"), "utf8"));
+  expect(extra.spend.reservedUsd).toBe(0.025);
+  rmSync(path.join(dir, "data/places_verification/enrichment_london_extras_progress.json"));
+  const dry = run(dir, ["--dry-run", "--pack=london_extras"]);
+  expect(JSON.parse(dry.stdout)).toMatchObject({ plannedCalls: 0, taskReservedUsd: 27.985 });
+  expect(JSON.parse(dry.stdout).fieldMask.split(",")).toEqual(expect.arrayContaining(["allowsDogs", "goodForWatchingSports", "servesLunch", "reservable", "restroom", "paymentOptions"]));
+  expect(run(dir, args).status).toBe(0);
+  expect(calls(dir)).toHaveLength(1);
 });
