@@ -517,6 +517,13 @@ const PUB_PIN_LAYERS = [
 
 
 
+function experienceViewSuspendsBasePubs(
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+  drinkCategory: string | null,
+): boolean {
+  return lensPrices !== null && drinkCategory === null;
+}
+
 export default function PubMapCanvas({
   venues,
   filteredVenueCount = venues.length,
@@ -3457,9 +3464,8 @@ export default function PubMapCanvas({
     // base pins rather than curated venues, so it is passed through rather
     // than suspending the layer the way an experience view does.
     spoonsValue,
-    // A non-null lensPrices map is the one signal that an experience view owns
-    // the map, the same one the curated pins read below.
-    suspended: lensPrices !== null,
+    // Food and no-alcohol replace pub presence. A drink choice keeps base pubs.
+    suspended: experienceViewSuspendsBasePubs(lensPrices, drinkCategory),
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.

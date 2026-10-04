@@ -340,6 +340,20 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
 });
 
+test("selecting Gin keeps street-level UK pub presence available", async ({ page }) => {
+  const requests = ukBaseRequests(page);
+  const response = await page.goto("/map?drink=gin");
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("checkbox", { name: "Drink: Gin", exact: true })).toBeVisible();
+  const wrap = page.locator(".mapCanvasWrap");
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", { timeout: 30_000 });
+  await expect.poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), {
+    timeout: 30_000,
+  }).toBeGreaterThan(0);
+  expect(requests.some((path) => path.endsWith("manifest.json"))).toBe(true);
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 10_000 });
+});
+
 for (const viewport of [VIEWPORT, { width: 1440, height: 900 }]) {
   for (const experience of ["all", "food", "no-alcohol"] as const) {
     test(`a fresh national ${experience} overview becomes usable without pub data at ${viewport.width}px`, async ({
