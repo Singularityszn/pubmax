@@ -8,8 +8,15 @@ const listedDayFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
   year: "numeric",
-  timeZone: "UTC",
+  timeZone: "Europe/London",
 });
+
+function listedObservationDate(observedAt: string): string {
+  const date = new Date(observedAt);
+  return Number.isFinite(date.getTime())
+    ? `Price seen ${listedDayFormatter.format(date)}`
+    : "Price date unavailable";
+}
 
 export default function PublishedMenuPrices({
   prices,
@@ -49,7 +56,7 @@ export default function PublishedMenuPrices({
               {quote.servingSize || "Serving not recorded"}
             </span>
             <span className="venueListedPriceSource">
-              Price seen {listedDayFormatter.format(new Date(quote.observedAt))} ·{" "}
+              {listedObservationDate(quote.observedAt)} ·{" "}
               <a href={quote.sourceUrl} target="_blank" rel="noopener noreferrer">
                 View menu source
               </a>
