@@ -8,7 +8,7 @@ import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { DISCOVERY_CITIES, POPULATION_SOURCES } from "./lib/parallelDiscoveryCities.mjs";
 import { allowedEvidenceUrl, assembleCityDiscoveries, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, unseenNames, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
-import { rankSearchResults, readFailureIsDefinitive, webPageResult, webQueries } from "./lib/webVenueDiscovery.mjs";
+import { createRobotsGate, webSlice } from "./lib/webSlice.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RAW = path.join(ROOT, "data-harvest/parallel-venue-discovery");
@@ -257,97 +257,43 @@ function limiter(size) {
   };
 }
 const tavilySlot = limiter(4);
-const robots = createRobotsChecker();
+const robotsChecker = createRobotsChecker();
+const robotsGate = createRobotsGate((url, attempt) => (attempt ? createRobotsChecker() : robotsChecker)(url));
 const pageFile = (url) => path.join(RAW, "pages", `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`);
 
-// Page text comes from the search result where Tavily returned it, otherwise
-// from one Tavily Extract call per batch. A stored read is either the page or
-// a settled refusal; timeouts and server errors are never stored. Robots is
-// asked live once per host per run, and an unreachable robots file, like a
-// transient read, leaves the slice to be asked again without losing the rest.
-async function readPages(urls, search, city) {
-  const pages = new Map();
-  const extract = [];
-  const transient = [];
-  for (const url of urls) {
-    const permission = await robots(url);
-    if (permission.reason === "robots-unreachable") { transient.push(`robots unreachable for ${new URL(url).host}`); continue; }
-    if (!permission.allowed) { pages.set(url, { url, unreadable: "robots refused" }); continue; }
-    const stored = await readJson(pageFile(url));
-    const result = search.results.find((row) => row.url === url);
-    if (stored) pages.set(url, stored);
-    else if (result?.raw_content) pages.set(url, { url, landedUrl: url, observedAt: search.observedAt, title: result.title ?? null, text: result.raw_content });
-    else extract.push(url);
+// The page's own status, asked once a Tavily read fails without a cause.
+async function probePage(url) {
+  try {
+    const response = await fetch(url, { headers: { "user-agent": "PUBMAXX-harvest/1", accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(20_000) });
+    response.body?.cancel().catch(() => {});
+    return { status: response.status, landed: harvestRedirectLanding(url, response.url).outcome === "refused" || !allowedEvidenceUrl(response.url) ? "refused" : "permitted", checkedAt: new Date().toISOString() };
+  } catch {
+    return null;
   }
-  for (let at = 0; at < extract.length; at += 20) {
-    const batch = extract.slice(at, at + 20);
-    const response = await tavilySlot(() => providerRequest("tavily", "/extract", { city: city.id, timeoutMs: 90_000, cost: (data) => (data.usage?.credits ?? 0) * TAVILY_CREDIT_USD,
-      body: { urls: batch, extract_depth: "basic", format: "markdown", timeout: 30, include_usage: true } }));
-    const observedAt = new Date().toISOString();
-    for (const row of response.results ?? []) {
-      const same = (left, right) => String(left).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "") === String(right).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "");
-      const url = batch.find((asked) => same(asked, row.url));
-      if (!url) continue;
-      const landed = harvestRedirectLanding(url, row.url);
-      const page = landed.outcome === "refused" || !allowedEvidenceUrl(landed.url) ? { url, unreadable: "landed outside the source fence" }
-        : { url, landedUrl: landed.url, observedAt, title: search.results.find((result) => result.url === url)?.title ?? null, text: row.raw_content ?? "" };
-      await writeJson(pageFile(url), page);
-      pages.set(url, page);
-    }
-    for (const failure of response.failed_results ?? []) {
-      if (!readFailureIsDefinitive(failure)) { transient.push(`Tavily Extract: ${String(failure.error).slice(0, 80)} for ${failure.url}`); continue; }
-      const page = { url: failure.url, unreadable: `extract: ${String(failure.error).slice(0, 120)}` };
-      await writeJson(pageFile(failure.url), page);
-      pages.set(failure.url, page);
-    }
-    for (const url of batch) if (!pages.has(url) && !transient.some((reason) => reason.endsWith(` for ${url}`))) transient.push(`Tavily Extract returned nothing for ${url}`);
-  }
-  return { pages, transient };
 }
 
-// Searches a slice with Tavily, one query variant at a time, until a variant
-// finds no page the slice has not read, then reads each page's own text.
-async function webSlice({ city, district, category }, spend) {
+function webIo({ city, district, category }) {
   const file = path.join(RAW, city.id, `${district}-${category.id}.web.json`);
-  const state = (await readJson(file)) ?? { city: city.id, district, category: category.id, queries: [] };
-  const found = [];
-  const rejected = [];
-  const read = new Set();
-  let researched = 0;
-  const outcome = (complete) => ({ found, rejected, researched, taskRuns: 0, webSearches: state.queries.length, pagesRead: read.size, complete });
-  try {
-    for (const [index, query] of webQueries(city, district, category).entries()) {
-      if (!state.queries[index]) {
-        if (!spend) return outcome(false);
-        const response = await tavilySlot(() => providerRequest("tavily", "/search", { city: city.id, cost: (data) => (data.usage?.credits ?? 1) * TAVILY_CREDIT_USD,
-          body: { query, search_depth: "basic", max_results: 20, include_raw_content: "text", exclude_domains: EXCLUDED, country: "united kingdom", include_usage: true } }));
-        const resultPath = path.join(RAW, city.id, "tavily", `${district}-${category.id}-${index}.json`);
-        await writeJson(resultPath, response);
-        state.queries.push({ query, resultPath: path.relative(ROOT, resultPath), observedAt: new Date().toISOString() });
-        await writeJson(file, state);
-      }
-      const search = { ...(await readJson(path.join(ROOT, state.queries[index].resultPath))), observedAt: state.queries[index].observedAt };
-      const urls = rankSearchResults(search.results, district).filter((url) => !read.has(url));
-      if (!urls.length) break;
-      urls.forEach((url) => read.add(url));
-      if (!spend) return outcome(false);
-      const { pages, transient } = await readPages(urls, search, city);
-      for (const page of pages.values()) {
-        if (page.unreadable) { rejected.push({ name: page.url, reason: `unreadable: ${page.unreadable}` }); continue; }
-        const result = webPageResult(page, city, district);
-        const parsed = parseTaskVenues(result, city, page.observedAt, { local: true });
-        researched += result.output.content.venues.length;
-        rejected.push(...parsed.rejected);
-        for (const candidate of parsed.candidates) {
-          const row = await geocode(candidate, city);
-          if (row) found.push({ ...row, provider: "tavily" });
-          else rejected.push({ name: candidate.name, reason: "postcode-does-not-geocode-inside-city" });
-        }
-      }
-      if (transient.length) throw new Error(`${transient.length} pages not read yet (${transient[0]}); rerun to resume`);
-    }
-  } catch (error) { throw Object.assign(error, { partial: outcome(false) }); }
-  return outcome(true);
+  return {
+    now: () => new Date().toISOString(),
+    loadState: () => readJson(file),
+    saveState: (state) => writeJson(file, state),
+    search: (query) => tavilySlot(() => providerRequest("tavily", "/search", { city: city.id, cost: (data) => (data.usage?.credits ?? 1) * TAVILY_CREDIT_USD,
+      body: { query, search_depth: "basic", max_results: 20, include_raw_content: "text", exclude_domains: EXCLUDED, country: "united kingdom", include_usage: true } })),
+    saveSearch: async (index, response) => {
+      const resultPath = path.join(RAW, city.id, "tavily", `${district}-${category.id}-${index}.json`);
+      await writeJson(resultPath, response);
+      return path.relative(ROOT, resultPath);
+    },
+    readSearch: (resultPath) => readJson(path.join(ROOT, resultPath)),
+    robots: robotsGate,
+    storedPage: (url) => readJson(pageFile(url)),
+    storePage: (url, page) => writeJson(pageFile(url), page),
+    extract: (urls, depth) => tavilySlot(() => providerRequest("tavily", "/extract", { city: city.id, timeoutMs: 120_000, cost: (data) => (data.usage?.credits ?? 0) * TAVILY_CREDIT_USD,
+      body: { urls, extract_depth: depth, format: "markdown", timeout: depth === "advanced" ? 60 : 30, include_usage: true } })),
+    probe: probePage,
+    geocode: (candidate) => geocode(candidate, city),
+  };
 }
 
 // Parallel pages already paid for always count. A slice they leave
@@ -358,7 +304,7 @@ async function runSlice(slice, options) {
   if (parallel.complete || options.provider === "parallel") return parallel;
   const merge = (web) => ({ ...web, found: [...parallel.found, ...web.found], rejected: [...parallel.rejected, ...web.rejected],
     researched: parallel.researched + web.researched, taskRuns: parallel.taskRuns });
-  try { return merge(await webSlice(slice, spend)); }
+  try { return merge(await webSlice(slice, { spend, refresh: options.refresh }, webIo(slice))); }
   catch (error) { throw Object.assign(error, { partial: merge(error.partial ?? { found: [], rejected: [], researched: 0, complete: false }) }); }
 }
 
@@ -382,7 +328,7 @@ async function pool(items, size, work) {
 async function assembleCity(city, slices, results, base) {
   const own = slices.map((slice, index) => ({ slice, result: results[index] ?? { found: [], rejected: [], researched: 0, taskRuns: 0, complete: false } })).filter(({ slice }) => slice.city === city);
   const found = own.flatMap(({ result }) => result.found);
-  const previous = (await readJson(discoveryPath(city), { venues: [] })).venues;
+  const previous = (await readJson(discoveryPath(city), { venues: [] })).venues.map((row) => ({ ...row, provider: row.provider ?? "parallel" }));
   const others = [];
   for (const other of DISCOVERY_CITIES) if (other !== city) others.push(...((await readJson(discoveryPath(other)))?.venues ?? []));
   const assembled = assembleCityDiscoveries({ found, previous, existing: [...base, ...others], city });
@@ -394,6 +340,7 @@ async function assembleCity(city, slices, results, base) {
   const report = { city: city.id, districts: new Set(own.map(({ slice }) => slice.district)).size, slices: own.length,
     slicesComplete: own.filter(({ result }) => result.complete).length,
     incompleteSlices: own.filter(({ result }) => !result.complete).map(({ slice, result }) => `${slice.district}/${slice.category.id}${result.failure ? `: ${result.failure}` : ""}`),
+    skippedSources: own.flatMap(({ slice, result }) => (result.skips ?? []).map((skip) => ({ district: slice.district, category: slice.category.id, ...skip }))),
     taskRuns: own.reduce((total, { result }) => total + result.taskRuns, 0),
     webSearches: own.reduce((total, { result }) => total + (result.webSearches ?? 0), 0),
     pagesRead: own.reduce((total, { result }) => total + (result.pagesRead ?? 0), 0),
@@ -480,8 +427,10 @@ async function main() {
   const observed = (await Promise.all(DISCOVERY_CITIES.map(async (city) => ((await readJson(discoveryPath(city)))?.venues ?? []).map((row) => row.observedAt)))).flat().sort();
   await writeJson(path.join(OUT, "summary.json"), { providers: PROVIDERS, parallelProcessor: options.processor, parallelMatchesPerPage: options.matches, categories: CATEGORIES.map((category) => category.id),
     oldestObservedAt: observed[0] ?? null, newestObservedAt: observed.at(-1) ?? null,
-    cities: cities.map(({ city, districts, slices: count, slicesComplete, taskRuns, webSearches, pagesRead, researched, added, retained, totalAccepted, duplicates, rejected }) => ({ city, complete: slicesComplete === count, districts, slices: count, slicesComplete, taskRuns, webSearches, pagesRead, researched, added, retained: retained.length, duplicates: duplicates.length, rejected: rejected.length, totalAccepted, usage: usage.byCity[city] ?? {} })),
+    cities: cities.map(({ city, districts, slices: count, slicesComplete, skippedSources, taskRuns, webSearches, pagesRead, researched, added, retained, totalAccepted, duplicates, rejected }) => ({ city, complete: slicesComplete === count, districts, slices: count, slicesComplete, slicesWithSkips: new Set(skippedSources.map((skip) => `${skip.district}/${skip.category}`)).size, skippedSources: skippedSources.length, taskRuns, webSearches, pagesRead, researched, added, retained: retained.length, duplicates: duplicates.length, rejected: rejected.length, totalAccepted, usage: usage.byCity[city] ?? {} })),
     allCitiesComplete: cities.every((city) => city.slicesComplete === city.slices), failedSlices: failures.length, firstFailure: failures[0] ?? null, usage });
+  await writeJson(path.join(OUT, "skips.json"), { meaning: "Sources not read because their robots.txt could not be reached (timeout, DNS failure, 429 or 5xx) after two retries. Robots was never assumed to allow, and no skipped source is evidence for any venue.",
+    skips: cities.flatMap(({ city, skippedSources }) => skippedSources.map((skip) => ({ city, ...skip }))) });
   console.log(`calls: ${usage.calls}\nestimatedCostUsd: ${usage.estimatedCostUsd.toFixed(3)}\nhelp: npm run build:city-slim && npm run validate-data`);
   if (failures.length) throw new Error(`${failures.length} slices failed; verified rows so far are published, checkpoints retained, rerun to resume. First: ${failures[0]}`);
 }

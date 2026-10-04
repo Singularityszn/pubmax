@@ -1,4 +1,4 @@
-import { allowedEvidenceUrl, GENERIC_NAME_WORDS, isListingUrl, ownSiteFor, postcodeIn, words } from "./parallelVenueDiscovery.mjs";
+import { allowedEvidenceUrl, GENERIC_NAME_WORDS, isListingUrl, ownSiteFor, postcodeIn, statesDrinking, withoutName, words } from "./parallelVenueDiscovery.mjs";
 
 const POSTCODES = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/gi;
 const STREET_NUMBER = /^(?:unit|units|no\.?|number)?\s*\d+[a-z]?(?:\s*[-–&/]\s*\d+[a-z]?)?,?\s+[a-z]/i;
@@ -39,7 +39,7 @@ function sentenceAround(text, from, to, test) {
   }
   for (const line of lines) {
     const quote = line.trim();
-    if (quote.length >= 15 && quote.length <= 240 && test.test(quote)) return quote;
+    if (quote.length >= 15 && quote.length <= 240 && test(quote)) return quote;
   }
   return null;
 }
@@ -104,11 +104,11 @@ export function pageVenues({ text, title, landedUrl, city, district }) {
     if (/^\s*(?:permanently |temporarily )?closed\s*$/im.test(excerpt)) continue;
     const next = text.slice(end).search(POSTCODES);
     const entryEnd = Math.min(text.length, end + (next < 0 ? 400 : Math.min(next, 400)));
-    const kind = entryKind(website ? text.slice(excerptStart, entryEnd) : excerpt);
+    const kind = entryKind(withoutName(website ? text.slice(excerptStart, entryEnd) : excerpt, name));
     if (!kind) continue;
-    const drink = kind === "restaurant" ? ALCOHOL : kind === "pub" ? PUB : BAR;
-    const quote = drink.test(excerpt) ? null : website ? sentenceAround(text, excerptStart, entryEnd, drink) : null;
-    if (!drink.test(excerpt) && !quote) continue;
+    const drinks = (quoted) => statesDrinking(kind, quoted, name);
+    const quote = drinks(excerpt) ? null : website ? sentenceAround(text, excerptStart, entryEnd, drinks) : null;
+    if (!drinks(excerpt) && !quote) continue;
     seen.add(`${name.toLowerCase()}|${postcode}`);
     const parts = address.parts;
     venues.push({ name, kind, address: [...parts.slice(0, -1), `${parts.at(-1)} ${match[0]}`.trim()].join(", "), website, lat: null, lng: null,
@@ -150,12 +150,11 @@ export function webQueries(city, district, category) {
   ];
 }
 
-// Only a page that is gone, or a source that refuses, is a settled answer.
-// Timeouts, rate limits and server errors are asked again on the next run.
-// Extract names a refusal only in words ("Failed to fetch url"), so its
-// failures are settled unless they name one of the transient causes.
+// Only a page that is gone is settled by the read itself. Extract's own words
+// ("Failed to fetch url", "Error fetching content") give no cause, so they are
+// asked again unless other evidence settles them.
 export function readFailureIsDefinitive(failure) {
   const status = Number(failure?.status);
   if (Number.isFinite(status) && status > 0) return status === 404 || status === 410;
-  return !/time[ds]? ?out|timeout|rate.?limit|too many|\b429\b|\b5\d\d\b|server error|temporar|try again|unavailable/i.test(String(failure?.error ?? ""));
+  return /\b(?:404|410)\b/.test(String(failure?.error ?? ""));
 }

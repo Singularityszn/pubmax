@@ -46,7 +46,8 @@
         "postcode": "B4 6AA",
         "quality": 1
       },
-      "id": "venue-bhm-1erud0f"
+      "id": "venue-bhm-1erud0f",
+      "provider": "parallel"
     },
     {
       "name": "Smoke + Ash Edgbaston Village",
@@ -82,7 +83,8 @@
         "postcode": "B15 3AU",
         "quality": 1
       },
-      "id": "venue-bhm-m8q2cy"
+      "id": "venue-bhm-m8q2cy",
+      "provider": "parallel"
     },
     {
       "name": "Byzantium Tapas Restaurant",
@@ -118,7 +120,8 @@
         "postcode": "B14 7SA",
         "quality": 1
       },
-      "id": "venue-bhm-kj58hz"
+      "id": "venue-bhm-kj58hz",
+      "provider": "parallel"
     },
     {
       "name": "Lulu Wild",
@@ -150,7 +153,8 @@
         "postcode": "B1 2HP",
         "quality": 1
       },
-      "id": "venue-bhm-kpiwyz"
+      "id": "venue-bhm-kpiwyz",
+      "provider": "parallel"
     },
     {
       "name": "Piccolino",
@@ -183,40 +187,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9387ccc57c1cab5d",
-      "id": "venue-bhm-1li0nzy"
-    },
-    {
-      "name": "Pushkar Cocktail Bar & Dining",
-      "kind": "restaurant",
-      "address": "245 Broad Street, Birmingham, West Midlands B1 2HQ",
-      "postcode": "B1 2HQ",
-      "locality": "Birmingham",
-      "website": null,
-      "lat": 52.476771,
-      "lng": -1.91151,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.opentable.com/r/pushkar-cocktail-bar-and-dining-birmingham"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.opentable.com/r/pushkar-cocktail-bar-and-dining-birmingham",
-          "excerpt": "Pushkar Cocktail Bar & Dining"
-        },
-        {
-          "url": "https://www.opentable.com/r/pushkar-cocktail-bar-and-dining-birmingham",
-          "excerpt": "245 Broad Street, Birmingham, West Midlands B1 2HQ"
-        }
-      ],
-      "observedAt": "2026-10-04T11:23:06.836Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/B1%202HQ",
-        "observedAt": "2026-10-04T11:22:33.953Z",
-        "postcode": "B1 2HQ",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415f9387ccc57c1cab5d",
-      "id": "venue-bhm-1jc7x0t"
+      "id": "venue-bhm-1li0nzy",
+      "provider": "parallel"
     },
     {
       "name": "Chez Mal Brasserie & Bar",
@@ -254,7 +226,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbebda88ced7916ac",
-      "id": "venue-bhm-1gksk42"
+      "id": "venue-bhm-1gksk42",
+      "provider": "parallel"
     },
     {
       "name": "The Gin Vault",
@@ -291,7 +264,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa0f642a854e27c60",
-      "id": "venue-bhm-j7ue7h"
+      "id": "venue-bhm-j7ue7h",
+      "provider": "parallel"
     },
     {
       "name": "1000 Trades",
@@ -328,7 +302,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa0f642a854e27c60",
-      "id": "venue-bhm-byyumv"
+      "id": "venue-bhm-byyumv",
+      "provider": "parallel"
     },
     {
       "name": "Aluna",
@@ -361,7 +336,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa9106d4afc1b5ff7",
-      "id": "venue-bhm-1m748zq"
+      "id": "venue-bhm-1m748zq",
+      "provider": "parallel"
     },
     {
       "name": "Noel's Bar & Restaurant",
@@ -394,7 +370,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa9106d4afc1b5ff7",
-      "id": "venue-bhm-1cnswoa"
+      "id": "venue-bhm-1cnswoa",
+      "provider": "parallel"
     },
     {
       "name": "Lucarelli Restaurant Birmingham Mailbox",
@@ -435,7 +412,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f80f635891ce47c62",
-      "id": "venue-bhm-no7l6h"
+      "id": "venue-bhm-no7l6h",
+      "provider": "parallel"
     },
     {
       "name": "Miller & Carter – The Mailbox",
@@ -472,7 +450,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb3742b13f936cc85",
-      "id": "venue-bhm-5ugg8f"
+      "id": "venue-bhm-5ugg8f",
+      "provider": "parallel"
     },
     {
       "name": "Aria Restaurant",
@@ -509,7 +488,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8f535598330c9787",
-      "id": "venue-bhm-18p1g41"
+      "id": "venue-bhm-18p1g41",
+      "provider": "parallel"
     },
     {
       "name": "Tonight Josephine Birmingham",
@@ -548,7 +528,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8255a2382b63b788",
-      "id": "venue-bhm-1xfnku0"
+      "id": "venue-bhm-1xfnku0",
+      "provider": "parallel"
     },
     {
       "name": "Fumo Birmingham",
@@ -585,7 +566,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8255a2382b63b788",
-      "id": "venue-bhm-1kun1ot"
+      "id": "venue-bhm-1kun1ot",
+      "provider": "parallel"
     },
     {
       "name": "Riva Blu Birmingham",
@@ -622,7 +604,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faead2266930f7ae6",
-      "id": "venue-bhm-qjb1ok"
+      "id": "venue-bhm-qjb1ok",
+      "provider": "parallel"
     },
     {
       "name": "Las Iguanas Temple Street",
@@ -655,7 +638,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fafa1f9801446cbf5",
-      "id": "venue-bhm-3ujde2"
+      "id": "venue-bhm-3ujde2",
+      "provider": "parallel"
     },
     {
       "name": "Cosy Club Birmingham",
@@ -692,7 +676,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f809beae859fc8ee8",
-      "id": "venue-bhm-1bqf1d2"
+      "id": "venue-bhm-1bqf1d2",
+      "provider": "parallel"
     },
     {
       "name": "The Oyster Club by Adam Stokes",
@@ -729,7 +714,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa8b531c2871fb307",
-      "id": "venue-bhm-177wc6c"
+      "id": "venue-bhm-177wc6c",
+      "provider": "parallel"
     },
     {
       "name": "San Carlo, Birmingham",
@@ -766,7 +752,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa8b531c2871fb307",
-      "id": "venue-bhm-oyjobp"
+      "id": "venue-bhm-oyjobp",
+      "provider": "parallel"
     },
     {
       "name": "Merlin's Café Bar",
@@ -799,7 +786,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa58c759e57fe2acc",
-      "id": "venue-bhm-15zyxr4"
+      "id": "venue-bhm-15zyxr4",
+      "provider": "parallel"
     },
     {
       "name": "Albert’s Schloss Birmingham",
@@ -832,7 +820,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
-      "id": "venue-bhm-gm99yd"
+      "id": "venue-bhm-gm99yd",
+      "provider": "parallel"
     },
     {
       "name": "Saint Paul’s House",
@@ -869,7 +858,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
-      "id": "venue-bhm-1wqg66y"
+      "id": "venue-bhm-1wqg66y",
+      "provider": "parallel"
     },
     {
       "name": "Theatrix Birmingham",
@@ -907,7 +897,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
-      "id": "venue-bhm-3qyhl0"
+      "id": "venue-bhm-3qyhl0",
+      "provider": "parallel"
     },
     {
       "name": "The Rectory 180 Club",
@@ -944,7 +935,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
-      "id": "venue-bhm-1p048v8"
+      "id": "venue-bhm-1p048v8",
+      "provider": "parallel"
     },
     {
       "name": "The Rectory",
@@ -977,7 +969,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb266bd2da8fc507f",
-      "id": "venue-bhm-1b3455j"
+      "id": "venue-bhm-1b3455j",
+      "provider": "parallel"
     },
     {
       "name": "Saint Paul's Market",
@@ -1014,7 +1007,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb266bd2da8fc507f",
-      "id": "venue-bhm-1ta8ymj"
+      "id": "venue-bhm-1ta8ymj",
+      "provider": "parallel"
     },
     {
       "name": "Theatrix",
@@ -1048,7 +1042,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa93115968e82475e",
-      "id": "venue-bhm-k6f8r6"
+      "id": "venue-bhm-k6f8r6",
+      "provider": "parallel"
     },
     {
       "name": "24 Stories",
@@ -1081,7 +1076,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faa1b2cbfbc591c52",
-      "id": "venue-bhm-96iyii"
+      "id": "venue-bhm-96iyii",
+      "provider": "parallel"
     },
     {
       "name": "White Tower",
@@ -1114,7 +1110,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8441ef949edabaab",
-      "id": "venue-bhm-y387fz"
+      "id": "venue-bhm-y387fz",
+      "provider": "parallel"
     },
     {
       "name": "The Kerryman",
@@ -1147,7 +1144,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb4a375e21b828095",
-      "id": "venue-bhm-1ddvzw4"
+      "id": "venue-bhm-1ddvzw4",
+      "provider": "parallel"
     },
     {
       "name": "Redcorc Bar",
@@ -1180,7 +1178,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa7ded360b08b9172",
-      "id": "venue-bhm-149m3ql"
+      "id": "venue-bhm-149m3ql",
+      "provider": "parallel"
     },
     {
       "name": "Milano Bar & Ristorante",
@@ -1213,7 +1212,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb3bfcceeef10f5dd",
-      "id": "venue-bhm-k7mgai"
+      "id": "venue-bhm-k7mgai",
+      "provider": "parallel"
     },
     {
       "name": "The Loft",
@@ -1246,7 +1246,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f853983a47df88dc4",
-      "id": "venue-bhm-v0l7dk"
+      "id": "venue-bhm-v0l7dk",
+      "provider": "parallel"
     },
     {
       "name": "Vietnamese Street Kitchen",
@@ -1283,7 +1284,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f93cc9a3e77bccf25",
-      "id": "venue-bhm-1q1evep"
+      "id": "venue-bhm-1q1evep",
+      "provider": "parallel"
     },
     {
       "name": "Bill’s Bullring",
@@ -1316,7 +1318,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f868767b8475a33bd",
-      "id": "venue-bhm-1ygxo0w"
+      "id": "venue-bhm-1ygxo0w",
+      "provider": "parallel"
     },
     {
       "name": "Aston Inn",
@@ -1349,7 +1352,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f991417ee6b4e1db8",
-      "id": "venue-bhm-eyua5j"
+      "id": "venue-bhm-eyua5j",
+      "provider": "parallel"
     },
     {
       "name": "Digger Inn",
@@ -1386,7 +1390,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa8df592e838f733e",
-      "id": "venue-bhm-ac39lm"
+      "id": "venue-bhm-ac39lm",
+      "provider": "parallel"
     },
     {
       "name": "Sacred Heart Club",
@@ -1415,7 +1420,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa8df592e838f733e",
-      "id": "venue-bhm-10k2xrv"
+      "id": "venue-bhm-10k2xrv",
+      "provider": "parallel"
     },
     {
       "name": "Christophers Lounge",
@@ -1452,7 +1458,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa67ae8a52bf8e5d9",
-      "id": "venue-bhm-1lhxms5"
+      "id": "venue-bhm-1lhxms5",
+      "provider": "parallel"
     },
     {
       "name": "Shanahans Motel & Sports Bar",
@@ -1489,7 +1496,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbff13849b655b719",
-      "id": "venue-bhm-1bvnv31"
+      "id": "venue-bhm-1bvnv31",
+      "provider": "parallel"
     },
     {
       "name": "Shanahans B&B with Sports Bar",
@@ -1522,7 +1530,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fae0bf2ae06e035ee",
-      "id": "venue-bhm-2bzzrr"
+      "id": "venue-bhm-2bzzrr",
+      "provider": "parallel"
     },
     {
       "name": "Harvester - Star City",
@@ -1559,7 +1568,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa6e9468cca991f8e",
-      "id": "venue-bhm-l4c7jy"
+      "id": "venue-bhm-l4c7jy",
+      "provider": "parallel"
     },
     {
       "name": "Ward End Social Club",
@@ -1592,7 +1602,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8d505a92b52459e3",
-      "id": "venue-bhm-ytynte"
+      "id": "venue-bhm-ytynte",
+      "provider": "parallel"
     },
     {
       "name": "Saltley Inn",
@@ -1626,7 +1637,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8b4ff76170c8d22f",
-      "id": "venue-bhm-2jpoyl"
+      "id": "venue-bhm-2jpoyl",
+      "provider": "parallel"
     },
     {
       "name": "Maitland Hall Club",
@@ -1663,7 +1675,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fafd951e2aa15621c",
-      "id": "venue-bhm-1keopea"
+      "id": "venue-bhm-1keopea",
+      "provider": "parallel"
     },
     {
       "name": "Bainsy's Bar",
@@ -1696,7 +1709,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa3dcc6d0d5aa5136",
-      "id": "venue-bhm-1l19ado"
+      "id": "venue-bhm-1l19ado",
+      "provider": "parallel"
     },
     {
       "name": "Sophy Digbeth",
@@ -1733,7 +1747,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f990f56d8ead7319e",
-      "id": "venue-bhm-4nv4xh"
+      "id": "venue-bhm-4nv4xh",
+      "provider": "parallel"
     },
     {
       "name": "Golf Fang Birmingham",
@@ -1766,7 +1781,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa6417b95238e7366",
-      "id": "venue-bhm-1xbcyca"
+      "id": "venue-bhm-1xbcyca",
+      "provider": "parallel"
     },
     {
       "name": "The Nest",
@@ -1800,7 +1816,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbfe3f42718b0d129",
-      "id": "venue-bhm-1t9h9vl"
+      "id": "venue-bhm-1t9h9vl",
+      "provider": "parallel"
     },
     {
       "name": "Low Places",
@@ -1833,7 +1850,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f96a9cd9ac7860080",
-      "id": "venue-bhm-ecxhxl"
+      "id": "venue-bhm-ecxhxl",
+      "provider": "parallel"
     },
     {
       "name": "Mama Roux's",
@@ -1866,7 +1884,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f96a9cd9ac7860080",
-      "id": "venue-bhm-11u02mu"
+      "id": "venue-bhm-11u02mu",
+      "provider": "parallel"
     },
     {
       "name": "670 Grams",
@@ -1903,7 +1922,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb594eccd1f7a24d3",
-      "id": "venue-bhm-1s3gdvb"
+      "id": "venue-bhm-1s3gdvb",
+      "provider": "parallel"
     },
     {
       "name": "McDwyers",
@@ -1940,7 +1960,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb81bf68cc4103a97",
-      "id": "venue-bhm-1lzn4xw"
+      "id": "venue-bhm-1lzn4xw",
+      "provider": "parallel"
     },
     {
       "name": "Tyseley Working Mens Club",
@@ -1977,7 +1998,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f82edc20324410cda",
-      "id": "venue-bhm-uchscy"
+      "id": "venue-bhm-uchscy",
+      "provider": "parallel"
     },
     {
       "name": "Midland Art Centre Arena Bar",
@@ -2011,7 +2033,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fae907df9005a3873",
-      "id": "venue-bhm-12a591q"
+      "id": "venue-bhm-12a591q",
+      "provider": "parallel"
     },
     {
       "name": "MAC Bar",
@@ -2048,7 +2071,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8513f0045121101c",
-      "id": "venue-bhm-1yv4o13"
+      "id": "venue-bhm-1yv4o13",
+      "provider": "parallel"
     },
     {
       "name": "Kennedys Bar",
@@ -2085,7 +2109,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fadc5e7e545afaa6a",
-      "id": "venue-bhm-f476z3"
+      "id": "venue-bhm-f476z3",
+      "provider": "parallel"
     },
     {
       "name": "La Plancha",
@@ -2122,7 +2147,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fadc5e7e545afaa6a",
-      "id": "venue-bhm-1lzxjbg"
+      "id": "venue-bhm-1lzxjbg",
+      "provider": "parallel"
     },
     {
       "name": "Sabai Sabai Moseley Village",
@@ -2155,7 +2181,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f90da9c9e54cf63c0",
-      "id": "venue-bhm-y35s5f"
+      "id": "venue-bhm-y35s5f",
+      "provider": "parallel"
     },
     {
       "name": "Moseley All Services Club",
@@ -2192,7 +2219,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbd7f21d25bf734a5",
-      "id": "venue-bhm-kfoo3x"
+      "id": "venue-bhm-kfoo3x",
+      "provider": "parallel"
     },
     {
       "name": "Satori",
@@ -2230,7 +2258,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb7942961a1fac42b",
-      "id": "venue-bhm-j9ub5q"
+      "id": "venue-bhm-j9ub5q",
+      "provider": "parallel"
     },
     {
       "name": "Kings Heath Cricket & Sports Club",
@@ -2268,7 +2297,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8eb1e78665224643",
-      "id": "venue-bhm-mboz83"
+      "id": "venue-bhm-mboz83",
+      "provider": "parallel"
     },
     {
       "name": "La Santé",
@@ -2305,7 +2335,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa004f17d992af947",
-      "id": "venue-bhm-bayhtl"
+      "id": "venue-bhm-bayhtl",
+      "provider": "parallel"
     },
     {
       "name": "Smoke + Ash Kings Heath",
@@ -2342,7 +2373,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa004f17d992af947",
-      "id": "venue-bhm-7muxsg"
+      "id": "venue-bhm-7muxsg",
+      "provider": "parallel"
     },
     {
       "name": "Boom Battle Bar Birmingham Broad Street",
@@ -2379,7 +2411,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9132dbf260ce5968",
-      "id": "venue-bhm-1w0eleg"
+      "id": "venue-bhm-1w0eleg",
+      "provider": "parallel"
     },
     {
       "name": "Peg & Grill",
@@ -2421,7 +2454,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb4886080d954a706",
-      "id": "venue-bhm-1fxxxpl"
+      "id": "venue-bhm-1fxxxpl",
+      "provider": "parallel"
     },
     {
       "name": "1900 Restaurant and Bar",
@@ -2458,7 +2492,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb4886080d954a706",
-      "id": "venue-bhm-17uk68q"
+      "id": "venue-bhm-17uk68q",
+      "provider": "parallel"
     },
     {
       "name": "Barbara’s Bier Haus",
@@ -2495,7 +2530,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9e71937e798e04c8",
-      "id": "venue-bhm-1hkkifg"
+      "id": "venue-bhm-1hkkifg",
+      "provider": "parallel"
     },
     {
       "name": "Edgbaston Golf Club",
@@ -2532,7 +2568,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9e71937e798e04c8",
-      "id": "venue-bhm-89i9oi"
+      "id": "venue-bhm-89i9oi",
+      "provider": "parallel"
     },
     {
       "name": "Varanasi Birmingham",
@@ -2566,7 +2603,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbceb0f880f4a5746",
-      "id": "venue-bhm-is4zwq"
+      "id": "venue-bhm-is4zwq",
+      "provider": "parallel"
     },
     {
       "name": "1565 Bar & Terrace",
@@ -2600,7 +2638,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f900f272b1daa988f",
-      "id": "venue-bhm-lhdykc"
+      "id": "venue-bhm-lhdykc",
+      "provider": "parallel"
     },
     {
       "name": "Birmingham Strathallan Hotel",
@@ -2629,7 +2668,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9897bfb188142c88",
-      "id": "venue-bhm-yk9ds6"
+      "id": "venue-bhm-yk9ds6",
+      "provider": "parallel"
     },
     {
       "name": "Praza",
@@ -2662,7 +2702,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8ecc1af92f5a7adf",
-      "id": "venue-bhm-1nrvsix"
+      "id": "venue-bhm-1nrvsix",
+      "provider": "parallel"
     },
     {
       "name": "Arco Lounge",
@@ -2695,7 +2736,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbb26f8c3d1f1183f",
-      "id": "venue-bhm-4hu6wi"
+      "id": "venue-bhm-4hu6wi",
+      "provider": "parallel"
     },
     {
       "name": "Buonissimo",
@@ -2729,7 +2771,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa64da8b5d5dda9c4",
-      "id": "venue-bhm-1ipeyfy"
+      "id": "venue-bhm-1ipeyfy",
+      "provider": "parallel"
     },
     {
       "name": "Harborne Cricket Club",
@@ -2763,7 +2806,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8d76302b563db069",
-      "id": "venue-bhm-1nhc06d"
+      "id": "venue-bhm-1nhc06d",
+      "provider": "parallel"
     },
     {
       "name": "The Birdcage Harborne",
@@ -2800,7 +2844,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa70658daf4d2cfb6",
-      "id": "venue-bhm-u8ikuc"
+      "id": "venue-bhm-u8ikuc",
+      "provider": "parallel"
     },
     {
       "name": "El Buen Gusto",
@@ -2837,7 +2882,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f86eb2acfb78e511d",
-      "id": "venue-bhm-xe1x1j"
+      "id": "venue-bhm-xe1x1j",
+      "provider": "parallel"
     },
     {
       "name": "Barsana - Harborne",
@@ -2871,7 +2917,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbd5931725995478d",
-      "id": "venue-bhm-13drftn"
+      "id": "venue-bhm-13drftn",
+      "provider": "parallel"
     },
     {
       "name": "Vedique Resto Bar",
@@ -2908,7 +2955,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa934fd4d7a72f222",
-      "id": "venue-bhm-18p3h9r"
+      "id": "venue-bhm-18p3h9r",
+      "provider": "parallel"
     },
     {
       "name": "YUMBO",
@@ -2945,7 +2993,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa9b7ff5d70403492",
-      "id": "venue-bhm-1gehkph"
+      "id": "venue-bhm-1gehkph",
+      "provider": "parallel"
     },
     {
       "name": "Craft & Culture",
@@ -2978,36 +3027,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa7e6823bcbbf6f2c",
-      "id": "venue-bhm-fuqk5p"
-    },
-    {
-      "name": "The Asylum Bar and Venue",
-      "kind": "bar",
-      "address": "38-43 Hampton Street, Hockley, Birmingham B19 3LS",
-      "postcode": "B19 3LS",
-      "locality": "Birmingham",
-      "website": "https://www.theasylumvenue.co.uk/",
-      "lat": 52.48845,
-      "lng": -1.902385,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.theasylumvenue.co.uk/get-in-touch"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.theasylumvenue.co.uk/get-in-touch",
-          "excerpt": "The Asylum Bar and Venue 38-43 Hampton Street Hockley Birmingham B19 3LS"
-        }
-      ],
-      "observedAt": "2026-10-04T11:34:13.327Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/B19%203LS",
-        "observedAt": "2026-10-04T11:34:06.563Z",
-        "postcode": "B19 3LS",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415faf94c802d807ad3f",
-      "id": "venue-bhm-nvaaho"
+      "id": "venue-bhm-fuqk5p",
+      "provider": "parallel"
     },
     {
       "name": "African Village Restaurant and Late Bar",
@@ -3048,7 +3069,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f97ba07cd68ad8f37",
-      "id": "venue-bhm-ol7k7s"
+      "id": "venue-bhm-ol7k7s",
+      "provider": "parallel"
     },
     {
       "name": "The Spot Lounge",
@@ -3085,7 +3107,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9e8bf1a248d3c09f",
-      "id": "venue-bhm-1jemd5f"
+      "id": "venue-bhm-1jemd5f",
+      "provider": "parallel"
     },
     {
       "name": "Lime N Chilli",
@@ -3122,7 +3145,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9a27eb28a4eb4ad0",
-      "id": "venue-bhm-vo76wg"
+      "id": "venue-bhm-vo76wg",
+      "provider": "parallel"
     },
     {
       "name": "Oscott Social Club",
@@ -3159,7 +3183,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f847a32713e217ca4",
-      "id": "venue-bhm-1dc20m3"
+      "id": "venue-bhm-1dc20m3",
+      "provider": "parallel"
     },
     {
       "name": "The Erdington Club",
@@ -3196,7 +3221,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb8e36d92b965ffe9",
-      "id": "venue-bhm-ml194a"
+      "id": "venue-bhm-ml194a",
+      "provider": "parallel"
     },
     {
       "name": "Church Tavern",
@@ -3230,7 +3256,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9ebe585a2369bb70",
-      "id": "venue-bhm-15t2n9a"
+      "id": "venue-bhm-15t2n9a",
+      "provider": "parallel"
     },
     {
       "name": "The Crown Erdington",
@@ -3268,7 +3295,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fab646bbee86ac62d",
-      "id": "venue-bhm-8b93dn"
+      "id": "venue-bhm-8b93dn",
+      "provider": "parallel"
     },
     {
       "name": "Erdington Conservative Club",
@@ -3306,7 +3334,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fab646bbee86ac62d",
-      "id": "venue-bhm-4s5fi5"
+      "id": "venue-bhm-4s5fi5",
+      "provider": "parallel"
     },
     {
       "name": "Sheldon Marlborough Cricket Club",
@@ -3339,7 +3368,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa503d0e5d75eddad",
-      "id": "venue-bhm-1oyth8y"
+      "id": "venue-bhm-1oyth8y",
+      "provider": "parallel"
     },
     {
       "name": "Yardley Ex Service Mens Club",
@@ -3376,40 +3406,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f90bc1e87b7881925",
-      "id": "venue-bhm-1h6e58m"
-    },
-    {
-      "name": "O'Mahoney's Bar & Grill",
-      "kind": "bar",
-      "address": "57 Stoney Lane, Yardley, Birmingham, B25 8RE",
-      "postcode": "B25 8RE",
-      "locality": "Birmingham",
-      "website": null,
-      "lat": 52.468687,
-      "lng": -1.810441,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/omahoneys-bar-grill-birmingham-121311"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/omahoneys-bar-grill-birmingham-121311",
-          "excerpt": "O'Mahoney's Bar & Grill"
-        },
-        {
-          "url": "https://camra.org.uk/pubs/omahoneys-bar-grill-birmingham-121311",
-          "excerpt": "57 Stoney Lane, Yardley, Birmingham, B25 8RE"
-        }
-      ],
-      "observedAt": "2026-10-04T11:31:12.537Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/B25%208RE",
-        "observedAt": "2026-10-04T11:31:12.603Z",
-        "postcode": "B25 8RE",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415f865d651652e238f0",
-      "id": "venue-bhm-5fqr4"
+      "id": "venue-bhm-1h6e58m",
+      "provider": "parallel"
     },
     {
       "name": "Holiday Inn Express Birmingham - South A45",
@@ -3443,7 +3441,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f865d651652e238f0",
-      "id": "venue-bhm-q2qdpo"
+      "id": "venue-bhm-q2qdpo",
+      "provider": "parallel"
     },
     {
       "name": "Acocks Green Bowl",
@@ -3476,7 +3475,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9b2d13c81b859fab",
-      "id": "venue-bhm-hnvw2u"
+      "id": "venue-bhm-hnvw2u",
+      "provider": "parallel"
     },
     {
       "name": "Pasta di Piazza",
@@ -3509,7 +3509,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9b2d13c81b859fab",
-      "id": "venue-bhm-xhiwfs"
+      "id": "venue-bhm-xhiwfs",
+      "provider": "parallel"
     },
     {
       "name": "Boulevard",
@@ -3538,7 +3539,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8361ed176ba4fa73",
-      "id": "venue-bhm-1fyauhs"
+      "id": "venue-bhm-1fyauhs",
+      "provider": "parallel"
     },
     {
       "name": "Grange Social Club",
@@ -3575,7 +3577,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb40d451d951f794c",
-      "id": "venue-bhm-1t7l2kd"
+      "id": "venue-bhm-1t7l2kd",
+      "provider": "parallel"
     },
     {
       "name": "Discobowl Acocks Green",
@@ -3612,7 +3615,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb40d451d951f794c",
-      "id": "venue-bhm-1r4y52t"
+      "id": "venue-bhm-1r4y52t",
+      "provider": "parallel"
     },
     {
       "name": "Pickle Club",
@@ -3649,7 +3653,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb0c3c3db044494a1",
-      "id": "venue-bhm-1bdtbei"
+      "id": "venue-bhm-1bdtbei",
+      "provider": "parallel"
     },
     {
       "name": "Hall Green H.G. Club",
@@ -3682,7 +3687,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa9be72235b59b3cf",
-      "id": "venue-bhm-9ix5to"
+      "id": "venue-bhm-9ix5to",
+      "provider": "parallel"
     },
     {
       "name": "Raja Monkey",
@@ -3719,7 +3725,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa9be72235b59b3cf",
-      "id": "venue-bhm-spzeq2"
+      "id": "venue-bhm-spzeq2",
+      "provider": "parallel"
     },
     {
       "name": "Weoley Castle Working Mens Club",
@@ -3756,7 +3763,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f966404ba31c16b2e",
-      "id": "venue-bhm-11adpjg"
+      "id": "venue-bhm-11adpjg",
+      "provider": "parallel"
     },
     {
       "name": "Oba's Kitchen, Lounge, Bar & Games",
@@ -3793,7 +3801,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa2ab33f8599bbc66",
-      "id": "venue-bhm-t0m5nl"
+      "id": "venue-bhm-t0m5nl",
+      "provider": "parallel"
     },
     {
       "name": "Deli 17",
@@ -3830,7 +3839,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8dd916505a33ccc7",
-      "id": "venue-bhm-102sq77"
+      "id": "venue-bhm-102sq77",
+      "provider": "parallel"
     },
     {
       "name": "Bournbrook & Selly Oak Club",
@@ -3867,7 +3877,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faabf194fceda2e0e",
-      "id": "venue-bhm-4sqyw2"
+      "id": "venue-bhm-4sqyw2",
+      "provider": "parallel"
     },
     {
       "name": "The Station Inn",
@@ -3900,7 +3911,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbab70665cdc5af22",
-      "id": "venue-bhm-lxgvbm"
+      "id": "venue-bhm-lxgvbm",
+      "provider": "parallel"
     },
     {
       "name": "Aston Manor Cricket Club",
@@ -3934,7 +3946,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbb8a0ce0797c8a5d",
-      "id": "venue-bhm-u53wtp"
+      "id": "venue-bhm-u53wtp",
+      "provider": "parallel"
     },
     {
       "name": "Great Barr Hotel",
@@ -3968,7 +3981,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbdf24ad0c99d7313",
-      "id": "venue-bhm-18aknsz"
+      "id": "venue-bhm-18aknsz",
+      "provider": "parallel"
     },
     {
       "name": "The Malt Shovel",
@@ -4006,7 +4020,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb8f3c7fd4ee7c431",
-      "id": "venue-bhm-ug2u87"
+      "id": "venue-bhm-ug2u87",
+      "provider": "parallel"
     },
     {
       "name": "Great Barr Conservative Club",
@@ -4048,7 +4063,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fad5785eecfe05a9c",
-      "id": "venue-bhm-kc9iu2"
+      "id": "venue-bhm-kc9iu2",
+      "provider": "parallel"
     },
     {
       "name": "Special Spices",
@@ -4085,7 +4101,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9b9e383df353cdcd",
-      "id": "venue-bhm-1dp4nd8"
+      "id": "venue-bhm-1dp4nd8",
+      "provider": "parallel"
     },
     {
       "name": "Valley Bar",
@@ -4122,7 +4139,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9b9e383df353cdcd",
-      "id": "venue-bhm-4hovxf"
+      "id": "venue-bhm-4hovxf",
+      "provider": "parallel"
     },
     {
       "name": "Boars Head World Buffet",
@@ -4159,7 +4177,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb6dec97cd06b8c2d",
-      "id": "venue-bhm-boprhz"
+      "id": "venue-bhm-boprhz",
+      "provider": "parallel"
     },
     {
       "name": "No1 Public House",
@@ -4196,7 +4215,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9c62b55a2ad5dc13",
-      "id": "venue-bhm-1ro4064"
+      "id": "venue-bhm-1ro4064",
+      "provider": "parallel"
     },
     {
       "name": "Aston Old Edwardians Rugby Club",
@@ -4233,7 +4253,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8bb6802e8044477e",
-      "id": "venue-bhm-146hkcn"
+      "id": "venue-bhm-146hkcn",
+      "provider": "parallel"
     },
     {
       "name": "The Kingstanding Inn",
@@ -4274,44 +4295,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9b7753e50abc7415",
-      "id": "venue-bhm-h653zn"
-    },
-    {
-      "name": "Avenue Bar Restaurant & Grill",
-      "kind": "pub",
-      "address": "151 Rolfe Street, Smethwick, B66 2AU",
-      "postcode": "B66 2AU",
-      "locality": "Birmingham",
-      "website": null,
-      "lat": 52.497224,
-      "lng": -1.963774,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742",
-          "excerpt": "Avenue Bar Restaurant & Grill, Smethwick"
-        },
-        {
-          "url": "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742",
-          "excerpt": "151 Rolfe Street, Smethwick, B66 2AU"
-        },
-        {
-          "url": "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742",
-          "excerpt": "No website available"
-        }
-      ],
-      "observedAt": "2026-10-04T11:39:17.819Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/B66%202AU",
-        "observedAt": "2026-10-04T11:33:51.375Z",
-        "postcode": "B66 2AU",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fa8441fcdad32bbbb",
-      "id": "venue-bhm-gptg05"
+      "id": "venue-bhm-h653zn",
+      "provider": "parallel"
     },
     {
       "name": "Craft Inn, Bearwood",
@@ -4348,7 +4333,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faca604d1a6f4c1a1",
-      "id": "venue-bhm-1x4uv1u"
+      "id": "venue-bhm-1x4uv1u",
+      "provider": "parallel"
     },
     {
       "name": "Smethwick Labour Club",
@@ -4381,7 +4367,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faeaac4d0b8e8a028",
-      "id": "venue-bhm-1ijioos"
+      "id": "venue-bhm-1ijioos",
+      "provider": "parallel"
     },
     {
       "name": "Zaalsha",
@@ -4414,7 +4401,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fa1de9dbb0f42f2fc",
-      "id": "venue-bhm-13tnpcy"
+      "id": "venue-bhm-13tnpcy",
+      "provider": "parallel"
     },
     {
       "name": "Antonios Food Emporio",
@@ -4451,7 +4439,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8f0b232b72f4bff7",
-      "id": "venue-bhm-scp9zj"
+      "id": "venue-bhm-scp9zj",
+      "provider": "parallel"
     },
     {
       "name": "Vine",
@@ -4484,7 +4473,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8e2f0528dddf99bf",
-      "id": "venue-bhm-19n5wp6"
+      "id": "venue-bhm-19n5wp6",
+      "provider": "parallel"
     },
     {
       "name": "The Vine Indian Grill and Curry Pub",
@@ -4521,7 +4511,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f81ad51587e834f62",
-      "id": "venue-bhm-5ile1c"
+      "id": "venue-bhm-5ile1c",
+      "provider": "parallel"
     },
     {
       "name": "Verdo Lounge",
@@ -4558,7 +4549,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f94e8efa82403d400",
-      "id": "venue-bhm-hyl478"
+      "id": "venue-bhm-hyl478",
+      "provider": "parallel"
     },
     {
       "name": "Franks",
@@ -4595,7 +4587,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f936af3ac59eefd6e",
-      "id": "venue-bhm-awfbdr"
+      "id": "venue-bhm-awfbdr",
+      "provider": "parallel"
     },
     {
       "name": "Olton Mere Sailing Club",
@@ -4633,7 +4626,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8b0007e0b2e6a492",
-      "id": "venue-bhm-1gg3rw7"
+      "id": "venue-bhm-1gg3rw7",
+      "provider": "parallel"
     },
     {
       "name": "Courtyard",
@@ -4721,6 +4715,41 @@
       },
       "provider": "tavily",
       "id": "venue-bhm-lt0ydp"
+    },
+    {
+      "name": "Avenue Bar Restaurant & Grill",
+      "kind": "pub",
+      "address": "151 Rolfe Street, Smethwick, B66 2AU",
+      "postcode": "B66 2AU",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.497224,
+      "lng": -1.963774,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/smethwick-15666",
+        "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/smethwick-15666",
+          "excerpt": "Avenue Bar Restaurant & Grill Pub , in Smethwick"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742",
+          "excerpt": "151 Rolfe Street, Smethwick, B66 2AU"
+        }
+      ],
+      "observedAt": "2026-10-04T11:33:50.800Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B66%202AU",
+        "observedAt": "2026-10-04T11:33:51.375Z",
+        "postcode": "B66 2AU",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415faab6946f7c0436e2",
+      "id": "venue-bhm-gptg05"
     }
   ]
 }

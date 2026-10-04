@@ -4,18 +4,42 @@
   "slices": 8,
   "slicesComplete": 7,
   "incompleteSlices": [
-    "BA1/pub: 1 pages not read yet (robots unreachable for www.fairfieldarmsbath.co.uk); rerun to resume"
+    "BA1/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://bills-website.co.uk/restaurants/bath); rerun to resume"
+  ],
+  "skippedSources": [
+    {
+      "district": "BA1",
+      "category": "pub",
+      "url": "https://www.fairfieldarmsbath.co.uk",
+      "host": "www.fairfieldarmsbath.co.uk",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:12:43.570Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:49.428Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:55.397Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:12:55.397Z"
+    }
   ],
   "taskRuns": 0,
-  "webSearches": 17,
+  "webSearches": 18,
   "pagesRead": 109,
-  "researched": 23,
+  "researched": 13,
   "added": 0,
   "retained": [
-    {
-      "name": "The Champagne Bar at Abbey Hotel Bath",
-      "id": "venue-bat-9g5hlz"
-    },
     {
       "name": "Hudson Bar & Grill",
       "id": "venue-bat-1ftmwfc"
@@ -29,8 +53,8 @@
       "id": "venue-bat-1jcx5ox"
     }
   ],
-  "totalAccepted": 4,
-  "repeats": 2,
+  "totalAccepted": 3,
+  "repeats": 0,
   "duplicates": [
     {
       "name": "Curfew",
@@ -86,120 +110,76 @@
   "withdrawn": [],
   "rejected": [
     {
-      "name": "The Marlborough Tavern",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "The Bell Inn",
-      "reason": "missing-drinking-evidence"
-    },
-    {
       "name": "https://www.cntraveller.com/article/best-pubs-in-bath",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://mapcarta.com/W97228692",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186370-d3931577-Reviews-or75-The_Old_Green_Tree_Pub-Bath_Somerset_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.welcometobath.co.uk/where-to-watch-the-world-cup-in-bath-the-ultimate-city-centre-guide",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.cntraveller.com/article/best-bars-in-bath",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=8+York+St%2C+Bath+BA1+1NG%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "The Marlborough Tavern",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "The Bell Inn",
-      "reason": "missing-drinking-evidence"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://crystalroof.co.uk/report/postcode/BA15QT/overview",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.streetcheck.co.uk/postcode/ba12te",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://se7enbath.com",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://bills-website.co.uk/restaurants/bath",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.cntraveller.com/article/best-bars-in-bath",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://se7enbath.com",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "The Marlborough Tavern",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "The Bell Inn",
-      "reason": "missing-drinking-evidence"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.folkandhoney.co.uk/bristol-and-bath/venues?strana=2",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.cntraveller.com/article/best-bars-in-bath",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://se7enbath.com",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.cntraveller.com/article/best-bars-in-bath",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186370-d28210210-Reviews-Janes_Espresso_Bar-Bath_Somerset_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186370-d21224482-Reviews-or60-The_Moorfields-Bath_Somerset_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/cask-ale-pubs/somerset",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "The Inn at Freshford",
-      "reason": "missing-drinking-evidence"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://crystalroof.co.uk/report/postcode/BA26PW/overview",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.cntraveller.com/article/best-bars-in-bath",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Bath+BA2+9BN",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     }
   ],
   "outputPath": "data/cities/bath/parallel_venues.json"

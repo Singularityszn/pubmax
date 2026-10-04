@@ -42,7 +42,8 @@
         "postcode": "G41 2AJ",
         "quality": 1
       },
-      "id": "venue-glw-1w0v1yx"
+      "id": "venue-glw-1w0v1yx",
+      "provider": "parallel"
     },
     {
       "name": "Cuvée West End Bar",
@@ -78,7 +79,8 @@
         "postcode": "G3 6EF",
         "quality": 1
       },
-      "id": "venue-glw-1ig1iaz"
+      "id": "venue-glw-1ig1iaz",
+      "provider": "parallel"
     },
     {
       "name": "The Finnieston Bar & Restaurant",
@@ -114,7 +116,8 @@
         "postcode": "G3 8ND",
         "quality": 1
       },
-      "id": "venue-glw-z557mg"
+      "id": "venue-glw-z557mg",
+      "provider": "parallel"
     },
     {
       "name": "Poko Loko",
@@ -147,7 +150,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f83a0991e011b0c3b",
-      "id": "venue-glw-1wgwpjb"
+      "id": "venue-glw-1wgwpjb",
+      "provider": "parallel"
     },
     {
       "name": "Atlantic Bar & Brasserie",
@@ -184,7 +188,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f83a0991e011b0c3b",
-      "id": "venue-glw-p8mmqn"
+      "id": "venue-glw-p8mmqn",
+      "provider": "parallel"
     },
     {
       "name": "Berlinkys",
@@ -217,7 +222,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faad2c014b4d27d51",
-      "id": "venue-glw-gqihq0"
+      "id": "venue-glw-gqihq0",
+      "provider": "parallel"
     },
     {
       "name": "King Tut's Wah Wah Hut",
@@ -250,7 +256,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415faad2c014b4d27d51",
-      "id": "venue-glw-1ttk5oj"
+      "id": "venue-glw-1ttk5oj",
+      "provider": "parallel"
     },
     {
       "name": "Cask & Clyde",
@@ -283,7 +290,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f82496b3ee19b9ad7",
-      "id": "venue-glw-1qot0be"
+      "id": "venue-glw-1qot0be",
+      "provider": "parallel"
     },
     {
       "name": "Porter & Rye",
@@ -320,7 +328,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f822d6340f498b187",
-      "id": "venue-glw-1f8zhs8"
+      "id": "venue-glw-1f8zhs8",
+      "provider": "parallel"
     },
     {
       "name": "Five March",
@@ -353,7 +362,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fab04b7a846922a8b",
-      "id": "venue-glw-151al08"
+      "id": "venue-glw-151al08",
+      "provider": "parallel"
     },
     {
       "name": "Gael & Grain",
@@ -382,7 +392,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb00e7e3444d9c1e3",
-      "id": "venue-glw-1v8x3ko"
+      "id": "venue-glw-1v8x3ko",
+      "provider": "parallel"
     },
     {
       "name": "Sylvan",
@@ -415,7 +426,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8528a8039293311d",
-      "id": "venue-glw-81e1xe"
+      "id": "venue-glw-81e1xe",
+      "provider": "parallel"
     },
     {
       "name": "Whisky Mist Bar & Kitchen",
@@ -448,7 +460,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8528a8039293311d",
-      "id": "venue-glw-2eo1ro"
+      "id": "venue-glw-2eo1ro",
+      "provider": "parallel"
     },
     {
       "name": "The Kelvin",
@@ -481,7 +494,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb2bf4714861355c8",
-      "id": "venue-glw-1vwfpmg"
+      "id": "venue-glw-1vwfpmg",
+      "provider": "parallel"
     },
     {
       "name": "The Jenny Burn",
@@ -518,7 +532,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb735a760d0e73b87",
-      "id": "venue-glw-12qgst9"
+      "id": "venue-glw-12qgst9",
+      "provider": "parallel"
     },
     {
       "name": "Wunderbar West",
@@ -552,7 +567,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fbb102ba611c57240",
-      "id": "venue-glw-1xftadp"
+      "id": "venue-glw-1xftadp",
+      "provider": "parallel"
     },
     {
       "name": "La Mesa Dumbarton Road",
@@ -589,7 +605,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f8c273f1399b45924",
-      "id": "venue-glw-1a55kbz"
+      "id": "venue-glw-1a55kbz",
+      "provider": "parallel"
     },
     {
       "name": "Epicures",
@@ -622,7 +639,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9fe5583fbd356cda",
-      "id": "venue-glw-48nwk4"
+      "id": "venue-glw-48nwk4",
+      "provider": "parallel"
     },
     {
       "name": "The Bothy Glasgow",
@@ -659,7 +677,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9fe5583fbd356cda",
-      "id": "venue-glw-xz24qa"
+      "id": "venue-glw-xz24qa",
+      "provider": "parallel"
     },
     {
       "name": "The Left Bank",
@@ -692,7 +711,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f9fe5583fbd356cda",
-      "id": "venue-glw-b7rg4t"
+      "id": "venue-glw-b7rg4t",
+      "provider": "parallel"
     },
     {
       "name": "Little SoHo Jordanhill",
@@ -733,7 +753,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb68559b58ac97d74",
-      "id": "venue-glw-ikatr9"
+      "id": "venue-glw-ikatr9",
+      "provider": "parallel"
     },
     {
       "name": "Killermont Polo Club",
@@ -770,7 +791,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f98a68ea5de979a49",
-      "id": "venue-glw-v872fm"
+      "id": "venue-glw-v872fm",
+      "provider": "parallel"
     },
     {
       "name": "Tavern Bar",
@@ -799,7 +821,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415fb9604790e0bffb96",
-      "id": "venue-glw-1dsyp0k"
+      "id": "venue-glw-1dsyp0k",
+      "provider": "parallel"
     },
     {
       "name": "The McMillan",
@@ -833,7 +856,8 @@
         "quality": 1
       },
       "runId": "trun_ce5fd53e0016415f915a9e81103eff69",
-      "id": "venue-glw-mfbz0j"
+      "id": "venue-glw-mfbz0j",
+      "provider": "parallel"
     }
   ]
 }

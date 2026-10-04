@@ -2,32 +2,390 @@
   "city": "liverpool",
   "districts": 35,
   "slices": 140,
-  "slicesComplete": 127,
+  "slicesComplete": 131,
   "incompleteSlices": [
-    "CH42/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "CH43/bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "CH43/cocktail-bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "L5/pub: 1 pages not read yet (robots unreachable for www.beersltd.co.uk); rerun to resume",
-    "L9/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "L17/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "L18/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "L19/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "L21/pub: 1 pages not read yet (robots unreachable for www.speedquizzing.com); rerun to resume",
-    "L24/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
-    "L24/cocktail-bar: 1 pages not read yet (robots unreachable for www.p4lcharity.co.uk); rerun to resume",
-    "L32/pub: 1 pages not read yet (robots unreachable for shoplocator.williamhill); rerun to resume",
-    "L36/cocktail-bar: 1 pages not read yet (robots unreachable for www.datathistle.com); rerun to resume"
+    "CH41/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://theguideliverpool.com/the-ultimate-guide-to-the-wirral-food-drink-festival-2019); rerun to resume",
+    "L15/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://mindtrip.ai/attraction/liverpool-merseyside/brookhouse/at-Sm6z6jDJ); rerun to resume",
+    "L19/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.merseyrail.org/journey-planning/stations/liverpool-south-parkway); rerun to resume",
+    "L20/pub: 1 pages not read yet (Tavily Extract: Error fetching content for https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?jcode=2007620); rerun to resume",
+    "L33/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://popeyesuk.com/restaurants)wird); rerun to resume",
+    "L33/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://theguideliverpool.com/directory_category/drink/page/14); rerun to resume",
+    "L34/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.postcodearea.co.uk/postaltowns/liverpool/l340et); rerun to resume",
+    "L69/bar: 1 pages not read yet (Tavily Extract: Error fetching content for https://pubmed.ncbi.nlm.nih.gov/30293764); rerun to resume",
+    "L69/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://bishopsgate-inst.files.svdcdn.com/production/Pride-1991_compressed.pdf?dm=1656076637); rerun to resume"
+  ],
+  "skippedSources": [
+    {
+      "district": "CH42",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2112/page/19/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:11:47.545Z"
+    },
+    {
+      "district": "CH43",
+      "category": "bar",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:11:47.139Z"
+    },
+    {
+      "district": "CH43",
+      "category": "cocktail-bar",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:11:47.140Z"
+    },
+    {
+      "district": "L5",
+      "category": "pub",
+      "url": "https://www.beersltd.co.uk",
+      "host": "www.beersltd.co.uk",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:11:48.424Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:11:54.259Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:00.068Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:12:00.068Z"
+    },
+    {
+      "district": "L9",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:11:48.058Z"
+    },
+    {
+      "district": "L17",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:11:49.741Z"
+    },
+    {
+      "district": "L18",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:11:50.406Z"
+    },
+    {
+      "district": "L19",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:11:50.331Z"
+    },
+    {
+      "district": "L21",
+      "category": "pub",
+      "url": "https://www.speedquizzing.com/pub-quiz/netherton-liverpool-13264",
+      "host": "www.speedquizzing.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:12:14.149Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:40.463Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:13:06.502Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:13:06.502Z"
+    },
+    {
+      "district": "L24",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2156/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:33.325Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:09.098Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-04T14:09:44.864Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:12:00.214Z"
+    },
+    {
+      "district": "L24",
+      "category": "cocktail-bar",
+      "url": "https://www.p4lcharity.co.uk/contact-us",
+      "host": "www.p4lcharity.co.uk",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:12:01.133Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:07.016Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:12.826Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:12:12.826Z"
+    },
+    {
+      "district": "L32",
+      "category": "pub",
+      "url": "https://shoplocator.williamhill/liverpool/adj-peacock-public-house/l33-6xn",
+      "host": "shoplocator.williamhill",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:12:02.920Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:08.760Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:14.669Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:12:14.669Z"
+    },
+    {
+      "district": "L32",
+      "category": "pub",
+      "url": "https://shoplocator.williamhill/liverpool/broad-lane/l32-6qd",
+      "host": "shoplocator.williamhill",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:12:02.920Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:08.760Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:12:14.669Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:12:14.679Z"
+    },
+    {
+      "district": "L36",
+      "category": "cocktail-bar",
+      "url": "https://www.datathistle.com/place/94314-table-table-the-derby-lodge-huyton-liverpool",
+      "host": "www.datathistle.com",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:08:09.567Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:15.564Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:08:21.370Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:12:15.204Z"
+    }
   ],
   "taskRuns": 0,
-  "webSearches": 231,
-  "pagesRead": 639,
-  "researched": 118,
+  "webSearches": 247,
+  "pagesRead": 657,
+  "researched": 117,
   "added": 0,
   "retained": [
-    {
-      "name": "Mexican Bar & Grill",
-      "id": "venue-liv-156hwvh"
-    },
     {
       "name": "Belmont",
       "id": "venue-liv-1clij4z"
@@ -125,7 +483,7 @@
       "id": "venue-liv-wyxmb7"
     }
   ],
-  "totalAccepted": 25,
+  "totalAccepted": 24,
   "repeats": 42,
   "duplicates": [
     {
@@ -338,151 +696,135 @@
   "rejected": [
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Hamilton+Square%2C+Birkenhead+CH41+6AY",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://theguideliverpool.com/the-ultimate-guide-to-the-wirral-food-drink-festival-2019",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=mexican&find_loc=Borough+Road%2C+Birkenhead+CH41+2ZL%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=778%2F80+Borough+Road%2C+Birkenhead+CH42+9JG%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.lavidaliverpool.co.uk/14-of-the-best-wirral-pubs-showing-the-euros",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.com/r/sportsmans-arms-birkenhead",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://b-a-o.com/estate-agents/moreton",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=778%2F80+Borough+Road%2C+Birkenhead+CH42+9JG%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://birkenhead.cylex-uk.co.uk/bars-pubs",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://mapcarta.com/N1746738444",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://guide.michelin.com/mt/en/merseyside/oxton_7770472/restaurant/daise-by-tony-parkin",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=2-4+Queen+Avenue%2C+Liverpool+L2+4TZ%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g209958-d2163888-Reviews-or300-Oxton_Bar_and_Kitchen-Birkenhead_Wirral_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://streetscan.co.uk/postcode/ch44-8bn",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://m.yelp.ca/search?cflt=nightlife&find_loc=85A+Liscard+Rd%2C+Wallasey+CH44+9AE%2F",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/the-montgomery-pub-and-kitchen-birkenhead",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.visitwirral.com/listing/eastham-country-park/7154101",
-      "reason": "unreadable: extract: Error fetching content"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/the-montgomery-pub-and-kitchen-birkenhead",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.co.uk/r/the-montgomery-pub-and-kitchen-birkenhead",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.village-hotels.co.uk/wirral",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://uk.indeed.com/q-cocktail-bar-l-liverpool-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Covent+Garden%2C+Liverpool+L2+8TZ",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://mapcarta.com/W667520499",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.visitliverpool.com/listing/mathew-street/63235101",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://liverpoolunderlined.co.uk/destination/lion-tavern-pub-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.flanagansappleliverpool.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://theshipandmitre.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.cntraveller.com/article/best-rooftop-bars-in-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://twelve-cocktail-and-wine-bar.wheree.com/menu",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://segura.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://liverpool.cylex-uk.co.uk/off-licence-5.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://en.uhomes.com/blog/liverpools-thriving-listed-pubs-scene-a-haven-for-beer-aficionados",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_near=the-kensington-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://streetscan.co.uk/postcode/l5-6rw",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://mapcarta.com/W1323745146",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.mapquest.com/gb/england/magnet-pubs-and-bars-798571199",
@@ -490,343 +832,267 @@
     },
     {
       "name": "https://ja.ra.co/clubs/uk/liverpool",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://mapcarta.com/W1314940634",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.simplyhired.co.uk/search?q=bar+staff&l=l6+6dq",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.royalmail.com/services-near-you/post-office/boaler-street-l6-6ae",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Belmont+Grove%2C+Liverpool+L6+4EG",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://the-old-fort.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.postcodearea.co.uk/postaltowns/liverpool/l64es/pubs",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=hotelstravel&find_loc=Liverpool%2C+Merseyside",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Belmont+Grove%2C+Liverpool+L6+4EG",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Attraction_Review-g186337-d3702797-Reviews-The_Old_Fort_Pub-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186337-d10713752-Reviews-The_Belvedere-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=358&Column=OPR_NAME&Direction=Ascending",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.folkandhoney.co.uk/all-our-uk-gigs/venues?strana=117",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186337-d2418117-Reviews-The_Font-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.visitliverpool.com/listing/cains-brewery-village/44608101",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://dunnys.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=24-36+Walton+Vale%2C+Liverpool+L9+2BU",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://dunnys.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.therange.co.uk/stores/aintree",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Hartley+Ave%2C+Liverpool+L9+7DB",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://dunnys.wheree.com/menu",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search/718/Detail?APP_ID=237630",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://directory.gazettelive.co.uk/company/906577616490496",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Liverpool+Rd%2C+Huyton+L36+3RD",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://the-western-approaches.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://m.yelp.com/search?find_desc=Italian&find_loc=Greasby%2C+XMS",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://streetscan.co.uk/postcode/l11-1hb",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://liverpool.cylex-uk.co.uk/bars-pubs?dst=norris-green",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/almond-bar-and-eatery-liverpool",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=35&column=opr_name&direction=Descending",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://mapcarta.com/W1289754485",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.co.uk/r/old-swan-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/old-swan-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Green+Ln%2C+Liverpool+L13",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/wheatsheaf-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?cflt=restaurants&find_loc=Soth+Road%2C+Liverpool+L14+3LF%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.visitliverpool.com/listing/wavertree-town-hall/47734101",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=270-272+Smithdown+Road%2C+Liverpool+L15+5AH%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://ja.ra.co/clubs/uk/liverpool",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.opentable.com/r/brookhouse-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://liverpool.cylex-uk.co.uk/dive%20bar.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.com/r/brookhouse-liverpool",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://mindtrip.ai/attraction/liverpool-merseyside/brookhouse/at-Sm6z6jDJ",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search/1783/Detail?LIC_ID=17828",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?find_desc=Nightlife&find_loc=251-253+Woolton+Road%2C+Childwall%2C+Liverpool+L16+8NA%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=181&Column=OPR_PREM_ADDRESS&Direction=Descending",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.larklaneguide.com/the-green-man",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?find_loc=99-101+Lark+Lane%2C+Liverpool+L17+8UP&cflt=bars",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Mather+Ave%2C+Liverpool+L19+4UG",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/the-john-brodie-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.thefork.co.uk/restaurant/the-john-brodie-liverpool-r844228",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=228&Column=OPR_NAME&Direction=Descending",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186337-d2391763-Reviews-Dovedale_Towers-Liverpool_Merseyside_England.html",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://m.yelp.com/search?cflt=wine_bars&find_loc=193-195+Rose+Ln%2C+Liverpool+L18+5EA",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/the-john-brodie-liverpool",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.royalmail.com/services-near-you/post-office/allerton-road-l18-2de",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.ca/search?cflt=italian&find_loc=Park+Rd%2C+Liverpool+L8+4PF",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://mapcarta.com/N26353635",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186337-d2536912-Reviews-The_Kingsman-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186337-d795786-Reviews-Toby_Carvery_Aigburth-Liverpool_Merseyside_England.html",
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
-      "name": "https://www.merseyrail.org/journey-planning/stations/liverpool-south-parkway",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Mather+Ave%2C+Liverpool+L19+4UG",
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://philosophyinpubs.co.uk/venues/view/313935",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://philosophyinpublic.co.uk/event/the-self-the-lock-quay-2-irlam-road-bootle-l20-4ah-bootles-first-community-pub-owned-managed-by-the-community-all-welcome",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.com/r/addison-arms-bootle-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=british&find_loc=Park+St%2C+Bootle+L20+9AD",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://area360.uk/postcode/L204QT",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?jcode=2007620",
-      "reason": "unreadable: extract: Error fetching content"
-    },
-    {
-      "name": "https://www.visitliverpool.com/listing/salt-and-tar/62741101",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=british&find_loc=Park+St%2C+Bootle+L20+9AD",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.royalmail.com/services-near-you/post-office/knowsley-road-liverpool-l20-4nh",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=british&find_loc=Park+St%2C+Bootle+L20+9AD",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_near=stockwell-mount-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://mapcarta.com/W456606803",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.qlocal.co.uk/liverpool/pubs_clubs_bars_list",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.ubereats.com/gb/store/jubilee-pub/Oi_Y3OdDXF6rv0kTYZBgJA",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://pacific.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://m.yelp.com/search?cflt=restaurants&find_loc=50-52+Sefton+Road%2C+Liverpool+L21+7PQ",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?find_desc=Coffee+%26+Tea&find_loc=Bootle%2C+XMS&start=80",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://liverpool.cylex-uk.co.uk/beer-wine-spirits",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.ubereats.com/gb/neighborhood/dingle-bank-liverpool-eng",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://m.yelp.com/search?cflt=restaurants&find_loc=50-52+Sefton+Road%2C+Liverpool+L21+7PQ",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?cflt=indpak&find_loc=A+169+Linacre+Road%2C+Liverpool+L21+8JS%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Old Tap",
@@ -834,31 +1100,31 @@
     },
     {
       "name": "https://ra.co/clubs/290529",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://philosophyinpubs.co.uk/venues/view/3531",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://m.yelp.com/search?find_desc=Nightlife&find_loc=10-12+South+Road%2C+Liverpool+L22+5PQ%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://ra.co/clubs/290529",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://marine-bar-kitchen.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.opentable.com/r/medusa-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=51-53+Crosby+Rd+N%2C+Waterloo+L22%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Old Tap",
@@ -866,95 +1132,67 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=mexican&find_loc=Risplith+HG4",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.tripadvisor.in/Restaurant_Review-g186337-d27173910-Reviews-Tap_Brew-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Speke+Hall+Ave%2C+Liverpool+L24+1UX",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_PREM_ADDRESS&Direction=Descending&page=338",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=217&column=opr_name&direction=Ascending",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://uk.indeed.com/q-bar-management-l-liverpool-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://tap-brew-1.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://ra.co/clubs/uk/liverpool",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=tikibars&find_loc=Woodend+Ave%2C+Liverpool+L24+9NB",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://liverpool.cylex-uk.co.uk/beer%20gardens.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.liverpoolairport.com/parking/long-stay",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://tap-brew-1.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.opentable.com/r/wagamama-liverpool-speke-liverpool",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://kz.trip.com/restaurant/united-kingdom/liverpool/detail/holdi-bar-restaurant-and-lounge-17634200",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://reem-lounge.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=2&Column=OPR_PREM_ADDRESS&Direction=Ascending",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://lunabargrill.co.uk",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/ShowUserReviews-g186337-d2509200-r546245664-Allerton_Hall-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.rightmove.co.uk/properties/92414622",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186337-d10485245-Reviews-The_Metro_Cafe_Bar-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=8+Woolton+St%2C+Liverpool+L25+5JA%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=349&Column=OPR_PREM_ADDRESS&Direction=Descending",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=8+Woolton+St%2C+Liverpool+L25+5JA%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Mariners Inn",
@@ -966,11 +1204,11 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Naylorsfield+Dr%2C+Liverpool+L27",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://kirkby.cylex-uk.co.uk/company/kirkby-sports-bar---function-suites-27203845.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Mariners Inn",
@@ -982,15 +1220,15 @@
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+12+Glovers+Brow%2C+Liverpool+L32+2AE%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+8+Marl+Road%2C+Liverpool+L33+7UH%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://crystalroof.co.uk/postcodes/L33",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.mapquest.com/gb/england/marks-sandwich-bar-797726424",
@@ -998,63 +1236,39 @@
     },
     {
       "name": "https://www.tripadvisor.in/Restaurant_Review-g186337-d25401491-Reviews-The_Windmill_Sports_Bar-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+8+Marl+Road%2C+Liverpool+L33+7UH%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://popeyesuk.com/restaurants)wird",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Kirkby+Bank+Rd%2C+Kirkby+L33+7SY",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://theguideliverpool.com/directory_category/drink/page/14",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+8+Marl+Road%2C+Liverpool+L33+7UH%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=14-16A+Eccleston+Street%2C+Prescot+L34+5QE%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.postcodearea.co.uk/postaltowns/liverpool/l340et",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.bestwestern.co.uk/hotels/best-western-premier-suites-hotel-spa-84386",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://explore-liverpool.com/thwaites-world-cup-pub-campaign-cash-prizes-launched",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.opentable.co.uk/r/pinion-prescot",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://gb.kompass.com/c/rkwb-limited/gbcsc346016",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=14-16A+Eccleston+Street%2C+Prescot+L34+5QE%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=14-16A+Eccleston+Street%2C+Prescot+L34+5QE%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.tripadvisor.com/Restaurant_Review-g186337-d33967735-Reviews-The_Kop_End_Bar-Liverpool_Merseyside_England.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "Queens Arms",
@@ -1073,32 +1287,24 @@
       "reason": "postcode-does-not-geocode-inside-city"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=hotelstravel&find_loc=Liverpool%2C+Merseyside",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
       "name": "https://www.yelp.ca/search?cflt=beerbar&find_loc=Woolton+Park%2C+Liverpool+L25+6DT",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.ubereats.com/gb/neighborhood/roby-huyton-eng",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://st-aloysius-club.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://huyton.cylex-uk.co.uk/bars-pubs",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://pubmed.ncbi.nlm.nih.gov/30293764",
-      "reason": "unreadable: extract: Error fetching content"
-    },
-    {
-      "name": "https://bishopsgate-inst.files.svdcdn.com/production/Pride-1991_compressed.pdf?dm=1656076637",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Lost+%26+Stolen+Cards%2C+Liverpool+L69+8HF%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     }
   ],
   "outputPath": "data/cities/liverpool/parallel_venues.json"

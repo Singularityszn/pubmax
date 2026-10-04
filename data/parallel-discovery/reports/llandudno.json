@@ -2,11 +2,14 @@
   "city": "llandudno",
   "districts": 5,
   "slices": 20,
-  "slicesComplete": 20,
-  "incompleteSlices": [],
+  "slicesComplete": 19,
+  "incompleteSlices": [
+    "LL32/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://uk.hotels.com/go/wales/things-to-do-llandudno); rerun to resume"
+  ],
+  "skippedSources": [],
   "taskRuns": 0,
   "webSearches": 27,
-  "pagesRead": 47,
+  "pagesRead": 44,
   "researched": 0,
   "added": 0,
   "retained": [],
@@ -16,64 +19,44 @@
   "withdrawn": [],
   "rejected": [
     {
-      "name": "https://no-25-bar-bistro-1.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
       "name": "https://www.yelp.com/search?cflt=nightlife&find_loc=Llandudno",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://uk.indeed.com/q-pub-staff-l-prestatyn-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://uk.indeed.com/m/jobs?q=Corner+Shop",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.visitconwy.org.uk/listing/the-white-lion/46151101",
-      "reason": "unreadable: extract: Error fetching content"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://tapps-micropub.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.opentable.com/r/the-green-room-jazz-cafe",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://llandudno.cylex-uk.co.uk/cocktail%20bar.html",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://guide.michelin.com/us/en/conwy-region/colwyn-bay/restaurant/bryn-williams-at-porth-eirias",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://llandudno.cylex-uk.co.uk/beer%20retail.html",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://uk.hotels.com/go/wales/things-to-do-llandudno",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.hoteles.com/go/wales/things-to-do-llandudno",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://tapps-conwy.wheree.com",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://guide.michelin.com/us/en/conwy-region/conwy/restaurant/the-jackdaw",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.thejackdawconwy.co.uk",
-      "reason": "unreadable: extract: Error fetching content"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     }
   ],
   "outputPath": "data/cities/llandudno/parallel_venues.json"

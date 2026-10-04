@@ -2,12 +2,42 @@
   "city": "oxford",
   "districts": 4,
   "slices": 16,
-  "slicesComplete": 16,
-  "incompleteSlices": [],
+  "slicesComplete": 15,
+  "incompleteSlices": [
+    "OX3/bar: 1 pages not read yet (Tavily Extract: Error fetching content for https://pubmed.ncbi.nlm.nih.gov/24530702); rerun to resume"
+  ],
+  "skippedSources": [
+    {
+      "district": "OX1",
+      "category": "cocktail-bar",
+      "url": "https://www.oxfordcompass.org/venues/oxo-bar-oxford",
+      "host": "www.oxfordcompass.org",
+      "reason": "robots HTTP 429",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:12:56.836Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-04T14:13:02.463Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-04T14:13:08.544Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:13:08.544Z"
+    }
+  ],
   "taskRuns": 0,
   "webSearches": 31,
-  "pagesRead": 145,
-  "researched": 25,
+  "pagesRead": 140,
+  "researched": 20,
   "added": 0,
   "retained": [
     {
@@ -50,26 +80,6 @@
   "totalAccepted": 9,
   "repeats": 0,
   "duplicates": [
-    {
-      "name": "The OXO Bar",
-      "matchedName": "The Oxo Bar",
-      "matchedId": "node/6342939238"
-    },
-    {
-      "name": "Sandy’s Piano & Wine Bar",
-      "matchedName": "Sandy's Piano Bar",
-      "matchedId": "node/9466657441"
-    },
-    {
-      "name": "LJ - Love Jericho Cocktail Bar",
-      "matchedName": "Love Jericho",
-      "matchedId": "node/662951441"
-    },
-    {
-      "name": "Raoul's Bar",
-      "matchedName": "Raoul's",
-      "matchedId": "node/662951454"
-    },
     {
       "name": "Tile Shop Ale House",
       "matchedName": "The Tile Shop Ale House",
@@ -120,95 +130,87 @@
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/oxfordshire",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.redlionoxford.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://m.yelp.com/search?cflt=bars&find_loc=1A+Little+Clarendon+St%2C+Oxford+OX1+2HP",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.klook.com/en-GB/blog/5-famous-pubs-in-oxford",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.redlionoxford.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.klook.com/en-GB/blog/5-famous-pubs-in-oxford",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Queen+St%2C+Oxford+OX1",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.opentable.com/r/no1-ship-street-first-floor-oxford",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.atlasobscura.com/places/bear-inn-oxford",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.com/r/the-oxo-bar-oxford",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.cntraveler.com/bars/oxford/angels",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.oxfordcompass.org/venues/oxo-bar-oxford",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Queen+St%2C+Oxford+OX1",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?cflt=bars&find_loc=1A+Little+Clarendon+St%2C+Oxford+OX1+2HP",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/managed-pubs",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?strana=57",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.opentable.com/r/lj-love-jericho-cocktail-bar-oxfordshire",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.ubereats.com/gb/store/lj-love-jericho-cocktail-bar/Ieqpl8bdTB6em1Y9pE-2Vg",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.thedewdropinnoxford.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.wolfson.ox.ac.uk/social-life-food-and-drink/the-wolfson-bar",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=beerbar&find_loc=Observtory+Street%2C+Oxford+OX2+6EP",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://uk.indeed.com/q-beer-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "Acropolis",
-      "reason": "missing-drinking-evidence"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Mason's Arms",
@@ -220,63 +222,47 @@
     },
     {
       "name": "https://www.yelp.com/search?cflt=lounges&find_loc=79-81+London+Road%2C+Oxford+OX3+9AA%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://theblackboyoxford.com/black-boy-oxford",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://pubmed.ncbi.nlm.nih.gov/24530702",
-      "reason": "unreadable: extract: Error fetching content"
-    },
-    {
-      "name": "https://crystalroof.co.uk/report/postcode/OX30LE/overview",
-      "reason": "unreadable: extract: Failed to fetch url"
-    },
-    {
-      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Oxford+OX3+7LE",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Oxford+OX3+9RZ%2C+United+Kingdom",
-      "reason": "unreadable: robots refused"
-    },
-    {
-      "name": "https://www.simplyhired.co.uk/en-GB/search?q=bartender&l=ox3+9du",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://m.yelp.com/search?find_desc=Restaurants&find_loc=Goring%2C+Oxfordshire",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://headington.cylex-uk.co.uk/bars-pubs",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://mycouncil.oxford.gov.uk/mgIssueHistoryHome.aspx?IId=16169",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.thecapeofgoodhopeoxford.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.magdalenarms.co.uk/page/contact",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://oxford.cylex-uk.co.uk/bars-pubs?dst=east-oxford&p=2",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.thecapeofgoodhopeoxford.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://uk.indeed.com/q-bar-l-oxford-ox4-7fn-jobs.html",
-      "reason": "unreadable: extract: Failed to fetch url"
+      "reason": "unreadable: source refused HTTP 403"
     }
   ],
   "outputPath": "data/cities/oxford/parallel_venues.json"

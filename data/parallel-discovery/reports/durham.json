@@ -2,15 +2,13 @@
   "city": "durham",
   "districts": 1,
   "slices": 4,
-  "slicesComplete": 2,
-  "incompleteSlices": [
-    "DH1/pub: 1 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume",
-    "DH1/bar: 1 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume"
-  ],
+  "slicesComplete": 4,
+  "incompleteSlices": [],
+  "skippedSources": [],
   "taskRuns": 8,
   "webSearches": 7,
-  "pagesRead": 25,
-  "researched": 50,
+  "pagesRead": 38,
+  "researched": 49,
   "added": 0,
   "retained": [
     {
@@ -30,10 +28,6 @@
       "id": "venue-dur-ftudml"
     },
     {
-      "name": "19Twenty Bar & Grill",
-      "id": "venue-dur-lgcx28"
-    },
-    {
       "name": "Cosy Club Durham",
       "id": "venue-dur-n4gbj0"
     },
@@ -50,7 +44,7 @@
       "id": "venue-dur-v0muyx"
     }
   ],
-  "totalAccepted": 9,
+  "totalAccepted": 8,
   "repeats": 0,
   "duplicates": [
     {
@@ -91,7 +85,11 @@
     },
     {
       "name": "https://www.thehalfmooninndurham.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/durham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "The Avenue Inn",
@@ -115,15 +113,19 @@
     },
     {
       "name": "https://prestigestudentliving.com/blog/top-8-nightclubs-you-need-to-visit-in-durham",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.thehalfmooninndurham.co.uk",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/durham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=18C+Church+St%2C+Durham+DH1+3DQ",
-      "reason": "unreadable: robots refused"
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "CoHo Durham",

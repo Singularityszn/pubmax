@@ -9,35 +9,6 @@
   ],
   "venues": [
     {
-      "name": "ATOMECA Wine Bar",
-      "kind": "bar",
-      "address": "Spinningfields, M3 3HF",
-      "postcode": "M3 3HF",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.47988,
-      "lng": -2.250781,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.squaremeal.co.uk/restaurants/m5-3aw-salford/local-restaurants"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.squaremeal.co.uk/restaurants/m5-3aw-salford/local-restaurants",
-          "excerpt": "ATOMECA Wine Bar, Spinningfields, M3 3HF"
-        }
-      ],
-      "observedAt": "2026-10-04T12:06:40.612Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M3%203HF",
-        "observedAt": "2026-10-04T12:06:40.684Z",
-        "postcode": "M3 3HF",
-        "quality": 1
-      },
-      "provider": "tavily-firecrawl",
-      "id": "venue-mcr-1d1ox70"
-    },
-    {
       "name": "Vero Moderno",
       "kind": "pub",
       "address": "Unit 4 Vimto Gardens, Chapel Street, Salford M3 5JF",
@@ -268,64 +239,6 @@
       },
       "provider": "tavily",
       "id": "venue-mcr-2mlxmv"
-    },
-    {
-      "name": "Studio Bar",
-      "kind": "bar",
-      "address": "256 Wilmslow Road, Fallowfield M14 6LB",
-      "postcode": "M14 6LB",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.443072,
-      "lng": -2.218829,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://ssm.camra.org.uk/viewnode.php?id=182097"
-      ],
-      "evidence": [
-        {
-          "url": "https://ssm.camra.org.uk/viewnode.php?id=182097",
-          "excerpt": "# Studio Bar\n\n256 Wilmslow Road  \n Fallowfield  \n M14 6LB"
-        }
-      ],
-      "observedAt": "2026-10-04T12:48:15.765Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M14%206LB",
-        "observedAt": "2026-10-04T12:48:16.329Z",
-        "postcode": "M14 6LB",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-15m4rlr"
-    },
-    {
-      "name": "Fuzion Noodle Bar",
-      "kind": "bar",
-      "address": "264 Wilmslow Road Fallowfield Manchester M14 6JR",
-      "postcode": "M14 6JR",
-      "locality": "Manchester",
-      "website": "https://fuzionnoodlebar.co.uk/",
-      "lat": 53.441894,
-      "lng": -2.218793,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://fuzionnoodlebar.co.uk"
-      ],
-      "evidence": [
-        {
-          "url": "https://fuzionnoodlebar.co.uk",
-          "excerpt": "Fuzion Noodle Bar | 0161 248 6688 |  \n264 Wilmslow Road Fallowfield Manchester M14 6JR"
-        }
-      ],
-      "observedAt": "2026-10-04T13:02:11.301Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M14%206JR",
-        "observedAt": "2026-10-04T13:02:11.372Z",
-        "postcode": "M14 6JR",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-nktoob"
     },
     {
       "name": "9inety 6ix",
@@ -821,35 +734,6 @@
       "id": "venue-mcr-6ad5bf"
     },
     {
-      "name": "The Lowry Bar & Kitchen",
-      "kind": "bar",
-      "address": "8 The Quays M50 3AZ",
-      "postcode": "M50 3AZ",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.470757,
-      "lng": -2.294071,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.designmynight.com/manchester/salford-quays-restaurants"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.designmynight.com/manchester/salford-quays-restaurants",
-          "excerpt": "### [The Lowry Bar & Kitchen]\n\n  \n\n* **Location:**8 The Quays, M50 3AZ"
-        }
-      ],
-      "observedAt": "2026-10-04T13:24:24.462Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M50%203AZ",
-        "observedAt": "2026-10-04T13:24:24.529Z",
-        "postcode": "M50 3AZ",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-1yhy8tt"
-    },
-    {
       "name": "Whittles",
       "kind": "pub",
       "address": "57 Roscoe St, Oldham OL1 1EA",
@@ -1167,6 +1051,35 @@
       },
       "provider": "tavily",
       "id": "venue-mcr-18rfqdc"
+    },
+    {
+      "name": "Manchester Union Brewery Tap",
+      "kind": "pub",
+      "address": "96D North Western Street, Manchester M12 6JL",
+      "postcode": "M12 6JL",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.474922,
+      "lng": -2.221403,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m11-4tq-1790946"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m11-4tq-1790946",
+          "excerpt": "### Manchester Union Brewery Tap\nPub, in Manchester\nCask Ale not available\n1.2 miles from you\n96D North Western Street, Manchester, M12 6JL"
+        }
+      ],
+      "observedAt": "2026-10-04T13:57:20.915Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M12%206JL",
+        "observedAt": "2026-10-04T13:57:33.105Z",
+        "postcode": "M12 6JL",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-55die4"
     }
   ]
 }

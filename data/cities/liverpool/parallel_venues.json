@@ -9,35 +9,6 @@
   ],
   "venues": [
     {
-      "name": "Mexican Bar & Grill",
-      "kind": "bar",
-      "address": "233 Liscard Road CH44 5TH",
-      "postcode": "CH44 5TH",
-      "locality": "Liverpool",
-      "website": "https://www.mexicanbargrill.co.uk/",
-      "lat": 53.418607,
-      "lng": -3.042265,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.mexicanbargrill.co.uk"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.mexicanbargrill.co.uk",
-          "excerpt": "Mexican Bar & Grill  \n 233 Liscard Road,  \n CH44 5TH"
-        }
-      ],
-      "observedAt": "2026-10-04T12:50:54.598Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/CH44%205TH",
-        "observedAt": "2026-10-04T12:50:54.756Z",
-        "postcode": "CH44 5TH",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-liv-156hwvh"
-    },
-    {
       "name": "Belmont",
       "kind": "pub",
       "address": "303 West Derby Road, Anfield, Liverpool L6 5EG",
