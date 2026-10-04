@@ -6,6 +6,7 @@ import { FriendLocationError, friendLocationOperation, type FriendLocationOperat
 import { isLimited } from "@/lib/pintDrops";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { hashActor } from "@/lib/supabase";
+import type { Json } from "@/types/database";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,12 +37,12 @@ async function run(request: Request, operation: FriendLocationOperation): Promis
     if (await isLimited(key, key, operation === "start" ? 6 : 60, 60_000)) {
       return publicApiError("Too many location requests. Wait a minute.", "RATE_LIMITED", 429, { headers, retryable: true });
     }
-    let input: Record<string, unknown> = {};
+    let input: { [key: string]: Json } = {};
     let effectiveOperation = operation;
     if (operation !== "read") {
       const raw = await boundedJson(request, 4 * 1024);
       if (!raw || typeof raw !== "object" || Array.isArray(raw)) return invalid();
-      input = raw as Record<string, unknown>;
+      input = raw as { [key: string]: Json };
       if (operation === "start" && input.action === "reconcile") effectiveOperation = "reconcile";
       if (!validInput(effectiveOperation, input)) return invalid();
     }

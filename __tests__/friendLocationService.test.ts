@@ -18,14 +18,6 @@ it("refuses invalid generation receipts and retains valid confirmed authority", 
   rpc.mockResolvedValue({ data: { ok: true, own: null, generation: 4 }, error: null });
   await expect(friendLocationOperation(actor, "reconcile", { expectedGeneration: 3 })).resolves.toMatchObject({ generation: 4 });
 });
-it.each([Number.NaN, Number.POSITIVE_INFINITY, undefined, () => "unsafe", { nested: () => "unsafe" }])(
-  "refuses non-JSON input before sending a location request: %s", async (value) => {
-    rpc.mockResolvedValue({ data: { ok: true, own: null, generation: 1 }, error: null });
-    await expect(friendLocationOperation(actor, "reconcile", { expectedGeneration: 0, value }))
-      .rejects.toMatchObject({ code: "invalid" });
-    expect(rpc).not.toHaveBeenCalled();
-  },
-);
 it("fails closed on an array RPC receipt", async () => {
   rpc.mockResolvedValue({ data: [{ ok: true, own: null, generation: 1 }], error: null });
   await expect(friendLocationOperation(actor, "read")).rejects.toMatchObject({ code: "unavailable" });

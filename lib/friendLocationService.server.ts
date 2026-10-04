@@ -12,21 +12,10 @@ export class FriendLocationError extends Error {
     super(code);
   }
 }
-function isJsonValue(value: unknown, ancestors = new Set<object>()): value is Json {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "object" || ancestors.has(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return false;
-  ancestors.add(value);
-  const valid = Object.values(value).every((entry) => isJsonValue(entry, ancestors));
-  ancestors.delete(value);
-  return valid;
-}
 export async function friendLocationOperation(
   actor: SocialPostActor,
   operation: FriendLocationOperation,
-  input: Record<string, unknown> = {},
+  input: { [key: string]: Json } = {},
 ): Promise<FriendLocationRead | FriendLocationWrite> {
   try {
     const body = { ...input };
@@ -36,7 +25,6 @@ export async function friendLocationOperation(
       body.latitude = point.lat;
       body.longitude = point.lng;
     }
-    if (!isJsonValue(body)) throw new FriendLocationError("invalid");
     const { data, error } = await requireSupabaseAdmin().rpc("friend_location_operation", {
       p_actor_account_id: actor.accountId, p_operation: operation, p_input: body,
     });
