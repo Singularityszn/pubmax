@@ -8,7 +8,7 @@ function fixture(name: string) {
   const dir = path.join(ROOT, "test-results/places-enrich", name);
   rmSync(dir, { recursive: true, force: true });
   for (const sub of ["scripts/lib", "data/places_verification", "bin"]) mkdirSync(path.join(dir, sub), { recursive: true });
-  for (const file of ["scripts/enrich_google_places.mjs", "scripts/lib/googlePlacesQuota.mjs", "tsconfig.json"]) copyFileSync(path.join(ROOT, file), path.join(dir, file));
+  for (const file of ["scripts/enrich_google_places.mjs", "scripts/lib/googlePlacesQuota.mjs", "scripts/lib/placesEnrichmentStamp.mjs", "tsconfig.json"]) copyFileSync(path.join(ROOT, file), path.join(dir, file));
   for (const name of ["lib", "node_modules"]) symlinkSync(path.join(ROOT, name), path.join(dir, name), "dir");
   writeFileSync(path.join(dir, "bin/gcloud"), "#!/bin/sh\nprintf 'fixture-access-token\\n'\n", { mode: 0o755 });
   const pubs = [1, 2, 3].map((n) => ({ venueId: `venue-osm-n${n}`, googlePlaceId: `ChIJVerified00${n}` }));
@@ -76,6 +76,9 @@ it("dry run makes no calls; live copy follows priority, preserves dates on resum
   expect(readFileSync(path.join(dir, "quota.log"), "utf8").trim().split("\n").at(-1)).toBe("10000");
   const before = readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8");
   expect(JSON.parse(before).spend.reservedUsd).toBe(0.06);
+  const { version, inputHash, observedAt, spend, summary, venues } = JSON.parse(before);
+  expect(JSON.parse(readFileSync(path.join(dir, "data/places_enrichment_stamp.json"), "utf8"))).toEqual({ version, inputHash, observedAt, spend, summary });
+  expect(observedAt).toBe(venues.map((row: { observedAt: string }) => row.observedAt).sort()[0]);
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   expect(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8")).toBe(before);
 });

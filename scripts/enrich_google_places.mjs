@@ -8,6 +8,7 @@ import { PLACES_REFRESH_DAYS, placesEnrichmentRecord, planPlacesEnrichment } fro
 import { restoreQuotasUntilVerified } from "../lib/placesVerification.ts";
 import { accessToken, dailyOverrideValue, effectiveDailyLimit, setDailyOverrides,
   monthPlacesRequests, SEARCH_METRIC, DETAILS_METRIC } from "./lib/googlePlacesQuota.mjs";
+import { PLACES_ENRICHMENT_STAMP, placesEnrichmentStamp } from "./lib/placesEnrichmentStamp.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "data/places_enrichment.json");
@@ -131,14 +132,16 @@ async function main() {
   const save = () => {
     write(CHECKPOINT, previous);
     const venues = Object.values(previous.completed);
-    write(OUT, { version: 1, inputHash, observedAt: venues.map((row) => row.observedAt).sort()[0] ?? null,
+    const pack = { version: 1, inputHash, observedAt: venues.map((row) => row.observedAt).sort()[0] ?? null,
     spend: { capUsd: CAP_USD, attemptedCalls: previous.attempts, usdPerThousand: 20, reservedUsd: previous.attempts * 2 / 100,
       month: previous.month, monthAttemptedCalls: previous.monthAttempts, monthReservedUsd: previous.monthAttempts * 2 / 100, runStartedAt: previous.runStartedAt,
       monthToDatePlacesRequestsBeforeRun: monthUsage, freeAllowanceAssumed: 0 },
     priority: { unknown: preview.priorityUnknown, mismatch: preview.priorityMismatch },
     summary: { venues: venues.length, hours: venues.filter((row) => row.regularOpeningHours).length,
       addresses: venues.filter((row) => row.formattedAddress).length, phones: venues.filter((row) => row.nationalPhoneNumber).length,
-      websites: venues.filter((row) => row.websiteUri).length, errors: previous.errors.length }, errors: previous.errors, venues });
+      websites: venues.filter((row) => row.websiteUri).length, errors: previous.errors.length }, errors: previous.errors, venues };
+    write(OUT, pack);
+    write(join(ROOT, PLACES_ENRICHMENT_STAMP), placesEnrichmentStamp(pack));
   };
   const restore = async () => {
     if (!restoreNeeded) return;

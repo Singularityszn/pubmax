@@ -8,16 +8,17 @@ const CONTACT_FIELDS = [["formattedAddress", "address"], ["nationalPhoneNumber",
 const checked = (observedAt: string) =>
   new Date(observedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
 
-/** Copied hours and contacts at any age, each credited with the day Google Places was checked. */
+/** Copied hours and contacts at any age, each credited with the day Google Places was checked. Venues without Google Places content render nothing. */
 export default function VenuePlacesDetails({ venue, links = false, websiteLink = false }: { venue: Venue; links?: boolean; websiteLink?: boolean }) {
   const record = venue.placesContent;
+  if (!record) return null;
   const now = new Date();
   const hours = placesOpeningHours(record, now);
   const contacts = venueContacts(venue);
   const phoneHref = links ? contacts.phoneHref : null;
   const websiteHref = links && websiteLink ? contacts.websiteHref : null;
   const copied = CONTACT_FIELDS.flatMap(([field, label]) => {
-    const observation = record?.[field];
+    const observation = record[field];
     return usablePlacesObservation(observation, now) ? [{ label, observedAt: observation.observedAt }] : [];
   });
   if (!hours && !phoneHref && !websiteHref && !copied.length) return null;
@@ -38,7 +39,7 @@ export default function VenuePlacesDetails({ venue, links = false, websiteLink =
           <dt>{DAYS[day]}</dt>
           <dd>{hours[day]?.length ? hours[day]!.map((window) => `${window.opens} to ${window.closes}`).join(", ") : "Closed"}</dd>
         </div>)}</dl>
-        <small>Google Places · Checked {checked(record!.regularOpeningHours!.observedAt)}</small>
+        <small>Google Places · Checked {checked(record.regularOpeningHours!.observedAt)}</small>
       </details> : null}
     </div>
   );

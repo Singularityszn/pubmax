@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, it } from "vitest";
 
+import { readFreshnessArtifact, resolveDatasetStamp } from "@/lib/freshnessArtifact";
+import { placesEnrichmentStamp } from "../scripts/lib/placesEnrichmentStamp.mjs";
+
 const root = path.resolve(__dirname, "..");
 const read = (file: string) => JSON.parse(readFileSync(path.join(root, file), "utf8"));
 
@@ -41,4 +44,17 @@ it("keeps copied content limited to verified identities and individually dated a
   expect(pack.spend.capUsd).toBeLessThanOrEqual(85);
   expect(pack.spend.attemptedCalls).toBeGreaterThanOrEqual(ids.size);
   expect(pack.summary.errors).toBe(pack.errors.length);
+});
+
+it("dates google_places_content from the committed stamp of the pack, never the full pack", () => {
+  const pack = read("data/places_enrichment.json");
+  const dataset = read("data/freshness_registry.json").datasets.find((row: { id: string }) => row.id === "google_places_content");
+  const opened: (string | null)[] = [];
+  const resolution = resolveDatasetStamp(root, dataset, (dir, relPath) => {
+    opened.push(relPath);
+    return readFreshnessArtifact(dir, relPath);
+  });
+  expect(opened).toEqual(["data/places_enrichment_stamp.json"]);
+  expect(read("data/places_enrichment_stamp.json")).toEqual(placesEnrichmentStamp(pack));
+  expect(resolution.observedAt).toBe(pack.observedAt);
 });

@@ -8,6 +8,7 @@ import VenuePlacesDetails from "@/components/map/VenuePlacesDetails";
 import { placesEnrichmentRecord } from "@/lib/placesEnrichment";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
+import { venueContactContract } from "@/lib/venueTruth";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -30,5 +31,17 @@ it("credits copied address, phone, website and old hours with the day Google Pla
   expect([...container.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toEqual(["tel:02079460123", "https://pub.example/"]);
   expect(container.querySelector("details small")?.textContent).toBe("Google Places · Checked 5 Jan 2025");
   expect(container.querySelector("dd")?.textContent).toBe("Closed");
+  act(() => root.unmount());
+});
+
+it("renders no panel or call link for a venue without Google Places content", () => {
+  const venue = {
+    ...slimVenueToPin({ id: "venue-osm-n2", name: "Dataset Arms", lat: 51.5, lng: -0.1, borough: "Camden", cheapestPrice: null }),
+    contacts: venueContactContract({ phone: "020 7946 0456", website: "https://dataset.example/" }),
+  };
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  act(() => root.render(createElement(VenuePlacesDetails, { venue, links: true, websiteLink: true })));
+  expect(container.innerHTML).toBe("");
   act(() => root.unmount());
 });
