@@ -19,6 +19,16 @@ These were already in the tree. They are not part of the five packs below.
 
 The MapLibre and Capacitor rows above were vendored for the map and native shell in pull request 1678. The 2 Oct 2026 refresh and the store-path skills are recorded below.
 
+## Written for this repo
+
+These have no upstream. They describe this repo's own conventions and point at the files that own each rule. When a rule in one of those files changes, change the skill with it.
+
+| Directory | What it covers |
+| --- | --- |
+| `pubmax-nextjs` | Route handlers, the API error envelope, `proxy.ts`, CSP, caching and file tracing. |
+| `pubmax-supabase` | The admin and browser clients, stores, migrations and rollbacks, RLS helpers and private Realtime channels. Read it with the vendored `supabase` skill. |
+| `pubmax-ai-sdk` | The `ai` v7 AI Gateway call, the direct OpenRouter calls, TypeSafe, paid-spend lanes and model tracing. |
+
 ## Packs
 
 No two packs shipped the same directory name or the same frontmatter `name`, so nothing was dropped for a collision.

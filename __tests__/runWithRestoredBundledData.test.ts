@@ -47,6 +47,20 @@ describe("committed bundled data restore", () => {
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
   });
 
+  it("removes a shard file the wrapped command added and keeps one that was already there", () => {
+    const cwd = join(tmpdir(), `pubmax-bundled-restore-untracked-${Date.now()}`);
+    mkdirSync(cwd, { recursive: true });
+    initialiseGit(cwd);
+    writeFileSync(join(cwd, "public/data/draft.json"), "{}\n", "utf8");
+    execFileSync(
+      process.execPath,
+      [bundledWrapper, process.execPath, "-e", "const fs=require('fs'); fs.mkdirSync('public/data/cities/new',{recursive:true}); fs.writeFileSync('public/data/cities/new/venues_slim.core.json','{}')"],
+      { cwd },
+    );
+    expect(existsSync(join(cwd, "public/data/cities/new/venues_slim.core.json"))).toBe(false);
+    expect(existsSync(join(cwd, "public/data/draft.json"))).toBe(true);
+  });
+
   it("restores public/data after a browser build wrapper when CI allowlists it", () => {
     const cwd = join(tmpdir(), `pubmax-next-env-restore-${Date.now()}`);
     mkdirSync(cwd, { recursive: true });

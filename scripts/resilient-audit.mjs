@@ -36,7 +36,7 @@ const AUDIT_LEVELS = ["high", "critical"];
 //   (a) a braces release past 3.0.3 (then bump or override to it), or
 //   (b) an eslint-config-next whose chain no longer reaches braces <=3.0.3.
 //   osv-scanner.toml ignores the same advisory with its own ignoreUntil.
-//   Re-checked: 2026-10-03.
+//   Re-checked: 2026-10-04.
 export const WAIVED_ADVISORIES = new Map([
   ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm", "high"],
 ]);
