@@ -88,7 +88,7 @@ export function statesDrinking(kind, quotes, name) {
 }
 
 const CLUB_TYPE_NAME = /\b(?:social|working ?m[ae]n'?s|conservative|labour|liberal|unionist|constitutional|ex[- ]?service(?:s|m[ae]n'?s)?|services|legion|cricket|rugby|golf|sailing|yacht|rowing|sports?|football|bowls|bowling|tennis|hockey|athletic|snooker)\b.*\bclub\b/;
-const CLUB_EVIDENCE = /\b(?:this is a club|club members|members['’]? (?:only|club|bar)|members sailing club|club ?house|social)\b/;
+const CLUB_EVIDENCE = /\b(?:this is a club|club members|members['’]? (?:only|club|bar)|members sailing club|club ?house)\b/;
 const CLUB_LABEL = /\bclub\s*,\s*in\b/;
 
 // A pub or bar discovery is a club, in the sense of a social, members', sports
@@ -96,14 +96,16 @@ const CLUB_LABEL = /\bclub\s*,\s*in\b/;
 // says what kind of club it is or its evidence says it is a club. A name that
 // only carries the word, such as Cosy Club, keeps the kind its research gave
 // it. A restaurant keeps its kind, because its drinking evidence was judged by
-// the restaurant rule. The evidence is read without the name, except for
-// CAMRA's "Club, in <place>" type label, which follows the name in its listing.
+// the restaurant rule. A stored club is judged again as the bar it was filed
+// from. The evidence is read without the name, except for CAMRA's
+// "Club, in <place>" type label, which follows the name in its listing.
 export function discoveredKind({ name, kind, evidence }) {
+  const base = kind === "club" ? "bar" : kind;
   const named = fold(name).replace(/['’]/g, "");
-  if (kind === "restaurant" || !/\bclub\b/.test(named)) return kind;
+  if (base === "restaurant" || !/\bclub\b/.test(named)) return base;
   const quotes = (evidence ?? []).map((entry) => entry.excerpt).join(" ");
   const rest = withoutName(quotes, name);
-  return CLUB_TYPE_NAME.test(named) || CLUB_EVIDENCE.test(rest) || CLUB_LABEL.test(fold(quotes)) ? "club" : kind;
+  return CLUB_TYPE_NAME.test(named) || CLUB_EVIDENCE.test(rest) || CLUB_LABEL.test(fold(quotes)) ? "club" : base;
 }
 
 export function inCity(lat, lng, city) {

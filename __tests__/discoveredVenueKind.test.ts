@@ -13,7 +13,6 @@ describe("discovered venue kind", () => {
     ["CAMRA's label follows the name", quoted("Sacred Heart Club", "bar", "Sacred Heart Sacred Heart Club, in Birmingham Cask Ale 28 Grange Road, Aston, Birmingham, B6 6LA")],
     ["the name says it is a sports club", quoted("Edgbaston Golf Club", "bar", "Both the Restaurant and the Bar Menu are available all day.")],
     ["the name says it is a working men's club", quoted("Tyseley Working Mens Club", "bar", "we also show many of the major sporting events in our bar")],
-    ["the evidence describes a social bar", quoted("Hall Green H.G. Club", "bar", "Join us to enjoy the social bar area")],
   ])("is a club when %s", (_, row) => {
     expect(discoveredKind(row)).toBe("club");
   });
@@ -25,10 +24,16 @@ describe("discovered venue kind", () => {
     ["CAMRA labels it a pub", quoted("Ukrainian Club", "pub", "[### Ukrainian Club  Pub, in Manchester]  **Cask Ale not available**")],
     ["the word club is not in its name or evidence", quoted("Copper Rooms", "bar", "Copper Rooms social cocktail bar, members welcome")],
     ["the bar only hosts club nights", quoted("The Copper Rooms", "bar", "club nights every Friday with cocktails")],
+    ["the evidence only describes a social bar", quoted("Hall Green H.G. Club", "bar", "Join us to enjoy the social bar area")],
     ["the evidence only mentions a nightclub", quoted("The Loft", "bar", "The Loft is a late-night bar and nightclub with cocktails")],
     ["research names it a restaurant", quoted("Harborne Cricket Club", "restaurant", "Harborne Cricket Club clubhouse restaurant", "Our wine list pairs with every dish")],
   ])("keeps its kind when %s", (_, row) => {
     expect(discoveredKind(row)).toBe(row.kind);
+  });
+
+  it("files a stored club that its evidence no longer supports back as a bar", () => {
+    expect(discoveredKind(quoted("Hall Green H.G. Club", "club", "Join us to enjoy the social bar area"))).toBe("bar");
+    expect(discoveredKind(quoted("Ward End Social Club", "club", "cask ales in our bar"))).toBe("club");
   });
 
   it("classifies fresh research and stored rows the same way", () => {
