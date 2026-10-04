@@ -82,6 +82,18 @@ describe("sports evidence publication", () => {
     "We don't have Sky Sports, TNT Sports on our screens.",
     "We don't show football, rugby on TV.",
     "No football, rugby on TV.",
+    "No football, rugby or cricket shown here.",
+    "No Sky Sports, TNT Sports or BT Sport shown here.",
+    "We don't have Sky Sports, TNT Sports or BT Sport shown here.",
+    "No football, rugby or cricket will be shown here.",
+    "No football, rugby or cricket televised here.",
+    "No football, rugby or cricket screened here.",
+    "Without Sky Sports, TNT Sports or BT Sport shown, we focus on food.",
+    "No Sky Sports, TNT Sports or BT Sport showing football here.",
+    "No Sky Sports, TNT Sports or BT Sport showing the match.",
+    "No football, rugby and cricket shown here.",
+    "No Sky Sports, TNT Sports or BT Sport is available here.",
+    "No football, rugby or cricket are shown here.",
   ])("refuses shared denials over supported sport and provider lists: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
@@ -90,7 +102,11 @@ describe("sports evidence publication", () => {
     "No Sky Sports, football on the big screen every weekend.",
     "We don't show cricket, live football every Saturday.",
     "We do not show cricket, live football every Saturday.",
-  ])("conservatively refuses a denied comma list whose remainder has no predicate of its own: %s", (quote) => {
+    "We don't show rugby, football shown on all our TVs.",
+    "We do not show rugby, football shown on all our TVs.",
+    "We don't show rugby, football and cricket shown on all our TVs.",
+    "We do not show rugby, football and cricket shown on all our TVs.",
+  ])("conservatively refuses a denied comma list whose remainder has no finite predicate of its own: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
 
@@ -109,12 +125,15 @@ describe("sports evidence publication", () => {
     "We don't have Sky Sports, TNT Sports shows every match.",
     "We don't have Sky Sports, BT Sport shows all the Champions League games.",
     "We don't have Sky Sports, TNT Sports has every match on our screens.",
-    "We don't show rugby, football shown on all our TVs.",
     "We don't show rugby, football will be shown on all our TVs.",
     "We don't have Sky Sports, TNT Sports and BT Sport show every match.",
     "We don't have Sky Sports, TNT Sports or BT Sport shows every match.",
-    "We don't show rugby, football and cricket shown on all our TVs.",
     "We don't show rugby, football and F1 will be shown on all our TVs.",
+    "We don't have Sky Sports, TNT Sports shows every game.",
+    "We don't have Sky Sports, BT Sport shows all the action on our big screens.",
+    "We don't have Sky Sports, TNT Sports shows on every screen.",
+    "We don't show rugby, football shows on all our TVs.",
+    "We don't have Sky Sports, TNT Sports has it all on our screens.",
   ])("retains independent affirmative clauses beside comma denials: %s", (quote) => {
     expectSportsPublication(quote, true);
   });
