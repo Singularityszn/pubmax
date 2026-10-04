@@ -19,19 +19,22 @@ quiz, darts, pool, happy hour and karaoke. Tags a chip also prints use the
 chip's words. A pub with none of those facts gets no copy and is listed in
 `skipped` as `insufficient-stored-facts`. We never publish a bare borough line.
 
-Gemini 2.5 Flash-Lite writes a short description in its own words and picks one
-to three of the pub's supported tags. Publication checks facts, not wording.
-The sentence is read left to right. Each part must be a whole phrase of a
-supported fact ("live music", "a happy hour", "a pool table"), the pub's
-borough or London used directly before "pub" or "local", or a connective that
-states nothing. A fact phrase's single words never stand alone, so "happy" or
-"live" cannot describe a pub. The sentence must name at least one supported
-fact, name none twice, and keep the pub as its subject: "Camden has cocktails"
-fails. Mood, age, clientele and absence words such as "cosy", "historic" or
-"out" are not in the vocabulary, so those claims fail. Nor is "the", which
-would call one pub the only one in its borough. Each pub is validated
-independently. Valid rows survive a failed batch; a failed pub gets one
-individual retry, then no generated copy and an `invalid-copy-after-retry` skip.
+Gemini 2.5 Flash-Lite writes one or two sentences of free prose at
+temperature 0.7 and picks one to three of the pub's supported tags.
+Publication checks claims, not wording. Every feature the prose names must be
+one of the pub's supported facts, each named once; a closed feature list
+catches the rest, including food, beer gardens, sport, screens, drinks styles,
+music genres, board games, rooms and events. A denial ("no", "without", "out of")
+fails, as does a mood, quality, age, crowd, price or schedule claim such as
+"cosy", "historic", "locals", "cheap" or "every Friday". A lone "happy" or
+"live" counts as mood. Each verb must fit its feature: a pub has, serves or
+hosts things, and people catch live music, play darts or pool, sing karaoke
+and get cocktails, so "catch cocktails" or "a pub quiz with darts" fails. No
+proper noun may appear except the pub's borough and London, and no sentence
+may lead with them: "Camden has cocktails" and "The City of London pub" fail.
+Each pub is validated independently. Valid rows survive a failed batch; a
+failed pub gets one individual retry, then no generated copy and an
+`invalid-copy-after-retry` skip.
 
 Each entry records the borough and supported tags it was written from. The
 existing venue-detail reader adds `recordCopy` after revalidating the entry
