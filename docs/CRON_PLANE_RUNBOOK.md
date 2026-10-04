@@ -52,6 +52,9 @@ Vercel Cron invokes each route with `Authorization: Bearer $CRON_SECRET`. Crons
 run on **production deployments only**. Schedules are **UTC** (Vercel Cron has no
 DST awareness); the London mapping is spelled out because `vercel.json` is strict
 JSON and cannot carry inline comments.
+`__tests__/cronRunbookTable.test.ts` holds each row's route and schedules to
+`vercel.json` and its maxDuration to the route file, so change a schedule here
+in the same commit.
 
 | Route | Schedule (UTC) | London (BST / GMT) | Purpose | maxDuration |
 |---|---|---|---|---|
@@ -59,10 +62,15 @@ JSON and cannot carry inline comments.
 | `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh bounded quiz, deal, music, and sport lanes plus official Ticketmaster / Skiddle events into `whats_on_listings`; readers prefer non-expired durable rows and fall back to bundled files | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
-| `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
-| `GET /api/cron/moderate-social-interactions` | `* * * * *` | Every minute | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
+| `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
+| `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
 | `GET /api/cron/purge-pub-pal-turns` | `* * * * *` | Every minute | Delete expired Pub Pal tool turns (`pub_pal_tool_turns`), which keep the user's lines for two minutes after their last line | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
+| `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry the queued price-trust events and account credits that a community-price write could not record, then acknowledge each queue revision; the price itself is already saved | 30s |
+| `GET /api/cron/purge-social-media` | `20 4 * * *` | 05:20 / 04:20 | Delete up to 50 detached Social photos and up to 50 orphaned uploads; skips while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` keeps Social rolled back | 30s |
+| `GET /api/cron/step-out-nudge` | `0 16 * * 4` | Thursday 17:00 / Thursday 16:00 | Send the weekly Step Out push to opted-in subscribers who are owed one, at most one a week per subscription | 60s |
+| `GET /api/cron/cheap-pint-ping` | `0 16,17 * * 1-5` | Weekdays 17:00 / weekdays 17:00 | Send the one-time cheap-pint push to opted-in accounts with a grounded listed price. Two UTC runs cover both halves of the year: the route sends only in the 17:00 London hour, so the other run skips | 60s |
+| `GET /api/cron/harvest-refresh` | `0 5 * * 1` | Monday 06:00 / Monday 05:00 | Weekly first-party London harvest under `HARVEST_CRON_REQUEST_BUDGET`; the run report goes to logs only, because `npm run harvest:run` owns the durable files. Without `FIRECRAWL_API_KEY` every source is skipped | 300s |
 
 The What's-On refresh runs **twice a day**. The morning run, `30 5 * * *`
 (06:30 BST, 05:30 GMT), is the baseline: it writes each bounded lane to
