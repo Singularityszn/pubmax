@@ -87,6 +87,26 @@ export function statesDrinking(kind, quotes, name) {
   return kind === "restaurant" ? RESTAURANT_ALCOHOL.test(rest) : PUB_OR_BAR_EVIDENCE.test(rest);
 }
 
+const NIGHTCLUB = /\bnight ?clubs?\b/;
+const CLUB_TYPE_NAME = /\b(?:social|working ?m[ae]n'?s|conservative|labour|liberal|unionist|constitutional|ex[- ]?service(?:s|m[ae]n'?s)?|services|legion|cricket|rugby|golf|sailing|yacht|rowing|sports?|football|bowls|bowling|tennis|hockey|athletic|snooker)\b.*\bclub\b/;
+const CLUB_EVIDENCE = /\b(?:this is a club|club members|members['’]? (?:only|club|bar)|members sailing club|club ?house|social)\b/;
+const CLUB_LABEL = /\bclub\s*,\s*in\b/;
+
+// A discovery is a club, in the venue vocabulary's sense of a nightclub or a
+// social, members', sports or services club, when its evidence says so or its
+// name says what kind of club it is. A name that only carries the word, such as
+// Cosy Club or The Oyster Club, keeps the kind its research gave it. The
+// evidence is read without the name, except for CAMRA's "Club, in <place>"
+// type label, which follows the name in its listing.
+export function discoveredKind({ name, kind, evidence }) {
+  const quotes = (evidence ?? []).map((entry) => entry.excerpt).join(" ");
+  const rest = withoutName(quotes, name);
+  const named = fold(name).replace(/['’]/g, "");
+  if (NIGHTCLUB.test(named) || NIGHTCLUB.test(rest)) return "club";
+  if (!/\bclub\b/.test(named)) return kind;
+  return CLUB_TYPE_NAME.test(named) || CLUB_EVIDENCE.test(rest) || CLUB_LABEL.test(fold(quotes)) ? "club" : kind;
+}
+
 export function inCity(lat, lng, city) {
   const [south, west, north, east] = city.bbox;
   return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)
@@ -164,7 +184,7 @@ export function parseTaskVenues(result, city, observedAt, { local = false } = {}
     if (reason) { rejected.push({ name, reason }); continue; }
     const citedNumbers = new Set((quotes.match(/[-+]?\d+(?:\.\d+)?/g) ?? []).map(Number));
     const pointIsCited = inCity(row.lat, row.lng, city) && citedNumbers.has(row.lat) && citedNumbers.has(row.lng);
-    candidates.push({ name, kind, address, postcode, locality: city.displayName, website: text(row.website) || null,
+    candidates.push({ name, kind: discoveredKind({ name, kind, evidence }), address, postcode, locality: city.displayName, website: text(row.website) || null,
       lat: pointIsCited ? row.lat : null, lng: pointIsCited ? row.lng : null,
       coordinatePrecision: pointIsCited ? "source-coordinate" : null,
       sourceUrls: [...new Set(evidence.map((entry) => entry.url))], evidence, observedAt });
@@ -263,7 +283,7 @@ const webRow = (row) => Boolean(row.provider) && row.provider !== "parallel";
 export function validateDiscoveryPack(pack, city) {
   if (pack?.city !== city.id || !Array.isArray(pack?.venues)) throw new Error(`Invalid Parallel venue pack for ${city.id}`);
   for (const row of pack.venues) {
-    if (!text(row?.name) || !["pub", "bar", "restaurant"].includes(row.kind) || !inCity(row.lat, row.lng, city)
+    if (!text(row?.name) || !["pub", "bar", "club", "restaurant"].includes(row.kind) || !inCity(row.lat, row.lng, city)
       || !postcodeIn(row.address) || !["source-coordinate", "postcode-centroid"].includes(row.coordinatePrecision)
       || !/^\d{4}-\d{2}-\d{2}T/.test(row.observedAt) || !Number.isFinite(Date.parse(row.observedAt)) || Date.parse(row.observedAt) > Date.now()
       || !Array.isArray(row.sourceUrls) || !row.sourceUrls.length || !row.sourceUrls.every(allowedEvidenceUrl)
@@ -313,7 +333,8 @@ export async function gateVenueEvidence(rows, city, permission) {
 // duplicates of themselves; only other sources can make a candidate a
 // duplicate. A stored row that fails validation, or that an existing venue
 // now matches, is withdrawn with the reason and the venue it matched.
-export function assembleCityDiscoveries({ found, previous, existing, city }) {
+export function assembleCityDiscoveries({ found, previous: recorded, existing, city }) {
+  const previous = recorded.map((row) => ({ ...row, kind: discoveredKind(row) }));
   const valid = previous.filter((row) => {
     try { validateDiscoveryPack({ city: city.id, venues: [row] }, city); return true; }
     catch { return false; }

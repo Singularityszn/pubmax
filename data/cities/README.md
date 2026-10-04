@@ -1,6 +1,6 @@
 # UK city OSM venue seed packs
 
-Per-city OpenStreetMap pub extracts seed multi-city maps. Separate [Parallel web discovery observations](../parallel-discovery/README.md) can add evidence-backed pubs, bars and restaurants. Both sources publish unpriced pins: `cheapestPrice` stays `null` until Pint Drops fill it in.
+Per-city OpenStreetMap pub extracts seed multi-city maps. Separate [Parallel web discovery observations](../parallel-discovery/README.md) can add evidence-backed pubs, bars, clubs and restaurants. Both sources publish unpriced pins: `cheapestPrice` stays `null` until Pint Drops fill it in.
 
 ## Layout
 
