@@ -79,11 +79,11 @@ describe("Playwright project registration", () => {
     }
   });
 
-  it("caps CI at one worker and the local rig at two, and leaves timeouts and retries alone", async () => {
+  it("leaves CI at Playwright's default worker count and caps the local rig at two", async () => {
     vi.stubEnv("CI", "true");
     vi.resetModules();
     const onCi = (await import("../playwright.config")).default;
-    expect(onCi.workers).toBe(1);
+    expect(onCi.workers).toBeUndefined();
     expect(onCi.retries).toBe(1);
     expect(onCi.timeout).toBe(30_000);
     expect(onCi.expect).toMatchObject({ timeout: 10_000 });

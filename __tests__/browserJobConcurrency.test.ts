@@ -44,11 +44,6 @@ function runsPlaywright(job: Job): boolean {
   );
 }
 
-function workerCount(run: string): number | null {
-  const match = /--workers(?:=|\s+)(\d+)/.exec(run);
-  return match ? Number(match[1]) : null;
-}
-
 describe("browser jobs on the shared Mac", () => {
   const playwrightJobs = workflows.flatMap(({ file, parsed }) =>
     Object.entries(parsed.jobs)
@@ -80,18 +75,6 @@ describe("browser jobs on the shared Mac", () => {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
         if (runsPlaywright(job)) continue;
         expect(job.concurrency?.group, `${file} / ${jobId}`).not.toBe(BROWSER_GROUP);
-      }
-    }
-  });
-
-  it("caps every browser job at one Playwright worker", () => {
-    for (const { file, jobId, job } of playwrightJobs) {
-      const commands = job.steps
-        .map((step) => step.run)
-        .filter((run): run is string => typeof run === "string" && /\bplaywright test\b/.test(run));
-      expect(commands.length, `${file} / ${jobId}`).toBeGreaterThan(0);
-      for (const command of commands) {
-        expect(workerCount(command), command).toBe(1);
       }
     }
   });

@@ -139,7 +139,7 @@ jobs:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
-        # One worker, same cap as Browser tests: four killed the single
+        # One worker, same cap as Browser law pins: four killed the single
         # production server on this rig.
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
 

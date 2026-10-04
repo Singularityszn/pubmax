@@ -142,9 +142,6 @@ jobs:
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
 
-      # One worker, same cap as Browser law pins. An unset count follows
-      # Playwright's default (half the cores) and previously reached the
-      # four-worker death of this job's single production server.
       - name: Run full browser shard
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
@@ -160,7 +157,6 @@ jobs:
           --project=chromium-sw-gl
           --project=chromium-no-gl
           --shard=${{ matrix.shard }}/2
-          --workers=1
 
       - name: Gate the full browser shard
         run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json
