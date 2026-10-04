@@ -89,6 +89,7 @@ import {
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
+import { UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
@@ -2339,9 +2340,9 @@ export default function PubMap({
       canvasReady: mapCanvasReady,
       slimLoaded: loaded,
       slimPinCount: slimPins.length,
-      nationalOverview: ukNationalBrowse && !ukPlaceArrival && !selectedVenueId && ukBaseStatus === "zoom_required",
+      nationalOverview: ukNationalBrowse && !ukPlaceArrival && !selectedVenueId && mapViewport.zoom < UK_BASE_MIN_ZOOM,
     }),
-    [pinsRevealed, mapCanvasReady, loaded, slimPins.length, ukNationalBrowse, ukPlaceArrival, selectedVenueId, ukBaseStatus],
+    [pinsRevealed, mapCanvasReady, loaded, slimPins.length, ukNationalBrowse, ukPlaceArrival, selectedVenueId, mapViewport.zoom],
   );
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
   const mapCanvasAvailabilityState = mapCanvasAvailability({

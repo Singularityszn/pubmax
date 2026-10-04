@@ -29,7 +29,7 @@ function harness({
 }: {
   confirmVisibleFrameBeforeReveal?: boolean;
   compositeConfirmFrames?: number;
-  requiresBasemapPaint?: boolean;
+  requiresBasemapPaint?: boolean | (() => boolean);
 } = {}) {
   let basemapPainted = false;
   let pinsPaintable = true;
@@ -404,6 +404,77 @@ describe("pin reveal coordinator", () => {
 
     expect(h.visibility).toEqual([false, true]);
     expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  it("uses the current paint requirement when a phone arrival becomes a national overview", () => {
+    let overview = false;
+    const h = harness({ requiresBasemapPaint: () => overview });
+    h.setPinsPaintable(false);
+    h.coordinator.arm();
+    overview = true;
+    h.setPinsPaintable(true);
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+    h.setBasemapPainted(true);
+    h.fireRender();
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+  });
+
+  it("can return from national browse to painted phone pins without waiting for tiles", () => {
+    let overview = true;
+    const h = harness({ requiresBasemapPaint: () => overview });
+    h.coordinator.arm();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+    overview = false;
+    h.fireRender();
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  it("rechecks national tile readiness during the phone compositor handoff", () => {
+    let overview = false;
+    const h = harness({
+      requiresBasemapPaint: () => overview,
+      confirmVisibleFrameBeforeReveal: true,
+      compositeConfirmFrames: 2,
+    });
+    h.coordinator.arm();
+    h.fireRender();
+    h.fireRender();
+    overview = true;
+    h.fireFrame();
+    h.fireFrame();
+    expect(h.reveals).toEqual([]);
+    h.setBasemapPainted(true);
+    h.fireRender();
+    h.fireFrame();
+    h.fireFrame();
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+  });
+
+  it("rechecks phone pub readiness when selection changes before the visible frame", () => {
+    const h = harness({ requiresBasemapPaint: false, confirmVisibleFrameBeforeReveal: true });
+    h.coordinator.arm();
+    h.fireRender();
+    h.setPinsPaintable(false);
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+    h.setPinsPaintable(true);
+    h.fireRender();
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  it("retains the timeout when new paint requirements interrupt the visible frame", () => {
+    const h = harness({ requiresBasemapPaint: false, confirmVisibleFrameBeforeReveal: true });
+    h.coordinator.arm();
+    h.fireRender();
+    h.setPinsPaintable(false);
+    h.fireRender();
+    h.fireCeiling();
+    expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
+    expect(h.renderListeners.size).toBe(1);
+    h.coordinator.dispose();
+    expect(h.renderListeners.size).toBe(0);
   });
 
   it("keeps readiness gated until the latest pub source is paintable", () => {
