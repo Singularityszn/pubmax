@@ -265,6 +265,11 @@ const UnverifiedPubSheet = dynamic(
   () => import("@/components/map/UnverifiedPubSheet"),
   { ssr: false },
 );
+// Only ever mounted for a tapped Shoreditch coffee pilot cafe.
+const CoffeePilotSheet = dynamic(
+  () => import("@/components/map/CoffeePilotSheet"),
+  { ssr: false },
+);
 const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
   ssr: false,
 });
@@ -385,6 +390,9 @@ import {
 } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
+import { useCoffeePilotCafes } from "@/components/map/useCoffeePilotCafes";
+import type { CoffeePilotCafe } from "@/lib/coffeePilot";
+import { isLondonVenueId } from "@/lib/londonVenueShards";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
@@ -595,6 +603,7 @@ import {
   crawlJourneysWanted,
   mapArrivalFrame,
   mapDrinkLensSelection,
+  isRecordlessMapSelection,
   mapSelectionFrame,
   mapPlaceContext,
   mapShellClassName,
@@ -818,6 +827,7 @@ const DESKTOP_RAIL_MEDIA_QUERY = "(min-width: 1024px)";
 const NO_LOCALITIES: Locality[] = [];
 /** A limited-coverage arrival searches no curated venues; UK places fill the gap. */
 const NO_SEARCH_VENUES: Venue[] = [];
+const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
 
 // Shard coverage is recomputed after every shard settles, so the held set is
 // replaced only when its membership really moved.
@@ -1883,6 +1893,16 @@ export default function PubMap({
       loadDrinkCategoryIndex(mapDrinkLensCategory);
     }
   }, [loadDrinkCategoryIndex, mapDrinkLensCategory]);
+  // The Shoreditch coffee pilot (lib/coffeePilot.ts) draws its cafes while the
+  // coffee lane owns a London map, and resolves a selected `venue-osm-` id to
+  // its cafe, so a reloaded ?sel= link still opens that cafe's sheet.
+  const coffeePilotLensOn = isLondon && mapDrinkLensCategory === "coffee";
+  const coffeePilot = useCoffeePilotCafes(
+    coffeePilotLensOn || isLondonVenueId(selectedVenueId),
+  );
+  const selectedCoffeeCafe = isLondonVenueId(selectedVenueId)
+    ? coffeePilot.byId.get(selectedVenueId) ?? null
+    : null;
   // Whichever cross-venue index is answering the map right now reports its own
   // completeness, so the price key never claims a read it did not finish.
   const drinkIndexStatus: CategoryPriceIndexStatus = useMemo(
@@ -3163,10 +3183,11 @@ export default function PubMap({
         selectedVenueId,
         selectedVenue,
         selectedBasePub,
+        selectedCoffeeCafe,
         venueById,
         isPubVenue,
       }),
-    [selectedBasePub, selectedVenue, selectedVenueId, venueById],
+    [selectedBasePub, selectedCoffeeCafe, selectedVenue, selectedVenueId, venueById],
   );
   const selectedVenueResolvable = mapSelection.resolvable;
   const selectedVenueIsPub = mapSelection.isPub;
@@ -3298,7 +3319,7 @@ export default function PubMap({
         }
       }
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
-      if (!isUkBaseId(id)) prefetchVenue(id);
+      if (!isRecordlessMapSelection(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
       claimMapDrawer("venue");
@@ -3315,7 +3336,7 @@ export default function PubMap({
       setSheetDragY(null);
       if (reducedMotion) {
         setVenueRevealRequest(null);
-      } else if (!isUkBaseId(id)) {
+      } else if (!isRecordlessMapSelection(id)) {
         const priceView = venueDrinkPriceView(
           communityPrices.byVenueId.get(id),
           experienceLens,
@@ -3378,6 +3399,17 @@ export default function PubMap({
   // derivation rather than by a state-sync effect: the record only ever shows
   // while it IS the selection.
   const basePubOpen = mapSelection.basePubOpen;
+  const coffeeCafeOpen = mapSelection.coffeeCafeOpen;
+  // A `venue-osm-` id the pilot does not hold, or one the pilot could not be
+  // read to place, has no sheet to open: let it go rather than hold a skeleton.
+  useEffect(() => {
+    if (!isLondonVenueId(selectedVenueId) || coffeeCafeOpen) return;
+    if (coffeePilot.status !== "ready" && coffeePilot.status !== "failed") return;
+    const unresolved = selectedVenueId;
+    queueMicrotask(() => {
+      setSelectedVenueId((current) => (current === unresolved ? "" : current));
+    });
+  }, [coffeeCafeOpen, coffeePilot.status, selectedVenueId, setSelectedVenueId]);
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
   // because the id alone could not say which shard cell a shared/reloaded
   // link should stream. Empty for curated selections, which clears the param.
@@ -4978,7 +5010,13 @@ export default function PubMap({
   const storyDrawerOpen = storyOpen && !planningOpen && !detailOpen;
 
   useEffect(() => {
-    if (!selectedVenueId || detailById.has(selectedVenueId) || isUkBaseId(selectedVenueId)) return;
+    if (
+      !selectedVenueId ||
+      detailById.has(selectedVenueId) ||
+      isRecordlessMapSelection(selectedVenueId)
+    ) {
+      return;
+    }
     const requestedVenueId = selectedVenueId;
     let cancelled = false;
     warmVenueDetail(requestedVenueId).then((result) => {
@@ -5025,7 +5063,7 @@ export default function PubMap({
       loaded,
       selectedVenueId,
       resolvable: selectedVenueResolvable,
-      ukBase: isUkBaseId(selectedVenueId),
+      ukBase: isRecordlessMapSelection(selectedVenueId),
       detailStatus: selectedDetailStatus,
     });
     if (!notice) return;
@@ -5473,6 +5511,9 @@ export default function PubMap({
   }
 
   function renderVenuePanel() {
+    if (coffeeCafeOpen && selectedCoffeeCafe) {
+      return <CoffeePilotSheet cafe={selectedCoffeeCafe} />;
+    }
     if (basePubOpen && selectedBasePub) {
       return (
         <UnverifiedPubSheet
@@ -6317,6 +6358,7 @@ export default function PubMap({
         tonightOpportunities={tonightOpportunities}
         tonightOverlayVisible={isLondon && tonightOverlayVisible && !tonightDismissed}
         onTonightOpportunityClick={handleTonightOpportunityClick}
+        coffeePilotCafes={coffeePilotLensOn ? coffeePilot.cafes : NO_COFFEE_PILOT_CAFES}
         poiHidden={poiHidden}
         onPoiHiddenChange={setPoiHidden}
         hideLayersControl={mobileViewport}
@@ -6526,7 +6568,9 @@ export default function PubMap({
               detailOpen
                 ? basePubOpen
                   ? selectedBasePub?.name ?? "Pub detail"
-                  : selectedVenue?.name ?? selectedVenueLabels.detailLabel
+                  : coffeeCafeOpen
+                    ? selectedCoffeeCafe?.name ?? "Cafe"
+                    : selectedVenue?.name ?? selectedVenueLabels.detailLabel
                 : planningOpen
                   ? "Plan an outing"
                   : activeLandmark?.name ?? "Landmark"

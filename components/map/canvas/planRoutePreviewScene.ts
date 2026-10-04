@@ -96,6 +96,7 @@ export function syncPlanRoutePreviewScene(
     ukBaseData: EMPTY_FC,
     tonightData: EMPTY_FC,
     tonightVisible: false,
+    coffeePilotData: EMPTY_FC,
     selectedId: "",
     selectionMuteStore: new Map<string, unknown>(),
   } satisfies SceneCtx;

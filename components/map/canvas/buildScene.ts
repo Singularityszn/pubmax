@@ -4,6 +4,7 @@ import {
   applySelectionMute,
   clusterCircleColorExpr,
 } from "@/lib/mapBasemapTaste";
+import { CATEGORY_COLORS } from "@/lib/categoryColors";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import { iconId, UK_BASE_ICON_KEY, type IconTokens } from "@/lib/mapIcons";
@@ -252,6 +253,8 @@ export type SceneCtx = {
   ukBaseData: GeoJSON.FeatureCollection;
   tonightData: GeoJSON.FeatureCollection;
   tonightVisible: boolean;
+  /** Shoreditch coffee pilot cafes, empty unless the coffee lane owns the map — see buildCoffeePilot. */
+  coffeePilotData: GeoJSON.FeatureCollection;
   selectedId: string;
   /** M2 — caller-owned store of pre-mute paint originals (layerId::prop → value)
    *  for the POI-at-initiation selection mute. Survives across builds via a ref;
@@ -931,6 +934,77 @@ export function buildUkBase(ctx: SceneCtx) {
 }
 
 /**
+ * The Shoreditch coffee pilot's cafes (lib/coffeePilot.ts). The source is empty
+ * unless the coffee lane owns the map, so a pint reader's map is untouched.
+ *
+ * A cafe is a dot in the coffee hue, never a price band: the pilot holds a
+ * dozen cafes, which is no basis for calling one cheap. Its tag names the drink
+ * the figure is for, on the same deal as every price tag here: a real symbol in
+ * the collision index, and where it will not fit the TAG goes and the dot stays.
+ */
+export function buildCoffeePilot(ctx: SceneCtx) {
+  const { map, tokens, dark, textFont, addLayerOnce, coffeePilotData, selectedId } = ctx;
+  const coffee = dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light;
+  if (!map.getSource("coffee-pilot")) {
+    // The cafe's position and name are OpenStreetMap's (lib/londonVenueShards.ts).
+    map.addSource("coffee-pilot", {
+      type: "geojson",
+      data: coffeePilotData,
+      attribution: OSM_ATTRIBUTION,
+    });
+  }
+  addLayerOnce({
+    id: "coffee-pilot-selected",
+    type: "circle",
+    source: "coffee-pilot",
+    minzoom: PIN_MIN_ZOOM,
+    filter: ["==", ["get", "id"], selectedId],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 14],
+      "circle-stroke-color": tokens.brass,
+      "circle-stroke-width": 2.4,
+      "circle-stroke-opacity": dark ? 0.9 : 0.85,
+    },
+  });
+  addLayerOnce({
+    id: "coffee-pilot-point",
+    type: "circle",
+    source: "coffee-pilot",
+    minzoom: PIN_MIN_ZOOM,
+    paint: {
+      "circle-color": coffee,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 4.5, 15, 7, 17, 8.5],
+      "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
+      "circle-stroke-width": 1.6,
+    },
+  });
+  addLayerOnce({
+    id: "coffee-pilot-label",
+    type: "symbol",
+    source: "coffee-pilot",
+    minzoom: PIN_PRICE_LABEL_MIN_ZOOM,
+    layout: {
+      "text-field": ["get", "label"],
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
+    },
+    paint: {
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
+      "text-halo-blur": 0.2,
+    },
+  });
+}
+
+/**
  * The reader's own position.
  *
  * It lives on the CANVAS, under the pub layers, and that ordering is the whole
@@ -1528,6 +1602,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildRoute(ctx);
   buildBandCorridor(ctx);
   buildPubs(ctx);
+  buildCoffeePilot(ctx);
   buildRouteStops(ctx);
   applySelectionState(ctx);
 }

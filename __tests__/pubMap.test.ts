@@ -30,6 +30,7 @@ import {
   mapArrivalFrame,
   mapDrinkLensSelection,
   mapPlaceContext,
+  isRecordlessMapSelection,
   mapSelectionFrame,
   mapShellClassName,
   mapSurfaceIdFor,
@@ -992,6 +993,33 @@ describe("mapSelectionFrame", () => {
     expect(answer.isPub).toBe(false);
   });
 
+  it("opens the SAME sheet for a Shoreditch pilot cafe once the cafes resolve it", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "venue-osm-w271641406",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      selectedCoffeeCafe: { id: "venue-osm-w271641406" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.coffeeCafeOpen).toBe(true);
+    expect(answer.basePubOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.detailOpen).toBe(true);
+  });
+
+  it("retires a held cafe the moment it stops being the selection", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: crown,
+      selectedBasePub: null,
+      selectedCoffeeCafe: { id: "venue-osm-w271641406" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.coffeeCafeOpen).toBe(false);
+  });
+
   it("opens the detail sheet while a deep-linked sel waits on the slim index", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "v1",
@@ -1002,6 +1030,15 @@ describe("mapSelectionFrame", () => {
     });
     expect(answer.detailOpen).toBe(true);
     expect(answer.resolvable).toBe(false);
+  });
+});
+
+describe("isRecordlessMapSelection", () => {
+  it("names the ids that have no /api/venue record", () => {
+    expect(isRecordlessMapSelection("venue-uk-9")).toBe(true);
+    expect(isRecordlessMapSelection("venue-osm-w271641406")).toBe(true);
+    expect(isRecordlessMapSelection("venue-1s7ucod")).toBe(false);
+    expect(isRecordlessMapSelection("bar-seed-library")).toBe(false);
   });
 });
 

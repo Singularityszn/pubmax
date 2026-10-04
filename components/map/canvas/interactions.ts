@@ -27,6 +27,7 @@ export const PUB_FIRST_LAYERS = [
   "route-stops",
   "tonight-point",
   "clusters",
+  "coffee-pilot-point",
   "uk-base-point",
   ...LANDMARK_INTERACTION_LAYERS,
   "pois-dot",
@@ -107,6 +108,19 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
         const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
         cinematic({ center: [lng, lat], zoom, duration: 700 }, "cluster");
       });
+      return;
+    }
+
+    // A Shoreditch pilot cafe opens the same drawer a pub does, by its own
+    // `venue-osm-` id; PubMap resolves the id to the cafe's sheet.
+    const cafeHit = byLayer.get("coffee-pilot-point");
+    if (cafeHit) {
+      const id = cafeHit.properties?.id;
+      if (typeof id !== "string") return;
+      selectLandmark(null);
+      setHoveredVenue(null);
+      setActivePoi(null);
+      onVenueClickRef.current(id);
       return;
     }
 
@@ -218,6 +232,7 @@ export function wireCursor(map: maplibregl.Map) {
     "clusters",
     "route-stops",
     "tonight-point",
+    "coffee-pilot-point",
     "uk-base-point",
     ...LANDMARK_INTERACTION_LAYERS,
     "pois-dot",

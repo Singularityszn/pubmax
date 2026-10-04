@@ -20,6 +20,8 @@ import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobile
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
+import { isLondonVenueId } from "@/lib/londonVenueShards";
+import { isUkBaseId } from "@/lib/ukBasePubs";
 import {
   priceStandingFigure,
   priceStandingFor,
@@ -779,10 +781,21 @@ export function openingViewportFrom(
 }
 
 /**
+ * A map selection with no `/api/venue/[id]` record: a UK base pub or a London
+ * venue-layer place such as a Shoreditch pilot cafe. The map hands its sheet
+ * the record it already holds, so fetching, prefetching or reporting the id as
+ * unknown would be a certain 404 worded as a missing pub.
+ */
+export function isRecordlessMapSelection(id: string): boolean {
+  return isUkBaseId(id) || isLondonVenueId(id);
+}
+
+/**
  * What is selected, and what that means for the sheet.
  *
- * A curated pin and a tapped UK base pub fill the SAME drawer, so every
- * open/close/snap path stays one path and these five answers stay one read.
+ * A curated pin, a tapped UK base pub and a coffee pilot cafe fill the SAME
+ * drawer, so every open/close/snap path stays one path and these answers stay
+ * one read.
  * A deep-linked `sel=` before the slim index resolves still counts as detail
  * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
  * shard loads.
@@ -792,6 +805,7 @@ export type MapSelectionFrame = {
   resolvable: boolean;
   isPub: boolean;
   basePubOpen: boolean;
+  coffeeCafeOpen: boolean;
   detailOpen: boolean;
 };
 
@@ -799,23 +813,33 @@ export function mapSelectionFrame(input: {
   selectedVenueId: string;
   selectedVenue: Venue | undefined;
   selectedBasePub: { id: string } | null;
+  /** The pilot cafe the selected id resolved to, once the cafes have loaded. */
+  selectedCoffeeCafe?: { id: string } | null;
   venueById: ReadonlyMap<string, Venue>;
   isPubVenue: (venue: Venue) => boolean;
 }): MapSelectionFrame {
   const { selectedVenueId, selectedVenue, selectedBasePub, venueById } = input;
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
+  const coffeeCafeOpen = Boolean(
+    input.selectedCoffeeCafe && input.selectedCoffeeCafe.id === selectedVenueId,
+  );
   const pendingDeepLinkSelection =
     Boolean(selectedVenueId) &&
     !selectedVenue &&
     !basePubOpen &&
+    !coffeeCafeOpen &&
     !venueById.has(selectedVenueId);
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,
     isPub: selectedVenue ? input.isPubVenue(selectedVenue) : false,
     basePubOpen,
+    coffeeCafeOpen,
     detailOpen:
-      Boolean(selectedVenueId && selectedVenue) || basePubOpen || pendingDeepLinkSelection,
+      Boolean(selectedVenueId && selectedVenue) ||
+      basePubOpen ||
+      coffeeCafeOpen ||
+      pendingDeepLinkSelection,
   };
 }
 
