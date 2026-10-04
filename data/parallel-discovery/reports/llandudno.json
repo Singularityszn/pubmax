@@ -2,14 +2,42 @@
   "city": "llandudno",
   "districts": 5,
   "slices": 20,
-  "slicesComplete": 19,
-  "incompleteSlices": [
-    "LL32/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://uk.hotels.com/go/wales/things-to-do-llandudno); rerun to resume"
-  ],
+  "slicesComplete": 20,
+  "incompleteSlices": [],
   "skippedSources": [],
+  "filteredSources": [
+    {
+      "district": "LL28",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-pub-staff-l-prestatyn-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LL28",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/m/jobs?q=Corner+Shop",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LL28",
+      "category": "cocktail-bar",
+      "url": "https://www.gllm.ac.uk/courses/professional-cookery-and-food-and-beverage-service-level-2",
+      "host": "www.gllm.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LL32",
+      "category": "cocktail-bar",
+      "url": "https://uk.hotels.com/go/wales/things-to-do-llandudno",
+      "host": "uk.hotels.com",
+      "reason": "travel aggregator"
+    }
+  ],
   "taskRuns": 0,
   "webSearches": 27,
-  "pagesRead": 44,
+  "pagesRead": 43,
   "researched": 0,
   "added": 0,
   "retained": [],
@@ -21,14 +49,6 @@
     {
       "name": "https://www.yelp.com/search?cflt=nightlife&find_loc=Llandudno",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-pub-staff-l-prestatyn-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://uk.indeed.com/m/jobs?q=Corner+Shop",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://tapps-micropub.wheree.com",

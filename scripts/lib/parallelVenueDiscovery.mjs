@@ -37,9 +37,17 @@ function sourceBelongsToVenue(url, website) {
 export const GENERIC_NAME_WORDS = new Set(["the", "and", "bar", "bars", "pub", "pubs", "inn", "restaurant", "restaurants", "kitchen", "club", "lounge", "tavern", "hotel", "cafe", "grill", "wine", "cocktail", "cocktails", "brewery", "taproom", "beer", "tap", "arms", "house", "great", "united", "kingdom", "england", "scotland", "wales"]);
 const NOT_OWN_SITE_HOST = /(?:^|[.-])(?:news|live|echo|post|times|herald|gazette|chronicle|mirror|guardian|evening|mail|express|telegraph|independent|observer|journal|argus|standard|bbc|tripadvisor|yelp|foursquare|timeout|trip|booking|expedia|wikipedia|reddit|tiktok)(?:[.-]|$)|247\./i;
 
-// A news or aggregator site, however its name is run together:
-// liverpoolecho, manchestereveningnews, bristolpost, glasgowlive.
-const NEWS_LABEL = /^(?:news|bbc)|(?:echo|news|post|mail|live|times|herald|gazette|chronicle|mirror|telegraph|express|argus|standard|journal|observer|guardian|independent|247)$|tripadvisor|yelp|foursquare|timeout|expedia|booking|wikipedia|reddit|tiktok/;
+// News brands whose name runs a place into a news word. They are named
+// outright, so a venue called The Lamp Post or The Olive Tree keeps its site.
+const NEWS_BRANDS = new Set([
+  "liverpoolecho", "manchestereveningnews", "bristolpost", "bristollive", "bristol247", "birminghammail", "birminghampost", "birminghamlive",
+  "glasgowlive", "glasgowtimes", "eveningtimes", "heraldscotland", "dailyrecord", "scotsman", "yorkshireeveningpost", "yorkshirepost", "leedslive",
+  "examinerlive", "chroniclelive", "northernecho", "thenorthernecho", "durhamtimes", "walesonline", "dailypost", "northwaleslive",
+  "oxfordmail", "oxfordshirelive", "cambridgenews", "cambridgeshirelive", "bathecho", "somersetlive", "liverpoolworld", "manchesterworld",
+  "bristolworld", "nottinghampost", "leicestermercury", "lancashiretelegraph", "theguardian", "dailymail", "thesun", "mirror", "express",
+  "telegraph", "independent", "standard", "metro", "bbc", "inyourarea",
+]);
+const AGGREGATOR_LABEL = /tripadvisor|yelp|foursquare|timeout|expedia|booking|wikipedia|reddit|tiktok/;
 
 export const words = (value) => normalizeVenueIdentityName(value).split(/\s+/).map((word) => word.replace(/[^a-z0-9]/g, "")).filter(Boolean);
 
@@ -51,23 +59,28 @@ export function ownSiteFor(name, landedUrl, city) {
   if (NOT_OWN_SITE_HOST.test(hostname)) return null;
   const labels = hostname.split(".");
   const registrable = labels.slice(/^(?:co|org|ac|gov|net|ltd|plc|me)\.uk$/.test(labels.slice(-2).join(".")) ? -3 : -2).join(".");
-  if (NEWS_LABEL.test(registrable.split(".")[0].replace(/[^a-z0-9]/g, ""))) return null;
+  const label = registrable.split(".")[0].replace(/[^a-z0-9]/g, "");
+  if (NEWS_BRANDS.has(label) || AGGREGATOR_LABEL.test(label)) return null;
   const host = registrable.replace(/[^a-z0-9]/g, "");
   const cityWords = new Set(words(city.displayName));
   const distinctive = words(name).filter((word) => word.length >= 4 && !GENERIC_NAME_WORDS.has(word) && !cityWords.has(word));
   return distinctive.some((word) => host.includes(word)) ? `${new URL(landedUrl).origin}/` : null;
 }
 
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const fold = (value) => String(value ?? "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
 const PUB_OR_BAR_EVIDENCE = /\b(?:pub|public house|bar|beers?|cocktails?|ales?|lagers?)\b/i;
 const RESTAURANT_ALCOHOL = /\b(?:beers?|cocktails?|draught|lagers?|wine list|wines|spirits|alcoholic drinks)\b/i;
 
 // A venue's own name is not evidence of what it serves: "Fuzion Noodle Bar"
 // or "Bar & Grill" says nothing about alcohol, so the name is struck from the
-// quotes before the drinking test.
+// quotes before the drinking test, however the quote spells or marks it up:
+// accents, apostrophes, markdown, spacing and "&" for "and" all still match.
 export function withoutName(quotes, name) {
-  const venue = text(name);
-  return venue ? String(quotes).replace(new RegExp(escapeRegExp(venue), "gi"), " ") : String(quotes);
+  const folded = fold(quotes);
+  const tokens = fold(name).split(/[^a-z0-9]+/).filter((token) => token && token !== "and");
+  if (!tokens.length) return folded;
+  const pattern = tokens.map((token) => token.split("").join("[^a-z0-9]*")).join("(?:[^a-z0-9]|and)*");
+  return folded.replace(new RegExp(pattern, "g"), " ");
 }
 
 export function statesDrinking(kind, quotes, name) {

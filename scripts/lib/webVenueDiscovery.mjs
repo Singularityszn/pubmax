@@ -126,6 +126,24 @@ export function webPageResult({ landedUrl, text, title }, city, district) {
   })) } };
 }
 
+// Sites that cannot be a venue's own page or a venue listing: public bodies,
+// universities, postcode and property lookups, care and childcare directories,
+// job boards, transport operators, research indexes and travel aggregators.
+const NON_VENUE_SOURCES = [
+  [/\.(?:gov|nhs|ac|sch|police|mod)\.uk$|\.(?:gov|edu)$/, "public body or academic site"],
+  [/(?:^|\.)(?:postcodearea\.co\.uk|doogal\.co\.uk|getthedata\.com|streetcheck\.co\.uk|rightmove\.co\.uk|zoopla\.co\.uk|onthemarket\.com)$/, "postcode or property lookup"],
+  [/(?:^|\.)(?:carehome\.co\.uk|daynurseries\.co\.uk|childcare\.co\.uk)$/, "care or childcare directory"],
+  [/(?:^|\.)(?:simplyhired\.co\.uk|indeed\.(?:com|co\.uk)|reed\.co\.uk|totaljobs\.com|caterer\.com)$/, "job board"],
+  [/(?:^|\.)(?:stagecoachbus\.com|merseyrail\.org|nationalrail\.co\.uk|firstbus\.co\.uk|arrivabus\.co\.uk|thetrainline\.com)$/, "transport operator"],
+  [/(?:^|\.)(?:researchgate\.net|academia\.edu|wikipedia\.org)$/, "research or reference index"],
+  [/(?:^|\.)(?:hotels\.com|booking\.com|expedia\.co\.uk|expedia\.com|trip\.com)$/, "travel aggregator"],
+];
+
+export function nonVenueSource(url) {
+  const host = new URL(url).hostname.toLowerCase();
+  return NON_VENUE_SOURCES.find(([pattern]) => pattern.test(host))?.[1] ?? null;
+}
+
 // Pages worth reading: permitted, stating a postcode in this district, and
 // either a venue listing or a single venue's own page. A page naming several
 // postcodes on any other host cannot be the venue's own site.

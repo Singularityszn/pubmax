@@ -1,5 +1,5 @@
 {
-  "meaning": "Sources not read because their robots.txt could not be reached (timeout, DNS failure, 429 or 5xx) after two retries. Robots was never assumed to allow, and no skipped source is evidence for any venue.",
+  "meaning": "Sources not read. kind robots: robots.txt could not be reached (timeout, DNS failure, 429 or 5xx) on the first ask and two retries; robots was never assumed to allow. kind extract: Tavily Extract could not read the page at basic or advanced depth, and the page's own status did not settle it as gone or refused. No skipped source is evidence for any venue, and a slice complete with skips is not exhaustive coverage.",
   "skips": [
     {
       "city": "birmingham",
@@ -7,26 +7,111 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/1/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.864Z"
+      "checkedAt": "2026-10-04T14:28:58.259Z"
+    },
+    {
+      "city": "birmingham",
+      "district": "B2",
+      "category": "pub",
+      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:58.485Z"
+    },
+    {
+      "city": "birmingham",
+      "district": "B2",
+      "category": "bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:31.822Z"
+    },
+    {
+      "city": "birmingham",
+      "district": "B2",
+      "category": "restaurant",
+      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:31.822Z"
     },
     {
       "city": "birmingham",
@@ -34,26 +119,27 @@
       "category": "bar",
       "url": "https://www.datathistle.com/places/location:B15%202TT(52.4490,-1.9309)",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:08:21.370Z"
+      "checkedAt": "2026-10-04T14:27:33.365Z"
     },
     {
       "city": "birmingham",
@@ -61,26 +147,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/s/41/41644/Hillyfields/Harborne",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.865Z"
+      "checkedAt": "2026-10-04T14:28:58.260Z"
     },
     {
       "city": "birmingham",
@@ -88,26 +175,27 @@
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/s/41/41644/Hillyfields/Harborne",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "city": "birmingham",
@@ -115,26 +203,27 @@
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/s/17/17398/Swan/Erdington",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "city": "birmingham",
@@ -142,26 +231,27 @@
       "category": "cocktail-bar",
       "url": "https://www.thevine.co.uk",
       "host": "www.thevine.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:19.273Z",
+          "at": "2026-10-04T14:27:34.826Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:25.122Z",
+          "at": "2026-10-04T14:27:40.668Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:31.033Z",
+          "at": "2026-10-04T14:27:46.508Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:08:31.033Z"
+      "checkedAt": "2026-10-04T14:27:46.508Z"
     },
     {
       "city": "birmingham",
@@ -169,26 +259,27 @@
       "category": "restaurant",
       "url": "https://www.thevine.co.uk",
       "host": "www.thevine.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:19.273Z",
+          "at": "2026-10-04T14:27:34.826Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:25.122Z",
+          "at": "2026-10-04T14:27:40.668Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:31.033Z",
+          "at": "2026-10-04T14:27:46.508Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:08:31.033Z"
+      "checkedAt": "2026-10-04T14:27:46.508Z"
     },
     {
       "city": "birmingham",
@@ -196,26 +287,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/s/32/3214/Bottle_of_Sack/Sutton_Coldfield",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "city": "birmingham",
@@ -223,26 +315,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "city": "birmingham",
@@ -250,26 +343,27 @@
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "city": "birmingham",
@@ -277,26 +371,27 @@
       "category": "cocktail-bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.868Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "city": "birmingham",
@@ -304,26 +399,83 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.991Z"
+      "checkedAt": "2026-10-04T14:28:58.388Z"
+    },
+    {
+      "city": "leeds",
+      "district": "LS1",
+      "category": "restaurant",
+      "url": "https://www.theheadofsteam.co.uk/bars/leeds-park-row",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:59.206Z"
+    },
+    {
+      "city": "leeds",
+      "district": "LS1",
+      "category": "restaurant",
+      "url": "https://www.theheadofsteam.co.uk/bars/leeds-city-centre",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:00.350Z"
     },
     {
       "city": "leeds",
@@ -331,87 +483,104 @@
       "category": "pub",
       "url": "https://www.datathistle.com/place/107285-revolution-leeds",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:46.288Z"
+      "checkedAt": "2026-10-04T14:28:59.463Z"
+    },
+    {
+      "city": "leeds",
+      "district": "LS5",
+      "category": "restaurant",
+      "url": "https://mindtrip.ai/restaurant/leeds-yorkshire/vesper-gate/re-Suu6nUAJ",
+      "host": "mindtrip.ai",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:29:18.455Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:29:18.099Z"
+    },
+    {
+      "city": "leeds",
+      "district": "LS6",
+      "category": "bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/headingley",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:00.699Z"
     },
     {
       "city": "leeds",
       "district": "LS6",
       "category": "cocktail-bar",
-      "url": "https://www.leedsbeckett.ac.uk/student-experience/life-in-leeds/the-students-guide-to-hyde-park",
-      "host": "www.leedsbeckett.ac.uk",
+      "url": "https://www.theheadofsteam.co.uk/bars/headingley",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:08.866Z",
+          "at": "2026-10-04T14:27:38.295Z",
           "reason": "robots-unreachable",
-          "evidence": "https://www.leedsbeckett.ac.uk/robots.txt could not be fetched (fetch failed)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:35.392Z",
+          "at": "2026-10-04T14:28:05.069Z",
           "reason": "robots-unreachable",
-          "evidence": "https://www.leedsbeckett.ac.uk/robots.txt could not be fetched (fetch failed)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:01.468Z",
+          "at": "2026-10-04T14:28:31.822Z",
           "reason": "robots-unreachable",
-          "evidence": "https://www.leedsbeckett.ac.uk/robots.txt could not be fetched (fetch failed)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:01.468Z"
-    },
-    {
-      "city": "leeds",
-      "district": "LS10",
-      "category": "bar",
-      "url": "https://www.mumtazleeds.co.uk/gallery",
-      "host": "www.mumtazleeds.co.uk",
-      "reason": "robots HTTP 500",
-      "attempts": 1,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:09:55.699Z",
-          "reason": "robots-unreadable",
-          "evidence": "https://www.mumtazleeds.co.uk/robots.txt answered 500, so no permission can be read."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:09:55.699Z"
-    },
-    {
-      "city": "leeds",
-      "district": "LS10",
-      "category": "cocktail-bar",
-      "url": "https://www.mumtazleeds.co.uk/gallery",
-      "host": "www.mumtazleeds.co.uk",
-      "reason": "robots HTTP 500",
-      "attempts": 1,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:09:55.699Z",
-          "reason": "robots-unreadable",
-          "evidence": "https://www.mumtazleeds.co.uk/robots.txt answered 500, so no permission can be read."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:09:55.699Z"
+      "checkedAt": "2026-10-04T14:29:00.830Z"
     },
     {
       "city": "glasgow",
@@ -419,26 +588,27 @@
       "category": "cocktail-bar",
       "url": "https://www.ukinbound.org/events/regional-members-networking-evening-the-hard-rock-cafe-glasgow",
       "host": "www.ukinbound.org",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:09:57.277Z",
+          "at": "2026-10-04T14:29:09.547Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:03.104Z",
+          "at": "2026-10-04T14:29:15.386Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:08.923Z",
+          "at": "2026-10-04T14:29:21.276Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:08.923Z"
+      "checkedAt": "2026-10-04T14:29:21.276Z"
     },
     {
       "city": "glasgow",
@@ -446,26 +616,27 @@
       "category": "bar",
       "url": "https://iblog.dearbornschools.org/hankinsmedia/category/blogs/page/14?live-blog-33648076-2026-09-20-naturalk9sglasgow=",
       "host": "iblog.dearbornschools.org",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:26.386Z",
+          "at": "2026-10-04T14:29:33.240Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:52.458Z",
+          "at": "2026-10-04T14:29:59.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:18.469Z",
+          "at": "2026-10-04T14:30:26.224Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:18.469Z"
+      "checkedAt": "2026-10-04T14:30:26.224Z"
     },
     {
       "city": "glasgow",
@@ -473,26 +644,27 @@
       "category": "cocktail-bar",
       "url": "https://www.datathistle.com/place/94117-table-table-orion-way-cambuslang-glasgow",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:03.662Z"
+      "checkedAt": "2026-10-04T14:29:11.097Z"
     },
     {
       "city": "glasgow",
@@ -500,26 +672,27 @@
       "category": "cocktail-bar",
       "url": "https://mercureglasgow.cityhotel.org",
       "host": "mercureglasgow.cityhotel.org",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:26.885Z",
+          "at": "2026-10-04T14:29:33.239Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:52.959Z",
+          "at": "2026-10-04T14:29:59.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:18.969Z",
+          "at": "2026-10-04T14:30:26.225Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:18.969Z"
+      "checkedAt": "2026-10-04T14:30:26.225Z"
     },
     {
       "city": "glasgow",
@@ -527,26 +700,27 @@
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/1882/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:07.154Z"
+      "checkedAt": "2026-10-04T14:29:12.341Z"
     },
     {
       "city": "manchester",
@@ -554,26 +728,76 @@
       "category": "bar",
       "url": "https://themollyhouse.com",
       "host": "themollyhouse.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:31.889Z",
+          "at": "2026-10-04T14:29:41.738Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.965Z",
+          "at": "2026-10-04T14:30:08.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:23.970Z",
+          "at": "2026-10-04T14:30:34.723Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:23.970Z"
+      "checkedAt": "2026-10-04T14:30:34.723Z"
+    },
+    {
+      "city": "manchester",
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.marriott.com/en-us/dining/restaurant-bar/manmp-manchester-marriott-hotel-piccadilly/7113311-loom-and-ladle-bar-bistro.mi",
+      "host": "www.marriott.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Error fetching content",
+        "advanced": "Error fetching content",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:52.024Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:51.424Z"
+    },
+    {
+      "city": "manchester",
+      "district": "M1",
+      "category": "cocktail-bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/manchesternq",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:20.571Z"
     },
     {
       "city": "manchester",
@@ -581,26 +805,27 @@
       "category": "cocktail-bar",
       "url": "https://themollyhouse.com",
       "host": "themollyhouse.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:31.889Z",
+          "at": "2026-10-04T14:29:41.738Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.965Z",
+          "at": "2026-10-04T14:30:08.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:23.970Z",
+          "at": "2026-10-04T14:30:34.723Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:23.970Z"
+      "checkedAt": "2026-10-04T14:30:34.723Z"
     },
     {
       "city": "manchester",
@@ -608,26 +833,27 @@
       "category": "restaurant",
       "url": "https://themollyhouse.com",
       "host": "themollyhouse.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:31.889Z",
+          "at": "2026-10-04T14:29:41.738Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.965Z",
+          "at": "2026-10-04T14:30:08.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:23.970Z",
+          "at": "2026-10-04T14:30:34.723Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:23.970Z"
+      "checkedAt": "2026-10-04T14:30:34.723Z"
     },
     {
       "city": "manchester",
@@ -635,26 +861,48 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/289/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:11.669Z"
+      "checkedAt": "2026-10-04T14:29:21.423Z"
+    },
+    {
+      "city": "manchester",
+      "district": "M4",
+      "category": "pub",
+      "url": "https://marblebeers.com/the-marble-arch",
+      "host": "marblebeers.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:29:33.988Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:29:31.853Z"
     },
     {
       "city": "manchester",
@@ -662,26 +910,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/464/page/1/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:13.695Z"
+      "checkedAt": "2026-10-04T14:29:23.424Z"
     },
     {
       "city": "manchester",
@@ -689,26 +938,27 @@
       "category": "bar",
       "url": "https://unlockmanchester.com/guide-articles/manchester-abc-drinks-ales-beers-and-cocktails",
       "host": "unlockmanchester.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:32.939Z",
+          "at": "2026-10-04T14:29:26.386Z",
           "reason": "robots-unreachable",
           "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:38.755Z",
+          "at": "2026-10-04T14:29:32.256Z",
           "reason": "robots-unreachable",
           "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:44.567Z",
+          "at": "2026-10-04T14:29:38.081Z",
           "reason": "robots-unreachable",
           "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:44.567Z"
+      "checkedAt": "2026-10-04T14:29:38.081Z"
     },
     {
       "city": "manchester",
@@ -716,26 +966,27 @@
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/113",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:44.568Z"
+      "checkedAt": "2026-10-04T14:29:38.081Z"
     },
     {
       "city": "manchester",
@@ -743,26 +994,27 @@
       "category": "bar",
       "url": "https://www.ticketline.co.uk/venue/manchester-union-bar",
       "host": "www.ticketline.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:37.276Z",
+          "at": "2026-10-04T14:29:28.088Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:43.211Z",
+          "at": "2026-10-04T14:29:33.912Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:49.036Z",
+          "at": "2026-10-04T14:29:39.739Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:49.036Z"
+      "checkedAt": "2026-10-04T14:29:39.739Z"
     },
     {
       "city": "manchester",
@@ -770,26 +1022,27 @@
       "category": "restaurant",
       "url": "https://www.manchesteracademy.net/venue/info",
       "host": "www.manchesteracademy.net",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:45.539Z",
+          "at": "2026-10-04T14:29:38.938Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:51.381Z",
+          "at": "2026-10-04T14:29:44.817Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.278Z",
+          "at": "2026-10-04T14:29:50.684Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:57.278Z"
+      "checkedAt": "2026-10-04T14:29:50.684Z"
     },
     {
       "city": "manchester",
@@ -797,26 +1050,48 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/255/page/1/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:51.000Z"
+      "checkedAt": "2026-10-04T14:29:41.237Z"
+    },
+    {
+      "city": "manchester",
+      "district": "M17",
+      "category": "cocktail-bar",
+      "url": "https://www.iwm.org.uk/sites/default/files/files/2019-02/Summer%20party%20package_2019.pdf",
+      "host": "www.iwm.org.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:29:47.654Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:29:47.622Z"
     },
     {
       "city": "manchester",
@@ -824,26 +1099,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/290",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:58.298Z"
+      "checkedAt": "2026-10-04T14:29:48.049Z"
     },
     {
       "city": "manchester",
@@ -851,26 +1127,83 @@
       "category": "pub",
       "url": "https://south-manchester.u3asite.uk/u3a_venues/parrs-wood-inn",
       "host": "south-manchester.u3asite.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:22.470Z",
+          "at": "2026-10-04T14:30:10.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://south-manchester.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:48.637Z",
+          "at": "2026-10-04T14:30:36.720Z",
           "reason": "robots-unreachable",
           "evidence": "https://south-manchester.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:15.150Z",
+          "at": "2026-10-04T14:31:03.170Z",
           "reason": "robots-unreachable",
           "evidence": "https://south-manchester.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:15.150Z"
+      "checkedAt": "2026-10-04T14:31:03.170Z"
+    },
+    {
+      "city": "manchester",
+      "district": "M20",
+      "category": "pub",
+      "url": "https://www.theheadofsteam.co.uk/bars/didsbury",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:31:03.170Z"
+    },
+    {
+      "city": "manchester",
+      "district": "M20",
+      "category": "bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/didsbury",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:51.169Z"
     },
     {
       "city": "manchester",
@@ -878,26 +1211,27 @@
       "category": "cocktail-bar",
       "url": "https://fovps.org.uk/the-tea-room",
       "host": "fovps.org.uk",
+      "kind": "robots",
       "reason": "robots HTTP 429",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:15.505Z",
+          "at": "2026-10-04T14:30:04.095Z",
           "reason": "robots-unreadable",
           "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:11:20.627Z",
+          "at": "2026-10-04T14:30:09.187Z",
           "reason": "robots-unreadable",
           "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:11:25.723Z",
+          "at": "2026-10-04T14:30:14.289Z",
           "reason": "robots-unreadable",
           "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:25.723Z"
+      "checkedAt": "2026-10-04T14:30:14.289Z"
     },
     {
       "city": "manchester",
@@ -905,97 +1239,125 @@
       "category": "restaurant",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2067/page/42/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:22.998Z"
+      "checkedAt": "2026-10-04T14:30:19.640Z"
     },
     {
       "city": "manchester",
-      "district": "M45",
+      "district": "SK3",
       "category": "pub",
-      "url": "https://licensing.bury.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_NAME&Direction=Ascending&page=5",
-      "host": "licensing.bury.gov.uk",
+      "url": "https://www.almond-pubs.co.uk/pubs/the-jolly-sailor",
+      "host": "www.almond-pubs.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:34.030Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:33.904Z"
+    },
+    {
+      "city": "durham",
+      "district": "DH1",
+      "category": "pub",
+      "url": "https://www.theheadofsteam.co.uk/bars/durham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:57.160Z",
+          "at": "2026-10-04T14:27:38.295Z",
           "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:32.917Z",
+          "at": "2026-10-04T14:28:05.069Z",
           "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:08.674Z",
+          "at": "2026-10-04T14:28:31.822Z",
           "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:08.674Z"
+      "checkedAt": "2026-10-04T14:30:35.298Z"
     },
     {
-      "city": "manchester",
-      "district": "M45",
-      "category": "cocktail-bar",
-      "url": "https://licensing.bury.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=82&Column=OPR_PREM_ADDRESS&Direction=Descending",
-      "host": "licensing.bury.gov.uk",
+      "city": "durham",
+      "district": "DH1",
+      "category": "bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/durham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:57.160Z",
+          "at": "2026-10-04T14:27:38.295Z",
           "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:32.917Z",
+          "at": "2026-10-04T14:28:05.069Z",
           "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:08.674Z",
+          "at": "2026-10-04T14:28:31.822Z",
           "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:08.674Z"
+      "checkedAt": "2026-10-04T14:30:35.233Z"
     },
     {
-      "city": "manchester",
-      "district": "M50",
+      "city": "liverpool",
+      "district": "CH41",
       "category": "restaurant",
-      "url": "https://www.thelowry.com/food-and-drink-4kk3",
-      "host": "www.thelowry.com",
-      "reason": "robots unreachable",
-      "attempts": 1,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:11:42.844Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.thelowry.com/robots.txt could not be fetched (fetch failed)."
+      "url": "https://theguideliverpool.com/the-ultimate-guide-to-the-wirral-food-drink-festival-2019",
+      "host": "theguideliverpool.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:40.196Z"
         }
-      ],
-      "checkedAt": "2026-10-04T14:11:42.844Z"
+      },
+      "checkedAt": "2026-10-04T14:30:39.869Z"
     },
     {
       "city": "liverpool",
@@ -1003,26 +1365,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2112/page/19/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:47.545Z"
+      "checkedAt": "2026-10-04T14:30:38.865Z"
     },
     {
       "city": "liverpool",
@@ -1030,26 +1393,27 @@
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:47.139Z"
+      "checkedAt": "2026-10-04T14:30:40.601Z"
     },
     {
       "city": "liverpool",
@@ -1057,26 +1421,27 @@
       "category": "cocktail-bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:47.140Z"
+      "checkedAt": "2026-10-04T14:30:40.602Z"
     },
     {
       "city": "liverpool",
@@ -1084,26 +1449,27 @@
       "category": "pub",
       "url": "https://www.beersltd.co.uk",
       "host": "www.beersltd.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:48.424Z",
+          "at": "2026-10-04T14:30:42.616Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:54.259Z",
+          "at": "2026-10-04T14:30:48.495Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:00.068Z",
+          "at": "2026-10-04T14:30:54.377Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:00.068Z"
+      "checkedAt": "2026-10-04T14:30:54.388Z"
     },
     {
       "city": "liverpool",
@@ -1111,26 +1477,48 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:48.058Z"
+      "checkedAt": "2026-10-04T14:30:42.386Z"
+    },
+    {
+      "city": "liverpool",
+      "district": "L15",
+      "category": "restaurant",
+      "url": "https://mindtrip.ai/attraction/liverpool-merseyside/brookhouse/at-Sm6z6jDJ",
+      "host": "mindtrip.ai",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:03.602Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:03.186Z"
     },
     {
       "city": "liverpool",
@@ -1138,26 +1526,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:49.741Z"
+      "checkedAt": "2026-10-04T14:30:44.589Z"
     },
     {
       "city": "liverpool",
@@ -1165,26 +1554,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:50.406Z"
+      "checkedAt": "2026-10-04T14:30:44.834Z"
     },
     {
       "city": "liverpool",
@@ -1192,26 +1582,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:50.331Z"
+      "checkedAt": "2026-10-04T14:30:45.015Z"
     },
     {
       "city": "liverpool",
@@ -1219,26 +1610,27 @@
       "category": "pub",
       "url": "https://www.speedquizzing.com/pub-quiz/netherton-liverpool-13264",
       "host": "www.speedquizzing.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:14.149Z",
+          "at": "2026-10-04T14:31:07.665Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:40.463Z",
+          "at": "2026-10-04T14:31:34.147Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:06.502Z",
+          "at": "2026-10-04T14:32:00.632Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:06.502Z"
+      "checkedAt": "2026-10-04T14:32:00.632Z"
     },
     {
       "city": "liverpool",
@@ -1246,26 +1638,27 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2156/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:00.214Z"
+      "checkedAt": "2026-10-04T14:30:48.633Z"
     },
     {
       "city": "liverpool",
@@ -1273,26 +1666,27 @@
       "category": "cocktail-bar",
       "url": "https://www.p4lcharity.co.uk/contact-us",
       "host": "www.p4lcharity.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:01.133Z",
+          "at": "2026-10-04T14:30:49.644Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:07.016Z",
+          "at": "2026-10-04T14:30:55.452Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:12.826Z",
+          "at": "2026-10-04T14:31:01.275Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:12.826Z"
+      "checkedAt": "2026-10-04T14:31:01.275Z"
     },
     {
       "city": "liverpool",
@@ -1300,26 +1694,27 @@
       "category": "pub",
       "url": "https://shoplocator.williamhill/liverpool/adj-peacock-public-house/l33-6xn",
       "host": "shoplocator.williamhill",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:02.920Z",
+          "at": "2026-10-04T14:30:50.897Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:08.760Z",
+          "at": "2026-10-04T14:30:56.756Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:14.669Z",
+          "at": "2026-10-04T14:31:02.590Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:14.669Z"
+      "checkedAt": "2026-10-04T14:31:02.590Z"
     },
     {
       "city": "liverpool",
@@ -1327,26 +1722,69 @@
       "category": "pub",
       "url": "https://shoplocator.williamhill/liverpool/broad-lane/l32-6qd",
       "host": "shoplocator.williamhill",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:02.920Z",
+          "at": "2026-10-04T14:30:50.897Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:08.760Z",
+          "at": "2026-10-04T14:30:56.756Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:14.669Z",
+          "at": "2026-10-04T14:31:02.590Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:14.679Z"
+      "checkedAt": "2026-10-04T14:31:02.597Z"
+    },
+    {
+      "city": "liverpool",
+      "district": "L33",
+      "category": "bar",
+      "url": "https://popeyesuk.com/restaurants)wird",
+      "host": "popeyesuk.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:55.248Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:55.233Z"
+    },
+    {
+      "city": "liverpool",
+      "district": "L33",
+      "category": "restaurant",
+      "url": "https://theguideliverpool.com/directory_category/drink/page/14",
+      "host": "theguideliverpool.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:55.923Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:55.615Z"
     },
     {
       "city": "liverpool",
@@ -1354,53 +1792,128 @@
       "category": "cocktail-bar",
       "url": "https://www.datathistle.com/place/94314-table-table-the-derby-lodge-huyton-liverpool",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:15.204Z"
+      "checkedAt": "2026-10-04T14:30:58.646Z"
+    },
+    {
+      "city": "liverpool",
+      "district": "L69",
+      "category": "cocktail-bar",
+      "url": "https://bishopsgate-inst.files.svdcdn.com/production/Pride-1991_compressed.pdf?dm=1656076637",
+      "host": "bishopsgate-inst.files.svdcdn.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:02.577Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:02.554Z"
     },
     {
       "city": "bristol",
-      "district": "BS2",
-      "category": "bar",
-      "url": "https://www.bristol.ac.uk/students/life-in-bristol/campus/cafes",
-      "host": "www.bristol.ac.uk",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:12:39.961Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.bristol.ac.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:13:06.002Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.bristol.ac.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:13:32.040Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.bristol.ac.uk/robots.txt could not be fetched (fetch failed)."
+      "district": "BS6",
+      "category": "pub",
+      "url": "https://hmssbristol.com",
+      "host": "hmssbristol.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:11.655Z"
         }
-      ],
-      "checkedAt": "2026-10-04T14:13:32.040Z"
+      },
+      "checkedAt": "2026-10-04T14:31:11.326Z"
+    },
+    {
+      "city": "bristol",
+      "district": "BS6",
+      "category": "cocktail-bar",
+      "url": "https://filthyxiii.com",
+      "host": "filthyxiii.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:08.428Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:08.320Z"
+    },
+    {
+      "city": "bristol",
+      "district": "BS8",
+      "category": "cocktail-bar",
+      "url": "https://www.alteregobar.co.uk/contact-us",
+      "host": "www.alteregobar.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page did not answer",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": null
+      },
+      "checkedAt": "2026-10-04T14:31:40.771Z"
+    },
+    {
+      "city": "bristol",
+      "district": "BS8",
+      "category": "cocktail-bar",
+      "url": "https://hmssbristol.com",
+      "host": "hmssbristol.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:11.655Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:11.326Z"
     },
     {
       "city": "bristol",
@@ -1408,26 +1921,48 @@
       "category": "pub",
       "url": "https://bristol.u3asite.uk/u3a_venues/westbury-park-pub-kitchen",
       "host": "bristol.u3asite.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:46.991Z",
+          "at": "2026-10-04T14:31:29.149Z",
           "reason": "robots-unreachable",
           "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:13.021Z",
+          "at": "2026-10-04T14:31:55.633Z",
           "reason": "robots-unreachable",
           "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:39.047Z",
+          "at": "2026-10-04T14:32:22.389Z",
           "reason": "robots-unreachable",
           "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:39.047Z"
+      "checkedAt": "2026-10-04T14:32:22.390Z"
+    },
+    {
+      "city": "bristol",
+      "district": "BS10",
+      "category": "cocktail-bar",
+      "url": "https://www.myvue.com/cinema/bristol-cribbs-causeway/whats-on",
+      "host": "www.myvue.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:15.588Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:15.324Z"
     },
     {
       "city": "bristol",
@@ -1435,26 +1970,27 @@
       "category": "cocktail-bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=1209&page=2&show_comments=5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:33.281Z"
+      "checkedAt": "2026-10-04T14:31:13.617Z"
     },
     {
       "city": "bristol",
@@ -1462,26 +1998,27 @@
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=1096&page=22",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:33.420Z"
+      "checkedAt": "2026-10-04T14:31:13.561Z"
     },
     {
       "city": "bath",
@@ -1489,26 +2026,48 @@
       "category": "pub",
       "url": "https://www.fairfieldarmsbath.co.uk",
       "host": "www.fairfieldarmsbath.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:43.570Z",
+          "at": "2026-10-04T14:31:15.347Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:49.428Z",
+          "at": "2026-10-04T14:31:21.311Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:55.397Z",
+          "at": "2026-10-04T14:31:27.189Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:55.397Z"
+      "checkedAt": "2026-10-04T14:31:27.189Z"
+    },
+    {
+      "city": "bath",
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://bills-website.co.uk/restaurants/bath",
+      "host": "bills-website.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 307",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 307,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:20.255Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:20.239Z"
     },
     {
       "city": "oxford",
@@ -1516,26 +2075,27 @@
       "category": "cocktail-bar",
       "url": "https://www.oxfordcompass.org/venues/oxo-bar-oxford",
       "host": "www.oxfordcompass.org",
+      "kind": "robots",
       "reason": "robots HTTP 429",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:56.836Z",
+          "at": "2026-10-04T14:31:25.108Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:13:02.463Z",
+          "at": "2026-10-04T14:31:30.938Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:13:08.544Z",
+          "at": "2026-10-04T14:31:36.012Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:08.544Z"
+      "checkedAt": "2026-10-04T14:31:36.012Z"
     },
     {
       "city": "cambridge",
@@ -1543,26 +2103,48 @@
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/411/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:13.181Z"
+      "checkedAt": "2026-10-04T14:31:31.458Z"
+    },
+    {
+      "city": "cambridge",
+      "district": "CB2",
+      "category": "cocktail-bar",
+      "url": "https://bills-website.co.uk/restaurants/cambridge",
+      "host": "bills-website.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 307",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 307,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:33.975Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:33.674Z"
     },
     {
       "city": "cambridge",
@@ -1570,26 +2152,48 @@
       "category": "bar",
       "url": "https://www.hyatt.com/hyatt-centric/en-US/stnct-hyatt-centric-cambridge/dining",
       "host": "www.hyatt.com",
+      "kind": "robots",
       "reason": "robots HTTP 429",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:13:11.972Z",
+          "at": "2026-10-04T14:31:32.747Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:13:17.159Z",
+          "at": "2026-10-04T14:31:37.877Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:13:22.296Z",
+          "at": "2026-10-04T14:31:43.111Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:22.296Z"
+      "checkedAt": "2026-10-04T14:31:43.111Z"
+    },
+    {
+      "city": "cambridge",
+      "district": "CB5",
+      "category": "bar",
+      "url": "https://cipr.co.uk/CIPR/CIPR/Events/Event_Display_Groups.aspx?EventKey=EA22071403",
+      "host": "cipr.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:44.202Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:43.835Z"
     }
   ]
 }

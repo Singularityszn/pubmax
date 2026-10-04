@@ -257,8 +257,7 @@ function limiter(size) {
   };
 }
 const tavilySlot = limiter(4);
-const robotsChecker = createRobotsChecker();
-const robotsGate = createRobotsGate((url, attempt) => (attempt ? createRobotsChecker() : robotsChecker)(url));
+const robotsGate = createRobotsGate(() => createRobotsChecker());
 const pageFile = (url) => path.join(RAW, "pages", `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`);
 
 // The page's own status, asked once a Tavily read fails without a cause.
@@ -341,6 +340,7 @@ async function assembleCity(city, slices, results, base) {
     slicesComplete: own.filter(({ result }) => result.complete).length,
     incompleteSlices: own.filter(({ result }) => !result.complete).map(({ slice, result }) => `${slice.district}/${slice.category.id}${result.failure ? `: ${result.failure}` : ""}`),
     skippedSources: own.flatMap(({ slice, result }) => (result.skips ?? []).map((skip) => ({ district: slice.district, category: slice.category.id, ...skip }))),
+    filteredSources: own.flatMap(({ slice, result }) => (result.filtered ?? []).map((source) => ({ district: slice.district, category: slice.category.id, ...source }))),
     taskRuns: own.reduce((total, { result }) => total + result.taskRuns, 0),
     webSearches: own.reduce((total, { result }) => total + (result.webSearches ?? 0), 0),
     pagesRead: own.reduce((total, { result }) => total + (result.pagesRead ?? 0), 0),
@@ -427,9 +427,9 @@ async function main() {
   const observed = (await Promise.all(DISCOVERY_CITIES.map(async (city) => ((await readJson(discoveryPath(city)))?.venues ?? []).map((row) => row.observedAt)))).flat().sort();
   await writeJson(path.join(OUT, "summary.json"), { providers: PROVIDERS, parallelProcessor: options.processor, parallelMatchesPerPage: options.matches, categories: CATEGORIES.map((category) => category.id),
     oldestObservedAt: observed[0] ?? null, newestObservedAt: observed.at(-1) ?? null,
-    cities: cities.map(({ city, districts, slices: count, slicesComplete, skippedSources, taskRuns, webSearches, pagesRead, researched, added, retained, totalAccepted, duplicates, rejected }) => ({ city, complete: slicesComplete === count, districts, slices: count, slicesComplete, slicesWithSkips: new Set(skippedSources.map((skip) => `${skip.district}/${skip.category}`)).size, skippedSources: skippedSources.length, taskRuns, webSearches, pagesRead, researched, added, retained: retained.length, duplicates: duplicates.length, rejected: rejected.length, totalAccepted, usage: usage.byCity[city] ?? {} })),
+    cities: cities.map(({ city, districts, slices: count, slicesComplete, skippedSources, filteredSources, taskRuns, webSearches, pagesRead, researched, added, retained, totalAccepted, duplicates, rejected }) => ({ city, complete: slicesComplete === count, districts, slices: count, slicesComplete, slicesWithSkips: new Set(skippedSources.map((skip) => `${skip.district}/${skip.category}`)).size, skippedSources: skippedSources.length, robotsSkips: skippedSources.filter((skip) => skip.kind === "robots").length, extractSkips: skippedSources.filter((skip) => skip.kind === "extract").length, filteredSources: filteredSources.length, taskRuns, webSearches, pagesRead, researched, added, retained: retained.length, duplicates: duplicates.length, rejected: rejected.length, totalAccepted, usage: usage.byCity[city] ?? {} })),
     allCitiesComplete: cities.every((city) => city.slicesComplete === city.slices), failedSlices: failures.length, firstFailure: failures[0] ?? null, usage });
-  await writeJson(path.join(OUT, "skips.json"), { meaning: "Sources not read because their robots.txt could not be reached (timeout, DNS failure, 429 or 5xx) after two retries. Robots was never assumed to allow, and no skipped source is evidence for any venue.",
+  await writeJson(path.join(OUT, "skips.json"), { meaning: "Sources not read. kind robots: robots.txt could not be reached (timeout, DNS failure, 429 or 5xx) on the first ask and two retries; robots was never assumed to allow. kind extract: Tavily Extract could not read the page at basic or advanced depth, and the page's own status did not settle it as gone or refused. No skipped source is evidence for any venue, and a slice complete with skips is not exhaustive coverage.",
     skips: cities.flatMap(({ city, skippedSources }) => skippedSources.map((skip) => ({ city, ...skip }))) });
   console.log(`calls: ${usage.calls}\nestimatedCostUsd: ${usage.estimatedCostUsd.toFixed(3)}\nhelp: npm run build:city-slim && npm run validate-data`);
   if (failures.length) throw new Error(`${failures.length} slices failed; verified rows so far are published, checkpoints retained, rerun to resume. First: ${failures[0]}`);

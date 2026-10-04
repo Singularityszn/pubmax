@@ -5,7 +5,7 @@
   "cities": [
     {
       "city": "birmingham",
-      "venues": 130
+      "venues": 129
     },
     {
       "city": "leeds",
@@ -17,7 +17,7 @@
     },
     {
       "city": "manchester",
-      "venues": 37
+      "venues": 39
     },
     {
       "city": "durham",
@@ -33,7 +33,7 @@
     },
     {
       "city": "bath",
-      "venues": 3
+      "venues": 2
     },
     {
       "city": "oxford",

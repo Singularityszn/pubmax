@@ -2,461 +2,1123 @@
   "city": "manchester",
   "districts": 52,
   "slices": 208,
-  "slicesComplete": 195,
-  "incompleteSlices": [
-    "M1/bar: 1 pages not read yet (Tavily Extract: Error fetching content for https://www.marriott.com/en-us/dining/restaurant-bar/manmp-manchester-marriott-hotel-piccadilly/7113311-loom-and-ladle-bar-bistro.mi); rerun to resume",
-    "M4/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://marblebeers.com/the-marble-arch); rerun to resume",
-    "M5/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.postcodearea.co.uk/postaltowns/manchester/m54rp); rerun to resume",
-    "M9/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://democracy.manchester.gov.uk/documents/s59431/Appendix%201%20-%20Location%20plan%20and%20photo%20-%20PUBLISH.pdf); rerun to resume",
-    "M11/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://democracy.manchester.gov.uk/documents/g3518/Public%20reports%20pack%2009th-Mar-2020%2010.10%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10); rerun to resume",
-    "M13/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://democracy.manchester.gov.uk/documents/b1810/Supplemenary%20Agenda%20for%20the%20Licensing%20Sub%20Committee%20Hearing%20Panel%2007th-Jan-2019%2010.00%20Licensing%20Su.pdf?T=9); rerun to resume",
-    "M17/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.iwm.org.uk/sites/default/files/files/2019-02/Summer%20party%20package_2019.pdf); rerun to resume",
-    "M19/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://democracy.manchester.gov.uk/documents/g2731/Public%20reports%20pack%2021st-Jan-2019%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10); rerun to resume",
-    "M20/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.postcodearea.co.uk/postaltowns/manchester/m206re); rerun to resume",
-    "M21/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://democracy.manchester.gov.uk/documents/s54129/Appendix%206%20publish.pdf); rerun to resume",
-    "M32/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.daynurseries.co.uk/day_nursery_search_results.cfm/searchpostcode/M32); rerun to resume",
-    "M40/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://democracy.manchester.gov.uk/documents/g4211/Public%20reports%20pack%2009th-Jan-2023%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10); rerun to resume",
-    "SK3/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.almond-pubs.co.uk/pubs/the-jolly-sailor); rerun to resume"
-  ],
+  "slicesComplete": 208,
+  "incompleteSlices": [],
   "skippedSources": [
     {
       "district": "M1",
       "category": "bar",
       "url": "https://themollyhouse.com",
       "host": "themollyhouse.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:31.889Z",
+          "at": "2026-10-04T14:29:41.738Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.965Z",
+          "at": "2026-10-04T14:30:08.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:23.970Z",
+          "at": "2026-10-04T14:30:34.723Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:23.970Z"
+      "checkedAt": "2026-10-04T14:30:34.723Z"
+    },
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.marriott.com/en-us/dining/restaurant-bar/manmp-manchester-marriott-hotel-piccadilly/7113311-loom-and-ladle-bar-bistro.mi",
+      "host": "www.marriott.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Error fetching content",
+        "advanced": "Error fetching content",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:52.024Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:51.424Z"
+    },
+    {
+      "district": "M1",
+      "category": "cocktail-bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/manchesternq",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:20.571Z"
     },
     {
       "district": "M1",
       "category": "cocktail-bar",
       "url": "https://themollyhouse.com",
       "host": "themollyhouse.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:31.889Z",
+          "at": "2026-10-04T14:29:41.738Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.965Z",
+          "at": "2026-10-04T14:30:08.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:23.970Z",
+          "at": "2026-10-04T14:30:34.723Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:23.970Z"
+      "checkedAt": "2026-10-04T14:30:34.723Z"
     },
     {
       "district": "M1",
       "category": "restaurant",
       "url": "https://themollyhouse.com",
       "host": "themollyhouse.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:31.889Z",
+          "at": "2026-10-04T14:29:41.738Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.965Z",
+          "at": "2026-10-04T14:30:08.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:23.970Z",
+          "at": "2026-10-04T14:30:34.723Z",
           "reason": "robots-unreachable",
           "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:23.970Z"
+      "checkedAt": "2026-10-04T14:30:34.723Z"
     },
     {
       "district": "M4",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/289/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:11.669Z"
+      "checkedAt": "2026-10-04T14:29:21.423Z"
+    },
+    {
+      "district": "M4",
+      "category": "pub",
+      "url": "https://marblebeers.com/the-marble-arch",
+      "host": "marblebeers.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:29:33.988Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:29:31.853Z"
     },
     {
       "district": "M5",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/464/page/1/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:13.695Z"
+      "checkedAt": "2026-10-04T14:29:23.424Z"
     },
     {
       "district": "M12",
       "category": "bar",
       "url": "https://unlockmanchester.com/guide-articles/manchester-abc-drinks-ales-beers-and-cocktails",
       "host": "unlockmanchester.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:32.939Z",
+          "at": "2026-10-04T14:29:26.386Z",
           "reason": "robots-unreachable",
           "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:38.755Z",
+          "at": "2026-10-04T14:29:32.256Z",
           "reason": "robots-unreachable",
           "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:44.567Z",
+          "at": "2026-10-04T14:29:38.081Z",
           "reason": "robots-unreachable",
           "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:44.567Z"
+      "checkedAt": "2026-10-04T14:29:38.081Z"
     },
     {
       "district": "M12",
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/113",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:44.568Z"
+      "checkedAt": "2026-10-04T14:29:38.081Z"
     },
     {
       "district": "M13",
       "category": "bar",
       "url": "https://www.ticketline.co.uk/venue/manchester-union-bar",
       "host": "www.ticketline.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:37.276Z",
+          "at": "2026-10-04T14:29:28.088Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:43.211Z",
+          "at": "2026-10-04T14:29:33.912Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:49.036Z",
+          "at": "2026-10-04T14:29:39.739Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:49.036Z"
+      "checkedAt": "2026-10-04T14:29:39.739Z"
     },
     {
       "district": "M13",
       "category": "restaurant",
       "url": "https://www.manchesteracademy.net/venue/info",
       "host": "www.manchesteracademy.net",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:45.539Z",
+          "at": "2026-10-04T14:29:38.938Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:51.381Z",
+          "at": "2026-10-04T14:29:44.817Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:57.278Z",
+          "at": "2026-10-04T14:29:50.684Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:57.278Z"
+      "checkedAt": "2026-10-04T14:29:50.684Z"
     },
     {
       "district": "M15",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/255/page/1/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:51.000Z"
+      "checkedAt": "2026-10-04T14:29:41.237Z"
+    },
+    {
+      "district": "M17",
+      "category": "cocktail-bar",
+      "url": "https://www.iwm.org.uk/sites/default/files/files/2019-02/Summer%20party%20package_2019.pdf",
+      "host": "www.iwm.org.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:29:47.654Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:29:47.622Z"
     },
     {
       "district": "M19",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/290",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:58.298Z"
+      "checkedAt": "2026-10-04T14:29:48.049Z"
     },
     {
       "district": "M20",
       "category": "pub",
       "url": "https://south-manchester.u3asite.uk/u3a_venues/parrs-wood-inn",
       "host": "south-manchester.u3asite.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:22.470Z",
+          "at": "2026-10-04T14:30:10.226Z",
           "reason": "robots-unreachable",
           "evidence": "https://south-manchester.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:48.637Z",
+          "at": "2026-10-04T14:30:36.720Z",
           "reason": "robots-unreachable",
           "evidence": "https://south-manchester.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:15.150Z",
+          "at": "2026-10-04T14:31:03.170Z",
           "reason": "robots-unreachable",
           "evidence": "https://south-manchester.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:15.150Z"
+      "checkedAt": "2026-10-04T14:31:03.170Z"
+    },
+    {
+      "district": "M20",
+      "category": "pub",
+      "url": "https://www.theheadofsteam.co.uk/bars/didsbury",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:31:03.170Z"
+    },
+    {
+      "district": "M20",
+      "category": "bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/didsbury",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:51.169Z"
     },
     {
       "district": "M32",
       "category": "cocktail-bar",
       "url": "https://fovps.org.uk/the-tea-room",
       "host": "fovps.org.uk",
+      "kind": "robots",
       "reason": "robots HTTP 429",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:15.505Z",
+          "at": "2026-10-04T14:30:04.095Z",
           "reason": "robots-unreadable",
           "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:11:20.627Z",
+          "at": "2026-10-04T14:30:09.187Z",
           "reason": "robots-unreadable",
           "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:11:25.723Z",
+          "at": "2026-10-04T14:30:14.289Z",
           "reason": "robots-unreadable",
           "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:25.723Z"
+      "checkedAt": "2026-10-04T14:30:14.289Z"
     },
     {
       "district": "M43",
       "category": "restaurant",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2067/page/42/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:22.998Z"
+      "checkedAt": "2026-10-04T14:30:19.640Z"
+    },
+    {
+      "district": "SK3",
+      "category": "pub",
+      "url": "https://www.almond-pubs.co.uk/pubs/the-jolly-sailor",
+      "host": "www.almond-pubs.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:34.030Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:33.904Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.manchester.gov.uk/online-directories/births-marriages-deaths-and-nationality-directories/marriages-and-civil-partnerships-directories/venues-licensed-to-hold-ceremonies/rain-bar",
+      "host": "www.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.greatermanchester-ca.gov.uk/what-we-do/safer-and-stronger-communities/independent-custody-visitors",
+      "host": "www.greatermanchester-ca.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.law.ac.uk/locations/manchester",
+      "host": "www.law.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M3",
+      "category": "bar",
+      "url": "https://us.trip.com/restaurant/united-kingdom/manchester/detail/the-mews-bar-and-charcuterie-135650223",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M4",
+      "category": "pub",
+      "url": "https://www.hotels.com/go/england/best-pubs-manchester",
+      "host": "www.hotels.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M4",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06718117/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M5",
+      "category": "bar",
+      "url": "https://www.postcodearea.co.uk/postaltowns/manchester/m54rp",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M9",
+      "category": "bar",
+      "url": "https://democracy.manchester.gov.uk/documents/s59431/Appendix%201%20-%20Location%20plan%20and%20photo%20-%20PUBLISH.pdf",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M11",
+      "category": "pub",
+      "url": "https://www.tmc.ac.uk/life-in-manchester/nightlife",
+      "host": "www.tmc.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M11",
+      "category": "bar",
+      "url": "https://www.manchester.gov.uk/online-directories/libraries-directories/libraries/all-libraries/beswick-library",
+      "host": "www.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M11",
+      "category": "restaurant",
+      "url": "https://democracy.manchester.gov.uk/documents/g3518/Public%20reports%20pack%2009th-Mar-2020%2010.10%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M12",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bartender&l=m12%25205jg",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M12",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-juice-bar-jobs.html?start=10",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://us.trip.com/moments/detail/manchester-588-133747910",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/estate-agents/find.html?locationIdentifier=POSTCODE%5E505350",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-independent-coffee-shop-manager-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.streetcheck.co.uk/postcode/m130px",
+      "host": "www.streetcheck.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/estate-agents/find.html?locationIdentifier=POSTCODE%5E1139160",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1236935",
+      "host": "pmc.ncbi.nlm.nih.gov",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.rncm.ac.uk/visit-us/food-and-drink",
+      "host": "www.rncm.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M13",
+      "category": "restaurant",
+      "url": "https://www.hospitality.manchester.ac.uk/thebeehive/thebeehive-menus",
+      "host": "www.hospitality.manchester.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M13",
+      "category": "restaurant",
+      "url": "https://democracy.manchester.gov.uk/documents/b1810/Supplemenary%20Agenda%20for%20the%20Licensing%20Sub%20Committee%20Hearing%20Panel%2007th-Jan-2019%2010.00%20Licensing%20Su.pdf?T=9",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M14",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/04637463/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M14",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar&l=m14+6ad",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M15",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+work&l=manchester+m15+6bx",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M15",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11656529/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M16",
+      "category": "cocktail-bar",
+      "url": "https://www.limelighthealthhub.nhs.uk",
+      "host": "www.limelighthealthhub.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M18",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1894350",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M18",
+      "category": "pub",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=m18+8qq",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M18",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M18",
+      "category": "cocktail-bar",
+      "url": "https://jobs.manchester.gov.uk/vacancies/7703/facilities-officer.html",
+      "host": "jobs.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M19",
+      "category": "pub",
+      "url": "https://uk.indeed.com/q-cider-company-jobs.html?start=20",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M19",
+      "category": "cocktail-bar",
+      "url": "https://democracy.manchester.gov.uk/documents/g2731/Public%20reports%20pack%2021st-Jan-2019%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M19",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M19",
+      "category": "cocktail-bar",
+      "url": "https://www.rightmove.co.uk/properties/92875209",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M20",
+      "category": "pub",
+      "url": "https://www.postcodearea.co.uk/postaltowns/manchester/m206re",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M20",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06990414/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M20",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08582875/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M21",
+      "category": "pub",
+      "url": "https://democracy.manchester.gov.uk/documents/s54129/Appendix%206%20publish.pdf",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M21",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06823940",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M21",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12467884/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M22",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1819652/escape-bar-2-manchester",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M22",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06442156/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/05873034/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "pub",
+      "url": "https://us.trip.com/restaurant/united-kingdom/manchester/detail/the-firbank-pub-and-kitchen-27519368",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M23",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1818724/the-firbank-pub-kitchen-manchester",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "cocktail-bar",
+      "url": "https://www.gmmh.nhs.uk/home-based-treatment-teams-in-manchester",
+      "host": "www.gmmh.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bpec-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M24",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08096746/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M24",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-personal-licence-holder-hospitality-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M27",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/04557799/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M27",
+      "category": "bar",
+      "url": "https://manchesterfire.gov.uk/contact-us",
+      "host": "manchesterfire.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M30",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bartender-training-l-manchester-jobs.html?start=20",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M30",
+      "category": "cocktail-bar",
+      "url": "https://www.simplyhired.co.uk/search?q=head+chef&l=m30+0sz",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M32",
+      "category": "cocktail-bar",
+      "url": "https://www.daynurseries.co.uk/day_nursery_search_results.cfm/searchpostcode/M32",
+      "host": "www.daynurseries.co.uk",
+      "reason": "care or childcare directory"
+    },
+    {
+      "district": "M34",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/14352744/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M35",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/723056239306880",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M35",
+      "category": "bar",
+      "url": "https://paforlalpaclive.oldham.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_PREM_ADDRESS&Direction=Descending&page=93",
+      "host": "paforlalpaclive.oldham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M35",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09312904/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M35",
+      "category": "restaurant",
+      "url": "https://paforlalpaclive.oldham.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search/209/Detail?LIC_ID=2306",
+      "host": "paforlalpaclive.oldham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M40",
+      "category": "cocktail-bar",
+      "url": "https://democracy.manchester.gov.uk/documents/g4211/Public%20reports%20pack%2009th-Jan-2023%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M41",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/_P319s0mEJCtPeF1u9sHQaRbQhs/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
     },
     {
       "district": "M45",
       "category": "pub",
       "url": "https://licensing.bury.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_NAME&Direction=Ascending&page=5",
       "host": "licensing.bury.gov.uk",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:11:57.160Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
-        },
-        {
-          "at": "2026-10-04T14:12:32.917Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
-        },
-        {
-          "at": "2026-10-04T14:13:08.674Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:13:08.674Z"
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M45",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/773375765527953",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
     },
     {
       "district": "M45",
       "category": "cocktail-bar",
       "url": "https://licensing.bury.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=82&Column=OPR_PREM_ADDRESS&Direction=Descending",
       "host": "licensing.bury.gov.uk",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:11:57.160Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
-        },
-        {
-          "at": "2026-10-04T14:12:32.917Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
-        },
-        {
-          "at": "2026-10-04T14:13:08.674Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://licensing.bury.gov.uk/robots.txt could not be fetched (This operation was aborted)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:13:08.674Z"
+      "reason": "public body or academic site"
     },
     {
-      "district": "M50",
-      "category": "restaurant",
-      "url": "https://www.thelowry.com/food-and-drink-4kk3",
-      "host": "www.thelowry.com",
-      "reason": "robots unreachable",
-      "attempts": 1,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:11:42.844Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.thelowry.com/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:11:42.844Z"
+      "district": "M45",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/m/jobs?q=Tapas+Restaurant",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M60",
+      "category": "pub",
+      "url": "https://www.manchester.gov.uk/business-and-investment/starting-a-business/health-and-safety",
+      "host": "www.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL1",
+      "category": "bar",
+      "url": "https://paforlalpaclive.oldham.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_NAME&Direction=Ascending&page=22",
+      "host": "paforlalpaclive.oldham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL6",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12320825/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL6",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-cash-in-hand-bar-l-manchester-m21-jobs.html?start=15",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "OL7",
+      "category": "pub",
+      "url": "https://www.waterloomedicalashton.nhs.uk/_common/getdocument?id=393828",
+      "host": "www.waterloomedicalashton.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL7",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/03776784/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "SK3",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/qpUqEfeh1RJe89iIcAmT4mci4vg/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "SK6",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11499194/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "SK6",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/92689956",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK7",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/91896276",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK7",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/759312543197872",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK16",
+      "category": "pub",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=SK16+4JU",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK16",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=SK16+4JU",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "WA15",
+      "category": "pub",
+      "url": "https://www.postcodearea.co.uk/postaltowns/warrington/wa158ee/pubs",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "WA15",
+      "category": "bar",
+      "url": "https://www.postcodearea.co.uk/postaltowns/warrington/wa158ee/pubs",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
     }
   ],
   "taskRuns": 0,
-  "webSearches": 378,
-  "pagesRead": 1109,
-  "researched": 138,
-  "added": 0,
+  "webSearches": 380,
+  "pagesRead": 1050,
+  "researched": 143,
+  "added": 2,
   "retained": [
     {
       "name": "Vero Moderno",
@@ -473,6 +1135,10 @@
     {
       "name": "Black Lion Hotel",
       "id": "venue-mcr-1utjiiq"
+    },
+    {
+      "name": "Old Fire Station",
+      "id": "venue-mcr-1f6d0d1"
     },
     {
       "name": "Ukrainian Club",
@@ -603,7 +1269,7 @@
       "id": "venue-mcr-18rfqdc"
     }
   ],
-  "totalAccepted": 37,
+  "totalAccepted": 39,
   "repeats": 28,
   "duplicates": [
     {
@@ -640,6 +1306,16 @@
       "name": "Eagle Inn",
       "matchedName": "Eagle Inn",
       "matchedId": "node/2207129152"
+    },
+    {
+      "name": "Abel Heywood",
+      "matchedName": "Abel Heywood",
+      "matchedId": "node/12000992656"
+    },
+    {
+      "name": "Welcome Inn",
+      "matchedName": "Welcome Inn",
+      "matchedId": "way/781943957"
     },
     {
       "name": "Mary D's Beamish Bar",
@@ -855,10 +1531,6 @@
   "withdrawn": [],
   "rejected": [
     {
-      "name": "https://www.manchester.gov.uk/online-directories/births-marriages-deaths-and-nationality-directories/marriages-and-civil-partnerships-directories/venues-licensed-to-hold-ceremonies/rain-bar",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -879,10 +1551,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://www.theheadofsteam.co.uk/bars/manchesternq",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "https://theoasthouse.uk.com",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
@@ -896,6 +1564,14 @@
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Sports+Bars+%26+Pubs&find_loc=87-91+Great+Ancoats+St%2C+Manchester+M4+5AG",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-pubs-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.reddit.com/r/manchester/comments/1t00jj/hey_rmanchester_ive_built_a_website_that_lists",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
@@ -959,10 +1635,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://www.manchester.gov.uk/online-directories/libraries-directories/libraries/all-libraries/beswick-library",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Gorton+Road%2C+Manchester+M11+2DZ%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -992,10 +1664,6 @@
     },
     {
       "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g187069-d719620-Reviews-Kro_Bar-Manchester_Greater_Manchester_England.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://www.streetcheck.co.uk/postcode/m130px",
       "reason": "unreadable: source refused HTTP 403"
     },
     {
@@ -1079,16 +1747,8 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://fredsalehouse.com",
       "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-cider-company-jobs.html?start=20",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://area360.uk/postcode/M192AF",
@@ -1111,10 +1771,6 @@
       "reason": "unreadable: source refused HTTP 403"
     },
     {
-      "name": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Circle+Court%2C+Manchester+M17+1LB%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -1131,12 +1787,12 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.theheadofsteam.co.uk/bars/didsbury",
+      "name": "https://hodgepodgedays.co.uk/category/didsbury",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://hodgepodgedays.co.uk/category/didsbury",
-      "reason": "unreadable: robots refused (robots-unreadable)"
+      "name": "https://www.opentable.com/the-metropolitan",
+      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Chorlton-cum-Hardy%2C+Manchester",
@@ -1144,10 +1800,6 @@
     },
     {
       "name": "https://www.thewoodstockarmsdidsbury.co.uk",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://www.theheadofsteam.co.uk/bars/didsbury",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
@@ -1185,14 +1837,6 @@
     {
       "name": "https://www.ubereats.com/gb/store/the-firbank-pub-%26-kitchen/uf9JiUxHSCiCtNygdOUbsw",
       "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://www.gmmh.nhs.uk/home-based-treatment-teams-in-manchester",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-bpec-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.findmypub.com/lease-tenancy-pubs/england/north+west/greater+manchester",
@@ -1257,10 +1901,6 @@
     {
       "name": "https://www.opentable.co.uk/r/edison-bar-manchester-2",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-cocktail-bartender-training-l-manchester-jobs.html?start=20",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Gt+Man+M16",
@@ -1439,10 +2079,6 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://uk.indeed.com/m/jobs?q=Tapas+Restaurant",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Bury+M26%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -1451,7 +2087,7 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.manchester.gov.uk/business-and-investment/starting-a-business/health-and-safety",
+      "name": "https://www.thelowry.com/food-and-drink-4kk3",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
@@ -1477,10 +2113,6 @@
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=7-13+Hazelhurst+Rd%2C+Ashton-under-Lyne+OL6+9AZ",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-cash-in-hand-bar-l-manchester-m21-jobs.html?start=15",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.hospitalityjobsuk.com/jobs/front-of-house-jobs/pubs-and-bars-jobs/greater-manchester/part-time-flexible",

@@ -1080,6 +1080,64 @@
       },
       "provider": "tavily",
       "id": "venue-mcr-55die4"
+    },
+    {
+      "name": "High Street Tavern",
+      "kind": "pub",
+      "address": "60-62 High Street, City Centre, Manchester M4 1EA",
+      "postcode": "M4 1EA",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.483842,
+      "lng": -2.238327,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m4-1qb-825113"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m4-1qb-825113",
+          "excerpt": "### High Street Tavern\n\nPub, in Manchester]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n60-62 High Street, City Centre, Manchester, M4 1EA"
+        }
+      ],
+      "observedAt": "2026-10-04T14:29:44.201Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M4%201EA",
+        "observedAt": "2026-10-04T14:29:44.361Z",
+        "postcode": "M4 1EA",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-12ul6n7"
+    },
+    {
+      "name": "Shack",
+      "kind": "pub",
+      "address": "69 High Street, City Centre, Manchester M4 1FS",
+      "postcode": "M4 1FS",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.48421,
+      "lng": -2.238389,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m4-1qb-825113"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m4-1qb-825113",
+          "excerpt": "### Shack\n\nPub, in Manchester]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n69 High Street, City Centre, Manchester, M4 1FS"
+        }
+      ],
+      "observedAt": "2026-10-04T14:29:44.201Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M4%201FS",
+        "observedAt": "2026-10-04T14:29:44.417Z",
+        "postcode": "M4 1FS",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-8xcpdj"
     }
   ]
 }

@@ -10,135 +10,716 @@
       "category": "cocktail-bar",
       "url": "https://www.ukinbound.org/events/regional-members-networking-evening-the-hard-rock-cafe-glasgow",
       "host": "www.ukinbound.org",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:09:57.277Z",
+          "at": "2026-10-04T14:29:09.547Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:03.104Z",
+          "at": "2026-10-04T14:29:15.386Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:08.923Z",
+          "at": "2026-10-04T14:29:21.276Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:08.923Z"
+      "checkedAt": "2026-10-04T14:29:21.276Z"
     },
     {
       "district": "G31",
       "category": "bar",
       "url": "https://iblog.dearbornschools.org/hankinsmedia/category/blogs/page/14?live-blog-33648076-2026-09-20-naturalk9sglasgow=",
       "host": "iblog.dearbornschools.org",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:26.386Z",
+          "at": "2026-10-04T14:29:33.240Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:52.458Z",
+          "at": "2026-10-04T14:29:59.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:18.469Z",
+          "at": "2026-10-04T14:30:26.224Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:18.469Z"
+      "checkedAt": "2026-10-04T14:30:26.224Z"
     },
     {
       "district": "G32",
       "category": "cocktail-bar",
       "url": "https://www.datathistle.com/place/94117-table-table-orion-way-cambuslang-glasgow",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:03.662Z"
+      "checkedAt": "2026-10-04T14:29:11.097Z"
     },
     {
       "district": "G40",
       "category": "cocktail-bar",
       "url": "https://mercureglasgow.cityhotel.org",
       "host": "mercureglasgow.cityhotel.org",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:10:26.885Z",
+          "at": "2026-10-04T14:29:33.239Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:10:52.959Z",
+          "at": "2026-10-04T14:29:59.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:18.969Z",
+          "at": "2026-10-04T14:30:26.225Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:18.969Z"
+      "checkedAt": "2026-10-04T14:30:26.225Z"
     },
     {
       "district": "G41",
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/1882/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:10:07.154Z"
+      "checkedAt": "2026-10-04T14:29:12.341Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "G1",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC354353/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G1",
+      "category": "pub",
+      "url": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G1",
+      "category": "pub",
+      "url": "https://researchonline.gcu.ac.uk/ws/files/41435114/Final_accepted_IP_new_tracker_off_070720.pdf",
+      "host": "researchonline.gcu.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G2",
+      "category": "cocktail-bar",
+      "url": "https://www.glasgow.gov.uk/article/4925/Best-Bar-None-Privacy-Notice",
+      "host": "www.glasgow.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G3",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC093587/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G3",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G4",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/125856/the-station-bar-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G4",
+      "category": "bar",
+      "url": "https://researchonline.gcu.ac.uk/ws/files/41435114/Final_accepted_IP_new_tracker_off_070720.pdf",
+      "host": "researchonline.gcu.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G4",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-part-time-bar-staff-weekend-l-glasgow-jobs.html?start=15",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G11",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC374250/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G12",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC354353/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G12",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bar-l-glasgow-jobs.html?start=15",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G14",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1812817/lets-eat-and-bars-ltd-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G14",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC637795/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G14",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1822609",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G14",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC578925",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G14",
+      "category": "bar",
+      "url": "https://uk.indeed.com/career/bar-staff/salaries/Glasgow-G14-0PT?campaignid=serp-more&fromjk=cc903490c08beb72&from=serp-more",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G14",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=G14+0UG",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "G20",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/118092/first-and-last-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G20",
+      "category": "bar",
+      "url": "https://uk.trip.com/restaurant/united-kingdom/glasgow/detail/webster-bar-and-bistro-34711510",
+      "host": "uk.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "G21",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/cCpO_AU6ooYDMADjqKVzil0D3eI/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G21",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1637089",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G21",
+      "category": "pub",
+      "url": "https://www.simplyhired.co.uk/search?q=head+chef&l=glasgow+g21+4xq",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "G21",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/111958/the-pinkston-bar-glasgow/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G21",
+      "category": "bar",
+      "url": "https://www.glasgowkelvin.ac.uk/news-events/events/bad-girls-the-musical",
+      "host": "www.glasgowkelvin.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G21",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC556352/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G21",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=server&l=g21+4lg",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "G31",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1822607",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G31",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC415721/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G31",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1822607",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G31",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G32",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1388599",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G32",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC452581/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G32",
+      "category": "pub",
+      "url": "https://webarchive.ucr.edu/library.ucr.edu/news/2018/03/12/public-services-assistant-wins-scholarship-rare-book-school.html?live-blog-33679010-2026-09-20-favouritecafe=",
+      "host": "webarchive.ucr.edu",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G32",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/en-GB/131943",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G32",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC338974",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G32",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/765831913421777",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "G32",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/88425390",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "G32",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC834196",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G33",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1584672/the-real-mackay-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G33",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/jSIV7sy11V3XpyNa0sxswm5dNCI/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G33",
+      "category": "bar",
+      "url": "https://www.sps.gov.uk/prisons/barlinnie",
+      "host": "www.sps.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G40",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC731821",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G40",
+      "category": "pub",
+      "url": "https://onlineservices.glasgow.gov.uk/councillorsandcommittees/viewSelectedDocument.asp?c=P62AFQDNZ3ZLNT812U",
+      "host": "onlineservices.glasgow.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G40",
+      "category": "pub",
+      "url": "https://uk.indeed.com/q-london-cask-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G40",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC579832/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G40",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G41",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC093587/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G41",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bar-casual-l-glasgow-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G41",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G41",
+      "category": "cocktail-bar",
+      "url": "https://uk.trip.com/restaurant/united-kingdom/glasgow/detail/lunar-wine-cocktail-bar-143591291",
+      "host": "uk.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "G42",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/en-GB/84944",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G43",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1015602/old-stag-inn-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G43",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC093587/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G43",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC343893/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G44",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/124080",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G44",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/117119",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G51",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/106644/the-louden-tavern-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G51",
+      "category": "pub",
+      "url": "https://uk.indeed.com/q-gastro-pub-head-chef-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G51",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1369244/the-district-bar-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G51",
+      "category": "bar",
+      "url": "https://us.trip.com/restaurant/united-kingdom/glasgow/detail/the-old-toll-bar-134363826",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "G51",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC712753/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G51",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-gastro-pub-head-chef-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G51",
+      "category": "bar",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11249925",
+      "host": "pmc.ncbi.nlm.nih.gov",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G51",
+      "category": "bar",
+      "url": "https://www.caterer.com/jobs/all-our-bars/in-accademy-park?page=1&cmp=1",
+      "host": "www.caterer.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G52",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC219166/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G52",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC409851/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G53",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC619162/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G53",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC769946",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G53",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1761866/brockburn-glasgow",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G53",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=G53+7SP",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "G53",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bartender-l-glasgow-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G64",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC743126/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G64",
+      "category": "bar",
+      "url": "https://www.sps.gov.uk/prisons/low-moss",
+      "host": "www.sps.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G64",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-abba-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "G64",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12033348/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G72",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/SC404780/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G72",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=G72+7JR",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "G72",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=G72+0BN",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "G73",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/730294129465888",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "G73",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1858823/sir-walters-bar-rutherglen/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "G73",
+      "category": "cocktail-bar",
+      "url": "https://www.rightmove.co.uk/properties/730294129465888",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
     }
   ],
   "taskRuns": 75,
   "webSearches": 218,
-  "pagesRead": 954,
+  "pagesRead": 872,
   "researched": 310,
   "added": 0,
   "retained": [
@@ -346,10 +927,6 @@
     {
       "name": "https://www.yelp.com/search?find_desc=Restaurant&find_loc=The+Briggait%2C+Glasgow+G1+5HZ%2C+Vereinigtes+K%C3%B6nigreich&cflt=pubs",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Ralph & Finns",
@@ -648,10 +1225,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://www.glasgow.gov.uk/article/4925/Best-Bar-None-Privacy-Notice",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "Rioja",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -772,10 +1345,6 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "Eleven Fifty Five",
       "reason": "missing-venue-specific-citation"
     },
@@ -846,10 +1415,6 @@
     {
       "name": "https://www.cntraveller.com/article/best-bars-in-glasgow",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-part-time-bar-staff-weekend-l-glasgow-jobs.html?start=15",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://m.yelp.com/search?cflt=bars&find_loc=Kennedy+St%2C+Glasgow+G4+0PP",
@@ -1112,10 +1677,6 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://uk.indeed.com/q-cocktail-bar-l-glasgow-jobs.html?start=15",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://the-parlour-10.wheree.com",
       "reason": "unreadable: source refused HTTP 403"
     },
@@ -1234,10 +1795,6 @@
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=2-4+Watt+Road%2C+Glasgow+G52+4RR%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/career/bar-staff/salaries/Glasgow-G14-0PT?campaignid=serp-more&fromjk=cc903490c08beb72&from=serp-more",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "La Bodega",
@@ -1500,10 +2057,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.yelp.com/search?cflt=accessories&find_near=elba-gallery-milngavie",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -1716,10 +2269,6 @@
       "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "https://uk.indeed.com/q-london-cask-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://properties.zoomprospector.com/glasgowregion/property/Gateway-Court-Glasgow-Scotland/88ACEBBA-9B00-4B6A-B3D3-39079C298ADE",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -1749,10 +2298,6 @@
     },
     {
       "name": "https://hawana-cafe.wheree.com",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
       "reason": "unreadable: source refused HTTP 403"
     },
     {
@@ -1912,16 +2457,8 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://uk.indeed.com/q-bar-casual-l-glasgow-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.opentable.com/r/church-on-the-hill-glasgow-2",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Bar Tabacs",
@@ -2024,10 +2561,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://uk.indeed.com/q-gastro-pub-head-chef-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.village-hotels.co.uk/glasgow",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
@@ -2042,10 +2575,6 @@
     {
       "name": "https://www.bbc.com/news/uk-63799670",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-gastro-pub-head-chef-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.travelagewest.com/Hotels/Glasgow/Travelodge-Glasgow-Govan-p53225178",
@@ -2116,10 +2645,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://uk.indeed.com/q-bartender-l-glasgow-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.yelp.com/search?find_desc=Drain+Installation&find_loc=Castle+Douglas+DG7",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -2142,10 +2667,6 @@
     {
       "name": "https://www.allagents.co.uk/view-branch/pacittijones.co.uk/bishopbriggs",
       "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-abba-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://bishopbriggs.cylex-uk.co.uk/bars-pubs",
