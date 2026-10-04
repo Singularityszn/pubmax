@@ -87,6 +87,28 @@ describe("venue record copy", () => {
     ]) expect(validateVenueRecordCopy(facts, copy(description)), description).toBeNull();
   });
 
+  it("rejects reputation, specialty, cessation and negative evaluative claims", () => {
+    const facts = { venueId: venue.id, borough: "Westminster", supportedTags: ["Cocktails", "Live music", "Pub quiz", "Karaoke"] };
+    for (const description of [
+      "This Westminster pub is known for its cocktails.",
+      "Live music and karaoke are what this Westminster pub is known for.",
+      "They specialise in cocktails.",
+      "This Westminster pub specialises in cocktails.",
+      "This pub is famous for its pub quiz.",
+      "The best cocktails are at this pub.",
+      "This pub once hosted live music.",
+      "This pub used to run a pub quiz.",
+      "This pub dropped its pub quiz but serves cocktails.",
+      "Cocktails are gone from this pub.",
+      "This pub stopped hosting karaoke.",
+      "This pub banned karaoke and serves cocktails.",
+      "This pub has dreadful cocktails.",
+      "This pub has overpriced cocktails.",
+      "This pub serves cocktails, but the pub quiz is rubbish.",
+      "This pub serves a range of cocktails.",
+    ]) expect(validateVenueRecordCopy(facts, copy(description, ["Cocktails"])), description).toBeNull();
+  });
+
   it("rejects review probes: fact fragments, borough subjects, absence and awkward verb pairings", () => {
     const camden = { venueId: venue.id, borough: "Camden", supportedTags: ["Cocktails", "Live music", "Happy hour", "Karaoke"] };
     for (const description of [

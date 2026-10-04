@@ -8,8 +8,8 @@ against the current stored pub dataset without calling Gemini.
 The input is `public/data/pint_prices_app_dataset.json`, grouped through the
 same venue identity function as the app. This lane covers curated pubs in that
 dataset, not the country-wide OSM base layer or non-pub anchors. The generator
-sends only a venue ID, its stored London borough and its positive structured
-amenity fields, each with the words that may state it. It excludes names, free
+sends only a venue ID, its stored London borough and the labels of its positive
+structured amenity fields, such as "Live music". It excludes names, free
 text, URLs, Google Places data, prices and hours. It does not fetch a page,
 call Places, use search grounding or change any quota.
 
@@ -25,8 +25,10 @@ Publication checks claims, not wording. Every feature the prose names must be
 one of the pub's supported facts, each named once; a closed feature list
 catches the rest, including food, beer gardens, sport, screens, drinks styles,
 music genres, board games, rooms and events. A denial ("no", "without", "out of")
-fails, as does a mood, quality, age, crowd, price or schedule claim such as
-"cosy", "historic", "locals", "cheap" or "every Friday". A lone "happy" or
+or a lapse ("used to", "once", "stopped") fails, as does a mood, quality,
+reputation, age, crowd, price, quantity or schedule claim such as "cosy",
+"known for", "specialises in", "historic", "locals", "overpriced", "a range
+of" or "every Friday". A lone "happy" or
 "live" counts as mood. Each verb must fit its feature: a pub has, serves or
 hosts things, and people catch live music, play darts or pool, sing karaoke
 and get cocktails, so "catch cocktails" or "a pub quiz with darts" fails. No
