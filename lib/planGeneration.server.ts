@@ -29,7 +29,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
-import { resolvePlanGenerationDrinkRefresh } from "@/lib/planGenerationDrinkRefresh.server";
+import { resolvePlanGenerationAnchorDrink } from "@/lib/planGenerationDrinkRefresh.server";
 import { listedServingGroup } from "@/lib/listedPriceComparison";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
@@ -355,33 +355,17 @@ export async function preparePlanGeneration(
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
-	let generationAnchor = parsedRequest.value.anchor;
-	const acceptedHint = generationAnchor?.selectedDrinkPriceEvidence;
-	const refresh = generationAnchor?.selectedDrinkRefresh;
+	const anchorDrink = await resolvePlanGenerationAnchorDrink(parsedRequest.value.anchor, cityId, context, requestNow);
+	if (anchorDrink.status === "conflict") return { response: jsonNoStore({
+		grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
+		stops: [], reason: anchorDrink.reason, message: anchorDrink.message, operationKey,
+		nightArea: { id: area.slug, ...coverage },
+	}, { status: 200 }) };
+	const generationAnchor = anchorDrink.anchor;
 	let { selectedServing, selectedDrinkSubtype } = requestedDrinkSelection(context);
 	let acceptedNamedPrice: MapLensPrice | null = null;
-	if (refresh || (acceptedHint && !context.zeroProof && acceptedHint.category === context.drinkCategory)) {
-		const anchor = generationAnchor!;
-		const canonical = await resolvePlanningAnchor({ cityId, venueId: anchor.venueId,
-			startsAt: anchor.startsAt, acceptedArea: anchor.acceptedArea, now: requestNow });
-		const rejectHint = (reason: string, message: string) => ({ response: jsonNoStore({
-			grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
-			stops: [], reason, message, operationKey, nightArea: { id: area.slug, ...coverage },
-		}, { status: 200 }) });
-		if (canonical.status === "conflict") return rejectHint(canonical.code, canonical.message);
-		const approved = refresh
-			? await resolvePlanGenerationDrinkRefresh(canonical.canonical.venueId, refresh, context, requestNow)
-			: (await resolvePlanSelectedDrinkPriceEvidence(
-				[{ venueId: canonical.canonical.venueId, venueName: canonical.display.venueName }],
-				[{ selectedDrinkPriceEvidence: acceptedHint }], context))[0]?.selectedDrinkPriceEvidence;
-		if (!approved) return rejectHint("ANCHOR_ROUTE_CONFLICT",
-			refresh ? "We couldn't check a current price for that saved drink and serving. Choose a current offer to change the route."
-				: "That accepted menu price could not be checked. Open the pub and choose its current offer again.");
-		if (refresh) {
-			generationAnchor = { venueId: anchor.venueId, source: anchor.source,
-				acceptedArea: anchor.acceptedArea, startsAt: anchor.startsAt, selectedDrinkPriceEvidence: approved };
-		}
-		const selection = approvedDrinkSelection(approved, canonical.canonical.venueId);
+	if (anchorDrink.status === "approved") {
+		const selection = approvedDrinkSelection(anchorDrink.evidence, anchorDrink.venueId);
 		selectedDrinkSubtype = selection.selectedDrinkSubtype;
 		acceptedNamedPrice = selection.acceptedNamedPrice;
 		selectedServing = selection.selectedServing;
