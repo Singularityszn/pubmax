@@ -1,9 +1,9 @@
 # Production cron plane - owner runbook
 
 Vercel Cron keeps live data fresh and drains the Social text moderation queues.
-Freshness jobs cover weather, all bounded What's-On lanes, permissible-source
-price retrieval, Night Signal candidates, and a rotating UK city pub-enrichment
-sweep. No job fabricates data or reports false success.
+Freshness jobs cover weather, all bounded What's-On lanes, Night Signal
+candidates, and a rotating UK city pub-enrichment sweep. No job fabricates data
+or reports false success.
 
 Area news is a committed research snapshot, not a Vercel cron lane. Refresh it
 from a local checkout with `npm run refresh:area-news`. The job searches and
@@ -123,7 +123,6 @@ own observation times and bundled files remain the fallback.
 | Job | Provider | Env key(s) | Behaviour without the key |
 |---|---|---|---|
 | **Weather** | Open-Meteo | **none** (keyless) | Always runs. No skip branch. |
-| **Price updates** | First-party official pages / open data | **none** | Cron runs and logs an honest no-op. Freshness remains unchanged until a real source parser returns valid rows. |
 | What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, deal, music, and sport into `whats_on_listings`; a failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Cron persists live rows to `whats_on_listings`. Without an official provider key, that event lane is skipped while bounded lanes can still refresh. Skiddle also needs **written commercial approval** (email dev@skiddle.com) and `SKIDDLE_BRAND_ASSET_PRESENT`. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
@@ -241,14 +240,11 @@ would only duplicate the live path. Same for `/api/last-train` and friends
 - **Vercel dashboard → Project → Cron Jobs**: each job lists its last run,
   status, and duration. A `200` with `{ ok: true, ... }` body is success.
 - **Logs**: filter Runtime Logs for the tags
-  `[cron:refresh-weather]`, `[cron:refresh-whats-on]`,
-  `[cron:refresh-prices]`, `[cron:freshness-audit]`,
+  `[cron:refresh-weather]`, `[cron:refresh-whats-on]`, `[cron:freshness-audit]`,
   `[cron:refresh-night-signals]`, `[cron:enrich-city-pubs]`.
   - Weather success: `wrote N observations at <iso> (skipped M)`.
   - What's-On success: `persisted N rows at <iso>` with per-kind counts in
     the response.
-  - Price no-op: `fetched no rows; freshness unchanged`.
-  - Price success: `retrieved N valid row(s), observed at <iso>`.
   - Audit: `all tracked feeds within budget.`, or one or both of two DIFFERENT
     alerts. `N feed(s) breaching freshness budget` means the data is old and a
     refresh job owes us a run. `N feed(s) whose age could not be determined`
@@ -289,10 +285,6 @@ would only duplicate the live path. Same for `/api/last-train` and friends
 - Weather payload fails the contract per area → that area is **skipped** and
   reported in `skipped[]`; the surviving areas are still written.
 - Durable weather write hard-fails → **`503 STORE_UNAVAILABLE`**, nothing faked.
-- Price retrieval returns no valid rows → **`200`**, explicit no-op log, prior
-  freshness stamp untouched.
-- Price provider failure → **`502 PROVIDER_UNAVAILABLE`**, prior freshness
-  stamp untouched.
 - What's-On official-provider refresh fails → **`200`** with `ok:false`,
   `providers`, `stamped:false`, and `observedAt:null`; that provider's prior
   rows remain unchanged, while successful bounded lanes may advance. If a later
