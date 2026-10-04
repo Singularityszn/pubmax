@@ -73,7 +73,7 @@ jobs:
         run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(node -p "Date.now()")" >> "$GITHUB_ENV"
 
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           # The ratchet check compares this branch's ceilings against the base
@@ -215,7 +215,7 @@ jobs:
       queue: max
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
