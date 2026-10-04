@@ -141,6 +141,7 @@ const SPORT_VIEWING =
 const NO_SPORT_VIEWING = new RegExp(
   `\\b(?:no|without)\\s+(?:live\\s+|sky\\s+|tnt\\s+|bt\\s+)?(?:${SPORT_SHOWN.source}|\\b(?:screens?|screenings?|tvs?)\\b)|` +
   "\\b(?:do\\s+not|don'?t|never)\\s+(?:show(?:case)?|watch|broadcast|screen|catch|play)\\b|" +
+  "\\b(?:do\\s+not|don'?t|never)\\s+have\\s+(?:sky|tnt|bt)\\s+sports?\\b|" +
   "\\b(?:not|isn'?t|aren'?t)\\s+(?:being\\s+)?(?:shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen))\\b|" +
   "\\b(?:not|aren'?t|isn'?t)\\s+(?:a\\s+)?sports?\\s+(?:pub|bar)s?\\b",
   "i",

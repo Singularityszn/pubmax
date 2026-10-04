@@ -55,6 +55,48 @@ function expectSportsPublication(quote: string, expected: boolean) {
 
 describe("sports evidence publication", () => {
   it.each([
+    "We don't have Sky Sports.",
+    "We do not have TNT Sports.",
+  ])("refuses explicit provider availability denials: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each(["Sky Sports", "TNT Sports", "BT Sport"].flatMap((provider) => [
+    `We don't have ${provider}.`,
+    `We don’t have ${provider}.`,
+    `We do not have ${provider}.`,
+    `We never have ${provider}.`,
+  ]))("refuses provider availability denial variants: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't have Sky Sports and TNT Sports.",
+    "We don’t have Sky Sports or BT Sport.",
+    "We do not have TNT Sports and BT Sport.",
+    "We never have BT Sport or Sky Sports.",
+    "We don't have Sky Sports and have TNT Sports.",
+  ])("keeps availability denial over its provider objects: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't have Sky Sports and we have TNT Sports.",
+    "We have TNT Sports and don't have Sky Sports.",
+    "We don’t have TNT Sports and we have BT Sport.",
+    "We have Sky Sports and do not have BT Sport.",
+    "We never have Sky Sports but we have TNT Sports.",
+    "We don't have pool tables and we show football on our TVs.",
+    "We don't have pool tables and show football on our TVs.",
+    "We don't have pool tables and we have Sky Sports.",
+    "We have Sky Sports.",
+    "We have TNT Sports.",
+    "We have BT Sport.",
+  ])("retains independent sports grounding beside availability denials: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each([
     "Watch F1 live on our screens.",
     "F1 is broadcast on our TVs.",
   ])("publishes explicit F1 viewing evidence: %s", (quote) => {
