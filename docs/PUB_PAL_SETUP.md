@@ -93,6 +93,12 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
+   Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
+   so the Pal says one short checking line while the tool runs instead of
+   staying silent until it returns. The three confirm tools (`propose_plan`,
+   `propose_map_action`, `report_occupancy`) set `interruption_mode:
+   "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
+   drops the checking line and returns the reply after the tool.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.

@@ -9,7 +9,8 @@
 //
 // So this script sets four things and nothing else:
 //
-//   1. the webhook tools plus the shared secret they present,
+//   1. the webhook tools, the shared secret they present, and the speech
+//      around each call (a short checking line before the tool runs),
 //   2. no voice recording, and zero retention on the provider side,
 //   3. a default voice, when one is set, plus greeting and voice-id overrides,
 //   4. the house first message and the propose-then-confirm rule (ADR 0006).
@@ -141,6 +142,23 @@ const DEFAULT_WEBHOOK_BODY_PROPERTIES = {
   },
 };
 
+// Tools that end in a confirm proposal. The person may not talk over the
+// proposal, or they miss what they are asked to confirm (ADR 0006).
+const CONFIRM_PROPOSAL_TOOLS = new Set(["propose_plan", "propose_map_action", "report_occupancy"]);
+
+// Speech around a tool call. "force" makes the agent say its one short
+// checking sentence before every tool runs, so the first audio does not wait
+// for the tool. "auto" only speaks once the provider has seen a slow tool, so
+// the first slow answer of a call was silent. "immediate" runs the tool while
+// that sentence plays.
+function toolSpeechConfig(name) {
+  return {
+    pre_tool_speech: "force",
+    execution_mode: "immediate",
+    interruption_mode: CONFIRM_PROPOSAL_TOOLS.has(name) ? "disable_during_tool_and_turn" : "allow",
+  };
+}
+
 function webhookToolConfig(name, baseUrl, secretId) {
   const description = TOOL_DESCRIPTIONS[name] ?? "PUBMAXX grounded tool.";
   return {
@@ -148,6 +166,7 @@ function webhookToolConfig(name, baseUrl, secretId) {
     name,
     description,
     response_timeout_secs: 28,
+    ...toolSpeechConfig(name),
     api_schema: {
       url: `${baseUrl}/api/pub-pal/tools/${name}`,
       method: "POST",
