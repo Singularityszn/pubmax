@@ -64,7 +64,7 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
  * The sign-in, sign-up and add-account surfaces share `/login`, where the
  * floating control overlaps the form's terms link.
  *
- * The 404 is the other page that hides it, and it cannot be named here: it
+ * The 404 hides it too, and it cannot be named here: it
  * renders under whatever address was mistyped, so it carries the
  * `pageHidesCreateFab` marker class instead (createFab.css).
  */
