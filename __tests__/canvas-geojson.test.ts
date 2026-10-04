@@ -276,8 +276,9 @@ describe("pubsToGeoJSON", () => {
       priceBand: 2,
       cheapestPrice: 35,
     });
-    const [barFeature, foodFeature, restaurantFeature] = pubsToGeoJSON(
-      [bar, food, restaurant],
+    const club = makeVenue({ id: "club", kind: "club" });
+    const [barFeature, foodFeature, restaurantFeature, clubFeature] = pubsToGeoJSON(
+      [bar, food, restaurant, club],
       signals,
       null,
     ).features;
@@ -300,6 +301,10 @@ describe("pubsToGeoJSON", () => {
     });
     expect(String(restaurantFeature?.properties?.icon)).toContain("fork-2");
     expect("priceLabel" in (restaurantFeature?.properties ?? {})).toBe(false);
+    expect(clubFeature?.properties).toMatchObject({
+      kind: "club",
+      drinkKind: "coupe",
+    });
   });
 });
 

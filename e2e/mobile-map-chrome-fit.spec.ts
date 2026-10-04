@@ -641,9 +641,9 @@ for (const viewport of VIEWPORTS) {
     const arcButtons = arc.locator(".tonightArcChip");
     // Four, not five. The `Clubs` chip is gone (7 Sep 2026, walk finding B9):
     // it stood here permanently `aria-disabled`, explained by a `title` no
-    // phone shows, and it could never be enabled because `curatedVenueKind` in
-    // lib/venueKindFilters.ts answers null for a club, so `filterVenuesByKind`
-    // leaves clubs off the map entirely. The DESKTOP chrome cut is not what
+    // phone shows, and it could never be enabled. Clubs show with the Bars
+    // chip: `curatedVenueKind` in lib/venueKindFilters.ts files a club under
+    // the bars. The DESKTOP chrome cut is not what
     // moved this; the chip is one component (components/map/TonightArcChips.tsx)
     // read at both widths, and a chip nobody can press is not a chip.
     expect(await arcButtons.count()).toBe(4);

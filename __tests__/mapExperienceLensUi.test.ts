@@ -241,8 +241,9 @@ describe("MapExperienceLens", () => {
     expect(bars).not.toContain("✓");
     // The Clubs chip is gone (7 Sep 2026, walk finding B9). It was permanently
     // disabled, explained by a `title` attribute no phone shows, and it could
-    // never be enabled: `curatedVenueKind` in lib/venueKindFilters.ts answers
-    // null for a club, so clubs are not on this map at all.
+    // never be enabled, so it went: `curatedVenueKind` in
+    // lib/venueKindFilters.ts files a club under the bars, and the Bars chip
+    // shows and hides clubs with them.
     expect(html).not.toContain("Clubs");
     expect(html).not.toContain("aria-disabled");
     expect(html).not.toContain("are not mapped yet");
