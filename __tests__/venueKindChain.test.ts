@@ -42,7 +42,8 @@ function fixture(rows: VenuePrice[] = [abba, pub], pubs = seedRows): string {
     "scripts/merge_outer_london_osm.mjs", "scripts/build_slim_index.mjs",
     "data/tfl_station_zones.json", "data/famous_venues/bars.json",
     "data/famous_venues/late_food.json", "data/famous_venues/restaurants.json",
-    "data/famous_venues/removed.json",
+    "data/famous_venues/removed.json", "public/data/venue_id_aliases.json",
+    "public/data/cities/venue_id_aliases.json",
   ]) copy(relative);
   const previous = json(path.join(ROOT, "public/data/venues_slim.json"));
   for (const [relative, data] of [
@@ -96,6 +97,10 @@ describe("sourced venue kind through the real publication chain", () => {
     expect(detail?.prices[0].scraped_at_values).toBe("2026-07-17T22:47:09.827Z");
     expect(groupVenuePrices(merged).find((row) => row.name === "Jack and Jill")).toMatchObject({ kind: "pub" });
     expect(existsSync(path.join(root, "data/generated/venue_detail_index.json"))).toBe(true);
+    const priorSlim = readFileSync(path.join(root, "public/data/venues_slim.json"));
+    const repeated = cli(root, "build_slim_index.mjs");
+    expect(repeated.status, repeated.stderr).toBe(0);
+    expect(readFileSync(path.join(root, "public/data/venues_slim.json"))).toEqual(priorSlim);
   });
   it("publishes a new sourced pub and bar without inventing a price", () => {
     const root = fixture([]);
@@ -165,6 +170,91 @@ describe("sourced venue kind through the real publication chain", () => {
     expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
     expect(json(path.join(root, "public/data/pint_prices_app_dataset.json"))).toEqual([abba]);
     expect(groupVenuePrices([abba])[0].kind).toBeUndefined();
+  });
+
+  it("keeps the sourced bar on the compact map and detail while both Out events remain unmatched", () => {
+    const root = fixture();
+    expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
+    expect(cli(root, "build_slim_index.mjs").status).toBe(0);
+    const driver = path.join(root, "public-consumers.mjs");
+    writeFileSync(driver, `
+      import { readFileSync } from 'node:fs';
+      import { pathToFileURL } from 'node:url';
+      import path from 'node:path';
+      const root = ${JSON.stringify(root)};
+      const source = ${JSON.stringify(ROOT)};
+      process.chdir(root);
+      const payload = JSON.parse(readFileSync(path.join(root, 'public/data/venues_slim.json'), 'utf8'));
+      let externalCalls = 0;
+      globalThis.fetch = async (input) => {
+        if (String(input) === '/kind-chain-fixture') return new Response(JSON.stringify(payload));
+        externalCalls += 1;
+        throw new Error('Unexpected external request');
+      };
+      const load = (file) => import(pathToFileURL(path.join(source, file)).href);
+      const [{ loadSlimVenuesFromPathResult }, { getVenueDetail }, { loadOutVenueMatchIndex }, { buildOutResponse }, { outListingPubPair }] = await Promise.all([
+        load('lib/venuesSlim.ts'), load('lib/venueDetailIndex.ts'), load('lib/out/venueMatch.server.ts'),
+        load('lib/out/loadOut.ts'), load('lib/outDesktopGrouping.ts'),
+      ]);
+      const compact = await loadSlimVenuesFromPathResult('/kind-chain-fixture');
+      const bar = compact.rows.find((row) => row.id === 'venue-16cduf6');
+      const pub = compact.rows.find((row) => row.id === 'venue-1fgvf4p');
+      if (!bar || !pub) throw new Error('A sourced presence venue was lost');
+      const detail = await getVenueDetail(bar.id);
+      const index = await loadOutVenueMatchIndex('london');
+      const event = (id, place, attached = false) => ({
+        id, placeName: place.name, kind: 'music', title: id,
+        startsAt: '2026-10-04T19:00:00Z', endsAt: '2026-10-04T22:00:00Z', observedAt: '2026-10-03T12:00:00Z',
+        source: { label: 'Ticketmaster', url: 'https://www.ticketmaster.co.uk/' + id },
+        lat: place.lat, lng: place.lng, ...(attached ? { venueId: place.id } : {}),
+      });
+      const response = await buildOutResponse({ city: 'london', day: 'tonight' }, {
+        now: Date.parse('2026-10-04T12:00:00Z'), loadBaseline: () => [event('abba-attached', bar, true)],
+        liveProviders: [{ name: 'ticketmaster', isConfigured: () => true, fetchTonight: async () => [event('abba-live', bar), event('pub-live', pub)] }],
+      });
+      const rows = response.body?.events ?? response.events;
+      console.log(JSON.stringify({
+        compactStatus: compact.status, barKind: bar.kind, barPrice: bar.cheapestPrice,
+        detail: { id: detail?.id, kind: detail?.kind, price: detail?.cheapestPrice, priceDay: detail?.prices[0]?.scraped_at_values },
+        pubKind: pub.kind, barEligibleForOut: index?.venueIds.has(bar.id),
+        events: rows.map((row) => ({ id: row.id, venueId: row.venueId ?? null, pair: outListingPubPair(row).status })),
+        externalCalls,
+      }));
+    `);
+    const result = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", driver], {
+      cwd: ROOT, encoding: "utf8", timeout: 10000,
+      env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", DEPLOYMENT_VERSION: "local", TSX_TSCONFIG_PATH: path.join(ROOT, "tsconfig.json") },
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const observed = JSON.parse(result.stdout.trim().split("\n").at(-1)!);
+    expect(observed).toMatchObject({
+      compactStatus: "ready", barKind: "bar", barPrice: null, pubKind: "pub", barEligibleForOut: false, externalCalls: 0,
+      detail: { id: "venue-16cduf6", kind: "bar", price: null, priceDay: "2026-07-17T22:47:09.827Z" },
+    });
+    expect(observed.events).toEqual([
+      { id: "abba-attached", venueId: null, pair: "absent" },
+      { id: "abba-live", venueId: null, pair: "absent" },
+      { id: "pub-live", venueId: "venue-1fgvf4p", pair: "matched" },
+    ]);
+  });
+
+  it("still refuses removal of a shipped famous seed before any published output changes", () => {
+    const root = fixture();
+    expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
+    expect(cli(root, "build_slim_index.mjs").status).toBe(0);
+    const prior = json(path.join(root, "public/data/venues_slim.json"));
+    const barsPath = path.join(root, "data/famous_venues/bars.json");
+    const bars = json(barsPath);
+    const shipped = bars.find((bar: { id: string }) => prior.rows.some((row: { id: string }) => row.id === bar.id));
+    expect(shipped).toBeDefined();
+    writeFileSync(barsPath, JSON.stringify(bars.filter((bar: { id: string }) => bar.id !== shipped.id)));
+    const files = ["public/data/venues_slim.json", "data/generated/venue_details.jsonl", "data/generated/venue_detail_index.json"];
+    const before = files.map((file) => readFileSync(path.join(root, file)));
+    const result = cli(root, "build_slim_index.mjs");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(shipped.id);
+    expect(result.stderr).toContain("not in data/famous_venues/removed.json");
+    files.forEach((file, index) => expect(readFileSync(path.join(root, file))).toEqual(before[index]));
   });
 
 });
