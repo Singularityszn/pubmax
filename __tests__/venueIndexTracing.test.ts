@@ -146,6 +146,8 @@ describe("runtime data-pack tracing", () => {
     expect(new Set(includes["/detail"])).toEqual(expectedFiles);
   });
 
+  // Evaluates next.config and walks every pack reader. On a busy runner
+  // that work exceeds the 60s default.
   it("declares every pack file for every discovered runtime reader of that pack", () => {
     const includes = tracingIncludes();
 
@@ -165,7 +167,7 @@ describe("runtime data-pack tracing", () => {
         }
       }
     }
-  });
+  }, 240_000);
 
   it("keeps OSM packs off base-only venue routes", () => {
     const includes = tracingIncludes();
