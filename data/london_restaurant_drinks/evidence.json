@@ -550,27 +550,6 @@
       ]
     },
     {
-      "osmId": "node/300425811",
-      "kind": "restaurant",
-      "name": "Wright Brothers",
-      "address": "56, Old Brompton Road, London",
-      "lat": 51.4931264,
-      "lng": -0.1764889,
-      "website": "https://thewrightbrothers.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://thewrightbrothers.co.uk/restaurant/south-kensington/",
-          "excerpt": "Essentiel Champagne]",
-          "observedAt": "2026-10-04T22:22:47.161Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:09:39.888Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/300425812",
       "kind": "restaurant",
       "name": "Bella Italia",
@@ -1579,27 +1558,6 @@
       ]
     },
     {
-      "osmId": "node/610923040",
-      "kind": "restaurant",
-      "name": "Cocotte",
-      "address": "95, Westbourne Grove, London, W2 4UW",
-      "lat": 51.5151942,
-      "lng": -0.1930085,
-      "website": "https://www.mycocotte.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.mycocotte.uk/",
-          "excerpt": "Wine, Beers & Cocktails]",
-          "observedAt": "2026-10-04T22:23:06.593Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:10:11.308Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/618652275",
       "kind": "restaurant",
       "name": "Carrafini",
@@ -1768,27 +1726,6 @@
       ]
     },
     {
-      "osmId": "node/667461790",
-      "kind": "restaurant",
-      "name": "Humble Grape",
-      "address": "13, Therburton street, London",
-      "lat": 51.5374128,
-      "lng": -0.103708,
-      "website": "https://www.humblegrape.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.humblegrape.co.uk/wine-bar/islington/",
-          "excerpt": "Over 500 wines from small, independent vineyards await. Browse our in-house wine shop or join one of our monthly wine tastings in Islington. And yes, we’re proudly dog-friendly.",
-          "observedAt": "2026-10-04T22:23:29.417Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:10:15.322Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/670648936",
       "kind": "restaurant",
       "name": "Sagar",
@@ -1805,27 +1742,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:48.876Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/675854609",
-      "kind": "restaurant",
-      "name": "Wiltons Restaurant",
-      "address": "55, Jermyn Street, London, SW1Y 6LX",
-      "lat": 51.5076994,
-      "lng": -0.1392041,
-      "website": "https://wiltons.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://wiltons.co.uk/oyster-bar",
-          "excerpt": "The Oyster Masterclass is held at 5:30 pm on selected Fridays of the month and includes an informal yet informative presentation, a dozen oysters, a glass of Champagne and two glasses of paired white wine.",
-          "observedAt": "2026-10-04T22:32:49.701Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:48.879Z"
           }
         }
       ]
@@ -3191,27 +3107,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:11:24.338Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/2396118589",
-      "kind": "restaurant",
-      "name": "Levan",
-      "address": "12-16, Blenheim Grove, London, SE15 4QL",
-      "lat": 51.4696742,
-      "lng": -0.0692116,
-      "website": "https://www.levanlondon.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.levanlondon.co.uk/",
-          "excerpt": "Bar, Kitchen & Wine Shop",
-          "observedAt": "2026-10-04T22:24:06.550Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:11:25.265Z"
           }
         }
       ]
@@ -6535,27 +6430,6 @@
       ]
     },
     {
-      "osmId": "node/6019685654",
-      "kind": "restaurant",
-      "name": "Big Easy",
-      "address": "1, Crossrail Place, London, E14 5AR",
-      "lat": 51.5062855,
-      "lng": -0.0192336,
-      "website": "https://www.bigeasy.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.bigeasy.co.uk/canary-wharf",
-          "excerpt": "Our events team can also put together a bespoke programme of experiences for your event, from cocktail making classes to wine tasting or a Bar.B.Q pit masterclass.",
-          "observedAt": "2026-10-04T22:25:42.712Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:13:31.602Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/6029527787",
       "kind": "restaurant",
       "name": "Rossodisera",
@@ -6950,27 +6824,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:28.487Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/6345021508",
-      "kind": "restaurant",
-      "name": "Wright Brothers Battersea",
-      "address": "26, Circus West Village, London, SW8 4NN",
-      "lat": 51.4832339,
-      "lng": -0.1462528,
-      "website": "https://thewrightbrothers.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://thewrightbrothers.co.uk/",
-          "excerpt": "Learn everything there is to know at our Oyster Masterclasses and taste a variety of oysters, paired with wine, champagne and more.",
-          "observedAt": "2026-10-04T22:25:51.825Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:13:41.313Z"
           }
         }
       ]
@@ -8341,27 +8194,6 @@
       ]
     },
     {
-      "osmId": "node/8202853011",
-      "kind": "restaurant",
-      "name": "La Famiglia",
-      "address": "5-7, Langton Street",
-      "lat": 51.4822355,
-      "lng": -0.1806758,
-      "website": "https://lafamiglia.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://lafamiglia.co.uk/",
-          "excerpt": "VIEW MENU] [ Wines",
-          "observedAt": "2026-10-04T22:26:37.707Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:15:25.790Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/8208211458",
       "kind": "restaurant",
       "name": "Mucci's",
@@ -8756,27 +8588,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:15:30.756Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/8443231437",
-      "kind": "restaurant",
-      "name": "Farang",
-      "address": "72, Highbury Park, London",
-      "lat": 51.5569904,
-      "lng": -0.0977746,
-      "website": "https://faranglondon.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://faranglondon.co.uk/",
-          "excerpt": "A 5% discount on all wine, cocktails and beers are given to anyone ordering a take away and all products from our fully stocked larder are available to pick up when you arrive to take home with your meal if you are collecting in person.",
-          "observedAt": "2026-10-04T22:26:49.826Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:15:33.148Z"
           }
         }
       ]
@@ -9470,27 +9281,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:11:09.422Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/9845461168",
-      "kind": "restaurant",
-      "name": "Pasta Evangelists",
-      "address": "",
-      "lat": 51.5058021,
-      "lng": -0.0198949,
-      "website": "https://pastaevangelists.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://pastaevangelists.com/",
-          "excerpt": "Our pasta-making classes are led by expert Italian chefs & include unlimited Prosecco.",
-          "observedAt": "2026-10-04T22:27:21.794Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:16:15.618Z"
           }
         }
       ]
@@ -12751,27 +12541,6 @@
       ]
     },
     {
-      "osmId": "node/13754021102",
-      "kind": "restaurant",
-      "name": "Big Easy",
-      "address": "The Plaza, Greenhithe, DA9 9ST",
-      "lat": 51.4376121,
-      "lng": 0.2703615,
-      "website": "https://www.bigeasy.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.bigeasy.co.uk/",
-          "excerpt": "[UNLIMITED DEEP FRIED JUMBO SHRIMP & GLASS OF BEER",
-          "observedAt": "2026-10-04T22:28:49.667Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:17:49.890Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/13764193602",
       "kind": "restaurant",
       "name": "Cheemc",
@@ -13633,27 +13402,6 @@
       ]
     },
     {
-      "osmId": "way/59981980",
-      "kind": "restaurant",
-      "name": "Kartuli",
-      "address": "65, Lordship Lane, London, SE22 8EP",
-      "lat": 51.4585587,
-      "lng": -0.0747767,
-      "website": "https://www.kartuli.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.kartuli.co.uk/",
-          "excerpt": "Kartuli is a restaurant and wine shop presenting the best authentic Georgian cuisine and wines in one of the most beautiful and historic buildings of East Dulwich, the David Grieg premises at 65 Lordship Lane.",
-          "observedAt": "2026-10-04T22:29:05.085Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:06.471Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/60266220",
       "kind": "restaurant",
       "name": "Korean BBQ House",
@@ -13670,27 +13418,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:18:06.605Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/65658373",
-      "kind": "restaurant",
-      "name": "Pizza Pilgrims",
-      "address": "43-47, Lonsdale Road, London, NW6 6RA",
-      "lat": 51.5366682,
-      "lng": -0.2044548,
-      "website": "https://www.pizzapilgrims.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.pizzapilgrims.co.uk/pizzerias/queenspark/",
-          "excerpt": "Slinging pizza to the glorious streets of North West London. Classic pizza faves, delicious cocktails and ice cold beers. Here you'll find our Pilgrim Deli - where you can buy ingredients, wines and more!",
-          "observedAt": "2026-10-04T22:29:05.085Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:06.252Z"
           }
         }
       ]
@@ -14090,27 +13817,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:18:12.236Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/110608819",
-      "kind": "restaurant",
-      "name": "Lume London",
-      "address": "38, Primrose Hill Road, London, NW3 3AD",
-      "lat": 51.5425094,
-      "lng": -0.1620154,
-      "website": "https://lume.london/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://lume.london/",
-          "excerpt": "An Italian kitchen and independent wine shop. Fresh pasta made in house.",
-          "observedAt": "2026-10-04T22:29:13.582Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:11.076Z"
           }
         }
       ]
@@ -15544,27 +15250,6 @@
       ]
     },
     {
-      "osmId": "way/226909126",
-      "kind": "restaurant",
-      "name": "Carousel",
-      "address": "19-23, Charlotte Street, London, W1T 1RL",
-      "lat": 51.5185613,
-      "lng": -0.135127,
-      "website": "https://carousel-london.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://carousel-london.com/",
-          "excerpt": "[Creative cocktails & smashburgers from Chuck’s",
-          "observedAt": "2026-10-04T22:29:49.849Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:48.191Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "way/228113385",
       "kind": "restaurant",
       "name": "Lokkum Bar & Grill",
@@ -15770,27 +15455,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:29:55.714Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/273697611",
-      "kind": "restaurant",
-      "name": "Andrew Edmunds",
-      "address": "46, Lexington Street, London, W1F 0LP",
-      "lat": 51.5131309,
-      "lng": -0.136196,
-      "website": "https://www.andrewedmunds.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.andrewedmunds.com/",
-          "excerpt": "The restaurant is also home to WSET wine courses and private wine tastings — an extension of the wine culture that has always been at its heart.",
-          "observedAt": "2026-10-04T22:29:55.083Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:19:04.475Z"
           }
         }
       ]
@@ -16610,27 +16274,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:19:33.094Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/363976699",
-      "kind": "restaurant",
-      "name": "Dalchini",
-      "address": "147, Arthur Road, London, SW19 8AB",
-      "lat": 51.4348956,
-      "lng": -0.199251,
-      "website": "https://www.dalchini.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.dalchini.co.uk/",
-          "excerpt": "As a gift or special treat, nothing goes better with Dalchini than our delectable house wines. Find your favourites or explore new flavours from our range of whites, reds and rosés.",
-          "observedAt": "2026-10-04T22:30:22.875Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:19:36.655Z"
           }
         }
       ]
@@ -18878,27 +18521,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:20:40.479Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/876410220",
-      "kind": "restaurant",
-      "name": "Brinkley's",
-      "address": "47, Hollywood Road, London",
-      "lat": 51.4861556,
-      "lng": -0.1842193,
-      "website": "https://www.brinkleys.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.brinkleys.com/",
-          "excerpt": "BRINKLEY'S WINE SHOP",
-          "observedAt": "2026-10-04T22:31:03.159Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:20:41.676Z"
           }
         }
       ]

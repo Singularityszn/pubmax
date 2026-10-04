@@ -122,6 +122,26 @@ describe("London restaurant drinks evidence", () => {
     expect(drinksEvidence("Cocktails, wine and craft beer every night.\nWe do not sell alcoholic drinks without ID.", "Example")).toEqual({ quote: "Cocktails, wine and craft beer every night." });
   });
 
+  it("never takes a line that sells, gives, delivers or teaches a drink, or names another venue", () => {
+    for (const line of [
+      "BRINKLEY'S WINE SHOP",
+      "You can purchase our very own pastas, wines, coffees and so much more.",
+      "As a gift or special treat, nothing goes better than our house wines.",
+      "Champagne, cremant or wine delivery",
+      "Wine hampers to order online for Christmas",
+      "Pizza and Spritz Masterclass Belsize Park",
+      "From cocktail making classes to wine tasting for your event",
+      "Wine Consultancy Services",
+      "Part of the Woodhead Restaurant Group alongside Quality Wines",
+      "Cocktails at our sister restaurant across the road",
+      "Champagne Bar, Selfridges Trafford]",
+    ]) {
+      expect(drinksEvidence(line, "Example"), line).toEqual({});
+    }
+    expect(drinksEvidence("Happy hour: buy 1 get 1 free on all cocktails", "Example")).toEqual({ quote: "Happy hour: buy 1 get 1 free on all cocktails" });
+    expect(drinksEvidence("Wine hampers delivered nationwide.\nCocktails and wine at the bar every night.", "Example")).toEqual({ quote: "Cocktails and wine at the bar every night." });
+  });
+
   it("ignores copyright footers", () => {
     expect(drinksEvidence("© 2017 Terroirs Natural Wine Group", "Terroirs")).toEqual({});
   });
@@ -181,6 +201,7 @@ describe("London restaurant drinks evidence", () => {
     expect(check([row({ lat: 53.48, lng: -2.24 })])).not.toEqual([]);
     expect(check([row(), row()])).toEqual(["node/101: repeated"]);
     expect(check([row({ osmId: "node/202" })])).toEqual(["node/202: excluded in exclusions.json"]);
+    expect(check([row({ evidence: [{ ...row().evidence[0], excerpt: "Visit our wine shop on the corner" }] })])).not.toEqual([]);
     expect(() => validateRestaurantDrinksPack({ rows: [row()] }, { inGreaterLondon, exclusions: { rows: [{ osmId: "node/202", name: "Elsewhere Grill" }] } })).toThrow(/reason/);
   });
 

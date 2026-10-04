@@ -119,6 +119,12 @@ export function statesRestaurantDrinks(quote, name) {
 // restaurant pours: copyright footers, legal lines, ingredient declarations
 // and sauce lists.
 const FURNITURE = /©|\bcopyright\b|all rights reserved|registered (?:in england|office|company)|company (?:no|number)|\b(?:ingredients|sauces) ?:/;
+
+// A line that sells, gives, delivers or teaches a drink, or that names another
+// venue, says nothing about what this restaurant pours: a wine shop, a gift,
+// a delivery, a masterclass, a consultancy, a sister venue, or the stray
+// bracket left by navigation link text.
+const OFF_PREMISES = /\b(?:(?:wine|bottle|online|farm) shop|shop online|purchase|buy\b(?! (?:one|two|1|2)\b)|order online|deliver(?:y|ies|ed)|to take home|hampers?|gifts?|masterclass(?:es)?|workshops?|(?:making|tasting|cooking|cocktail|wine) (?:class(?:es)?|courses?)|consultancy|consulting|our other (?:restaurants?|venues?|sites?|bars?)|sister (?:restaurants?|venues?|bars?|sites?))\b|\b(?:alongside|part of) [a-z ]* group\b|[\[\]]/;
 const DRINK_WORDS_ALL = new RegExp(DRINK_WORDS.source, "g");
 
 // How much a line says: one point per distinct drink word, so "cocktails,
@@ -130,7 +136,8 @@ function drinkScore(line, name) {
 /**
  * Reads one page of the restaurant's own site. Returns the line that says
  * most about what it pours, or the line that refuses alcohol, or neither. A
- * refusal outranks any drinking line on the same page, and footers never count.
+ * refusal outranks any drinking line on the same page, and footers, shop,
+ * gift, delivery, class and other-venue lines never count.
  */
 export function drinksEvidence(markdown, name) {
   const lines = pageText(markdown).split("\n").map(clean).filter((line) => line.length >= 12 && line.length <= 240);
@@ -139,7 +146,7 @@ export function drinksEvidence(markdown, name) {
   let best = null;
   let bestScore = 0;
   for (const line of lines) {
-    if (FURNITURE.test(fold(line)) || !statesRestaurantDrinks(line, name)) continue;
+    if (FURNITURE.test(fold(line)) || OFF_PREMISES.test(fold(line)) || !statesRestaurantDrinks(line, name)) continue;
     const score = drinkScore(line, name);
     if (score > bestScore) {
       best = line;
@@ -214,6 +221,7 @@ function evidenceProblems(entry, row) {
     !statesRestaurantDrinks(excerpt, row.name) && "excerpt does not state alcohol without the name",
     REFUSES_ALCOHOL.test(fold(excerpt)) && "excerpt refuses alcohol",
     FURNITURE.test(fold(excerpt)) && "excerpt is page furniture",
+    OFF_PREMISES.test(fold(excerpt)) && "excerpt sells, gives, delivers or teaches a drink, or names another venue",
     !ISO.test(String(entry?.observedAt ?? "")) && "evidence has no read date",
     (entry?.robots?.outcome !== "allowed" || !ISO.test(String(entry?.robots?.checkedAt ?? ""))) && "evidence has no recorded robots permission",
   ].filter(Boolean);

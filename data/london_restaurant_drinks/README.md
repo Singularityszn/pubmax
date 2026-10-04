@@ -31,7 +31,8 @@ drinker could sit in. This lane asks each restaurant's own website instead.
    and the like. The restaurant's own name is struck first, so "Gin and Pasta"
    or "The Wine Library" says nothing. Alcohol-free and non-alcoholic drinks,
    ginger beer and soft drinks are struck too, and copyright footers never
-   count. Of several lines, the one naming the most drinks is kept.
+   count. Nor does a line that sells, gives, delivers or teaches a drink, or
+   names another venue: a wine shop, a gift, a delivery, a masterclass. Of several lines, the one naming the most drinks is kept.
 
 A page that says bring-your-own, unlicensed, or that the restaurant does not
 serve alcohol settles the restaurant as dry, whatever else the site says.
@@ -107,10 +108,15 @@ sausage marinated in red wine, "we don't use beer in our batter", free
 champagne flutes, sake meaning salmon, "high spirits", another restaurant's
 name, and a line that says a branch does not sell alcohol. The 54 committed
 rows whose quote failed the tightened check were removed without a new read.
-Thirteen more were excluded in `exclusions.json` because their quote is about
-another venue of the group, a shop, a class, a delivery service or a
-consultancy, not about this restaurant pouring. `evidence.json` holds 951
-restaurants (949 are new to the London layer; OSM already shipped 2).
+Thirteen more were excluded in `exclusions.json` by hand because their quote is
+about another venue of the group, a shop, a class, a delivery service or a
+consultancy. The classifier then learned that class too: a line that names a
+wine shop, a purchase, a gift, a hamper, a delivery, a masterclass, a workshop,
+a making or tasting class, a consultancy, a sister venue or the group's other
+venues, or that carries stray navigation brackets, is not evidence. That rule
+was run over every committed row, and the 18 rows it rejected were added to
+`exclusions.json` with the phrase that rejected them. `evidence.json` holds 933
+restaurants (931 are new to the London layer; OSM already shipped 2).
 `report.json` still holds that run's counts, including its 1,018 accepted; the
 next run that reads the pages again replaces them.
 
