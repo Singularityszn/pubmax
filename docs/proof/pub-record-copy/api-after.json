@@ -1,12 +1,12 @@
 {
-  "venueId": "venue-11n9s46",
-  "name": "The Yorkshire Grey",
+  "venueId": "venue-15pta38",
+  "name": "The Pregnant Man",
   "recordCopy": {
-    "description": "Happy hour runs here, and they also serve cocktails and have live music.",
+    "description": "This place does cocktails and puts on live music.",
     "vibeTags": [
-      "Happy hour",
       "Cocktails",
-      "Live music"
+      "Live music",
+      "Happy hour"
     ]
   }
 }
