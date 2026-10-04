@@ -435,9 +435,17 @@ describe("a UK Details run resumes within its cap", () => {
   it("resumes from the checkpoint baseline once monitoring counts the job's own attempts", () => {
     const checkpoint = { checkpointPrior: 4130, checkpointAttempts: 12 };
     expect(resumedDetailsBaseline({ measured: 4142, ...checkpoint })).toBe(4130);
-    expect(resumedDetailsBaseline({ measured: 4135, ...checkpoint })).toBe(4130);
+    expect(() => resumedDetailsBaseline({ measured: 4135, ...checkpoint })).toThrow(/checkpoint usage differs/);
     expect(() => resumedDetailsBaseline({ measured: 4143, ...checkpoint })).toThrow(/checkpoint usage differs/);
     expect(resumedDetailsBaseline({ measured: 4130 })).toBe(4130);
+  });
+
+  it("refuses lagged usage that can mask another client's requests", () => {
+    expect(() => resumedDetailsBaseline({
+      measured: 4700, // 4,130 baseline + 500 reflected own attempts + 70 foreign calls
+      checkpointPrior: 4130,
+      checkpointAttempts: 1000,
+    })).toThrow(/checkpoint usage differs/);
   });
 
   it("skips a venue when a retry would pass the cap instead of failing the job", async () => {

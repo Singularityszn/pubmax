@@ -348,8 +348,9 @@ export function mergeClosedOsmRefs(input: {
 
 /**
  * The monthly Details usage a checkpoint resumes from. Monitoring already
- * counts this job's own attempts, sometimes late, so only usage above the
- * checkpoint baseline plus those attempts is foreign and refuses the resume.
+ * counts this job's own attempts, sometimes late. A partial update can hide
+ * foreign usage, so refuse both lagged and excess counts until the measurement
+ * agrees with the checkpoint baseline plus every recorded attempt.
  */
 export function resumedDetailsBaseline(input: {
   measured: number;
@@ -357,7 +358,7 @@ export function resumedDetailsBaseline(input: {
   checkpointAttempts?: number;
 }): number {
   if (input.checkpointPrior === undefined) return input.measured;
-  if (input.measured - (input.checkpointAttempts ?? 0) > input.checkpointPrior) {
+  if (input.measured !== input.checkpointPrior + (input.checkpointAttempts ?? 0)) {
     throw new Error("checkpoint usage differs; review spend before resuming");
   }
   return input.checkpointPrior;
