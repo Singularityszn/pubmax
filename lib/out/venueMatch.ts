@@ -113,8 +113,8 @@ export type AttachOutVenuesResult = {
  *
  * A refresh match remains authoritative while its id belongs to the named
  * pub in this index. The CLI had address and postcode evidence, so do not
- * re-run its proximity match. An id no longer accepted by the index cannot label a place
- * as a pub; retain the listing and remove that stale link.
+ * re-run its proximity match. An id no longer accepted by the index cannot
+ * label a place as a pub; remove it and try the conservative matcher again.
  */
 export function attachOutVenues(
   rows: readonly WhatsOnRow[],
@@ -134,7 +134,9 @@ export function attachOutVenues(
       return row;
     }
     const unmatchedRow = row.venueId === undefined ? row : { ...row, venueId: undefined };
-    if (!mayMatch(row)) {
+    // Rejected refresh links need recovery even without a live provider row.
+    // Originally unmatched bundled rows retain the caller's matching gate.
+    if (attachedId === null && !mayMatch(row)) {
       unmatched += 1;
       return unmatchedRow;
     }

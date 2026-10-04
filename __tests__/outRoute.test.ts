@@ -449,6 +449,53 @@ describe("buildOutResponse", () => {
     );
     expect(body.events[0].venueId).toBe("venue-1137z1c");
   });
+
+  it("recovers a retired pub id from a bundled listing without a live provider row", async () => {
+    const bundled = eventRow({
+      venueId: "venue-retired-lexington",
+      placeName: "The Lexington",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [bundled],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => LISTED_PUB_INDEX,
+      },
+    );
+
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0]).toMatchObject({
+      title: bundled.title,
+      source: bundled.source,
+      venueId: "venue-1137z1c",
+    });
+    expect(body.unmatchedCount).toBe(0);
+    expect(bundled.venueId).toBe("venue-retired-lexington");
+  });
+
+  it("keeps an originally unmatched bundled listing unmatched without a live row", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow({
+          placeName: "The Lexington",
+          lat: 51.5326,
+          lng: -0.1119,
+        })],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => LISTED_PUB_INDEX,
+      },
+    );
+
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].venueId).toBeUndefined();
+    expect(body.unmatchedCount).toBe(1);
+  });
 });
 
 describe("a row with no stated time answers only the day it was listed for", () => {
