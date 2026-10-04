@@ -231,3 +231,119 @@ describe("bounded retries", () => {
     expect(body.maxAge).toBe(0);
   });
 });
+
+describe("request deadlines", () => {
+  it.each(["scrape", "search"] as const)("%s returns a timeout when a transport ignores its aborted signal", async (method) => {
+    let signal: AbortSignal | undefined;
+    let release!: (response: Response) => void;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>((resolve) => { release = resolve; });
+    };
+    const budget = createHarvestBudget(1);
+    const client = createFirecrawlClient({
+      apiKey: "fc-test", fetchImpl, budget, maxAttempts: 1, timeoutMs: 10,
+    })!;
+    const pending = client[method]("https://example.com/stalled");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const outcome = await Promise.race([
+        pending,
+        new Promise<"deadline-missed">((resolve) => {
+          timer = setTimeout(() => resolve("deadline-missed"), 250);
+        }),
+      ]);
+      expect(outcome).not.toBe("deadline-missed");
+      if (outcome === "deadline-missed" || outcome.ok) throw new Error("expected a timeout");
+      expect(outcome.failure.reason).toBe("timeout");
+      expect(outcome.failure.attempts).toBe(1);
+      expect(signal?.aborted).toBe(true);
+      expect(budget.spent()).toBe(1);
+    } finally {
+      clearTimeout(timer);
+      release(okScrape("# late response"));
+      await pending;
+    }
+  });
+
+  it("covers stalled response decoding with the same deadline", async () => {
+    let signal: AbortSignal | undefined;
+    let release!: () => void;
+    const response = okScrape("# late body");
+    const originalJson = response.json.bind(response);
+    response.json = async () => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      return originalJson();
+    };
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      signal = init?.signal ?? undefined;
+      return response;
+    };
+    const client = createFirecrawlClient({
+      apiKey: "fc-test", fetchImpl, maxAttempts: 1, timeoutMs: 10,
+    })!;
+    const pending = client.scrape("https://example.com/stalled-body");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const outcome = await Promise.race([
+        pending,
+        new Promise<"deadline-missed">((resolve) => {
+          timer = setTimeout(() => resolve("deadline-missed"), 250);
+        }),
+      ]);
+      expect(outcome).not.toBe("deadline-missed");
+      if (outcome === "deadline-missed" || outcome.ok) throw new Error("expected a timeout");
+      expect(outcome.failure.reason).toBe("timeout");
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      clearTimeout(timer);
+      release();
+      await pending;
+    }
+  });
+
+  it("retries a timed-out request and returns the recovered page", async () => {
+    let calls = 0;
+    let firstSignal: AbortSignal | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      calls += 1;
+      if (calls > 1) return okScrape("# recovered after deadline");
+      firstSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        firstSignal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+      });
+    };
+    const budget = createHarvestBudget(2);
+    const client = createFirecrawlClient({
+      apiKey: "fc-test", fetchImpl, budget, maxAttempts: 2, timeoutMs: 10, sleepImpl: noSleep,
+    })!;
+    const outcome = await client.scrape("https://example.com/recovered");
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error("expected a page");
+    expect(outcome.page.markdown).toBe("# recovered after deadline");
+    expect(firstSignal?.aborted).toBe(true);
+    expect(budget.spent()).toBe(2);
+  });
+
+  it("refuses a timeout retry when the shared request budget is spent", async () => {
+    let calls = 0;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      calls += 1;
+      return new Promise<Response>((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+      });
+    };
+    const budget = createHarvestBudget(1);
+    const client = createFirecrawlClient({
+      apiKey: "fc-test", fetchImpl, budget, timeoutMs: 10, sleepImpl: noSleep,
+    })!;
+    const outcome = await client.search("a pub");
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) throw new Error("expected a budget refusal");
+    expect(outcome.failure.reason).toBe("budget-exhausted");
+    expect(outcome.failure.attempts).toBe(1);
+    expect(budget.spent()).toBe(1);
+    expect(calls).toBe(1);
+  });
+
+});
