@@ -98,11 +98,14 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    staying silent until it returns. The three confirm tools (`propose_plan`,
    `propose_map_action`, `report_occupancy`) set `interruption_mode:
    "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
-   drops the checking lines and returns the reply that stands when the agent
-   sends `agent_response_complete`. The script adds that event and the tool
-   events to the agent's `conversation.client_events`, so the captain re-runs
-   `npm run pubpal:agent` with this deploy. Until then typed chat waits the
-   full 28 seconds and returns the last reply it holds when no tool is running.
+   answers on the first reply when the turn asks for no tool. Once a turn asks
+   for a tool, typed chat drops the checking lines and returns the reply that
+   stands when the agent sends `agent_response_complete` with no tool still
+   running. The script adds that event and the tool events to the agent's
+   `conversation.client_events`, so the captain re-runs `npm run pubpal:agent`
+   to turn them on. On an agent without that event, a tool turn ends at the
+   22-second server deadline, which falls before the browser's 25-second
+   abort, and returns the last reply held when no tool is running.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.

@@ -16,7 +16,7 @@ import {
   type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
-const CHAT_TIMEOUT_MS = 28_000;
+const CHAT_TIMEOUT_MS = 22_000;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
 
@@ -115,6 +115,7 @@ export async function runPalElevenLabsChatTurn(
 
   const query = input.query.trim().slice(0, 500);
   if (!query) return { ok: false, code: "UNAVAILABLE" };
+  const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
   let turns: PubPalFenceTurn[];
@@ -151,6 +152,8 @@ export async function runPalElevenLabsChatTurn(
     let conversationId = "";
     let userMessageSent = false;
     let latestReply = "";
+    let toolRequested = false;
+    let replyGeneration = 0;
     const pendingToolCalls = new Set<string>();
     const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
       const cards = turn?.cards ?? [];
@@ -185,7 +188,7 @@ export async function runPalElevenLabsChatTurn(
           finish({ ok: false, code: "TIMEOUT" });
         }
       })();
-    }, CHAT_TIMEOUT_MS);
+    }, Math.max(0, deadline - Date.now()));
 
     const finish = (outcome: PalElevenLabsChatOutcome) => {
       if (settled) return;
@@ -271,14 +274,27 @@ export async function runPalElevenLabsChatTurn(
 
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
-        // The agent says a checking line before each tool call, so only the
-        // reply standing when its turn completes is the answer.
         latestReply = payload.agent_response_event?.agent_response?.trim() ?? "";
+        // The agent says a checking line before each tool call, so once a tool
+        // is asked for, only the reply standing when its turn completes is the answer.
+        if (toolRequested) return;
+        const agentMessage = latestReply;
+        const generation = ++replyGeneration;
+        void (async () => {
+          try {
+            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
+            if (toolRequested || generation !== replyGeneration) return;
+            finish(answer(agentMessage, turn));
+          } catch {
+            finish({ ok: false, code: "UNAVAILABLE" });
+          }
+        })();
         return;
       }
 
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
+        toolRequested = true;
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
         return;
       }
@@ -289,7 +305,7 @@ export async function runPalElevenLabsChatTurn(
       }
 
       if (payload.type === "agent_response_complete") {
-        if (!userMessageSent) return;
+        if (!userMessageSent || pendingToolCalls.size > 0) return;
         const agentMessage = latestReply;
         void (async () => {
           try {
