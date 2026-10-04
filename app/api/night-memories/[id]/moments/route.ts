@@ -2,7 +2,7 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { callerUserId } from "@/lib/authServer";
+import { verifyCallerAuth } from "@/lib/authServer";
 import {
   removeNightMomentPhoto,
   signedNightMomentPhotoUrl,
@@ -15,7 +15,16 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: Context): Promise<Response> {
-  const ownerId = await callerUserId(request);
+  const verification = await verifyCallerAuth(request);
+  if (verification.status === "unavailable") {
+    return publicApiError(
+      "We could not check your sign-in. Try again.",
+      "AUTH_UNAVAILABLE",
+      503,
+      { retryable: true },
+    );
+  }
+  const ownerId = verification.status === "verified" ? verification.identity.id : null;
   if (!ownerId) return publicApiError("Sign in to view Night Moments.", "UNAUTHENTICATED", 401);
   const { id } = await context.params;
   const moments = await listNightMoments(ownerId, id);
@@ -37,7 +46,16 @@ export async function POST(request: Request, context: Context): Promise<Response
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
-  const ownerId = await callerUserId(request);
+  const verification = await verifyCallerAuth(request);
+  if (verification.status === "unavailable") {
+    return publicApiError(
+      "We could not check your sign-in. Try again.",
+      "AUTH_UNAVAILABLE",
+      503,
+      { retryable: true },
+    );
+  }
+  const ownerId = verification.status === "verified" ? verification.identity.id : null;
   if (!ownerId) return publicApiError("Sign in to add a Night Moment.", "UNAUTHENTICATED", 401);
   const { id } = await context.params;
   const contentType = request.headers.get("content-type") ?? "";
