@@ -1,5 +1,5 @@
 /**
- * Verify London OSM pubs and the Shoreditch coffee-box cafes with Places.
+ * Verify London venues or budget-selected UK city pubs with Places.
  *
  * Text Search is IDs only (free). Place Details then reads businessStatus
  * and displayName for pubs and, for those cafes, the opening period list.
@@ -17,12 +17,16 @@
  *
  *   GOOGLE_PLACES_API_KEY must already be in the environment.
  *   node --import tsx scripts/verify_london_places.mjs
+ *   node --import tsx scripts/verify_london_places.mjs --uk-cities --dry-run
+ *   node --import tsx scripts/verify_london_places.mjs --uk-cities
  */
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
 
 import { londonVenueIdFor } from "../lib/londonVenueShards.ts";
 import { parseOsmOpeningHours } from "../lib/nearDesk.ts";
@@ -56,7 +60,13 @@ import {
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "data", "places_verification");
 const DESK_PACK_PATH = join(ROOT, "public", "data", "london_desks", "desks.json");
-const PROGRESS_PATH = join(OUT_DIR, "progress.json");
+const UK_CITIES = process.argv.includes("--uk-cities");
+const DRY_RUN = process.argv.includes("--dry-run");
+const JOB_CAP_USD = UK_CITIES ? 40 : PLACES_VERIFY_JOB_CAP_USD;
+const PROGRESS_PATH = join(OUT_DIR, UK_CITIES ? "uk_progress.json" : "progress.json");
+let detailAttempts = 0;
+let priorDetails = 0;
+let activeProgress = null;
 const PROJECT = "projects/590118888791";
 const SERVICE = `${PROJECT}/services/places.googleapis.com`;
 const SEARCH_METRIC = "places.googleapis.com/SearchTextRequest";
@@ -166,7 +176,7 @@ async function monthPlacesRequests(token) {
     "interval.endTime": new Date().toISOString(),
     "aggregation.alignmentPeriod": "2678400s",
     "aggregation.perSeriesAligner": "ALIGN_SUM",
-    "aggregation.crossSeriesReducer": "REDUCE_SUM",
+    ...(UK_CITIES ? {} : { "aggregation.crossSeriesReducer": "REDUCE_SUM" }),
   });
   const body = await apiJson(
     `https://monitoring.googleapis.com/v3/projects/pubmaxx/timeSeries?${params}`,
@@ -174,6 +184,7 @@ async function monthPlacesRequests(token) {
   );
   let total = 0;
   for (const series of body.timeSeries ?? []) {
+    if (UK_CITIES && series.resource?.labels?.method !== "google.maps.places.v1.Places.GetPlace") continue;
     for (const point of series.points ?? []) {
       total += Number(point.value?.int64Value ?? point.value?.doubleValue ?? 0);
     }
@@ -268,6 +279,64 @@ function curatedOwnersForClosedRefs(closedRefs) {
   return curatedVenueIdsForClosedOsmRefs(rows, wanted);
 }
 
+// Captain order first. Additional cities use the locality stated by OSM.
+const UK_CITY_ORDER = [
+  "Manchester", "Birmingham", "Edinburgh", "Glasgow", "Leeds", "Bristol", "Liverpool",
+  "Sheffield", "Bradford", "Nottingham", "Leicester", "Coventry", "Cardiff",
+  "Belfast", "Newcastle upon Tyne", "Southampton", "Portsmouth", "Hull",
+  "Stoke-on-Trent", "Derby", "Swansea", "Plymouth", "Aberdeen", "Dundee",
+  "Brighton", "Reading", "Luton", "Wolverhampton", "Milton Keynes", "Northampton",
+  "Norwich", "York", "Peterborough", "Oxford", "Cambridge", "Exeter", "Newport",
+  "Preston", "Sunderland", "Salford", "Bolton", "Blackpool", "Ipswich", "Swindon",
+  "Wakefield", "Huddersfield", "Warrington", "Chester", "Lincoln", "Bath",
+];
+
+function ukJobSpend(calls, used) {
+  const freeRemaining = Math.max(0, PLACE_DETAILS_PRO_FREE_MONTHLY - used);
+  return Math.max(0, calls - freeRemaining) * PLACE_DETAILS_PRO_USD_PER_THOUSAND / 1000;
+}
+
+function ukBudgetExhausted() {
+  return UK_CITIES && ukJobSpend(detailAttempts + 1, priorDetails) > JOB_CAP_USD;
+}
+
+function loadUkCityVenues(used, skippedSearches = 0) {
+  const body = JSON.parse(readFileSync(join(ROOT, "data/osm/uk/uk_osm_pubs.json"), "utf8"));
+  const pubs = [];
+  const cities = [];
+  const seen = new Set();
+  const maxCalls = Math.max(0, PLACE_DETAILS_PRO_FREE_MONTHLY - used)
+    + Math.floor(JOB_CAP_USD * 1000 / PLACE_DETAILS_PRO_USD_PER_THOUSAND) + skippedSearches;
+  for (const name of UK_CITY_ORDER) {
+    const id = name.toLowerCase().replaceAll(" ", "-");
+    const bounds = CITY_BOUNDS[id] ?? (id === "edinburgh"
+      ? { latMin: 55.88, lonMin: -3.4, latMax: 56.02, lonMax: -3.05 } : null);
+    const candidates = body.pubs.filter((pub) => {
+      if (!pub.name || !Number.isFinite(pub.lat) || !Number.isFinite(pub.lng)) return false;
+      if (seen.has(pub.osmId)) return false;
+      // Never sweep London into a later locality pass.
+      const london = CITY_BOUNDS.london;
+      if (pub.lat >= london.latMin && pub.lat <= london.latMax
+        && pub.lng >= london.lonMin && pub.lng <= london.lonMax) return false;
+      return pub.locality?.toLowerCase() === name.toLowerCase() || (bounds
+        && pub.lat >= bounds.latMin && pub.lat <= bounds.latMax
+        && pub.lng >= bounds.lonMin && pub.lng <= bounds.lonMax);
+    }).sort((a, b) => a.osmId.localeCompare(b.osmId));
+    const chosen = candidates.slice(0, Math.max(0, maxCalls - pubs.length));
+    if (chosen.length === 0) continue;
+    cities.push({ id, name, scope: bounds ? "OSM locality or city box" : "OSM locality only",
+      bounds, available: candidates.length, selected: chosen.length });
+    for (const pub of chosen) {
+      seen.add(pub.osmId);
+      const osmRef = pub.osmId.replace(/^(node|way|relation)\//, (_, kind) => kind[0]);
+      pubs.push({ id: `venue-uk-${osmRef}`, osmRef, name: pub.name,
+        address: pub.address ?? "", lat: pub.lat, lng: pub.lng, kind: "pub", city: id });
+    }
+    if (pubs.length === maxCalls) break;
+  }
+  return { pubs, cafes: [], cities };
+}
+
 function loadVenues() {
   const venues = { pubs: [], cafes: [] };
   walkShards(join(ROOT, "public", "data", "london_venues", "packs"), venues);
@@ -284,10 +353,13 @@ function loadProgress() {
   return {
     searches: parsed.searches ?? {},
     details: parsed.details ?? {},
+    detailAttempts: parsed.detailAttempts,
+    priorDetails: parsed.priorDetails,
   };
 }
 
 function saveProgress(progress) {
+  if (UK_CITIES) Object.assign(progress, { detailAttempts, priorDetails });
   const temp = `${PROGRESS_PATH}.tmp`;
   writeFileSync(temp, `${JSON.stringify(progress)}\n`);
   renameSync(temp, PROGRESS_PATH);
@@ -311,6 +383,13 @@ async function placesFetch(url, apiKey, fieldMask, init) {
   let lastStatus = 0;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     await pace();
+    if (UK_CITIES && init?.method === "GET") {
+      if (ukJobSpend(detailAttempts + 1, priorDetails) > JOB_CAP_USD) {
+        throw new Error("Place Details retry would exceed USD 40 cap");
+      }
+      detailAttempts += 1;
+      if (activeProgress) saveProgress(activeProgress);
+    }
     const response = await fetch(url, {
       ...init,
       headers: {
@@ -437,31 +516,28 @@ function verifiedDay() {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function main() {
+async function prepareVerification() {
+  const priorArg = process.argv.find((arg) => arg.startsWith("--prior-details="));
+  if (priorArg && (!DRY_RUN || !UK_CITIES)) throw new Error("--prior-details is dry-run only");
+  const token = priorArg ? null : accessToken();
+  const alreadyUsed = priorArg ? Number(priorArg.split("=")[1]) : await monthPlacesRequests(token);
+  if (!Number.isSafeInteger(alreadyUsed) || alreadyUsed < 0) throw new Error("invalid monthly usage");
+  priorDetails = alreadyUsed;
+  const venues = UK_CITIES ? loadUkCityVenues(alreadyUsed) : loadVenues();
+  if (!UK_CITIES && (venues.pubs.length !== EXPECTED_PUBS || venues.cafes.length !== EXPECTED_CAFES)) {
+    throw new Error(`expected ${EXPECTED_PUBS} pubs and ${EXPECTED_CAFES} cafes`);
+  }
+  if (DRY_RUN) {
+    if (!UK_CITIES) throw new Error("--dry-run requires --uk-cities");
+    console.log(JSON.stringify({ mode: "dry-run", priorDetails: alreadyUsed,
+      capUsd: JOB_CAP_USD, pubsConsidered: venues.pubs.length,
+      projectedUsd: ukJobSpend(venues.pubs.length, alreadyUsed), cities: venues.cities }, null, 2));
+    return null;
+  }
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) {
-    console.error("GOOGLE_PLACES_API_KEY is required");
-    process.exit(1);
-  }
+  if (!apiKey) throw new Error("GOOGLE_PLACES_API_KEY is required");
 
-  const venues = loadVenues();
-  if (venues.pubs.length !== EXPECTED_PUBS || venues.cafes.length !== EXPECTED_CAFES) {
-    console.error(
-      `expected ${EXPECTED_PUBS} pubs and ${EXPECTED_CAFES} cafes, found ${venues.pubs.length} and ${venues.cafes.length}`,
-    );
-    process.exit(1);
-  }
-
-  const token = accessToken();
-  let alreadyUsed = 0;
-  try {
-    alreadyUsed = await monthPlacesRequests(token);
-  } catch (error) {
-    console.error(`could not read month-to-date Places usage: ${error.message}`);
-    process.exit(1);
-  }
-
-  const worstCase = projectedPlacesSpendUsd({
+  const worstCase = UK_CITIES ? ukJobSpend(venues.pubs.length, alreadyUsed) : projectedPlacesSpendUsd({
     proCalls: venues.pubs.length,
     enterpriseCalls: venues.cafes.length,
     proAlreadyUsed: alreadyUsed,
@@ -470,16 +546,60 @@ async function main() {
   console.log(
     `projected spend USD ${worstCase} for up to ${venues.pubs.length} Place Details Pro and ${venues.cafes.length} Enterprise (month-to-date Places requests ${alreadyUsed}; IDs-only Text Search is free)`,
   );
-  if (worstCase > PLACES_VERIFY_JOB_CAP_USD) {
-    console.error(`projected spend USD ${worstCase} passes the USD ${PLACES_VERIFY_JOB_CAP_USD} job cap; no Places calls made`);
+  if (worstCase > JOB_CAP_USD) {
+    console.error(`projected spend USD ${worstCase} passes the USD ${JOB_CAP_USD} job cap; no Places calls made`);
     process.exit(2);
   }
 
+  return { token, alreadyUsed, venues, apiKey };
+}
+
+async function searchSelectedVenues(apiKey, venues, progress, alreadyUsed) {
+  const all = [...venues.pubs, ...venues.cafes];
+  let searched = 0;
+  while (true) {
+    for (const venue of all) {
+      if (progress.searches[venue.id]) continue;
+      progress.searches[venue.id] = await searchVenue(apiKey, venue);
+      searched += 1;
+      if (searched % 100 === 0) {
+        saveProgress(progress);
+        console.log(`text search ${searched}, selected ${all.length}`);
+      }
+    }
+    saveProgress(progress);
+    if (!UK_CITIES) break;
+    // No-match and ambiguous searches cost nothing. Give their reserved
+    // Details slots to the next pubs in city order before spending them.
+    const skipped = all.filter((venue) => progress.searches[venue.id]?.outcome === "skipped").length;
+    const expanded = loadUkCityVenues(alreadyUsed, skipped);
+    if (expanded.pubs.length <= all.length) break;
+    const known = new Set(all.map((venue) => venue.id));
+    all.push(...expanded.pubs.filter((venue) => !known.has(venue.id)));
+    venues.pubs = expanded.pubs;
+    venues.cities = expanded.cities;
+  }
+
+  return all;
+}
+
+async function main() {
+  const prepared = await prepareVerification();
+  if (!prepared) return;
+  const { token, alreadyUsed, venues, apiKey } = prepared;
   const originalSearch = await dailyOverrideValue(token, SEARCH_METRIC);
   const originalDetails = await dailyOverrideValue(token, DETAILS_METRIC);
   const progress = loadProgress();
+  activeProgress = progress;
+  if (UK_CITIES) {
+    if (progress.priorDetails !== undefined && progress.priorDetails !== alreadyUsed) {
+      throw new Error("UK checkpoint usage differs; review spend before resuming");
+    }
+    detailAttempts = progress.detailAttempts ?? 0;
+  }
   const pendingSearch = [...venues.pubs, ...venues.cafes].filter((venue) => !progress.searches[venue.id]).length;
-  const searchCap = Math.max(Number(originalSearch), pendingSearch + alreadyUsed);
+  const searchSlots = UK_CITIES ? loadUkCityVenues(alreadyUsed, Number.MAX_SAFE_INTEGER / 2).pubs.length : pendingSearch;
+  const searchCap = Math.max(Number(originalSearch), searchSlots + alreadyUsed);
   const detailsCap = Math.max(
     Number(originalDetails),
     venues.pubs.length + venues.cafes.length + alreadyUsed,
@@ -509,9 +629,11 @@ async function main() {
     );
   };
   process.on("SIGINT", () => {
+    if (UK_CITIES) saveProgress(progress);
     restore().finally(() => process.exit(130));
   });
   process.on("SIGTERM", () => {
+    if (UK_CITIES) saveProgress(progress);
     restore().finally(() => process.exit(143));
   });
 
@@ -524,23 +646,12 @@ async function main() {
       throw new Error(`quota raise mismatch search=${raisedSearch} details=${raisedDetails}`);
     }
 
-    const all = [...venues.pubs, ...venues.cafes];
-    let searched = 0;
-    for (const venue of all) {
-      if (progress.searches[venue.id]) continue;
-      progress.searches[venue.id] = await searchVenue(apiKey, venue);
-      searched += 1;
-      if (searched % 100 === 0) {
-        saveProgress(progress);
-        console.log(`text search ${searched}/${pendingSearch}`);
-      }
-    }
-    saveProgress(progress);
+    const all = await searchSelectedVenues(apiKey, venues, progress, alreadyUsed);
 
     const matched = all.filter((venue) => progress.searches[venue.id]?.outcome === "matched");
     const pubMatches = matched.filter((venue) => venue.kind === "pub").length;
     const cafeMatches = matched.filter((venue) => venue.kind === "cafe").length;
-    const detailsSpend = projectedPlacesSpendUsd({
+    const detailsSpend = UK_CITIES ? ukJobSpend(pubMatches, alreadyUsed) : projectedPlacesSpendUsd({
       proCalls: pubMatches,
       enterpriseCalls: cafeMatches,
       proAlreadyUsed: alreadyUsed,
@@ -549,19 +660,31 @@ async function main() {
     console.log(
       `matched ${pubMatches} pubs and ${cafeMatches} cafes; Place Details projected USD ${detailsSpend}`,
     );
-    if (detailsSpend > PLACES_VERIFY_JOB_CAP_USD) {
+    if (detailsSpend > JOB_CAP_USD) {
       const overCap = new Error(
-        `projected spend USD ${detailsSpend} passes the USD ${PLACES_VERIFY_JOB_CAP_USD} job cap; no Place Details calls made`,
+        `projected spend USD ${detailsSpend} passes the USD ${JOB_CAP_USD} job cap; no Place Details calls made`,
       );
       overCap.code = 2;
       throw overCap;
     }
 
+    if (UK_CITIES) {
+      const latestUsage = await monthPlacesRequests(accessToken());
+      priorDetails = Math.max(priorDetails, latestUsage - detailAttempts);
+      const refreshedSpend = ukJobSpend(pubMatches, priorDetails);
+      if (refreshedSpend > JOB_CAP_USD) {
+        throw new Error(`monthly usage changed: projected USD ${refreshedSpend} exceeds job cap; no new Details calls made`);
+      }
+    }
     let detailed = 0;
     for (const venue of matched) {
       if (progress.details[venue.id]) continue;
       const placeId = progress.searches[venue.id].placeId;
       const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
+      if (ukBudgetExhausted()) {
+        progress.details[venue.id] = { skipped: "budget_exhausted" };
+        continue;
+      }
       const read = await readDetails(apiKey, placeId, fieldMask);
       if (!read.status) {
         progress.details[venue.id] = { skipped: "unknown_status" };
@@ -610,14 +733,16 @@ async function main() {
     const proCalls = venues.pubs.filter((venue) => progress.details[venue.id]).length;
     const enterpriseCalls = venues.cafes.filter((venue) => progress.details[venue.id]).length;
 
-    writeJson(join(OUT_DIR, "london.json"), {
+    const billingPrior = UK_CITIES ? priorDetails : alreadyUsed;
+    writeJson(join(OUT_DIR, UK_CITIES ? "uk_cities.json" : "london.json"), {
       version: 1,
       verifiedAt: day,
       radiusMeters: PLACES_MATCH_RADIUS_METERS,
       spend: {
-        capUsd: PLACES_VERIFY_JOB_CAP_USD,
+        capUsd: JOB_CAP_USD,
+        ...(UK_CITIES ? { detailsAttempts: detailAttempts, actualTariffUsd: ukJobSpend(detailAttempts, billingPrior), billingPriorDetails: billingPrior, billingBasis: "request tariff estimate, not billing invoice" } : {}),
         monthToDatePlacesRequests: alreadyUsed,
-        projectedUsd: projectedPlacesSpendUsd({
+        projectedUsd: UK_CITIES ? ukJobSpend(detailAttempts, billingPrior) : projectedPlacesSpendUsd({
           proCalls,
           enterpriseCalls,
           proAlreadyUsed: alreadyUsed,
@@ -637,7 +762,7 @@ async function main() {
             calls: proCalls,
             usdPerThousandAfterFreeCap: PLACE_DETAILS_PRO_USD_PER_THOUSAND,
             freeMonthlyCap: PLACE_DETAILS_PRO_FREE_MONTHLY,
-            projectedUsd: projectedPlacesSpendUsd({
+            projectedUsd: UK_CITIES ? ukJobSpend(detailAttempts, billingPrior) : projectedPlacesSpendUsd({
               proCalls,
               enterpriseCalls: 0,
               proAlreadyUsed: alreadyUsed,
@@ -649,7 +774,7 @@ async function main() {
             calls: enterpriseCalls,
             usdPerThousandAfterFreeCap: PLACE_DETAILS_ENTERPRISE_USD_PER_THOUSAND,
             freeMonthlyCap: PLACE_DETAILS_ENTERPRISE_FREE_MONTHLY,
-            projectedUsd: projectedPlacesSpendUsd({
+            projectedUsd: UK_CITIES ? 0 : projectedPlacesSpendUsd({
               proCalls: 0,
               enterpriseCalls,
               enterpriseAlreadyUsed: alreadyUsed,
@@ -668,6 +793,10 @@ async function main() {
         closedPermanently: mergedClosedRefs.length,
         closedUnconfirmed: pubsForReview.length - closedRefs.length,
       },
+      ...(UK_CITIES ? { cities: venues.cities, verdicts: venues.pubs.map((venue) => ({
+        venueId: venue.id, osmRef: venue.osmRef, city: venue.city,
+        ...progress.searches[venue.id], ...progress.details[venue.id], verifiedAt: day,
+      })) } : {}),
       pubs,
     });
     writeJson(join(OUT_DIR, "closed_pubs.json"), {
@@ -675,8 +804,9 @@ async function main() {
       osmRefs: mergedClosedRefs,
       curatedVenueIds,
     });
-    writeJson(join(OUT_DIR, "shoreditch_cafes.json"), { verifiedAt: day, rows: cafes });
+    if (!UK_CITIES) writeJson(join(OUT_DIR, "shoreditch_cafes.json"), { verifiedAt: day, rows: cafes });
     if (existsSync(PROGRESS_PATH)) unlinkSync(PROGRESS_PATH);
+    progress.completed = true;
     console.log(
       `wrote verification: ${pubs.length} pubs, ${cafes.length} cafes, ${mergedClosedRefs.length} permanently closed`,
     );
@@ -687,6 +817,7 @@ async function main() {
     console.log(`cafes for human review (${cafesForReview.length}):`);
     for (const line of cafesForReview) console.log(`  ${line}`);
   } finally {
+    if (UK_CITIES && !progress.completed) saveProgress(progress);
     await restore();
   }
 }
