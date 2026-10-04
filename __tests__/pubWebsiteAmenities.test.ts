@@ -54,6 +54,20 @@ function expectSportsPublication(quote: string, expected: boolean) {
 }
 
 describe("sports evidence publication", () => {
+  it("requires explicit sport identity for live versus viewing", () => {
+    expectSportsPublication("Watch Alien vs Predator live", false);
+  });
+
+  it("leaves bare team fixtures unconfirmed without canonical team identity", () => {
+    expectSportsPublication("Watch Liverpool vs Man City live", false);
+    expectSportsPublication("Watch Liverpool vs Man City football live", true);
+  });
+
+  it("does not borrow sport identity from a separate proposition or screen list", () => {
+    expectSportsPublication("Football is on our menu. Watch Alien vs Predator live", false);
+    expectSportsPublication("Football memorabilia. We have TVs and board games.", false);
+  });
+
   it("refuses a television title whose only apparent sporting identity is game", () => {
     expectSportsPublication("Watch Game of Thrones on our TVs.", false);
   });
@@ -179,6 +193,8 @@ describe("keepEvidencedAmenities", () => {
     "Watch a kick tutorial on our TVs.",
     "Watch a tackle tutorial on our screens.",
     "Watch Alien vs Predator on our TVs.",
+    // Without canonical team identity, a bare fixture is unconfirmed.
+    "Watch Liverpool vs Man City live",
     "Watch Liverpool vs Man City",
     "Liverpool vs Man City live",
   ])("does not publish a quote that does not say sport is shown here: %s", (quote) => {
@@ -217,7 +233,7 @@ describe("keepEvidencedAmenities", () => {
     "The Crown is known as a \"Sports Pub\" for football and rugby.",
     "A pub known for televised sport.",
     "Live boxing on our screens.",
-    "Watch Liverpool vs Man City live",
+    "Watch Liverpool vs Man City football live",
     "No Sky Sports, but we show live sport on TNT Sports.",
     "We don't show football; we show rugby on our TVs.",
     "We show live sport on TNT Sports, but no Sky Sports.",
@@ -429,12 +445,12 @@ describe("pubSpecificEvidence", () => {
       {
         osmId: "a",
         sourceUrl: "https://pubs.example/pubs/goose",
-        amenities: { liveSports: "WATCH LIVERPOOL VS MAN CITY LIVE", beerGarden: "a hidden garden" },
+        amenities: { liveSports: "WATCH LIVERPOOL VS MAN CITY FOOTBALL LIVE", beerGarden: "a hidden garden" },
       },
       {
         osmId: "b",
         sourceUrl: "https://pubs.example/pubs/george",
-        amenities: { liveSports: "Watch Liverpool vs Man City live" },
+        amenities: { liveSports: "Watch Liverpool vs Man City football live" },
       },
     ];
     expect(pubSpecificEvidence(rows)).toEqual([
