@@ -37,7 +37,12 @@ function fixture(name: string) {
 + if (url.startsWith('https://places.googleapis.com/v1/places/')) {
 +   appendFileSync('calls.log', url.split('/').at(-1) + '\\n');
 +   placeCalls += 1;
-+   if (process.env.FIXTURE_FAIL === 'all' || Number(process.env.FIXTURE_FAIL) === placeCalls) return result({error:{message:'RESPONSE_MUST_NOT_BE_LOGGED'}}, Number(process.env.FIXTURE_FAIL_STATUS || 503));
++   if (process.env.FIXTURE_FAIL === 'all' || Number(process.env.FIXTURE_FAIL) === placeCalls) {
++     const status = Number(process.env.FIXTURE_FAIL_STATUS || 503);
++     const reason = process.env.FIXTURE_FAIL_REASON;
++     return result({error:{code:status, status:{400:'INVALID_ARGUMENT',404:'NOT_FOUND'}[status] ?? 'UNAVAILABLE', message:'RESPONSE_MUST_NOT_BE_LOGGED',
++       details: reason ? [{'@type':'type.googleapis.com/google.rpc.ErrorInfo', reason}] : []}}, status);
++   }
 +   if (process.env.FIXTURE_EMPTY === '1') return result({ websiteUri: 'javascript:alert(1)' });
 +   return result({ formattedAddress: '1 Example Street', nationalPhoneNumber:'020 7946 0123', websiteUri:'https://pub.example/', regularOpeningHours:{periods:[{open:{day:0,hour:0,minute:0}}]} });
 + }
@@ -71,8 +76,9 @@ it("a failed paid attempt stays in spend ledger and quota restoration still runs
   expect(live.status).toBe(1);
   expect(live.stderr).not.toContain("RESPONSE_MUST_NOT_BE_LOGGED");
   const out = JSON.parse(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8"));
-  expect(out.spend.reservedUsd).toBe(0.02);
+  expect(out.spend).toMatchObject({ reservedUsd: 0.02, monthReservedUsd: 0.02 });
   expect(out.venues).toEqual([]);
+  expect(out.errors).toEqual([]);
   expect(readFileSync(path.join(dir, "quota.log"), "utf8").trim().split("\n").at(-1)).toBe("10000");
 });
 
@@ -112,49 +118,73 @@ function stale(dir: string) {
   age(path.join(dir, "data/places_enrichment.json"), OLD);
 }
 
-it("a clone without the checkpoint resumes from the committed spend ledger, keeping errors and never re-buying an attempted row", () => {
+const MONTH = new Date().toISOString().slice(0, 7);
+const editPack = (dir: string, edit: (body: { spend: Record<string, unknown> }) => void) => {
+  const file = path.join(dir, "data/places_enrichment.json");
+  const body = JSON.parse(readFileSync(file, "utf8"));
+  edit(body);
+  writeFileSync(file, JSON.stringify(body));
+};
+
+it("a clone without the checkpoint resumes from the committed spend ledger, retrying a stopped row and keeping place failures", () => {
   const dir = fixture("runner-committed-ledger");
-  expect(run(dir, ["--write", "--exclusive"], "2").status).toBe(1);
+  const stopped = run(dir, ["--write", "--exclusive"], "2");
+  expect(stopped.status).toBe(1);
+  expect(finalLine(stopped).failedRows).toEqual([]);
   expect(calls(dir)).toEqual(["ChIJVerified003", "ChIJVerified002"]);
   rmSync(checkpointFile(dir));
-  expect(preview(dir, [])).toMatchObject({ pending: 1, plannedCalls: 1, priorReservedUsd: 0.04, earlierPushesReservedUsd: 0 });
-  const resumed = run(dir, ["--write", "--exclusive"]);
-  expect(resumed.status).toBe(0);
-  expect(finalLine(resumed).failedRows).toMatchObject([{ venueId: "venue-osm-n2", status: 503 }]);
-  expect(calls(dir)).toEqual(["ChIJVerified003", "ChIJVerified002", "ChIJVerified001"]);
+  expect(preview(dir, [])).toMatchObject({ pending: 2, plannedCalls: 2, month: MONTH, monthReservedUsd: 0.04, totalReservedUsd: 0.04 });
+  const resumed = run(dir, ["--write", "--exclusive"], "1", { FIXTURE_FAIL_STATUS: "404" });
+  expect(resumed.status, resumed.stderr).toBe(0);
+  expect(finalLine(resumed).failedRows).toMatchObject([{ venueId: "venue-osm-n2", status: 404 }]);
+  expect(calls(dir)).toEqual(["ChIJVerified003", "ChIJVerified002", "ChIJVerified002", "ChIJVerified001"]);
   const out = pack(dir);
-  expect(out.spend).toMatchObject({ attemptedCalls: 3, reservedUsd: 0.06, priorAttemptedCalls: 0, runStartedAt: null });
+  expect(out.spend).toMatchObject({ attemptedCalls: 4, reservedUsd: 0.08, month: MONTH, monthAttemptedCalls: 4, runStartedAt: null });
   expect(out.errors.map((row: { venueId: string }) => row.venueId)).toEqual(["venue-osm-n2"]);
   expect(out.summary).toMatchObject({ venues: 2, errors: 1 });
   rmSync(checkpointFile(dir));
+  expect(preview(dir, [])).toMatchObject({ pending: 0, failedRows: [{ venueId: "venue-osm-n2", status: 404 }] });
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   const refused = run(dir, ["--write", "--exclusive", "--refresh"]);
   expect(refused.status).toBe(1);
   expect(refused.stderr).toContain("nothing to refresh");
-  expect(calls(dir)).toHaveLength(3);
+  expect(calls(dir)).toHaveLength(4);
   expect(pack(dir)).toEqual(out);
 });
 
-it("a place-level failure is recorded and the run continues to every later row", () => {
-  const dir = fixture("runner-row-failure");
-  const live = run(dir, ["--write", "--exclusive"], "2", { FIXTURE_FAIL_STATUS: "404" });
+it.each(["404", "400"])("a place-level HTTP %s is recorded and the run continues to every later row", (status) => {
+  const dir = fixture(`runner-row-failure-${status}`);
+  const live = run(dir, ["--write", "--exclusive"], "2", { FIXTURE_FAIL_STATUS: status });
   expect(live.status, live.stderr).toBe(0);
+  expect(live.stdout).not.toContain("RESPONSE_MUST_NOT_BE_LOGGED");
   expect(calls(dir)).toEqual(["ChIJVerified003", "ChIJVerified002", "ChIJVerified001"]);
-  expect(finalLine(live).failedRows).toMatchObject([{ venueId: "venue-osm-n2", status: 404 }]);
+  expect(finalLine(live).failedRows).toMatchObject([{ venueId: "venue-osm-n2", status: Number(status) }]);
   expect(pack(dir).summary).toMatchObject({ venues: 2, errors: 1 });
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   expect(calls(dir)).toHaveLength(3);
 });
 
-it("a stale stamp starts a capped refresh push past a completed checkpoint, keeps earlier spend and re-buys only stale or failed rows", () => {
+it("an HTTP 400 about the API key stops the run after one attempt and marks no row failed", () => {
+  const dir = fixture("runner-key-400");
+  const live = run(dir, ["--write", "--exclusive"], "all", { FIXTURE_FAIL_STATUS: "400", FIXTURE_FAIL_REASON: "API_KEY_INVALID" });
+  expect(live.status).toBe(1);
+  expect(live.stderr).toContain("HTTP 400");
+  expect(`${live.stdout}${live.stderr}`).not.toContain("RESPONSE_MUST_NOT_BE_LOGGED");
+  expect(calls(dir)).toEqual(["ChIJVerified003"]);
+  expect(finalLine(live).failedRows).toEqual([]);
+  expect(pack(dir)).toMatchObject({ spend: { attemptedCalls: 1 }, errors: [] });
+  expect(preview(dir, [])).toMatchObject({ pending: 3 });
+});
+
+it("a stale stamp starts a refresh push past a completed checkpoint, keeps all spend and re-buys only stale, stopped or failed rows", () => {
   const dir = fixture("runner-stale-refresh");
   stale(dir);
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   expect(calls(dir)).toHaveLength(3);
-  expect(preview(dir, ["--refresh"])).toMatchObject({ push: "refresh", pending: 3, plannedCalls: 3, priorReservedUsd: 0, earlierPushesReservedUsd: 0.06, capUsd: 85 });
+  expect(preview(dir, ["--refresh"])).toMatchObject({ push: "refresh", pending: 3, plannedCalls: 3, monthReservedUsd: 0.06, totalReservedUsd: 0.06, capUsd: 85 });
   expect(run(dir, ["--write", "--exclusive", "--refresh"], "2").status).toBe(1);
   const partial = pack(dir);
-  expect(partial.spend).toMatchObject({ attemptedCalls: 2, reservedUsd: 0.04, priorAttemptedCalls: 3, priorReservedUsd: 0.06 });
+  expect(partial.spend).toMatchObject({ attemptedCalls: 5, reservedUsd: 0.1, monthAttemptedCalls: 5 });
   expect(partial.observedAt).toBe(OLD);
   const dated = Object.fromEntries(partial.venues.map((row: { venueId: string; formattedAddress: { observedAt: string } }) => [row.venueId, row.formattedAddress.observedAt]));
   expect(dated["venue-osm-n3"]).not.toBe(OLD);
@@ -162,19 +192,38 @@ it("a stale stamp starts a capped refresh push past a completed checkpoint, keep
   const again = run(dir, ["--write", "--exclusive", "--refresh"]);
   expect(again.status).toBe(1);
   expect(again.stderr).toContain("resume it without --refresh");
-  const resumed = run(dir, ["--write", "--exclusive"]);
+  const resumed = run(dir, ["--write", "--exclusive"], "1", { FIXTURE_FAIL_STATUS: "404" });
   expect(resumed.status).toBe(0);
-  expect(finalLine(resumed).failedRows).toMatchObject([{ venueId: "venue-osm-n2", status: 503 }]);
-  expect(calls(dir).slice(3)).toEqual(["ChIJVerified003", "ChIJVerified002", "ChIJVerified001"]);
-  expect(pack(dir).spend).toMatchObject({ attemptedCalls: 3, priorAttemptedCalls: 3, runStartedAt: partial.spend.runStartedAt });
+  expect(finalLine(resumed).failedRows).toMatchObject([{ venueId: "venue-osm-n2", status: 404 }]);
+  expect(calls(dir).slice(3)).toEqual(["ChIJVerified003", "ChIJVerified002", "ChIJVerified002", "ChIJVerified001"]);
+  expect(pack(dir).spend).toMatchObject({ attemptedCalls: 7, monthAttemptedCalls: 7, runStartedAt: partial.spend.runStartedAt });
   expect(pack(dir).observedAt).toBe(OLD);
   expect(run(dir, ["--write", "--exclusive", "--refresh"]).status).toBe(0);
-  expect(calls(dir).slice(6)).toEqual(["ChIJVerified002"]);
+  expect(calls(dir).slice(7)).toEqual(["ChIJVerified002"]);
   const done = pack(dir);
-  expect(done.spend).toMatchObject({ attemptedCalls: 1, priorAttemptedCalls: 6 });
+  expect(done.spend).toMatchObject({ attemptedCalls: 8, monthAttemptedCalls: 8 });
   expect(done.observedAt).not.toBe(OLD);
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
-  expect(calls(dir)).toHaveLength(7);
+  expect(calls(dir)).toHaveLength(8);
+});
+
+it("the USD 85 cap is cumulative across pushes in a calendar month and resets in the next month", () => {
+  const dir = fixture("runner-monthly-cap");
+  stale(dir);
+  rmSync(checkpointFile(dir));
+  editPack(dir, (body) => Object.assign(body.spend, { attemptedCalls: 4249, reservedUsd: 84.98, monthAttemptedCalls: 4249, monthReservedUsd: 84.98 }));
+  expect(preview(dir, ["--refresh"])).toMatchObject({ pending: 3, plannedCalls: 1, omittedForBudget: 2, monthReservedUsd: 84.98 });
+  expect(run(dir, ["--write", "--exclusive", "--refresh"]).status).toBe(0);
+  expect(calls(dir)).toHaveLength(4);
+  expect(pack(dir).spend).toMatchObject({ attemptedCalls: 4250, monthAttemptedCalls: 4250, monthReservedUsd: 85 });
+  expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
+  expect(calls(dir)).toHaveLength(4);
+  rmSync(checkpointFile(dir));
+  editPack(dir, (body) => Object.assign(body.spend, { month: "2000-01" }));
+  expect(preview(dir, [])).toMatchObject({ month: MONTH, monthReservedUsd: 0, plannedCalls: 2, totalReservedUsd: 85 });
+  expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
+  expect(calls(dir)).toHaveLength(6);
+  expect(pack(dir).spend).toMatchObject({ attemptedCalls: 4252, month: MONTH, monthAttemptedCalls: 2 });
 });
 
 it("a paid response with no usable field completes its row for the refresh push", () => {

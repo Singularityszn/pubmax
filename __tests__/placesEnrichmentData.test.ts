@@ -34,9 +34,11 @@ it("keeps copied content limited to verified identities and individually dated a
   expect(pack.observedAt).toBe(dates.sort()[0]);
   expect(pack.summary.venues).toBe(ids.size);
   expect(pack.spend.reservedUsd).toBe(pack.spend.attemptedCalls * 2 / 100);
-  expect(pack.spend.reservedUsd).toBeLessThanOrEqual(pack.spend.capUsd);
+  expect(pack.spend.month).toMatch(/^\d{4}-\d{2}$/);
+  expect(pack.spend.monthReservedUsd).toBe(pack.spend.monthAttemptedCalls * 2 / 100);
+  expect(pack.spend.monthReservedUsd).toBeLessThanOrEqual(pack.spend.capUsd);
+  expect(pack.spend.monthAttemptedCalls).toBeLessThanOrEqual(pack.spend.attemptedCalls);
   expect(pack.spend.capUsd).toBeLessThanOrEqual(85);
-  expect(pack.spend.priorReservedUsd).toBe(pack.spend.priorAttemptedCalls * 2 / 100);
-  expect(pack.spend.priorAttemptedCalls + pack.spend.attemptedCalls).toBeGreaterThanOrEqual(ids.size);
+  expect(pack.spend.attemptedCalls).toBeGreaterThanOrEqual(ids.size);
   expect(pack.summary.errors).toBe(pack.errors.length);
 });

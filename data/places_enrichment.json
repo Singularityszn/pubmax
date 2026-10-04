@@ -7,8 +7,9 @@
     "attemptedCalls": 3053,
     "usdPerThousand": 20,
     "reservedUsd": 61.06,
-    "priorAttemptedCalls": 0,
-    "priorReservedUsd": 0,
+    "month": "2026-10",
+    "monthAttemptedCalls": 3053,
+    "monthReservedUsd": 61.06,
     "runStartedAt": null,
     "monthToDatePlacesRequestsBeforeRun": 15429,
     "freeAllowanceAssumed": 0
