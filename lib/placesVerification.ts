@@ -347,6 +347,49 @@ export function mergeClosedOsmRefs(input: {
 }
 
 /**
+ * The monthly Details usage a checkpoint resumes from. Monitoring already
+ * counts this job's own attempts, sometimes late, so only usage above the
+ * checkpoint baseline plus those attempts is foreign and refuses the resume.
+ */
+export function resumedDetailsBaseline(input: {
+  measured: number;
+  checkpointPrior?: number;
+  checkpointAttempts?: number;
+}): number {
+  if (input.checkpointPrior === undefined) return input.measured;
+  if (input.measured - (input.checkpointAttempts ?? 0) > input.checkpointPrior) {
+    throw new Error("checkpoint usage differs; review spend before resuming");
+  }
+  return input.checkpointPrior;
+}
+
+/**
+ * Send one Places request, backing off on 429 and 503. Every attempt,
+ * retries included, is reserved first; a refused reservation returns null so
+ * the caller skips the venue instead of spending past its cap.
+ */
+export async function placesRequestWithinBudget<T>(input: {
+  attempts: number;
+  reserve: () => boolean;
+  send: () => Promise<{ status: number; body: T }>;
+  backoff: (attempt: number) => Promise<void>;
+}): Promise<T | null> {
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < input.attempts; attempt += 1) {
+    if (!input.reserve()) return null;
+    const { status, body } = await input.send();
+    lastStatus = status;
+    if (status === 429 || status === 503) {
+      await input.backoff(attempt);
+      continue;
+    }
+    if (status < 200 || status >= 300) throw new Error(`Places HTTP ${status}`);
+    return body;
+  }
+  throw new Error(`Places HTTP ${lastStatus || 429}`);
+}
+
+/**
  * Put the daily overrides back, and only report success once both effective
  * limits match the values read at the start. A failed attempt leaves the
  * caller free to try again.

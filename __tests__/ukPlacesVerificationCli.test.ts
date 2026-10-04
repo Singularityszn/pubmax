@@ -22,6 +22,11 @@ describe("UK city closure verification dry run", () => {
     expect(plan.pubsConsidered).toBe(4222);
   });
 
+  it("selects Edinburgh by OSM locality alone because it has no shared city box", () => {
+    const edinburgh = dryRun(3130).cities.find((city: { id: string }) => city.id === "edinburgh");
+    expect(edinburgh).toMatchObject({ scope: "OSM locality only", bounds: null });
+  });
+
   it("does not count free ID searches against the Details free allowance", () => {
     const plan = dryRun(0);
     expect(plan.pubsConsidered).toBeGreaterThan(5000);
@@ -40,24 +45,22 @@ describe("published UK city verdict ledger", () => {
   const ledger = JSON.parse(readFileSync("data/places_verification/uk_cities.json", "utf8"));
 
   it("accounts for every considered pub and every paid attempt within the cap", () => {
-    const unknown = ledger.verdicts.filter((row: { skipped?: string }) => row.skipped).length;
-    expect(ledger.summary.pubsVerified + ledger.summary.skippedNoResult
-      + ledger.summary.skippedAmbiguous + unknown).toBe(ledger.summary.pubsConsidered);
-    expect(ledger.verdicts).toHaveLength(ledger.summary.pubsConsidered);
-    expect(ledger.spend.detailsAttempts).toBeGreaterThanOrEqual(ledger.summary.pubsVerified);
+    const { summary } = ledger;
+    expect(summary.pubsVerified + summary.skippedNoResult + summary.skippedAmbiguous
+      + summary.skippedUnknownStatus + summary.skippedBudgetExhausted).toBe(summary.pubsConsidered);
+    expect(ledger.spend.detailsAttempts)
+      .toBeGreaterThanOrEqual(summary.pubsVerified + summary.skippedUnknownStatus);
+    expect(ledger.spend.skus.find((sku: { sku: string }) => sku.sku === "Places API Place Details Pro").calls)
+      .toBe(ledger.spend.detailsAttempts);
     expect(ledger.spend.actualTariffUsd).toBeLessThanOrEqual(40);
     expect(ledger.spend.skus.reduce((sum: number, sku: { projectedUsd: number }) => sum + sku.projectedUsd, 0))
       .toBeCloseTo(ledger.spend.actualTariffUsd, 8);
   });
 
-  it("stores only place IDs, our identity fields and derived verdicts per pub", () => {
-    const allowed = new Set([
-      "venueId", "osmRef", "city", "outcome", "placeId", "reason", "closure",
-      "nameMatched", "operational", "skipped", "verifiedAt",
-    ]);
-    for (const row of ledger.verdicts) {
-      expect(Object.keys(row).filter((key) => !allowed.has(key))).toEqual([]);
-    }
+  it("keeps pub closure only in closed_pubs.json", () => {
+    const closed = JSON.parse(readFileSync("data/places_verification/closed_pubs.json", "utf8"));
+    expect(ledger).not.toHaveProperty("verdicts");
+    expect(ledger.summary.closedPermanently).toBe(closed.osmRefs.length);
     for (const row of ledger.pubs) {
       expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "venueId", "verifiedAt"]);
     }

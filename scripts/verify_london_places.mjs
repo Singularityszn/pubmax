@@ -51,8 +51,10 @@ import {
   placesNameMatchesOsm,
   pubClosureVerdict,
   projectedPlacesSpendUsd,
+  placesRequestWithinBudget,
   pubVerificationRow,
   restoreQuotasUntilVerified,
+  resumedDetailsBaseline,
   textQueryForOsmVenue,
   weeklyHoursFromPlacesPeriods,
 } from "../lib/placesVerification.ts";
@@ -297,7 +299,7 @@ function ukJobSpend(calls, used) {
 }
 
 function ukBudgetExhausted() {
-  return UK_CITIES && ukJobSpend(detailAttempts + 1, priorDetails) > JOB_CAP_USD;
+  return ukJobSpend(detailAttempts + 1, priorDetails) > JOB_CAP_USD;
 }
 
 function loadUkCityVenues(used, skippedSearches = 0) {
@@ -309,8 +311,7 @@ function loadUkCityVenues(used, skippedSearches = 0) {
     + Math.floor(JOB_CAP_USD * 1000 / PLACE_DETAILS_PRO_USD_PER_THOUSAND) + skippedSearches;
   for (const name of UK_CITY_ORDER) {
     const id = name.toLowerCase().replaceAll(" ", "-");
-    const bounds = CITY_BOUNDS[id] ?? (id === "edinburgh"
-      ? { latMin: 55.88, lonMin: -3.4, latMax: 56.02, lonMax: -3.05 } : null);
+    const bounds = CITY_BOUNDS[id] ?? null;
     const candidates = body.pubs.filter((pub) => {
       if (!pub.name || !Number.isFinite(pub.lat) || !Number.isFinite(pub.lng)) return false;
       if (seen.has(pub.osmId)) return false;
@@ -380,37 +381,31 @@ async function pace() {
 }
 
 async function placesFetch(url, apiKey, fieldMask, init) {
-  let lastStatus = 0;
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    await pace();
-    if (UK_CITIES && init?.method === "GET") {
-      if (ukJobSpend(detailAttempts + 1, priorDetails) > JOB_CAP_USD) {
-        throw new Error("Place Details retry would exceed USD 40 cap");
-      }
+  const metered = UK_CITIES && init?.method === "GET";
+  return placesRequestWithinBudget({
+    attempts: 4,
+    reserve: () => {
+      if (!metered) return true;
+      if (ukBudgetExhausted()) return false;
       detailAttempts += 1;
       if (activeProgress) saveProgress(activeProgress);
-    }
-    const response = await fetch(url, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": fieldMask,
-      },
-      signal: AbortSignal.timeout(20_000),
-    });
-    lastStatus = response.status;
-    if (response.status === 429 || response.status === 503) {
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-      continue;
-    }
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(`Places HTTP ${response.status}`);
-    }
-    return body;
-  }
-  throw new Error(`Places HTTP ${lastStatus || 429}`);
+      return true;
+    },
+    send: async () => {
+      await pace();
+      const response = await fetch(url, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": fieldMask,
+        },
+        signal: AbortSignal.timeout(20_000),
+      });
+      return { status: response.status, body: await response.json().catch(() => ({})) };
+    },
+    backoff: (attempt) => new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1))),
+  });
 }
 
 function idsFromSearch(body) {
@@ -464,7 +459,7 @@ async function readDetails(apiKey, placeId, fieldMask) {
     fieldMask,
     { method: "GET" },
   );
-  return readDetailsBody(body, fieldMask);
+  return body ? readDetailsBody(body, fieldMask) : null;
 }
 
 function cafeDetail(read, osmHours) {
@@ -520,9 +515,16 @@ async function prepareVerification() {
   const priorArg = process.argv.find((arg) => arg.startsWith("--prior-details="));
   if (priorArg && (!DRY_RUN || !UK_CITIES)) throw new Error("--prior-details is dry-run only");
   const token = priorArg ? null : accessToken();
-  const alreadyUsed = priorArg ? Number(priorArg.split("=")[1]) : await monthPlacesRequests(token);
-  if (!Number.isSafeInteger(alreadyUsed) || alreadyUsed < 0) throw new Error("invalid monthly usage");
+  const measured = priorArg ? Number(priorArg.split("=")[1]) : await monthPlacesRequests(token);
+  if (!Number.isSafeInteger(measured) || measured < 0) throw new Error("invalid monthly usage");
+  const progress = DRY_RUN ? null : loadProgress();
+  const alreadyUsed = progress ? resumedDetailsBaseline({
+    measured,
+    checkpointPrior: progress.priorDetails,
+    checkpointAttempts: progress.detailAttempts,
+  }) : measured;
   priorDetails = alreadyUsed;
+  detailAttempts = progress?.detailAttempts ?? 0;
   const venues = UK_CITIES ? loadUkCityVenues(alreadyUsed) : loadVenues();
   if (!UK_CITIES && (venues.pubs.length !== EXPECTED_PUBS || venues.cafes.length !== EXPECTED_CAFES)) {
     throw new Error(`expected ${EXPECTED_PUBS} pubs and ${EXPECTED_CAFES} cafes`);
@@ -551,7 +553,7 @@ async function prepareVerification() {
     process.exit(2);
   }
 
-  return { token, alreadyUsed, venues, apiKey };
+  return { token, alreadyUsed, venues, apiKey, progress };
 }
 
 async function searchSelectedVenues(apiKey, venues, progress, alreadyUsed) {
@@ -586,17 +588,10 @@ async function searchSelectedVenues(apiKey, venues, progress, alreadyUsed) {
 async function main() {
   const prepared = await prepareVerification();
   if (!prepared) return;
-  const { token, alreadyUsed, venues, apiKey } = prepared;
+  const { token, alreadyUsed, venues, apiKey, progress } = prepared;
   const originalSearch = await dailyOverrideValue(token, SEARCH_METRIC);
   const originalDetails = await dailyOverrideValue(token, DETAILS_METRIC);
-  const progress = loadProgress();
   activeProgress = progress;
-  if (UK_CITIES) {
-    if (progress.priorDetails !== undefined && progress.priorDetails !== alreadyUsed) {
-      throw new Error("UK checkpoint usage differs; review spend before resuming");
-    }
-    detailAttempts = progress.detailAttempts ?? 0;
-  }
   const pendingSearch = [...venues.pubs, ...venues.cafes].filter((venue) => !progress.searches[venue.id]).length;
   const searchSlots = UK_CITIES ? loadUkCityVenues(alreadyUsed, Number.MAX_SAFE_INTEGER / 2).pubs.length : pendingSearch;
   const searchCap = Math.max(Number(originalSearch), searchSlots + alreadyUsed);
@@ -681,11 +676,11 @@ async function main() {
       if (progress.details[venue.id]) continue;
       const placeId = progress.searches[venue.id].placeId;
       const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
-      if (ukBudgetExhausted()) {
+      const read = await readDetails(apiKey, placeId, fieldMask);
+      if (!read) {
         progress.details[venue.id] = { skipped: "budget_exhausted" };
         continue;
       }
-      const read = await readDetails(apiKey, placeId, fieldMask);
       if (!read.status) {
         progress.details[venue.id] = { skipped: "unknown_status" };
       } else if (venue.kind === "pub") {
@@ -730,7 +725,8 @@ async function main() {
 
     const skippedNoResult = all.filter((venue) => progress.searches[venue.id]?.reason === "no_result").length;
     const skippedAmbiguous = all.filter((venue) => progress.searches[venue.id]?.reason === "ambiguous").length;
-    const proCalls = venues.pubs.filter((venue) => progress.details[venue.id]).length;
+    const proCalls = UK_CITIES ? detailAttempts : venues.pubs.filter((venue) => progress.details[venue.id]).length;
+    const skippedDetails = (reason) => venues.pubs.filter((venue) => progress.details[venue.id]?.skipped === reason).length;
     const enterpriseCalls = venues.cafes.filter((venue) => progress.details[venue.id]).length;
 
     const billingPrior = UK_CITIES ? priorDetails : alreadyUsed;
@@ -792,11 +788,12 @@ async function main() {
         skippedAmbiguous,
         closedPermanently: mergedClosedRefs.length,
         closedUnconfirmed: pubsForReview.length - closedRefs.length,
+        ...(UK_CITIES ? {
+          skippedUnknownStatus: skippedDetails("unknown_status"),
+          skippedBudgetExhausted: skippedDetails("budget_exhausted"),
+        } : {}),
       },
-      ...(UK_CITIES ? { cities: venues.cities, verdicts: venues.pubs.map((venue) => ({
-        venueId: venue.id, osmRef: venue.osmRef, city: venue.city,
-        ...progress.searches[venue.id], ...progress.details[venue.id], verifiedAt: day,
-      })) } : {}),
+      ...(UK_CITIES ? { cities: venues.cities } : {}),
       pubs,
     });
     writeJson(join(OUT_DIR, "closed_pubs.json"), {

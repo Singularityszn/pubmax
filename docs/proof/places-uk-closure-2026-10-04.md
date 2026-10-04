@@ -8,12 +8,13 @@ Firstmate confirmed exclusive Places use after the opening-hours job finished. T
 
 | Measurement | Before | After |
 | --- | ---: | ---: |
-| UK city verdict ledger rows | 0 | 3,950 |
+| UK city pub rows considered | 0 | 3,950 |
 | Place Details attempts in this job | 0 | 3,222 |
 | Usable permanent-closure verdicts | 0 | 3,166 |
 | No matching Place ID | 0 | 258 |
 | Ambiguous Place ID matches | 0 | 470 |
 | Unreadable business status | 0 | 56 |
+| Skipped at the budget cap | 0 | 0 |
 | Confirmed permanent closures from this job | 0 | 0 |
 | Unconfirmed permanent closures from this job | 0 | 0 |
 | Search daily quota | 100 | 100 restored |
@@ -38,7 +39,9 @@ Actual requests imply a conservative tariff upper bound of **USD 39.984** for th
 | Leicester | 92 | OSM locality only |
 | Coventry | 67 of 87 | OSM locality only, stopped at budget cap |
 
-These are dataset rows in the stated scopes, not a claim that every pub in each municipal boundary was checked. London was excluded. The ledger records each search outcome and derived verdict. Google names remain transient; names, addresses, hours, reviews and photos from Google are not stored. Only Place IDs and our own derived verdicts survive.
+These are dataset rows in the stated scopes, not a claim that every pub in each municipal boundary was checked. London was excluded. The Edinburgh rows above were selected with a one-off verification box recorded in the ledger's `cities` entry. Later runs select Edinburgh by OSM locality only, because `lib/cityBounds.mjs` holds the one box per city and has none for Edinburgh.
+
+The ledger keeps the search and verdict counts, the spend and the Place ID of each verified pub. It holds no per-pub verdict: `closed_pubs.json` stays the single record of closure. Google names remain transient; names, addresses, hours, reviews and photos from Google are not stored. Only Place IDs and our own derived verdicts survive.
 
 The existing closure path still requires a unique nearby Place ID, permanent-closure status and name agreement before hiding a pub. No-match, ambiguous, unreadable and mismatched-name results do not hide venues. No venue was hidden by this run; no rendered UI change is claimed.
 
@@ -50,4 +53,4 @@ The existing closure path still requires a unique nearby Place ID, permanent-clo
 - ESLint passed for changed source and tests. `git diff --check` passed.
 - The live command exited successfully and confirmed both original daily quotas were restored. Its checkpoint was removed.
 
-Run `node --import tsx scripts/verify_london_places.mjs --uk-cities --dry-run` to inspect the current plan. `--uk-cities` runs it with `GOOGLE_PLACES_API_KEY` supplied by the caller. `--prior-details` is accepted only for an offline dry run. A checkpoint whose monthly usage has changed refuses to resume until its spend is reviewed.
+Run `node --import tsx scripts/verify_london_places.mjs --uk-cities --dry-run` to inspect the current plan. `--uk-cities` runs it with `GOOGLE_PLACES_API_KEY` supplied by the caller. `--prior-details` is accepted only for an offline dry run. A checkpoint resumes from its recorded monthly baseline, so its own Details attempts never shrink the plan. Usage above that baseline plus those attempts refuses to resume until its spend is reviewed. A retry that would pass the cap skips its venue as `budget_exhausted` rather than ending the job.

@@ -24,7 +24,9 @@ import {
   mergeClosedOsmRefs,
   osmRefFromLayerId,
   placesNameMatchesOsm,
+  placesRequestWithinBudget,
   restoreQuotasUntilVerified,
+  resumedDetailsBaseline,
   pubClosureVerdict,
   projectedPlacesSpendUsd,
   textQueryForOsmVenue,
@@ -415,5 +417,53 @@ describe("closed pubs stay hidden across a partial rerun", () => {
       expectedDetails: "60",
       attempt: async () => ({ search: "500", details: "500" }),
     })).rejects.toThrow(/mismatch/);
+  });
+});
+
+describe("a UK Details run resumes within its cap", () => {
+  it("resumes from the checkpoint baseline once monitoring counts the job's own attempts", () => {
+    const checkpoint = { checkpointPrior: 4130, checkpointAttempts: 12 };
+    expect(resumedDetailsBaseline({ measured: 4142, ...checkpoint })).toBe(4130);
+    expect(resumedDetailsBaseline({ measured: 4135, ...checkpoint })).toBe(4130);
+    expect(() => resumedDetailsBaseline({ measured: 4143, ...checkpoint })).toThrow(/checkpoint usage differs/);
+    expect(resumedDetailsBaseline({ measured: 4130 })).toBe(4130);
+  });
+
+  it("skips a venue when a retry would pass the cap instead of failing the job", async () => {
+    let reserved = 0;
+    const statuses: number[] = [];
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      reserve: () => {
+        if (reserved === 1) return false;
+        reserved += 1;
+        return true;
+      },
+      send: async () => {
+        statuses.push(429);
+        return { status: 429, body: {} };
+      },
+      backoff: async () => {},
+    })).resolves.toBeNull();
+    expect(statuses).toEqual([429]);
+  });
+
+  it("retries a throttled request and still fails on another HTTP error", async () => {
+    const replies: { status: number; body: { id?: string } }[] = [
+      { status: 503, body: {} },
+      { status: 200, body: { id: "p1" } },
+    ];
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      reserve: () => true,
+      send: async () => replies.shift()!,
+      backoff: async () => {},
+    })).resolves.toEqual({ id: "p1" });
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      reserve: () => true,
+      send: async () => ({ status: 500, body: {} }),
+      backoff: async () => {},
+    })).rejects.toThrow("Places HTTP 500");
   });
 });
