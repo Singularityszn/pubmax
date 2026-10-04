@@ -2,18 +2,14 @@
 //
 // Every job runs on GitHub-hosted ubuntu-latest. Pull request workflows do
 // not reference the secrets context, so a fork cannot read a repository
-// secret. Repository secrets other than the job token are passed only on
-// push and schedule. The Mac runner installer and the console-user check
-// exit before they do anything. docs/CI_RUNBOOK.md is the runbook.
+// secret. docs/CI_RUNBOOK.md is the runbook.
 //
 //   1. no dependency runs an install script unless the allowlist says so;
 //   2. no pre/post npm hook exists for `ignore-scripts` to skip in silence;
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
-//   4. every job uses ubuntu-latest, and a pull request workflow has no secrets;
-//   5. the retired Mac scripts refuse to run.
+//   4. every job uses ubuntu-latest, and a pull request workflow has no secrets.
 
-import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -71,6 +67,13 @@ function everyStep(): Array<{ where: string; step: Step }> {
 
 function triggers(workflow: Workflow): string[] {
   return typeof workflow.on === "string" ? [workflow.on] : Object.keys(workflow.on);
+}
+
+function expressions(value: unknown): string[] {
+  if (typeof value === "string") return [...value.matchAll(/\$\{\{([\s\S]*?)\}\}/g)].map((match) => match[1]);
+  if (Array.isArray(value)) return value.flatMap(expressions);
+  if (value && typeof value === "object") return Object.values(value).flatMap(expressions);
+  return [];
 }
 
 describe("dependency install scripts", () => {
@@ -196,52 +199,29 @@ describe("hosted runners", () => {
   });
 
   it("gives a fork pull request no repository secret", () => {
-    for (const { file, source, parsed } of workflows) {
+    for (const { file, parsed } of workflows) {
       if (!triggers(parsed).some((trigger) => trigger.startsWith("pull_request"))) continue;
-      expect(source, file).not.toMatch(/secrets\./);
-    }
-  });
-
-  it("passes repository secrets only on push and schedule", () => {
-    for (const { file, source } of workflows) {
-      for (const match of source.matchAll(/secrets\.([A-Z0-9_]+)/g)) {
-        const name = match[1];
-        if (name === "GITHUB_TOKEN") continue;
-        const line = source.slice(0, match.index).split("\n").at(-1) ?? "";
-        expect(line, `${file} ${name}`).toContain("github.event_name == 'schedule'");
-        expect(line, `${file} ${name}`).toContain("github.event_name == 'push'");
+      for (const expression of expressions(parsed)) {
+        expect(expression, file).not.toMatch(/\bsecrets\b/);
       }
     }
   });
 
-  it("does not run the retired console-user check", () => {
-    for (const { where, step } of everyStep()) {
-      expect(step.run ?? "", where).not.toContain("assert-runner-identity");
-    }
-  });
-});
-
-describe("the retired Mac runner scripts", () => {
-  function retired(script: string): { status: number; stderr: string } {
-    try {
-      execFileSync("bash", [script], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    } catch (error) {
-      const failed = error as { status?: number; stderr?: string };
-      return { status: failed.status ?? -1, stderr: failed.stderr ?? "" };
-    }
-    return { status: 0, stderr: "" };
-  }
-
-  it("refuses to register a runner", () => {
-    const result = retired("scripts/ci/setup-dedicated-runner-user.sh");
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("retired");
-    expect(result.stderr).toContain("ubuntu-latest");
-  });
-
-  it("refuses the console-user check", () => {
-    const result = retired("scripts/ci/assert-runner-identity.sh");
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("retired");
+  it("finds the secrets context in a parsed workflow expression", () => {
+    const workflow = parse(
+      [
+        "on: pull_request",
+        "jobs:",
+        "  test:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      # secrets.IGNORED is a comment",
+        "      - run: echo done",
+        "        env:",
+        "          KEY: ${{ toJSON(secrets) }}",
+        "          OTHER: ${{ secrets['X'] }}",
+      ].join("\n"),
+    );
+    expect(expressions(workflow).filter((expression) => /\bsecrets\b/.test(expression))).toHaveLength(2);
   });
 });

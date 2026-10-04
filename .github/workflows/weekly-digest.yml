@@ -22,8 +22,8 @@ concurrency:
 
 jobs:
   send:
-    # Not a pull_request workflow. Repository secrets are passed only on push
-    # and schedule; a manual dispatch does not receive them. See docs/CI_RUNBOOK.md.
+    # This workflow does not run on pull_request, so a fork cannot read a
+    # repository secret. See docs/CI_RUNBOOK.md.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,11 +41,9 @@ jobs:
         run: npm test -- __tests__/weeklyDigest.test.ts __tests__/emailProvider.test.ts
       - name: Send weekly digest (safe no-op until keys land)
         env:
-          # Absent ⇒ the script logs and exits 0 without sending. These
-          # repository secrets are passed only on push and schedule, never on
-          # pull_request. SUPABASE_SERVICE_ROLE_KEY stays absent until delivery
-          # is wired.
-          RESEND_API_KEY: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && secrets.RESEND_API_KEY || '' }}
-          EMAIL_FROM: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && secrets.EMAIL_FROM || '' }}
-          SUPABASE_URL: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && secrets.SUPABASE_URL || '' }}
+          # Absent ⇒ the script logs and exits 0 without sending.
+          # SUPABASE_SERVICE_ROLE_KEY stays absent until delivery is wired.
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: node scripts/send_weekly_digest.mjs

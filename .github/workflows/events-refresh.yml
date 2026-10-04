@@ -27,8 +27,8 @@ concurrency:
 
 jobs:
   refresh:
-    # Not a pull_request workflow. Repository secrets are passed only on push
-    # and schedule; a manual dispatch does not receive them. See docs/CI_RUNBOOK.md.
+    # This workflow does not run on pull_request, so a fork cannot read the
+    # job token or a repository secret. See docs/CI_RUNBOOK.md.
     runs-on: ubuntu-latest
     permissions:
       contents: write # push the review branch
@@ -68,6 +68,6 @@ jobs:
       - name: Refresh events, validate, then open review PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TICKETMASTER_API_KEY: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && secrets.TICKETMASTER_API_KEY || '' }}
-          SKIDDLE_API_KEY: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && secrets.SKIDDLE_API_KEY || '' }}
+          TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+          SKIDDLE_API_KEY: ${{ secrets.SKIDDLE_API_KEY }}
         run: scripts/ci/with-git-token.sh npm run refresh:events -- --with-common --open-pr
