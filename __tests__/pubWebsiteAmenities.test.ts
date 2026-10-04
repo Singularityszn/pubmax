@@ -153,6 +153,40 @@ describe("sports evidence publication", () => {
   });
 
   it.each([
+    "We don't have Sky Sports, TNT Sports shows all matches.",
+    "We don't have Sky Sports, TNT Sports shows a match every week.",
+    "We don't have Sky Sports, TNT Sports shows big games.",
+    "We don't have Sky Sports, TNT Sports shows most games.",
+    "We don't have Sky Sports, TNT Sports shows Six Nations.",
+    "We don't have Sky Sports, TNT Sports shows Champions League games.",
+    "We don't have Sky Sports, TNT Sports shows fixtures.",
+    "We don't have Sky Sports, TNT Sports shows them.",
+    "We don't have Sky Sports, TNT Sports broadcasts Wimbledon.",
+    "We don't show rugby, football shows any match.",
+    "We don't show rugby, cricket broadcasts international matches.",
+    "No Sky Sports, TNT Sports shows all matches.",
+    "We don't have Sky Sports, TNT Sports screens live football in the bar.",
+    "We don't show rugby, cricket broadcasts every match all the time.",
+    "We don't show rugby, cricket broadcasts every match the whole weekend.",
+    "We do not show rugby, cricket broadcasts every match all the time.",
+    "We do not show rugby, cricket broadcasts every match the whole weekend.",
+  ])("retains viewed content objects with ordinary modifiers beside comma denials: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each([
+    "We don't have Sky Sports, TNT Sports screens live in the bar.",
+    "We don't show rugby, cricket broadcasts all the time.",
+    "We don't show rugby, cricket broadcasts the whole weekend.",
+    "We do not show rugby, cricket broadcasts all the time.",
+    "We do not show rugby, cricket broadcasts the whole weekend.",
+    "We don't have Sky Sports, TNT Sports screens before the games.",
+    "We don't show rugby, cricket broadcasts during the big matches.",
+  ])("leaves dual-use viewing nouns with only a determiner, time or location under the comma denial: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
     "We don't have Sky Sports, TNT Sports is shown in the bar.",
     "We don't show rugby, cricket is broadcast on our TVs.",
     "We don't show rugby, football is shown on all our TVs.",
