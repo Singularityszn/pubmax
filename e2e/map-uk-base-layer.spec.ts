@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { attachBill } from "./helpers/priceBill";
+import { MAP_CHOSEN_AREA_KEY } from "../lib/mapChosenArea";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -361,6 +362,15 @@ for (const viewport of [VIEWPORT, { width: 1440, height: 900 }]) {
     }, testInfo) => {
       test.setTimeout(120_000);
       await page.setViewportSize(viewport);
+      await page.addInitScript((key) => {
+        window.localStorage.setItem(key, JSON.stringify({
+          cityId: "london",
+          kind: "night-area",
+          label: "Piccadilly & Soho",
+          slug: "piccadilly-soho",
+          center: [-0.1344, 51.5136],
+        }));
+      }, MAP_CHOSEN_AREA_KEY);
       const requests = ukBaseRequests(page);
       const curatedRequests: string[] = [];
       page.on("request", (request) => {
@@ -377,6 +387,9 @@ for (const viewport of [VIEWPORT, { width: 1440, height: 900 }]) {
       await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
       await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 10_000 });
       await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+      await expect(page.getByRole("button", {
+        name: "Map area: UK. Change city", exact: true,
+      })).toBeVisible();
       await expect(page.getByText("Zoom in to load pubs on the map.", { exact: false })).toBeVisible();
 
       await page.waitForTimeout(1800);
