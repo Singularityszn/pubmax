@@ -1,16 +1,24 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
+  EMPTY_CHAIN_DENYLIST,
   FLASH_LITE_SKU,
   JOB_SPEND_CAP_USD,
   SITE_STAMP,
   amenityColumnIsBlank,
   evidenceQuoteIsOnPage,
+  isChainPage,
   keepEvidencedAmenities,
   liftSiteStamps,
   matchPubToVenue,
+  mergeChainDenylists,
+  parseChainDenylist,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
+  provenChainEvidence,
   pubSpecificEvidence,
   stampAmenityColumns,
   statedAmenities,
@@ -347,6 +355,118 @@ describe("pubSpecificEvidence", () => {
         amenities: { beerGarden: "a hidden garden" },
       },
     ]);
+  });
+});
+
+describe("chain denylist", () => {
+  const youngsRows = [
+    { osmId: "a", sourceUrl: "https://www.youngs.co.uk/food-drink", amenities: { beerGarden: "Pub Gardens" } },
+    { osmId: "b", sourceUrl: "https://www.youngs.co.uk/food-drink?pub=2", amenities: {} },
+    { osmId: "c", sourceUrl: "https://www.youngs.co.uk/", amenities: { cocktails: "secret cocktail bars" } },
+    {
+      osmId: "d",
+      sourceUrl: "https://pubs.example/pubs/goose",
+      amenities: { liveSports: "WATCH LIVERPOOL VS MAN CITY LIVE", beerGarden: "a hidden garden" },
+    },
+    { osmId: "e", sourceUrl: "https://pubs.example/pubs/george", amenities: { liveSports: "Watch Liverpool vs Man City live" } },
+  ];
+
+  it("records the shared pages, the shared host's home page and the repeated quotes a harvest proves", () => {
+    expect(provenChainEvidence(youngsRows)).toEqual({
+      pages: ["youngs.co.uk", "youngs.co.uk/food-drink"],
+      quotes: [{ host: "pubs.example", key: "liveSports", quote: "watch liverpool vs man city live" }],
+    });
+  });
+
+  it("keeps a pub that reads a proven chain page alone on a later run out of the evidence", () => {
+    const denylist = provenChainEvidence(youngsRows);
+    const laterRun = [
+      { osmId: "f", sourceUrl: "https://www.youngs.co.uk/food-drink/", amenities: { beerGarden: "Pub Gardens" } },
+      {
+        osmId: "h",
+        sourceUrl: "https://pubs.example/pubs/swan",
+        amenities: { liveSports: "watch Liverpool vs Man City LIVE", food: "serves food every day" },
+      },
+    ];
+    expect(pubSpecificEvidence(laterRun)).toHaveLength(2);
+    expect(pubSpecificEvidence(laterRun, denylist)).toEqual([
+      { osmId: "h", sourceUrl: "https://pubs.example/pubs/swan", amenities: { food: "serves food every day" } },
+    ]);
+    const homeAlone = [
+      { osmId: "g", sourceUrl: "https://www.youngs.co.uk", amenities: { liveSports: "Live Sport on every screen" } },
+    ];
+    expect(pubSpecificEvidence(homeAlone)).toHaveLength(1);
+    expect(pubSpecificEvidence(homeAlone, denylist)).toEqual([]);
+  });
+
+  it("reads www and the bare host as one site", () => {
+    expect(
+      provenChainEvidence([
+        { osmId: "a", sourceUrl: "https://www.motherkellys.example/", amenities: {} },
+        { osmId: "b", sourceUrl: "http://motherkellys.example", amenities: {} },
+      ]).pages,
+    ).toEqual(["motherkellys.example"]);
+  });
+
+  it("asks about a URL the way the chain rule reads a page", () => {
+    const denylist = { pages: ["youngs.co.uk/our-pubs"], quotes: [] };
+    expect(isChainPage("https://WWW.youngs.co.uk/our-pubs/?PubID=7#map", denylist)).toBe(true);
+    expect(isChainPage("https://youngs.co.uk/our-pubs", denylist)).toBe(true);
+    expect(isChainPage("https://www.youngs.co.uk/our-pubs/the-plough", denylist)).toBe(false);
+    expect(isChainPage("not a url", denylist)).toBe(false);
+    expect(isChainPage("https://www.youngs.co.uk/our-pubs", EMPTY_CHAIN_DENYLIST)).toBe(false);
+  });
+
+  it("merges lists into one sorted, deduplicated list with folded quotes", () => {
+    expect(
+      mergeChainDenylists(
+        { pages: ["b.example", "a.example"], quotes: [{ host: "a.example", key: "food", quote: "Sunday  Roasts" }] },
+        { pages: ["a.example"], quotes: [{ host: "a.example", key: "food", quote: "sunday roasts" }] },
+      ),
+    ).toEqual({
+      pages: ["a.example", "b.example"],
+      quotes: [{ host: "a.example", key: "food", quote: "sunday roasts" }],
+    });
+  });
+
+  it("reads a hand-written page the way the chain rule does", () => {
+    expect(
+      parseChainDenylist({ pages: ["https://WWW.Chain.example/Our-Pubs/", "www.chain.example"], quotes: [] }).pages,
+    ).toEqual(["chain.example", "chain.example/Our-Pubs"]);
+  });
+
+  it("refuses a malformed list rather than reading it as empty", () => {
+    expect(() => parseChainDenylist(null)).toThrow();
+    expect(() => parseChainDenylist({ pages: [] })).toThrow();
+    expect(() => parseChainDenylist({ pages: [1], quotes: [] })).toThrow();
+    expect(() => parseChainDenylist({ pages: [], quotes: [{ host: "a.example", key: "wifi", quote: "free wifi" }] })).toThrow();
+  });
+
+  it("commits a sorted list that holds the chain pages the first harvest proved and no page the evidence uses", () => {
+    const root = path.resolve(__dirname, "..");
+    const raw = JSON.parse(readFileSync(path.join(root, "data/amenities/london_pub_website_chain_pages.json"), "utf8"));
+    const denylist = parseChainDenylist(raw);
+    expect({ version: 1, ...denylist }).toEqual(raw);
+    expect(denylist.pages).toEqual(
+      expect.arrayContaining([
+        "jdwetherspoon.com",
+        "youngs.co.uk",
+        "youngs.co.uk/food-drink",
+        "youngs.co.uk/our-pubs",
+        "greeneking.co.uk/pubs-near-me",
+        "socialpubandkitchen.co.uk",
+      ]),
+    );
+    expect(denylist.quotes).toContainEqual({
+      host: "socialpubandkitchen.co.uk",
+      key: "liveSports",
+      quote: "watch liverpool vs man city live",
+    });
+    const evidence = JSON.parse(
+      readFileSync(path.join(root, "data/amenities/london_pub_website_evidence.json"), "utf8"),
+    ) as { rows: { osmId: string; sourceUrl: string; amenities: Record<string, string> }[] };
+    expect(evidence.rows.filter((row) => isChainPage(row.sourceUrl, denylist))).toEqual([]);
+    expect(pubSpecificEvidence(evidence.rows, denylist)).toEqual(pubSpecificEvidence(evidence.rows));
   });
 });
 

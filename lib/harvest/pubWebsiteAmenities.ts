@@ -236,11 +236,17 @@ export type PubEvidenceRow = {
 function sourcePage(url: string): { host: string; page: string } | null {
   try {
     const parsed = new URL(url);
-    const host = parsed.host.toLowerCase();
+    // www.chain.example and chain.example are one site.
+    const host = parsed.host.toLowerCase().replace(/^www\./, "");
     return { host, page: `${host}${parsed.pathname.replace(/\/+$/, "")}` };
   } catch {
     return null;
   }
+}
+
+/** A page as the chain rule sees it: host without www and path, with no query, fragment or trailing slash. */
+function chainPageKey(url: string): string | null {
+  return sourcePage(url)?.page ?? null;
 }
 
 function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, number> {
@@ -249,37 +255,118 @@ function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string
   return counts;
 }
 
+/** A quote one host repeats word for word for several pubs, stored folded. */
+type ChainQuote = { host: string; key: PubWebsiteAmenityKey; quote: string };
+
 /**
- * Evidence that speaks for one pub. A chain-wide page describes the brand
- * rather than any one pub, so it goes: a page more than one pub points at once
- * its query, fragment and trailing slash are set aside, the home page of a host
- * several pubs share, and a quote repeated word for word across pubs on one
- * host. Every stamp, from a fresh harvest or from the committed evidence file,
- * goes through here.
+ * Pages and quotes proven chain-wide. A harvest keeps only the pubs that pass
+ * the chain rule, so the pubs that proved a page chain-wide are gone from the
+ * next run's count. The committed list remembers the proof.
  */
-export function pubSpecificEvidence<T extends PubEvidenceRow>(
-  rows: readonly T[],
-): (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] {
-  const sourced = rows.flatMap((row) => {
+export type ChainDenylist = { pages: string[]; quotes: ChainQuote[] };
+
+export const EMPTY_CHAIN_DENYLIST: ChainDenylist = { pages: [], quotes: [] };
+
+const quoteId = (host: string, key: string, quote: string) => `${host}\u0000${key}\u0000${foldText(quote)}`;
+
+/** Read a committed denylist. A malformed file throws, because a silent empty list lets chain pages back in. */
+export function parseChainDenylist(data: unknown): ChainDenylist {
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("chain denylist is not an object");
+  const record = data as Record<string, unknown>;
+  if (!Array.isArray(record.pages) || !Array.isArray(record.quotes)) {
+    throw new Error("chain denylist needs pages and quotes arrays");
+  }
+  const pages = record.pages.map((page) => {
+    const key = typeof page === "string" && page ? chainPageKey(`https://${page.replace(/^https?:\/\//i, "")}`) : null;
+    if (!key) throw new Error("chain denylist page is not a page");
+    return key;
+  });
+  const quotes = record.quotes.map((item) => {
+    const entry = (item ?? {}) as Record<string, unknown>;
+    if (typeof entry.host !== "string" || typeof entry.quote !== "string" || !KEY_SET.has(String(entry.key))) {
+      throw new Error("chain denylist quote needs host, amenity key and quote");
+    }
+    return { host: entry.host, key: entry.key as PubWebsiteAmenityKey, quote: foldText(entry.quote) };
+  });
+  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, { pages, quotes });
+}
+
+/** Both lists in one, deduplicated and sorted, so the committed file only changes when the proof does. */
+export function mergeChainDenylists(a: ChainDenylist, b: ChainDenylist): ChainDenylist {
+  const pages = [...new Set([...a.pages, ...b.pages])].sort();
+  const quotes = new Map<string, ChainQuote>();
+  for (const entry of [...a.quotes, ...b.quotes]) {
+    const folded = { ...entry, quote: foldText(entry.quote) };
+    quotes.set(quoteId(folded.host, folded.key, folded.quote), folded);
+  }
+  return {
+    pages,
+    quotes: [...quotes.entries()].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([, entry]) => entry),
+  };
+}
+
+/** Whether a URL is a page already proven chain-wide. The harvest asks this before it fetches. */
+export function isChainPage(url: string, denylist: ChainDenylist): boolean {
+  const page = chainPageKey(url);
+  return page !== null && denylist.pages.includes(page);
+}
+
+function sourcedRows<T extends PubEvidenceRow>(rows: readonly T[]) {
+  return rows.flatMap((row) => {
     const source = row.sourceUrl ? sourcePage(row.sourceUrl) : null;
     return source ? [{ row, ...source }] : [];
   });
+}
+
+/**
+ * What these rows prove chain-wide: a page more than one pub points at once
+ * its query, fragment and trailing slash are set aside, the home page of a
+ * host several pubs share, and a quote repeated word for word across pubs on
+ * one host.
+ */
+export function provenChainEvidence<T extends PubEvidenceRow>(rows: readonly T[]): ChainDenylist {
+  const sourced = sourcedRows(rows);
   const pubsPerPage = countBy(sourced, (item) => item.page);
   const pubsPerHost = countBy(sourced, (item) => item.host);
-  const quoteKey = (host: string, key: string, quote: string) => `${host}\u0000${key}\u0000${foldText(quote)}`;
-  const pubsPerQuote = countBy(
-    sourced.flatMap(({ row, host }) =>
-      Object.entries(row.amenities ?? {}).map(([key, quote]) => quoteKey(host, key, String(quote))),
-    ),
-    (item) => item,
-  );
+  const pages = new Set<string>();
+  for (const { host, page } of sourced) {
+    if ((pubsPerPage.get(page) ?? 0) > 1) pages.add(page);
+    if (page === host && (pubsPerHost.get(host) ?? 0) > 1) pages.add(page);
+  }
+  const quotes = new Map<string, { entry: ChainQuote; pubs: number }>();
+  for (const { row, host } of sourced) {
+    for (const [key, quote] of Object.entries(row.amenities ?? {}) as [PubWebsiteAmenityKey, string][]) {
+      const id = quoteId(host, key, String(quote));
+      const seen = quotes.get(id);
+      quotes.set(id, { entry: { host, key, quote: foldText(String(quote)) }, pubs: (seen?.pubs ?? 0) + 1 });
+    }
+  }
+  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, {
+    pages: [...pages],
+    quotes: [...quotes.values()].filter((item) => item.pubs > 1).map((item) => item.entry),
+  });
+}
+
+/**
+ * Evidence that speaks for one pub. A chain-wide page or quote describes the
+ * brand rather than any one pub, so it goes, whether these rows prove it or
+ * the committed denylist already holds the proof from an earlier run. Every
+ * stamp, from a fresh harvest or from the committed evidence file, goes
+ * through here.
+ */
+export function pubSpecificEvidence<T extends PubEvidenceRow>(
+  rows: readonly T[],
+  denylist: ChainDenylist = EMPTY_CHAIN_DENYLIST,
+): (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] {
+  const chain = mergeChainDenylists(denylist, provenChainEvidence(rows));
+  const chainPages = new Set(chain.pages);
+  const chainQuotes = new Set(chain.quotes.map((entry) => quoteId(entry.host, entry.key, entry.quote)));
   const kept: (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] = [];
-  for (const { row, host, page } of sourced) {
-    if (pubsPerPage.get(page) !== 1) continue;
-    if (page === host && (pubsPerHost.get(host) ?? 0) > 1) continue;
+  for (const { row, host, page } of sourcedRows(rows)) {
+    if (chainPages.has(page)) continue;
     const ownQuotes: Partial<Record<PubWebsiteAmenityKey, string>> = {};
     for (const [key, quote] of Object.entries(row.amenities ?? {}) as [PubWebsiteAmenityKey, string][]) {
-      if (pubsPerQuote.get(quoteKey(host, key, quote)) === 1) ownQuotes[key] = quote;
+      if (!chainQuotes.has(quoteId(host, key, String(quote)))) ownQuotes[key] = quote;
     }
     const amenities = statedAmenities(ownQuotes);
     if (Object.keys(amenities).length === 0) continue;
