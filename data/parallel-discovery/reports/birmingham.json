@@ -1,0 +1,42 @@
+{
+  "city": "birmingham",
+  "runId": "trun_ce5fd53e0016415f9d8260aac231afee",
+  "observedAt": "2026-10-04T10:15:57.563Z",
+  "researched": 6,
+  "accepted": 0,
+  "totalAccepted": 4,
+  "rejected": [
+    {
+      "name": "Smoke + Ash Kings Heath",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Piccolino",
+      "reason": "citation-does-not-bind-name-and-address"
+    }
+  ],
+  "duplicates": [
+    {
+      "name": "Society Birmingham",
+      "matchedName": "Society Birmingham",
+      "matchedId": "venue-bhm-1erud0f"
+    },
+    {
+      "name": "Smoke + Ash Edgbaston Village",
+      "matchedName": "Smoke + Ash Edgbaston Village",
+      "matchedId": "venue-bhm-m8q2cy"
+    },
+    {
+      "name": "Byzantium Tapas Restaurant",
+      "matchedName": "Byzantium Tapas Restaurant",
+      "matchedId": "venue-bhm-kj58hz"
+    },
+    {
+      "name": "Lulu Wild",
+      "matchedName": "Lulu Wild",
+      "matchedId": "venue-bhm-kpiwyz"
+    }
+  ],
+  "publishable": true,
+  "outputPath": "data/cities/birmingham/parallel_venues.json"
+}

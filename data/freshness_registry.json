@@ -328,6 +328,20 @@
       "stalenessBudgetHours": 720,
       "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh; then --write --exclusive --refresh after shared-key jobs finish). --refresh starts a new push only once a copied row is over 30 days old and re-requests rows that are missing, failed earlier or were over 30 days old when that push started. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 404 or non-key 400 failures are recorded and the run continues, and any other failure stops it. The committed spend ledger seeds a clone with no local checkpoint and keeps every push's attempts.",
       "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields, USD 85 attempt cap per calendar month across all pushes and checked daily-quota restoration. The oldest copied row dates this artifact, a small stamp the runner and npm run build:places-enrichment derive from data/places_enrichment.json so the spine never parses the full pack."
+    },
+    {
+      "id": "parallel_venue_discovery",
+      "label": "Parallel web venue discoveries",
+      "class": "episodic",
+      "artifact": "data/parallel-discovery/freshness.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "oldestObservedAt"
+      },
+      "cadence": "Manual, city-by-city research. Cached reruns preserve observation dates.",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "node scripts/discover_parallel_venues.mjs --cities=<city,...> --refresh, then npm run build:city-slim and node scripts/discover_parallel_venues.mjs --check. Oldest accepted per-row observation owns the stamp; unchanged rows never inherit a new research date.",
+      "gate": "PARALLEL_API_KEY. Each venue requires venue-specific non-Google citations and a geocoded address or cited coordinates. Presence evidence only; no prices or opening-hours claims."
     }
   ]
 }

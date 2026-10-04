@@ -1,0 +1,22 @@
+{
+  "source": "Parallel venue discovery",
+  "oldestObservedAt": "2026-10-04T10:15:57.563Z",
+  "venues": 14,
+  "cities": [
+    {
+      "city": "birmingham",
+      "venues": 4,
+      "publishable": true
+    },
+    {
+      "city": "leeds",
+      "venues": 7,
+      "publishable": true
+    },
+    {
+      "city": "glasgow",
+      "venues": 3,
+      "publishable": true
+    }
+  ]
+}

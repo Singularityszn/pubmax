@@ -1,0 +1,57 @@
+{
+  "city": "leeds",
+  "runId": "trun_ce5fd53e0016415f95a8f9235b91525e",
+  "observedAt": "2026-10-04T10:17:28.260Z",
+  "researched": 9,
+  "accepted": 0,
+  "totalAccepted": 7,
+  "rejected": [
+    {
+      "name": "Below Stairs",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    }
+  ],
+  "duplicates": [
+    {
+      "name": "SALT Calls Landing",
+      "matchedName": "SALT Calls Landing",
+      "matchedId": "venue-lds-fk8iy"
+    },
+    {
+      "name": "The End",
+      "matchedName": "The End",
+      "matchedId": "venue-lds-1no9pxs"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "matchedName": "The Cut & Craft Leeds",
+      "matchedId": "venue-lds-1dzk9eh"
+    },
+    {
+      "name": "The Banksia",
+      "matchedName": "The Banksia",
+      "matchedId": "venue-lds-teft4u"
+    },
+    {
+      "name": "Restaurant Bar & Grill Leeds",
+      "matchedName": "Restaurant Bar & Grill Leeds",
+      "matchedId": "venue-lds-111qh3y"
+    },
+    {
+      "name": "Rita's Leeds",
+      "matchedName": "Rita's Leeds",
+      "matchedId": "venue-lds-3f49ii"
+    },
+    {
+      "name": "Farrands",
+      "matchedName": "Farrands",
+      "matchedId": "venue-lds-uz9izu"
+    }
+  ],
+  "publishable": true,
+  "outputPath": "data/cities/leeds/parallel_venues.json"
+}
