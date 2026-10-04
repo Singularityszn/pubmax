@@ -83,6 +83,16 @@ describe("mapLoadingHeld", () => {
     slimPinCount: 0,
   };
 
+  it("releases an intentional national overview after its visible canvas frame", () => {
+    const overview = { ...stage, nationalOverview: true };
+    expect(mapLoadingHeld(overview)).toBe(true);
+    expect(mapLoadingHeld({ ...overview, canvasReady: true })).toBe(true);
+    const painted = { ...overview, canvasReady: true, pinsRevealed: true };
+    expect(mapLoadingHeld(painted)).toBe(false);
+    expect(mapLoadingProgressPercent(painted)).toBe(100);
+    expect(mapLoadingHeld({ ...painted, nationalOverview: false })).toBe(true);
+  });
+
   it("holds the frame until the pins are revealed", () => {
     expect(mapLoadingHeld(stage)).toBe(true);
     expect(mapLoadingHeld({ ...stage, canvasReady: true })).toBe(true);

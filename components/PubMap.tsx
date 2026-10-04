@@ -1322,6 +1322,8 @@ export default function PubMap({
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  const [ukBaseStatus, setUkBaseStatus] =
+    useState<UkBaseStreamStatus>("loading");
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
@@ -2337,8 +2339,9 @@ export default function PubMap({
       canvasReady: mapCanvasReady,
       slimLoaded: loaded,
       slimPinCount: slimPins.length,
+      nationalOverview: ukNationalBrowse && !ukPlaceArrival && !selectedVenueId && ukBaseStatus === "zoom_required",
     }),
-    [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
+    [pinsRevealed, mapCanvasReady, loaded, slimPins.length, ukNationalBrowse, ukPlaceArrival, selectedVenueId, ukBaseStatus],
   );
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
   const mapCanvasAvailabilityState = mapCanvasAvailability({
@@ -3030,8 +3033,6 @@ export default function PubMap({
     ],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
-  const [ukBaseStatus, setUkBaseStatus] =
-    useState<UkBaseStreamStatus>("loading");
   /** Resident streamed base pubs (padded viewport), for map-search name match. */
   const [residentUkBasePubs, setResidentUkBasePubs] = useState<UkBasePub[]>([]);
   const provisionalRestoreResolved = useRef(!ukBaseRestore);
@@ -6269,6 +6270,7 @@ export default function PubMap({
         venues={canvasVenues}
         filteredVenueCount={canvasVenues.length}
         venueDataReady={loaded && loadedCityId === cityId}
+        nationalBrowse={ukNationalBrowse && !ukPlaceArrival && !selectedVenueId}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}

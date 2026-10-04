@@ -12,25 +12,25 @@ export function mapLoadingPrimaryLine(cityDisplayName: string): string {
 }
 
 /**
- * What the held frame has actually reached. Pin reveal is the only complete
- * answer: a painted basemap or a loaded slim index is progress towards tappable
- * pins, never the arrival.
+ * City arrivals wait for tappable pins. An intentional national overview
+ * waits for its visible basemap because its pub data is below the zoom gate.
  */
 export type MapLoadingStage = {
   pinsRevealed: boolean;
   canvasReady: boolean;
   slimLoaded: boolean;
   slimPinCount: number;
+  /** Below-gate national browse intentionally has no curated pin read. */
+  nationalOverview?: boolean;
 };
 
 /**
- * Whether the held frame stays up. Pin reveal is necessary and not sufficient:
- * above the phone breakpoint the canvas reveals on painted basemap tiles alone,
- * so a reveal that lands while the slim index is still in flight would lift the
- * frame onto a pub-free map. The index has to have answered as well.
+ * City arrivals require the pin reveal and an answered index. The national
+ * overview requires its canvas handoff instead of an intentionally absent read.
  */
 export function mapLoadingHeld(stage: MapLoadingStage): boolean {
   if (!stage.pinsRevealed) return true;
+  if (stage.nationalOverview) return !stage.canvasReady;
   return !stage.slimLoaded && stage.slimPinCount === 0;
 }
 
