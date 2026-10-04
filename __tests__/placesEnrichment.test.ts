@@ -21,7 +21,7 @@ it("publishes copied contacts, address and regular hours with each field's own s
   expect(venue.placesContent?.formattedAddress).toEqual({ value: "1 High Street, London", source: "google_places", observedAt: "2026-10-04T09:00:00Z" });
 });
 
-it("ages each copied field independently and refuses unsafe contacts", () => {
+it("keeps each copied field under its own date past 30 days and refuses unsafe contacts", () => {
   const record = placesEnrichmentRecord("venue-osm-n1", "ChIJVerified123", {
     formattedAddress: "New address", websiteUri: "javascript:alert(1)", nationalPhoneNumber: "visit example.com",
     regularOpeningHours: { periods: [{ open: { day: 0, hour: 12, minute: 0 }, close: { day: 0, hour: 23, minute: 0 } }] },
@@ -31,8 +31,9 @@ it("ages each copied field independently and refuses unsafe contacts", () => {
   expect(venue.address).toBe("New address");
   expect(venue.website).toBe(base().website);
   expect(venue.contacts?.phoneHref).toBeNull();
-  expect(venue.openingHours).toBeUndefined();
-  expect(applyPlacesEnrichment(base(), record, new Date("2026-12-01T00:00:00Z")).address).toBe(base().address);
+  expect(venue.openingHours?.[0]).toEqual([{ opens: "12:00", closes: "23:00" }]);
+  expect(venue.placesContent?.regularOpeningHours?.observedAt).toBe("2026-08-01T09:00:00Z");
+  expect(applyPlacesEnrichment(base(), record, new Date("2026-12-01T00:00:00Z")).address).toBe("New address");
 });
 
 it("keeps missing and invalid hours unknown, including future-dated hours", () => {

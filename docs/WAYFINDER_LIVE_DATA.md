@@ -170,7 +170,7 @@ compares age against budget. Prints a status table and **exits non-zero on any
 breach** (`stale`) or broken artifact (`unknown`), listing the two apart under
 their own headings: data that is over budget and data whose age could not be
 measured are different findings with different owners. A dataset named in
-`ADVISORY_STALE_IDS` (today only `area_news`) still reports `stale` but prints
+`ADVISORY_STALE_IDS` (today `area_news` and `google_places_content`) still reports `stale` but prints
 as an advisory warning and never fails the exit. This is the owner/ad-hoc gate.
 Plain Node ESM, dependency-free — it mirrors `lib/freshness.ts`'s tiny rules the
 same way `validate-data.mjs` mirrors the app's row rules.

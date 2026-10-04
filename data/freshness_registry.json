@@ -324,10 +324,10 @@
         "kind": "field",
         "pointer": "observedAt"
       },
-      "cadence": "Manual verified-id collection; each copied field expires independently after 30 days",
+      "cadence": "Manual verified-id push; each copied field stays shown under its own observedAt and is due for refresh after 30 days",
       "stalenessBudgetHours": 720,
-      "refreshWorkflow": "npm run enrich:google-places -- --dry-run --usage; then --write --exclusive after shared-key jobs finish. Resume preserves per-field observation dates and cumulative attempt spend.",
-      "gate": "Verified place ids only, dated google_places fields, USD 85 attempt cap and checked daily-quota restoration. Oldest copied field dates this artifact."
+      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh; then --write --exclusive --refresh after shared-key jobs finish). --refresh starts a new push only once a copied field is over 30 days old and re-requests every field older than that push. Without --refresh the command resumes the current push. The committed spend ledger seeds a clone with no local checkpoint and keeps earlier pushes' attempts.",
+      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields, USD 85 attempt cap per push and checked daily-quota restoration. Oldest copied field dates this artifact."
     }
   ]
 }

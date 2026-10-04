@@ -35,5 +35,7 @@ it("keeps copied content limited to verified identities and individually dated a
   expect(pack.spend.reservedUsd).toBe(pack.spend.attemptedCalls * 2 / 100);
   expect(pack.spend.reservedUsd).toBeLessThanOrEqual(pack.spend.capUsd);
   expect(pack.spend.capUsd).toBeLessThanOrEqual(85);
-  expect(pack.spend.attemptedCalls).toBeGreaterThanOrEqual(ids.size);
+  expect(pack.spend.priorReservedUsd).toBe(pack.spend.priorAttemptedCalls * 2 / 100);
+  expect(pack.spend.priorAttemptedCalls + pack.spend.attemptedCalls).toBeGreaterThanOrEqual(ids.size);
+  expect(pack.summary.errors).toBe(pack.errors.length);
 });

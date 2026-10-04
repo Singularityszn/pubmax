@@ -18,4 +18,6 @@ it("serves exactly matched OSM identity to curated and base readers; conflicting
   expect(await placesRecordForVenue("venue-canonical", ["node/123"])).toMatchObject({ googlePlaceId: "ChIJVerified0001" });
   expect(await placesRecordForVenue("venue-canonical", ["node/123", "way/456"])).toBeNull();
   expect(await placesRecordForVenue("venue-uk-n999")).toBeNull();
+  expect(await placesRecordForVenue("venue-canonical", ["Node/0123"])).toMatchObject({ googlePlaceId: "ChIJVerified0001" });
+  expect(await placesRecordForVenue("venue-osm-W0456")).toMatchObject({ googlePlaceId: "ChIJVerified0002" });
 });

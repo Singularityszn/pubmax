@@ -7,6 +7,9 @@
     "attemptedCalls": 3053,
     "usdPerThousand": 20,
     "reservedUsd": 61.06,
+    "priorAttemptedCalls": 0,
+    "priorReservedUsd": 0,
+    "runStartedAt": null,
     "monthToDatePlacesRequestsBeforeRun": 15429,
     "freeAllowanceAssumed": 0
   },
@@ -22,6 +25,7 @@
     "websites": 2627,
     "errors": 0
   },
+  "errors": [],
   "venues": [
     {
       "venueId": "venue-osm-n581058547",
