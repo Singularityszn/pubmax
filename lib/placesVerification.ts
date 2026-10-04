@@ -348,6 +348,81 @@ export function mergeClosedOsmRefs(input: {
 }
 
 /**
+ * The monthly Details usage a checkpoint resumes from. Monitoring already
+ * counts this job's own attempts, sometimes late. A partial update can hide
+ * foreign usage, so refuse both lagged and excess counts until the measurement
+ * agrees with the checkpoint baseline plus every recorded attempt.
+ */
+export function resumedDetailsBaseline(input: {
+  measured: number;
+  checkpointPrior?: number;
+  checkpointAttempts?: number;
+}): number {
+  if (input.checkpointPrior === undefined) return input.measured;
+  if (input.measured !== input.checkpointPrior + (input.checkpointAttempts ?? 0)) {
+    throw new Error("checkpoint usage differs; review spend before resuming");
+  }
+  return input.checkpointPrior;
+}
+
+const UNSENT_REQUEST_CODES = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "UND_ERR_CONNECT_TIMEOUT",
+]);
+
+/**
+ * True only when fetch failed before a connection carried the request, so
+ * Google cannot have counted it. Timeouts and resets stay counted.
+ */
+function requestNeverSent(error: unknown): boolean {
+  const code = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return typeof code === "string" && UNSENT_REQUEST_CODES.has(code);
+}
+
+/**
+ * Send one Places request, backing off on 429 and 503. Every attempt,
+ * retries included, waits for its pacing slot and is then reserved right
+ * before it is sent, so an interrupted wait records nothing. A refused
+ * reservation returns null so the caller skips the venue instead of spending
+ * past its cap. An attempt that never left this machine is released before
+ * the error is rethrown.
+ */
+export async function placesRequestWithinBudget<T>(input: {
+  attempts: number;
+  pace: () => Promise<void>;
+  reserve: () => boolean;
+  release: () => void;
+  send: () => Promise<{ status: number; body: T }>;
+  backoff: (attempt: number) => Promise<void>;
+}): Promise<T | null> {
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < input.attempts; attempt += 1) {
+    await input.pace();
+    if (!input.reserve()) return null;
+    let reply: { status: number; body: T };
+    try {
+      reply = await input.send();
+    } catch (error) {
+      if (requestNeverSent(error)) input.release();
+      throw error;
+    }
+    const { status, body } = reply;
+    lastStatus = status;
+    if (status === 429 || status === 503) {
+      await input.backoff(attempt);
+      continue;
+    }
+    if (status < 200 || status >= 300) throw new Error(`Places HTTP ${status}`);
+    return body;
+  }
+  throw new Error(`Places HTTP ${lastStatus || 429}`);
+}
+
+/**
  * Put the daily overrides back, and only report success once both effective
  * limits match the values read at the start. A failed attempt leaves the
  * caller free to try again.
