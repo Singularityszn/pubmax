@@ -21,6 +21,7 @@ const SLIM_PATH = path.join(
   "venues_slim.json",
 );
 const POIS_PATH = path.join(ROOT, "public", "data", "cities", "liverpool", "pois.json");
+const DISCOVERIES_PATH = path.join(ROOT, "data", "cities", "liverpool", "parallel_venues.json");
 
 const slim = (rowsFromSlimPayload(JSON.parse(readFileSync(SLIM_PATH, "utf8"))) ?? []) as SlimVenue[];
 const slimIds = new Set(slim.map((v) => v.id));
@@ -34,9 +35,14 @@ describe("Liverpool editorial pack", () => {
   const bands = storyBandsForCity("liverpool");
   const crawls = curatedCrawlsForCity("liverpool");
 
-  it("ships a ~406-venue slim index", async () => {
-    expect(slim.length).toBeGreaterThanOrEqual(400);
-    expect(slim.length).toBeLessThanOrEqual(420);
+  it("ships the ~406 OSM venues plus every sourced discovery", async () => {
+    const discoveredIds = new Set<string>(
+      (JSON.parse(readFileSync(DISCOVERIES_PATH, "utf8")).venues as { id: string }[]).map((venue) => venue.id),
+    );
+    const osmRows = slim.filter((venue) => !discoveredIds.has(venue.id));
+    expect(osmRows.length).toBeGreaterThanOrEqual(400);
+    expect(osmRows.length).toBeLessThanOrEqual(420);
+    expect(slim.length).toBe(osmRows.length + discoveredIds.size);
   });
 
   it("ships ≥8 sourced landmarks", async () => {
