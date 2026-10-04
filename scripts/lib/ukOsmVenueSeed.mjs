@@ -76,7 +76,15 @@ const ALCOHOL_SERVED = ["yes", "served"];
 const REAL_ALE_SERVED = ["yes", "only", "sometimes"];
 
 function statedAvailable(value) {
-  return DRINK_AVAILABLE.includes(value ?? "");
+  if (!value) return false;
+  // OSM lists several availabilities in one tag, separated by semicolons.
+  return value.split(";").some((part) => DRINK_AVAILABLE.includes(part.trim()));
+}
+
+/** Overpass match for a qualifying availability, alone or as one semicolon-separated token. */
+function drinkAvailablePattern() {
+  const token = DRINK_AVAILABLE.join("|");
+  return `^(?:[^;]*;)*\\s*(?:${token})\\s*(?:;.*)?$`;
 }
 
 /**
@@ -104,19 +112,18 @@ export function statesAlcohol(tags) {
 function alcoholStatedSelectors(base) {
   const drinkNames = ALCOHOLIC_DRINK_KEYS.map((key) => key.slice("drink:".length)).join("|");
   const drinkKeys = ALCOHOLIC_DRINK_KEYS.join("|");
-  const available = DRINK_AVAILABLE.join("|");
   return [
     `${base}["bar"="yes"]`,
     `${base}["microbrewery"="yes"]`,
     `${base}["real_ale"~"^(yes|only|sometimes)$"]`,
     `${base}["alcohol"~"^(yes|served)$"]`,
     `${base}["drink"~"^(${drinkNames})$"]`,
-    `${base}[~"^(${drinkKeys})$"~"^(${available})$"]`,
+    `${base}[~"^(${drinkKeys})$"~"${drinkAvailablePattern()}"]`,
   ];
 }
 
 const ALCOHOL_STATED_NOTE =
-  "a bar, a microbrewery, real ale, alcohol=yes|served, drink=<alcoholic name>, or an alcoholic drink:* key as yes, served, draught or bottled";
+  "a bar, a microbrewery, real ale, alcohol=yes|served, drink=<alcoholic name>, or an alcoholic drink:* key as yes, served, draught or bottled, including when that value is one token in a semicolon-separated list";
 
 /** @type {TaxonomyRow[]} */
 export const UK_VENUE_TAXONOMY = [

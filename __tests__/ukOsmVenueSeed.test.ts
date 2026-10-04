@@ -104,8 +104,19 @@ describe("UK venue taxonomy", () => {
     expect(classifyVenueTags({ amenity: "restaurant", bar: "no" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", alcohol: "no" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", "drink:coffee": "yes" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "served;bottled" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no;served" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "served; bottled" })?.key).toBe(
+      "restaurant_bar",
+    );
     expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "retail" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no;retail" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "notserved" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", drink: "coffee" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", opening_hours: "24/7" })).toBeNull();
     expect(statesAlcohol({ "drink:coffee": "yes", "drink:tea": "yes" })).toBe(false);
@@ -139,6 +150,7 @@ describe("UK venue taxonomy", () => {
     expect(query).toContain('node["club"]["bar"="yes"](area.uk)');
     expect(query).toContain('node["amenity"="casino"]["alcohol"~"^(yes|served)$"](area.uk)');
     expect(query).not.toContain("drink:coffee");
+    expect(query).toContain("(?:[^;]*;)*\\s*(?:yes|served|draught|bottled)\\s*(?:;.*)?$");
     for (const key of ALCOHOLIC_DRINK_KEYS) expect(query).toContain(key);
   });
 

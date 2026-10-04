@@ -56,7 +56,8 @@ written down. THE RULE is that a row exists because OSM **states** the thing:
 
 Stated alcohol is a stated `bar`, `microbrewery`, `real_ale`, `alcohol=yes` or
 `alcohol=served`, `drink` set to an alcoholic name, or an alcoholic `drink:*`
-key (`yes`, `served`, `draught` or `bottled`). The alcoholic `drink:*` keys are
+key (`yes`, `served`, `draught` or `bottled`, including when that value is one
+token in a semicolon-separated list such as `served;bottled`). The alcoholic `drink:*` keys are
 the Alcoholic list on OSM wiki
 [Key:drink:*](https://wiki.openstreetmap.org/wiki/Key:drink:*). Coffee, tea and
 the other non-alcoholic keys on that page do not qualify.
