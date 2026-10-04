@@ -1,0 +1,172 @@
+{
+  "processor": "pro",
+  "matchesPerPage": 30,
+  "categories": [
+    "pub",
+    "bar",
+    "cocktail-bar",
+    "restaurant"
+  ],
+  "oldestObservedAt": "2026-10-04T10:15:57.563Z",
+  "newestObservedAt": "2026-10-04T11:39:17.819Z",
+  "cities": [
+    {
+      "city": "birmingham",
+      "districts": 42,
+      "slices": 168,
+      "slicesComplete": 91,
+      "taskRuns": 675,
+      "researched": 2056,
+      "added": 126,
+      "retained": 4,
+      "duplicates": 26,
+      "rejected": 1835,
+      "totalAccepted": 130
+    },
+    {
+      "city": "leeds",
+      "districts": 21,
+      "slices": 84,
+      "slicesComplete": 8,
+      "taskRuns": 110,
+      "researched": 506,
+      "added": 21,
+      "retained": 4,
+      "duplicates": 4,
+      "rejected": 471,
+      "totalAccepted": 28
+    },
+    {
+      "city": "glasgow",
+      "districts": 26,
+      "slices": 104,
+      "slicesComplete": 4,
+      "taskRuns": 75,
+      "researched": 305,
+      "added": 21,
+      "retained": 0,
+      "duplicates": 6,
+      "rejected": 274,
+      "totalAccepted": 24
+    },
+    {
+      "city": "manchester",
+      "districts": 52,
+      "slices": 208,
+      "slicesComplete": 0,
+      "taskRuns": 0,
+      "researched": 0,
+      "added": 0,
+      "retained": 0,
+      "duplicates": 0,
+      "rejected": 0,
+      "totalAccepted": 0
+    },
+    {
+      "city": "durham",
+      "districts": 1,
+      "slices": 4,
+      "slicesComplete": 0,
+      "taskRuns": 8,
+      "researched": 49,
+      "added": 6,
+      "retained": 0,
+      "duplicates": 1,
+      "rejected": 42,
+      "totalAccepted": 6
+    },
+    {
+      "city": "liverpool",
+      "districts": 35,
+      "slices": 140,
+      "slicesComplete": 0,
+      "taskRuns": 0,
+      "researched": 0,
+      "added": 0,
+      "retained": 0,
+      "duplicates": 0,
+      "rejected": 0,
+      "totalAccepted": 0
+    },
+    {
+      "city": "bristol",
+      "districts": 14,
+      "slices": 56,
+      "slicesComplete": 0,
+      "taskRuns": 0,
+      "researched": 0,
+      "added": 0,
+      "retained": 0,
+      "duplicates": 0,
+      "rejected": 0,
+      "totalAccepted": 0
+    },
+    {
+      "city": "bath",
+      "districts": 2,
+      "slices": 8,
+      "slicesComplete": 0,
+      "taskRuns": 0,
+      "researched": 0,
+      "added": 0,
+      "retained": 0,
+      "duplicates": 0,
+      "rejected": 0,
+      "totalAccepted": 0
+    },
+    {
+      "city": "oxford",
+      "districts": 4,
+      "slices": 16,
+      "slicesComplete": 0,
+      "taskRuns": 0,
+      "researched": 0,
+      "added": 0,
+      "retained": 0,
+      "duplicates": 0,
+      "rejected": 0,
+      "totalAccepted": 0
+    },
+    {
+      "city": "cambridge",
+      "districts": 5,
+      "slices": 20,
+      "slicesComplete": 0,
+      "taskRuns": 0,
+      "researched": 0,
+      "added": 0,
+      "retained": 0,
+      "duplicates": 0,
+      "rejected": 0,
+      "totalAccepted": 0
+    },
+    {
+      "city": "llandudno",
+      "districts": 5,
+      "slices": 20,
+      "slicesComplete": 0,
+      "taskRuns": 0,
+      "researched": 0,
+      "added": 0,
+      "retained": 0,
+      "duplicates": 0,
+      "rejected": 0,
+      "totalAccepted": 0
+    }
+  ],
+  "failedSlices": 725,
+  "firstFailure": "birmingham/B14/bar: Parallel /v1/tasks/runs HTTP 402; validation=[]; checkpoint retained, rerun to resume",
+  "usage": {
+    "calls": 2605,
+    "byEndpoint": {
+      "/v1/search 200": 10,
+      "/v1/tasks/runs 422": 1,
+      "/v1/tasks/runs 202": 871,
+      "/v1/tasks/runs/{run_id} 200": 16,
+      "/v1/tasks/runs/{run_id}/result 200": 871,
+      "/v1/tasks/runs/{run_id}/result 408": 13,
+      "/v1/tasks/runs 402": 823
+    },
+    "estimatedCostUsd": 87.15
+  }
+}

@@ -34,6 +34,43 @@ export function inCity(lat, lng, city) {
     && lat >= south && lat <= north && lng >= west && lng <= east;
 }
 
+// Every address part before and around the postcode must be quoted, so a
+// qualifier such as "Upstairs" cannot vouch for an invented street after it.
+export function citationBindsIdentity({ name, address, evidence }, city) {
+  const quotes = normalizedText((evidence ?? []).map((entry) => entry.excerpt).join(" "));
+  const segments = text(address).split(",");
+  const postcodeAt = segments.findIndex((segment) => postcodeIn(segment));
+  const postcode = postcodeIn(address);
+  if (!postcode || !quotes.includes(normalizedText(name)) || !quotes.includes(normalizedText(postcode))) return false;
+  return segments.slice(0, postcodeAt + 1)
+    .map((segment) => normalizedText(segment.replace(POSTCODE, "")))
+    .filter((segment) => segment && segment !== normalizedText(city.displayName))
+    .every((segment) => quotes.includes(segment));
+}
+
+// Names a research page returned that neither a known venue nor an earlier
+// page already carries. A page with none ends its slice's paging.
+export function unseenNames(rows, known) {
+  const names = known.map((row) => normalizeVenueIdentityName(row.name));
+  const fresh = [];
+  for (const row of rows) {
+    const name = normalizeVenueIdentityName(row?.name);
+    if (!name || names.some((other) => namesLikelySamePub(name, other))) continue;
+    names.push(name);
+    fresh.push(row.name);
+  }
+  return fresh;
+}
+
+export function postcodeDistricts(rows, city) {
+  const districts = new Set();
+  for (const row of rows) {
+    const postcode = postcodeIn(row.postcode) ?? postcodeIn(row.address);
+    if (postcode && inCity(row.lat, row.lng, city)) districts.add(postcode.split(" ")[0]);
+  }
+  return [...districts].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+}
+
 export function parseTaskVenues(result, city, observedAt) {
   if (!/^\d{4}-\d{2}-\d{2}T/.test(observedAt) || !Number.isFinite(Date.parse(observedAt)) || Date.parse(observedAt) > Date.now()) throw new Error("Invalid observation date");
   const output = result?.output;
@@ -58,8 +95,7 @@ export function parseTaskVenues(result, city, observedAt) {
     if (!name || !["pub", "bar", "restaurant"].includes(kind)) reason = "invalid-identity-or-kind";
     else if (!address || !postcode) reason = "missing-geocodable-address";
     else if (!evidence.length) reason = "missing-venue-specific-citation";
-    else if (!normalizedText(quotes).includes(normalizedText(name)) || !normalizedText(quotes).includes(normalizedText(postcode))
-      || !normalizedText(quotes).includes(normalizedText(address.split(",")[0]))) reason = "citation-does-not-bind-name-and-address";
+    else if (!citationBindsIdentity({ name, address, evidence }, city)) reason = "citation-does-not-bind-name-and-address";
     else if (/\b(?:permanently closed|closed permanently|ceased trading)\b/i.test(quotes)) reason = "closed-venue";
     else if (kind === "restaurant" ? !/\b(?:beers?|cocktails?|draught|lagers?|wine list|wines|spirits|alcoholic drinks)\b/i.test(quotes) : !/\b(?:pub|public house|bar|beers?|cocktails?|ales?|lagers?)\b/i.test(quotes)) reason = "missing-drinking-evidence";
     if (reason) { rejected.push({ name, reason }); continue; }
@@ -103,11 +139,27 @@ export function validateDiscoveryPack(pack, city) {
       || !postcodeIn(row.address) || !["source-coordinate", "postcode-centroid"].includes(row.coordinatePrecision)
       || !/^\d{4}-\d{2}-\d{2}T/.test(row.observedAt) || !Number.isFinite(Date.parse(row.observedAt)) || Date.parse(row.observedAt) > Date.now()
       || !Array.isArray(row.sourceUrls) || !row.sourceUrls.length || !row.sourceUrls.every(allowedEvidenceUrl)
-      || !Array.isArray(row.evidence) || !row.evidence.length || !row.evidence.every((entry) => row.sourceUrls.includes(entry.url) && text(entry.excerpt))) {
+      || !Array.isArray(row.evidence) || !row.evidence.length || !row.evidence.every((entry) => row.sourceUrls.includes(entry.url) && text(entry.excerpt))
+      || !citationBindsIdentity(row, city)) {
       throw new Error(`Invalid Parallel venue evidence: ${text(row?.name) || "unnamed"}`);
     }
   }
   return pack;
+}
+
+// The city's own earlier discoveries are retained, never reported as
+// duplicates of themselves; only other sources can make a candidate a duplicate.
+export function assembleCityDiscoveries({ found, previous, existing, city }) {
+  const kept = previous.filter((row) => {
+    try { validateDiscoveryPack({ city: city.id, venues: [row] }, city); return true; }
+    catch { return false; }
+  });
+  const withdrawn = previous.filter((row) => !kept.includes(row)).map((row) => ({ name: row.name, id: row.id ?? null }));
+  const unique = dedupeVenues(found, []);
+  const fresh = dedupeVenues(unique.accepted, kept);
+  const { accepted, duplicates } = dedupeVenues(fresh.accepted, existing);
+  const retained = [...new Map(fresh.duplicates.map((row) => [row.matchedId ?? row.matchedName, { name: row.matchedName, id: row.matchedId }])).values()];
+  return { venues: [...kept, ...accepted], accepted, retained, duplicates, withdrawn, repeats: unique.duplicates.length };
 }
 
 export function mergeCityVenueSources(osmPack, discoveryPack, city) {

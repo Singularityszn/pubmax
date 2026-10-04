@@ -1,57 +1,2017 @@
 {
   "city": "leeds",
-  "runId": "trun_ce5fd53e0016415f95a8f9235b91525e",
-  "observedAt": "2026-10-04T10:17:28.260Z",
-  "researched": 9,
-  "accepted": 0,
-  "totalAccepted": 7,
+  "districts": 21,
+  "slices": 84,
+  "slicesComplete": 8,
+  "incompleteSlices": [
+    "LS1/pub",
+    "LS1/bar",
+    "LS1/cocktail-bar",
+    "LS1/restaurant",
+    "LS2/pub",
+    "LS2/bar",
+    "LS2/cocktail-bar",
+    "LS2/restaurant",
+    "LS3/pub",
+    "LS4/bar",
+    "LS4/cocktail-bar",
+    "LS4/restaurant",
+    "LS5/pub",
+    "LS5/restaurant",
+    "LS6/pub",
+    "LS6/bar",
+    "LS6/cocktail-bar",
+    "LS6/restaurant",
+    "LS7/pub",
+    "LS7/bar",
+    "LS7/cocktail-bar",
+    "LS7/restaurant",
+    "LS8/pub",
+    "LS8/cocktail-bar",
+    "LS8/restaurant",
+    "LS9/pub",
+    "LS9/cocktail-bar",
+    "LS9/restaurant",
+    "LS10/pub",
+    "LS10/bar",
+    "LS10/cocktail-bar",
+    "LS10/restaurant",
+    "LS11/pub",
+    "LS11/bar",
+    "LS11/cocktail-bar",
+    "LS11/restaurant",
+    "LS12/pub",
+    "LS12/bar",
+    "LS12/cocktail-bar",
+    "LS12/restaurant",
+    "LS13/pub",
+    "LS13/bar",
+    "LS13/cocktail-bar",
+    "LS13/restaurant",
+    "LS14/pub",
+    "LS14/bar",
+    "LS14/cocktail-bar",
+    "LS14/restaurant",
+    "LS15/pub",
+    "LS15/bar",
+    "LS15/cocktail-bar",
+    "LS15/restaurant",
+    "LS16/pub",
+    "LS16/bar",
+    "LS16/cocktail-bar",
+    "LS16/restaurant",
+    "LS17/pub",
+    "LS17/bar",
+    "LS17/cocktail-bar",
+    "LS17/restaurant",
+    "LS18/pub",
+    "LS18/bar",
+    "LS18/cocktail-bar",
+    "LS18/restaurant",
+    "LS26/pub",
+    "LS26/bar",
+    "LS26/cocktail-bar",
+    "LS26/restaurant",
+    "LS27/pub",
+    "LS27/bar",
+    "LS27/cocktail-bar",
+    "LS27/restaurant",
+    "WF3/pub",
+    "WF3/bar",
+    "WF3/cocktail-bar",
+    "WF3/restaurant"
+  ],
+  "taskRuns": 110,
+  "researched": 506,
+  "added": 21,
+  "retained": [
+    {
+      "name": "Restaurant Bar & Grill Leeds",
+      "id": "venue-lds-111qh3y"
+    },
+    {
+      "name": "Rita's Leeds",
+      "id": "venue-lds-3f49ii"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "id": "venue-lds-1dzk9eh"
+    },
+    {
+      "name": "SALT Calls Landing",
+      "id": "venue-lds-fk8iy"
+    }
+  ],
+  "totalAccepted": 28,
+  "repeats": 6,
+  "duplicates": [
+    {
+      "name": "White Horse",
+      "matchedName": "The White Horse",
+      "matchedId": "way/670774978"
+    },
+    {
+      "name": "Middleton Conservative Club",
+      "matchedName": "Middleton Conservative Club",
+      "matchedId": "node/391625173"
+    },
+    {
+      "name": "The Canary",
+      "matchedName": "The Canary",
+      "matchedId": "way/992685555"
+    },
+    {
+      "name": "Old Red Lion",
+      "matchedName": "The Old Red Lion",
+      "matchedId": "node/2141116425"
+    }
+  ],
+  "withdrawn": [],
   "rejected": [
     {
-      "name": "Below Stairs",
+      "name": "Archie's Bar & Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bookseller's Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Turk's Head",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Headrow House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Farrands",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Porco Rosso",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "NQ64",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The End Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Elbows on the Table",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Salon Madre",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rita's Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Browns Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Cut & Craft",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brasserie Blanc Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Good Luck Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hoist House",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Headrow House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Domino Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tailors Gin",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The End",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Farrands Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Lost & Found Greek Street",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nyla’s Briggate",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Browns Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Dakota Leeds Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Banksia Bar and Restaurant",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Whitehall Restaurant & Bar",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Be At One Greek Street Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Las Iguanas Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Soap Factory",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Alchemist Trinity",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Banyan Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Azotea",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Turtle Bay Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "BLACKHOUSE Gastrobar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rita's Beer Hall & Ballroom",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Gino D'Acampo",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Lock Kitchen & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Lock Kitchen & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sky Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "LIVIN’Italy",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Archie’s Bar & Kitchen",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Farrands Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The End Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Be At One Greek Street",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Bar at Dakota Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "CrowdedHouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Banksia",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Domino Club",
       "reason": "missing-venue-specific-citation"
     },
     {
       "name": "Tabula Rasa",
       "reason": "missing-venue-specific-citation"
-    }
-  ],
-  "duplicates": [
-    {
-      "name": "SALT Calls Landing",
-      "matchedName": "SALT Calls Landing",
-      "matchedId": "venue-lds-fk8iy"
     },
     {
-      "name": "The End",
-      "matchedName": "The End",
-      "matchedId": "venue-lds-1no9pxs"
+      "name": "Behind Closed Doors",
+      "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "The Cut & Craft Leeds",
-      "matchedName": "The Cut & Craft Leeds",
-      "matchedId": "venue-lds-1dzk9eh"
+      "name": "Tattu Leeds",
+      "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "The Banksia",
-      "matchedName": "The Banksia",
-      "matchedId": "venue-lds-teft4u"
+      "name": "Nyla’s Briggate",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tiki Hideaway",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Headrow House",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Azotea",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tailors Gin",
+      "reason": "citation-does-not-bind-name-and-address"
     },
     {
       "name": "Restaurant Bar & Grill Leeds",
-      "matchedName": "Restaurant Bar & Grill Leeds",
-      "matchedId": "venue-lds-111qh3y"
+      "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "Rita's Leeds",
-      "matchedName": "Rita's Leeds",
-      "matchedId": "venue-lds-3f49ii"
+      "name": "Mowgli Street Food Leeds",
+      "reason": "missing-drinking-evidence"
     },
     {
-      "name": "Farrands",
-      "matchedName": "Farrands",
-      "matchedId": "venue-lds-uz9izu"
+      "name": "Banyan Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Mirror Mirror",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Cosy Club Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Banksia",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Farrands Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Whitehall Restaurant & Bar",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Bibis Italianissimo",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "San Carlo Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Blackhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Salt Calls Landing",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cuthbert Brodrick",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stick or Twist",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Key Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Uyare by Tharavadu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Popworld Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Moods Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "UYARE",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "UYARE by Tharavadu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Habbibi",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Blind Tyger",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Moods Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Harvey Nichols Fourth Floor Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Jamrock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Below Stairs",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Jamrock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Moods",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Habbibi",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Uyare",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Haftsin Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Grosvenor Casino Leeds Westgate",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Viva Cuba",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sheesh Mahal",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Viva Cuba",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sheesh Mahal",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Viva Cuba",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sheesh Mahal",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Melodie 71",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Melodie 71",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Melodie 71",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Boot & Rally",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Stone Green Social",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Terminus Tap Room & Bottle Shop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Number 8",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Residence Bar Cafe | Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Boot & Rally",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Number 8 Cocktails",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Residence Cafe Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "No14 Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stone Green Social",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hyde Cafe + Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "TADA Japanese Restaurant & Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Residence Bar Cafe | Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hyde Cafe + Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Heaney & Mill",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Number 8",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "TADA",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Swine Bistro",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Manahatta Headingley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stone Green Social",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cat's Pyjamas",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "De Baga",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "No14 Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cat's Pyjamas",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Swine Bistro",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Residence Bar/Cafe/Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tada",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Man Zen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bukhara",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Casa Alba Italian Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Kesar Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Canned Heat",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brew+Bao",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Nyla’s Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cat’s Pyjamas Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rasoi Stories",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sukhothai Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Toby Carvery Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "De Baga Mehfil",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Nyla’s Chapel Allerton",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "MYTHOS Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Olive",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Pinche Pinche Mexican Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rasoi Stories",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Toby Carvery Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sukhothai Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rasoi Stories",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "De Baga Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Deliziosa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Pinche Pinche",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Toby Carvery Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cracovia Taste of Poland",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Rudy’s Pizza Napoletana – Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cafe Bar El Born",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "El Born",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Punjabi Heaven",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Flying Pizza",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Clock Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Acapella",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Melbourne",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cafe Bar El Born",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Melbourne",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "San Carlo Flying Pizza",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bagaara Utsav",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Clock Inn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "White Horse",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Piglove Brewing",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Kerala Canteen",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sarto",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Aagrah Leeds City",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Kendells Bistro",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Tetley",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Canary",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "PizzaExpress Leeds Dock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Canary",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "The Tetley Pub",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tetley",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "The Canary",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Tetley",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ciao Bella",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Holbeck",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bianco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Inkwell Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Holbeck Working Mens Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Golden Swan",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Domo Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Domo Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Holbeck",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Domo Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bianco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Escapologist",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "TGI Fridays Leeds White Rose",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Nando’s Leeds – White Rose",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Woodcock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "New Farnley Cricket Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Woodcock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Beulah Bistro",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Farnley Sports & Social Club",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Nook",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Grand Valley Bar & Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Galleria",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Woodcock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bagaara",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Abbey Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Acorn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Beacon",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rock Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rodley Barge",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "The Acorn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Abbey Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Oval Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rock Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rodley Social Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bramley Working Mens Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Beacon",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rodley Barge",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Rock Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Oval Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Rodley Barge",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Beacon",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnleigh",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ephesus Restaurant",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Owl Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Mexborough Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Inn at Scarcroft",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fox",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Greens Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Greens Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Fox at Thorner",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Mexborough Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Inn at Scarcroft",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Greens Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Jinnah Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Barnbow",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Devon",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Charles Henry Roe",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow Social Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Black Swan",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Gascoigne Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Locus Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Charles Henry Roe",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Devon",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bar Tat",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thorpe Park Hotel & Spa Bar & Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Caballero Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Franco’s at Thorpe Park",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cock Beck",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Locus Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "The Buffers",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Charles Henry Roe",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Out Out Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Colton Mill",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Locus Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Zorba's Bar and Grill",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Pintxos44",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Caballero Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Franco's Thorpe Park",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Wagamama Leeds The Springs",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Adel Tap",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fox & Hounds, Bramhope",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Leeds Modernians Sports & Social Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "G-Wu",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bottle Chop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The New Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "West Park Leeds Rugby Union Football Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Stables Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brasserie",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Fox & Hounds, Bramhope",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Stables Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Leeds Modernians Sports & Social Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bottle Chop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Village Pub & Grill – Leeds North",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Adel Tap",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Dastaan Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hickory’s Smokehouse Adel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Adel Tap",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "West Park Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stables Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fox & Hounds, Bramhope",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Olive Branch – Alwoodley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Bingley Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Duke of Wellington",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Old Star",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Old Leodiensian Community Amateur Sports Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Residence Moortown",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ego at The Wellington, Shadwell",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Olive Branch Alwoodley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Olive Branch – Alwoodley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ego at The Wellington, Shadwell",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Bingley Arms",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Gallio Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Duke of Wellington",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Residence Cafe Bar Moortown",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Amici Restaurant",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Granville's Beer & Gin House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hocloco",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Hotel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Black Bull",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brownlee Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fleece",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Forge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Hop Shack",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Ball",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Queens Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Three Swords",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thomas Hardy's Irish Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Once Upon A Vine",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Granville's Beer & Gin House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hive Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hocloco",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Hotel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "StUdio",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Black Bull",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brownlee Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fleece",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Hop Shack",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Ball",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Queens Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Three Swords",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thomas Hardy's Irish Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Escape Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Escape Restaurant & Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hive Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery Taproom",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hoc Loco",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Black Bull",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brownlee Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fleece",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Hop Shack",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Ball",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Queens Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Three Swords",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thomas Hardy's Irish Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery Taproom",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Escape Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bavette Bistro",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Forde",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Konak Meze Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Miller & Carter Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Agora",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Toby Carvery Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Trattoria Il Forno",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Winchester",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "New Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Midland Hotel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Two Pointers",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Boundary House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Commercial",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Two Pointers",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Midland Hotel",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Boundary House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Salto Espresso & Cocktails",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Remedy Cocktail Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Boundary House",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Two Pointers",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Midland Hotel",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Salto Espresso & Cocktails",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bar 27",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Carriers Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Vault Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tipsy Calf",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Dog House Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rhythm & Rye",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Truth Hurts Brewery & Tap",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Morley Dashers",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Village Pub & Grill Leeds South",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Needless Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Gildersome Conservative Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Vault Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rhythm & Rye",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bar 27",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tipsy Cow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Gildersome Conservative Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Dog House Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bacchus",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Village Pub & Grill Leeds South",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sambuca Ristorante Morley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Amici",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Toby Carvery Bruntcliffe",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Halfway House",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Carriers Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Morley Dashers",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Nesso",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rhythm & Rye",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tipsy Cow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Kasa Rosa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Amici",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nesso",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Vault Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Village Pub & Grill – Leeds South",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Dog House Bar Morley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Graziers Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Stanley Ferry",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Travellers",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Waggon & Horses",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Wheatsheaf",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "British Oak",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Scarborough Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Hare & Hounds",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bay Horse",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bedford Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "British Oak Tingley",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Stanley Ferry",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Sun",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Graziers Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Waggon & Horses",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Wheatsheaf",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "British Oak Tingley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Sun",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Wheatsheaf",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stanley Ferry",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hare & Hounds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Stanley Ferry",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Sun",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "British Oak Tingley",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Scarborough Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bay Horse",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bedford Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
     }
   ],
-  "publishable": true,
   "outputPath": "data/cities/leeds/parallel_venues.json"
 }

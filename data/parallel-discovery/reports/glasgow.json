@@ -1,41 +1,472 @@
 {
   "city": "glasgow",
-  "runId": "trun_ce5fd53e0016415f90b54e5b929c63c9",
-  "observedAt": "2026-10-04T10:19:20.806Z",
-  "researched": 14,
-  "accepted": 0,
-  "totalAccepted": 3,
+  "districts": 26,
+  "slices": 104,
+  "slicesComplete": 4,
+  "incompleteSlices": [
+    "G1/pub",
+    "G1/bar",
+    "G1/cocktail-bar",
+    "G1/restaurant",
+    "G2/pub",
+    "G2/bar",
+    "G2/cocktail-bar",
+    "G2/restaurant",
+    "G3/pub",
+    "G3/bar",
+    "G3/cocktail-bar",
+    "G3/restaurant",
+    "G4/pub",
+    "G4/bar",
+    "G4/cocktail-bar",
+    "G4/restaurant",
+    "G5/bar",
+    "G5/restaurant",
+    "G11/pub",
+    "G11/bar",
+    "G11/cocktail-bar",
+    "G11/restaurant",
+    "G12/pub",
+    "G12/bar",
+    "G12/cocktail-bar",
+    "G12/restaurant",
+    "G13/pub",
+    "G13/bar",
+    "G13/cocktail-bar",
+    "G13/restaurant",
+    "G14/pub",
+    "G14/bar",
+    "G14/restaurant",
+    "G20/pub",
+    "G20/bar",
+    "G20/cocktail-bar",
+    "G20/restaurant",
+    "G21/pub",
+    "G21/bar",
+    "G21/cocktail-bar",
+    "G21/restaurant",
+    "G22/bar",
+    "G22/cocktail-bar",
+    "G22/restaurant",
+    "G31/pub",
+    "G31/bar",
+    "G31/cocktail-bar",
+    "G31/restaurant",
+    "G32/pub",
+    "G32/bar",
+    "G32/cocktail-bar",
+    "G32/restaurant",
+    "G33/pub",
+    "G33/bar",
+    "G33/cocktail-bar",
+    "G33/restaurant",
+    "G40/pub",
+    "G40/bar",
+    "G40/cocktail-bar",
+    "G40/restaurant",
+    "G41/pub",
+    "G41/bar",
+    "G41/cocktail-bar",
+    "G41/restaurant",
+    "G42/pub",
+    "G42/bar",
+    "G42/cocktail-bar",
+    "G42/restaurant",
+    "G43/pub",
+    "G43/bar",
+    "G43/cocktail-bar",
+    "G43/restaurant",
+    "G44/pub",
+    "G44/bar",
+    "G44/cocktail-bar",
+    "G44/restaurant",
+    "G51/pub",
+    "G51/bar",
+    "G51/cocktail-bar",
+    "G51/restaurant",
+    "G52/pub",
+    "G52/bar",
+    "G52/cocktail-bar",
+    "G52/restaurant",
+    "G53/pub",
+    "G53/bar",
+    "G53/cocktail-bar",
+    "G53/restaurant",
+    "G64/pub",
+    "G64/bar",
+    "G64/cocktail-bar",
+    "G64/restaurant",
+    "G72/pub",
+    "G72/bar",
+    "G72/cocktail-bar",
+    "G72/restaurant",
+    "G73/pub",
+    "G73/bar",
+    "G73/cocktail-bar",
+    "G73/restaurant"
+  ],
+  "taskRuns": 75,
+  "researched": 305,
+  "added": 21,
+  "retained": [],
+  "totalAccepted": 24,
+  "repeats": 4,
+  "duplicates": [
+    {
+      "name": "Big Slope",
+      "matchedName": "Big Slope",
+      "matchedId": "node/600576865"
+    },
+    {
+      "name": "The Crescent",
+      "matchedName": "The Crescent",
+      "matchedId": "node/7618653992"
+    },
+    {
+      "name": "226 Gallowgate",
+      "matchedName": "226 Gallowgate",
+      "matchedId": "way/725359463"
+    },
+    {
+      "name": "Rosevale Tavern",
+      "matchedName": "The Rosevale",
+      "matchedId": "node/601719381"
+    },
+    {
+      "name": "Ubiquitous Chip",
+      "matchedName": "Ubiquitous Chip - The Pub",
+      "matchedId": "node/600483163"
+    },
+    {
+      "name": "Springpark Bar",
+      "matchedName": "Springpark Bar",
+      "matchedId": "node/1776219961"
+    }
+  ],
+  "withdrawn": [],
   "rejected": [
     {
-      "name": "Bar Dani",
+      "name": "NQ64 Arcade Bar Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The 32 Counties",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Maggie's Rock n Rodeo",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Katie's Bar",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "Bar Tabacs",
+      "name": "The Polo Lounge",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "The McMillan",
+      "name": "BrewDog Glasgow Merchant City",
       "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Thundercat Pub and Diner",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "anderson’s",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sebb’s",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Amsterdam",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "House of Gods Cocktail Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Max's Bar & Grill",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bar Gandolfi",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Metropolitan",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Woody's",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ralph & Finns",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Revolution Glasgow Mitchell Street",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Iron Horse Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Woody’s Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The LAB",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Revolution Glasgow Mitchell Street",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Café Gandolfi",
+      "reason": "missing-venue-specific-citation"
     },
     {
       "name": "The Anchor Line",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "The Citizen",
+      "name": "BrewDog Glasgow Merchant City",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ralph & Finns",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sebb’s",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Corset Club",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "NQ64 Glasgow",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Woody's Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cuvée Princes Square",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "31 Lounge Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Table Twenty Eight",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Metropolitan",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Absent Ear",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cafe Gandolfi",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Italian Caffè",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Mharsanta",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Margo",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "La Vita Spuntini Gordon Street",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Box Glasgow",
       "reason": "missing-drinking-evidence"
     },
     {
-      "name": "The Skillet",
+      "name": "Nice N Sleazy",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "The Clarence",
+      "name": "The Noble",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "Bo’Vine Meats & Wines",
+      "name": "Rioja",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Roots",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Slug & Lettuce Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Topolabamba",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Miller & Carter Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Alchemist George Square",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Revolution Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nice n Sleazy",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rioja",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Roots",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bath Street Bar & Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Buck's Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Cova",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Malones Irish Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Swing",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "VEGA",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ad Lib",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Slug & Lettuce Glasgow",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Waterloo Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Buck's Bar West Regent St",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Roots Bar & Restaurant",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Alchemist Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Revolution Glasgow Renfield Street",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Two Dots and a Dash",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Slug and Lettuce Glasgow",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Jacks Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Malones Irish Bar Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Box Glasgow",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Chaakoo Bombay Café",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Chez Mal Glasgow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Felsons Glasgow",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rioja",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ardnamurchan",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Halloumi Glasgow",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "NORTH at The Address Glasgow",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Roots",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "MALO",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Dirty Duchess",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Finnieston",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
@@ -43,31 +474,773 @@
       "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "Kelvingrove Cafe",
+      "name": "The Finnieston Bar & Restaurant",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Porter & Rye",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rocco's Glasgow",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Eleven Fifty Five",
       "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "House of Gods Glasgow cocktail lounge",
+      "name": "Bar Dani",
       "reason": "citation-does-not-bind-name-and-address"
-    }
-  ],
-  "duplicates": [
-    {
-      "name": "Bossa",
-      "matchedName": "Bossa",
-      "matchedId": "venue-glw-1w0v1yx"
     },
     {
-      "name": "Cuvée West End Bar",
-      "matchedName": "Cuvée West End Bar",
-      "matchedId": "venue-glw-1ig1iaz"
+      "name": "BrewDog Glasgow Kelvingrove",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Le Petit Cochon",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "MAD LAB @ Acid Bar",
+      "reason": "missing-venue-specific-citation"
     },
     {
       "name": "The Finnieston Bar & Restaurant",
-      "matchedName": "The Finnieston Bar & Restaurant",
-      "matchedId": "venue-glw-z557mg"
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Porter & Rye",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "RED Sky Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "El Perro Negro Woodlands",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Crabshakk Finnieston",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Eleven Fifty Five",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Finnieston Bar & Restaurant",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Porter & Rye",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sylvan Woodlands",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Gael & Grain",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bar Dani",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "India Quay",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "BrewDog Glasgow Kelvingrove",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Brunch Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "El Perro Negro",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Kelvin",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Caravan Shop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brett",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Celentano’s",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "226 Gallowgate",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Kelvin",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Caravan Shop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brett",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Celentano's",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brett",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Eusebi Deli & Restaurant",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Caravan Shop",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Ocho",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Jenny Burn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Jenny Burn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Nando's Glasgow – Springfield Quay",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Firepit & Kiln",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Birdhouse Bar And Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rosevale Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rum Bongo",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "GaGa Kitchen + Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "La Mesa Partick",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Square Bar and Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ga Ga Kitchen + Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Birdhouse Bar & Kitchen",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Skillet",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Skillet",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Rosevale Tavern",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "GaGa Kitchen + Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tusco",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Celino’s Partick",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ga Ga Kitchen + Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Number 16",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "La Mesa Partick",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ronzio Broomhill",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Skillet",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Ubiquitous Chip",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Epicures",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Jinty McGuinty’s",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Clarence",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Clarence",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Bo'Vine Meats & Wines",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Jinty McGuinty's",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Cail Bruich",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Ubiquitous Chip",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ashoka Ashton Lane",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Stravaigin",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Grosvenor Café",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bo'Vine Meats & Wines",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Clarence",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Skillet",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ubiquitous Chip",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Bo'Vine Meats & Wines",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Epicures",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ashoka Ashton Lane",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Stravaigin",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Somewhere by Nico",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Santa Lucia Deli",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Lincoln",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Signal Box",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Lincoln Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Little SoHo Jordanhill",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Prancing Stag",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Jarvies Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Lovat",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Station Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Gulf of Corryvrechan",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "McNabbs",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Gulf of Corryvrechan",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Lovat Arms Yoker",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Jarvies Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Station Bar",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "La Bodega",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Lovat",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cafe Ibiza",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Lockhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Punch Bowl",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Royalty Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Viking Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Viking Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Lockhouse Bar & Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ram's Head",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Punch Bowl",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ram's Head",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Viking Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Springpark Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Budgie",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Pinkston Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Caledonian Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Anaya's Springburn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Pinkston Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Springpark Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Pinkston Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Pinkston Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Springpark Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Ashfield Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Glen Douglas Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Standard Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Space Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Space Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Anchor Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Bank Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Fiveways Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Coia’s Cafe",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Celinos",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Coia’s Cafe",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tavern Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Anchor Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Woodend Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Fullerton Park Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bells Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Clachan Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Waverley Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bells Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bushes Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Elders",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Cottage Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Westburn Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Clachan Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Kimberley Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sheddens Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Woodend",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gables",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Gartocher Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fullarton Park Hotel",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Bells Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Elders",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Kimberley Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Waverley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gables",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stewart Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Stewart Inn (Wee Pub)",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Real Mackay",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Garfield House Hotel Bar & Grill",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Mcguires Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Real MacKay",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Wee Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Squirrel Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Windsor",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barras Art and Design (BAaD)",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Squirrel Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "BAaD (Barras Art and Design)",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barras Art and Design (BAaD)",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barras Art and Design (BAaD)",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Brodies Bar & Kitchen",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Heraghty's Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Linen 1906",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Lobo",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Curious Liquids",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Heraghty's Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Lunar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The McMillan",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Brodies",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Millwood",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bar Tabacs",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bossa",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Heraghty's Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Lunar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Next Door",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Oscar Bar & Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "G41 Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brodies Bar & Kitchen",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bar Tabacs",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bossa",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The McMillan",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Lobo",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Buck’s Southside",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Clockwork Beer Company",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Victoria Bar",
+      "reason": "missing-venue-specific-citation"
     }
   ],
-  "publishable": true,
   "outputPath": "data/cities/glasgow/parallel_venues.json"
 }

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/offlineCache", () => ({
@@ -9,8 +9,14 @@ import { loadSlimVenuesFromPathResult } from "@/lib/venuesSlim";
 
 afterEach(() => vi.unstubAllGlobals());
 
+const discoveredCities = readdirSync("data/cities").filter((city) => existsSync(`data/cities/${city}/parallel_venues.json`));
+
 describe("unpriced Parallel venues in runtime city packs", () => {
-  it.each(["birmingham", "leeds", "glasgow"])("loads the entire %s pack with its discoveries", async (city) => {
+  it("covers every city map", () => {
+    expect(discoveredCities.length).toBeGreaterThan(0);
+  });
+
+  it.each(discoveredCities)("loads the entire %s pack with its discoveries", async (city) => {
     const pack = JSON.parse(readFileSync(`public/data/cities/${city}/venues_slim.core.json`, "utf8"));
     const discoveries = JSON.parse(readFileSync(`data/cities/${city}/parallel_venues.json`, "utf8"));
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(pack))));
@@ -18,7 +24,7 @@ describe("unpriced Parallel venues in runtime city packs", () => {
     expect(loaded.status).toBe("ready");
     expect(loaded.rows).toHaveLength(pack.rows.length);
     for (const venue of discoveries.venues) {
-      expect(loaded.rows.find((row) => row.name === venue.name)).toMatchObject({ kind: venue.kind, cheapestPrice: null });
+      expect(loaded.rows.find((row) => row.id === venue.id)).toMatchObject({ name: venue.name, kind: venue.kind, cheapestPrice: null });
     }
   });
 
