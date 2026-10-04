@@ -540,6 +540,8 @@ async function main() {
       if (!extraPermission.allowed) continue;
       const extra = await readHtml(link);
       if (!extra.ok) continue;
+      const extraLandedPermission = await robots(extra.url);
+      if (!extraLandedPermission.allowed) continue;
       text = `${text}\n${extra.text}`.slice(0, PAGE_CHAR_CAP);
       break;
     }
