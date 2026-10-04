@@ -7,8 +7,10 @@
  * our OSM row and dropped. A pub counts as closed only when Google says CLOSED_PERMANENTLY
  * and the names match; closed_pubs.json is the single record of closure.
  * The files this writes store our venue id, the place id, our cafe
- * OSM-hours verdict (agree, disagree or no_osm_hours), closed OSM refs, and
- * the day. Nothing else Google returned is written. Closures, unconfirmed
+ * OSM-hours verdict (agree, disagree or no_osm_hours), closed OSM refs, the
+ * run day, and on each row the UTC day its Place Details were read, kept in
+ * progress.json across resumed runs (a saved verdict without a valid day is
+ * read again). Nothing else Google returned is written. Closures, unconfirmed
  * closures and cafes whose OSM hours disagree are printed for human review.
  *
  * Daily quota overrides are raised for this process and put back to the
