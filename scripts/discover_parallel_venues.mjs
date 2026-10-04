@@ -301,10 +301,12 @@ const LANES = { parallel: parallelSlice, web: (slice, options) => webSlice(slice
 
 // A city outside --cities never spends and never refreshes: both lanes replay
 // what is cached, so its reports keep their completion, skips and filters.
+// Only the lane that can research again is refreshed, so paid Parallel pages
+// always count when the run spends on Tavily.
 export async function runSlice(slice, options, lanes = LANES) {
   const spend = !options.cities || options.cities.includes(slice.city.id);
   const refresh = options.refresh && spend;
-  const parallel = await lanes.parallel(slice, { ...options, refresh }, spend && options.provider === "parallel");
+  const parallel = await lanes.parallel(slice, { ...options, refresh: refresh && options.provider === "parallel" }, spend && options.provider === "parallel");
   if (parallel.complete) return parallel;
   const merge = (web) => ({ ...web, found: [...parallel.found, ...web.found], rejected: [...parallel.rejected, ...web.rejected],
     researched: parallel.researched + web.researched, taskRuns: parallel.taskRuns });

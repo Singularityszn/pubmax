@@ -1153,10 +1153,6 @@
       "id": "venue-mcr-17wwbfk"
     },
     {
-      "name": "Velopark Cafe",
-      "id": "venue-mcr-2mlxmv"
-    },
-    {
       "name": "Manchester Union Brewery Tap",
       "id": "venue-mcr-55die4"
     },
@@ -1261,7 +1257,7 @@
       "id": "venue-mcr-18rfqdc"
     }
   ],
-  "totalAccepted": 35,
+  "totalAccepted": 34,
   "repeats": 28,
   "duplicates": [
     {
@@ -1329,6 +1325,12 @@
       "id": null,
       "matchedName": "Mary D's",
       "matchedId": "node/1634679820"
+    },
+    {
+      "name": "Velopark Cafe",
+      "id": null,
+      "matchedName": "Velopark Cafe",
+      "matchedId": "node/5940361450"
     },
     {
       "name": "Townley",
@@ -1597,31 +1599,10 @@
   ],
   "withdrawn": [
     {
-      "name": "Middleton Archer",
-      "id": "venue-mcr-1h4tkgb",
-      "matchedName": "Middleton Archer",
-      "matchedId": "way/176681506",
-      "reason": "duplicate of an existing venue"
-    },
-    {
-      "name": "Lancashire Fold",
-      "id": "venue-mcr-gy4wdx",
-      "matchedName": "Lancashire Fold",
-      "matchedId": "way/258790679",
-      "reason": "duplicate of an existing venue"
-    },
-    {
-      "name": "Jolly Hatters",
-      "id": "venue-mcr-5o34fl",
-      "matchedName": "The Jolly Hatters",
-      "matchedId": "way/688186625",
-      "reason": "duplicate of an existing venue"
-    },
-    {
-      "name": "High Street Tavern",
-      "id": "venue-mcr-12ul6n7",
-      "matchedName": "High Street Tavern",
-      "matchedId": "node/5066958728",
+      "name": "Velopark Cafe",
+      "id": "venue-mcr-2mlxmv",
+      "matchedName": "Velopark Cafe",
+      "matchedId": "node/5940361450",
       "reason": "duplicate of an existing venue"
     }
   ],

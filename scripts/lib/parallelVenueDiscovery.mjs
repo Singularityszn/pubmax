@@ -193,8 +193,9 @@ export function streetIdentity(address) {
 }
 
 // One venue, by compatible name and place. The same house number on the same
-// street is the same venue whatever postcode each source gives, and so is the
-// same full postcode within a postcode centroid's spread. Other differing
+// street is the same venue whatever postcode each source gives; the same
+// street where a number is missing, or the same full postcode, is the same
+// venue within a postcode centroid's spread. Other differing
 // street addresses stay apart beyond a corner's width, so nearby branches of
 // one name are kept.
 export function sameVenue(a, b) {
@@ -209,6 +210,7 @@ export function sameVenue(a, b) {
   const sameStreet = aStreet && bStreet && aStreet.street === bStreet.street;
   const numbered = aStreet?.from != null && bStreet?.from != null;
   if (sameStreet && numbered) return aStreet.from <= bStreet.to && bStreet.from <= aStreet.to ? distance <= 1000 : distance <= near;
+  if (sameStreet && centroid) return distance <= 800;
   const aPostcode = postcodeIn(a.address);
   const bPostcode = postcodeIn(b.address);
   if (aPostcode && aPostcode === bPostcode) return distance <= 800;

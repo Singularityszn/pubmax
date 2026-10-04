@@ -36,8 +36,24 @@ describe("runSlice", () => {
     expect(fake.parallel).toHaveBeenLastCalledWith(slice("oxford"), expect.objectContaining({ refresh: false }), false);
     expect(fake.web).toHaveBeenLastCalledWith(slice("oxford"), { spend: false, refresh: false });
     await runSlice(slice("manchester"), options, fake);
-    expect(fake.parallel).toHaveBeenLastCalledWith(slice("manchester"), expect.objectContaining({ refresh: true }), false);
+    expect(fake.parallel).toHaveBeenLastCalledWith(slice("manchester"), expect.objectContaining({ refresh: false }), false);
     expect(fake.web).toHaveBeenLastCalledWith(slice("manchester"), { spend: true, refresh: true });
+  });
+
+  it("keeps a selected city's paid Parallel pages under a Tavily refresh and buys no search for a finished slice", async () => {
+    const paid = { found: [{ name: "Society Birmingham" }], rejected: [], researched: 9, taskRuns: 4, complete: true };
+    const parallel = vi.fn(async (_slice: unknown, options: Record<string, unknown>) => (options.refresh ? { found: [], rejected: [], researched: 0, taskRuns: 0, complete: false } : paid));
+    const web = vi.fn(async () => cachedWeb);
+    const outcome = await runSlice(slice("birmingham"), { cities: ["birmingham"], provider: "tavily", refresh: true, processor: "pro", matches: 30 }, { parallel, web });
+    expect(parallel).toHaveBeenCalledWith(slice("birmingham"), expect.objectContaining({ refresh: false }), false);
+    expect(outcome).toBe(paid);
+    expect(web).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the paid Parallel lane only when it may research again", async () => {
+    const fake = lanes(() => true);
+    await runSlice(slice("birmingham"), { cities: ["birmingham"], provider: "parallel", refresh: true, processor: "pro", matches: 30 }, fake);
+    expect(fake.parallel).toHaveBeenLastCalledWith(slice("birmingham"), expect.objectContaining({ refresh: true }), true);
   });
 
   it("replays every city without spending when no city is selected", async () => {

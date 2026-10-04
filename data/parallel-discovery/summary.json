@@ -129,10 +129,10 @@
       "pagesRead": 1050,
       "researched": 143,
       "added": 0,
-      "retained": 35,
-      "duplicates": 55,
+      "retained": 34,
+      "duplicates": 56,
       "rejected": 208,
-      "totalAccepted": 35,
+      "totalAccepted": 34,
       "usage": {
         "parallel": {
           "calls": 208,

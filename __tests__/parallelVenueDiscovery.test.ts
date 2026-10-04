@@ -70,10 +70,18 @@ describe("Parallel venue discovery", () => {
     ["78 London Road, Headington, Oxford OX3 9AA", [51.759856, -1.212887], "Royal Standard", "78, London Road, OX3 9AJ", [51.7592403, -1.213449], "The Royal Standard"],
     ["1 Lime Walk, Headington, Oxford OX3 7RD", [51.759531, -1.213994], "Britannia", "74, London Road, OX3 7AA", [51.7590452, -1.2139214], "The Britannia Inn"],
     ["21-23 Hollywood Road, Brislington, Bristol BS4 4LD", [51.437534, -2.549317], "Pilgrim Inn", "21, Hollywood Road, Bristol, BS4 4LE", [51.4352354, -2.5482971], "The Pilgrim Inn"],
+    ["National Cycling Centre, Stuart Street, Clayton M11 4DQ", [53.486398, -2.196838], "Velopark Cafe", "Stuart Street, Manchester, M11 4BZ", [53.4851234, -2.1907685], "Velopark Cafe"],
   ])("matches the discovery at %s to the OSM pub already on the map", (address, [lat, lng], name, osmAddress, [osmLat, osmLng], osmName) => {
     const discovery = { name, address, lat, lng, coordinatePrecision: "postcode-centroid" };
     const osm = { name: osmName, address: osmAddress, lat: osmLat, lng: osmLng, osmId: "node/1" };
     expect(dedupeVenues([discovery], [osm])).toMatchObject({ accepted: [], duplicates: [{ name, matchedName: osmName, matchedId: "node/1" }] });
+  });
+  it("keeps same-name branches with different house numbers on one street apart within a centroid's spread", () => {
+    const existing = [{ name: "Copper Rooms", address: "12, Test Street, B1 1AA", lat: 52.48, lng: -1.90, osmId: "node/1" }];
+    const branch = { name: "Copper Rooms", address: "212 Test Street, Birmingham B1 4DD", lat: 52.483, lng: -1.90, coordinatePrecision: "postcode-centroid" };
+    const unnumbered = { name: "Copper Rooms", address: "Test Street, Birmingham B1 4DD", lat: 52.483, lng: -1.90, coordinatePrecision: "postcode-centroid" };
+    expect(dedupeVenues([branch], existing).accepted).toEqual([branch]);
+    expect(dedupeVenues([unnumbered], existing).accepted).toEqual([]);
   });
   it("keeps nearby branches of one name whose street addresses differ", () => {
     const existing = [{ name: "Copper Rooms", lat: 52.48, lng: -1.90, address: "12 Test Street, B1 1AA" }];

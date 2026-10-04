@@ -1221,22 +1221,7 @@
       "matchedId": "way/559723982"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "Allerton Hall",
-      "id": "venue-liv-mi6sfd",
-      "matchedName": "Allerton Hall",
-      "matchedId": "way/468770484",
-      "reason": "duplicate of an existing venue"
-    },
-    {
-      "name": "Kingfisher",
-      "id": "venue-liv-6w32fl",
-      "matchedName": "Kingfisher",
-      "matchedId": "way/587781053",
-      "reason": "duplicate of an existing venue"
-    }
-  ],
+  "withdrawn": [],
   "rejected": [
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Hamilton+Square%2C+Birkenhead+CH41+6AY",

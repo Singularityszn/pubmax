@@ -449,15 +449,7 @@
       "matchedId": "way/398988642"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "Pilgrim Inn",
-      "id": "venue-bri-tfvd28",
-      "matchedName": "The Pilgrim Inn",
-      "matchedId": "way/1088206528",
-      "reason": "duplicate of an existing venue"
-    }
-  ],
+  "withdrawn": [],
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/pubs-with-food/bristol",

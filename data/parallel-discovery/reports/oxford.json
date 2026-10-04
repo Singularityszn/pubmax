@@ -210,22 +210,7 @@
       "matchedId": "node/175707113"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "Royal Standard",
-      "id": "venue-oxf-13e5hn1",
-      "matchedName": "The Royal Standard",
-      "matchedId": "way/132619800",
-      "reason": "duplicate of an existing venue"
-    },
-    {
-      "name": "Britannia",
-      "id": "venue-oxf-pcmcoj",
-      "matchedName": "The Britannia Inn",
-      "matchedId": "way/132647573",
-      "reason": "duplicate of an existing venue"
-    }
-  ],
+  "withdrawn": [],
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/oxfordshire",
