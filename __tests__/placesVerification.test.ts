@@ -455,6 +455,7 @@ describe("a UK Details run resumes within its cap", () => {
     const statuses: number[] = [];
     await expect(placesRequestWithinBudget({
       attempts: 4,
+      pace: async () => {},
       reserve: () => {
         if (reserved === 1) return false;
         reserved += 1;
@@ -470,6 +471,34 @@ describe("a UK Details run resumes within its cap", () => {
     expect(statuses).toEqual([429]);
   });
 
+  it("records nothing for an attempt interrupted while it waits for its pacing slot", async () => {
+    let openSlot = () => {};
+    const slot = new Promise<void>((resolve) => {
+      openSlot = resolve;
+    });
+    let reserved = 0;
+    let sent = 0;
+    const request = placesRequestWithinBudget({
+      attempts: 4,
+      pace: () => slot,
+      reserve: () => {
+        reserved += 1;
+        return true;
+      },
+      release: () => {},
+      send: async () => {
+        sent += 1;
+        return { status: 200, body: { id: "p1" } };
+      },
+      backoff: async () => {},
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect({ reserved, sent }).toEqual({ reserved: 0, sent: 0 });
+    openSlot();
+    await expect(request).resolves.toEqual({ id: "p1" });
+    expect({ reserved, sent }).toEqual({ reserved: 1, sent: 1 });
+  });
+
   it("releases an attempt whose connection was refused before the request was sent", async () => {
     const closed = createServer();
     await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
@@ -478,6 +507,7 @@ describe("a UK Details run resumes within its cap", () => {
     let reserved = 0;
     await expect(placesRequestWithinBudget({
       attempts: 4,
+      pace: async () => {},
       reserve: () => {
         reserved += 1;
         return true;
@@ -502,6 +532,7 @@ describe("a UK Details run resumes within its cap", () => {
     try {
       await expect(placesRequestWithinBudget({
         attempts: 4,
+        pace: async () => {},
         reserve: () => {
           reserved += 1;
           return true;
@@ -529,6 +560,7 @@ describe("a UK Details run resumes within its cap", () => {
     ];
     await expect(placesRequestWithinBudget({
       attempts: 4,
+      pace: async () => {},
       reserve: () => true,
       release: () => {},
       send: async () => replies.shift()!,
@@ -536,6 +568,7 @@ describe("a UK Details run resumes within its cap", () => {
     })).resolves.toEqual({ id: "p1" });
     await expect(placesRequestWithinBudget({
       attempts: 4,
+      pace: async () => {},
       reserve: () => true,
       release: () => {},
       send: async () => ({ status: 500, body: {} }),

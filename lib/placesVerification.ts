@@ -384,12 +384,15 @@ export function requestNeverSent(error: unknown): boolean {
 
 /**
  * Send one Places request, backing off on 429 and 503. Every attempt,
- * retries included, is reserved first; a refused reservation returns null so
- * the caller skips the venue instead of spending past its cap. An attempt
- * that never left this machine is released before the error is rethrown.
+ * retries included, waits for its pacing slot and is then reserved right
+ * before it is sent, so an interrupted wait records nothing. A refused
+ * reservation returns null so the caller skips the venue instead of spending
+ * past its cap. An attempt that never left this machine is released before
+ * the error is rethrown.
  */
 export async function placesRequestWithinBudget<T>(input: {
   attempts: number;
+  pace: () => Promise<void>;
   reserve: () => boolean;
   release: () => void;
   send: () => Promise<{ status: number; body: T }>;
@@ -397,6 +400,7 @@ export async function placesRequestWithinBudget<T>(input: {
 }): Promise<T | null> {
   let lastStatus = 0;
   for (let attempt = 0; attempt < input.attempts; attempt += 1) {
+    await input.pace();
     if (!input.reserve()) return null;
     let reply: { status: number; body: T };
     try {

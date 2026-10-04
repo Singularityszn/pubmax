@@ -384,6 +384,7 @@ async function placesFetch(url, apiKey, fieldMask, init) {
   const metered = UK_CITIES && init?.method === "GET";
   return placesRequestWithinBudget({
     attempts: 4,
+    pace,
     reserve: () => {
       if (!metered) return true;
       if (ukBudgetExhausted()) return false;
@@ -397,7 +398,6 @@ async function placesFetch(url, apiKey, fieldMask, init) {
       if (activeProgress) saveProgress(activeProgress);
     },
     send: async () => {
-      await pace();
       const response = await fetch(url, {
         ...init,
         headers: {
