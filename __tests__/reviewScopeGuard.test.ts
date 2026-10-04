@@ -190,6 +190,29 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
   });
 
+  it("permits city slim packs when the diff carries a city discovery pack", () => {
+    const report = summarizeReviewScope([
+      "data/cities/durham/parallel_venues.json",
+      "public/data/cities/durham/venues_slim.json",
+      "public/data/cities/durham/venues_slim.core.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
+  });
+
+  it("permits city slim packs when the diff carries the discovery merge", () => {
+    const report = summarizeReviewScope([
+      "scripts/lib/parallelVenueDiscovery.mjs",
+      "public/data/cities/birmingham/venues_slim.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
+  });
+
   it("permits the UK pub search index when the diff carries the UK OSM pack", () => {
     const report = summarizeReviewScope([
       "data/osm/uk/uk_osm_pubs.json",

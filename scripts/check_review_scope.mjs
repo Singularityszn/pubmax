@@ -106,8 +106,10 @@ export const REGENERATED_LANES = [
       /^scripts\/build_city_slim_index\.mjs$/,
       /^scripts\/fetch_city_osm_pubs\.mjs$/,
       /^scripts\/lib\/slimShards\.mjs$/,
+      /^scripts\/lib\/parallelVenueDiscovery\.mjs$/,
       /^lib\/cityVenueId\.mjs$/,
       /^data\/cities\/[^/]+\/osm_pubs\.json$/,
+      /^data\/cities\/[^/]+\/parallel_venues\.json$/,
     ],
   },
   {
