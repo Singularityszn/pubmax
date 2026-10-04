@@ -1,0 +1,74 @@
+{
+  "city": "manchester",
+  "source": "Parallel Task API; Tavily Search with Firecrawl page reads",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result or Firecrawl page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 552000,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "BOX Deansgate",
+      "kind": "bar",
+      "address": "125 Deansgate, Manchester, England, M3 2BY",
+      "postcode": "M3 2BY",
+      "locality": "Manchester",
+      "website": "https://www.theboxbar.co.uk/",
+      "lat": 53.480236,
+      "lng": -2.247995,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.theboxbar.co.uk/bars/deansgate"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.theboxbar.co.uk/bars/deansgate",
+          "excerpt": "**Welcome to BOX, a #gamechanging sports bar in the heart of the city to watch, play, party, eat and drink.**"
+        },
+        {
+          "url": "https://www.theboxbar.co.uk/bars/deansgate",
+          "excerpt": "**Location information**\n\n**BOX Deansgate**\n\n125 Deansgate\n\nManchester\n\nEngland\n\nM3 2BY"
+        }
+      ],
+      "observedAt": "2026-10-04T12:02:23.646Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M3%202BY",
+        "observedAt": "2026-10-04T12:02:23.704Z",
+        "postcode": "M3 2BY",
+        "quality": 1
+      },
+      "provider": "tavily-firecrawl",
+      "id": "venue-mcr-18uu4bo"
+    },
+    {
+      "name": "ATOMECA Wine Bar",
+      "kind": "bar",
+      "address": "Spinningfields, M3 3HF",
+      "postcode": "M3 3HF",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.47988,
+      "lng": -2.250781,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.squaremeal.co.uk/restaurants/m5-3aw-salford/local-restaurants"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.squaremeal.co.uk/restaurants/m5-3aw-salford/local-restaurants",
+          "excerpt": "ATOMECA Wine Bar, Spinningfields, M3 3HF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:06:40.612Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M3%203HF",
+        "observedAt": "2026-10-04T12:06:40.684Z",
+        "postcode": "M3 3HF",
+        "quality": 1
+      },
+      "provider": "tavily-firecrawl",
+      "id": "venue-mcr-1d1ox70"
+    }
+  ]
+}

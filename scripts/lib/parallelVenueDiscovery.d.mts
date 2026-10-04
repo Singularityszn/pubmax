@@ -6,6 +6,7 @@ export interface DiscoveryVenue {
   sourceUrls: string[]; evidence: Array<{ url: string; excerpt: string }>; observedAt: string;
 }
 export function postcodeIn(value: unknown): string | null;
+export function isListingUrl(url: string): boolean;
 export function allowedEvidenceUrl(value: unknown): boolean;
 export function inCity(lat: unknown, lng: unknown, city: DiscoveryCity): boolean;
 export function citationBindsIdentity(row: { name: string; address: string; evidence: Array<{ excerpt: string }> }, city: DiscoveryCity): boolean;

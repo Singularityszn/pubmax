@@ -1,6 +1,10 @@
 {
-  "processor": "pro",
-  "matchesPerPage": 30,
+  "providers": [
+    "parallel",
+    "tavily-firecrawl"
+  ],
+  "parallelProcessor": "pro",
+  "parallelMatchesPerPage": 30,
   "categories": [
     "pub",
     "bar",
@@ -8,165 +12,448 @@
     "restaurant"
   ],
   "oldestObservedAt": "2026-10-04T10:15:57.563Z",
-  "newestObservedAt": "2026-10-04T11:39:17.819Z",
+  "newestObservedAt": "2026-10-04T12:06:40.612Z",
   "cities": [
     {
       "city": "birmingham",
+      "complete": false,
       "districts": 42,
       "slices": 168,
       "slicesComplete": 91,
       "taskRuns": 675,
+      "webSearches": 0,
+      "pagesRead": 0,
       "researched": 2056,
-      "added": 126,
-      "retained": 4,
+      "added": 0,
+      "retained": 130,
       "duplicates": 26,
       "rejected": 1835,
-      "totalAccepted": 130
+      "totalAccepted": 130,
+      "usage": {
+        "parallel": {
+          "calls": 1527,
+          "credits": 0,
+          "estimatedCostUsd": 67.62
+        }
+      }
     },
     {
       "city": "leeds",
+      "complete": false,
       "districts": 21,
       "slices": 84,
       "slicesComplete": 8,
       "taskRuns": 110,
+      "webSearches": 0,
+      "pagesRead": 0,
       "researched": 506,
-      "added": 21,
-      "retained": 4,
+      "added": 0,
+      "retained": 25,
       "duplicates": 4,
       "rejected": 471,
-      "totalAccepted": 28
+      "totalAccepted": 28,
+      "usage": {
+        "parallel": {
+          "calls": 328,
+          "credits": 0,
+          "estimatedCostUsd": 11.115
+        }
+      }
     },
     {
       "city": "glasgow",
+      "complete": false,
       "districts": 26,
       "slices": 104,
       "slicesComplete": 4,
       "taskRuns": 75,
+      "webSearches": 0,
+      "pagesRead": 0,
       "researched": 305,
-      "added": 21,
-      "retained": 0,
+      "added": 0,
+      "retained": 21,
       "duplicates": 6,
       "rejected": 274,
-      "totalAccepted": 24
+      "totalAccepted": 24,
+      "usage": {
+        "parallel": {
+          "calls": 261,
+          "credits": 0,
+          "estimatedCostUsd": 7.615
+        }
+      }
     },
     {
       "city": "manchester",
+      "complete": false,
       "districts": 52,
       "slices": 208,
-      "slicesComplete": 0,
+      "slicesComplete": 107,
       "taskRuns": 0,
-      "researched": 0,
-      "added": 0,
+      "webSearches": 229,
+      "pagesRead": 280,
+      "researched": 492,
+      "added": 2,
       "retained": 0,
-      "duplicates": 0,
-      "rejected": 0,
-      "totalAccepted": 0
+      "duplicates": 1,
+      "rejected": 540,
+      "totalAccepted": 2,
+      "usage": {
+        "parallel": {
+          "calls": 208,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 229,
+          "credits": 229,
+          "estimatedCostUsd": 1.832
+        },
+        "firecrawl": {
+          "calls": 128,
+          "credits": 604,
+          "estimatedCostUsd": 3.02
+        }
+      }
     },
     {
       "city": "durham",
+      "complete": false,
       "districts": 1,
       "slices": 4,
       "slicesComplete": 0,
       "taskRuns": 8,
+      "webSearches": 0,
+      "pagesRead": 0,
       "researched": 49,
-      "added": 6,
-      "retained": 0,
+      "added": 0,
+      "retained": 8,
       "duplicates": 1,
-      "rejected": 42,
-      "totalAccepted": 6
+      "rejected": 40,
+      "totalAccepted": 8,
+      "usage": {
+        "parallel": {
+          "calls": 20,
+          "credits": 0,
+          "estimatedCostUsd": 0.8
+        }
+      }
     },
     {
       "city": "liverpool",
+      "complete": false,
       "districts": 35,
       "slices": 140,
-      "slicesComplete": 0,
+      "slicesComplete": 71,
       "taskRuns": 0,
+      "webSearches": 141,
+      "pagesRead": 76,
       "researched": 0,
       "added": 0,
       "retained": 0,
       "duplicates": 0,
-      "rejected": 0,
-      "totalAccepted": 0
+      "rejected": 7,
+      "totalAccepted": 0,
+      "usage": {
+        "parallel": {
+          "calls": 140,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 141,
+          "credits": 141,
+          "estimatedCostUsd": 1.128
+        }
+      }
     },
     {
       "city": "bristol",
+      "complete": false,
       "districts": 14,
       "slices": 56,
-      "slicesComplete": 0,
+      "slicesComplete": 23,
       "taskRuns": 0,
+      "webSearches": 56,
+      "pagesRead": 35,
       "researched": 0,
       "added": 0,
       "retained": 0,
       "duplicates": 0,
-      "rejected": 0,
-      "totalAccepted": 0
+      "rejected": 2,
+      "totalAccepted": 0,
+      "usage": {
+        "parallel": {
+          "calls": 56,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 56,
+          "credits": 56,
+          "estimatedCostUsd": 0.448
+        }
+      }
     },
     {
       "city": "bath",
+      "complete": false,
       "districts": 2,
       "slices": 8,
-      "slicesComplete": 0,
+      "slicesComplete": 2,
       "taskRuns": 0,
+      "webSearches": 8,
+      "pagesRead": 8,
       "researched": 0,
       "added": 0,
       "retained": 0,
       "duplicates": 0,
-      "rejected": 0,
-      "totalAccepted": 0
+      "rejected": 2,
+      "totalAccepted": 0,
+      "usage": {
+        "parallel": {
+          "calls": 8,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 8,
+          "credits": 8,
+          "estimatedCostUsd": 0.064
+        }
+      }
     },
     {
       "city": "oxford",
+      "complete": false,
       "districts": 4,
       "slices": 16,
-      "slicesComplete": 0,
+      "slicesComplete": 7,
       "taskRuns": 0,
+      "webSearches": 16,
+      "pagesRead": 12,
       "researched": 0,
       "added": 0,
       "retained": 0,
       "duplicates": 0,
-      "rejected": 0,
-      "totalAccepted": 0
+      "rejected": 3,
+      "totalAccepted": 0,
+      "usage": {
+        "parallel": {
+          "calls": 16,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 16,
+          "credits": 16,
+          "estimatedCostUsd": 0.128
+        }
+      }
     },
     {
       "city": "cambridge",
+      "complete": false,
       "districts": 5,
       "slices": 20,
-      "slicesComplete": 0,
+      "slicesComplete": 6,
       "taskRuns": 0,
+      "webSearches": 20,
+      "pagesRead": 14,
       "researched": 0,
       "added": 0,
       "retained": 0,
       "duplicates": 0,
       "rejected": 0,
-      "totalAccepted": 0
+      "totalAccepted": 0,
+      "usage": {
+        "parallel": {
+          "calls": 20,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 20,
+          "credits": 20,
+          "estimatedCostUsd": 0.16
+        }
+      }
     },
     {
       "city": "llandudno",
+      "complete": false,
       "districts": 5,
       "slices": 20,
-      "slicesComplete": 0,
+      "slicesComplete": 16,
       "taskRuns": 0,
+      "webSearches": 20,
+      "pagesRead": 5,
       "researched": 0,
       "added": 0,
       "retained": 0,
       "duplicates": 0,
-      "rejected": 0,
-      "totalAccepted": 0
+      "rejected": 1,
+      "totalAccepted": 0,
+      "usage": {
+        "parallel": {
+          "calls": 20,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 20,
+          "credits": 20,
+          "estimatedCostUsd": 0.16
+        }
+      }
     }
   ],
-  "failedSlices": 725,
-  "firstFailure": "birmingham/B14/bar: Parallel /v1/tasks/runs HTTP 402; validation=[]; checkpoint retained, rerun to resume",
+  "allCitiesComplete": false,
+  "failedSlices": 101,
+  "firstFailure": "manchester/M13/restaurant: FIRECRAWL_API_KEY is missing; load it in the invoking shell",
   "usage": {
-    "calls": 2605,
+    "calls": 3223,
     "byEndpoint": {
-      "/v1/search 200": 10,
-      "/v1/tasks/runs 422": 1,
-      "/v1/tasks/runs 202": 871,
-      "/v1/tasks/runs/{run_id} 200": 16,
-      "/v1/tasks/runs/{run_id}/result 200": 871,
-      "/v1/tasks/runs/{run_id}/result 408": 13,
-      "/v1/tasks/runs 402": 823
+      "parallel /v1/search 200": 10,
+      "parallel /v1/tasks/runs 422": 1,
+      "parallel /v1/tasks/runs 202": 871,
+      "parallel /v1/tasks/runs/{run_id} 200": 16,
+      "parallel /v1/tasks/runs/{run_id}/result 200": 871,
+      "parallel /v1/tasks/runs/{run_id}/result 408": 13,
+      "parallel /v1/tasks/runs 402": 823,
+      "tavily /search 200": 490,
+      "firecrawl /v2/scrape 200": 109,
+      "firecrawl /v2/scrape 429": 14,
+      "firecrawl /v2/scrape 500": 2,
+      "firecrawl /v2/scrape 408": 1,
+      "firecrawl /v2/scrape 402": 2
     },
-    "estimatedCostUsd": 87.15
+    "byCity": {
+      "birmingham": {
+        "parallel": {
+          "calls": 1527,
+          "credits": 0,
+          "estimatedCostUsd": 67.62
+        }
+      },
+      "leeds": {
+        "parallel": {
+          "calls": 328,
+          "credits": 0,
+          "estimatedCostUsd": 11.115
+        }
+      },
+      "glasgow": {
+        "parallel": {
+          "calls": 261,
+          "credits": 0,
+          "estimatedCostUsd": 7.615
+        }
+      },
+      "durham": {
+        "parallel": {
+          "calls": 20,
+          "credits": 0,
+          "estimatedCostUsd": 0.8
+        }
+      },
+      "manchester": {
+        "parallel": {
+          "calls": 208,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 229,
+          "credits": 229,
+          "estimatedCostUsd": 1.832
+        },
+        "firecrawl": {
+          "calls": 128,
+          "credits": 604,
+          "estimatedCostUsd": 3.02
+        }
+      },
+      "liverpool": {
+        "parallel": {
+          "calls": 140,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 141,
+          "credits": 141,
+          "estimatedCostUsd": 1.128
+        }
+      },
+      "bristol": {
+        "parallel": {
+          "calls": 56,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 56,
+          "credits": 56,
+          "estimatedCostUsd": 0.448
+        }
+      },
+      "bath": {
+        "parallel": {
+          "calls": 8,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 8,
+          "credits": 8,
+          "estimatedCostUsd": 0.064
+        }
+      },
+      "oxford": {
+        "parallel": {
+          "calls": 16,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 16,
+          "credits": 16,
+          "estimatedCostUsd": 0.128
+        }
+      },
+      "cambridge": {
+        "parallel": {
+          "calls": 20,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 20,
+          "credits": 20,
+          "estimatedCostUsd": 0.16
+        }
+      },
+      "llandudno": {
+        "parallel": {
+          "calls": 20,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        },
+        "tavily": {
+          "calls": 20,
+          "credits": 20,
+          "estimatedCostUsd": 0.16
+        }
+      },
+      "none": {
+        "parallel": {
+          "calls": 1,
+          "credits": 0,
+          "estimatedCostUsd": 0
+        }
+      }
+    },
+    "estimatedCostUsd": 94.09
   }
 }

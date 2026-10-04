@@ -2,30 +2,16 @@
   "city": "llandudno",
   "districts": 5,
   "slices": 20,
-  "slicesComplete": 0,
+  "slicesComplete": 16,
   "incompleteSlices": [
-    "LL28/pub",
-    "LL28/bar",
     "LL28/cocktail-bar",
-    "LL28/restaurant",
     "LL29/pub",
-    "LL29/bar",
     "LL29/cocktail-bar",
-    "LL29/restaurant",
-    "LL30/pub",
-    "LL30/bar",
-    "LL30/cocktail-bar",
-    "LL30/restaurant",
-    "LL31/pub",
-    "LL31/bar",
-    "LL31/cocktail-bar",
-    "LL31/restaurant",
-    "LL32/pub",
-    "LL32/bar",
-    "LL32/cocktail-bar",
-    "LL32/restaurant"
+    "LL32/cocktail-bar"
   ],
   "taskRuns": 0,
+  "webSearches": 20,
+  "pagesRead": 5,
   "researched": 0,
   "added": 0,
   "retained": [],
@@ -33,6 +19,11 @@
   "repeats": 0,
   "duplicates": [],
   "withdrawn": [],
-  "rejected": [],
+  "rejected": [
+    {
+      "name": "https://llandudno.cylex-uk.co.uk/cocktail%20bar.html",
+      "reason": "unreadable: robots: robots-unreadable"
+    }
+  ],
   "outputPath": "data/cities/llandudno/parallel_venues.json"
 }

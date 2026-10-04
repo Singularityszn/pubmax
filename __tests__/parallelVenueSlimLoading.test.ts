@@ -12,8 +12,18 @@ afterEach(() => vi.unstubAllGlobals());
 const discoveredCities = readdirSync("data/cities").filter((city) => existsSync(`data/cities/${city}/parallel_venues.json`));
 
 describe("unpriced Parallel venues in runtime city packs", () => {
-  it("covers every city map", () => {
-    expect(discoveredCities.length).toBeGreaterThan(0);
+  it("ships a discovery pack for exactly the cities the run reports accepted venues in", () => {
+    const summary = JSON.parse(readFileSync("data/parallel-discovery/summary.json", "utf8"));
+    const reported = summary.cities.filter((city: { totalAccepted: number }) => city.totalAccepted > 0).map((city: { city: string }) => city.city);
+    expect([...discoveredCities].sort()).toEqual([...reported].sort());
+  });
+
+  it("claims all-city coverage only when every slice of every city map is complete", () => {
+    const summary = JSON.parse(readFileSync("data/parallel-discovery/summary.json", "utf8"));
+    const maps = readdirSync("data/cities").filter((city) => existsSync(`data/cities/${city}/osm_pubs.json`)).sort();
+    expect(summary.cities.map((city: { city: string }) => city.city).sort()).toEqual(maps);
+    for (const city of summary.cities) expect(city.complete).toBe(city.slicesComplete === city.slices);
+    expect(summary.allCitiesComplete).toBe(summary.cities.every((city: { complete: boolean }) => city.complete));
   });
 
   it.each(discoveredCities)("loads the entire %s pack with its discoveries", async (city) => {

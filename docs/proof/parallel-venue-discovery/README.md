@@ -4,37 +4,49 @@ Local evidence only. This is not deployment evidence.
 
 ## Coverage, measured
 
-Counts are rows in `public/data/cities/<city>/venues_slim.json` at base commit `0fb8308fa` and after `DEPLOYMENT_VERSION=local npm run build:city-slim`.
+Counts are rows in `public/data/cities/<city>/venues_slim.json` at base commit `0fb8308fa` and after `npm run build:city-slim`.
 
-| City | Before | After | New venues | Slices complete | Task runs |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Birmingham | 295 | 425 | 130 | 91 of 168 | 675 |
-| Leeds | 289 | 317 | 28 | 8 of 84 | 110 |
-| Glasgow | 293 | 317 | 24 | 4 of 104 | 75 |
-| Durham | 30 | 36 | 6 | 0 of 4 | 8 |
-| Manchester, Liverpool, Bristol, Bath, Oxford, Cambridge, Llandudno | 1,521 | 1,521 | 0 | 0 of 468 | 0 |
+| City | Before | After | New venues | Slices complete | Parallel Task runs | Tavily searches | Pages read |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Birmingham | 295 | 425 | 130 | 91 of 168 | 675 | 0 | 0 |
+| Leeds | 289 | 317 | 28 | 8 of 84 | 110 | 0 | 0 |
+| Glasgow | 293 | 317 | 24 | 4 of 104 | 75 | 0 | 0 |
+| Manchester | 544 | 546 | 2 | 107 of 208 | 0 | 229 | 280 |
+| Durham | 30 | 38 | 8 | 0 of 4 | 8 | 0 | 0 |
+| Liverpool | 406 | 406 | 0 | 71 of 140 | 0 | 141 | 76 |
+| Bristol | 269 | 269 | 0 | 23 of 56 | 0 | 56 | 35 |
+| Bath | 68 | 68 | 0 | 2 of 8 | 0 | 8 | 8 |
+| Oxford | 97 | 97 | 0 | 7 of 16 | 0 | 16 | 12 |
+| Cambridge | 81 | 81 | 0 | 6 of 20 | 0 | 20 | 14 |
+| Llandudno | 56 | 56 | 0 | 16 of 20 | 0 | 20 | 5 |
 
-The 188 accepted venues are 100 bars, 30 pubs and 58 restaurants. Every coordinate is a postcode centroid, and every price is null. Sources, quotes and observation dates are in each city's `parallel_venues.json`; slice, rejection and duplicate detail is in `data/parallel-discovery/reports/`.
+Pages read counts every URL a slice took up, including cached reads and pages refused by robots. The 192 accepted venues are 104 bars, 30 pubs and 58 restaurants. Every coordinate is a postcode centroid, and every price is null. Sources, quotes and observation dates are in each city's `parallel_venues.json`; slice, rejection and duplicate detail is in `data/parallel-discovery/reports/`.
 
-Of 2,916 researched rows, 2,622 failed acceptance. 1,358 had no verbatim citation from the venue's own site or a venue listing. 938 had quotes that did not state the venue's name, every address part and postcode. 166 lacked drinking evidence, and 160 had a postcode outside the map box. 37 matched an existing OSM, London or other-city venue. Eight earlier discoveries were found again and kept with their original observation date.
+Of 3,408 researched rows, most failed acceptance: 1,707 had no verbatim citation from the venue's own site or a venue listing, 951 had quotes that did not state the venue's name, every address part and postcode, 182 lacked drinking evidence, 164 had a postcode outside the map box and 105 had no geocodable address. 66 pages were not read, most because robots refused `FirecrawlAgent`.
+
+Manchester's first replay held eight web rows. Six came from articles (a football blog, a wine blog, a culture guide and a travel aggregator) whose extracted `website` was the article itself. The extractor's own-site claim is now replaced: a page counts as a venue's own site only when its host carries a distinctive word of the venue's name. Those six rows are gone; BOX Deansgate (its own site) and ATOMECA Wine Bar (SquareMeal) remain.
 
 ## Why coverage stopped
 
-The run fanned out into 828 slices: 207 postcode districts times pubs, bars, cocktail bars and restaurants. After 868 `pro` Task runs, about USD 87, Parallel answered every new run with HTTP 402: `Insufficient credit in account, please check your plan and billing details.` 725 slices stopped there, and seven cities were never reached. The script published only the verified rows of pages that completed.
+No city is complete; `summary.json` says `allCitiesComplete: false`.
 
-Resuming needs account credit, then the same command. Checkpoints in the ignored `data-harvest/parallel-venue-discovery/` keep every completed page, so nothing already paid for is run again:
+- Parallel: 868 `pro` Task runs, about USD 87, then HTTP 402 `Insufficient credit in account` on every new run.
+- Firecrawl: the plan's monthly credit ran out after 109 page reads (604 credits), then HTTP 402.
+- Tavily: 490 basic searches, every slice of the seven cities Parallel never reached. Their results are cached, so a resumed run reads their pages without searching again.
+
+Resuming needs Firecrawl or Parallel credit, then:
 
 ```sh
-node scripts/discover_parallel_venues.mjs
+node scripts/discover_parallel_venues.mjs --provider=tavily-firecrawl
 ```
 
-`data/parallel-discovery/summary.json` totals every Parallel HTTP call in `usage.jsonl`: 2,605 calls, estimated USD 87.15. That includes the first batch's 33 calls, 871 accepted Task creations, 871 result reads and 823 refused creations.
+`data/parallel-discovery/summary.json` totals every HTTP call in `usage.jsonl` by city and provider: 3,223 calls, estimated USD 94.09. Parallel accounts for USD 87.15, Tavily USD 3.92 (490 credits at the pay-as-you-go rate) and Firecrawl USD 3.02 (604 credits at the Hobby top-up rate).
 
 ## Checks
 
-- `node scripts/discover_parallel_venues.mjs --check` validates 188 venues in four cities and matches `freshness.json`.
+- `node scripts/discover_parallel_venues.mjs --check` validates 192 venues in five cities and matches `freshness.json`.
 - `npm run validate-data` and `npm run check:freshness` pass.
-- `__tests__/parallelVenueSlimLoading.test.ts` loads every city pack that has discoveries through the runtime slim loader. The loader returns every row, with discovered kinds and null prices.
+- `__tests__/parallelVenueSlimLoading.test.ts` loads every city pack that has discoveries through the runtime slim loader, with discovered kinds and null prices. It also holds the shipped packs to the cities `summary.json` reports, and `allCitiesComplete` to every slice of every map.
 
 ## First-batch browser evidence
 

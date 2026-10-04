@@ -82,9 +82,15 @@
     "WF3/restaurant"
   ],
   "taskRuns": 110,
+  "webSearches": 0,
+  "pagesRead": 0,
   "researched": 506,
-  "added": 21,
+  "added": 0,
   "retained": [
+    {
+      "name": "Below Stairs",
+      "id": "venue-lds-vznuu"
+    },
     {
       "name": "Restaurant Bar & Grill Leeds",
       "id": "venue-lds-111qh3y"
@@ -98,8 +104,88 @@
       "id": "venue-lds-1dzk9eh"
     },
     {
+      "name": "Boom Battle Bar Leeds",
+      "id": "venue-lds-1h1ptc"
+    },
+    {
       "name": "SALT Calls Landing",
       "id": "venue-lds-fk8iy"
+    },
+    {
+      "name": "Napoleons Casino & Restaurant Leeds",
+      "id": "venue-lds-fmcfis"
+    },
+    {
+      "name": "Arcade Club Leeds",
+      "id": "venue-lds-bwtlmt"
+    },
+    {
+      "name": "The East Village",
+      "id": "venue-lds-117f590"
+    },
+    {
+      "name": "Victoria Social",
+      "id": "venue-lds-1pdaeje"
+    },
+    {
+      "name": "Kesar Restaurant & Bar",
+      "id": "venue-lds-1d6rbps"
+    },
+    {
+      "name": "No 14 Restaurant & Bar",
+      "id": "venue-lds-pvpq9q"
+    },
+    {
+      "name": "Nyla’s Chapel Allerton",
+      "id": "venue-lds-ko9y1z"
+    },
+    {
+      "name": "Chophaus",
+      "id": "venue-lds-4byeb"
+    },
+    {
+      "name": "Bar on Park Lane",
+      "id": "venue-lds-1ywwz2p"
+    },
+    {
+      "name": "The Clock Inn",
+      "id": "venue-lds-1jxoauc"
+    },
+    {
+      "name": "DMC Brewery & Taproom",
+      "id": "venue-lds-yqpcr0"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "id": "venue-lds-18i7pnx"
+    },
+    {
+      "name": "Inkwell Bar",
+      "id": "venue-lds-9i571z"
+    },
+    {
+      "name": "The Holbeck",
+      "id": "venue-lds-din2dl"
+    },
+    {
+      "name": "West Park Lounge",
+      "id": "venue-lds-xso151"
+    },
+    {
+      "name": "Adel Tap",
+      "id": "venue-lds-dseyeu"
+    },
+    {
+      "name": "Ego at The Wellington, Shadwell",
+      "id": "venue-lds-1k9wwyx"
+    },
+    {
+      "name": "The Fishermans Lodge",
+      "id": "venue-lds-1dshprx"
+    },
+    {
+      "name": "Kasa Rosa",
+      "id": "venue-lds-eopqpi"
     }
   ],
   "totalAccepted": 28,

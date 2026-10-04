@@ -10,10 +10,45 @@
     "DH1/restaurant"
   ],
   "taskRuns": 8,
+  "webSearches": 0,
+  "pagesRead": 0,
   "researched": 49,
-  "added": 6,
-  "retained": [],
-  "totalAccepted": 6,
+  "added": 0,
+  "retained": [
+    {
+      "name": "Whitechurch",
+      "id": "venue-dur-n53aox"
+    },
+    {
+      "name": "John's Bar",
+      "id": "venue-dur-8ti4sg"
+    },
+    {
+      "name": "Cuth's Bar",
+      "id": "venue-dur-1q8gqaa"
+    },
+    {
+      "name": "Dunelm Club",
+      "id": "venue-dur-ftudml"
+    },
+    {
+      "name": "Cosy Club Durham",
+      "id": "venue-dur-n4gbj0"
+    },
+    {
+      "name": "Hotel Indigo Rotunda Bar",
+      "id": "venue-dur-1yx09tz"
+    },
+    {
+      "name": "Cast Iron Bar",
+      "id": "venue-dur-ocx10"
+    },
+    {
+      "name": "Turkish Kitchen Meze & Grill",
+      "id": "venue-dur-v0muyx"
+    }
+  ],
+  "totalAccepted": 8,
   "repeats": 0,
   "duplicates": [
     {
@@ -82,7 +117,7 @@
     },
     {
       "name": "Turtle Bay",
-      "reason": "missing-venue-specific-citation"
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "Tango",
@@ -90,10 +125,6 @@
     },
     {
       "name": "The Curious Mr Fox",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Hotel Indigo Rotunda Bar",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
@@ -111,10 +142,6 @@
     {
       "name": "El Pincho",
       "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Cast Iron Bar",
-      "reason": "missing-venue-specific-citation"
     },
     {
       "name": "Isla By Coarse",

@@ -1,7 +1,7 @@
 {
   "city": "glasgow",
-  "source": "Parallel Task API",
-  "observationMeaning": "Each row's observedAt is the date its Parallel research result was retrieved. Cached reruns retain that date. Not a claim that every page was fetched live or that the venue is open tonight.",
+  "source": "Parallel Task API; Tavily Search with Firecrawl page reads",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result or Firecrawl page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
   "populationPriority": 620700,
   "populationSources": [
     "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
