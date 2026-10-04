@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The profile hero's rendered geometry, which is the only place the redesign is
 // actually true. The CSS is fenced in __tests__/profileRichRender.test.ts; this
@@ -224,6 +225,48 @@ test.describe("the desktop profile hero", () => {
     expect(hero.avatar.top).toBeLessThan(hero.cover.bottom);
     expect(hero.avatar.bottom).toBeGreaterThan(hero.cover.bottom);
   });
+
+  for (const withCover of [true, false]) {
+    test(`account menu stays pointer-accessible over a ${withCover ? "cover" : "no-cover"} profile`, async ({ page }, testInfo) => {
+      const stub = await installAuthDoubles(page);
+      stub.setServerHandle(HANDLE);
+      await seedSignedIn(page, "A");
+      await openProfile(page, withCover);
+      await expect(page.locator("header.profileHeader").getByRole("button", {
+        name: "Edit profile", exact: true,
+      })).toBeVisible();
+      if (withCover) {
+        await expect.poll(() => page.locator(".profileCoverImage").first().evaluate(
+          (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+        )).toBe(true);
+      } else {
+        await expect(page.locator(".profileHeaderWithCover")).toHaveCount(0);
+      }
+      const trigger = page.getByRole("button", { name: /Account options/ }).first();
+      const menu = page.locator(".authAccountMenu");
+      const signOut = menu.getByRole("button", { name: "Sign out", exact: true });
+      await trigger.click();
+      await expect(menu).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await trigger.click();
+      await expect(menu).toBeVisible();
+      await page.locator("header.profileHeader").click({ position: { x: 20, y: 20 } });
+      await expect(menu).toBeHidden();
+      await trigger.click();
+      await expect(menu).toBeVisible();
+      await expect.poll(() => signOut.evaluate((button) => {
+        const rect = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return hit !== null && button.contains(hit);
+      })).toBe(true);
+      await testInfo.attach("pointer-sign-out", { body: await page.screenshot(), contentType: "image/png" });
+      await stub.signedInAs(null);
+      await signOut.click();
+      await expect(menu).toBeHidden();
+      await expect(page.getByRole("button", { name: "Sign in", exact: true }).first()).toBeVisible();
+    });
+  }
 
   test("puts the stat band below the hero at the card's full width", async ({ page }) => {
     await openProfile(page);

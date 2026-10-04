@@ -80,6 +80,8 @@
 }
 
 .siteNavBar:not(.siteNavBarFloating) {
+  position: relative;
+  z-index: var(--z-float);
   margin-top: env(safe-area-inset-top, 0px);
 }
 
