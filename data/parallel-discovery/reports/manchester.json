@@ -1118,7 +1118,7 @@
   "webSearches": 380,
   "pagesRead": 1050,
   "researched": 143,
-  "added": 0,
+  "added": 1,
   "retained": [
     {
       "name": "Vero Moderno",
@@ -1257,7 +1257,7 @@
       "id": "venue-mcr-18rfqdc"
     }
   ],
-  "totalAccepted": 34,
+  "totalAccepted": 35,
   "repeats": 28,
   "duplicates": [
     {
@@ -1325,12 +1325,6 @@
       "id": null,
       "matchedName": "Mary D's",
       "matchedId": "node/1634679820"
-    },
-    {
-      "name": "Velopark Cafe",
-      "id": null,
-      "matchedName": "Velopark Cafe",
-      "matchedId": "node/5940361450"
     },
     {
       "name": "Townley",
@@ -1597,15 +1591,7 @@
       "matchedId": "node/59981073"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "Velopark Cafe",
-      "id": "venue-mcr-2mlxmv",
-      "matchedName": "Velopark Cafe",
-      "matchedId": "node/5940361450",
-      "reason": "duplicate of an existing venue"
-    }
-  ],
+  "withdrawn": [],
   "rejected": [
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",

@@ -4716,6 +4716,44 @@
       "provider": "parallel",
       "runId": "trun_ce5fd53e0016415faab6946f7c0436e2",
       "id": "venue-bhm-gptg05"
+    },
+    {
+      "name": "De La Vies",
+      "kind": "restaurant",
+      "address": "2A Barnsley Road, Bearwood, Birmingham, B17 8ED",
+      "postcode": "B17 8ED",
+      "locality": "Birmingham",
+      "website": "https://www.delavies-group.com/",
+      "lat": 52.474327,
+      "lng": -1.966001,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.delavies-group.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.delavies-group.com/",
+          "excerpt": "2A Barnsley Road, Bearwood, Birmingham B17 8ED"
+        },
+        {
+          "url": "https://www.delavies-group.com/",
+          "excerpt": "we make everything here at De La Vies."
+        },
+        {
+          "url": "https://www.delavies-group.com/",
+          "excerpt": "We have designed our cocktail menu to ensure there is a drink for everyone and every mood."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:11.151Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%208ED",
+        "observedAt": "2026-10-04T11:23:11.686Z",
+        "postcode": "B17 8ED",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415f86eb2acfb78e511d",
+      "id": "venue-bhm-37m3sc"
     }
   ]
 }

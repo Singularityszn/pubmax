@@ -7,7 +7,7 @@ import { HARVEST_SOURCES, harvestRedirectLanding, isRefusedOnPermission } from "
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { DISCOVERY_CITIES, POPULATION_SOURCES } from "./lib/parallelDiscoveryCities.mjs";
-import { allowedEvidenceUrl, assembleCityDiscoveries, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, unseenNames, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
+import { allowedEvidenceUrl, assembleCityDiscoveries, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, shippedVenues, unseenNames, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
 import { createRobotsGate, webSlice } from "./lib/webSlice.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -138,20 +138,22 @@ async function providerRequest(provider, endpoint, { city, body, cost = () => 0,
 
 const parallelRequest = (endpoint, options) => providerRequest("parallel", endpoint, options);
 
+// Every venue OSM and London already record, for slicing cities into
+// districts and telling research what is known; and the subset a map ships,
+// the only venues a discovery can duplicate.
 async function baseVenues() {
-  const venues = [];
-  for (const file of ["uk_osm_pubs.json", "uk_osm_venues_drink.json", "uk_osm_venues_food.json", "uk_osm_venues_work.json"]) {
-    const pack = await readJson(path.join(ROOT, "data/osm/uk", file));
-    if (!pack) throw new Error(`Missing national dedupe input data/osm/uk/${file}`);
-    venues.push(...(pack.pubs ?? pack.venues ?? []));
-  }
-  for (const city of DISCOVERY_CITIES) {
-    const pack = await readJson(path.join(ROOT, "data/cities", city.id, "osm_pubs.json"));
-    venues.push(...(pack?.pubs ?? []));
-  }
+  const pack = async (file) => {
+    const read = await readJson(path.join(ROOT, "data/osm/uk", file));
+    if (!read) throw new Error(`Missing national dedupe input data/osm/uk/${file}`);
+    return read.pubs ?? read.venues ?? [];
+  };
+  const [ukPubs, ukDrink, ukFood, ukWork] = await Promise.all(["uk_osm_pubs.json", "uk_osm_venues_drink.json", "uk_osm_venues_food.json", "uk_osm_venues_work.json"].map(pack));
+  const cityPubs = [];
+  for (const city of DISCOVERY_CITIES) cityPubs.push(...((await readJson(path.join(ROOT, "data/cities", city.id, "osm_pubs.json")))?.pubs ?? []));
   const london = await readJson(path.join(ROOT, "public/data/pint_prices_app_dataset.json"));
-  venues.push(...london.map((row) => ({ name: row.pub_name, lat: row.latitude, lng: row.longitude, address: row.address })));
-  return venues.filter((row) => row.name && Number.isFinite(row.lat) && Number.isFinite(row.lng));
+  const shipped = shippedVenues({ ukPubs, ukDrink, cityPubs, london });
+  const known = [...shipped, ...[...ukDrink.filter((row) => row.kind !== "bar"), ...ukFood, ...ukWork].filter((row) => row.name && Number.isFinite(row.lat) && Number.isFinite(row.lng))];
+  return { known, shipped };
 }
 
 const discoveryPath = (city) => path.join(ROOT, "data/cities", city.id, "parallel_venues.json");
@@ -331,13 +333,13 @@ async function pool(items, size, work) {
   return { results, failures };
 }
 
-async function assembleCity(city, slices, results, base) {
+async function assembleCity(city, slices, results, shipped) {
   const own = slices.map((slice, index) => ({ slice, result: results[index] ?? { found: [], rejected: [], researched: 0, taskRuns: 0, complete: false } })).filter(({ slice }) => slice.city === city);
   const found = own.flatMap(({ result }) => result.found);
   const previous = (await readJson(discoveryPath(city), { venues: [] })).venues.map((row) => ({ ...row, provider: row.provider ?? "parallel" }));
   const others = [];
   for (const other of DISCOVERY_CITIES) if (other !== city) others.push(...((await readJson(discoveryPath(other)))?.venues ?? []));
-  const assembled = assembleCityDiscoveries({ found, previous, existing: [...base, ...others], city });
+  const assembled = assembleCityDiscoveries({ found, previous, existing: [...shipped, ...others], city });
   for (const row of assembled.accepted) row.id = cityVenueIdForPub(city.id, row);
   const pack = validateDiscoveryPack({ city: city.id, source: "Parallel Task API; Tavily Search and Extract",
     observationMeaning: "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
@@ -416,9 +418,9 @@ async function main() {
   if (options.cities?.length !== 0 && !process.env[key]) throw new Error(`${key} is missing; load it in the invoking shell. A keyless replay would record a credential failure as the run's outcome`);
   await mkdir(RAW, { recursive: true });
   await mkdir(OUT, { recursive: true });
-  const base = await baseVenues();
+  const { known, shipped } = await baseVenues();
   const slices = targets.flatMap((city) => {
-    const cityKnown = base.filter((row) => inCity(row.lat, row.lng, city));
+    const cityKnown = known.filter((row) => inCity(row.lat, row.lng, city));
     return postcodeDistricts(cityKnown, city).flatMap((district) => {
       const districtKnown = cityKnown.filter((row) => (postcodeIn(row.postcode) ?? postcodeIn(row.address))?.split(" ")[0] === district)
         .map((row) => ({ name: row.name, postcode: postcodeIn(row.postcode) ?? postcodeIn(row.address) }));
@@ -428,7 +430,7 @@ async function main() {
   console.log(`cities: ${targets.length}\nslices: ${slices.length}`);
   const { results, failures } = await pool(slices, options.concurrency, (slice) => runSlice(slice, options));
   const cities = [];
-  for (const city of DISCOVERY_CITIES) cities.push(await assembleCity(city, slices, results, base));
+  for (const city of DISCOVERY_CITIES) cities.push(await assembleCity(city, slices, results, shipped));
   await checkPacks({ publishFreshness: true });
   const usage = await usageSummary();
   const observed = (await Promise.all(DISCOVERY_CITIES.map(async (city) => ((await readJson(discoveryPath(city)))?.venues ?? []).map((row) => row.observedAt)))).flat().sort();

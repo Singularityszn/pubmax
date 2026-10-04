@@ -378,7 +378,7 @@
   "webSearches": 110,
   "pagesRead": 402,
   "researched": 31,
-  "added": 0,
+  "added": 1,
   "retained": [
     {
       "name": "Lost & Grounded",
@@ -397,7 +397,7 @@
       "id": "venue-bri-xpufzk"
     }
   ],
-  "totalAccepted": 4,
+  "totalAccepted": 5,
   "repeats": 4,
   "duplicates": [
     {
@@ -417,12 +417,6 @@
       "id": null,
       "matchedName": "The Pilgrim Inn",
       "matchedId": "way/1088206528"
-    },
-    {
-      "name": "Beeses Bar & Tea Gardens",
-      "id": null,
-      "matchedName": "Beeses Bar & Tea Gardens",
-      "matchedId": "way/582526162"
     },
     {
       "name": "Bear & Rugged Staff",

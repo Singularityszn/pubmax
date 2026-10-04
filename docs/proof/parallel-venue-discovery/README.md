@@ -8,25 +8,27 @@ Counts are rows in `public/data/cities/<city>/venues_slim.json` at base commit `
 
 | City | Before | After | New venues | Slices complete | Slices with a skip | Robots skips | Extract skips | Filtered pages | Parallel Task runs | Tavily searches |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Birmingham | 295 | 424 | 129 | 168 of 168 | 14 | 15 | 0 | 46 | 675 | 156 |
+| Birmingham | 295 | 425 | 130 | 168 of 168 | 14 | 15 | 0 | 46 | 675 | 156 |
 | Leeds | 289 | 315 | 26 | 84 of 84 | 5 | 5 | 1 | 31 | 110 | 141 |
 | Glasgow | 293 | 317 | 24 | 104 of 104 | 5 | 5 | 0 | 82 | 75 | 218 |
-| Manchester | 544 | 578 | 34 | 208 of 208 | 16 | 17 | 4 | 81 | 0 | 380 |
+| Manchester | 544 | 579 | 35 | 208 of 208 | 16 | 17 | 4 | 81 | 0 | 380 |
 | Durham | 30 | 38 | 8 | 4 of 4 | 2 | 2 | 0 | 3 | 8 | 7 |
 | Liverpool | 406 | 428 | 22 | 140 of 140 | 18 | 14 | 5 | 54 | 0 | 247 |
-| Bristol | 269 | 273 | 4 | 56 of 56 | 7 | 3 | 5 | 27 | 0 | 110 |
-| Bath | 68 | 70 | 2 | 8 of 8 | 2 | 1 | 1 | 5 | 0 | 18 |
+| Bristol | 269 | 274 | 5 | 56 of 56 | 7 | 3 | 5 | 27 | 0 | 110 |
+| Bath | 68 | 71 | 3 | 8 of 8 | 2 | 1 | 1 | 5 | 0 | 18 |
 | Oxford | 97 | 104 | 7 | 16 of 16 | 1 | 1 | 0 | 10 | 0 | 31 |
 | Cambridge | 81 | 85 | 4 | 20 of 20 | 4 | 2 | 2 | 22 | 0 | 45 |
 | Llandudno | 56 | 56 | 0 | 20 of 20 | 0 | 0 | 0 | 4 | 0 | 27 |
 
-`summary.json` says `allCitiesComplete: true`: all 828 slices are complete, 74 of them with at least one skipped source. The 260 accepted venues are 105 pubs, 97 bars and 58 restaurants: 184 from Parallel and 76 from Tavily. Every coordinate is a postcode centroid, and every price is null. Sources, quotes and observation dates are in each city's `parallel_venues.json`; slice, rejection, duplicate, filter and skip detail is in `data/parallel-discovery/reports/`.
+`summary.json` says `allCitiesComplete: true`: all 828 slices are complete, 74 of them with at least one skipped source. The 264 accepted venues are 108 pubs, 97 bars and 59 restaurants: 185 from Parallel and 79 from Tavily. Every coordinate is a postcode centroid, and every price is null. Sources, quotes and observation dates are in each city's `parallel_venues.json`; slice, rejection, duplicate, filter and skip detail is in `data/parallel-discovery/reports/`.
 
 Of 3,265 researched rows, 1,356 had no verbatim citation from the venue's own site or a venue listing, 937 had no quote stating the venue's name, every address part and postcode, 212 had a postcode outside the map box and 185 lacked drinking evidence outside the venue's own name. 871 ranked pages were not read because robots refused them, they were gone or refused, or they landed outside the source fence. 365 ranked pages were filtered before any read: 233 from public bodies and universities, 61 job boards, 45 postcode or property lookups, 18 travel aggregators, 5 transport operators and 3 care directories.
 
 Name stripping now ignores spelling and markup, so two more rows whose only drinking word was in their name were withdrawn: Merlin's Café Bar (Birmingham, quoted as "Merlins Café Bar") and The Bath Distillery Gin Bar (Bath, quoted in markdown bold). Earlier, 14 such rows were withdrawn. Shack (Manchester) was added from a page read in that round; High Street Tavern, read in the same round, was later withdrawn as a duplicate of OSM node/5066958728 (below). Every other accepted row keeps its source URLs and original `observedAt`.
 
-Dedupe now treats the same house number on the same street, the same street where a number is missing, or the same full postcode, as one venue whatever postcode or centroid each source gives. Ten stored discoveries were withdrawn as venues already on the map: Royal Standard and Britannia (Oxford), Kingfisher and Allerton Hall (Liverpool), High Street Tavern, Middleton Archer, Jolly Hatters, Lancashire Fold and Velopark Cafe (Manchester) and Pilgrim Inn (Bristol). Their pins are gone from the slim packs, and each city report lists each one under `duplicates` with the OSM venue it matched. The withdrawals were derived by replays that made no provider call; every other accepted row is unchanged.
+Dedupe now treats the same house number on the same street, the same street where a number is missing, or the same full postcode, as one venue whatever postcode or centroid each source gives. It compares discoveries only with venues a map ships: the national OSM pubs, the drink pack's bars (the rows the UK base layer shows), each city map's OSM pubs and the London dataset. Nine stored discoveries were withdrawn as venues already on the map: Royal Standard and Britannia (Oxford), Kingfisher and Allerton Hall (Liverpool), High Street Tavern, Middleton Archer, Jolly Hatters and Lancashire Fold (Manchester) and Pilgrim Inn (Bristol). Their pins are gone from the slim packs, and each city report lists each one under `duplicates` with the OSM venue it matched.
+
+Four venues had been held back only by OSM rows no map shows, and now ship with their original evidence and observation dates: Velopark Cafe (Manchester, against a food-pack cafe; an earlier round had withdrawn it and wrongly called that row on the map), Beeses Bar & Tea Gardens (Bristol, a food-pack cafe), De La Vies (Birmingham, a drink-pack restaurant row) and Wolf Wine (Bath, a drink-pack `other` row). All were derived by replays that made no provider call; every other accepted row is unchanged.
 
 One likely pair stays unresolved: Sun Inn, 210 Guide Lane, Audenshaw M34 5BR (Manchester, from CAMRA) sits 454 m from OSM node/705944807 "The Sun Inn". That OSM node states no street, postcode, website or phone, so the cached evidence cannot show it is the same building, and the discovery is kept rather than matched on a common name alone.
 
@@ -65,11 +67,11 @@ Parallel ran out of credit (HTTP 402) after 868 `pro` Task runs, and Firecrawl r
 
 ## Checks
 
-- `node scripts/discover_parallel_venues.mjs --check` validates 260 venues in ten cities and matches `freshness.json`.
+- `node scripts/discover_parallel_venues.mjs --check` validates 264 venues in ten cities and matches `freshness.json`.
 - `PUBMAX_VERIFY_COMMITTED_DATA=1 npm run validate-data` and `npm run check:freshness` pass.
 - `__tests__/parallelVenueSlimLoading.test.ts` loads every city pack that has discoveries through the runtime slim loader, with discovered kinds and null prices. It also holds the shipped packs to the cities `summary.json` reports, and `allCitiesComplete` to every slice of every map.
 - `__tests__/webVenueDiscovery.test.ts` reads entries from own sites and CAMRA-style listings, refuses a name paired with another entry's address, named news brands as own sites while keeping venues such as The Lamp Post, drinking evidence taken only from a name however it is spelled or marked up, non-venue sites, and list numbers, labels, opening hours and closed entries.
-- `__tests__/parallelVenueDiscovery.test.ts` matches each of the ten withdrawn discoveries to its OSM venue with the real addresses and coordinates, keeps same-name branches with different street addresses and postcodes apart, and withdraws a stored row an existing venue matches.
+- `__tests__/parallelVenueDiscovery.test.ts` matches each of the nine withdrawn discoveries to its OSM venue with the real addresses and coordinates, keeps same-name branches with different street addresses and postcodes apart, and withdraws a stored row an existing venue matches. It also holds the real Velopark Cafe pair: a food, restaurant or `other` row cannot withdraw it, while the same row as a shipped pub or bar does.
 - `__tests__/discoverRunSlice.test.ts` drives `runSlice` with fake lanes: under the default Parallel provider a city outside `--cities` replays its cached Tavily lane, `--refresh` touches only the selected city, and `--cities=` spends nowhere.
 - `__tests__/webSlice.test.ts` drives the real slice with fake I/O: a cached city replays to completion without a call, robots retries twice with fresh checkers before a recorded skip and keeps a recovered host's checker, a page Extract cannot read at either depth is skipped with both errors and its status unless it is gone, non-venue sites are filtered before any read, and `--refresh` starts over.
 

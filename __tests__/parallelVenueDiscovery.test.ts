@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTaskVenues, dedupeVenues, allowedEvidenceUrl, validateDiscoveryPack, mergeCityVenueSources, assembleCityDiscoveries, postcodeDistricts, unseenNames } from "../scripts/lib/parallelVenueDiscovery.mjs";
+import { shippedVenues, parseTaskVenues, dedupeVenues, allowedEvidenceUrl, validateDiscoveryPack, mergeCityVenueSources, assembleCityDiscoveries, postcodeDistricts, unseenNames } from "../scripts/lib/parallelVenueDiscovery.mjs";
 import { parseArgs, taskRequest } from "../scripts/discover_parallel_venues.mjs";
 import { buildCitySlim } from "../scripts/build_city_slim_index.mjs";
 
@@ -70,12 +70,31 @@ describe("Parallel venue discovery", () => {
     ["78 London Road, Headington, Oxford OX3 9AA", [51.759856, -1.212887], "Royal Standard", "78, London Road, OX3 9AJ", [51.7592403, -1.213449], "The Royal Standard"],
     ["1 Lime Walk, Headington, Oxford OX3 7RD", [51.759531, -1.213994], "Britannia", "74, London Road, OX3 7AA", [51.7590452, -1.2139214], "The Britannia Inn"],
     ["21-23 Hollywood Road, Brislington, Bristol BS4 4LD", [51.437534, -2.549317], "Pilgrim Inn", "21, Hollywood Road, Bristol, BS4 4LE", [51.4352354, -2.5482971], "The Pilgrim Inn"],
-    ["National Cycling Centre, Stuart Street, Clayton M11 4DQ", [53.486398, -2.196838], "Velopark Cafe", "Stuart Street, Manchester, M11 4BZ", [53.4851234, -2.1907685], "Velopark Cafe"],
   ])("matches the discovery at %s to the OSM pub already on the map", (address, [lat, lng], name, osmAddress, [osmLat, osmLng], osmName) => {
     const discovery = { name, address, lat, lng, coordinatePrecision: "postcode-centroid" };
     const osm = { name: osmName, address: osmAddress, lat: osmLat, lng: osmLng, osmId: "node/1" };
     expect(dedupeVenues([discovery], [osm])).toMatchObject({ accepted: [], duplicates: [{ name, matchedName: osmName, matchedId: "node/1" }] });
   });
+  it("lets only venues a map ships withdraw a discovery: the real Velopark Cafe pair", () => {
+    const velopark = { name: "Velopark Cafe", address: "National Cycling Centre, Stuart Street, Clayton M11 4DQ", lat: 53.486398, lng: -2.196838, coordinatePrecision: "postcode-centroid" };
+    const osmRow = { osmId: "node/5940361450", name: "Velopark Cafe", address: "Stuart Street, Manchester, M11 4BZ", lat: 53.4851234, lng: -2.1907685 };
+    const packs = { ukPubs: [], cityPubs: [], london: [] };
+    const unshown = shippedVenues({ ...packs, ukDrink: [{ ...osmRow, kind: "restaurant" }, { ...osmRow, kind: "other" }, { ...osmRow, kind: "hotel_lounge" }] });
+    expect(unshown).toEqual([]);
+    expect(dedupeVenues([velopark], unshown).accepted).toEqual([velopark]);
+    const asBar = shippedVenues({ ...packs, ukDrink: [{ ...osmRow, kind: "bar" }] });
+    expect(dedupeVenues([velopark], asBar)).toMatchObject({ accepted: [], duplicates: [{ name: "Velopark Cafe", matchedId: "node/5940361450" }] });
+    const asPub = shippedVenues({ ...packs, ukDrink: [], ukPubs: [osmRow] });
+    expect(dedupeVenues([velopark], asPub).accepted).toEqual([]);
+    const asCityPub = shippedVenues({ ...packs, ukDrink: [], cityPubs: [osmRow] });
+    expect(dedupeVenues([velopark], asCityPub).accepted).toEqual([]);
+  });
+
+  it("dedupes against London's dataset rows as shipped venues", () => {
+    const shipped = shippedVenues({ ukPubs: [], ukDrink: [], cityPubs: [], london: [{ pub_name: "The Copper Rooms", latitude: 52.48, longitude: -1.90, address: "12 Test Street, B1 1AA" }] });
+    expect(dedupeVenues([{ name: "Copper Rooms", address: "12 Test Street, Birmingham B1 1AA", lat: 52.4805, lng: -1.90, coordinatePrecision: "postcode-centroid" }], shipped).accepted).toEqual([]);
+  });
+
   it("keeps same-name branches with different house numbers on one street apart within a centroid's spread", () => {
     const existing = [{ name: "Copper Rooms", address: "12, Test Street, B1 1AA", lat: 52.48, lng: -1.90, osmId: "node/1" }];
     const branch = { name: "Copper Rooms", address: "212 Test Street, Birmingham B1 4DD", lat: 52.483, lng: -1.90, coordinatePrecision: "postcode-centroid" };

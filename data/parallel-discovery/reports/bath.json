@@ -94,7 +94,7 @@
   "webSearches": 18,
   "pagesRead": 104,
   "researched": 12,
-  "added": 0,
+  "added": 1,
   "retained": [
     {
       "name": "Hudson Bar & Grill",
@@ -105,7 +105,7 @@
       "id": "venue-bat-1btwlmw"
     }
   ],
-  "totalAccepted": 2,
+  "totalAccepted": 3,
   "repeats": 0,
   "duplicates": [
     {
@@ -125,12 +125,6 @@
       "id": null,
       "matchedName": "The Bell",
       "matchedId": "way/74536030"
-    },
-    {
-      "name": "Wolf Wine",
-      "id": null,
-      "matchedName": "Wolf Wine",
-      "matchedId": "node/12069728568"
     },
     {
       "name": "Sickle",

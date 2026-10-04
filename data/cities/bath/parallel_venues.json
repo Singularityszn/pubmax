@@ -65,6 +65,35 @@
       },
       "provider": "tavily",
       "id": "venue-bat-1btwlmw"
+    },
+    {
+      "name": "Wolf Wine",
+      "kind": "pub",
+      "address": "Walcot Street, Bath BA1 5BW",
+      "postcode": "BA1 5BW",
+      "locality": "Bath",
+      "website": null,
+      "lat": 51.387529,
+      "lng": -2.359407,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844",
+          "excerpt": "### Wolf Wine\n\nPub, in Bath]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\nWalcot Street, Bath, BA1 5BW"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:47.453Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BA1%205BW",
+        "observedAt": "2026-10-04T13:06:55.789Z",
+        "postcode": "BA1 5BW",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bat-1kit5a0"
     }
   ]
 }

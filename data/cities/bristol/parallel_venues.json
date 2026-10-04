@@ -127,6 +127,35 @@
       },
       "provider": "tavily",
       "id": "venue-bri-xpufzk"
+    },
+    {
+      "name": "Beeses Bar & Tea Gardens",
+      "kind": "pub",
+      "address": "Wyndham Crescent, Brislington, Bristol BS4 4SX",
+      "postcode": "BS4 4SX",
+      "locality": "Bristol",
+      "website": null,
+      "lat": 51.44174,
+      "lng": -2.534058,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279",
+          "excerpt": "[### Beeses Bar & Tea Gardens\n\nIndependent Pub, in Bristol]\n\n**Cask Ale not available**\n\n**0.9** miles from you\n\nWyndham Crescent, Brislington, Bristol, BS4 4SX"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:23.097Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BS4%204SX",
+        "observedAt": "2026-10-04T13:06:03.269Z",
+        "postcode": "BS4 4SX",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bri-182eti8"
     }
   ]
 }

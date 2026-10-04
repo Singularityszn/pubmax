@@ -739,7 +739,7 @@
   "webSearches": 156,
   "pagesRead": 584,
   "researched": 2070,
-  "added": 0,
+  "added": 1,
   "retained": [
     {
       "name": "Lulu Wild",
@@ -1258,7 +1258,7 @@
       "id": "venue-bhm-1gg3rw7"
     }
   ],
-  "totalAccepted": 129,
+  "totalAccepted": 130,
   "repeats": 58,
   "duplicates": [
     {
@@ -1404,12 +1404,6 @@
       "id": null,
       "matchedName": "Green Man",
       "matchedId": "way/85255915"
-    },
-    {
-      "name": "De La Vies",
-      "id": null,
-      "matchedName": "De La Vies",
-      "matchedId": "node/12771226415"
     },
     {
       "name": "Cross Guns",

@@ -993,6 +993,35 @@
       },
       "provider": "tavily",
       "id": "venue-mcr-8xcpdj"
+    },
+    {
+      "name": "Velopark Cafe",
+      "kind": "pub",
+      "address": "National Cycling Centre, Stuart Street, Clayton M11 4DQ",
+      "postcode": "M11 4DQ",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.486398,
+      "lng": -2.196838,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m11-4tq-1790946"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m11-4tq-1790946",
+          "excerpt": "Velopark Cafe\nPub, in Clayton\nCask Ale not available\n0.3 miles from you\nNational Cycling Centre, Stuart Street, Clayton, M11 4DQ"
+        }
+      ],
+      "observedAt": "2026-10-04T12:10:03.162Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M11%204DQ",
+        "observedAt": "2026-10-04T12:48:11.553Z",
+        "postcode": "M11 4DQ",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-2mlxmv"
     }
   ]
 }
