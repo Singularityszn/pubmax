@@ -80,6 +80,37 @@ describe("sports evidence publication", () => {
   });
 
   it.each([
+    "We don't have Sky Sports, TNT Sports screens at the bar.",
+    "We don't have Sky Sports, TNT Sports screens throughout the pub.",
+    "We don't show rugby, cricket broadcasts across all our TVs.",
+    "We don't have Sky Sports, TNT Sports broadcasts from the bar.",
+    "We don't show cricket, football broadcasts at the weekend.",
+    "We don't have Sky Sports, TNT Sports screen in the bar.",
+    "We don't show rugby, football show during the match.",
+  ])("leaves dual-use viewing nouns with only a location or time adjunct under the comma denial: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't have Sky Sports, TNT Sports screens football at the bar.",
+    "We don't have Sky Sports, TNT Sports is screened at the bar.",
+    "We don't have Sky Sports, TNT Sports screens every match throughout the pub.",
+    "We don't have Sky Sports, TNT Sports is shown throughout the pub.",
+    "We don't show rugby, cricket broadcasts every match across all our TVs.",
+    "We don't show rugby, cricket is broadcast across all our TVs.",
+    "We don't have Sky Sports, TNT Sports broadcasts football from the bar.",
+    "We don't have Sky Sports, TNT Sports is broadcast from the bar.",
+    "We don't show cricket, football broadcasts every game at the weekend.",
+    "We don't show cricket, football is broadcast at the weekend.",
+    "We don't have Sky Sports, TNT Sports screen football in the bar.",
+    "We don't have Sky Sports, TNT Sports are screened in the bar.",
+    "We don't show rugby, football show every game during the season.",
+    "We don't show rugby, football is shown during the season.",
+  ])("retains paired clear direct-object and passive predicates beside comma denials: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each([
     "We don't have Sky Sports, TNT Sports is shown in the bar.",
     "We don't show rugby, cricket is broadcast on our TVs.",
     "We don't show rugby, football is shown on all our TVs.",
