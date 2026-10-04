@@ -95,7 +95,7 @@ export async function GET(
   const groupSize = Number.isFinite(requestedGroupSize)
     ? Math.max(1, Math.min(30, Math.round(requestedGroupSize)))
     : 2;
-  const busyness = estimateBusyness({ timeZone: "Europe/London" });
+  const busyness = estimateBusyness({ timeZone: "Europe/London", openingHours: venue.openingHours });
   const booking = resolveBookingOption(venue.bookingLink);
   const getIn = {
     groupSize,

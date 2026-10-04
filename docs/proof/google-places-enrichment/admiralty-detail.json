@@ -1,0 +1,180 @@
+{
+  "before": {
+    "id": "venue-1t2cfa2",
+    "address": "66 Trafalgar Sq, St. James's, London WC2N 5DS",
+    "phone": null,
+    "website": "https://www.admiraltytrafalgar.co.uk/",
+    "isOpen": "unknown"
+  },
+  "after": {
+    "id": "venue-1t2cfa2",
+    "address": "66 Trafalgar Sq, London WC2N 5DS, UK",
+    "phone": "02078706353",
+    "website": "https://www.admiraltytrafalgar.co.uk/?utm_source=googlemybusiness&utm_medium=organic&utm_campaign=yext&utm_content=P176&y_source=1_MTIyMzcxMTAtNzE1LWxvY2F0aW9uLndlYnNpdGU%3D",
+    "openingHours": {
+      "0": [
+        {
+          "opens": "11:00",
+          "closes": "22:00"
+        }
+      ],
+      "1": [
+        {
+          "opens": "11:00",
+          "closes": "23:00"
+        }
+      ],
+      "2": [
+        {
+          "opens": "11:00",
+          "closes": "23:00"
+        }
+      ],
+      "3": [
+        {
+          "opens": "11:00",
+          "closes": "23:00"
+        }
+      ],
+      "4": [
+        {
+          "opens": "11:00",
+          "closes": "23:00"
+        }
+      ],
+      "5": [
+        {
+          "opens": "11:00",
+          "closes": "23:00"
+        }
+      ],
+      "6": [
+        {
+          "opens": "11:00",
+          "closes": "23:00"
+        }
+      ]
+    },
+    "isOpen": true,
+    "placesContent": {
+      "venueId": "venue-osm-n581058547",
+      "googlePlaceId": "ChIJpxRYKc4EdkgRuDiVRuMuBV4",
+      "formattedAddress": {
+        "value": "66 Trafalgar Sq, London WC2N 5DS, UK",
+        "source": "google_places",
+        "observedAt": "2026-10-04T10:22:24.747Z"
+      },
+      "nationalPhoneNumber": {
+        "value": "020 7870 6353",
+        "source": "google_places",
+        "observedAt": "2026-10-04T10:22:24.747Z"
+      },
+      "websiteUri": {
+        "value": "https://www.admiraltytrafalgar.co.uk/?utm_source=googlemybusiness&utm_medium=organic&utm_campaign=yext&utm_content=P176&y_source=1_MTIyMzcxMTAtNzE1LWxvY2F0aW9uLndlYnNpdGU%3D",
+        "source": "google_places",
+        "observedAt": "2026-10-04T10:22:24.747Z"
+      },
+      "regularOpeningHours": {
+        "value": {
+          "periods": [
+            {
+              "open": {
+                "day": 0,
+                "hour": 11,
+                "minute": 0
+              },
+              "close": {
+                "day": 0,
+                "hour": 22,
+                "minute": 0
+              }
+            },
+            {
+              "open": {
+                "day": 1,
+                "hour": 11,
+                "minute": 0
+              },
+              "close": {
+                "day": 1,
+                "hour": 23,
+                "minute": 0
+              }
+            },
+            {
+              "open": {
+                "day": 2,
+                "hour": 11,
+                "minute": 0
+              },
+              "close": {
+                "day": 2,
+                "hour": 23,
+                "minute": 0
+              }
+            },
+            {
+              "open": {
+                "day": 3,
+                "hour": 11,
+                "minute": 0
+              },
+              "close": {
+                "day": 3,
+                "hour": 23,
+                "minute": 0
+              }
+            },
+            {
+              "open": {
+                "day": 4,
+                "hour": 11,
+                "minute": 0
+              },
+              "close": {
+                "day": 4,
+                "hour": 23,
+                "minute": 0
+              }
+            },
+            {
+              "open": {
+                "day": 5,
+                "hour": 11,
+                "minute": 0
+              },
+              "close": {
+                "day": 5,
+                "hour": 23,
+                "minute": 0
+              }
+            },
+            {
+              "open": {
+                "day": 6,
+                "hour": 11,
+                "minute": 0
+              },
+              "close": {
+                "day": 6,
+                "hour": 23,
+                "minute": 0
+              }
+            }
+          ],
+          "weekdayDescriptions": [
+            "Monday: 11:00 AM – 11:00 PM",
+            "Tuesday: 11:00 AM – 11:00 PM",
+            "Wednesday: 11:00 AM – 11:00 PM",
+            "Thursday: 11:00 AM – 11:00 PM",
+            "Friday: 11:00 AM – 11:00 PM",
+            "Saturday: 11:00 AM – 11:00 PM",
+            "Sunday: 11:00 AM – 10:00 PM"
+          ]
+        },
+        "source": "google_places",
+        "observedAt": "2026-10-04T10:22:24.747Z"
+      }
+    }
+  }
+}

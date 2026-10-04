@@ -314,6 +314,20 @@
       "stalenessBudgetHours": 384,
       "refreshWorkflow": "manual (npm run verify:famous-venues -- --write, then npm run refresh:slim; build:slim alone rebuilds at the committed stamp). The budget is two weeks of lead before the earliest expiresAt still inside this slim build, derived by __tests__/helpers/currentFamousVenues.ts.",
       "gate": "The seed's own expiresAt. A rebuild that would drop a famous venue the last slim index shipped fails instead of writing a shorter index."
+    },
+    {
+      "id": "google_places_content",
+      "label": "Google Places venue hours and contacts",
+      "class": "episodic",
+      "artifact": "data/places_enrichment_stamp.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "observedAt"
+      },
+      "cadence": "Manual verified-id push; each copied field stays shown under its own observedAt and is due for refresh after 30 days",
+      "stalenessBudgetHours": 720,
+      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh; then --write --exclusive --refresh after shared-key jobs finish). --refresh starts a new push only once a copied row is over 30 days old and re-requests rows that are missing, failed earlier or were over 30 days old when that push started. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 404 or non-key 400 failures are recorded and the run continues, and any other failure stops it. The committed spend ledger seeds a clone with no local checkpoint and keeps every push's attempts.",
+      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields, USD 85 attempt cap per calendar month across all pushes and checked daily-quota restoration. The oldest copied row dates this artifact, a small stamp the runner and npm run build:places-enrichment derive from data/places_enrichment.json so the spine never parses the full pack."
     }
   ]
 }
