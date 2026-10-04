@@ -643,44 +643,6 @@
       "provider": "parallel"
     },
     {
-      "name": "The Bothy Glasgow",
-      "kind": "restaurant",
-      "address": "11 Ruthven Lane, Hillhead, Glasgow, G12 9BG",
-      "postcode": "G12 9BG",
-      "locality": "Glasgow",
-      "website": "https://bothyglasgow.co.uk/",
-      "lat": 55.875549,
-      "lng": -4.29506,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://bothyglasgow.co.uk/"
-      ],
-      "evidence": [
-        {
-          "url": "https://bothyglasgow.co.uk/",
-          "excerpt": "The Bothy Glasgow"
-        },
-        {
-          "url": "https://bothyglasgow.co.uk/",
-          "excerpt": "11 Ruthven Lane, Hillhead, Glasgow West End, G12 9BG"
-        },
-        {
-          "url": "https://bothyglasgow.co.uk/",
-          "excerpt": "a carefully curated drinks menu, packed full of Scottish whisky, gins, locally distilled spirits and more."
-        }
-      ],
-      "observedAt": "2026-10-04T11:35:38.028Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/G12%209BG",
-        "observedAt": "2026-10-04T11:35:38.080Z",
-        "postcode": "G12 9BG",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415f9fe5583fbd356cda",
-      "id": "venue-glw-xz24qa",
-      "provider": "parallel"
-    },
-    {
       "name": "The Left Bank",
       "kind": "bar",
       "address": "33–35 Gibson Street, Glasgow, G12 8NU",
@@ -712,86 +674,6 @@
       },
       "runId": "trun_ce5fd53e0016415f9fe5583fbd356cda",
       "id": "venue-glw-b7rg4t",
-      "provider": "parallel"
-    },
-    {
-      "name": "Little SoHo Jordanhill",
-      "kind": "bar",
-      "address": "512 Crow Road, Glasgow, G13 1NU",
-      "postcode": "G13 1NU",
-      "locality": "Glasgow",
-      "website": "https://sohojordanhill.com/",
-      "lat": 55.883899,
-      "lng": -4.32563,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://sohojordanhill.com/"
-      ],
-      "evidence": [
-        {
-          "url": "https://sohojordanhill.com/",
-          "excerpt": "Little SoHo Jordanhill"
-        },
-        {
-          "url": "https://sohojordanhill.com/",
-          "excerpt": "Little SoHo is a family owned cocktail bar and pizzeria restaurant in Jordanhill near Scotstoun."
-        },
-        {
-          "url": "https://sohojordanhill.com/",
-          "excerpt": "We also serve a good range of value wines, quality beers, expertly mixed cocktails and great Italian coffee."
-        },
-        {
-          "url": "https://sohojordanhill.com/",
-          "excerpt": "512 Crow Road, Glasgow, G13 1NU"
-        }
-      ],
-      "observedAt": "2026-10-04T11:35:38.135Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/G13%201NU",
-        "observedAt": "2026-10-04T11:35:38.167Z",
-        "postcode": "G13 1NU",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fb68559b58ac97d74",
-      "id": "venue-glw-ikatr9",
-      "provider": "parallel"
-    },
-    {
-      "name": "Killermont Polo Club",
-      "kind": "restaurant",
-      "address": "2022 Maryhill Rd, Glasgow G20 0AB",
-      "postcode": "G20 0AB",
-      "locality": "Glasgow",
-      "website": null,
-      "lat": 55.898252,
-      "lng": -4.3008,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.opentable.com/r/killermont-poloclub-glasgow"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.opentable.com/r/killermont-poloclub-glasgow",
-          "excerpt": "Killermont Polo Club"
-        },
-        {
-          "url": "https://www.opentable.com/r/killermont-poloclub-glasgow",
-          "excerpt": "2022 Maryhill Rd, Glasgow, Glasgow City G20 0AB"
-        },
-        {
-          "url": "https://www.opentable.com/r/killermont-poloclub-glasgow",
-          "excerpt": "Beer, Cocktails, Gluten-free Options, Vegan, Wine"
-        }
-      ],
-      "observedAt": "2026-10-04T11:35:38.545Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/G20%200AB",
-        "observedAt": "2026-10-04T11:35:38.583Z",
-        "postcode": "G20 0AB",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415f98a68ea5de979a49",
-      "id": "venue-glw-v872fm",
       "provider": "parallel"
     },
     {

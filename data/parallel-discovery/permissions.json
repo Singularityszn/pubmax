@@ -1,0 +1,1488 @@
+{
+  "meaning": "Every published venue retains only evidence URLs with recorded robots permission. Refused and unreachable URLs cannot support identity, address, coordinates or drinking evidence. checkedAt records permission checks, not venue observation dates.",
+  "checkedUrls": 234,
+  "allowedUrls": 215,
+  "rejectedVenues": 17,
+  "urls": [
+    {
+      "url": "http://epicures.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:05.251Z"
+    },
+    {
+      "url": "http://kerrymanbirmingham.com/contact",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.578Z"
+    },
+    {
+      "url": "http://laplancha.co.uk/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:08:27.750Z"
+    },
+    {
+      "url": "http://piccolinorestaurants.com/our-restaurants/birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.626Z"
+    },
+    {
+      "url": "http://praza.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.951Z"
+    },
+    {
+      "url": "http://special-spices.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.613Z"
+    },
+    {
+      "url": "http://theleftbank.co.uk/location",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:05.250Z"
+    },
+    {
+      "url": "http://theloftbrum.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.209Z"
+    },
+    {
+      "url": "http://thevine.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.140Z"
+    },
+    {
+      "url": "https://1000trades.org.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.403Z"
+    },
+    {
+      "url": "https://670grams.com/menus/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.289Z"
+    },
+    {
+      "url": "https://aluna.uk.com/contact",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.499Z"
+    },
+    {
+      "url": "https://antonios.co.uk/book-online",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:08:32.110Z"
+    },
+    {
+      "url": "https://astonmanorcricket.co.uk/club-house",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.006Z"
+    },
+    {
+      "url": "https://astonmanorcricket.co.uk/contact-us",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.006Z"
+    },
+    {
+      "url": "https://banksialeeds.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.689Z"
+    },
+    {
+      "url": "https://barbarasbierhaus.co.uk/birmingham/friday-at-barbaras-birmingham/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.979Z"
+    },
+    {
+      "url": "https://barsanaharborne.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.554Z"
+    },
+    {
+      "url": "https://barsanaharborne.co.uk/restaurant-radhe-foods-ltd-harborne-B17/menu",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.554Z"
+    },
+    {
+      "url": "https://bills-website.co.uk/restaurants/bullring",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.726Z"
+    },
+    {
+      "url": "https://birdcageharborne.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.919Z"
+    },
+    {
+      "url": "https://birmingham.camra.org.uk/pubguide",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.508Z"
+    },
+    {
+      "url": "https://birmingham.camra.org.uk/viewnode.php?id=131203",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.247Z"
+    },
+    {
+      "url": "https://boarsheadworldbuffet.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.389Z"
+    },
+    {
+      "url": "https://boombattlebar.com/uk/birmingham-broad-street/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.849Z"
+    },
+    {
+      "url": "https://bothyglasgow.co.uk/",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:09:04.655Z"
+    },
+    {
+      "url": "https://brewerywharftavern.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.141Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/121636",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.210Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/aston-old-edwardians-rugby-club-birmingham-121522",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.909Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.387Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/bainsys-bar-birmingham-121245",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.211Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/bournbrook-selly-oak-club-birmingham-121620",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.214Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/christophers-lounge-birmingham-121410",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.155Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/church-tavern-birmingham-121358",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.840Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/craft-inn-bearwood-146925",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.006Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/crown-social-club-birmingham-121594",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.290Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/digger-inn-birmingham-121443",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.154Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/dmc-brewery-taproom-leeds-197301",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.924Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/erdington-conservative-club-birmingham-121569",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.818Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/grange-social-club-birmingham-121661",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.953Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/great-barr-conservative-club-great-barr-119769",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.723Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/holbeck-leeds-178096",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.955Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/johns-bar-durham-187410",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:25.889Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/kings-heath-cricket-sports-club-birmingham-121127",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.751Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/location/52.510426/-1.992541",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.011Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/no1-public-house-kingstanding-121611",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.908Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/peg-grill-birmingham-121205",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.828Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/pickle-club-birmingham-121658",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.191Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/acocks-green-140",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.952Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/aston-west-midlands-761",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.153Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/cheadle-manchester-3560",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/deysbrook-5115",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:33.473Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/dukinfield-5408",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/durham-5528",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:25.889Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/eccles-manchester-5825",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/great-barr-7282",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.716Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/harborne-7849",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.194Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/kingswood-bristol-9640",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:34.099Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/kirkby-9733",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:33.473Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/middleton-manchester-11913",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/moseley-12232",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.727Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/parkhead-13448",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.578Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/smethwick-15666",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.006Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/stretford-manchester-16638",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/tyburn-17778",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.840Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/witton-west-midlands-19168",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.155Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/place/woolton-19330",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:33.473Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/955326?serves%5B0%5D=RealAle&hide_closed=1",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:33.473Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:35.066Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:34.099Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:36.265Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/l17-9rb-955699",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:33.473Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/l22-4rd-952539",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:33.473Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/l6-2as-941764?hide_closed=true&serves%5B0%5D=RealAle&sort=nearest",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:33.473Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/ls8-1dp-855058",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.769Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m11-4tq-1790946",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.894Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m15-4pn-843453",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m23-1wl-836961",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m3-6jg-830549",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m4-1qb-825113",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.894Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m5-4ln-819604",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/m8-9ed-816477",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/postcode/ox4-4rq-600635",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:35.776Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/saltley-inn-birmingham-121619",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.210Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/shanahans-motel-sports-bar-birmingham-121406",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.156Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/sheldon-marlborough-cricket-club-birmingham-121305",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.818Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/station/charing-cross-glasgow-g2-4pr-664",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.067Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/station/oldham-mumps-2389",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:24.879Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/valley-bar-great-barr-119761",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.776Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/ward-end-social-club-birmingham-121635",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.158Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/weoley-castle-working-mens-club-birmingham-121637",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.210Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/white-tower-birmingham-121450",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.909Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/whitechurch-durham-187152",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:25.889Z"
+    },
+    {
+      "url": "https://camra.org.uk/pubs/yardley-ex-service-mens-club-birmingham-121583",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.819Z"
+    },
+    {
+      "url": "https://cosyclub.co.uk/location/birmingham-bennetts-hill",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:08:26.749Z"
+    },
+    {
+      "url": "https://cosyclub.co.uk/location/durham/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:09:25.889Z"
+    },
+    {
+      "url": "https://cuveeglasgow.com/west-end/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.196Z"
+    },
+    {
+      "url": "https://discobowl.co.uk/acocks-green/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.214Z"
+    },
+    {
+      "url": "https://dunelmclub.co.uk/about-dunelm-club/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:25.999Z"
+    },
+    {
+      "url": "https://durham.hotelindigo.com/rotunda-bar",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:28.173Z"
+    },
+    {
+      "url": "https://elbuengusto.co.uk/drinks-list/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.150Z"
+    },
+    {
+      "url": "https://fivemarch.co.uk/a-la-carte/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.576Z"
+    },
+    {
+      "url": "https://franksboldmere.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.414Z"
+    },
+    {
+      "url": "https://golffang.co.uk/birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.317Z"
+    },
+    {
+      "url": "https://greatbarrcons.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.908Z"
+    },
+    {
+      "url": "https://hallgreenhgclub.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.391Z"
+    },
+    {
+      "url": "https://kennedysbar.co.uk/about-us",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.818Z"
+    },
+    {
+      "url": "https://kesarrestaurant.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.954Z"
+    },
+    {
+      "url": "https://kingsheadpubbedminster.com",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:34.619Z"
+    },
+    {
+      "url": "https://leeds.camra.org.uk/pubguide",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.027Z"
+    },
+    {
+      "url": "https://luluwild.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.606Z"
+    },
+    {
+      "url": "https://macbirmingham.co.uk/food-and-drink",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.669Z"
+    },
+    {
+      "url": "https://mockingbirdcinema.com/MockingbirdCinema.dll/Page?m=m&p=1052464",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.428Z"
+    },
+    {
+      "url": "https://mockingbirdcinema.com/MockingbirdCinema.dll/Page?m=m&p=95047&sp=95029",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.428Z"
+    },
+    {
+      "url": "https://napoleons-casinos.co.uk/the-casinos/leeds/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.768Z"
+    },
+    {
+      "url": "https://no14northlane.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.349Z"
+    },
+    {
+      "url": "https://noelsbar.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.806Z"
+    },
+    {
+      "url": "https://oltonmere.org.uk/club/club",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:34.241Z"
+    },
+    {
+      "url": "https://pegandgrill.co.uk/birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.910Z"
+    },
+    {
+      "url": "https://pokoloko.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.468Z"
+    },
+    {
+      "url": "https://porterandrye.com/wine-and-cocktail-bar",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:09:04.706Z"
+    },
+    {
+      "url": "https://rivablu.co.uk/locations/birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.819Z"
+    },
+    {
+      "url": "https://saintpaulshouse.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.311Z"
+    },
+    {
+      "url": "https://sancarlo.co.uk/restaurants/birmingham/san-carlo-birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.325Z"
+    },
+    {
+      "url": "https://sohojordanhill.com/",
+      "outcome": "skipped",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T18:09:05.483Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T18:09:11.876Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T18:09:17.763Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T18:09:17.763Z"
+    },
+    {
+      "url": "https://solihull.camra.org.uk/pubguide",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.387Z"
+    },
+    {
+      "url": "https://sophybirmingham.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.014Z"
+    },
+    {
+      "url": "https://taps.saltbeerfactory.co.uk/calls-landing/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.450Z"
+    },
+    {
+      "url": "https://taps.saltbeerfactory.co.uk/oakwood/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.450Z"
+    },
+    {
+      "url": "https://the-erdington-club.ueniweb.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.910Z"
+    },
+    {
+      "url": "https://theatrixbirmingham.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.839Z"
+    },
+    {
+      "url": "https://theatrixbirmingham.co.uk/contact",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:29.839Z"
+    },
+    {
+      "url": "https://thecrownclubs.uk/venues/thecrownerdington/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:30.930Z"
+    },
+    {
+      "url": "https://theeastvillage.bar/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.084Z"
+    },
+    {
+      "url": "https://theendleeds.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.544Z"
+    },
+    {
+      "url": "https://thekingstandinginn.co.uk/welcome-to-the-kingstanding-inn",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.010Z"
+    },
+    {
+      "url": "https://thelounges.co.uk/verdo",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.211Z"
+    },
+    {
+      "url": "https://thesatori.co.uk/",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:08:27.827Z"
+    },
+    {
+      "url": "https://thesatori.co.uk/contact",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:08:27.827Z"
+    },
+    {
+      "url": "https://thespotlounge.co.uk/2026/09/06/opening-weekend-for-the-spot-lounge/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.338Z"
+    },
+    {
+      "url": "https://thestationinn.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:34.530Z"
+    },
+    {
+      "url": "https://thewestparklounge.co.uk/menus",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.231Z"
+    },
+    {
+      "url": "https://tyseleywmc.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.564Z"
+    },
+    {
+      "url": "https://varanasi.uk/birmingham/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.056Z"
+    },
+    {
+      "url": "https://varanasi.uk/birmingham/contact",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.056Z"
+    },
+    {
+      "url": "https://vietnamesestreetkitchen.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.769Z"
+    },
+    {
+      "url": "https://visitbirmingham.com/listing/24-stories/150657101/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.993Z"
+    },
+    {
+      "url": "https://visitbirmingham.com/listing/miller-&-carter-the-mailbox/134662101",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.993Z"
+    },
+    {
+      "url": "https://visitbirmingham.com/listing/san-carlo-fumo-birmingham/181509101",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.993Z"
+    },
+    {
+      "url": "https://visitbirmingham.com/listing/shanahans-b%26b-with-sports-bar/128039101",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.156Z"
+    },
+    {
+      "url": "https://visitnylas.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.306Z"
+    },
+    {
+      "url": "https://visitnylas.com/chapel-allerton",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.306Z"
+    },
+    {
+      "url": "https://walsall.camra.org.uk/pubguide",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.642Z"
+    },
+    {
+      "url": "https://wunderbarglasgow.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.580Z"
+    },
+    {
+      "url": "https://wunderbarglasgow.com/ballroom",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.580Z"
+    },
+    {
+      "url": "https://www.acocksgreenbowling.co.uk/",
+      "outcome": "skipped",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T18:08:31.762Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T18:08:37.517Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T18:08:43.275Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T18:08:43.276Z"
+    },
+    {
+      "url": "https://www.africanvillagebirmingham.co.uk/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:08:30.814Z"
+    },
+    {
+      "url": "https://www.albertsschloss.com/location/birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.821Z"
+    },
+    {
+      "url": "https://www.arcadeclub.co.uk/leeds/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:08:49.923Z"
+    },
+    {
+      "url": "https://www.atlanticbrasserie.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.372Z"
+    },
+    {
+      "url": "https://www.belowstairsbar.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.005Z"
+    },
+    {
+      "url": "https://www.birminghammuseums.org.uk/museum-of-the-jewellery-quarter/cafe",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.562Z"
+    },
+    {
+      "url": "https://www.bossaglasgow.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.245Z"
+    },
+    {
+      "url": "https://www.buonissimorestaurant.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:33.960Z"
+    },
+    {
+      "url": "https://www.buonissimorestaurant.com/drinks-menu",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:33.960Z"
+    },
+    {
+      "url": "https://www.byzantiumtapas.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.440Z"
+    },
+    {
+      "url": "https://www.delavies-group.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:33.435Z"
+    },
+    {
+      "url": "https://www.deli17.co.uk/",
+      "outcome": "skipped",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T18:08:32.161Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T18:08:37.916Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T18:08:43.675Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T18:08:43.675Z"
+    },
+    {
+      "url": "https://www.edgbastongc.co.uk/dining_at_edgbaston",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.086Z"
+    },
+    {
+      "url": "https://www.edgbastonparkhotel.com/dining",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.947Z"
+    },
+    {
+      "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:08:50.280Z"
+    },
+    {
+      "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell/drinks-menu",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:08:50.280Z"
+    },
+    {
+      "url": "https://www.erdingtonconservativeclub.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.190Z"
+    },
+    {
+      "url": "https://www.farrandsbar.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.859Z"
+    },
+    {
+      "url": "https://www.gaelandgrain.com/gael-and-grain-events/back-to-all-events-all-in-for-glasgow-commonwealth-2026",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.594Z"
+    },
+    {
+      "url": "https://www.harborne-cc.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.562Z"
+    },
+    {
+      "url": "https://www.harborne-cc.co.uk/a/welcome-to-the-official-website-of-harborne-cricket-club-68994.html?page=3",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.562Z"
+    },
+    {
+      "url": "https://www.hilton.com/en/hotels/glagwdi-doubletree-glasgow-central/dining/cask-and-clyde",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.275Z"
+    },
+    {
+      "url": "https://www.hilton.com/en/hotels/glahitw-hilton-glasgow/dining/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.275Z"
+    },
+    {
+      "url": "https://www.iguanas.co.uk/restaurants/birmingham-templest",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.773Z"
+    },
+    {
+      "url": "https://www.ihg.com/birmingham-united-kingdom",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.210Z"
+    },
+    {
+      "url": "https://www.ihg.com/holidayinnexpress/hotels/us/en/birmingham/bhxbs/hoteldetail",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.210Z"
+    },
+    {
+      "url": "https://www.jennyburnpub.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.563Z"
+    },
+    {
+      "url": "https://www.kasarosa.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:53.764Z"
+    },
+    {
+      "url": "https://www.lasante23.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.193Z"
+    },
+    {
+      "url": "https://www.lghhm.com/hotel/birmingham-strathallan-hotel",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.638Z"
+    },
+    {
+      "url": "https://www.low-places.co.uk/",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:08:27.507Z"
+    },
+    {
+      "url": "https://www.lucarellirestaurant.co.uk/lucarelli-restaurant-mailbox/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.626Z"
+    },
+    {
+      "url": "https://www.malmaison.com/locations/birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.446Z"
+    },
+    {
+      "url": "https://www.malmaison.com/locations/birmingham/chez-mal-brasserie-bar/chez-mal-bar",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.446Z"
+    },
+    {
+      "url": "https://www.mamarouxs.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.748Z"
+    },
+    {
+      "url": "https://www.obashospitality.com/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:08:31.776Z"
+    },
+    {
+      "url": "https://www.opentable.co.uk/r/milano-bar-and-ristorante-birmingham",
+      "outcome": "refused",
+      "reason": "robots-disallowed",
+      "checkedAt": "2026-10-04T18:08:27.463Z"
+    },
+    {
+      "url": "https://www.opentable.com/r/aria-bistro",
+      "outcome": "refused",
+      "reason": "robots-disallowed",
+      "checkedAt": "2026-10-04T18:08:27.153Z"
+    },
+    {
+      "url": "https://www.opentable.com/r/harvester-star-city-birmingham",
+      "outcome": "refused",
+      "reason": "robots-disallowed",
+      "checkedAt": "2026-10-04T18:08:27.157Z"
+    },
+    {
+      "url": "https://www.opentable.com/r/killermont-poloclub-glasgow",
+      "outcome": "refused",
+      "reason": "robots-disallowed",
+      "checkedAt": "2026-10-04T18:09:04.577Z"
+    },
+    {
+      "url": "https://www.opentable.com/r/lime-n-chilli-birmingham",
+      "outcome": "refused",
+      "reason": "robots-disallowed",
+      "checkedAt": "2026-10-04T18:08:29.606Z"
+    },
+    {
+      "url": "https://www.opentable.com/r/vedique-resto-bar-birmingham",
+      "outcome": "refused",
+      "reason": "robots-disallowed",
+      "checkedAt": "2026-10-04T18:08:28.920Z"
+    },
+    {
+      "url": "https://www.opentable.com/raja-monkey",
+      "outcome": "refused",
+      "reason": "robots-disallowed",
+      "checkedAt": "2026-10-04T18:08:31.210Z"
+    },
+    {
+      "url": "https://www.oscottsocialclub.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:32.091Z"
+    },
+    {
+      "url": "https://www.parkregisbirmingham.co.uk/compendium",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.352Z"
+    },
+    {
+      "url": "https://www.parkregisbirmingham.co.uk/wp-content/uploads/2023/04/Private-Dining-Brochure-V2.pdf",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.352Z"
+    },
+    {
+      "url": "https://www.pastadipiazza.co.uk/drinks/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:31.587Z"
+    },
+    {
+      "url": "https://www.redcorc.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:27.341Z"
+    },
+    {
+      "url": "https://www.ritasbars.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.607Z"
+    },
+    {
+      "url": "https://www.sabaisabai.com/moseley-village",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:28.552Z"
+    },
+    {
+      "url": "https://www.saintpaulsmarket.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.905Z"
+    },
+    {
+      "url": "https://www.smokeandashpizza.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.425Z"
+    },
+    {
+      "url": "https://www.societybirmingham.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.378Z"
+    },
+    {
+      "url": "https://www.squaremeal.co.uk/restaurants/la-mesa-dumbarton-road_29703",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.594Z"
+    },
+    {
+      "url": "https://www.stonehouserestaurants.co.uk/nationalsearch/eastandwestmidlands/themaltshovelgreatbarr",
+      "outcome": "refused",
+      "reason": "robots-unreadable",
+      "checkedAt": "2026-10-04T18:08:31.716Z"
+    },
+    {
+      "url": "https://www.sylvanglasgow.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.812Z"
+    },
+    {
+      "url": "https://www.the-oyster-club.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.757Z"
+    },
+    {
+      "url": "https://www.thecutandcraft.co.uk/leeds/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.952Z"
+    },
+    {
+      "url": "https://www.thefinniestonbar.com/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:09:04.392Z"
+    },
+    {
+      "url": "https://www.thefishermanslodge.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.319Z"
+    },
+    {
+      "url": "https://www.theginvault.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.708Z"
+    },
+    {
+      "url": "https://www.thegreatbarrhotel.com/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:08:31.722Z"
+    },
+    {
+      "url": "https://www.thekelvinglasgow.com/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:05.173Z"
+    },
+    {
+      "url": "https://www.themcmillan.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.895Z"
+    },
+    {
+      "url": "https://www.themcmillan.co.uk/offers",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:04.895Z"
+    },
+    {
+      "url": "https://www.therectorybirmingham.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.864Z"
+    },
+    {
+      "url": "https://www.therestaurantbarandgrill.com/locations/leeds",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:49.688Z"
+    },
+    {
+      "url": "https://www.thisisdurham.com/food-and-drink/cast-iron-bar-grill-and-terrace-p978131",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:29.009Z"
+    },
+    {
+      "url": "https://www.thisisdurham.com/food-and-drink/hotel-indigo-rotunda-bar-p940391",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:29.009Z"
+    },
+    {
+      "url": "https://www.tonightjosephine.co.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.621Z"
+    },
+    {
+      "url": "https://www.tonightjosephine.co.uk/bars/birmingham",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.621Z"
+    },
+    {
+      "url": "https://www.tonightjosephine.co.uk/bars/birmingham/occasions/bottomless-brunch",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:26.621Z"
+    },
+    {
+      "url": "https://www.turkishkitchendurham.co.uk/about",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:29.034Z"
+    },
+    {
+      "url": "https://www.victoriasocial.uk/",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:09:00.765Z"
+    },
+    {
+      "url": "https://www.visitleeds.co.uk/things-to-do/view-all/the-holbeck",
+      "outcome": "allowed",
+      "reason": "allowed",
+      "checkedAt": "2026-10-04T18:08:50.215Z"
+    },
+    {
+      "url": "https://yumbobirmingham.com/",
+      "outcome": "skipped",
+      "kind": "robots",
+      "reason": "robots HTTP 500",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T18:08:32.613Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
+        },
+        {
+          "at": "2026-10-04T18:08:38.836Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
+        },
+        {
+          "at": "2026-10-04T18:08:46.268Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
+        }
+      ],
+      "checkedAt": "2026-10-04T18:08:46.268Z"
+    },
+    {
+      "url": "https://zaalsha.com/",
+      "outcome": "allowed",
+      "reason": "no-rules-published",
+      "checkedAt": "2026-10-04T18:08:33.592Z"
+    }
+  ]
+}

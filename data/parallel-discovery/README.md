@@ -13,11 +13,15 @@ node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,
 node scripts/discover_parallel_venues.mjs --check
 ```
 
-Every run replays and reports every city. `--cities` names the cities that may spend, and they run first; the others replay their checkpoints without a request, under either provider. `--cities=` with no city replays every city without a request or a key. Parallel pages already paid for always count. A slice the Parallel pages left incomplete replays its cached Tavily lane, and with `--provider=tavily` a selected city finishes it with new Tavily reads; no Parallel request is made.
+Every run replays and reports every city. `--cities` names the cities that may spend, and they run first; the others replay their checkpoints without provider requests, under either provider. `--cities=` replays every city without provider requests or keys. Missing permission records still require robots checks. Parallel pages already paid for always count. A slice the Parallel pages left incomplete replays its cached Tavily lane, and with `--provider=tavily` a selected city finishes it with new Tavily reads; no Parallel request is made.
 
 There is no spend cap. Discovery covers every city in `scripts/fetch_city_osm_pubs.mjs`, the cities with a shipped map. A city without a map is refused: its rows would never reach the product.
 
 Cities are queued in descending census resident population order. The priority uses administrative census areas, documented in `scripts/lib/parallelDiscoveryCities.mjs`. Those areas can exceed the map boxes: County Durham, Bath and North East Somerset, and Conwy determine the priority for Durham, Bath and Llandudno respectively. They do not change map boundaries.
+
+Every publication checks evidence from both providers against recorded robots permission. Only permitted excerpts can establish the venue's identity, address and drinking evidence. The script withdraws a row when those excerpts are insufficient. `permissions.json` records each URL, outcome and check time. Permission checks never change `observedAt`.
+
+A spending run checks permission live. Keyless replay reuses recorded permission, matching the Tavily checkpoint rule. `--cities= --recheck-permissions` checks permission live without new provider requests. `--check` refuses a pack whose evidence lacks recorded permission.
 
 ## How a city is searched
 
@@ -78,5 +82,7 @@ PUBMAX_VERIFY_COMMITTED_DATA=1 npm run validate-data
 Estimates use [Parallel's published pricing](https://docs.parallel.ai/getting-started/pricing), checked 4 October 2026: advanced Search is $0.005 per request including ten results; Task is $0.01 for base, $0.025 for core, $0.10 for pro and $0.30 for ultra. Tavily is costed at its pay-as-you-go $0.008 per credit: one credit per basic search, one per five pages read by basic Extract and two per five at advanced depth. A page basic Extract cannot read is asked once more at advanced depth. Firecrawl, used once and now out of the lane, is costed at $0.005 per credit, its Hobby top-up rate of 1,000 credits per $5, and a scrape with JSON extraction uses 5 credits. Task reservations are counted at successful creation, so a later failed task can make the estimate exceed the bill. Account invoices remain authoritative.
 
 ## Current state
+
+The lane retains 239 venues after the permission audit and duplicate corrections. The audit checked 234 URLs. It recorded 215 permitted URLs, 15 refusals and four unreachable sources. Seventeen rows lacked sufficient permitted evidence and were withdrawn. All retained records preserve their original source excerpts and observation dates. The provider usage ledger is unchanged.
 
 `summary.json` says `allCitiesComplete: true`: every slice of all 11 city maps is complete, 74 of them with skips. That is completion with skips, not exhaustive coverage: 83 sources were skipped, 65 for robots files this network could not reach and 18 that Tavily Extract could not read, and `skips.json` lists them all. Parallel and Firecrawl are out of credit (HTTP 402) and are no longer called. `node scripts/discover_parallel_venues.mjs --provider=tavily` reruns the lane. Measured before and after counts are in [the proof notes](../../docs/proof/parallel-venue-discovery/README.md).

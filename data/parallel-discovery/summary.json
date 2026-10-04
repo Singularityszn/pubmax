@@ -30,10 +30,10 @@
       "pagesRead": 584,
       "researched": 2070,
       "added": 0,
-      "retained": 129,
+      "retained": 116,
       "duplicates": 33,
       "rejected": 1978,
-      "totalAccepted": 129,
+      "totalAccepted": 116,
       "usage": {
         "parallel": {
           "calls": 1527,
@@ -63,10 +63,10 @@
       "pagesRead": 500,
       "researched": 506,
       "added": 0,
-      "retained": 23,
+      "retained": 22,
       "duplicates": 4,
       "rejected": 556,
-      "totalAccepted": 26,
+      "totalAccepted": 25,
       "usage": {
         "parallel": {
           "calls": 328,
@@ -96,10 +96,10 @@
       "pagesRead": 872,
       "researched": 310,
       "added": 0,
-      "retained": 21,
+      "retained": 18,
       "duplicates": 10,
       "rejected": 460,
-      "totalAccepted": 24,
+      "totalAccepted": 21,
       "usage": {
         "parallel": {
           "calls": 261,
@@ -129,10 +129,10 @@
       "pagesRead": 1050,
       "researched": 143,
       "added": 0,
-      "retained": 34,
-      "duplicates": 56,
+      "retained": 33,
+      "duplicates": 57,
       "rejected": 208,
-      "totalAccepted": 34,
+      "totalAccepted": 33,
       "usage": {
         "parallel": {
           "calls": 208,
@@ -200,10 +200,10 @@
       "pagesRead": 607,
       "researched": 117,
       "added": 0,
-      "retained": 21,
-      "duplicates": 44,
+      "retained": 20,
+      "duplicates": 45,
       "rejected": 152,
-      "totalAccepted": 21,
+      "totalAccepted": 20,
       "usage": {
         "parallel": {
           "calls": 140,

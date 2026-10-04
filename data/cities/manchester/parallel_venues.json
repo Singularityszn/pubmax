@@ -96,35 +96,6 @@
       "id": "venue-mcr-1lrqa7h"
     },
     {
-      "name": "Black Lion Hotel",
-      "kind": "pub",
-      "address": "65 Chapel Street, Salford M3 5BZ",
-      "postcode": "M3 5BZ",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.48461,
-      "lng": -2.249663,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/postcode/m3-6jg-830549"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/postcode/m3-6jg-830549",
-          "excerpt": "Black Lion Hotel\nPub, in Salford\nCask Ale not available\n0.7 miles from you\n65 Chapel Street, Salford, M3 5BZ"
-        }
-      ],
-      "observedAt": "2026-10-04T12:08:40.156Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M3%205BZ",
-        "observedAt": "2026-10-04T12:48:05.788Z",
-        "postcode": "M3 5BZ",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-1utjiiq"
-    },
-    {
       "name": "Old Fire Station",
       "kind": "pub",
       "address": "Albert Bentley Place, Salford M5 4WT",

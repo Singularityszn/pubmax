@@ -208,22 +208,8 @@
       "matchedId": "way/140741973"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "The Butcher's Arms",
-      "id": "venue-oxf-1aku938",
-      "matchedName": "The Butchers Arms",
-      "matchedId": "way/832383135",
-      "reason": "duplicate of an existing venue"
-    },
-    {
-      "name": "Cricketer's Arms",
-      "id": "venue-oxf-m5pjg2",
-      "matchedName": "The Cricketers Arms",
-      "matchedId": "way/140741973",
-      "reason": "duplicate of an existing venue"
-    }
-  ],
+  "withdrawn": [],
+  "permissionRejected": 0,
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/oxfordshire",

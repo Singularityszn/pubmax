@@ -448,6 +448,7 @@
     }
   ],
   "withdrawn": [],
+  "permissionRejected": 0,
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/pubs-with-food/bristol",

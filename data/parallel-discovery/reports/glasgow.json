@@ -784,20 +784,8 @@
       "id": "venue-glw-48nwk4"
     },
     {
-      "name": "The Bothy Glasgow",
-      "id": "venue-glw-xz24qa"
-    },
-    {
       "name": "The Left Bank",
       "id": "venue-glw-b7rg4t"
-    },
-    {
-      "name": "Little SoHo Jordanhill",
-      "id": "venue-glw-ikatr9"
-    },
-    {
-      "name": "Killermont Polo Club",
-      "id": "venue-glw-v872fm"
     },
     {
       "name": "Tavern Bar",
@@ -808,7 +796,7 @@
       "id": "venue-glw-mfbz0j"
     }
   ],
-  "totalAccepted": 24,
+  "totalAccepted": 21,
   "repeats": 4,
   "duplicates": [
     {
@@ -872,7 +860,67 @@
       "matchedId": "node/1600288387"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "The Bothy Glasgow",
+      "id": "venue-glw-xz24qa",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://bothyglasgow.co.uk/",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:09:04.655Z"
+        }
+      ]
+    },
+    {
+      "name": "Little SoHo Jordanhill",
+      "id": "venue-glw-ikatr9",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://sohojordanhill.com/",
+          "outcome": "skipped",
+          "kind": "robots",
+          "reason": "robots unreachable",
+          "attempts": 3,
+          "evidence": [
+            {
+              "at": "2026-10-04T18:09:05.483Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
+            },
+            {
+              "at": "2026-10-04T18:09:11.876Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
+            },
+            {
+              "at": "2026-10-04T18:09:17.763Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
+            }
+          ],
+          "checkedAt": "2026-10-04T18:09:17.763Z"
+        }
+      ]
+    },
+    {
+      "name": "Killermont Polo Club",
+      "id": "venue-glw-v872fm",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.opentable.com/r/killermont-poloclub-glasgow",
+          "outcome": "refused",
+          "reason": "robots-disallowed",
+          "checkedAt": "2026-10-04T18:09:04.577Z"
+        }
+      ]
+    }
+  ],
+  "permissionRejected": 3,
   "rejected": [
     {
       "name": "NQ64 Arcade Bar Glasgow",

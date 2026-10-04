@@ -169,15 +169,8 @@
       "matchedId": "way/398959637"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "Saracens Head",
-      "id": "venue-bat-1btwlmw",
-      "matchedName": "Saracen's Head Tavern",
-      "matchedId": "way/92228107",
-      "reason": "duplicate of an existing venue"
-    }
-  ],
+  "withdrawn": [],
+  "permissionRejected": 0,
   "rejected": [
     {
       "name": "https://www.cntraveller.com/article/best-pubs-in-bath",

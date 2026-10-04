@@ -204,7 +204,11 @@ const dedupeName = (name) => normalizeVenueIdentityName(text(name).replace(/['â€
 export function sameVenue(a, b) {
   const aName = dedupeName(a.name);
   const bName = dedupeName(b.name);
-  if (!aName || !bName || !namesLikelySamePub(aName, bName)) return false;
+  if (!aName || !bName) return false;
+  const namesMatch = namesLikelySamePub(aName, bName);
+  const withoutType = (name) => name.replace(/\b(?:pub|inn|hotel|tavern|bar|restaurant|taproom)\b/g, " ").trim().replace(/\s+/g, " ");
+  const core = withoutType(aName);
+  if (!namesMatch && (!core || core !== withoutType(bName))) return false;
   const distance = haversineMeters(a.lat, a.lng, b.lat, b.lng);
   const centroid = a.coordinatePrecision === "postcode-centroid" || b.coordinatePrecision === "postcode-centroid";
   const near = centroid ? 100 : 50;
@@ -212,14 +216,17 @@ export function sameVenue(a, b) {
   const bStreet = streetIdentity(b.address);
   const sameStreet = aStreet && bStreet && aStreet.street === bStreet.street;
   const numbered = aStreet?.from != null && bStreet?.from != null;
-  if (sameStreet && numbered) return aStreet.from <= bStreet.to && bStreet.from <= aStreet.to ? distance <= 1000 : distance <= near;
-  if (sameStreet && centroid) return distance <= 800;
   const aPostcode = postcodeIn(a.address);
   const bPostcode = postcodeIn(b.address);
+  const numbersOverlap = numbered && aStreet.from <= bStreet.to && bStreet.from <= aStreet.to;
+  if (!namesMatch && !(sameStreet && (numbered ? numbersOverlap : aPostcode && aPostcode === bPostcode))) return false;
+  if (sameStreet && numbered) return aStreet.from <= bStreet.to && bStreet.from <= aStreet.to ? distance <= 1000 : distance <= near;
+  if (sameStreet && centroid) return distance <= 800;
   if (aPostcode && aPostcode === bPostcode) return distance <= 800;
   if (aStreet && bStreet && !sameStreet) return distance <= near;
-  if (!centroid && aPostcode && bPostcode && distance > 50) return false;
-  return distance <= (centroid ? 350 : 150);
+  if (centroid) return distance <= 350;
+  if (aPostcode && bPostcode && distance > 50) return false;
+  return distance <= 150;
 }
 
 // Two bases from the national packs, the city maps' OSM pubs and London.
@@ -268,6 +275,38 @@ export function validateDiscoveryPack(pack, city) {
     }
   }
   return pack;
+}
+
+// Provider citations do not establish permission. Only permitted excerpts
+// may bind a venue's identity, address and drinking evidence at publication.
+export async function gateVenueEvidence(rows, city, permission) {
+  const venues = [];
+  const rejected = [];
+  const results = await Promise.all(rows.map(async (row) => {
+    const answers = await Promise.all(row.sourceUrls.map(async (url) => [url, allowedEvidenceUrl(url)
+      ? await permission(url) : { outcome: "refused", reason: "outside-source-fence" }]));
+    const permitted = new Set(answers.filter(([, answer]) => answer.outcome === "allowed").map(([url]) => url));
+    const candidate = permitted.size === row.sourceUrls.length ? row : {
+      ...row, sourceUrls: row.sourceUrls.filter((url) => permitted.has(url)),
+      evidence: row.evidence.filter((entry) => permitted.has(entry.url)),
+    };
+    try {
+      validateDiscoveryPack({ city: city.id, venues: [candidate] }, city);
+      if (candidate.coordinatePrecision === "source-coordinate") {
+        const numbers = new Set(candidate.evidence.flatMap((entry) => (entry.excerpt.match(/[-+]?\d+(?:\.\d+)?/g) ?? []).map(Number)));
+        if (!numbers.has(candidate.lat) || !numbers.has(candidate.lng)) throw new Error("Unpermitted coordinate evidence");
+      }
+      return { venue: candidate };
+    } catch {
+      return { rejection: { name: row.name, id: row.id ?? null, reason: "source-permission: insufficient permitted evidence",
+        sources: answers.filter(([, answer]) => answer.outcome !== "allowed").map(([url, answer]) => ({ url, ...answer })) } };
+    }
+  }));
+  for (const result of results) {
+    if (result.venue) venues.push(result.venue);
+    else rejected.push(result.rejection);
+  }
+  return { venues, rejected };
 }
 
 // The city's own earlier discoveries are retained, never reported as

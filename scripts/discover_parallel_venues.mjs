@@ -7,7 +7,7 @@ import { HARVEST_SOURCES, harvestRedirectLanding, isRefusedOnPermission } from "
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { DISCOVERY_CITIES, POPULATION_SOURCES } from "./lib/parallelDiscoveryCities.mjs";
-import { allowedEvidenceUrl, assembleCityDiscoveries, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, unseenNames, venueBases, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
+import { allowedEvidenceUrl, assembleCityDiscoveries, gateVenueEvidence, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, unseenNames, venueBases, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
 import { createRobotsGate, webSlice } from "./lib/webSlice.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -48,9 +48,10 @@ const SCHEMA = {
 };
 
 export function parseArgs(argv) {
-  const options = { cities: null, matches: 30, concurrency: 40, processor: "pro", provider: "parallel", list: false, refresh: false, help: false, check: false };
+  const options = { cities: null, matches: 30, concurrency: 40, processor: "pro", provider: "parallel", list: false, refresh: false, recheckPermissions: false, help: false, check: false };
   for (const arg of argv) {
-    if (["--list", "--refresh", "--help", "--check"].includes(arg)) options[arg.slice(2)] = true;
+    if (arg === "--recheck-permissions") options.recheckPermissions = true;
+    else if (["--list", "--refresh", "--help", "--check"].includes(arg)) options[arg.slice(2)] = true;
     else if (arg.startsWith("--cities=")) options.cities = arg.slice(9) ? arg.slice(9).split(",") : [];
     else if (arg.startsWith("--matches=")) options.matches = Number(arg.slice(10));
     else if (arg.startsWith("--concurrency=")) options.concurrency = Number(arg.slice(14));
@@ -255,6 +256,23 @@ function limiter(size) {
 }
 const tavilySlot = limiter(4);
 const robotsGate = createRobotsGate(() => createRobotsChecker());
+const permissionSlot = limiter(12);
+const permissionChecks = new Map();
+let recheckPermissions = false;
+
+// Cached research still needs recorded permission before publication. Refresh
+// checks permission live; keyless replay uses the same recorded answer.
+async function evidencePermission(url) {
+  if (!permissionChecks.has(url)) permissionChecks.set(url, permissionSlot(async () => {
+    const file = path.join(RAW, "permissions", `${createHash("sha256").update(url).digest("hex")}.json`);
+    const cached = recheckPermissions ? null : await readJson(file);
+    const decision = cached?.url === url ? cached : { url, ...(await robotsGate(url)), checkedAt: new Date().toISOString() };
+    if (!cached) await writeJson(file, decision);
+    return decision;
+  }));
+  return permissionChecks.get(url);
+}
+
 const pageFile = (url) => path.join(RAW, "pages", `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`);
 
 // The page's own status, asked once a Tavily read fails without a cause.
@@ -336,9 +354,11 @@ async function assembleCity(city, slices, results, shipped) {
   for (const other of DISCOVERY_CITIES) if (other !== city) others.push(...((await readJson(discoveryPath(other)))?.venues ?? []));
   const assembled = assembleCityDiscoveries({ found, previous, existing: [...shipped, ...others], city });
   for (const row of assembled.accepted) row.id = cityVenueIdForPub(city.id, row);
+  const permitted = await gateVenueEvidence(assembled.venues, city, evidencePermission);
+  const permittedIds = new Set(permitted.venues.map((row) => row.id));
   const pack = validateDiscoveryPack({ city: city.id, source: "Parallel Task API; Tavily Search and Extract",
     observationMeaning: "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
-    populationPriority: city.population, populationSources: POPULATION_SOURCES, venues: assembled.venues }, city);
+    populationPriority: city.population, populationSources: POPULATION_SOURCES, venues: permitted.venues }, city);
   if (pack.venues.length || previous.length) await writeJson(discoveryPath(city), pack);
   const report = { city: city.id, districts: new Set(own.map(({ slice }) => slice.district)).size, slices: own.length,
     slicesComplete: own.filter(({ result }) => result.complete).length,
@@ -349,8 +369,8 @@ async function assembleCity(city, slices, results, shipped) {
     webSearches: own.reduce((total, { result }) => total + (result.webSearches ?? 0), 0),
     pagesRead: own.reduce((total, { result }) => total + (result.pagesRead ?? 0), 0),
     researched: own.reduce((total, { result }) => total + result.researched, 0),
-    added: assembled.accepted.length, retained: assembled.retained, totalAccepted: pack.venues.length, repeats: assembled.repeats,
-    duplicates: assembled.duplicates, withdrawn: assembled.withdrawn, rejected: own.flatMap(({ result }) => result.rejected),
+    added: assembled.accepted.filter((row) => permittedIds.has(row.id)).length, retained: assembled.retained.filter((row) => permittedIds.has(row.id)), totalAccepted: pack.venues.length, repeats: assembled.repeats,
+    duplicates: assembled.duplicates, withdrawn: [...assembled.withdrawn, ...permitted.rejected], permissionRejected: permitted.rejected.length, rejected: own.flatMap(({ result }) => result.rejected),
     outputPath: path.relative(ROOT, discoveryPath(city)) };
   await writeJson(path.join(OUT, "reports", `${city.id}.json`), report);
   console.log(`city: ${city.id}\nadded: ${report.added}\ntotal: ${report.totalAccepted}\nslicesComplete: ${report.slicesComplete}/${report.slices}\ntaskRuns: ${report.taskRuns}\nwebSearches: ${report.webSearches}\npagesRead: ${report.pagesRead}`);
@@ -358,6 +378,8 @@ async function assembleCity(city, slices, results, shipped) {
 }
 
 async function checkPacks({ publishFreshness = false } = {}) {
+  const recorded = publishFreshness ? null : await readJson(path.join(OUT, "permissions.json"));
+  const permitted = new Set((recorded?.urls ?? []).filter((row) => row.outcome === "allowed" && Number.isFinite(Date.parse(row.checkedAt))).map((row) => row.url));
   let venues = 0;
   const cities = [];
   const dates = [];
@@ -365,6 +387,7 @@ async function checkPacks({ publishFreshness = false } = {}) {
     const pack = await readJson(discoveryPath(city));
     if (!pack) continue;
     validateDiscoveryPack(pack, city);
+    if (!publishFreshness && pack.venues.some((row) => row.sourceUrls.some((url) => !permitted.has(url)))) throw new Error(`Missing recorded source permission for ${city.id}`);
     dates.push(...pack.venues.map((venue) => venue.observedAt));
     venues += pack.venues.length;
     cities.push({ city: city.id, venues: pack.venues.length });
@@ -399,7 +422,7 @@ async function main() {
   if (process.argv.length === 3 && ["-v", "-V", "--version"].includes(process.argv[2])) { console.log("2.0.0"); return; }
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported. --cities= with no city replays every city without a request or a key\ncredentials: PARALLEL_API_KEY or TAVILY_API_KEY from environment, required before any run; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
+    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--recheck-permissions] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported. --cities= replays every city without provider requests or keys; missing permission records require robots checks\n--recheck-permissions: checks every retained evidence URL live without refreshing research\ncredentials: PARALLEL_API_KEY or TAVILY_API_KEY from environment, required before any run; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
     return;
   }
   if (options.check) { await checkPacks(); return; }
@@ -411,6 +434,7 @@ async function main() {
   }
   const key = ENDPOINTS[options.provider].key;
   if (options.cities?.length !== 0 && !process.env[key]) throw new Error(`${key} is missing; load it in the invoking shell. A keyless replay would record a credential failure as the run's outcome`);
+  recheckPermissions = options.refresh || options.recheckPermissions || options.cities?.length !== 0;
   await mkdir(RAW, { recursive: true });
   await mkdir(OUT, { recursive: true });
   const { known, shipped } = await baseVenues();
@@ -427,6 +451,13 @@ async function main() {
   const cities = [];
   for (const city of DISCOVERY_CITIES) cities.push(await assembleCity(city, slices, results, shipped));
   await checkPacks({ publishFreshness: true });
+  const permissions = await Promise.all([...permissionChecks.values()]);
+  await writeJson(path.join(OUT, "permissions.json"), {
+    meaning: "Every published venue retains only evidence URLs with recorded robots permission. Refused and unreachable URLs cannot support identity, address, coordinates or drinking evidence. checkedAt records permission checks, not venue observation dates.",
+    checkedUrls: permissions.length, allowedUrls: permissions.filter((row) => row.outcome === "allowed").length,
+    rejectedVenues: cities.reduce((sum, row) => sum + row.permissionRejected, 0),
+    urls: permissions.sort((a, b) => a.url.localeCompare(b.url)),
+  });
   const usage = await usageSummary();
   const observed = (await Promise.all(DISCOVERY_CITIES.map(async (city) => ((await readJson(discoveryPath(city)))?.venues ?? []).map((row) => row.observedAt)))).flat().sort();
   await writeJson(path.join(OUT, "summary.json"), { providers: PROVIDERS, parallelProcessor: options.processor, parallelMatchesPerPage: options.matches, categories: CATEGORIES.map((category) => category.id),

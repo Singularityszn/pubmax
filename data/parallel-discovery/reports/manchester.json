@@ -1133,10 +1133,6 @@
       "id": "venue-mcr-1lrqa7h"
     },
     {
-      "name": "Black Lion Hotel",
-      "id": "venue-mcr-1utjiiq"
-    },
-    {
       "name": "Shack",
       "id": "venue-mcr-8xcpdj"
     },
@@ -1257,7 +1253,7 @@
       "id": "venue-mcr-18rfqdc"
     }
   ],
-  "totalAccepted": 34,
+  "totalAccepted": 33,
   "repeats": 28,
   "duplicates": [
     {
@@ -1301,6 +1297,12 @@
       "id": null,
       "matchedName": "Eagle Inn",
       "matchedId": "node/2207129152"
+    },
+    {
+      "name": "Black Lion Hotel",
+      "id": null,
+      "matchedName": "The Black Lion Pub",
+      "matchedId": "node/3659125466"
     },
     {
       "name": "High Street Tavern",
@@ -1599,13 +1601,14 @@
   ],
   "withdrawn": [
     {
-      "name": "Nags Head",
-      "id": "venue-mcr-1qfay4y",
-      "matchedName": "Nag's Head",
-      "matchedId": "way/1115745084",
+      "name": "Black Lion Hotel",
+      "id": "venue-mcr-1utjiiq",
+      "matchedName": "The Black Lion Pub",
+      "matchedId": "node/3659125466",
       "reason": "duplicate of an existing venue"
     }
   ],
+  "permissionRejected": 0,
   "rejected": [
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",

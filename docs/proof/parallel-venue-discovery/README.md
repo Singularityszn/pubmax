@@ -8,19 +8,19 @@ Counts are rows in `public/data/cities/<city>/venues_slim.json` at base commit `
 
 | City | Before | After | New venues | Slices complete | Slices with a skip | Robots skips | Extract skips | Filtered pages | Parallel Task runs | Tavily searches |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Birmingham | 295 | 424 | 129 | 168 of 168 | 14 | 15 | 0 | 46 | 675 | 156 |
-| Leeds | 289 | 315 | 26 | 84 of 84 | 5 | 5 | 1 | 31 | 110 | 141 |
-| Glasgow | 293 | 317 | 24 | 104 of 104 | 5 | 5 | 0 | 82 | 75 | 218 |
-| Manchester | 544 | 578 | 34 | 208 of 208 | 16 | 17 | 4 | 81 | 0 | 380 |
+| Birmingham | 295 | 411 | 116 | 168 of 168 | 14 | 15 | 0 | 46 | 675 | 156 |
+| Leeds | 289 | 314 | 25 | 84 of 84 | 5 | 5 | 1 | 31 | 110 | 141 |
+| Glasgow | 293 | 314 | 21 | 104 of 104 | 5 | 5 | 0 | 82 | 75 | 218 |
+| Manchester | 544 | 577 | 33 | 208 of 208 | 16 | 17 | 4 | 81 | 0 | 380 |
 | Durham | 30 | 38 | 8 | 4 of 4 | 2 | 2 | 0 | 3 | 8 | 7 |
-| Liverpool | 406 | 427 | 21 | 140 of 140 | 18 | 14 | 5 | 54 | 0 | 247 |
+| Liverpool | 406 | 426 | 20 | 140 of 140 | 18 | 14 | 5 | 54 | 0 | 247 |
 | Bristol | 269 | 274 | 5 | 56 of 56 | 7 | 3 | 5 | 27 | 0 | 110 |
 | Bath | 68 | 70 | 2 | 8 of 8 | 2 | 1 | 1 | 5 | 0 | 18 |
 | Oxford | 97 | 102 | 5 | 16 of 16 | 1 | 1 | 0 | 10 | 0 | 31 |
 | Cambridge | 81 | 85 | 4 | 20 of 20 | 4 | 2 | 2 | 22 | 0 | 45 |
 | Llandudno | 56 | 56 | 0 | 20 of 20 | 0 | 0 | 0 | 4 | 0 | 27 |
 
-`summary.json` says `allCitiesComplete: true`: all 828 slices are complete, 74 of them with at least one skipped source. The 258 accepted venues are 102 pubs, 97 bars and 59 restaurants: 184 from Parallel and 74 from Tavily. Every coordinate is a postcode centroid, and every price is null. Sources, quotes and observation dates are in each city's `parallel_venues.json`; slice, rejection, duplicate, filter and skip detail is in `data/parallel-discovery/reports/`.
+`summary.json` says `allCitiesComplete: true`: all 828 slices are complete, 74 of them with at least one skipped source. The 239 accepted venues are 99 pubs, 92 bars and 48 restaurants: 167 from Parallel and 72 from Tavily. Every coordinate is a postcode centroid, and every price is null. Sources, quotes and observation dates are in each city's `parallel_venues.json`; slice, rejection, duplicate, filter and skip detail is in `data/parallel-discovery/reports/`.
 
 Of 3,265 researched rows, 1,356 had no verbatim citation from the venue's own site or a venue listing, 937 had no quote stating the venue's name, every address part and postcode, 212 had a postcode outside the map box and 185 lacked drinking evidence outside the venue's own name. 871 ranked pages were not read because robots refused them, they were gone or refused, or they landed outside the source fence. 365 ranked pages were filtered before any read: 233 from public bodies and universities, 61 job boards, 45 postcode or property lookups, 18 travel aggregators, 5 transport operators and 3 care directories.
 
@@ -35,6 +35,14 @@ Four venues had been held back only by OSM rows no map shows, and now ship with 
 One likely pair stays unresolved: Sun Inn, 210 Guide Lane, Audenshaw M34 5BR (Manchester, from CAMRA) sits 454 m from OSM node/705944807 "The Sun Inn". That OSM node states no street, postcode, website or phone, so the cached evidence cannot show it is the same building, and the discovery is kept rather than matched on a common name alone.
 
 The slim builds were run with `DEPLOYMENT_VERSION=local` and the data validator with `PUBMAX_VERIFY_COMMITTED_DATA=1`. Measured on the tree handed to this round's commit: London's slim index and Llandudno's pack are byte-identical to base `31c92e2a9`, and the London manifest, core and full index and all 11 city manifests say `local`. `npm run validate-data` without that flag rebuilds the packs through `scripts/prevalidate-data.mjs` and stamps the HEAD commit; that is what restamped earlier commits.
+
+## Review corrections
+
+The final permission audit checked 234 evidence URLs with the same robots gate used by Tavily. It recorded 215 permitted URLs, 15 refusals and four unreachable sources. Seventeen rows lacked sufficient permitted evidence and were withdrawn. `data/parallel-discovery/permissions.json` records the decisions. Each city report names its withdrawals and their blocked sources.
+
+The audit also withdrew Black Lion Hotel in Manchester and Hillfoot Hotel in Liverpool as mapped venue-type name variants. Tests reproduced both duplicates before the fix. Type-word matching requires the same street plus overlapping numbered addresses or matching postcodes. Different numbered branches remain separate. The 350 m centroid tolerance now precedes the exact-coordinate postcode rejection. Tests cover adjacent-postcode centroids and the real Royal Standard pair.
+
+The cached replay completed all 828 slices. All 239 retained records are byte-identical to the previous commit. The 5,871-call provider ledger and all 83 original source skips are unchanged. This correction has no new live browser evidence.
 
 ## Skipped sources
 
@@ -69,7 +77,7 @@ Parallel ran out of credit (HTTP 402) after 868 `pro` Task runs, and Firecrawl r
 
 ## Checks
 
-- `node scripts/discover_parallel_venues.mjs --check` validates 258 venues in ten cities and matches `freshness.json`.
+- `node scripts/discover_parallel_venues.mjs --check` validates 239 venues in ten cities and matches `freshness.json`.
 - `PUBMAX_VERIFY_COMMITTED_DATA=1 npm run validate-data` and `npm run check:freshness` pass.
 - `__tests__/parallelVenueSlimLoading.test.ts` loads every city pack that has discoveries through the runtime slim loader, with discovered kinds and null prices. It also holds the shipped packs to the cities `summary.json` reports, and `allCitiesComplete` to every slice of every map.
 - `__tests__/webVenueDiscovery.test.ts` reads entries from own sites and CAMRA-style listings, refuses a name paired with another entry's address, named news brands as own sites while keeping venues such as The Lamp Post, drinking evidence taken only from a name however it is spelled or marked up, non-venue sites, and list numbers, labels, opening hours and closed entries.

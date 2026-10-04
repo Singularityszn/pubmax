@@ -842,41 +842,6 @@
       "provider": "parallel"
     },
     {
-      "name": "Ego at The Wellington, Shadwell",
-      "kind": "restaurant",
-      "address": "Wetherby Road, Leeds LS17 8LZ",
-      "postcode": "LS17 8LZ",
-      "locality": "Leeds",
-      "website": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell",
-      "lat": 53.843802,
-      "lng": -1.467538,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell/drinks-menu",
-        "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell/drinks-menu",
-          "excerpt": "Ego at The Wellington, Shadwell\nWETHERBY ROAD, , LEEDS LS17 8LZ"
-        },
-        {
-          "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell",
-          "excerpt": "Enjoy freshly cooked Mediterranean food, cocktails and local cask ale, served with a smile at exceptional value at Ego Shadwell."
-        }
-      ],
-      "observedAt": "2026-10-04T11:27:39.883Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/LS17%208LZ",
-        "observedAt": "2026-10-04T11:27:39.943Z",
-        "postcode": "LS17 8LZ",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fbe2870b3bb24432a",
-      "id": "venue-lds-1k9wwyx",
-      "provider": "parallel"
-    },
-    {
       "name": "The Fishermans Lodge",
       "kind": "restaurant",
       "address": "391 Street Lane, Moortown, Leeds, West Yorkshire LS17 6HQ",

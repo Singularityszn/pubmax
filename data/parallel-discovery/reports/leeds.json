@@ -467,10 +467,6 @@
       "id": "venue-lds-dseyeu"
     },
     {
-      "name": "Ego at The Wellington, Shadwell",
-      "id": "venue-lds-1k9wwyx"
-    },
-    {
       "name": "The Fishermans Lodge",
       "id": "venue-lds-1dshprx"
     },
@@ -479,7 +475,7 @@
       "id": "venue-lds-eopqpi"
     }
   ],
-  "totalAccepted": 26,
+  "totalAccepted": 25,
   "repeats": 6,
   "duplicates": [
     {
@@ -507,7 +503,28 @@
       "matchedId": "node/2141116425"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Ego at The Wellington, Shadwell",
+      "id": "venue-lds-1k9wwyx",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell/drinks-menu",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:08:50.280Z"
+        },
+        {
+          "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:08:50.280Z"
+        }
+      ]
+    }
+  ],
+  "permissionRejected": 1,
   "rejected": [
     {
       "name": "Archie's Bar & Kitchen",

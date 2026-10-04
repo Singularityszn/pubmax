@@ -302,6 +302,7 @@
     }
   ],
   "withdrawn": [],
+  "permissionRejected": 0,
   "rejected": [
     {
       "name": "https://forums.ybw.com/misc/location-info?location=Live+in+Cambridge.",

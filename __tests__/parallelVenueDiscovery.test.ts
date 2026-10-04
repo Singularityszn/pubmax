@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { venueBases, parseTaskVenues, dedupeVenues, allowedEvidenceUrl, validateDiscoveryPack, mergeCityVenueSources, assembleCityDiscoveries, postcodeDistricts, unseenNames } from "../scripts/lib/parallelVenueDiscovery.mjs";
+import { venueBases, parseTaskVenues, dedupeVenues, allowedEvidenceUrl, validateDiscoveryPack, mergeCityVenueSources, assembleCityDiscoveries, gateVenueEvidence, postcodeDistricts, unseenNames } from "../scripts/lib/parallelVenueDiscovery.mjs";
 import { parseArgs, taskRequest } from "../scripts/discover_parallel_venues.mjs";
 import { buildCitySlim } from "../scripts/build_city_slim_index.mjs";
 
@@ -18,6 +18,55 @@ function result(value: Record<string, unknown> = venue) {
 }
 
 describe("Parallel venue discovery", () => {
+  it("refuses a source outside the static fence without asking the network", async () => {
+    const url = "http://127.0.0.1/evidence";
+    const row = { ...venue, kind: "bar" as const, postcode: "B1 1AA", locality: city.displayName, sourceUrls: [url], observedAt: "2026-10-04T10:00:00Z", lat: 52.48, lng: -1.90, coordinatePrecision: "postcode-centroid" as const,
+      evidence: [{ url, excerpt: venue.evidence[0].excerpt }] };
+    const gated = await gateVenueEvidence([row], city, async () => { throw new Error("Must not call the network"); });
+    expect(gated.venues).toEqual([]);
+    expect(gated.rejected[0].sources).toEqual([{ url, outcome: "refused", reason: "outside-source-fence" }]);
+  });
+  it("dedupes adjacent-postcode centroids before the exact-coordinate postcode guard", () => {
+    const row = { name: "Royal Standard", address: "Oxford OX3 9AA", lat: 51.759856, lng: -1.212887, coordinatePrecision: "postcode-centroid" };
+    const existing = { name: "The Royal Standard", address: "Oxford OX3 9AJ", lat: 51.7592403, lng: -1.213449 };
+    expect(dedupeVenues([row], [existing]).accepted).toEqual([]);
+    expect(dedupeVenues([{ ...row, coordinatePrecision: "source-coordinate" }], [existing]).accepted).toHaveLength(1);
+  });
+  it("does not merge venue-type variants with different numbered addresses or no address evidence", () => {
+    const row = { name: "Black Lion Hotel", address: "65 Chapel Street, Salford M3 5BZ", lat: 53.48461, lng: -2.249663, coordinatePrecision: "postcode-centroid" };
+    const other = { name: "The Black Lion Pub", address: "200 Chapel Street, Salford M3 5BZ", lat: 53.48761, lng: -2.249663 };
+    expect(dedupeVenues([row], [other]).accepted).toEqual([row]);
+    expect(dedupeVenues([row], [{ ...other, lat: row.lat }]).accepted).toEqual([row]);
+    expect(dedupeVenues([row], [{ ...other, address: "Salford", lat: row.lat }]).accepted).toEqual([row]);
+  });
+  it("keeps only independently sufficient permitted excerpts without changing observation dates", async () => {
+    const url = "https://camra.org.uk/pubs/copper-rooms";
+    const row = { ...venue, kind: "bar" as const, postcode: "B1 1AA", locality: city.displayName, sourceUrls: [venue.website, url], observedAt: "2026-10-04T10:00:00Z", lat: 52.48, lng: -1.90, coordinatePrecision: "postcode-centroid" as const,
+      evidence: [...venue.evidence, { url, excerpt: venue.evidence[0].excerpt }] };
+    const gated = await gateVenueEvidence([row], city, async (source) => ({ outcome: source === url ? "allowed" : "refused" }));
+    expect(gated.venues).toEqual([{ ...row, sourceUrls: [url], evidence: [{ url, excerpt: venue.evidence[0].excerpt }] }]);
+    expect(gated.rejected).toEqual([]);
+    const split = { ...row, evidence: [{ url: venue.website, excerpt: venue.evidence[0].excerpt }, { url, excerpt: "Copper Rooms cocktail bar." }] };
+    expect((await gateVenueEvidence([split], city, async (source) => ({ outcome: source === url ? "allowed" : "refused" }))).venues).toEqual([]);
+  });
+  it("dedupes Black Lion Hotel against its mapped venue-type name variant", () => {
+    const row = {"name": "Black Lion Hotel", "address": "65 Chapel Street, Salford M3 5BZ", "lat": 53.48461, "lng": -2.249663, "coordinatePrecision": "postcode-centroid"};
+    const existing = {"name": "The Black Lion Pub", "address": "65, Chapel Street, Salford, M3 5BZ", "lat": 53.4846729, "lng": -2.249412, "osmId": "node/3659125466"};
+    expect(dedupeVenues([row], [existing]).accepted).toEqual([]);
+  });
+  it("dedupes Hillfoot Hotel against its mapped venue-type name variant", () => {
+    const row = {"name": "Hillfoot Hotel", "address": "Hillfoot Road, Hunts Cross, Liverpool L25 0NB", "lat": 53.360229, "lng": -2.863635, "coordinatePrecision": "postcode-centroid"};
+    const existing = {"name": "The Hillfoot Inn", "address": "Hillfoot Road, Liverpool, L25 0NB", "lat": 53.3599325, "lng": -2.8652773, "osmId": "way/1560285044"};
+    expect(dedupeVenues([row], [existing]).accepted).toEqual([]);
+  });
+  it("withdraws evidence from a robots-refused or unreachable source", async () => {
+    const row = { ...venue, kind: "bar" as const, postcode: "B1 1AA", locality: city.displayName, sourceUrls: [venue.website], observedAt: "2026-10-04T10:00:00Z", lat: 52.48, lng: -1.90, coordinatePrecision: "postcode-centroid" as const };
+    for (const outcome of ["refused", "skipped"]) {
+      const gated = await gateVenueEvidence([row], city, async () => ({ outcome, reason: "robots-unreadable" }));
+      expect(gated.venues).toEqual([]);
+      expect(gated.rejected).toMatchObject([{ name: "Copper Rooms", reason: "source-permission: insufficient permitted evidence" }]);
+    }
+  });
   it("keeps only venue-specific cited identity and address, pending geocoding", () => {
     const parsed = parseTaskVenues(result(), city, "2026-10-04T10:00:00Z");
     expect(parsed.candidates).toMatchObject([{ name: "Copper Rooms", postcode: "B1 1AA", observedAt: "2026-10-04T10:00:00Z" }]);

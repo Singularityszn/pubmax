@@ -778,10 +778,6 @@
       "id": "venue-bhm-5ugg8f"
     },
     {
-      "name": "Aria Restaurant",
-      "id": "venue-bhm-18p1g41"
-    },
-    {
       "name": "Tonight Josephine Birmingham",
       "id": "venue-bhm-1xfnku0"
     },
@@ -858,10 +854,6 @@
       "id": "venue-bhm-149m3ql"
     },
     {
-      "name": "Milano Bar & Ristorante",
-      "id": "venue-bhm-k7mgai"
-    },
-    {
       "name": "The Loft",
       "id": "venue-bhm-v0l7dk"
     },
@@ -898,10 +890,6 @@
       "id": "venue-bhm-2bzzrr"
     },
     {
-      "name": "Harvester - Star City",
-      "id": "venue-bhm-l4c7jy"
-    },
-    {
       "name": "Ward End Social Club",
       "id": "venue-bhm-ytynte"
     },
@@ -928,10 +916,6 @@
     {
       "name": "The Nest",
       "id": "venue-bhm-1t9h9vl"
-    },
-    {
-      "name": "Low Places",
-      "id": "venue-bhm-ecxhxl"
     },
     {
       "name": "Mama Roux's",
@@ -968,10 +952,6 @@
     {
       "name": "Moseley All Services Club",
       "id": "venue-bhm-kfoo3x"
-    },
-    {
-      "name": "Satori",
-      "id": "venue-bhm-j9ub5q"
     },
     {
       "name": "Kings Heath Cricket & Sports Club",
@@ -1070,14 +1050,6 @@
       "id": "venue-bhm-13drftn"
     },
     {
-      "name": "Vedique Resto Bar",
-      "id": "venue-bhm-18p3h9r"
-    },
-    {
-      "name": "YUMBO",
-      "id": "venue-bhm-1gehkph"
-    },
-    {
       "name": "Craft & Culture",
       "id": "venue-bhm-fuqk5p"
     },
@@ -1088,10 +1060,6 @@
     {
       "name": "The Spot Lounge",
       "id": "venue-bhm-1jemd5f"
-    },
-    {
-      "name": "Lime N Chilli",
-      "id": "venue-bhm-vo76wg"
     },
     {
       "name": "Oscott Social Club",
@@ -1126,10 +1094,6 @@
       "id": "venue-bhm-q2qdpo"
     },
     {
-      "name": "Acocks Green Bowl",
-      "id": "venue-bhm-hnvw2u"
-    },
-    {
       "name": "Pasta di Piazza",
       "id": "venue-bhm-xhiwfs"
     },
@@ -1154,20 +1118,12 @@
       "id": "venue-bhm-9ix5to"
     },
     {
-      "name": "Raja Monkey",
-      "id": "venue-bhm-spzeq2"
-    },
-    {
       "name": "Weoley Castle Working Mens Club",
       "id": "venue-bhm-11adpjg"
     },
     {
       "name": "Oba's Kitchen, Lounge, Bar & Games",
       "id": "venue-bhm-t0m5nl"
-    },
-    {
-      "name": "Deli 17",
-      "id": "venue-bhm-102sq77"
     },
     {
       "name": "Bournbrook & Selly Oak Club",
@@ -1184,10 +1140,6 @@
     {
       "name": "Great Barr Hotel",
       "id": "venue-bhm-18aknsz"
-    },
-    {
-      "name": "The Malt Shovel",
-      "id": "venue-bhm-ug2u87"
     },
     {
       "name": "Great Barr Conservative Club",
@@ -1234,10 +1186,6 @@
       "id": "venue-bhm-13tnpcy"
     },
     {
-      "name": "Antonios Food Emporio",
-      "id": "venue-bhm-scp9zj"
-    },
-    {
       "name": "Vine",
       "id": "venue-bhm-19n5wp6"
     },
@@ -1258,7 +1206,7 @@
       "id": "venue-bhm-1gg3rw7"
     }
   ],
-  "totalAccepted": 129,
+  "totalAccepted": 116,
   "repeats": 58,
   "duplicates": [
     {
@@ -1462,13 +1410,239 @@
   ],
   "withdrawn": [
     {
-      "name": "McDwyers",
-      "id": "venue-bhm-1lzn4xw",
-      "matchedName": "McDwyer's",
-      "matchedId": "way/70565949",
-      "reason": "duplicate of an existing venue"
+      "name": "Aria Restaurant",
+      "id": "venue-bhm-18p1g41",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.opentable.com/r/aria-bistro",
+          "outcome": "refused",
+          "reason": "robots-disallowed",
+          "checkedAt": "2026-10-04T18:08:27.153Z"
+        }
+      ]
+    },
+    {
+      "name": "Milano Bar & Ristorante",
+      "id": "venue-bhm-k7mgai",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.opentable.co.uk/r/milano-bar-and-ristorante-birmingham",
+          "outcome": "refused",
+          "reason": "robots-disallowed",
+          "checkedAt": "2026-10-04T18:08:27.463Z"
+        }
+      ]
+    },
+    {
+      "name": "Harvester - Star City",
+      "id": "venue-bhm-l4c7jy",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.opentable.com/r/harvester-star-city-birmingham",
+          "outcome": "refused",
+          "reason": "robots-disallowed",
+          "checkedAt": "2026-10-04T18:08:27.157Z"
+        }
+      ]
+    },
+    {
+      "name": "Low Places",
+      "id": "venue-bhm-ecxhxl",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.low-places.co.uk/",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:08:27.507Z"
+        }
+      ]
+    },
+    {
+      "name": "Satori",
+      "id": "venue-bhm-j9ub5q",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://thesatori.co.uk/",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:08:27.827Z"
+        },
+        {
+          "url": "https://thesatori.co.uk/contact",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:08:27.827Z"
+        }
+      ]
+    },
+    {
+      "name": "Vedique Resto Bar",
+      "id": "venue-bhm-18p3h9r",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.opentable.com/r/vedique-resto-bar-birmingham",
+          "outcome": "refused",
+          "reason": "robots-disallowed",
+          "checkedAt": "2026-10-04T18:08:28.920Z"
+        }
+      ]
+    },
+    {
+      "name": "YUMBO",
+      "id": "venue-bhm-1gehkph",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://yumbobirmingham.com/",
+          "outcome": "skipped",
+          "kind": "robots",
+          "reason": "robots HTTP 500",
+          "attempts": 3,
+          "evidence": [
+            {
+              "at": "2026-10-04T18:08:32.613Z",
+              "reason": "robots-unreadable",
+              "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
+            },
+            {
+              "at": "2026-10-04T18:08:38.836Z",
+              "reason": "robots-unreadable",
+              "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
+            },
+            {
+              "at": "2026-10-04T18:08:46.268Z",
+              "reason": "robots-unreadable",
+              "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
+            }
+          ],
+          "checkedAt": "2026-10-04T18:08:46.268Z"
+        }
+      ]
+    },
+    {
+      "name": "Lime N Chilli",
+      "id": "venue-bhm-vo76wg",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.opentable.com/r/lime-n-chilli-birmingham",
+          "outcome": "refused",
+          "reason": "robots-disallowed",
+          "checkedAt": "2026-10-04T18:08:29.606Z"
+        }
+      ]
+    },
+    {
+      "name": "Acocks Green Bowl",
+      "id": "venue-bhm-hnvw2u",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.acocksgreenbowling.co.uk/",
+          "outcome": "skipped",
+          "kind": "robots",
+          "reason": "robots unreachable",
+          "attempts": 3,
+          "evidence": [
+            {
+              "at": "2026-10-04T18:08:31.762Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
+            },
+            {
+              "at": "2026-10-04T18:08:37.517Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
+            },
+            {
+              "at": "2026-10-04T18:08:43.275Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
+            }
+          ],
+          "checkedAt": "2026-10-04T18:08:43.276Z"
+        }
+      ]
+    },
+    {
+      "name": "Raja Monkey",
+      "id": "venue-bhm-spzeq2",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.opentable.com/raja-monkey",
+          "outcome": "refused",
+          "reason": "robots-disallowed",
+          "checkedAt": "2026-10-04T18:08:31.210Z"
+        }
+      ]
+    },
+    {
+      "name": "Deli 17",
+      "id": "venue-bhm-102sq77",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.deli17.co.uk/",
+          "outcome": "skipped",
+          "kind": "robots",
+          "reason": "robots unreachable",
+          "attempts": 3,
+          "evidence": [
+            {
+              "at": "2026-10-04T18:08:32.161Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
+            },
+            {
+              "at": "2026-10-04T18:08:37.916Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
+            },
+            {
+              "at": "2026-10-04T18:08:43.675Z",
+              "reason": "robots-unreachable",
+              "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
+            }
+          ],
+          "checkedAt": "2026-10-04T18:08:43.675Z"
+        }
+      ]
+    },
+    {
+      "name": "The Malt Shovel",
+      "id": "venue-bhm-ug2u87",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.stonehouserestaurants.co.uk/nationalsearch/eastandwestmidlands/themaltshovelgreatbarr",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:08:31.716Z"
+        }
+      ]
+    },
+    {
+      "name": "Antonios Food Emporio",
+      "id": "venue-bhm-scp9zj",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://antonios.co.uk/book-online",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-04T18:08:32.110Z"
+        }
+      ]
     }
   ],
+  "permissionRejected": 13,
   "rejected": [
     {
       "name": "1000 Trades",

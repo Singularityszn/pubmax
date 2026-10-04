@@ -919,10 +919,6 @@
       "id": "venue-liv-1n6r4m3"
     },
     {
-      "name": "Hillfoot Hotel",
-      "id": "venue-liv-1smrkir"
-    },
-    {
       "name": "Quarry",
       "id": "venue-liv-1v1fmrp"
     },
@@ -955,7 +951,7 @@
       "id": "venue-liv-wyxmb7"
     }
   ],
-  "totalAccepted": 21,
+  "totalAccepted": 20,
   "repeats": 42,
   "duplicates": [
     {
@@ -1151,6 +1147,12 @@
       "matchedId": "way/844288031"
     },
     {
+      "name": "Hillfoot Hotel",
+      "id": null,
+      "matchedName": "The Hillfoot Inn",
+      "matchedId": "way/1560285044"
+    },
+    {
       "name": "Grapes Inn",
       "id": null,
       "matchedName": "The Grapes",
@@ -1225,13 +1227,14 @@
   ],
   "withdrawn": [
     {
-      "name": "Foghertys",
-      "id": "venue-liv-1p5c4yd",
-      "matchedName": "Fogherty's",
-      "matchedId": "node/240115990",
+      "name": "Hillfoot Hotel",
+      "id": "venue-liv-1smrkir",
+      "matchedName": "The Hillfoot Inn",
+      "matchedId": "way/1560285044",
       "reason": "duplicate of an existing venue"
     }
   ],
+  "permissionRejected": 0,
   "rejected": [
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Hamilton+Square%2C+Birkenhead+CH41+6AY",

@@ -45,6 +45,7 @@
   "repeats": 0,
   "duplicates": [],
   "withdrawn": [],
+  "permissionRejected": 0,
   "rejected": [
     {
       "name": "https://www.yelp.com/search?cflt=nightlife&find_loc=Llandudno",

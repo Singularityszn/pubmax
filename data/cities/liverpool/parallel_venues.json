@@ -357,35 +357,6 @@
       "id": "venue-liv-1n6r4m3"
     },
     {
-      "name": "Hillfoot Hotel",
-      "kind": "pub",
-      "address": "Hillfoot Road, Hunts Cross, Liverpool L25 0NB",
-      "postcode": "L25 0NB",
-      "locality": "Liverpool",
-      "website": null,
-      "lat": 53.360229,
-      "lng": -2.863635,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/woolton-19330"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/woolton-19330",
-          "excerpt": "### Hillfoot Hotel\n\nSizzling Pubs (Mitchells & Butlers) Pub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\nHillfoot Road, Hunts Cross, Liverpool, L25 0NB"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:11.391Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/L25%200NB",
-        "observedAt": "2026-10-04T13:05:47.750Z",
-        "postcode": "L25 0NB",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-liv-1smrkir"
-    },
-    {
       "name": "Quarry",
       "kind": "pub",
       "address": "47A Allerton Road, Woolton, Liverpool L25 7RE",
