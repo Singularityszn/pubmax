@@ -64,6 +64,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     handle: null,
     clerkIntegrationConfigured: false,
     socialProviders: { google: false, apple: false , microsoft: false },
+    socialProvidersResolved: true,
     signInWithGoogle: async () => ({ error: null }),
     signInWithApple: async () => ({ error: null }),
     signInWithEmail: async () => ({ status: "sent", message: "" }),

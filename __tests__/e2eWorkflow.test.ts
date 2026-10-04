@@ -27,7 +27,6 @@ describe("browser CI policy", () => {
     expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
     expect(workflow).toContain("shard: [1, 2]");
     expect(workflow).toContain("--shard=${{ matrix.shard }}/2");
-    expect(workflow).toContain("uses: ./.github/actions/pubmax-mac-playwright");
     // P0-3: the three trusted-handoff rollout flags are retired, so there is no
     // second suite whose behaviour a deployment lacks.
     expect(workflow).not.toContain("flag-on");
@@ -45,6 +44,33 @@ describe("browser CI policy", () => {
       workflow.indexOf("  full-suite:"),
     );
     expect(lawPins).not.toContain("if: github.event_name");
+  });
+
+  it("installs Chromium and its system dependencies before every Playwright run", () => {
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+
+    for (const jobName of ["law-pins", "full-suite"]) {
+      const steps = jobs[jobName].steps;
+      const install = steps.findIndex((step) =>
+        step.run?.split("\n").some((line) => {
+          const words = line.trim().split(/\s+/);
+          return (
+            words.slice(0, 3).join(" ") === "npx playwright install" &&
+            words.includes("--with-deps") &&
+            words.includes("chromium")
+          );
+        }),
+      );
+      const playwrightSteps = steps
+        .map((step, index) => ({ step, index }))
+        .filter(({ step }) => step.run?.includes("npx playwright test"));
+
+      expect(install, jobName).toBeGreaterThanOrEqual(0);
+      expect(playwrightSteps.length, jobName).toBeGreaterThan(0);
+      for (const { index } of playwrightSteps) {
+        expect(index, jobName).toBeGreaterThan(install);
+      }
+    }
   });
 
   it("chooses a runner-specific Playwright port before every Playwright run", () => {

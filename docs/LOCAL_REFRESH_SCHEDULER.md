@@ -1,6 +1,6 @@
 # Local data refresh scheduler
 
-GitHub Actions cannot allocate a runner for this repository, and Vercel functions cannot persist committed files. A per-user launchd job therefore owns file-producing acquisition on the captain's Mac. Vercel keeps its separate server-safe freshness plane.
+Vercel functions cannot persist committed files. A per-user launchd job therefore owns file-producing acquisition on the captain's Mac. Vercel keeps its separate server-safe freshness plane.
 
 The scheduler lives in `scripts/local-refresh/scheduler.mjs`. It renders two agents:
 
