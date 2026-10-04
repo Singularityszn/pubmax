@@ -91,6 +91,7 @@ function runCli(dir: string, day: string, options: { noPlaces?: boolean; midnigh
     env: {
       PATH: path.join(dir, "bin"),
       HOME: dir,
+      NODE_ENV: "test",
       GOOGLE_PLACES_API_KEY: "synthetic-key",
       FIXTURE_DAY: day,
       FIXTURE_NO_PLACES: options.noPlaces ? "1" : "0",
