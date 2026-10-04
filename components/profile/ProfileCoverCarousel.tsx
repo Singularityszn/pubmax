@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
 import {
   coverCarouselRotates,
@@ -24,10 +25,10 @@ import { profileImageOutputBox } from "@/lib/profileImageSlots";
 //    without a timer: the first cover, static, and the other four are never
 //    even fetched. `coverCarouselRotates` is the one predicate that decides it.
 //
-// 3. A COVER THAT WILL NOT LOAD LEAVES THE ROTATION. A moderator hide or a
-//    storage refusal answers 404, and a broken frame in a five-photo cycle
-//    would return every 25 seconds. The band keeps the brass treatment
-//    underneath, so an empty rotation is still a card rather than a gap.
+// 3. A PERMANENTLY REFUSED OR BROKEN IMAGE LEAVES THIS READER'S ROTATION.
+//    Temporary storage or network failures stay eligible for bounded retries.
+//    A different reader starts with no exclusions. The brass band remains
+//    underneath even when no cover can be shown.
 //
 // Tapping does nothing: this is a backdrop, not a gallery. It is `aria-hidden`
 // through its parent for the same reason the single cover always was.
@@ -57,7 +58,10 @@ export default function ProfileCoverCarousel({
 }: {
   covers: readonly string[];
 }) {
-  const [failed, setFailed] = useState<string[]>([]);
+  const { accountRevision, providerAuthState, session, user } = useAuth();
+  const readerKey = `${accountRevision}:${user?.id ?? ""}:${providerAuthState}`;
+  const [failedState, setFailed] = useState<{ readerKey: string; session: typeof session; urls: string[] }>({ readerKey, session, urls: [] });
+  const failed = failedState.readerKey === readerKey && failedState.session === session ? failedState.urls : [];
   const [active, setActive] = useState(0);
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
@@ -94,7 +98,10 @@ export default function ProfileCoverCarousel({
           width={BOX.width}
           height={BOX.height}
           priority={index === 0}
-          onError={() => setFailed((prev) => (prev.includes(url) ? prev : [...prev, url]))}
+          onError={() => setFailed((prev) => {
+            const urls = prev.readerKey === readerKey && prev.session === session ? prev.urls : [];
+            return { readerKey, session, urls: urls.includes(url) ? urls : [...urls, url] };
+          })}
         />
       ))}
     </div>

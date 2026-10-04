@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
-import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
+import { waitUnlessAborted } from "@/lib/abortableDelay";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { providerHasAnswered, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { discardBody } from "@/lib/responseBody";
 
@@ -18,12 +19,14 @@ type Props = {
   onError?: () => void;
 };
 
+const RETRY_DELAYS_MS = [0, 500, 1_500, 3_000] as const;
+
 /** Cover bytes need the reader's bearer token. Public avatars use their existing image path. */
 export default function ProfileCoverImage({ src, alt, className, width, height, priority, onError }: Props) {
-  const { accountRevision, providerAuthState, user } = useAuth();
+  const { accountRevision, providerAuthState, session, user } = useAuth();
   const userId = user?.id;
   const readerKey = `${accountRevision}:${userId ?? ""}:${providerAuthState}:${src}`;
-  const [loaded, setLoaded] = useState<{ readerKey: string; url: string } | null>(null);
+  const [loaded, setLoaded] = useState<{ readerKey: string; session: typeof session; url: string } | null>(null);
   const onErrorRef = useRef(onError);
 
   useEffect(() => {
@@ -41,26 +44,47 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
     const current = () => active && !controller.signal.aborted && !accountSignal.aborted;
 
     async function load() {
-      try {
-        // This versioned URL bypasses cover responses cached under the former public policy.
-        const response = await authedActionFetch(`${src}?privacy=2`, {
-          cache: "no-store",
-          redirect: "error",
-          signal: controller.signal,
-        }, { requiresIdentity: true });
-        if (!current() || !response.ok) {
-          discardBody(response);
-          if (current()) onErrorRef.current?.();
-          return;
-        }
-        const blob = await response.blob();
+      let retryAfterMs = 0;
+      for (const delayMs of RETRY_DELAYS_MS) {
+        const waitMs = Math.max(delayMs, retryAfterMs);
+        // Respect a long server cooldown without keeping this read alive indefinitely.
+        if (waitMs > 10_000) return;
+        if (waitMs && !await waitUnlessAborted(waitMs, controller.signal)) return;
         if (!current()) return;
-        objectUrl = URL.createObjectURL(blob);
-        setLoaded({ readerKey, url: objectUrl });
-      } catch (error) {
-        // A waking session is not a broken photo. Keep it for the next auth answer.
-        if (current() && !(error instanceof AuthActionSessionError)) onErrorRef.current?.();
+        try {
+          // This versioned URL bypasses cover responses cached under the former public policy.
+          const response = await authedActionFetch(`${src}?privacy=2`, {
+            cache: "no-store",
+            redirect: "error",
+            signal: controller.signal,
+          }, { requiresIdentity: true });
+          if (!current() || !response.ok) {
+            discardBody(response);
+            if (!current()) return;
+            // A storage outage and an absent/hidden cover both answer 404. Keep
+            // that ambiguity private and retry briefly instead of excluding the URL.
+            if ([404, 408, 429].includes(response.status) || response.status >= 500) {
+              const retryAfter = response.headers.get("Retry-After");
+              const seconds = Number(retryAfter);
+              retryAfterMs = retryAfter
+                ? (Number.isFinite(seconds) ? Math.max(0, seconds * 1_000) : Math.max(0, Date.parse(retryAfter) - Date.now()) || 0)
+                : 0;
+              continue;
+            }
+            onErrorRef.current?.();
+            return;
+          }
+          const blob = await response.blob();
+          if (!current()) return;
+          objectUrl = URL.createObjectURL(blob);
+          setLoaded({ readerKey, session, url: objectUrl });
+          return;
+        } catch {
+          // Session warming and transport failures can recover without a reader change.
+          if (!current()) return;
+        }
       }
+      // Exhausted temporary reads stay neutral. They do not blacklist the cover.
     }
     void load();
     return () => {
@@ -68,10 +92,10 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [src, readerKey, providerAuthState, userId]);
+  }, [src, readerKey, providerAuthState, session, userId]);
 
   // Account changes hide the previous bytes during render, before effect cleanup.
-  if (loaded?.readerKey !== readerKey) return <span className={className} aria-hidden="true" />;
+  if (loaded?.readerKey !== readerKey || loaded.session !== session) return <span className={className} aria-hidden="true" />;
   return (
     <Image
       src={loaded.url}

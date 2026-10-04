@@ -2,17 +2,19 @@
 
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const auth = vi.hoisted(() => ({ token: "owner-token" as string | null }));
+const auth = vi.hoisted(() => ({ token: "owner-token" as string | null, session: null as Session | null }));
 vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => auth.token }));
 
 import { AuthContext, useAuth, type AuthContextValue } from "@/components/auth/authContext";
 import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
 import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
+import ProfileCoverPhotosEditor from "@/components/profile/ProfileCoverPhotosEditor";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { readProviderAccountRevision, setProviderAuthState, setProviderIdentity, type ProviderAuthState } from "@/lib/authProviderRevision";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 
 const COVER = "/api/cover/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222";
 let root: Root;
@@ -29,6 +31,7 @@ function AuthFixture({ userId, providerAuthState, children }: {
   const defaults = useAuth();
   const value: AuthContextValue = {
     ...defaults,
+    session: auth.session,
     user: userId ? ({ id: userId } as User) : null,
     identityResolved: true,
     accountRevision: readProviderAccountRevision(),
@@ -56,6 +59,8 @@ function switchAccount(userId: string | null): void {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   auth.token = "owner-token";
+  auth.session = null;
+  clearSurfaceCache();
   setProviderIdentity("supabase", "owner");
   setProviderAuthState("supabase", "authenticated");
   publishAuthActionState({ status: "signed-in", identityResolved: true });
@@ -80,6 +85,7 @@ afterEach(async () => {
   publishAuthActionState({ status: "signed-out", identityResolved: true });
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  clearSurfaceCache();
 });
 
 describe("private cover rendering", () => {
@@ -160,8 +166,8 @@ describe("private cover rendering", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
-  it("drops a refused cover from the carousel without making a blob URL", async () => {
-    fetchCover.mockResolvedValueOnce(new Response("Photo not found", { status: 404 }));
+  it("drops a permanently refused cover from the carousel without making a blob URL", async () => {
+    fetchCover.mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
     await render();
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector(".profileCoverFrames")).toBeNull();
@@ -188,6 +194,108 @@ describe("private cover rendering", () => {
     await render(null, COVER, true);
     await act(async () => { await vi.advanceTimersByTimeAsync(2_100); });
     expect(new Headers(fetchCover.mock.calls[0]![1]?.headers).get("Authorization")).toBeNull();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it.each([404, 429, 503, "network"] as const)("recovers a temporary %s failure without excluding the cover", async (failure) => {
+    vi.useFakeTimers();
+    if (failure === "network") fetchCover.mockRejectedValueOnce(new TypeError("Network unavailable"));
+    else fetchCover.mockResolvedValueOnce(new Response("Temporary refusal", { status: failure }));
+    await render();
+    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("restores a token after the two-second gate without changing the account or provider state", async () => {
+    vi.useFakeTimers();
+    auth.token = null;
+    await render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_100); });
+    expect(fetchCover).not.toHaveBeenCalled();
+    auth.token = "owner-token";
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("restarts an exhausted read on a same-user token refresh without changing reader identity", async () => {
+    vi.useFakeTimers();
+    auth.token = null;
+    await render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(fetchCover).not.toHaveBeenCalled();
+    const accountRevision = readProviderAccountRevision();
+    auth.token = "owner-token";
+    auth.session = {
+      access_token: "owner-token", refresh_token: "fixture-refresh", expires_in: 3_600,
+      token_type: "bearer", user: { id: "owner" } as User,
+    };
+    await render();
+    expect(readProviderAccountRevision()).toBe(accountRevision);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("recovers the editor's covers read on a same-user session refresh", async () => {
+    vi.useFakeTimers();
+    auth.token = null;
+    fetchCover.mockImplementation(async (input) => String(input).includes("/profiles/")
+      ? Response.json({ status: "ready", covers: [] })
+      : new Response("approved bytes", { headers: { "Content-Type": "image/jpeg" } }));
+    const renderEditor = async () => act(async () => root.render(createElement(AuthFixture,
+      { userId: "owner" }, createElement(ProfileCoverPhotosEditor, {
+        handle: "alice", heldCoverUrls: [COVER], onProfileChanged: () => {},
+      }))));
+    await renderEditor();
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(container.textContent).toContain("We could not read your cover photos");
+    auth.token = "owner-token";
+    auth.session = {
+      access_token: "owner-token", refresh_token: "fixture-refresh", expires_in: 3_600,
+      token_type: "bearer", user: { id: "owner" } as User,
+    };
+    await renderEditor();
+    expect(container.textContent).not.toContain("We could not read your cover photos");
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("lets a new reader retry a URL that the previous reader could not access", async () => {
+    fetchCover.mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
+    await render();
+    expect(container.querySelector(".profileCoverFrames")).toBeNull();
+    switchAccount("mate");
+    await render("mate");
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("bounds temporary retries and leaves exhausted reads neutral", async () => {
+    vi.useFakeTimers();
+    fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
+    await render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchCover).toHaveBeenCalledTimes(4);
+    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
+    expect(container.querySelector("img")).toBeNull();
+    expect(makeBlobUrl).not.toHaveBeenCalled();
+  });
+
+  it("does not retry before a server cooldown longer than the read budget", async () => {
+    vi.useFakeTimers();
+    fetchCover.mockResolvedValueOnce(new Response("Slow down", { status: 429, headers: { "Retry-After": "60" } }));
+    await render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
+  });
+
+  it("cancels the previous reader's retry before it can fetch again", async () => {
+    vi.useFakeTimers();
+    fetchCover.mockResolvedValueOnce(new Response("Temporary refusal", { status: 503 }));
+    await render();
+    switchAccount("mate");
+    await render("mate");
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(fetchCover).toHaveBeenCalledTimes(2);
+    expect(new Headers(fetchCover.mock.calls[1]![1]?.headers).get("Authorization")).toBe("Bearer mate-token");
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
