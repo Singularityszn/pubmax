@@ -111,7 +111,13 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    person confirmed or corrected (never `completed_plan` rows) for the account
    that opened the conversation, read from the server-side conversation binding
    and never from the request body. Typed chat puts the same lines ahead of the
-   ask on the server, so it does not need the tool.
+   ask on the server, or one line saying nothing is confirmed, so it does not
+   need the tool. A second Pal-only webhook, `propose_memory`, adds a memory card
+   to the conversation for the bound account, only when that Pal has memory
+   proposals on. It saves nothing: the memory exists once the person taps
+   Confirm, which posts to `POST /api/pub-pal/memories`. Typed chat also carries
+   a rolling session summary of at most 300 tokens, built only from the person's
+   own older asks and never used as a fact source.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.

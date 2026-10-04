@@ -4,8 +4,8 @@
 // The user asks in natural language; the tool registry answers from
 // listed pubs, What's On, CityMCP, heritage, and prices. Cards keep provenance.
 // Proposals need an explicit Confirm (ADR 0006). In-thread turns may refine an
-// ask; durable Pal memory stays confirm-gated elsewhere. Web grounding stays
-// OFF (lib/palChat PAL_WEB_GROUNDING).
+// ask; durable Pal memory is written only by the person's own Confirm on a
+// memory card. Web grounding stays OFF (lib/palChat PAL_WEB_GROUNDING).
 
 import {
   useCallback,
@@ -31,6 +31,7 @@ import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
+import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
@@ -399,6 +400,42 @@ export default function PalChat() {
             answer: {
               status: "answered",
               message: occupancyReceiptLine(level, age),
+              cards: [],
+            },
+            locality: null,
+            proposals: [],
+            recall: null,
+          },
+        ]);
+        if (entryId) dismissProposal(entryId, proposal.id);
+      })();
+      return;
+    }
+    if (proposal.kind === "remember_memory") {
+      void (async () => {
+        const result = await confirmPalMemoryProposal(
+          { memoryKind: proposal.memoryKind, value: proposal.value },
+          auth,
+        );
+        if (!result.ok && result.needsSignIn) {
+          router.push("/login?mode=signin&from=/pal/chat");
+          return;
+        }
+        if (!result.ok) {
+          setEntries((prev) => [
+            ...prev,
+            { kind: "error", id: nextId(), message: result.error },
+          ]);
+          return;
+        }
+        setEntries((prev) => [
+          ...prev,
+          {
+            kind: "answer",
+            id: nextId(),
+            answer: {
+              status: "answered",
+              message: `Saved. I will remember: ${proposal.value}`,
               cards: [],
             },
             locality: null,

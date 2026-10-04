@@ -113,10 +113,13 @@ vi.mock("@/lib/pubPalLlmFence", () => ({
   pubPalGetHomeRegisterAnswer: vi.fn(() => "Getting Home has the trains."),
 }));
 
+const NOTHING_CONFIRMED = "I have not confirmed anything for you to remember about me.";
+
 const toolTurnPayload = {
     query: "Which pubs near Soho have a pint under £5?",
     cityId: "london",
     turns: [],
+    summary: "",
     expiresAt: Date.now() + 60_000,
     cards: [
       {
@@ -194,7 +197,7 @@ describe("runPalElevenLabsChatTurn", () => {
       conversationId: "conv_regression01",
     });
     expect(outcome.ok === true && outcome.message).not.toBe(PAL_GREETING);
-    expect(wsState.userMessageText).toBe(query);
+    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, `Now: ${query}`].join("\n"));
     expect(outcome.ok === true && outcome.cards.length).toBeGreaterThan(0);
 
     const init = wsState.lastInitPayload as {
@@ -224,6 +227,7 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(storeMocks.readOwnedPubPalToolTurn).toHaveBeenCalledWith("conv_previous01", ownerId);
     expect(wsState.userMessageText).toBe(
       [
+        NOTHING_CONFIRMED,
         "My earlier asks in this chat, oldest first:",
         "- a pub for six",
         "- quiet pubs in Soho",
@@ -242,6 +246,45 @@ describe("runPalElevenLabsChatTurn", () => {
       }),
     );
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("quiet pubs in Soho");
+  });
+
+  it("rolls asks older than the recent window into one summary turn and stores it with the new turn", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({
+      ...toolTurnPayload,
+      summary: "a pub for six",
+      turns: Array.from({ length: 6 }, (_, index) => ({ role: "user", content: `ask ${index + 1}` })),
+      query: "ask 7",
+    });
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "and somewhere cheaper?",
+      ownerId,
+      threadId: "conv_previous01",
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(wsState.userMessageText).toBe(
+      [
+        NOTHING_CONFIRMED,
+        "Summary of my earlier asks in this chat, in my own words. It is not a fact about any pub: a pub for six; ask 1",
+        "My earlier asks in this chat, oldest first:",
+        "- ask 2",
+        "- ask 3",
+        "- ask 4",
+        "- ask 5",
+        "- ask 6",
+        "- ask 7",
+        "Now: and somewhere cheaper?",
+      ].join("\n"),
+    );
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
+      "conv_regression01",
+      expect.objectContaining({
+        summary: "a pub for six; ask 1",
+        turns: ["ask 2", "ask 3", "ask 4", "ask 5", "ask 6", "ask 7"].map((content) => ({ role: "user", content })),
+      }),
+    );
   });
 
   it("puts the owner's own confirmed memories ahead of the ask, and no one else's", async () => {
@@ -310,7 +353,7 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     expect(outcome.ok).toBe(true);
-    expect(wsState.userMessageText).toBe("quiet pubs");
+    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, "Now: quiet pubs"].join("\n"));
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
       "conv_regression01",
       expect.objectContaining({ turns: [] }),
@@ -325,7 +368,9 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     expect(outcome.ok).toBe(true);
-    expect(wsState.userMessageText).toBe("what about somewhere cheaper there?");
+    expect(wsState.userMessageText).toBe(
+      [NOTHING_CONFIRMED, "Now: what about somewhere cheaper there?"].join("\n"),
+    );
   });
 
   it("never reads a thread id that is not a Pub Pal conversation id", async () => {
@@ -336,7 +381,7 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     expect(storeMocks.readOwnedPubPalToolTurn).not.toHaveBeenCalled();
-    expect(wsState.userMessageText).toBe("quiet pubs");
+    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, "Now: quiet pubs"].join("\n"));
   });
 
   it("asks for the turn-complete event so it can tell the checking line from the answer", async () => {

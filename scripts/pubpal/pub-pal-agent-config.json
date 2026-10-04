@@ -16,6 +16,7 @@
     "venue_drinks",
     "find_desk",
     "report_occupancy",
-    "recall_memories"
+    "recall_memories",
+    "propose_memory"
   ]
 }

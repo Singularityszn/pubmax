@@ -4,6 +4,7 @@ import type { AskCard, AskProposal } from "@/lib/ask/types";
 import type { CityId } from "@/lib/cities";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { PAL_SESSION_RECENT_TURNS, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import {
   createDualBackendStore,
   createFailSoftGuard,
@@ -27,6 +28,8 @@ export type PubPalToolTurn = {
   query: string;
   cityId: CityId;
   turns: PubPalFenceTurn[];
+  /** The person's older lines in this session, rolled up. Never a fact source. */
+  summary: string;
   expiresAt: number;
   cards: AskCard[];
   proposals: AskProposal[];
@@ -40,6 +43,7 @@ type PubPalToolTurnPayload = {
   query: string;
   cityId: CityId;
   turns: PubPalFenceTurn[];
+  summary?: string;
   cards: AskCard[];
   proposals: AskProposal[];
   hints: string[];
@@ -50,6 +54,7 @@ type OwnedWrite = {
   query: string;
   cityId: CityId;
   turns?: PubPalFenceTurn[];
+  summary?: string;
   cards?: AskCard[];
   proposals?: AskProposal[];
   hints?: string[];
@@ -64,6 +69,7 @@ function publicTurn(stored: StoredTurn): PubPalToolTurn {
     query: stored.query,
     cityId: stored.cityId,
     turns: stored.turns,
+    summary: stored.summary,
     expiresAt: stored.expiresAt,
     cards: stored.cards,
     proposals: stored.proposals,
@@ -87,6 +93,7 @@ function payloadFromTurn(turn: PubPalToolTurn): PubPalToolTurnPayload {
     query: turn.query,
     cityId: turn.cityId,
     turns: turn.turns,
+    summary: turn.summary,
     cards: turn.cards,
     proposals: turn.proposals,
     hints: turn.hints,
@@ -102,7 +109,8 @@ function turnFromPayload(
   return {
     query: payload.query,
     cityId: payload.cityId,
-    turns: Array.isArray(payload.turns) ? payload.turns.slice(-6) : [],
+    turns: Array.isArray(payload.turns) ? payload.turns.slice(-PAL_SESSION_RECENT_TURNS) : [],
+    summary: typeof payload.summary === "string" ? payload.summary : "",
     expiresAt: expiresAtMs,
     cards: Array.isArray(payload.cards) ? payload.cards : [],
     proposals: Array.isArray(payload.proposals) ? payload.proposals : [],
@@ -113,10 +121,15 @@ function turnFromPayload(
 }
 
 function mergeOwned(existing: StoredTurn | null, input: OwnedWrite, now: number): StoredTurn {
+  const session = windowPalSessionTurns(
+    input.summary ?? existing?.summary ?? "",
+    Array.isArray(input.turns) ? input.turns : existing?.turns ?? [],
+  );
   return {
     query: input.query,
     cityId: input.cityId,
-    turns: Array.isArray(input.turns) ? input.turns.slice(-6) : existing?.turns ?? [],
+    turns: session.turns,
+    summary: session.summary,
     expiresAt: now + PUB_PAL_TOOL_TURN_TTL_MS,
     cards: input.cards ?? existing?.cards ?? [],
     proposals: input.proposals ?? existing?.proposals ?? [],
@@ -166,6 +179,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
       query: "",
       cityId,
       turns: [],
+      summary: "",
       expiresAt: now + PUB_PAL_TOOL_TURN_TTL_MS,
       cards: [],
       proposals: [],
@@ -222,7 +236,9 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId);
     if (!existing || existing.ownerId !== ownerId) return false;
-    existing.turns = [...existing.turns, turn].slice(-6);
+    const session = windowPalSessionTurns(existing.summary, [...existing.turns, turn]);
+    existing.turns = session.turns;
+    existing.summary = session.summary;
     if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
     existing.cityId = cityId;
     existing.expiresAt = now + PUB_PAL_TOOL_TURN_TTL_MS;
@@ -336,6 +352,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           query: "",
           cityId,
           turns: [],
+          summary: "",
           expiresAt: Date.now() + PUB_PAL_TOOL_TURN_TTL_MS,
           cards: [],
           proposals: [],
@@ -460,7 +477,9 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         const lookup = await lookupStoredRow(conversationId);
         if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
         const existing = lookup.turn;
-        existing.turns = [...existing.turns, turn].slice(-6);
+        const session = windowPalSessionTurns(existing.summary, [...existing.turns, turn]);
+        existing.turns = session.turns;
+        existing.summary = session.summary;
         if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
         existing.cityId = cityId;
         existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;

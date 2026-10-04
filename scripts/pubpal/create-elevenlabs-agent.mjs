@@ -32,6 +32,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { PUB_PAL_MEMORY_KINDS } from "../../lib/palMemoryKinds.mjs";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 
@@ -47,7 +48,7 @@ const LLM_SECRET_NAME = "PUBMAXX_PUB_PAL_LLM_SECRET";
 const AGENT_NAME = "PUBMAXX Pub Pal";
 const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 
-/** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only recall tool. */
+/** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only memory tools. */
 const TOOL_DESCRIPTIONS = {
   search_venues:
     "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
@@ -76,6 +77,8 @@ const TOOL_DESCRIPTIONS = {
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
   recall_memories:
     "Read the preferences this person confirmed for their Pal to remember. Read-only. Never facts about a pub.",
+  propose_memory:
+    "Propose one preference for the Pal to remember. Shows a card in the app. Saves nothing until the person confirms.",
 };
 
 function loadDotEnv() {
@@ -137,6 +140,18 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   },
   recall_memories: {
     conversation_id: conversationIdProperty(),
+  },
+  propose_memory: {
+    conversation_id: conversationIdProperty(),
+    kind: {
+      type: "string",
+      enum: [...PUB_PAL_MEMORY_KINDS],
+      description: "What sort of preference this is.",
+    },
+    value: {
+      type: "string",
+      description: "The preference in the person's own words, one short line.",
+    },
   },
 };
 

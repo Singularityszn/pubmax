@@ -8,6 +8,7 @@ import {
   palMemoryPreamble,
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
+import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
@@ -44,26 +45,29 @@ async function waitForPubPalToolTurn(conversationId: string): Promise<PubPalTool
   return readPubPalToolTurn(conversationId);
 }
 
-/** The signed-in owner's earlier asks, read from their own stored turn and never from the request. */
-async function priorOwnedAsks(threadId: unknown, ownerId: string): Promise<PubPalFenceTurn[]> {
-  if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return [];
+type PriorSession = { turns: PubPalFenceTurn[]; summary: string };
+
+/**
+ * The signed-in owner's earlier asks, read from their own stored turn and never
+ * from the request. The newest stay word for word and older ones roll into the
+ * session summary.
+ */
+async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<PriorSession> {
+  if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return { turns: [], summary: "" };
   const prior = await readOwnedPubPalToolTurn(threadId, ownerId);
-  if (!prior) return [];
-  return [...prior.turns, { role: "user" as const, content: prior.query }]
-    .filter((turn) => turn.role === "user" && turn.content.trim())
-    .slice(-6);
+  if (!prior) return { turns: [], summary: "" };
+  const asks = [...prior.turns, { role: "user" as const, content: prior.query }].filter(
+    (turn) => turn.role === "user" && turn.content.trim(),
+  );
+  return windowPalSessionTurns(prior.summary, asks);
 }
 
-/** The typed turn as the agent reads it: confirmed memories, earlier asks, then the ask itself. */
-function userMessageText(
-  query: string,
-  priorAsks: PubPalFenceTurn[],
-  memories: PalRecalledMemory[] = [],
-): string {
-  const preamble = palMemoryPreamble(memories);
-  if (priorAsks.length === 0 && preamble.length === 0) return query;
+/** The typed turn as the agent reads it: confirmed memories, the session summary, earlier asks, then the ask itself. */
+function userMessageText(query: string, prior: PriorSession, memories: PalRecalledMemory[]): string {
+  const priorAsks = prior.turns;
   return [
-    ...preamble,
+    ...palMemoryPreamble(memories),
+    ...palSessionSummaryTurn(prior.summary),
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
       : []),
@@ -131,12 +135,13 @@ export async function runPalElevenLabsChatTurn(
   const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
-  let turns: PubPalFenceTurn[];
+  let prior: PriorSession;
   try {
-    turns = await priorOwnedAsks(input.threadId, input.ownerId);
+    prior = await priorOwnedSession(input.threadId, input.ownerId);
   } catch {
     return { ok: false, code: "UNAVAILABLE" };
   }
+  const turns = prior.turns;
   const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, [
     ...fenceTurns,
@@ -295,10 +300,11 @@ export async function runPalElevenLabsChatTurn(
               cityId,
               ownerId: input.ownerId,
               turns,
+              summary: prior.summary,
             });
             userMessageSent = true;
             ws.send(
-              JSON.stringify({ type: "user_message", text: userMessageText(query, turns, memories) }),
+              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories) }),
             );
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });

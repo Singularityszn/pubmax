@@ -59,9 +59,13 @@ export async function confirmedPalMemoriesFor(ownerId: string): Promise<PalRecal
   return out;
 }
 
-/** The lines a typed turn carries ahead of the ask. Empty when there is nothing confirmed. */
+/**
+ * The lines a typed turn carries ahead of the ask. It always says what is
+ * confirmed, even when nothing is, so the agent never spends a recall call to
+ * learn what the server already knows.
+ */
 export function palMemoryPreamble(memories: PalRecalledMemory[]): string[] {
-  if (memories.length === 0) return [];
+  if (memories.length === 0) return ["I have not confirmed anything for you to remember about me."];
   return [
     "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
     ...memories.map((memory) => `- ${memory.label}: ${memory.value}`),
