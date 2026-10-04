@@ -102,6 +102,22 @@ describe("sports evidence publication", () => {
     "We don't show rugby, cricket broadcasts here.",
     "We don't show football, rugby and cricket screens every Sunday.",
     "No Sky Sports, TNT Sports, and BT Sport is available here.",
+    "No Sky Sports, TNT Sports, BT Sport is available here.",
+    "No Sky Sports, TNT Sports, BT Sport are available here.",
+    "Without Sky Sports, TNT Sports, BT Sport is available here.",
+    "No football, rugby, cricket are shown here.",
+    "No Sky Sports, TNT Sports, BT Sport shows every match.",
+    "No Sky Sports, TNT Sports, BT Sport will be shown here.",
+    "We don't have Sky Sports, TNT Sports, BT Sport is available here.",
+    "We don't have Sky Sports, TNT Sports, BT Sport shows every match.",
+    "We don't show football, rugby, cricket is shown here.",
+    "No Sky Sports, TNT Sports screens in the bar.",
+    "Without Sky Sports, TNT Sports screens in the bar, we focus on food.",
+    "No Sky Sports, TNT Sports broadcasts in the bar.",
+    "No football, rugby broadcasts on our screens.",
+    "No football, rugby shows on our TVs.",
+    "No Sky Sports, TNT Sports will be shown.",
+    "No Sky Sports, TNT Sports has it all.",
   ])("refuses shared denials over supported sport and provider lists: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
