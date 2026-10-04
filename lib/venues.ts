@@ -40,6 +40,7 @@ import {
 } from "@/lib/venueAccessibility";
 import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { resolveSourceVenueKind } from "@/lib/sourceVenueKind.mjs";
 import {
   amenityStatusFromValues,
   contactValueIsPublishable,
@@ -66,6 +67,10 @@ export type CrawlMode = "suggest" | "build";
 
 export type VenuePrice = {
   app_price_id: string;
+  /** Explicit OSM amenity, with its own source identity and observation time. */
+  venue_kind?: Extract<VenueKind, "pub" | "bar">;
+  venue_kind_osm_id?: string;
+  venue_kind_observed_at?: string;
   pub_name: string;
   pint_name: string;
   price_gbp: number | null;
@@ -605,7 +610,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     grouped.set(key, [...(grouped.get(key) ?? []), row]);
   }
 
-  return Array.from(grouped.entries()).map(([key, groupRows]) => {
+  return Array.from(grouped.entries()).flatMap(([key, groupRows]): Venue[] => {
+    const sourceKind = resolveSourceVenueKind(groupRows);
+    if (sourceKind.status === "conflict") return [];
     const sortedRows = [...groupRows].sort((a, b) => {
       const left = a.price_gbp ?? Number.POSITIVE_INFINITY;
       const right = b.price_gbp ?? Number.POSITIVE_INFINITY;
@@ -632,8 +639,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // borough so a common name doesn't cross-contaminate the wrong pub.
     const accessibility = getVenueAccessibility(first.pub_name, first.primary_borough);
 
-    return {
+    return [{
       id: stableVenueIdFromKey(key),
+      ...(sourceKind.status === "stated" ? { kind: sourceKind.kind } : {}),
       name: first.pub_name,
       address: first.address,
       latitude: first.latitude,
@@ -673,7 +681,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       sourceDatasets: Array.from(sourceDatasets),
       curation,
       accessibility,
-    };
+    }];
   });
 }
 

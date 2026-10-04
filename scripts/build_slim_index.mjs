@@ -37,6 +37,7 @@ import {
   nightOutPlaceRowValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { resolveSourceVenueKind, assertSourceVenueKinds } from "../lib/sourceVenueKind.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -807,6 +808,8 @@ async function main() {
     console.log(`dropped ${droppedOob} row(s) outside Greater London bounds`);
   }
 
+  assertSourceVenueKinds([...grouped.values()].flat());
+
   // Fare-zone table (nearest-station assignment). Load once; each venue is
   // stamped with the zone of its nearest station — an honest approximation,
   // labelled as such in the UI. See scripts/lib/stationZones.mjs.
@@ -858,6 +861,7 @@ async function main() {
   const zoneCounts = {};
   let zoneUnknown = 0;
   for (const [key, groupRows] of grouped) {
+    const sourceKind = resolveSourceVenueKind(groupRows);
     const first = groupRows[0];
     const prices = groupRows.filter(isLivePriceRow);
     const duplicateFamousVenue = famousRows.some(
@@ -890,6 +894,7 @@ async function main() {
       lng,
       cheapestPrice,
       borough: String(first.primary_borough || ""),
+      kind: sourceKind.kind,
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
       ...(zone !== null ? { zone } : {}),
