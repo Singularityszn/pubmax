@@ -69,7 +69,7 @@ in the same commit.
 | `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry the queued price-trust events and account credits that a community-price write could not record, then acknowledge each queue revision; the price itself is already saved | 30s |
 | `GET /api/cron/purge-social-media` | `20 4 * * *` | 05:20 / 04:20 | Delete up to 50 detached Social photos and up to 50 orphaned uploads; skips while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` keeps Social rolled back | 30s |
 | `GET /api/cron/step-out-nudge` | `0 16 * * 4` | Thursday 17:00 / Thursday 16:00 | Send the weekly Step Out push to opted-in subscribers who are owed one, at most one a week per subscription | 60s |
-| `GET /api/cron/cheap-pint-ping` | `0 16,17 * * 1-5` | Weekdays 17:00 / weekdays 17:00 | Send the one-time cheap-pint push to opted-in accounts with a grounded listed price. Two UTC runs cover both halves of the year: the route sends only in the 17:00 London hour, so the other run skips | 60s |
+| `GET /api/cron/cheap-pint-ping` | `0 16,17 * * 1-5` | Weekdays 17:00·18:00 / weekdays 16:00·17:00 | Send the one-time cheap-pint push to opted-in accounts with a grounded listed price. Two UTC runs cover both halves of the year: the route sends only in the 17:00 London hour, so the 18:00 BST and 16:00 GMT runs skip | 60s |
 | `GET /api/cron/harvest-refresh` | `0 5 * * 1` | Monday 06:00 / Monday 05:00 | Weekly first-party London harvest under `HARVEST_CRON_REQUEST_BUDGET`; the run report goes to logs only, because `npm run harvest:run` owns the durable files. Without `FIRECRAWL_API_KEY` every source is skipped | 300s |
 
 The What's-On refresh runs **twice a day**. The morning run, `30 5 * * *`
