@@ -312,30 +312,4 @@ describe("runPalElevenLabsChatTurn", () => {
 
     expect(outcome).toMatchObject({ ok: true, toolsUsed: ["propose_plan"] });
   });
-
-  it("waits for every tool the agent ran before it reads the cards", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "Date"] });
-    wsState.toolResponses = ["search_venues", "propose_plan"];
-    const planCard = { ...toolTurnPayload.cards[0], key: "v2", venueId: "london-b", title: "The Owl" };
-    storeMocks.readPubPalToolTurn
-      .mockResolvedValueOnce(toolTurnPayload)
-      .mockResolvedValue({
-        ...toolTurnPayload,
-        cards: [...toolTurnPayload.cards, planCard],
-        toolsUsed: ["search_venues", "propose_plan"],
-      });
-
-    const pending = runPalElevenLabsChatTurn({
-      query: "Plan me a 3 pub crawl in Shoreditch tonight",
-      ownerId: "11111111-1111-4111-8111-111111111111",
-    });
-    await vi.advanceTimersByTimeAsync(1_000);
-    const outcome = await pending;
-
-    expect(outcome).toMatchObject({ ok: true, toolsUsed: ["search_venues", "propose_plan"] });
-    expect(outcome.ok === true && outcome.cards.map((card) => card.title)).toEqual([
-      "The Crown",
-      "The Owl",
-    ]);
-  });
 });

@@ -112,6 +112,12 @@ export async function invokePubPalAskTool(input: {
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
+    if (input.conversationId) {
+      await appendPubPalToolTurn(input.conversationId, {
+        hints: [register],
+        toolsUsed: [input.toolName],
+      });
+    }
     return {
       result: {
         ok: true,

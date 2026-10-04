@@ -18,10 +18,17 @@ const CONVERSATION_ID = "conv_storetest01";
 const OWNER_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_OWNER_ID = "22222222-2222-4222-8222-222222222222";
 
+type FakeRow = Record<string, unknown> & { conversation_id: string; expires_at: string };
+
 const durable = vi.hoisted(() => ({
   configured: false,
   deletes: [] as Array<{ table: string; column: string; value: string }>,
+  rows: new Map<string, FakeRow>(),
 }));
+
+function matches(row: FakeRow, filters: Array<[string, string]>): boolean {
+  return filters.every(([column, value]) => row[column] === value);
+}
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -37,6 +44,44 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
             return { error: null };
           },
         }),
+        select: () => {
+          const filters: Array<[string, string]> = [];
+          const query = {
+            eq: (column: string, value: string) => {
+              filters.push([column, value]);
+              return query;
+            },
+            gt: () => query,
+            maybeSingle: async () => {
+              const row = [...durable.rows.values()].find((candidate) =>
+                matches(candidate, filters),
+              );
+              return { data: row ? structuredClone(row) : null, error: null };
+            },
+          };
+          return query;
+        },
+        update: (values: Record<string, unknown>) => {
+          const filters: Array<[string, string]> = [];
+          const query = {
+            eq: (column: string, value: string) => {
+              filters.push([column, value]);
+              return query;
+            },
+            select: async () => {
+              const hits = [...durable.rows.values()].filter((row) => matches(row, filters));
+              for (const row of hits) {
+                durable.rows.set(row.conversation_id, { ...row, ...structuredClone(values) });
+              }
+              return { data: hits.map((row) => ({ conversation_id: row.conversation_id })), error: null };
+            },
+          };
+          return query;
+        },
+        upsert: async (row: FakeRow) => {
+          durable.rows.set(row.conversation_id, structuredClone(row));
+          return { error: null };
+        },
       }),
     }),
   };
@@ -125,7 +170,40 @@ describe("pubPalToolTurnStore (durable backend purge)", () => {
     vi.useRealTimers();
     durable.configured = false;
     durable.deletes = [];
+    durable.rows.clear();
     __resetPubPalToolTurnStore();
+  });
+
+  it("keeps both results when two tools append to one turn at once", async () => {
+    durable.configured = true;
+    await registerPubPalToolTurn(CONVERSATION_ID, {
+      query: "Plan me a 3 pub crawl in Shoreditch tonight",
+      cityId: "london",
+      ownerId: OWNER_ID,
+    });
+    const card = (venueId: string) => ({
+      key: venueId,
+      venueId,
+      title: venueId,
+      place: "Shoreditch",
+      note: "Logged.",
+      price: null,
+    });
+
+    await Promise.all([
+      appendPubPalToolTurn(CONVERSATION_ID, {
+        cards: [card("london-a")],
+        toolsUsed: ["search_venues"],
+      }),
+      appendPubPalToolTurn(CONVERSATION_ID, {
+        cards: [card("london-b")],
+        toolsUsed: ["propose_plan"],
+      }),
+    ]);
+
+    const turn = await readPubPalToolTurn(CONVERSATION_ID);
+    expect(turn?.toolsUsed.sort()).toEqual(["propose_plan", "search_venues"]);
+    expect(turn?.cards.map((stored) => stored.venueId).sort()).toEqual(["london-a", "london-b"]);
   });
 
   it("deletes every row whose expires_at has passed", async () => {

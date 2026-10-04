@@ -9,6 +9,26 @@ import {
   invokePubPalAskTool,
   resolvePubPalToolQuery,
 } from "@/lib/pubPalToolInvoke.server";
+import {
+  __resetPubPalToolTurnStore,
+  readPubPalToolTurn,
+  registerPubPalToolTurn,
+} from "@/lib/pubPalToolTurnStore";
+
+const fence = vi.hoisted(() => ({ forceFenced: false }));
+
+vi.mock("@/lib/pubPalLlmFence", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pubPalLlmFence")>();
+  return {
+    ...actual,
+    resolvePubPalFenceIntent: async (
+      ...args: Parameters<typeof actual.resolvePubPalFenceIntent>
+    ) =>
+      fence.forceFenced
+        ? { fenced: true, sobrietyOnly: false }
+        : actual.resolvePubPalFenceIntent(...args),
+  };
+});
 
 describe("pubPal webhook arg resolution", () => {
   it("prefers the stored turn query over a short ElevenLabs fragment", () => {
@@ -47,6 +67,8 @@ describe("propose_plan over the Pal webhook", () => {
   });
 
   afterEach(() => {
+    fence.forceFenced = false;
+    __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
   });
 
@@ -63,12 +85,11 @@ describe("propose_plan over the Pal webhook", () => {
     };
   }
 
-  // The live agent sent these asks and answered that it could not plan a
-  // Shoreditch crawl: "tonight" was read as part of the area, and a bare
-  // "Shoreditch crawl" planned three pubs across London.
+  // The live agent sent the first ask and answered that it could not plan a
+  // Shoreditch crawl: "tonight" was read as part of the area.
   it.each([
     "Plan me a 3 pub crawl in Shoreditch tonight",
-    "Can you plan a Shoreditch crawl?",
+    "Can you plan a crawl around Shoreditch?",
   ])("drafts three Shoreditch stops for %j", async (query) => {
     const result = await planFor(query);
 
@@ -84,5 +105,28 @@ describe("propose_plan over the Pal webhook", () => {
         haversineKm([shoreditch.centre.lng, shoreditch.centre.lat], [venue.lng, venue.lat]),
       ).toBeLessThan(3);
     }
+  });
+
+  // The live chat reply came back with toolsUsed [] although propose_plan
+  // answered 200: the webhook fenced the ask and returned without storing it.
+  it("records a fenced propose_plan in the turn the chat reads", async () => {
+    const conversationId = "conv_fencedplan01";
+    await registerPubPalToolTurn(conversationId, {
+      query: "Plan me a 3 pub crawl in Shoreditch tonight",
+      cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    fence.forceFenced = true;
+
+    const { result } = await invokePubPalAskTool({
+      toolName: "propose_plan",
+      args: { query: "Plan me a 3 pub crawl in Shoreditch tonight" },
+      conversationId,
+    });
+
+    expect(result).toMatchObject({ ok: true, fenced: true });
+    const turn = await readPubPalToolTurn(conversationId);
+    expect(turn?.toolsUsed).toEqual(["propose_plan"]);
+    expect(turn?.hints).toEqual([result.answerHint]);
   });
 });

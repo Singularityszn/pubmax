@@ -95,33 +95,35 @@ export function extractExplicitBudget(text: string): number | undefined {
   return Math.min(15, Math.max(3, n));
 }
 
-/** Words that end an area phrase: "in Shoreditch tonight" names Shoreditch, not "Shoreditch tonight". */
-const AREA_TRAILING_TIME =
-  /\s+(?:tonight|today|tomorrow|now|later|this\s+(?:evening|afternoon|morning|weekend)|(?:at|on|from|after|before)\b.*)$/iu;
+const AREA_PREPOSITIONS = ["in", "near", "around", "at"] as const;
 
 /**
- * The area a keyless parse plans in. A known area named inside the phrase wins,
- * so "in Shoreditch tonight" is Shoreditch. With no "in", "near" or "around",
- * a known area named anywhere in the request is used, so "a Shoreditch crawl"
- * is not planned across the whole city. An unlisted phrase is kept without
- * its trailing time words.
+ * The area a keyless parse plans in. A known area named after "in", "near",
+ * "around" or "at" wins, so "in Shoreditch tonight" is Shoreditch, and so does
+ * a request that is only the area's name. A known area named anywhere else is
+ * not read as the area: "a crawl along the Victoria line" plans across London.
  */
 export function deterministicAreaInText(
   text: string,
   knownAreas: readonly string[],
 ): string | undefined {
-  const extracted = extractAreaPhrase(text);
-  const known = longestKnownAreaIn(extracted ?? text, knownAreas);
-  if (known) return known;
-  if (!extracted) return undefined;
-  return extracted.replace(AREA_TRAILING_TIME, "").trim() || undefined;
+  return longestKnownAreaNamedIn(text, knownAreas) ?? extractAreaPhrase(text);
 }
 
-function longestKnownAreaIn(text: string, knownAreas: readonly string[]): string | undefined {
+function namesKnownArea(text: string, area: string): boolean {
+  const whole = text.trim().replace(/[.!?]+$/u, "").trim();
+  if (whole.toLocaleLowerCase("en-GB") === area.toLocaleLowerCase("en-GB")) return true;
+  return AREA_PREPOSITIONS.some((preposition) => wholePhraseInText(text, `${preposition} ${area}`));
+}
+
+function longestKnownAreaNamedIn(
+  text: string,
+  knownAreas: readonly string[],
+): string | undefined {
   let best: string | undefined;
   for (const area of knownAreas) {
     const trimmed = area.trim();
-    if (!wholePhraseInText(text, trimmed)) continue;
+    if (!trimmed || !namesKnownArea(text, trimmed)) continue;
     if (!best || trimmed.length > best.length) best = trimmed;
   }
   return best;

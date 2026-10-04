@@ -24,25 +24,16 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * The stored results of this turn's tools. When the agent has said which tools
- * it called, wait for every one of them, so a second tool's cards are not lost
- * because the first one landed sooner.
- */
-async function waitForPubPalToolTurn(
-  conversationId: string,
-  calledTools: readonly string[],
-): Promise<PubPalToolTurn | null> {
+async function waitForPubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
   const deadline = Date.now() + TOOL_TURN_WAIT_MS;
   while (Date.now() < deadline) {
     const peek = await readPubPalToolTurn(conversationId);
-    const landed = calledTools.length > 0
-      ? calledTools.every((name) => peek?.toolsUsed.includes(name))
-      : Boolean(
-          peek &&
-          (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0),
-        );
-    if (peek && landed) return peek;
+    if (
+      peek &&
+      (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0)
+    ) {
+      return peek;
+    }
     await sleep(TOOL_TURN_POLL_MS);
   }
   return readPubPalToolTurn(conversationId);
@@ -268,9 +259,7 @@ export async function runPalElevenLabsChatTurn(
         const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
         void (async () => {
           try {
-            const turn = conversationId
-              ? await waitForPubPalToolTurn(conversationId, calledTools)
-              : null;
+            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
             const cards = turn?.cards ?? [];
             const proposals = turn?.proposals ?? [];
             const message =

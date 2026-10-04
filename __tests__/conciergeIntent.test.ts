@@ -137,19 +137,23 @@ describe("parseConciergeIntent keyless fallback", () => {
     expect(parsed.intent.area).toBe("Shoreditch");
   });
 
-  it("reads a known area named without a preposition", async () => {
-    await expect(parseConciergeIntent("Can you plan a Shoreditch crawl?")).resolves.toMatchObject({
+  it("reads a known area after at, or a request that is only the area", async () => {
+    await expect(parseConciergeIntent("Can you plan a crawl at Shoreditch?")).resolves.toMatchObject({
       intent: { area: "Shoreditch" },
     });
-    await expect(parseConciergeIntent("plan me a shoreditch crawl tonight")).resolves.toMatchObject({
+    await expect(parseConciergeIntent("shoreditch")).resolves.toMatchObject({
       intent: { area: "Shoreditch" },
     });
   });
 
-  it("keeps an unlisted area phrase but drops the time words after it", async () => {
-    const parsed = await parseConciergeIntent("Pubs in Stoke Newington this evening");
+  it.each([
+    "Can you plan a Shoreditch crawl?",
+    "Plan a crawl for Victoria's birthday",
+    "a crawl along the Victoria line",
+  ])("does not read an area named without a preposition in %j", async (text) => {
+    const parsed = await parseConciergeIntent(text);
 
-    expect(parsed.intent.area).toBe("Stoke Newington");
+    expect(parsed.intent.area).toBeUndefined();
   });
 
   it("falls back to regex when systemOne throws and never spends without a key", async () => {
