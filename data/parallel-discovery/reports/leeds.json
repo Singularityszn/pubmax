@@ -2,89 +2,17 @@
   "city": "leeds",
   "districts": 21,
   "slices": 84,
-  "slicesComplete": 8,
+  "slicesComplete": 80,
   "incompleteSlices": [
-    "LS1/pub",
-    "LS1/bar",
-    "LS1/cocktail-bar",
-    "LS1/restaurant",
-    "LS2/pub",
-    "LS2/bar",
-    "LS2/cocktail-bar",
-    "LS2/restaurant",
-    "LS3/pub",
-    "LS4/bar",
-    "LS4/cocktail-bar",
-    "LS4/restaurant",
-    "LS5/pub",
-    "LS5/restaurant",
-    "LS6/pub",
-    "LS6/bar",
-    "LS6/cocktail-bar",
-    "LS6/restaurant",
-    "LS7/pub",
-    "LS7/bar",
-    "LS7/cocktail-bar",
-    "LS7/restaurant",
-    "LS8/pub",
-    "LS8/cocktail-bar",
-    "LS8/restaurant",
-    "LS9/pub",
-    "LS9/cocktail-bar",
-    "LS9/restaurant",
-    "LS10/pub",
-    "LS10/bar",
-    "LS10/cocktail-bar",
-    "LS10/restaurant",
-    "LS11/pub",
-    "LS11/bar",
-    "LS11/cocktail-bar",
-    "LS11/restaurant",
-    "LS12/pub",
-    "LS12/bar",
-    "LS12/cocktail-bar",
-    "LS12/restaurant",
-    "LS13/pub",
-    "LS13/bar",
-    "LS13/cocktail-bar",
-    "LS13/restaurant",
-    "LS14/pub",
-    "LS14/bar",
-    "LS14/cocktail-bar",
-    "LS14/restaurant",
-    "LS15/pub",
-    "LS15/bar",
-    "LS15/cocktail-bar",
-    "LS15/restaurant",
-    "LS16/pub",
-    "LS16/bar",
-    "LS16/cocktail-bar",
-    "LS16/restaurant",
-    "LS17/pub",
-    "LS17/bar",
-    "LS17/cocktail-bar",
-    "LS17/restaurant",
-    "LS18/pub",
-    "LS18/bar",
-    "LS18/cocktail-bar",
-    "LS18/restaurant",
-    "LS26/pub",
-    "LS26/bar",
-    "LS26/cocktail-bar",
-    "LS26/restaurant",
-    "LS27/pub",
-    "LS27/bar",
-    "LS27/cocktail-bar",
-    "LS27/restaurant",
-    "WF3/pub",
-    "WF3/bar",
-    "WF3/cocktail-bar",
-    "WF3/restaurant"
+    "LS1/restaurant: 1 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume",
+    "LS2/pub: 1 pages not read yet (robots unreachable for www.datathistle.com); rerun to resume",
+    "LS6/bar: 1 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume",
+    "LS6/cocktail-bar: 2 pages not read yet (robots unreachable for www.leedsbeckett.ac.uk); rerun to resume"
   ],
   "taskRuns": 110,
-  "webSearches": 0,
-  "pagesRead": 0,
-  "researched": 506,
+  "webSearches": 140,
+  "pagesRead": 503,
+  "researched": 509,
   "added": 0,
   "retained": [
     {
@@ -475,6 +403,14 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.tripadvisor.com/Attraction_Review-g186411-d12723213-Reviews-Be_At_One_Leeds_Boar_Lane-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=4A+Harehills+Rd%2C+Leeds+LS8+5PB",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "The Banksia",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -507,6 +443,10 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=1+Whitehall+Quay%2C+Leeds+LS1+4HR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Salt Calls Landing",
       "reason": "missing-venue-specific-citation"
     },
@@ -525,6 +465,18 @@
     {
       "name": "Uyare by Tharavadu",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.anationofshopkeepers.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thepalaceleeds.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-smithfield-leeds",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Popworld Leeds",
@@ -575,6 +527,10 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Leeds+LS2",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Jamrock",
       "reason": "missing-venue-specific-citation"
     },
@@ -599,6 +555,10 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186411-d10478820-Reviews-The_Highland_Laddie-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Grosvenor Casino Leeds Westgate",
       "reason": "missing-drinking-evidence"
     },
@@ -619,6 +579,14 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=4A+Harehills+Rd%2C+Leeds+LS8+5PB",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186411-d24102916-Reviews-Dave_s_Pie_And_Ale_Shop-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Viva Cuba",
       "reason": "missing-venue-specific-citation"
     },
@@ -631,12 +599,28 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://mapcarta.com/W100530176",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://forums.pubsgalore.co.uk/showthread.php?889-The-George-IV-Commercial-Road-Kirkstall-Leeds-LS5-3AT=",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186411-d3447937-Reviews-Vesper_Gate-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Melodie 71",
       "reason": "missing-venue-specific-citation"
     },
     {
       "name": "Melodie 71",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mindtrip.ai/restaurant/leeds-yorkshire/vesper-gate/re-Suu6nUAJ",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "Boot & Rally",
@@ -687,6 +671,14 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "http://www.newheadingleyclub.co.uk",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.theoriginaloakleeds.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Residence Bar Cafe | Kitchen",
       "reason": "missing-venue-specific-citation"
     },
@@ -725,6 +717,18 @@
     {
       "name": "De Baga",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://leedsliving.co.uk/food-drink/residence-74-now-open-in-headingley",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=cocktailbars&find_loc=Cardigan+Rd%2C+Leeds+LS6+1LJ",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theheadingleytapsleeds.co.uk",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "No14 Restaurant & Bar",
@@ -795,6 +799,26 @@
       "reason": "missing-drinking-evidence"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=49-51+Woodland+Ln%2C+Leeds+LS7+4QG",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Leeds+LS18",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186411-d6893991-Reviews-The_Woods-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://leeds-list.com/page/57?attachment_id=",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Regent+Street%2C+Leeds+LS7+4PE%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Nyla’s Chapel Allerton",
       "reason": "missing-drinking-evidence"
     },
@@ -863,6 +887,38 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.deerparkleeds.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=109A+Roundhay+Road%2C+Leeds+LS8+5AJ",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://manningstainton.co.uk/blog/oakwood/5-great-beer-gardens-to-visit-in-oakwood",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://historicengland.org.uk/listing/the-list/list-entry/1375493",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://northleeds.mumbler.co.uk/eating-out-for-families/roundhay-oakwood",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Leeds+LS8+1QJ",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=172%2C+Easterly+Road%2C+West+Yorkshire%2C+Leeds+LS8+3AD%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186411-d2462078-Reviews-The_White_House-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "El Born",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -919,6 +975,30 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=4A+Harehills+Rd%2C+Leeds+LS8+5PB",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://cafe-bar-el-born.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://manningstainton.co.uk/blog/oakwood/5-great-beer-gardens-to-visit-in-oakwood",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=bar+staff&l=ls8+3jt&cursor=ABQAAf%2F%2FAAAAAAAAAAAAAAACXixomgAAAQ%3D%3D",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Leeds+LS8+1QJ",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Hesco Lounge",
       "reason": "missing-venue-specific-citation"
     },
@@ -939,6 +1019,26 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://mapcarta.com/N5457251548",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Ellerby+Rd%2C+Leeds+LS9+8LD",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/england/yorkshire+and+the+humber/west+yorkshire/leeds",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186411-d32750608-Reviews-Woodside_Neighbourhood_Bar_Eatery-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.thefork.com/restaurant/rambuttri-r866800",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Kerala Canteen",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -947,12 +1047,24 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186411-d32750608-Reviews-Woodside_Neighbourhood_Bar_Eatery-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-bar-staff-l-leeds-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Aagrah Leeds City",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
       "name": "Kendells Bistro",
       "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=Foundry+Approach%2C+Leeds+LS9+6RX",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Tetley",
@@ -975,6 +1087,26 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://mapcarta.com/W34294410",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theadelphileeds.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186411-d8641254-Reviews-The_212-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://leeds-list.com/page/57?attachment_id=",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "The Canary",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -987,6 +1119,14 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.theadelphileeds.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "reason": "missing-drinking-evidence"
+    },
+    {
       "name": "Brewery Wharf Tavern",
       "reason": "missing-venue-specific-citation"
     },
@@ -997,6 +1137,18 @@
     {
       "name": "The Falconers Rest",
       "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.theadelphileeds.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=newamerican&find_loc=Junction+St%2C+Leeds+LS10+1ET",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Canary",
@@ -1039,6 +1191,18 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Beeston+Rd%2C+Leeds+LS11+8ND",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186411-d12375389-Reviews-The_Grove_Inn-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186411-d7260484-Reviews-The_Broadway-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Domo Leeds",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -1067,12 +1231,32 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Unit+6+6+Crow+Nest+Drive+Beeston%2C+Leeds+LS11+8JP%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "The Woodcock",
       "reason": "missing-venue-specific-citation"
     },
     {
       "name": "New Farnley Cricket Club",
       "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.reddit.com/r/Leeds/comments/vemtg6/ideas_for_pubs_and_best_isp_for_ls12_4qn_area",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Leeds+LS18",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186411-d6031357-Reviews-Travellers_Rest-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.reddit.com/r/Leeds/comments/10zf8kn/any_opinions_on_wortleyls12",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Woodcock",
@@ -1089,6 +1273,18 @@
     {
       "name": "The Nook",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/N6391203215",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Whitehall+Rd%2C+Leeds+LS12+1HE",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.reddit.com/r/Leeds/comments/vemtg6/ideas_for_pubs_and_best_isp_for_ls12_4qn_area",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Grand Valley Bar & Kitchen",
@@ -1235,12 +1431,24 @@
       "reason": "postcode-does-not-geocode-inside-city"
     },
     {
+      "name": "https://www.greensleeds.com",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
       "name": "Greens Leeds",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
       "name": "Jinnah Leeds",
       "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186411-d6439472-Reviews-or30-The_Mexborough_Arms-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://ciao-bella-bar-restaurant.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "The Barnbow",
@@ -1311,12 +1519,40 @@
       "reason": "postcode-does-not-geocode-inside-city"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=39-41+Austhorpe+Rd%2C+Leeds+LS15+8BA",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mapcarta.com/W330244135",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Locus Bar",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
       "name": "Barnbow",
       "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.opentable.com/r/riva-blu-italian-restaurant-and-bar-leeds-the-springs-leeds",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=39-41+Austhorpe+Rd%2C+Leeds+LS15+8BA",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/riva-blu-italian-restaurant-and-bar-leeds-the-springs-leeds",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Buffers",
@@ -1403,6 +1639,14 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://northleeds.mumbler.co.uk/family-friendly-cafes-pubs-with-outside-play-areas-or-beer-gardens-in-leeds",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/m/viewjob?jk=6e024e5db7061234&from=serp&tk=1jvm9a4bvh720801&xkcb=SoCI67M3g2anVC3zQZ0fbzkdCdPP",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "The Fox & Hounds, Bramhope",
       "reason": "missing-venue-specific-citation"
     },
@@ -1471,6 +1715,14 @@
       "reason": "missing-drinking-evidence"
     },
     {
+      "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=Whinbrook+Cres%2C+Leeds+LS17+5PN",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Residence Moortown",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -1481,6 +1733,22 @@
     {
       "name": "The Olive Branch Alwoodley",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=49-51+Woodland+Ln%2C+Leeds+LS7+4QG",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=bartender&l=leeds&from=expandedQueriesLink&cursor=ABQAAwA8AAAAAAAAAAAAAAACYTb2rgEBAQ4F8f2b6672D9wq%2BRGqu2hmuaHsX8EIlYnbWxzTdueBFg%3D%3D",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=bars&find_loc=Wike+Ridge+Ln%2C+Leeds+LS17+9JW",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Olive Branch – Alwoodley",
@@ -1581,6 +1849,18 @@
     {
       "name": "Once Upon A Vine",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/W372433839",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://oldkingsarmsleeds.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theoldballleeds.co.uk",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Beyond The Red Door",
@@ -1779,6 +2059,10 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=City+of+Leeds+LS18+4BD",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Winchester",
       "reason": "missing-venue-specific-citation"
     },
@@ -1803,6 +2087,10 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://northleeds.mumbler.co.uk/family-friendly-cafes-pubs-with-outside-play-areas-or-beer-gardens-in-leeds",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Two Pointers",
       "reason": "missing-venue-specific-citation"
     },
@@ -1815,12 +2103,44 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://austins-eats.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/toby-carvery-oulton-leeds",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/the-boundary-house-leeds",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Salto Espresso & Cocktails",
       "reason": "missing-venue-specific-citation"
     },
     {
       "name": "Remedy Cocktail Bar",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://wanderboat.ai/restaurants/united-kingdom/leeds/remedy-cocktail-bar/vD2cQDLpRHCvKZN5qoMbvw",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Dewsbury%2C+West+Yorkshire",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://coach-horses-rothwell.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://northleeds.mumbler.co.uk/category/eating-out",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Boundary House",
@@ -1951,6 +2271,26 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://manningstainton.co.uk/blog/morley/best-bars-in-morley",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://tipsy-calf.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g2315364-d13406377-Reviews-Lime_Tree_Bistro-Morley_Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/biz/old-griffin-head-leeds",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186411-d32843276-Reviews-Rhythm_Rye-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Kasa Rosa",
       "reason": "missing-venue-specific-citation"
     },
@@ -2047,6 +2387,14 @@
       "reason": "postcode-does-not-geocode-inside-city"
     },
     {
+      "name": "https://www.simplyhired.co.uk/search?q=bar+staff&l=leeds+wf3+3bh",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g190729-d8561182-Reviews-Hare_Hounds-Wakefield_West_Yorkshire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "British Oak Tingley",
       "reason": "missing-venue-specific-citation"
     },
@@ -2065,6 +2413,14 @@
     {
       "name": "Stanley Ferry",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://the-halfway-robin-hood.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-bar-l-leeds-wf3-2as-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "Hare & Hounds",
@@ -2097,6 +2453,10 @@
     {
       "name": "Bedford Arms",
       "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://the-halfway-robin-hood.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
     }
   ],
   "outputPath": "data/cities/leeds/parallel_venues.json"

@@ -2,60 +2,499 @@
   "city": "bristol",
   "districts": 14,
   "slices": 56,
-  "slicesComplete": 23,
+  "slicesComplete": 53,
   "incompleteSlices": [
-    "BS1/pub",
-    "BS1/bar",
-    "BS1/cocktail-bar",
-    "BS2/bar",
-    "BS2/restaurant",
-    "BS4/bar",
-    "BS4/cocktail-bar",
-    "BS5/pub",
-    "BS5/bar",
-    "BS5/restaurant",
-    "BS6/pub",
-    "BS6/cocktail-bar",
-    "BS6/restaurant",
-    "BS7/bar",
-    "BS7/restaurant",
-    "BS8/pub",
-    "BS8/cocktail-bar",
-    "BS9/pub",
-    "BS9/bar",
-    "BS10/pub",
-    "BS10/bar",
-    "BS10/cocktail-bar",
-    "BS13/pub",
-    "BS13/restaurant",
-    "BS15/pub",
-    "BS15/bar",
-    "BS15/cocktail-bar",
-    "BS15/restaurant",
-    "BS16/pub",
-    "BS16/bar",
-    "BS16/cocktail-bar",
-    "BS41/bar",
-    "BS41/restaurant"
+    "BS9/pub: 1 pages not read yet (robots unreachable for bristol.u3asite.uk); rerun to resume",
+    "BS16/cocktail-bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
+    "BS41/bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume"
   ],
   "taskRuns": 0,
-  "webSearches": 56,
-  "pagesRead": 35,
-  "researched": 0,
+  "webSearches": 107,
+  "pagesRead": 427,
+  "researched": 35,
   "added": 0,
-  "retained": [],
-  "totalAccepted": 0,
-  "repeats": 0,
-  "duplicates": [],
+  "retained": [
+    {
+      "name": "Lost & Grounded",
+      "id": "venue-bri-gigbt6"
+    },
+    {
+      "name": "Langton",
+      "id": "venue-bri-2ej83h"
+    },
+    {
+      "name": "Pilgrim Inn",
+      "id": "venue-bri-tfvd28"
+    },
+    {
+      "name": "Industry Bar & Kitchen",
+      "id": "venue-bri-1imxsrk"
+    },
+    {
+      "name": "Westbury Park Pub & Kitchen",
+      "id": "venue-bri-16raiop"
+    },
+    {
+      "name": "The Kings Head",
+      "id": "venue-bri-wx5olt"
+    },
+    {
+      "name": "Cossham Inn",
+      "id": "venue-bri-xpufzk"
+    }
+  ],
+  "totalAccepted": 7,
+  "repeats": 6,
+  "duplicates": [
+    {
+      "name": "Sandringham",
+      "matchedName": "The Sandringham",
+      "matchedId": "way/405875173"
+    },
+    {
+      "name": "Lodekka",
+      "matchedName": "Lodekka",
+      "matchedId": "way/675544668"
+    },
+    {
+      "name": "Beeses Bar & Tea Gardens",
+      "matchedName": "Beeses Bar & Tea Gardens",
+      "matchedId": "way/582526162"
+    },
+    {
+      "name": "Bear & Rugged Staff",
+      "matchedName": "Bear & Rugged Staff",
+      "matchedId": "way/274701877"
+    },
+    {
+      "name": "Rose & Crown",
+      "matchedName": "Rose and Crown",
+      "matchedId": "way/1011173159"
+    },
+    {
+      "name": "Masons Arms",
+      "matchedName": "Masons Arms",
+      "matchedId": "way/398932880"
+    },
+    {
+      "name": "Golden Lion",
+      "matchedName": "Golden Lion",
+      "matchedId": "way/398988642"
+    }
+  ],
   "withdrawn": [],
   "rejected": [
     {
-      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_near=the-old-market-assembly-bristol",
-      "reason": "unreadable: robots: robots-disallowed"
+      "name": "https://www.fullers.co.uk/pubs/pub-finder/pubs-with-food/bristol",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://7stars.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.bristolsu.org.uk/groups/ukrainian-society-396d/events/eastern-european-pub-quiz-213f",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theholeinthewallbristol.co.uk/findus",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theholeinthewallbristol.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/bristol-and-bath/venues?strana=5",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://colonnadebristol.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Redcliffe+Way%2C+Bristol+BS1+6NL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theholeinthewallbristol.co.uk/findus",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://colonnadebristol.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://tables.hostmeapp.com/i/18012",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=74-78+Avon+Street%2C+Bristol+BS2+0PX",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.bristol.ac.uk/students/life-in-bristol/campus/cafes",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/bristol-and-bath/venues?strana=2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://the-den-terrace.wheree.com/menu",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.yelp.com/search?cflt=cocktailbars&find_near=the-old-market-assembly-bristol",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://bristol.cylex-uk.co.uk/brislington/nightclub.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.hotels.com/ho1082180192/the-dark-horse-pub-bristol-united-kingdom",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=45-47+Church+Rd%2C+Bristol+BS5+9JJ",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://365bristol.com/business-directory/red-monkey-micro-pub/1019",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://beervisits.beer/pub-bar-visit/pv-england/137-pv-bristol/1093-bristol-redland-chums",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://hmssbristol.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://filthyxiii.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://thesecret.app/secrets/5310/filthy-xiii",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=&find_near=the-cadbury-bristol-2&start=0",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://365bristol.com/students",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-independent-restaurant-&-cocktail-bar-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=sportsbars&find_loc=288A+Gloucester+Rd%2C+Bristol+BS7+8PD",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theflyerbristol.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://365bristol.com/students",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/bristol-and-bath/venues?strana=5",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://cat-wheel.wheree.com/menu",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=London+Road%2C+Bristol+BS30+5SJ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186220-d8843554-Reviews-Gloucester_Road_Ale_House_Kitchen-Bristol_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Lower+Guinea+St%2C+Bristol+BS1",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thebotanistbristol.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.themallpubbristol.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=&find_near=lola-lo-bristol-bristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://prestigestudentliving.com/blog/the-student-guide-10-best-cocktail-bars-in-bristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.alteregobar.co.uk/contact-us",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://365bristol.com/story/2014/02/17/be-at-one-bristol-new-cocktail-bar-opening-on-26-february-2014/208",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://hmssbristol.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.myguidebristol.com/nightlife/clifton-cocktail-club",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mapcarta.com/W272949385",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Trym+Lodge%2C+Bristol+BS9+3HQ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.chalkysticks.com/places/westbury-on-trym-mens-club",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://mapcarta.com/W274701877",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Pegasus",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Union Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/pubs/union-arms-bristol?pubid=43953",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.stonehouserestaurants.co.uk/nationalsearch/southwest/henburybristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://bristol.cylex-uk.co.uk/company/the-old-crow-29079493.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=King+Rd+Ave%2C+Bristol+BS11+9DQ",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mapcarta.com/W274701877",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.bestwestern.co.uk/hotels/best-western-henbury-lodge-hotel-83915",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.stonehouserestaurants.co.uk/nationalsearch/southwest/henburybristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://autoreserve.com/en/gb/england/bristol/bar",
+      "reason": "unreadable: extract: Error fetching content"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186220-d6692000-Reviews-The_King_William_IV_Public_House-Bristol_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.berwicklodge.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.myvue.com/cinema/bristol-cribbs-causeway/whats-on",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=101+Bishopsworth+Rd%2C+Bristol+BS13+7JR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=beer_and_wine&find_loc=110-112+Queen%27s+Rd%2C+Bristol+BS13+8QA",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186220-d3874977-Reviews-The_Kings_Head-Bristol_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=beer_and_wine&find_loc=110-112+Queen%27s+Rd%2C+Bristol+BS13+8QA",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=101+Bishopsworth+Rd%2C+Bristol+BS13+7JR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/pubs/cossham-inn-bristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Chasers",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Kingswood Colliers",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Lyons Den",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Kings Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Star",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Cross Keys",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "The Old Lock & Weir",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/england/south+west/bristol+(county)",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://www.ticketsource.com/whats-on/bristol/rumors-lounge-bar-pub",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/pubs/cossham-inn-bristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/england/south+west/bristol+(county)",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_near=the-old-market-assembly-bristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Chasers",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Kingswood Colliers",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Lyons Den",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Kings Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Star",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Cross Keys",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://zestbs7.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g8617764-d5874526-Reviews-The_Kingswood_Colliers-Kingswood_Gloucestershire_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.myguidebristol.com/beach-clubs/old-lock-weir",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://the-blue-bowl.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://zestbs7.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mapcarta.com/W486460787",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=bar&l=bs16+7je",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/bristol-and-bath/venues?strana=6",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-part-time-bar-pub-l-bristol-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=british&find_loc=Bristol+BS16+2QP%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_near=the-old-market-assembly-bristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186220-d21232684-Reviews-Jk_s_Tapas_Restaurant_Cocktail_Bar-Bristol_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://mapy.com/en?source=osm&id=1104980720",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=pub&l=bs16+5eb",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.theashtonbristol.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-ashton-bristol",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.theashtonbristol.co.uk/findus",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurant/the-ashton-r633405",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_near=miners-rest-long-ashton",
+      "reason": "unreadable: robots refused"
     }
   ],
   "outputPath": "data/cities/bristol/parallel_venues.json"

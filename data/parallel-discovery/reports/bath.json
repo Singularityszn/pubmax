@@ -2,33 +2,204 @@
   "city": "bath",
   "districts": 2,
   "slices": 8,
-  "slicesComplete": 2,
+  "slicesComplete": 7,
   "incompleteSlices": [
-    "BA1/pub",
-    "BA1/bar",
-    "BA1/cocktail-bar",
-    "BA1/restaurant",
-    "BA2/bar",
-    "BA2/cocktail-bar"
+    "BA1/pub: 1 pages not read yet (robots unreachable for www.fairfieldarmsbath.co.uk); rerun to resume"
   ],
   "taskRuns": 0,
-  "webSearches": 8,
-  "pagesRead": 8,
-  "researched": 0,
+  "webSearches": 17,
+  "pagesRead": 109,
+  "researched": 23,
   "added": 0,
-  "retained": [],
-  "totalAccepted": 0,
-  "repeats": 0,
-  "duplicates": [],
+  "retained": [
+    {
+      "name": "The Champagne Bar at Abbey Hotel Bath",
+      "id": "venue-bat-9g5hlz"
+    },
+    {
+      "name": "Hudson Bar & Grill",
+      "id": "venue-bat-1ftmwfc"
+    },
+    {
+      "name": "Saracens Head",
+      "id": "venue-bat-1btwlmw"
+    },
+    {
+      "name": "The Bath Distillery Gin Bar",
+      "id": "venue-bat-1jcx5ox"
+    }
+  ],
+  "totalAccepted": 4,
+  "repeats": 2,
+  "duplicates": [
+    {
+      "name": "Curfew",
+      "matchedName": "The Curfew",
+      "matchedId": "way/1015286255"
+    },
+    {
+      "name": "Walcot House",
+      "matchedName": "The Walcot",
+      "matchedId": "node/4838106409"
+    },
+    {
+      "name": "Bell",
+      "matchedName": "The Bell",
+      "matchedId": "way/74536030"
+    },
+    {
+      "name": "Wolf Wine",
+      "matchedName": "Wolf Wine",
+      "matchedId": "node/12069728568"
+    },
+    {
+      "name": "Sickle",
+      "matchedName": "The Sickle",
+      "matchedId": "way/662692582"
+    },
+    {
+      "name": "Star Inn",
+      "matchedName": "The Star Inn",
+      "matchedId": "way/74530685"
+    },
+    {
+      "name": "Bath Cider House",
+      "matchedName": "Bath Cider House",
+      "matchedId": "way/594364538"
+    },
+    {
+      "name": "Ale House",
+      "matchedName": "The Ale House",
+      "matchedId": "way/89868028"
+    },
+    {
+      "name": "Pulteney Arms",
+      "matchedName": "The Pulteney Arms",
+      "matchedId": "way/182152732"
+    },
+    {
+      "name": "Boater",
+      "matchedName": "The Boater",
+      "matchedId": "way/398959637"
+    }
+  ],
   "withdrawn": [],
   "rejected": [
     {
-      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
-      "reason": "unreadable: robots: robots-disallowed"
+      "name": "The Marlborough Tavern",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Bell Inn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-pubs-in-bath",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mapcarta.com/W97228692",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186370-d3931577-Reviews-or75-The_Old_Green_Tree_Pub-Bath_Somerset_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.welcometobath.co.uk/where-to-watch-the-world-cup-in-bath-the-ultimate-city-centre-guide",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.cntraveller.com/article/best-bars-in-bath",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=8+York+St%2C+Bath+BA1+1NG%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "The Marlborough Tavern",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Bell Inn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/BA15QT/overview",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.streetcheck.co.uk/postcode/ba12te",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://se7enbath.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://bills-website.co.uk/restaurants/bath",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://se7enbath.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "The Marlborough Tavern",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Bell Inn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/bristol-and-bath/venues?strana=2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://se7enbath.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186370-d28210210-Reviews-Janes_Espresso_Bar-Bath_Somerset_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186370-d21224482-Reviews-or60-The_Moorfields-Bath_Somerset_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.fullers.co.uk/pubs/pub-finder/cask-ale-pubs/somerset",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "The Inn at Freshford",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/BA26PW/overview",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Bath+BA2+9BN",
+      "reason": "unreadable: robots refused"
     }
   ],
   "outputPath": "data/cities/bath/parallel_venues.json"
