@@ -5293,10 +5293,31 @@ export default function PubMap({
   }
   const phoneDescribeForm = renderPhoneDescribeForm();
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
-  const builtCrawlLeads = plannerOrder === "build-first";
+  const desktopBuiltPlanLeads = !mobileViewport && mode === "build" && builtIds.length > 0;
+  const builtCrawlLeads = plannerOrder === "build-first" || desktopBuiltPlanLeads;
   const [plannerHead, plannerFoot] = builtCrawlLeads
     ? [null, phoneDescribeForm]
     : [phoneDescribeForm, null];
+  const plannerControlRail = !mobileViewport ? (
+    <ControlRail key="planner-controls"
+      mode={mode}
+      onModeChange={setMode}
+      filters={filters}
+      onFiltersChange={setFilters}
+      filteredVenues={filteredPubVenues}
+      builtCount={builtIds.length}
+      onClearBuilt={clearBuilt}
+      onLoadCrawl={loadCuratedCrawl}
+      onNearbyCrawl={startNearbyCrawl}
+      nearbyLoading={nearbyLoading}
+      nearbyError={nearbyError}
+      savedOnly={savedOnly}
+      onSavedOnlyChange={changeSavedOnly}
+      curatedCrawls={cityCuratedCrawls}
+      cityDisplayName={city.displayName}
+      cityId={cityId}
+    />
+  ) : null;
   const plannerPanel = planningOpen ? (
     <>
       {plannerHead}
@@ -5307,27 +5328,9 @@ export default function PubMap({
           search overlay, the Filters sheet, the Near me control) and opens its
           own "Describe the outing" form above, so mounting the rail here stacked
           a second planner under the first inside one bottom sheet. */}
-      {!mobileViewport ? (
-        <ControlRail
-          mode={mode}
-          onModeChange={setMode}
-          filters={filters}
-          onFiltersChange={setFilters}
-          filteredVenues={filteredPubVenues}
-          builtCount={builtIds.length}
-          onClearBuilt={clearBuilt}
-          onLoadCrawl={loadCuratedCrawl}
-          onNearbyCrawl={startNearbyCrawl}
-          nearbyLoading={nearbyLoading}
-          nearbyError={nearbyError}
-          savedOnly={savedOnly}
-          onSavedOnlyChange={changeSavedOnly}
-          curatedCrawls={cityCuratedCrawls}
-          cityDisplayName={city.displayName}
-          cityId={cityId}
-        />
-      ) : null}
+      {desktopBuiltPlanLeads ? null : plannerControlRail}
       <RoutePanel
+        key="planner-route"
         mode={mode}
         crawlStyle={filters.crawlStyle}
         altStyle={altStyle}
@@ -5359,6 +5362,7 @@ export default function PubMap({
       >
         {renderPlannerEmptyState()}
       </RoutePanel>
+      {desktopBuiltPlanLeads ? plannerControlRail : null}
       {plannerFoot}
     </>
   ) : null;
