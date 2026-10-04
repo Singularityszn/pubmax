@@ -377,7 +377,7 @@ const UNSENT_REQUEST_CODES = new Set([
  * True only when fetch failed before a connection carried the request, so
  * Google cannot have counted it. Timeouts and resets stay counted.
  */
-export function requestNeverSent(error: unknown): boolean {
+function requestNeverSent(error: unknown): boolean {
   const code = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
   return typeof code === "string" && UNSENT_REQUEST_CODES.has(code);
 }
