@@ -45,6 +45,7 @@ public/data/wikidata_notable_pubs.json.tmp
 data/editorial/poll-state.json
 data/osm/uk/**/.*.tmp
 data/places_verification/progress.json
+data/places_verification/uk_progress.json
 data/places_verification/*.tmp
 
 # macOS Finder metadata + local co-dev scratch probes — never part of the app.
@@ -130,3 +131,12 @@ e2e-shots/
 # Local audit receipts and nested helper installs are verification output.
 /.audit/
 **/node_modules/
+
+# Places enrichment resumable attempts and atomic writes. Published fields live in data/places_enrichment.json.
+data/places_verification/enrichment_progress.json
+data/places_verification/enrichment_progress.json.tmp
+data/places_enrichment.json.tmp
+data/places_enrichment_stamp.json.tmp
+
+# Generated from copied Places observations before dev/build; runtime reads only requested OSM files.
+data/generated/places_enrichment/
