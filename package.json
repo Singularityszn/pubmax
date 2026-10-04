@@ -109,6 +109,7 @@
     "eval:ask-router-models": "node --conditions=react-server --import tsx scripts/ask-router-model-eval.mjs",
     "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
     "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs",
+    "verify:pub-hours": "node --import tsx scripts/verify_pub_hours.mjs",
     "verify:london-places": "node --import tsx scripts/verify_london_places.mjs",
     "build:places-enrichment": "node --import tsx scripts/build_places_enrichment.mjs",
     "enrich:google-places": "node --import tsx scripts/enrich_google_places.mjs",
