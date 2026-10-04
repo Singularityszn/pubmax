@@ -391,6 +391,11 @@ async function placesFetch(url, apiKey, fieldMask, init) {
       if (activeProgress) saveProgress(activeProgress);
       return true;
     },
+    release: () => {
+      if (!metered) return;
+      detailAttempts -= 1;
+      if (activeProgress) saveProgress(activeProgress);
+    },
     send: async () => {
       await pace();
       const response = await fetch(url, {

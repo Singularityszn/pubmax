@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -458,6 +460,7 @@ describe("a UK Details run resumes within its cap", () => {
         reserved += 1;
         return true;
       },
+      release: () => {},
       send: async () => {
         statuses.push(429);
         return { status: 429, body: {} };
@@ -465,6 +468,58 @@ describe("a UK Details run resumes within its cap", () => {
       backoff: async () => {},
     })).resolves.toBeNull();
     expect(statuses).toEqual([429]);
+  });
+
+  it("releases an attempt whose connection was refused before the request was sent", async () => {
+    const closed = createServer();
+    await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
+    const { port } = closed.address() as AddressInfo;
+    await new Promise((resolve) => closed.close(resolve));
+    let reserved = 0;
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      reserve: () => {
+        reserved += 1;
+        return true;
+      },
+      release: () => {
+        reserved -= 1;
+      },
+      send: async () => {
+        const response = await fetch(`http://127.0.0.1:${port}/`);
+        return { status: response.status, body: {} };
+      },
+      backoff: async () => {},
+    })).rejects.toThrow("fetch failed");
+    expect(reserved).toBe(0);
+  });
+
+  it("keeps an attempt reserved when a sent request times out", async () => {
+    const hanging = createServer(() => {});
+    await new Promise<void>((resolve) => hanging.listen(0, "127.0.0.1", resolve));
+    const { port } = hanging.address() as AddressInfo;
+    let reserved = 0;
+    try {
+      await expect(placesRequestWithinBudget({
+        attempts: 4,
+        reserve: () => {
+          reserved += 1;
+          return true;
+        },
+        release: () => {
+          reserved -= 1;
+        },
+        send: async () => {
+          const response = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(50) });
+          return { status: response.status, body: {} };
+        },
+        backoff: async () => {},
+      })).rejects.toThrow();
+      expect(reserved).toBe(1);
+    } finally {
+      hanging.closeAllConnections();
+      await new Promise((resolve) => hanging.close(resolve));
+    }
   });
 
   it("retries a throttled request and still fails on another HTTP error", async () => {
@@ -475,12 +530,14 @@ describe("a UK Details run resumes within its cap", () => {
     await expect(placesRequestWithinBudget({
       attempts: 4,
       reserve: () => true,
+      release: () => {},
       send: async () => replies.shift()!,
       backoff: async () => {},
     })).resolves.toEqual({ id: "p1" });
     await expect(placesRequestWithinBudget({
       attempts: 4,
       reserve: () => true,
+      release: () => {},
       send: async () => ({ status: 500, body: {} }),
       backoff: async () => {},
     })).rejects.toThrow("Places HTTP 500");
