@@ -166,7 +166,9 @@ const DANGLING_INFINITIVE = /\bto (?:keep|make|get|give|take|bring|have)$/;
  * What a quote must say for each amenity to stand. Tea, coffee, soft drinks and
  * a kids' meal drink are not alcohol-free beer. Darts on the television is not
  * a dartboard, and a screen is not sport until something is shown on it. A
- * time range alone is not a happy hour. A key without an entry needs only the
+ * fixture or tournament name is not sport either until the quote says the pub
+ * shows it, or the pub calls itself a sports pub. A time range alone is not a
+ * happy hour. A key without an entry needs only the
  * quote.
  */
 const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) => boolean>> = {
