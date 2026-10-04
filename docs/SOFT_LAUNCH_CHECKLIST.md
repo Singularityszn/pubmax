@@ -85,7 +85,7 @@ Stale and unmeasurable are two findings. Neither may read as fresh.
 
 | # | Step | Owner | Proof | Command or page |
 |---|---|---|---|---|
-| 1.5.1 | No feed is over budget | Fleet | `npm run check:freshness` exits 0 and prints no advisory STALE row. A non-zero exit names the breached or unresolved artifact; an advisory row (`area_news`) warns without failing the exit. | `npm run check:freshness` |
+| 1.5.1 | No feed is over budget | Fleet | `npm run check:freshness` exits 0 and prints no advisory STALE row. A non-zero exit names the breached or unresolved artifact; an advisory row (`area_news`, `google_places_content`) warns without failing the exit. | `npm run check:freshness` |
 | 1.5.2 | The live spine agrees | Fleet | The `summary` block carries no `stale` and no `unknown` count. | `curl -sS <preview-url>/api/freshness` |
 | 1.5.3 | The corroboration figure is real | Fleet | `communityPrices.degraded` is `false`. A degraded read is a store fault, never a count of zero. | Same call as 1.5.2 |
 | 1.5.4 | The tracing declarations hold | Fleet | The tracing fences pass, so a runtime data pack cannot ship missing from its function. | `npx vitest run __tests__/freshnessTracing.test.ts __tests__/venueIndexTracing.test.ts` |

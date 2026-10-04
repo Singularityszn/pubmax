@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "inputHash": "e1c02fe2c86eced553989daa194b41cfbf61556808c52f49a3bc34565f40b097",
+  "observedAt": "2026-10-04T10:22:24.747Z",
+  "spend": {
+    "capUsd": 85,
+    "attemptedCalls": 3053,
+    "usdPerThousand": 20,
+    "reservedUsd": 61.06,
+    "month": "2026-10",
+    "monthAttemptedCalls": 3053,
+    "monthReservedUsd": 61.06,
+    "runStartedAt": null,
+    "monthToDatePlacesRequestsBeforeRun": 15429,
+    "freeAllowanceAssumed": 0
+  },
+  "summary": {
+    "venues": 3053,
+    "hours": 2935,
+    "addresses": 3053,
+    "phones": 2807,
+    "websites": 2627,
+    "errors": 0
+  }
+}

@@ -1,5 +1,7 @@
 "use client";
 
+import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
+
 import { useEffect, useState } from "react";
 import { priceBand, priceBandAreaForVenue, priceBandNote } from "@/lib/priceBand";
 import { ExternalLink, MapPin, Sparkles } from "lucide-react";
@@ -29,7 +31,10 @@ import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
 import { drinkCategoryIndexKey, listedServingGroup } from "@/lib/listedPriceComparison";
 import { discardBody } from "@/lib/responseBody";
 import type { UkBasePub } from "@/lib/ukBasePubs";
-import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
+import { COMMUNITY_PRICE_NOTE, formatPrice, type Venue } from "@/lib/venues";
+import { type PlacesEnrichmentRecord } from "@/lib/placesEnrichment";
+import { slimVenueToPin } from "@/lib/slimPins";
+import VenuePlacesDetails from "./VenuePlacesDetails";
 import {
   drinkLensEmptyVenueNote,
   drinkLensPriceNoun,
@@ -99,6 +104,11 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
       ) : null}
     </div>
   );
+}
+
+/** Google Places content is more than a pin, so only a pub without it says the pin is all we know. */
+function knownHereLead(placeNoun: string, venue: Venue): string {
+  return venue.placesContent ? `We know this ${placeNoun} is here.` : `We know this ${placeNoun} is here, and that is all we know.`;
 }
 
 function basePriceReadLabel({
@@ -242,6 +252,11 @@ export default function UnverifiedPubSheet({
   // hook the curated sheet uses.
   useVenueSheetOpened(pub.id, "uk_base");
   const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
+  const [places, setPlaces] = useState<{ id: string; record: PlacesEnrichmentRecord } | null>(null);
+  const detailVenue = applyPlacesEnrichment({
+    ...slimVenueToPin({ id: pub.id, name: pub.name, lat: pub.lat, lng: pub.lng, borough: "", cheapestPrice: null }),
+    address: pub.address,
+  }, places?.id === pub.id ? places.record : null);
   const {
     readStatus, pricesKnown, readFailed, listed, visibleListed, hasPublished,
     communityPrice, communityTrustStanding, baseBandArea, basePriceBand,
@@ -265,7 +280,8 @@ export default function UnverifiedPubSheet({
           discardBody(res);
           return;
         }
-        const body = (await res.json()) as { overlay?: unknown };
+        const body = (await res.json()) as { overlay?: unknown; placesContent?: PlacesEnrichmentRecord };
+        if (body.placesContent && !controller.signal.aborted) setPlaces({ id: pub.id, record: body.placesContent });
         const parsed = parsePublicOverlay(body.overlay);
         if (!parsed) return;
         void Promise.resolve().then(() => {
@@ -290,10 +306,10 @@ export default function UnverifiedPubSheet({
           {priceReadLabel}
         </span>
         <h2 className="unverifiedPubName">{pub.name}</h2>
-        {pub.address ? (
+        {detailVenue.address ? (
           <p className="unverifiedPubAddress">
             <MapPin size={13} aria-hidden="true" />
-            {pub.address}
+            {detailVenue.address}
           </p>
         ) : null}
       </div>
@@ -361,7 +377,8 @@ export default function UnverifiedPubSheet({
         </p>
       ) : pricesKnown ? (
         <p className="unverifiedPubLead">
-          Nobody has logged what a drink costs at this {placeNoun} - <strong>be the first</strong>.
+          {knownHereLead(placeNoun, detailVenue)} Nobody has
+          logged what a drink costs - <strong>be the first</strong>.
         </p>
       ) : readFailed ? (
         <p className="unverifiedPubLead">
@@ -376,7 +393,8 @@ export default function UnverifiedPubSheet({
         </Button>
       ) : null}
       {acceptanceError ? <p role="alert">{acceptanceError}</p> : null}
-      {overlay ? <HarvestOverlayFields overlay={overlay} /> : null}
+      <VenuePlacesDetails venue={detailVenue} links websiteLink />
+      {overlay ? <HarvestOverlayFields overlay={detailVenue.website ? { ...overlay, website: null } : overlay} /> : null}
 
       <VenueSheetPriceEntry
         key={pub.id}

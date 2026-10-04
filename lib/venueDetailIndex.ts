@@ -16,6 +16,8 @@ import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
+import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
+import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -264,9 +266,9 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   return fallbackIndex;
 }
 
-export async function lookupVenueDetail(
+async function lookupVenueDetailBase(
   requestedId: string,
-  options: { includeHarvestOverlay?: boolean } = {},
+  options: { includeHarvestOverlay?: boolean },
 ): Promise<VenueDetailLookupResult> {
   if (!isVenueDetailId(requestedId) || isVerifiedClosedCuratedVenue(requestedId)) {
     return { status: "missing" };
@@ -359,6 +361,17 @@ export async function lookupVenueDetail(
   } catch {
     return { status: "found", venue };
   }
+}
+
+export async function lookupVenueDetail(
+  requestedId: string,
+  options: { includeHarvestOverlay?: boolean } = {},
+): Promise<VenueDetailLookupResult> {
+  const result = await lookupVenueDetailBase(requestedId, options);
+  if (result.status !== "found") return result;
+  const osmIds = cachedDetails.get(result.venue.id)?.overlayVenueIds ?? [];
+  const record = await placesRecordForVenue(result.venue.id, osmIds);
+  return { ...result, venue: applyPlacesEnrichment(result.venue, record) };
 }
 
 export async function getVenueDetail(requestedId: string): Promise<Venue | null> {
