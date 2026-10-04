@@ -21,6 +21,15 @@ function fixture(name: string) {
 +import { appendFileSync } from 'node:fs';
 +let details = '10000';
 +let placeCalls = 0;
++if (process.env.FIXTURE_CLOCK) {
++  const RealDate = Date;
++  let now = RealDate.parse(process.env.FIXTURE_CLOCK);
++  globalThis.Date = class extends RealDate {
++    constructor(...args) { super(...(args.length ? args : [now])); }
++    static now() { return now; }
++  };
++  globalThis.fixtureTick = () => { now += Number(process.env.FIXTURE_CLOCK_STEP); };
++}
 +const result = (body, status = 200) => new Response(JSON.stringify(body), { status });
 +globalThis.fetch = async (input, init) => {
 + const url = String(input);
@@ -37,6 +46,7 @@ function fixture(name: string) {
 + if (url.startsWith('https://places.googleapis.com/v1/places/')) {
 +   appendFileSync('calls.log', url.split('/').at(-1) + '\\n');
 +   placeCalls += 1;
++   globalThis.fixtureTick?.();
 +   if (process.env.FIXTURE_FAIL === 'all' || Number(process.env.FIXTURE_FAIL) === placeCalls) {
 +     const status = Number(process.env.FIXTURE_FAIL_STATUS || 503);
 +     const reason = process.env.FIXTURE_FAIL_REASON;
@@ -237,4 +247,13 @@ it("a paid response with no usable field completes its row for the refresh push"
   expect(run(dir, ["--write", "--exclusive", "--refresh"]).stderr).toContain("nothing to refresh");
   expect(calls(dir)).toHaveLength(6);
   expect(pack(dir)).toEqual(out);
+});
+
+it("a run crossing a UTC month end counts each attempt against the month it was reserved in", () => {
+  const dir = fixture("runner-month-rollover");
+  const clock = { FIXTURE_CLOCK: "2026-10-31T23:59:58.500Z", FIXTURE_CLOCK_STEP: "1000" };
+  const live = run(dir, ["--write", "--exclusive"], "none", clock);
+  expect(live.status, live.stderr).toBe(0);
+  expect(calls(dir)).toEqual(["ChIJVerified003", "ChIJVerified002", "ChIJVerified001"]);
+  expect(pack(dir).spend).toMatchObject({ attemptedCalls: 3, reservedUsd: 0.06, month: "2026-11", monthAttemptedCalls: 1, monthReservedUsd: 0.02 });
 });

@@ -53,11 +53,16 @@ async function placeLevelFailure(response) {
   return body?.error?.status === "INVALID_ARGUMENT" && !reasons.some((reason) => reason.startsWith("API_KEY"));
 }
 
+/** Count each paid attempt against the UTC calendar month it is reserved in. */
+function rollMonth(ledger) {
+  const month = new Date().toISOString().slice(0, 7);
+  if (ledger.month !== month) Object.assign(ledger, { month, monthAttempts: 0 });
+  return ledger;
+}
+
 /** Resume the current push, or with --refresh start a new one once a copied field is past its refresh window. The cap spans every push in a calendar month. */
 function currentPush(rows, reportRows, inputHash, refresh) {
-  const month = new Date().toISOString().slice(0, 7);
-  let previous = priorLedger() ?? { inputHash, attempts: 0, month, monthAttempts: 0, runStartedAt: null, completed: {}, errors: [] };
-  if (previous.month !== month) previous = { ...previous, month, monthAttempts: 0 };
+  let previous = rollMonth(priorLedger() ?? { inputHash, attempts: 0, month: null, monthAttempts: 0, runStartedAt: null, completed: {}, errors: [] });
   const plan = planPlacesEnrichment(rows, reportRows, CAP_USD, 0);
   const pendingIn = (ledger) => {
     const failed = new Set(ledger.errors.filter((row) => inPush(ledger, row.observedAt)).map((row) => row.venueId));
@@ -152,7 +157,7 @@ async function main() {
     if (budget.rows.length) await setDailyOverrides(token, searchBefore, Math.max(Number(detailsBefore), monthUsage + budget.rows.length + 100));
     for (const row of budget.rows) {
       if (interrupted) break;
-      if ((previous.monthAttempts + 1) * 2 > CAP_USD * 100) break;
+      if ((rollMonth(previous).monthAttempts + 1) * 2 > CAP_USD * 100) break;
       previous.attempts += 1;
       previous.monthAttempts += 1;
       write(CHECKPOINT, previous);
