@@ -135,8 +135,9 @@ const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
 const SPORT_SHOWN =
   /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b|\bsky\b|\btnt\b|\bbt\b|\btelevised\b|\btackle\b|\bkick\b|\bvs\b/i;
-const SPORT_VIEWING = /\b(?:show(?:s|ing|n)?|watch(?:es|ing)?|screens?|tv|televised|broadcast(?:s|ing)?)\b/i;
-const NO_SPORT_VIEWING = /\b(?:no|without)\s+(?:live\s+)?(?:sports?|screens?|tv)\b/i;
+const SPORT_VIEWING =
+  /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b/i;
+const NO_SPORT_VIEWING = /\b(?:no|without)\s+(?:live\s+)?(?:sports?|screens?|screenings?|tvs?)\b/i;
 const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?sports\b/i;
 const LIVE_MUSIC =
   /\blive\b[^.]{0,20}\b(?:music|bands?|gigs?|jazz|folk|blues|soul|funk|country|singers?|vocals|acts?|artists)\b|\bbands?\b|\bgigs?\b|\bjazz\b|\bfolk\b|\bblues\b|\bopen mic\b|\bsingers?\b|\bsings? live\b|\bchoir\b|\bjams?\b|\bacoustic\b|\btrad\b|\bseisi|\bconcerts?\b|\btribute show\b|\bmusic venues?\b|\bmusic (?:nights?|events?)\b/i;

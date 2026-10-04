@@ -56,26 +56,12 @@ describe("parsePubAmenityModelJson", () => {
 });
 
 describe("keepEvidencedAmenities", () => {
-  it("does not publish a bare sporting event heading as televised sport", () => {
-    const quote = "WORLD CUP 2026";
-    const parsed = parsePubAmenityModelJson(JSON.stringify({
-      amenities: { liveSports: { value: true, evidence: quote } },
-    }));
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
-
-    const kept = keepEvidencedAmenities(parsed.amenities, quote);
-    expect(kept).toEqual({});
-    expect(statedAmenities({ liveSports: quote })).toEqual({});
-    expect(pubSpecificEvidence([
-      { sourceUrl: "https://pub.example/", amenities: { liveSports: quote } },
-    ])).toEqual([]);
-    expect(stampAmenityColumns(liftSiteStamps({ live_sports: SITE_STAMP }), kept).row)
-      .toEqual({ live_sports: "" });
-  });
-
-  it("does not publish an explicit refusal of screens and live sport", () => {
-    const quote = "No screens and no live sport at this pub.";
+  it.each([
+    "WORLD CUP 2026",
+    "Autumn Nations 2026",
+    "No screens and no live sport at this pub.",
+    "We have no TVs for the football.",
+  ])("does not publish a quote that does not say sport is shown here: %s", (quote) => {
     const parsed = parsePubAmenityModelJson(JSON.stringify({
       amenities: { liveSports: { value: true, evidence: quote } },
     }));
@@ -96,6 +82,15 @@ describe("keepEvidencedAmenities", () => {
     "We show live sport on our Sky Sports screens.",
     "Watch football on our TV screens.",
     "No food, but we show live sport on our TV screens.",
+    "Live Sport",
+    "LIVE SPORTS",
+    "Sky Sports and TNT Sports",
+    "Live Premier League Football",
+    "Live sport on our TVs",
+    "Live Sports Screenings",
+    "Catch the rugby this season",
+    "Playing all the big matches",
+    "World Cup and Wimbledon matches screened in the garden.",
   ])("publishes affirmative televised sport evidence: %s", (quote) => {
     const parsed = parsePubAmenityModelJson(JSON.stringify({
       amenities: { liveSports: { value: true, evidence: quote } },
