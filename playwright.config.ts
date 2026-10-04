@@ -399,7 +399,7 @@ export default defineConfig({
       {
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
-          : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
+          : `node scripts/run-with-restored-next-env.mjs npm run build${DISPOSABLE_PLAN_DB ? " && node scripts/e2e/run-disposable-plan-browser.mjs --install-menu-fixture" : ""} && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {
