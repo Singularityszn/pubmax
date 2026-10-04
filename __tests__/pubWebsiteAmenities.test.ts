@@ -55,6 +55,67 @@ function expectSportsPublication(quote: string, expected: boolean) {
 
 describe("sports evidence publication", () => {
   it.each([
+    "We don't have any Sky Sports.",
+    "We do not have access to TNT Sports.",
+    "We no longer have Sky Sports.",
+    "Sky Sports is unavailable at this pub.",
+    "Sky Sports is not available at this pub.",
+    "We are not subscribed to TNT Sports.",
+  ])("refuses consolidated provider availability denials: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each(["Sky Sports", "TNT Sports", "BT Sport"].flatMap((provider) => [
+    `We don't have any ${provider}.`,
+    `We do not have access to ${provider}.`,
+    `We no longer have ${provider}.`,
+    `${provider} is unavailable at this pub.`,
+    `${provider} is not available at this pub.`,
+    `We are not subscribed to ${provider}.`,
+  ]))("refuses availability predicates across canonical providers: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't have any Sky Sports and TNT Sports.",
+    "We do not have access to TNT Sports or BT Sport.",
+    "We no longer have Sky Sports and TNT Sports.",
+    "We are not subscribed to Sky Sports or TNT Sports.",
+    "Sky Sports and TNT Sports are unavailable at this pub.",
+    "Sky Sports and TNT Sports are not available at this pub.",
+    "Sky Sports or BT Sport is not available at this pub.",
+    "Sky Sports and TNT Sports and BT Sport are not available.",
+    "We don't have any Sky Sports and have TNT Sports.",
+    "We no longer have Sky Sports and have TNT Sports.",
+  ])("keeps consolidated availability denials over shared provider objects: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't have any Sky Sports and we have TNT Sports.",
+    "We have TNT Sports and we don't have any Sky Sports.",
+    "We do not have access to Sky Sports and we have TNT Sports.",
+    "We have TNT Sports and we do not have access to Sky Sports.",
+    "We no longer have Sky Sports and we have TNT Sports.",
+    "We have TNT Sports and we no longer have Sky Sports.",
+    "Sky Sports is unavailable and we have TNT Sports.",
+    "We have TNT Sports and Sky Sports is unavailable.",
+    "Sky Sports is not available and we have TNT Sports.",
+    "We have TNT Sports and Sky Sports is not available.",
+    "We are not subscribed to TNT Sports but we show football on our TVs.",
+    "We show football on our TVs and we are not subscribed to TNT Sports.",
+    "Sky Sports and TNT Sports are not available and we have BT Sport.",
+    "We have BT Sport and Sky Sports and TNT Sports are not available.",
+    "We don't have any pool tables and we show football on our TVs.",
+    "We do not have access to pool tables and we show football on our TVs.",
+    "We no longer have pool tables and we show football on our TVs.",
+    "Pool tables are unavailable and we show football on our TVs.",
+    "Pool tables are not available and we show football on our TVs.",
+  ])("retains independent positives beside consolidated availability denials: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each([
     "We don't have Sky Sports.",
     "We do not have TNT Sports.",
   ])("refuses explicit provider availability denials: %s", (quote) => {
