@@ -145,6 +145,7 @@ const BARE_SPORT_OBJECTS = new RegExp(`^\\s*${SPORT_OBJECTS}\\s*$`, "i");
 const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
 const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
 const SPORT_SUBJECT_PREDICATE = new RegExp(`^\\s*${SPORT_OBJECTS}\\s+(?:is|are|isn'?t|aren'?t)\\b`, "i");
+const SPORT_LIST_TAIL = new RegExp(`^\\s*(?:${SPORT_OBJECT}\\s*,?\\s+)*(?:and|or)\\s+${SPORT_OBJECT}`, "i");
 const NO_SPORT_AVAILABILITY = new RegExp(
   "\\b(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+have\\s+(?:any\\s+|access\\s+to\\s+)?|" +
   "(?:(?:are|is)\\s+not|'re\\s+not|aren'?t|isn'?t)\\s+subscribed\\s+to\\s+)" + SPORT_OBJECTS + "|" +
@@ -179,13 +180,13 @@ function sportClauses(quote: string): string[] {
     const next = boundary.index + boundary[0].length;
     const following = quote.slice(next).replace(/^\s*(?:and|or)\s+/, "");
     if (
-      (boundary[0] === "and" || boundary[0] === ",") &&
-      (BARE_SPORT_OBJECTS.test(clause.replace(/,\s*$/, "")) || (
-        boundary[0] === "," && SPORT_OBJECT_END.test(clause) &&
-        (NO_SPORT_AVAILABILITY.test(clause) || NO_SPORT_VIEWING.test(clause)) &&
-        !SPORT_SUBJECT_PREDICATE.test(following)
-      )) &&
-      SPORT_SUBJECT.test(following)
+      boundary[0] === "and" ? BARE_SPORT_OBJECTS.test(clause.replace(/,\s*$/, "")) && SPORT_SUBJECT.test(following) :
+      boundary[0] === "," && SPORT_OBJECT_END.test(clause) && SPORT_LIST_TAIL.test(quote.slice(next)) && (
+        BARE_SPORT_OBJECTS.test(clause) || (
+          (NO_SPORT_AVAILABILITY.test(clause) || NO_SPORT_VIEWING.test(clause)) &&
+          !SPORT_SUBJECT_PREDICATE.test(following)
+        )
+      )
     ) continue;
     clauses.push(clause);
     start = next;

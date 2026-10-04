@@ -82,6 +82,13 @@ describe("sports evidence publication", () => {
     "We have Sky Sports, rugby is not available.",
     "We don't have Sky Sports, TNT Sports or BT Sport, we show football on our TVs.",
     "Live football, rugby and cricket are not shown, we have TNT Sports.",
+    "We don't have Sky Sports, TNT Sports shows every match.",
+    "We don't have Sky Sports, BT Sport shows all the Champions League games.",
+    "We don't have Sky Sports, TNT Sports has every match on our screens.",
+    "No Sky Sports, football on the big screen every weekend.",
+    "We don't show rugby, football shown on all our TVs.",
+    "We don't show rugby, football will be shown on all our TVs.",
+    "We don't show cricket, live football every Saturday.",
   ])("retains independent affirmative clauses beside comma denials: %s", (quote) => {
     expectSportsPublication(quote, true);
   });
