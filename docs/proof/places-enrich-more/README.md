@@ -44,10 +44,20 @@ Conflicting Google IDs remain separate so the existing reader refuses an
 ambiguous match.
 
 The existing Google details panel supports rating, rating count, Google price
-level, editorial summary, amenity chips and accessibility chips. A Google price
+level, editorial summary, amenity chips, accessibility chips and payment chips.
+Amenity chips cover outdoor seating, beer, wine, cocktails, room for groups,
+live music, live sport, dogs allowed, breakfast, brunch, lunch, dinner,
+vegetarian food, a children's menu, bookings and toilets. Payment chips cover
+credit cards, debit cards, contactless and cash only. Every extras field is
+billed under the same Enterprise + Atmosphere request. A Google price
 level never becomes a pint price. Outdoor seating never implies a beer garden.
 Only stated access facts produce positive accessibility chips. Every displayed
 Google field keeps its `Checked <date>` credit.
+
+The freshness stamp is dated by the oldest copied row across every published
+pack, and records each pack's input hash, oldest row, spend and summary. Both
+the builder and every runner save rewrite it, so a fresh London refresh cannot
+hide older UK-city or extras rows.
 
 The real venue API for `venue-mcr-iy010v`, Grove Alehouse, resolves the collected
 record for `venue-uk-n13828223501`, including hours, address, phone and website.
@@ -105,15 +115,22 @@ screenshots above.
 
 ## Validation
 
-`DEPLOYMENT_VERSION=local npm run verify` exited 0 on the final implementation.
-Coverage reported 19,304 passing tests and six skipped tests. The separate RLS
+`DEPLOYMENT_VERSION=local npm run verify` exited 0 before the review fix
+round. That run predates the extras fields, payment chips and all-pack freshness
+stamp. Coverage reported 19,304 passing tests and six skipped tests. The separate RLS
 run passed 465 tests, and the isolated shared-memory suite passed 10 tests.
 Data validation, lint, database type drift, TypeScript, dead-code, freshness,
 install-script policy and dependency audit gates passed. Freshness retained
 its three advisory store feeds that cannot be measured without credentials.
 
+After the review fix round, the Places enrichment, builder, runner, rendering
+and freshness test files passed, as did TypeScript and lint on the changed
+files. The full verify gate is rerun by the pipeline test step; its result is
+not recorded here.
+
 The runner regression covers London resume isolation, UK publication, failed
 paid attempts and the shared task cap after deleting a local checkpoint.
 The builder regression proves UK records reach runtime files and extras retain
 the original contact observation dates. Rendering tests cover invalid extras,
-explicit false amenities and different rating/count observation dates.
+explicit false amenities, payment chips and different rating/count
+observation dates.
