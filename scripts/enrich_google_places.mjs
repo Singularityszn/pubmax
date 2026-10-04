@@ -20,12 +20,17 @@ function write(file, value) {
   renameSync(`${file}.tmp`, file);
 }
 
-async function main() {
+function runOptions() {
   const args = process.argv.slice(2);
   if (args.some((arg) => !["--write", "--dry-run", "--usage", "--exclusive"].includes(arg))
     || (args.includes("--write") && args.includes("--dry-run"))) throw new Error("Use --dry-run [--usage] or --write --exclusive");
   const live = args.includes("--write");
   if (live && !args.includes("--exclusive")) throw new Error("Confirm other shared-key jobs finished before --write --exclusive");
+  return { live, usage: args.includes("--usage") };
+}
+
+async function main() {
+  const { live, usage } = runOptions();
   const dir = join(ROOT, "data/places_verification");
   const verified = new Map();
   for (const file of readdirSync(dir).sort((a, b) => (a === "london.json" ? -1 : b === "london.json" ? 1 : a.localeCompare(b)))) {
@@ -46,7 +51,7 @@ async function main() {
   const plan = planPlacesEnrichment(rows, report.rows, CAP_USD, 0);
   const pending = plan.rows.filter((row) => !previous.completed[row.venueId]);
   const budget = planPlacesEnrichment(pending, report.rows, CAP_USD, previous.attempts * 0.02);
-  const token = live || args.includes("--usage") ? accessToken() : null;
+  const token = live || usage ? accessToken() : null;
   const monthUsage = token ? await monthPlacesRequests(token) : null;
   const preview = { mode: live ? "live" : "dry-run", verified: rows.length, priorityUnknown: report.rows.filter((row) => row.verdict === "unknown").length,
     priorityMismatch: report.rows.filter((row) => row.verdict === "mismatch").length, pending: pending.length,
