@@ -3,7 +3,7 @@
 // U5 of docs/plans/SITE_SPEED_2026-09-01.md. Three families load through
 // next/font: Space Grotesk and Inter as VARIABLE faces, which carry their whole
 // axis in one file and so have no unused weight to drop, and JetBrains Mono as
-// a static list.
+// a list of declared faces on its vendored file.
 //
 // That list carried 500, and CSS cannot reach it. The font-matching algorithm
 // searches UPWARD first for any target above 500, so every stamped rule in the
@@ -66,7 +66,10 @@ function monoWeightTargets(): number[] {
 
 describe("the mono face carries only weights something asks for", () => {
   it("declares 400 and 700 and nothing between", () => {
-    expect(layout).toContain('weight: ["400", "700"]');
+    const mono = layout.slice(layout.indexOf("const dataMono = localFont("));
+    const declared = [...mono.slice(0, mono.indexOf("});")).matchAll(/weight: "(\d{3})"/g)]
+      .map((match) => match[1]);
+    expect(declared).toEqual(["400", "700"]);
   });
 
   it("has no shipped rule that could resolve to 500", () => {

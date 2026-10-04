@@ -105,6 +105,29 @@ function accountForBearer(header: string | undefined): Account | null {
   return null;
 }
 
+export type SocialProviderFlags = { google: boolean; apple: boolean; microsoft: boolean };
+
+/**
+ * Answer the same-origin provider read (`/api/auth/providers`, #1942). The
+ * server reads Supabase's settings for the browser now, and the keyless e2e
+ * server's Supabase host is not routable, so unanswered the route is a 503 and
+ * every signed-out page logs a console error. Routing the Supabase host in the
+ * page no longer reaches that read; this is the boundary to stub instead. The
+ * default is every provider off, which is what the old `{}` settings double said.
+ */
+export async function stubSocialAuthProviders(
+  page: Page,
+  flags: SocialProviderFlags = { google: false, apple: false, microsoft: false },
+): Promise<void> {
+  await page.route("**/api/auth/providers**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(flags),
+    }),
+  );
+}
+
 export async function installAuthDoubles(
   page: Page,
   options: { realResumeCookie?: boolean } = {},
@@ -174,6 +197,8 @@ export async function installAuthDoubles(
       whichKey: WHICH_ACCOUNT_KEY,
     },
   );
+
+  await stubSocialAuthProviders(page);
 
   // GoTrue double.
   //

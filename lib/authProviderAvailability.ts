@@ -91,7 +91,12 @@ export async function loadSocialAuthProviders(
       socialAuthProvidersUrl(options.fresh === true),
       { credentials: "same-origin" },
     );
-    if (!response.ok) return null;
+    if (!response.ok) {
+      // Read the refusal to the end. Chromium keeps a response whose body is
+      // never read in flight, so the page would never reach network idle.
+      await response.text().catch(() => "");
+      return null;
+    }
     return availabilityFromApiPayload(await response.json());
   } catch {
     return null;

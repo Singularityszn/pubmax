@@ -198,6 +198,19 @@ describe("same-origin social auth provider availability", () => {
     await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
   });
 
+  it("drains a refused answer so the browser can finish the request", async () => {
+    // Chromium keeps a response whose body is never read in flight, so a
+    // signed-out page that met a 503 here never reached network idle.
+    const refused = new Response(
+      JSON.stringify({ error: "Sign-in providers could not be read." }),
+      { status: 503 },
+    );
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(refused);
+
+    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+    expect(refused.bodyUsed).toBe(true);
+  });
+
   it("does not request providers when browser auth configuration is incomplete", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
     const fetchImpl = vi.fn<typeof fetch>();
