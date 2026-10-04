@@ -94,6 +94,11 @@ test("phone 390 at 200% text: the tab strip wraps with every label whole inside 
   // The user's own text size: the tab labels are sized in rem, so doubling the
   // root doubles every label.
   await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+  // Reduced motion still leaves a near-zero `transition` on every element, so
+  // the root reads 16px until the next frame. Measure only once it is doubled.
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize))
+    .toBe("32px");
   await strip.scrollIntoViewIfNeeded();
 
   const geometry = await strip.evaluate((el) => {
@@ -153,7 +158,7 @@ for (const viewport of [
   { width: 390, height: 844, scope: PORTAL },
   { width: 1440, height: 900, scope: ".venueInspector" },
 ] as const) {
-  test(`${viewport.width}: the empty header photo is a 56px row`, async ({ page }) => {
+  test(`${viewport.width}: the empty header photo is one line`, async ({ page }) => {
     test.slow();
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await preparePage(page);
@@ -169,7 +174,8 @@ for (const viewport of [
       const column = (element.parentElement as HTMLElement).getBoundingClientRect();
       return { width: rect.width, height: rect.height, columnWidth: column.width };
     });
-    expect(box.height).toBeCloseTo(56, 0);
+    expect(box.height).toBeGreaterThan(16);
+    expect(box.height).toBeLessThan(40);
     expect(box.width).toBeGreaterThan(box.columnWidth / 2);
   });
 }

@@ -20,6 +20,7 @@ import {
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
+import type { Json } from "@/types/database";
 import {
   isSupabaseConfigured,
   requireSupabaseAdmin,
@@ -140,7 +141,7 @@ type GenerationRow = {
   generated_at: string;
 };
 
-function toReplaceInput(row: WhatsOnRow): Record<string, unknown> {
+function toReplaceInput(row: WhatsOnRow): Json {
   return {
     id: row.id,
     kind: row.kind,
@@ -273,7 +274,11 @@ async function readListingRows(query: WhatsOnListingQuery): Promise<ListingRow[]
   return (await Promise.all(reads)).flat();
 }
 
-type ListingSelect = ReturnType<ReturnType<ReturnType<typeof requireSupabaseAdmin>["from"]>["select"]>;
+function londonListingPage() {
+  return requireSupabaseAdmin().from(TABLE).select("*").eq("city", "london");
+}
+
+type ListingSelect = ReturnType<typeof londonListingPage>;
 
 async function readListingPages(
   narrow: (select: ListingSelect) => ListingSelect,
@@ -283,9 +288,7 @@ async function readListingPages(
     // The refresh pipeline writes only London rows today, but the filter is
     // the contract: a durable answer is a London answer, so a future second
     // city cannot leak into every city's read.
-    const { data, error } = await narrow(
-      requireSupabaseAdmin().from(TABLE).select("*").eq("city", "london"),
-    )
+    const { data, error } = await narrow(londonListingPage())
       .order("id", { ascending: true })
       .range(offset, offset + READ_PAGE_ROWS - 1);
     if (error) throw new Error(error.message);

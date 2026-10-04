@@ -906,7 +906,9 @@
 }
 
 @media (max-width: 640px) {
-  html:has(.socialPage) {
+  /* While the analytics card is mounted, globals.css owns the scroll padding
+     (tab bar plus the card's measured lane), so focus never parks under it. */
+  html:has(.socialPage):not(:has(.analyticsConsentPrompt)) {
     scroll-padding-bottom: calc(
       var(--mobile-tab-clearance, 72px) + 16px +
         env(safe-area-inset-bottom, 0px)

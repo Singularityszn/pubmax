@@ -146,6 +146,11 @@ export const supabaseNightProfileStore: NightProfileStore = {
       return { ok: true, profile: fromRow(data as Record<string, unknown>) };
     }
 
+    // A row that exists was refused above when the caller had no stamp, so the
+    // update compares a real timestamp.
+    if (expectedUpdatedAt === null) {
+      return { ok: false, error: "conflict", current };
+    }
     const { data, error } = await admin
       .from("night_profiles")
       .update(toRow(ownerId, input, timestamp))

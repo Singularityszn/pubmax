@@ -742,9 +742,9 @@ function buildFilterHints(rows, venueId, scrapedIds) {
       cocktails: prices.some((price) => truthyFlag(price.cocktails)),
       beerGarden: prices.some((price) => truthyFlag(price.beer_garden)),
       liveSports: prices.some((price) => truthyFlag(price.live_sports)),
-      nonAlcoholic: prices.some((price) =>
-        isNonAlcoholicDrinkName(price.pint_name),
-      ),
+      nonAlcoholic:
+        prices.some((price) => isNonAlcoholicDrinkName(price.pint_name)) ||
+        prices.some((price) => truthyFlag(price.non_alcoholic)),
     },
     curation,
     canonical: prices.some(

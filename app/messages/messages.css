@@ -1444,7 +1444,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 
   /* The analytics consent card parks in the lane above the tab bar
-     (app/globals.css, --analytics-consent-mobile-clearance), so while it is
+     (app/globals.css, --analytics-consent-reserve), so while it is
      mounted the composer clears the card as well as the bar: the newest
      message and the field are on screen whatever overlays are up, and the
      card never covers the field. With the keyboard up the card steps aside
@@ -1454,7 +1454,7 @@ html[data-theme="dark"] .messageBubblePhoto {
     --composer-clearance: calc(
       var(--tabbar-h, 64px)
         + env(safe-area-inset-bottom, 0px)
-        + var(--analytics-consent-mobile-clearance, 56px)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
     );
   }
 
