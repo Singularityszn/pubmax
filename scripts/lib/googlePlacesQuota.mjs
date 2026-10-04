@@ -1,4 +1,4 @@
-/* Service Usage quota and Monitoring calls follow the existing London verifier protocol. */
+/* Service Usage quota and Monitoring calls shared by the London Places verifiers. */
 import { execFileSync } from "node:child_process";
 
 const PROJECT = "projects/590118888791";
@@ -68,7 +68,7 @@ async function waitOperation(token, operation) {
   if (current.error) throw new Error(`quota override failed: ${current.error.message ?? "unknown"}`);
 }
 
-async function setDailyOverrides(token, searchValue, detailsValue) {
+async function setDailyOverrides(token, searchValue, detailsValue, reason = "london-osm-places-verify") {
   const operation = await apiJson(
     `https://serviceusage.googleapis.com/v1beta1/${SERVICE}/consumerQuotaMetrics:importConsumerOverrides`,
     token,
@@ -83,13 +83,13 @@ async function setDailyOverrides(token, searchValue, detailsValue) {
           ],
         },
       }),
-      headers: { "X-Goog-Request-Reason": "london-osm-places-verify" },
+      headers: { "X-Goog-Request-Reason": reason },
     },
   );
   if (operation.name) await waitOperation(token, operation);
 }
 
-async function monthPlacesRequests(token) {
+async function monthPlacesRequests(token, detailsOnly = false) {
   const start = new Date();
   start.setUTCDate(1);
   start.setUTCHours(0, 0, 0, 0);
@@ -99,7 +99,7 @@ async function monthPlacesRequests(token) {
     "interval.endTime": new Date().toISOString(),
     "aggregation.alignmentPeriod": "2678400s",
     "aggregation.perSeriesAligner": "ALIGN_SUM",
-    "aggregation.crossSeriesReducer": "REDUCE_SUM",
+    ...(detailsOnly ? {} : { "aggregation.crossSeriesReducer": "REDUCE_SUM" }),
   });
   const body = await apiJson(
     `https://monitoring.googleapis.com/v3/projects/pubmaxx/timeSeries?${params}`,
@@ -107,6 +107,7 @@ async function monthPlacesRequests(token) {
   );
   let total = 0;
   for (const series of body.timeSeries ?? []) {
+    if (detailsOnly && series.resource?.labels?.method !== "google.maps.places.v1.Places.GetPlace") continue;
     for (const point of series.points ?? []) {
       total += Number(point.value?.int64Value ?? point.value?.doubleValue ?? 0);
     }

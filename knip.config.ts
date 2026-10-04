@@ -194,8 +194,8 @@ const config: KnipConfig = {
   ignoreDependencies: ["postcss", "playwright", "openai"],
   // System SysV IPC and process tools the postgres harness shells out to
   // (scripts/rls/postgresShm.mjs), and the Google Cloud CLI. The pub-website
-  // amenity harvest mints its Vertex token with it, and the Places verify job
-  // reads an access token from it (scripts/verify_london_places.mjs). They are
+  // amenity harvest mints its Vertex token with it, and the Places verify jobs
+  // read an access token from it (scripts/lib/googlePlacesQuota.mjs). They are
   // not npm binaries.
   ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud"],
 };
