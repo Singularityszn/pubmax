@@ -1,3 +1,6 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { AddressInfo, Socket } from "node:net";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,6 +10,7 @@ import {
   HARVEST_CRON_REQUEST_BUDGET,
   HARVEST_MAX_ATTEMPTS,
   isFirecrawlConfigured,
+  type FirecrawlClient,
 } from "@/lib/harvest/firecrawl";
 
 const noSleep = async () => {};
@@ -346,4 +350,123 @@ describe("request deadlines", () => {
     expect(calls).toBe(1);
   });
 
+});
+
+type LocalHandler = (req: IncomingMessage, res: ServerResponse) => void;
+
+type LocalFirecrawl = {
+  apiBase: string;
+  requests: () => number;
+  socketClosed: (request: number) => Promise<void>;
+};
+
+// A disposable Firecrawl stand-in on 127.0.0.1, answered by native fetch. Each
+// request takes the next handler in order; a request past the list gets a 500.
+async function withLocalFirecrawl(handlers: LocalHandler[], run: (server: LocalFirecrawl) => Promise<void>) {
+  const closed = new Map<Socket, Promise<void>>();
+  const requestSockets: Socket[] = [];
+  const server = createServer((req, res) => {
+    requestSockets.push(req.socket);
+    const handler = handlers[requestSockets.length - 1];
+    if (handler) handler(req, res);
+    else res.writeHead(500).end();
+  });
+  server.on("connection", (socket: Socket) => {
+    closed.set(socket, new Promise<void>((resolve) => socket.once("close", () => resolve())));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    await run({
+      apiBase: `http://127.0.0.1:${port}/v2`,
+      requests: () => requestSockets.length,
+      socketClosed: (request) => {
+        const socket = requestSockets[request];
+        if (!socket) return Promise.reject(new Error(`request ${request} never reached the server`));
+        return closed.get(socket)!;
+      },
+    });
+  } finally {
+    for (const socket of closed.keys()) socket.destroy();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
+async function within<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} took longer than ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const LOCAL_DEADLINE_MS = 750;
+const LOCAL_WAIT_MS = 10_000;
+
+const stallHeaders: LocalHandler = () => {};
+
+const stallBody: LocalHandler = (_req, res) => {
+  res.writeHead(200, { "content-type": "application/json" });
+  res.write('{"success":true,"data":');
+};
+
+const unavailable: LocalHandler = (_req, res) => {
+  res.writeHead(503).end();
+};
+
+const scrapeSucceeds: LocalHandler = (_req, res) => {
+  res.writeHead(200, { "content-type": "application/json" });
+  res.end(JSON.stringify({ success: true, data: { markdown: "# recovered over http" } }));
+};
+
+describe("request deadlines against a local HTTP server", () => {
+  it.each([
+    ["scrape", "headers", stallHeaders],
+    ["scrape", "body", stallBody],
+    ["search", "headers", stallHeaders],
+    ["search", "body", stallBody],
+  ] as const)("%s times out a stalled %s and closes the socket", async (method, _stage, handler) => {
+    await withLocalFirecrawl([handler], async (server) => {
+      const budget = createHarvestBudget(1);
+      const client = createFirecrawlClient({
+        apiKey: "fc-dummy", apiBase: server.apiBase, budget, maxAttempts: 1, timeoutMs: LOCAL_DEADLINE_MS,
+      })!;
+      const pending: ReturnType<FirecrawlClient["scrape" | "search"]> =
+        method === "scrape" ? client.scrape("https://example.com/stalled") : client.search("a stalled pub");
+      const outcome = await within<Awaited<typeof pending>>(pending, LOCAL_WAIT_MS, `${method} deadline`);
+      if (outcome.ok) throw new Error("expected a timeout");
+      expect(outcome.failure.reason).toBe("timeout");
+      expect(outcome.failure.attempts).toBe(1);
+      expect(server.requests()).toBe(1);
+      expect(budget.spent()).toBe(1);
+      await within(server.socketClosed(0), LOCAL_WAIT_MS, "stalled socket close");
+    });
+  });
+
+  it("retries a stalled body and a 503 within the shared budget, then refuses the next call", async () => {
+    await withLocalFirecrawl([stallBody, unavailable, scrapeSucceeds], async (server) => {
+      const budget = createHarvestBudget(3);
+      const client = createFirecrawlClient({
+        apiKey: "fc-dummy", apiBase: server.apiBase, budget, maxAttempts: 3, timeoutMs: LOCAL_DEADLINE_MS, sleepImpl: noSleep,
+      })!;
+      const outcome = await within(client.scrape("https://example.com/recovered"), LOCAL_WAIT_MS, "scrape recovery");
+      if (!outcome.ok) throw new Error(`expected a page, got ${outcome.failure.reason}`);
+      expect(outcome.page.markdown).toBe("# recovered over http");
+      expect(server.requests()).toBe(3);
+      expect(budget.spent()).toBe(3);
+      await within(server.socketClosed(0), LOCAL_WAIT_MS, "stalled socket close");
+
+      const refused = await client.search("a later pub");
+      if (refused.ok) throw new Error("expected a budget refusal");
+      expect(refused.failure.reason).toBe("budget-exhausted");
+      expect(refused.failure.attempts).toBe(0);
+      expect(server.requests()).toBe(3);
+    });
+  });
 });
