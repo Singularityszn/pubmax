@@ -98,22 +98,31 @@ export function extractExplicitBudget(text: string): number | undefined {
 /** A preposition directly before an area: "in Shoreditch", "near Soho". */
 const AREA_PREPOSITION_BEFORE = /\b(?:in|near|around|at)\s+$/iu;
 
-/** A capitalised word that carries on a place name: "Victoria Park", "Camden Passage". */
-const AREA_NAME_CONTINUES =
-  /^\s+(?!(?:Tonight|Today|Tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b)\p{Lu}/u;
-
 /** Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs". */
 const AREA_NIGHT_NOUNS = /^\s+(?:pub\s+)?(?:crawl|crawls|pubs?|bars?|drinks|pints?)\b/iu;
 
 /**
+ * Longer London place names that start with a known area's word but are not
+ * that area: "in Victoria Park" is not Victoria.
+ */
+const PLACES_THAT_ARE_NOT_KNOWN_AREAS = [
+  "Victoria Park",
+  "Camden Passage",
+  "Richmond Park",
+  "Greenwich Park",
+  "Clapham Common Road",
+  "Angel Islington",
+] as const;
+
+/**
  * The area a keyless parse plans in. A known area named after "in", "near",
- * "around" or "at" wins, so "in Shoreditch tonight" is Shoreditch, unless a
- * capitalised word carries the place name on: "in Victoria Park" is not
- * Victoria. So does a request that is only the area's name, and a known area
- * directly before a night-out noun, so "a Shoreditch crawl" is Shoreditch. The
- * first area named wins, and the longest label breaks a tie at one position.
- * A known area named anywhere else is not read as the area: "a crawl along
- * the Victoria line" plans across London.
+ * "around" or "at" wins, so "in Shoreditch tonight" is Shoreditch. So does a
+ * request that is only the area's name, and a known area directly before a
+ * night-out noun, so "a Shoreditch crawl" is Shoreditch. At each position the
+ * longest label named there is read, in any case, so "in Camden Town" is
+ * Camden Town and "in victoria park" is the place, not Victoria. The first
+ * area named wins. A known area named anywhere else is not read as the area:
+ * "a crawl along the Victoria line" plans across London.
  */
 export function deterministicAreaInText(
   text: string,
@@ -122,38 +131,38 @@ export function deterministicAreaInText(
   return firstKnownAreaNamedIn(text, knownAreas) ?? extractAreaPhrase(text);
 }
 
-function knownAreaIndex(text: string, area: string): number | undefined {
-  const whole = text.trim().replace(/[.!?]+$/u, "").trim();
-  if (whole.toLocaleLowerCase("en-GB") === area.toLocaleLowerCase("en-GB")) return 0;
-  const pattern = new RegExp(`\\b${escapeRegExp(area)}\\b`, "giu");
-  for (const match of text.matchAll(pattern)) {
-    const after = text.slice(match.index + match[0].length);
-    if (AREA_NIGHT_NOUNS.test(after)) return match.index;
-    const before = text.slice(0, match.index);
-    if (AREA_PREPOSITION_BEFORE.test(before) && !AREA_NAME_CONTINUES.test(after)) return match.index;
-  }
-  return undefined;
-}
-
 function firstKnownAreaNamedIn(
   text: string,
   knownAreas: readonly string[],
 ): string | undefined {
-  let best: { area: string; index: number } | undefined;
-  for (const area of knownAreas) {
-    const trimmed = area.trim();
-    if (!trimmed) continue;
-    const index = knownAreaIndex(text, trimmed);
-    if (index === undefined) continue;
-    if (
-      !best
-      || index < best.index
-      || (index === best.index && trimmed.length > best.area.length)
-    ) {
-      best = { area: trimmed, index };
+  const longestAt = new Map<number, { label: string; known: boolean }>();
+  const labels = [
+    ...knownAreas.map((label) => ({ label: label.trim(), known: true })),
+    ...PLACES_THAT_ARE_NOT_KNOWN_AREAS.map((label) => ({ label, known: false })),
+  ];
+  for (const { label, known } of labels) {
+    if (!label) continue;
+    const pattern = new RegExp(`\\b${escapeRegExp(label)}\\b`, "giu");
+    for (const match of text.matchAll(pattern)) {
+      const current = longestAt.get(match.index);
+      if (!current || label.length > current.label.length) {
+        longestAt.set(match.index, { label, known });
+      }
     }
   }
-  return best?.area;
+  const whole = text.trim().replace(/[.!?]+$/u, "").trim().toLocaleLowerCase("en-GB");
+  for (const [index, { label, known }] of [...longestAt].sort(([a], [b]) => a - b)) {
+    if (!known) continue;
+    const after = text.slice(index + label.length);
+    if (
+      whole === label.toLocaleLowerCase("en-GB")
+      || AREA_NIGHT_NOUNS.test(after)
+      || AREA_PREPOSITION_BEFORE.test(text.slice(0, index))
+    ) {
+      return label;
+    }
+  }
+  return undefined;
 }
 
 /**

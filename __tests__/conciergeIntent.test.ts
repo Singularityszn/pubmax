@@ -174,6 +174,26 @@ describe("parseConciergeIntent keyless fallback", () => {
     expect(parsed.intent.area).toBe(area);
   });
 
+  it.each([
+    ["crawl in victoria park tonight", "Victoria"],
+    ["Plan a crawl in Victoria Park tonight", "Victoria"],
+    ["pubs in camden passage", "Camden"],
+    ["pubs in Camden Passage", "Camden"],
+  ])("does not read %j as the known area it starts with", async (text, knownArea) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).not.toBe(knownArea);
+  });
+
+  it.each([
+    ["Plan a pub crawl in Shoreditch London tonight", "Shoreditch"],
+    ["Plan a crawl in Soho I want cheap pints", "Soho"],
+  ])("reads a known area followed by a capitalised word in %j", async (text, area) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).toBe(area);
+  });
+
   it("reads the first known area named, not the longest", async () => {
     const parsed = await parseConciergeIntent("Crawl in Camden, finishing near King's Cross");
 
