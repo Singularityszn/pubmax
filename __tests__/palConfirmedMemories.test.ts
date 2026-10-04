@@ -92,8 +92,8 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
     expect((await confirmedPalMemoriesFor(OWNER)).map((memory) => memory.value)).toEqual(["Near the Northern line"]);
   });
 
-  it("frames the typed preamble as preferences, never facts about a pub", () => {
-    expect(palMemoryPreamble([])).toEqual([]);
+  it("frames the typed preamble as preferences, and says so when nothing is confirmed", () => {
+    expect(palMemoryPreamble([])).toEqual(["I have not confirmed anything for you to remember about me."]);
     expect(palMemoryPreamble([{ kind: "drink_preference", label: "Drinks", value: "Cask ale" }])).toEqual([
       "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
       "- Drinks: Cask ale",

@@ -5,6 +5,10 @@ import {
   PAL_RECALL_MEMORIES_TOOL,
   recallPalMemoriesForConversation,
 } from "@/lib/palConfirmedMemories.server";
+import {
+  PAL_PROPOSE_MEMORY_TOOL,
+  proposePalMemoryForConversation,
+} from "@/lib/palMemoryProposal.server";
 import { assertPubPalLlmAuth } from "@/lib/pubPalLlmAuth";
 import {
   invokePubPalAskTool,
@@ -27,8 +31,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
   const { toolName } = await context.params;
   const normalized = toolName.trim();
-  const recall = normalized === PAL_RECALL_MEMORIES_TOOL;
-  if (!recall && !isAskToolName(normalized)) {
+  const palOnly = normalized === PAL_RECALL_MEMORIES_TOOL || normalized === PAL_PROPOSE_MEMORY_TOOL;
+  if (!palOnly && !isAskToolName(normalized)) {
     return publicApiError("That tool is not available.", "TOOL_NOT_ALLOWED", 404);
   }
 
@@ -56,7 +60,12 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       retryable: true,
     });
   }
-  if (recall) return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
+  if (normalized === PAL_RECALL_MEMORIES_TOOL) {
+    return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
+  }
+  if (normalized === PAL_PROPOSE_MEMORY_TOOL) {
+    return jsonNoStore(await proposePalMemoryForConversation(conversationId, args));
+  }
   const outcome = await invokePubPalAskTool({
     toolName: normalized,
     args,
