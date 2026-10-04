@@ -64,6 +64,18 @@ describe("deriveMapRenderedState", () => {
     ]);
   });
 
+  it("explains a club pin's band as the bars' type-relative band", () => {
+    const pubsData: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [feature(3, "club")],
+    };
+
+    expect(
+      deriveMapRenderedState(pubsData, { brass: "#b0813a" }, null)
+        .priceBands,
+    ).toEqual([{ meaning: "type-relative", bucket: 3 }]);
+  });
+
   it("preserves the meaning that owns each rendered bucket", () => {
     const pubsData: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
