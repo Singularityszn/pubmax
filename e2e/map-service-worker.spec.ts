@@ -167,7 +167,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       const version = new URL(activeScriptUrl).searchParams.get("v");
       const cacheNames = {
         data: `pubmax-sw-data-${version}`,
-        plan: `pubmax-sw-plan-${version}`,
+        plan: `pubmax-sw-preview-plan-v2-${version}`,
         shell: `pubmax-sw-shell-${version}`,
         swr: `pubmax-sw-swr-${version}`,
       };
@@ -239,7 +239,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   await context.unroute(workerRoute);
   const targetWorkerUrl =
     `/sw.js?v=rollout-target-${Date.now()}` +
-    "&cache-policy=write-safe-v1";
+    "&cache-policy=plan-preview-safe-v2";
   const takeover = await page.evaluate(async (scriptUrl) => {
     const states: string[] = [];
     const controllerChanged = new Promise<void>((resolve) => {
@@ -308,7 +308,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       }
       return {
         data: await matchFamily("data", "/data/legacy-offline.json"),
-        plan: await matchFamily("plan", "/plan/legacy-offline"),
+        plan: await matchFamily("preview-plan-v2", "/plan/legacy-offline"),
         poisoned: await matchFamily("swr", poisonedTileUrl),
         shell: await matchFamily("shell", "/offline.html"),
         staticAsset: await matchFamily(
