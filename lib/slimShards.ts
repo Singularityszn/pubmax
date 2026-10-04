@@ -25,6 +25,7 @@ import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
 import { loadSlimVenuesFromPathResult, type SlimVenue } from "@/lib/venuesSlim";
 import { WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
+import { EXPECTED_MAP_DATA_REVISION, MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 /** [minLng, minLat, maxLng, maxLat] — GeoJSON bbox order (matches the build). */
 export type ShardBbox = [number, number, number, number];
@@ -61,13 +62,6 @@ type SlimShardLoadResult = {
 
 const LEGACY_SHARD_MANIFEST_VERSION = 1;
 const SPATIAL_SHARD_MANIFEST_VERSION = 2;
-const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() ||
-  (process.env.NODE_ENV === "production"
-    ? (() => {
-        throw new Error("A deploy revision is required for production map data");
-      })()
-    : "local");
-
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
 function isBbox(value: unknown): value is ShardBbox {
@@ -539,7 +533,7 @@ export function createSlimShardLoader(
       let parsed = parseShardManifest(
         payload,
         expectedManifestVersion,
-        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+        EXPECTED_MAP_DATA_REVISION,
       );
       if (!parsed && expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
         manifestRevisionRejected = true;
@@ -552,7 +546,7 @@ export function createSlimShardLoader(
               parsed = parseShardManifest(
                 await response.json(),
                 expectedManifestVersion,
-                MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+                EXPECTED_MAP_DATA_REVISION,
               );
             } else {
               discardBody(response);
@@ -570,7 +564,7 @@ export function createSlimShardLoader(
       const parsed = parseShardManifest(
         stored,
         expectedManifestVersion,
-        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+        EXPECTED_MAP_DATA_REVISION,
       );
       if (
         stored !== null &&
@@ -598,9 +592,9 @@ export function createSlimShardLoader(
   function loadWholeIndexResult(): Promise<SlimShardLoadResult> {
     const wholeIndexPath = shardRequestPath(slimVenuesPath);
     const wholeIndexOptions =
-      MAP_DATA_REVISION === "local"
+      EXPECTED_MAP_DATA_REVISION === undefined
         ? options
-        : { ...options, expectedRevision: MAP_DATA_REVISION };
+        : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
     return loadSlimVenuesFromPathResult(wholeIndexPath, wholeIndexOptions).then((result) => {
       if (result.status === "ready") wholeIndexLoaded = true;
       return result;
@@ -617,9 +611,9 @@ export function createSlimShardLoader(
     const existing = shardPromises.get(url);
     if (existing) return existing;
     const shardOptions =
-      MAP_DATA_REVISION === "local"
+      EXPECTED_MAP_DATA_REVISION === undefined
         ? options
-        : { ...options, expectedRevision: MAP_DATA_REVISION };
+        : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
     const p = loadSlimVenuesFromPathResult(shardRequestPath(url), shardOptions)
       .then((result) => {
         if (result.status === "ready") {

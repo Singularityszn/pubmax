@@ -1455,7 +1455,6 @@ describe("auth callback URL safety", () => {
       attemptId: null,
       tokens: null,
       providerError: true,
-      accountBanned: true,
     });
     expect(scrubs).toEqual(["/login"]);
 
@@ -1464,17 +1463,23 @@ describe("auth callback URL safety", () => {
       () => {},
       { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
     );
-    expect(fragmentBan?.attempt.accountBanned).toBe(true);
+    expect(fragmentBan?.attempt).toEqual({
+      attemptId: null,
+      tokens: null,
+      providerError: true,
+    });
   });
 
-  it("ignores a bare ban signal outside a marked callback or auth page", () => {
+  it("ignores a bare ban flag, including on the login page", () => {
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?authBanned=1")).toBeNull();
     expect(
       readAuthCallbackAttempt("https://pubmaxxing.com/map#error_code=user_banned"),
     ).toBeNull();
-    expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authBanned=1")).toMatchObject({
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authBanned=1")).toBeNull();
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/?_authCallback=1&authBanned=1")).toEqual({
+      attemptId: null,
+      tokens: null,
       providerError: true,
-      accountBanned: true,
     });
   });
 

@@ -2,8 +2,8 @@
 //
 // It is the SAME frame the route itself paints, so the top bar is part of it.
 // Without the bar the shell was a page with no chrome, and the moment it stood
-// in for a route the site nav left the screen: /today, /tonight, /out, /social,
-// /feed and /u all own a `loading.tsx`, so their whole page - the nav and the
+// in for a route the site nav left the screen: /today, /tonight, /out, /social
+// and /feed own a `loading.tsx`, so their whole page - the nav and the
 // PUBMAXX wordmark inside it - sits in a Suspense boundary. React hands a
 // boundary back to its fallback whenever a sync update lands before that
 // boundary has hydrated, and the root of this app settles several on every

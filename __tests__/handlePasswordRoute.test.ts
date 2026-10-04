@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { HANDLE_PASSWORD_GENERIC_ERROR } from "@/lib/passwordPolicy";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -82,14 +81,22 @@ describe("POST /api/auth/handle-password", () => {
     expect((await wrong.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
   });
 
-  it("answers a banned account with the community-guidelines notice", async () => {
+  it("answers a banned account with the same invalid-credentials body as an unknown handle", async () => {
+    resolveEmail.mockResolvedValueOnce(null);
+    const unknown = await POST(post({ handle: "ghost", password: "Pubmaxx1!" }));
+
     resolveEmail.mockResolvedValueOnce("karansdad@example.com");
     passwordGrant.mockResolvedValueOnce("banned");
-    const res = await POST(post({ handle: "karansdad", password: "Pubmaxx1!" }));
-    expect(res.status).toBe(403);
-    await expect(res.json()).resolves.toMatchObject({
-      code: "ACCOUNT_BANNED",
-      error: AUTH_ACCOUNT_BANNED_MESSAGE,
+    const banned = await POST(post({ handle: "karansdad", password: "Pubmaxx1!" }));
+
+    const bodies = await Promise.all(
+      [unknown, banned].map(async (res) => ({ status: res.status, body: await res.json() })),
+    );
+    expect(bodies[0]).toEqual(bodies[1]);
+    expect(bodies[0].status).toBe(401);
+    expect(bodies[0].body).toMatchObject({
+      code: "INVALID_CREDENTIALS",
+      error: HANDLE_PASSWORD_GENERIC_ERROR,
     });
   });
 

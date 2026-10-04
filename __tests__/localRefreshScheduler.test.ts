@@ -267,10 +267,10 @@ describe("local refresh scraper sequence", () => {
       {
         executable: process.execPath,
         // The events lane statically imports the TypeScript Context.dev
-        // provider, so it is spawned through tsx rather than relying on Node's
-        // unflagged type stripping (22.18+) under an engines floor of 22.12.
-        // The flags go before the script; args[0] stays the file being run,
-        // which the key-readiness reason and the lane lookups read.
+        // provider, so it is spawned through the loader in
+        // EVENTS_REFRESH_NODE_ARGS. The flags go before the script; args[0]
+        // stays the file being run, which the key-readiness reason and the
+        // lane lookups read.
         nodeArgs: EVENTS_REFRESH_NODE_ARGS,
         args: ["scripts/whatson/eventsRefresh.mjs"],
         independent: true,
@@ -597,10 +597,8 @@ describe("local refresh validation", () => {
       join(repository, "package.json"),
       JSON.stringify({
         scripts: {
-          "prevalidate-data":
-            "node -e \"require('fs').writeFileSync('generated.marker','ready')\"",
           "validate-data":
-            "node -e \"if(!require('fs').existsSync('generated.marker'))process.exit(1)\"",
+            "node -e \"require('fs').writeFileSync('generated.marker','ready')\" && node -e \"if(!require('fs').existsSync('generated.marker'))process.exit(1)\"",
         },
       }),
     );

@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 // The photo picker and the crop step, on a phone-sized viewport.
 //
 // What this CAN prove: the picker input's own attributes, that a chosen photo
@@ -17,7 +19,7 @@ import sharp from "sharp";
 // __tests__/profilePhotoPicker.test.ts.
 
 const VIEWPORT = { width: 390, height: 844 };
-const SHOT_DIR = "/tmp/pubmax-photo-crop";
+const SHOT_DIR = runnerShotDir("pubmax-photo-crop");
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-00000000000a";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const HANDLE = "cropproof";

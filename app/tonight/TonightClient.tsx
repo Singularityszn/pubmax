@@ -549,7 +549,7 @@ export default function TonightClient({
         titleId="tonight-title"
         lede={listingLede}
         primary={
-          <Link prefetch={false} href="/map">
+          <Link prefetch={false} href="/map" className="tonightFootLink">
             See them on the map
           </Link>
         }
@@ -564,7 +564,7 @@ export default function TonightClient({
           the lede at every width: it is the only thing between the head and
           the pubs. */}
       <div className="tonightWeather">
-        <TonightConditionsStrip origin={origin} />
+        <TonightConditionsStrip origin={origin} tonightMode />
       </div>
 
       <div className="tonightPrimary" data-status={listingsStatus}>

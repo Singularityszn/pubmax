@@ -13,7 +13,7 @@ import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { savedListPath } from "@/lib/savedListUrl";
 import { buildSavedListShareText } from "@/lib/shareArtifacts";
 import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { creatorListMapHref } from "@/lib/creatorListMap";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
@@ -99,11 +99,12 @@ export default function SavedListDetail({
 
     async function loadState() {
       try {
-        const res = await fetch(
+        const res = await authedFetch(
           `/api/saved-pubs/list-follows?follower=${encodeURIComponent(viewer)}&owner=${encodeURIComponent(
             owner,
           )}&listType=${encodeURIComponent(listType)}`,
           { signal: controller.signal },
+          { requiresIdentity: true },
         );
         if (!res.ok) {
           discardBody(res);

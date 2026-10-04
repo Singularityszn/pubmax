@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 // Arrival is the moment of togetherness, never an admin form.
 //
 // DEFECT ZERO: an account that already owns a handle but never stored a date of
@@ -18,7 +20,7 @@ import { expect, test, type Page } from "@playwright/test";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-0000000000a1";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const HANDLE = "karan";
-const SHOTS = "/tmp/pubmax-arrival";
+const SHOTS = runnerShotDir("pubmax-arrival");
 
 type OnboardingBody = { complete: boolean; handle?: string; dateOfBirth?: string };
 

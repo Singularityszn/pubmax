@@ -8,9 +8,8 @@ on:
     - cron: "15 14 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+# Nothing at the workflow level; the one job below asks for what it uses.
+permissions: {}
 
 concurrency:
   # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
@@ -20,15 +19,27 @@ concurrency:
 
 jobs:
   refresh:
-    runs-on: [self-hosted, pubmax-mac]
+    # Jobs that hold a write token or a secret run on their own runner, as a
+    # different macOS user from the one that runs pull request code. See
+    # docs/CI_RUNBOOK.md, section 'Dedicated runner users'.
+    runs-on: [self-hosted, pubmax-mac-refresh]
+    permissions:
+      contents: write # push the review branch
+      pull-requests: write # open the review PR
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         timeout-minutes: 5
         with:
           node-version: "22"
-      - run: npm ci
+      - run: |
+          npm ci
+          npm run deps:install-scripts
       - name: Verify cache contract
         run: npm test -- __tests__/weatherSnapshots.test.ts
       - name: Configure review commit identity
@@ -38,4 +49,4 @@ jobs:
       - name: Refresh cache and open review PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run refresh:weather -- --open-pr
+        run: scripts/ci/with-git-token.sh npm run refresh:weather -- --open-pr

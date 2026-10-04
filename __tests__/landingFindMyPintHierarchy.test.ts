@@ -11,7 +11,6 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
-vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
@@ -45,7 +44,7 @@ const card: LandingPubCardData = {
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha",
   publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
-  collectedOn: "2026-07-03",
+  observedOn: "2026-07-03",
   standing: "listed",
   then: {
     priceGbp: 3.6,

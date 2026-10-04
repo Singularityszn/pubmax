@@ -1,6 +1,6 @@
 # Where are the skills?
 
-Project skills for this repo live in [`.agents/skills/`](../.agents/skills/). Provenance, the five UI packs, and the skills kept for PubMaxxing are in [`.agents/skills/SOURCES.md`](../.agents/skills/SOURCES.md).
+Project skills for this repo live in [`.agents/skills/`](../.agents/skills/). Provenance is in [`.agents/skills/SOURCES.md`](../.agents/skills/SOURCES.md).
 
 General engineering skills live on the machine, in `~/.agents/skills`. This repo does not copy them.
 

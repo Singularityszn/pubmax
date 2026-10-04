@@ -12,6 +12,8 @@
 // user, so the fact block's "average pint" and "cheapest pint" line up exactly
 // with the visible ranking rather than introducing a second, confusing figure.
 
+import { formatObservedDate } from "@/lib/dataFreshness";
+import { oldestPintRead, venueCheapestPintObservedAt, type LegacyPintPrice } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 
 // The minimal venue shape the stats need. Both the full Venue and the slim
@@ -20,6 +22,8 @@ import { formatPrice } from "@/lib/venues";
 export type PricedPubLike = {
   name: string;
   cheapestPrice: number | null;
+  /** The pub's price rows, so a claim about its cheapest pint carries that row's own read. */
+  prices?: readonly LegacyPintPrice[];
 };
 
 export type PintFactStats = {
@@ -37,10 +41,14 @@ export type PintFactStats = {
   minGbp: number | null;
   /** Pub with the cheapest tracked pint. null when none priced. */
   minPubName: string | null;
+  /** When that cheapest pint was last read at its source. null when it records no read. */
+  minObservedAt: string | null;
   /** Dearest tracked cheapest-pint in the area, GBP. null when none priced. */
   maxGbp: number | null;
   /** Pub with the dearest tracked cheapest-pint. null when none priced. */
   maxPubName: string | null;
+  /** When that dearest cheapest-pint was last read at its source. null when it records no read. */
+  maxObservedAt: string | null;
 };
 
 // Round a mean to pence for display/serialisation. Kept separate so tests can
@@ -60,7 +68,11 @@ export function pintFactStats(
 ): PintFactStats {
   const priced = pubs
     .filter((pub) => typeof pub.cheapestPrice === "number")
-    .map((pub) => ({ name: pub.name, price: pub.cheapestPrice as number }));
+    .map((pub) => ({
+      name: pub.name,
+      price: pub.cheapestPrice as number,
+      observedAt: venueCheapestPintObservedAt({ cheapestPrice: pub.cheapestPrice, prices: pub.prices ?? [] }),
+    }));
 
   const base: PintFactStats = {
     name,
@@ -70,8 +82,10 @@ export function pintFactStats(
     averageGbp: null,
     minGbp: null,
     minPubName: null,
+    minObservedAt: null,
     maxGbp: null,
     maxPubName: null,
+    maxObservedAt: null,
   };
   if (priced.length === 0) return base;
 
@@ -99,8 +113,10 @@ export function pintFactStats(
     averageGbp: roundPence(sum / priced.length),
     minGbp: min.price,
     minPubName: min.name,
+    minObservedAt: min.observedAt,
     maxGbp: max.price,
     maxPubName: max.name,
+    maxObservedAt: max.observedAt,
   };
 }
 
@@ -144,12 +160,18 @@ export function factBlockSentences(
 
 export type FaqItem = { question: string; answer: string };
 
+// A claim about named pints is dated by their own read, and says no day at all
+// when one of them records none.
+function collectedOn(observedAt: string | null, lead: string): string {
+  return observedAt ? `${lead} ${formatObservedDate(new Date(observedAt))}` : "";
+}
+
 // 3–5 data-answerable FAQ questions for an area, each answered strictly from the
 // stats. A question is SKIPPED whenever its answer data is missing, so a borough
 // with no priced pub yields no FAQ (rather than an empty or invented answer).
 export function faqItems(
   stats: PintFactStats,
-  opts: { monthYear: string; year: string; observedDate: string },
+  opts: { monthYear: string; year: string },
 ): FaqItem[] {
   const items: FaqItem[] = [];
   const { name } = stats;
@@ -159,7 +181,7 @@ export function faqItems(
       question: `What is the cheapest pint in ${name}?`,
       answer: `The cheapest tracked pint in ${name} is ${formatPrice(
         stats.minGbp,
-      )} at ${stats.minPubName}, as collected on ${opts.observedDate}.`,
+      )} at ${stats.minPubName}${collectedOn(stats.minObservedAt, ", as collected on")}.`,
     });
   }
 
@@ -195,7 +217,10 @@ export function faqItems(
       question: `What's the price range for a pint in ${name}?`,
       answer: `Tracked cheapest pints in ${name} range from ${formatPrice(
         stats.minGbp,
-      )} to ${formatPrice(stats.maxGbp)}, collected on ${opts.observedDate}.`,
+      )} to ${formatPrice(stats.maxGbp)}${collectedOn(
+        oldestPintRead([stats.minObservedAt, stats.maxObservedAt]),
+        ", collected on",
+      )}.`,
     });
   }
 

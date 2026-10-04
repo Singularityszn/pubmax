@@ -2,10 +2,10 @@
 //   GET  ?handle=<handle>  (or ?actor=<anonId>)  → { saved: SavedPubDTO[] }
 //   POST { handle, venueId, listType, note }      → { saved: SavedPubDTO[] }  (toggles)
 //
-// A save is filed under a self-asserted `handle` (no auth yet): the durable store
-// bootstraps a profile row for that handle and keys saves by its profile_id
-// (public.saved_pubs — see lib/savedPubsStore.ts). The response DTOs carry the
-// resolved venue NAME + "open on the map" url (server-side via lib/venueIndex) so
+// A save is filed under a handle. The durable store keys saves by the profile_id
+// of a row that already exists (public.saved_pubs, see lib/savedPubsStore.ts)
+// and does not mint one. The response DTOs carry the resolved venue NAME and
+// "open on the map" url (server-side via lib/venueIndex) so
 // the profile never renders a raw "venue-…" id.
 //
 // Store choice is the usual seam: Supabase when configured, process-memory
@@ -18,7 +18,8 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { callerOwnedWithdrawnHandle, gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
+import { profileStore } from "@/lib/profileStore";
 import { isLimited } from "@/lib/pintDrops";
 import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -28,7 +29,7 @@ import {
   savedListsStore,
   savedPubsStore,
 } from "@/lib/savedPubsStore";
-import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { resolveVenue } from "@/lib/venueIndex";
 
@@ -38,6 +39,13 @@ assertServerEnv();
 // the raw client length.
 const MAX_VENUE_ID = 64;
 
+const SAVE_HANDLE_LIMIT = 8;
+const SAVE_ACTOR_LIMIT = 8;
+const SAVE_RATE_WINDOW_MS = 60_000;
+const LIST_HANDLE_LIMIT = 8;
+const LIST_ACTOR_LIMIT = 8;
+const LIST_RATE_WINDOW_MS = 60_000;
+
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const handle = normalizeHandle(params.get("handle") ?? "");
@@ -45,8 +53,9 @@ export async function GET(request: Request): Promise<Response> {
 
   // ?lists=1 → the handle's custom list menu (story 33). Built-ins are known to
   // the client; this returns only the handle's OWN custom lists. Fail-soft → [].
+  const ownHandle = await callerOwnedWithdrawnHandle(request, handle);
   if (params.get("lists")) {
-    const lists = handle ? await savedListsStore().listCustom(handle) : [];
+    const lists = handle ? await savedListsStore(ownHandle).listCustom(handle) : [];
     return jsonNoStore({ lists }, { status: 200 });
   }
 
@@ -55,7 +64,7 @@ export async function GET(request: Request): Promise<Response> {
 
   // listSaved is fail-soft (returns [] on any store error), so a saved-pubs
   // outage can never surface as a 500 that breaks the profile page.
-  const saved = await savedPubsStore().listSaved({
+  const saved = await savedPubsStore(ownHandle).listSaved({
     handle: handle || undefined,
     actorHash: actor ? hashActor(actor) : undefined,
   });
@@ -78,12 +87,43 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
+  // A durable save hangs off a profile row. A signed-in author's row was
+  // created, owned, by the gate. An anonymous save may only use a row that
+  // already exists: minting one would leave it unowned, and an unowned row is
+  // frozen against the account that later claims the handle. Keyless dev keeps
+  // the memory store, which has no profile row to mint.
+  if (isSupabaseConfigured() && !gateHasVerifiedActor(ownership)) {
+    let existing;
+    try {
+      existing = await profileStore().getByHandle(ownership.handle);
+    } catch {
+      return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+    if (!existing) return publicApiError("Profile not found.", "NOT_FOUND", 404);
+  }
+
   // createList action (story 33): register a custom list name for this handle so
   // it appears in the pick-UI before it has any saves. Rate-limited like saves.
   if (readString(body.action) === "createList") {
     const name = cleanListType(body.name ?? body.listType);
     if (!name) return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
-    if (await isLimited(`lists:${ownership.handle}`, `lists:${hashIp(clientIp(request))}`)) {
+    const listActorHash = hashIp(clientIp(request));
+    if (
+      (await isLimited(
+        `lists:${ownership.handle}`,
+        `lists:${ownership.handle}`,
+        LIST_HANDLE_LIMIT,
+        LIST_RATE_WINDOW_MS,
+      )) ||
+      (await isLimited(
+        `lists:${listActorHash}`,
+        `lists:${listActorHash}`,
+        LIST_ACTOR_LIMIT,
+        LIST_RATE_WINDOW_MS,
+      ))
+    ) {
       return publicApiError("Too many lists, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const lists = await savedListsStore().createList(ownership.handle, name);
@@ -105,11 +145,24 @@ export async function POST(request: Request): Promise<Response> {
   // Note is untrusted free text: strip HTML/control chars and cap length.
   const note = cleanNote(body.note);
 
-  // Rate-limit per handle AND per actor: the in-memory key leads with the handle
-  // so one handle can't flood; the durable key leads with the actor (hashed IP)
-  // so one device can't spam across handles. 429 when either budget is exhausted.
+  // Rate-limit per handle AND per actor (two independent budgets). The handle
+  // cap stops one profile flooding; the actor cap stops one device spamming
+  // across handles. 429 when either budget is exhausted.
   const actorHash = hashIp(clientIp(request));
-  if (await isLimited(`saved:${ownership.handle}`, `saved:${actorHash}`)) {
+  if (
+    (await isLimited(
+      `saved:${ownership.handle}`,
+      `saved:${ownership.handle}`,
+      SAVE_HANDLE_LIMIT,
+      SAVE_RATE_WINDOW_MS,
+    )) ||
+    (await isLimited(
+      `saved:${actorHash}`,
+      `saved:${actorHash}`,
+      SAVE_ACTOR_LIMIT,
+      SAVE_RATE_WINDOW_MS,
+    ))
+  ) {
     return publicApiError("Too many saves, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 

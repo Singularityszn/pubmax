@@ -41,15 +41,15 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
 | `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask). Pal typed chat and voice do not use OpenRouter. |
 
-### Required in production — Pub Pal typed chat and voice
+### Pub Pal voice and hosted typed chat (ElevenLabs)
 
-Map Ask on `/api/ask` stays keyless without ElevenLabs. `/pal/chat` and voice need the agent values below. Full runbook: `docs/PUB_PAL_SETUP.md`.
+Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs (`/api/pub-pal/chat` falls back to the same grounded `runAsk` tools). Voice and the hosted-LLM typed path need the agent values below. Full runbook: `docs/PUB_PAL_SETUP.md`.
 
 | Var | Purpose |
 |---|---|
 | `ELEVENLABS_API_KEY` | **Server-only** ElevenLabs account key. Never exposed to the browser; `/api/pub-pal/voice-token` mints short-lived session URLs. |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | Agent id from `npm run pubpal:agent -- --base-url https://your-deployment`. |
-| `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}` (and legacy `/api/pub-pal/llm` if wired). |
+| `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}`. |
 | `ELEVENLABS_VOICE_*` | Per-species and onboarding voice ids (`lib/palElevenLabsVoice.ts`). See `docs/PUB_PAL_SETUP.md`. |
 
 ### Optional — other integrations
@@ -150,7 +150,7 @@ The app calls Supabase Auth with `signInWithOtp` for passwordless email and `sig
 
 App fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID. It restores them only for a claimed local attempt and matching return path, because Plan invite fragments contain one-use capabilities. The Web Locks API coordinates one live attempt across tabs, and the initiating tab records its attempt in `sessionStorage` to allow an explicit retry. Starting an attempt requires persistent browser storage and Web Locks; an incoming token callback without a local claim follows the confirmation path below. Secrets stay in the Supabase dashboard. The Next.js app only needs the public URL and publishable key above.
 
-An unowned callback, including an email link opened in another browser, shows **Sign in as [verified identity]?** before installing a session. Check the displayed email address, or account ID if no email is available. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. A callback claimed by this browser's local attempt completes automatically.
+An unowned callback, including an email link opened in another browser, shows **Sign in as [verified email]?** before installing a session. The prompt names an email only when the provider reports it confirmed, because the sender of a crafted token link can choose an unverified one; otherwise it reads **Sign in to this account?**. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. A callback claimed by this browser's local attempt completes automatically.
 
 [`lib/authCallbackClient.ts`](../lib/authCallbackClient.ts) owns callback verification. It reads identity directly from the provider without letting lookup errors mutate the live browser session. It verifies the refreshed identity and rejects mismatched access and refresh identities. The expired-access exception requires the provider's specific expiry response and a parsed subject matching the freshly verified identity; browser time does not decide expiry. Other verification failures reject the callback. `AuthProvider` finishes session restoration and publishes its result before offering confirmation, and reuses pending work across StrictMode effect replay. Regression coverage lives in `__tests__/authCallbackClient.test.ts`, `__tests__/authCallbackConfirmation.test.tsx`, and `e2e/auth-callback-confirmation.spec.ts`.
 
@@ -301,7 +301,7 @@ Changing provider state needs no app code or deployment.
 
 ## Build-time data artifacts
 
-`npm run prebuild` regenerates the browser data packs and the server-only venue
+`npm run build` first regenerates the browser data packs and the server-only venue
 detail pack:
 
 | Output | Role |
@@ -315,7 +315,7 @@ detail pack:
 | `data/generated/venue_details.jsonl` | Per-venue detail payloads: pub price rows or curated venue facts (not committed). |
 
 Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates all
-build-time packs via `prebuild`; the UK base pack remains committed so first
+build-time packs in `npm run build`; the UK base pack remains committed so first
 paint never needs server-side generation. If venue detail artifacts are absent
 locally, `lib/venueDetailIndex.ts` falls back to the raw pint dataset plus
 `data/famous_venues/` outside production so `/api/venue/[id]` still works in
@@ -331,20 +331,13 @@ dev/test.
 
 **Every Vercel deploy runs the data validation gate and the Next build only.** It does not run lint, typecheck, tests, or coverage. PR [#748](https://github.com/Singularityszn/pubmax/pull/748) narrowed the build command on 2026-08-06 to cut Vercel build-minute cost. Lint, typecheck, and tests moved to GitHub Actions (`.github/workflows/ci.yml`).
 
-GitHub Actions is configured for `push`, `pull_request`, and `workflow_dispatch`, but GitHub-hosted runs are currently failing before job allocation on this private repo (`startup_failure` with zero jobs and no logs). That is a runner/account allocation problem, not a product-code problem. The fix, PR [#747](https://github.com/Singularityszn/pubmax/pull/747) (migrate to Blacksmith runners), is open and unmerged.
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) owns CI triggers and
+commands. The [CI runbook](CI_RUNBOOK.md) owns runner prerequisites, configuration,
+and recovery. Check the current run before treating CI as release evidence.
 
-**Result: nothing automated currently checks lint, typecheck, or tests before a deploy reaches production.** See `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.1 for the operator consequence: run `npm run ci` locally before every push until #747 lands.
-
-When GitHub Actions runner allocation is fixed, the existing triggers should start producing useful first-party checks. The workflow itself is intentionally boring:
-
-- `npm ci`
-- `npm run validate-data`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run coverage` (fails if coverage drops below the vitest.config.mts thresholds)
-- `npm run build`
-
-The workflow supports `workflow_dispatch`, so it can be rerun manually from GitHub Actions after account/runners are fixed.
+Run `npm run ci` locally before every push. A Vercel build alone does not prove
+the full gate passed. If Actions fails before job allocation, restore runner or
+account allocation before calling the release gate green.
 
 ### Manual deploy and promote
 
@@ -357,7 +350,7 @@ vercel promote <deployment-url>
 
 `npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
 uploading. An authenticated `GET /api/version` names that commit (see below).
-An unauthenticated request returns health only. The command forwards every argument.
+An unauthenticated request returns `ok` and `deploymentId`, and never the commit. The command forwards every argument.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
@@ -487,14 +480,14 @@ it back to a deployment.
 
 ### Which commit is this deploy serving
 
-`GET /api/version` returns `{ "ok": true }` without valid cron authentication.
-This proves route health only. Build metadata requires an existing `CRON_SECRET`
+`GET /api/version` returns `{ "ok": true, "deploymentId": "dpl_..." }` without valid cron authentication.
+`deploymentId` is the public marker a stale tab compares. The commit, its source and the build time require an existing `CRON_SECRET`
 configured on the target deployment. Keep that credential in the process
 environment; never put its value in an argument, log or file.
 
 With an authorised credential already available, run this from the clean checkout
 that produced the deployment. Set `DEPLOYMENT_URL` to its HTTPS URL. The request
-fails if authentication returns health only or the running commit differs from HEAD.
+fails if authentication omits the commit or the running commit differs from HEAD.
 
 ```sh
 node --input-type=module <<'NODE'

@@ -25,6 +25,8 @@ test("mobile planner maps and hides its route from the bottom sheet", async ({ p
   await expect(planner).toHaveClass(/open/);
   await expect(planner).toHaveClass(/sheet-half/);
   await expect(planner.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
+  await expect(planner.locator(".controlRail")).toHaveCount(0);
+  await expect(planner.getByRole("group", { name: "Crawl mode" })).toHaveCount(0);
 
   // The route the planner opens on is the one the drawer already holds: on a
   // phone the featured-routes list is deliberately absent, because ControlRail

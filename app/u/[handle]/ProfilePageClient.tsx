@@ -447,10 +447,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // "nobody owns this handle" and "we could not find out" are two answers and
   // only the first one may offer a stranger the claim (`handleIsAdoptable`).
   const [publicRead, setPublicRead] = useState<PublicProfileReadState>("asking");
-  // The public read answered "Profile not found" (404): a moderation-withdrawn
-  // account. There is nobody here to follow or message, so the page reads as a
-  // handle nobody owns rather than as an account shell.
-  const [profileNotFound, setProfileNotFound] = useState(false);
   const [counts, setCounts] = useState<FollowCounts | null>(null);
   const [following, setFollowing] = useState(false);
   // The mirror edge. Without it the header cannot tell "Mates" from
@@ -486,7 +482,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       setStored(null);
       setProjection("full");
       setPublicRead("asking");
-      setProfileNotFound(false);
     });
   }, [followKey, followStateKey]);
   // PUBLIC crawl count for this handle, from /api/crawls?author= (the
@@ -795,10 +790,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       const bearer = viewerHandle
         ? await getAccessToken().catch(() => null)
         : null;
-      // A 404 is an ANSWER, not a failed read: the route withholds a withdrawn
-      // account as "Profile not found". The shared loader folds every non-OK
-      // status into "failed", so the status is noted on the way through.
-      let notFound = false;
       const outcome = await loadSurfaceJson<{
         profile?: PublicProfile | null;
         projection?: string;
@@ -814,11 +805,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           ...(bearer
             ? { init: { headers: { authorization: `Bearer ${bearer}` } } }
             : {}),
-          fetchImpl: async (input, init) => {
-            const response = await fetch(input, init);
-            notFound = response.status === 404;
-            return response;
-          },
         },
         (body) => {
           if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
@@ -854,24 +840,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       // What the PUBLIC read managed to say about this handle, kept apart from
       // what it said. `handleIsAdoptable` may only ever act on an answer.
       if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
-        if (notFound) {
-          // Whatever a held snapshot painted belongs to an account the public
-          // may no longer see.
-          const absent = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
-            socialLinks: [],
-            counts: { followers: 0, following: 0 },
-            following: false,
-            followsViewer: false,
-          });
-          setProjection("full");
-          setStored(null);
-          setSocialLinks([...absent.socialLinks]);
-          setCounts(absent.counts);
-          setFollowing(false);
-          setFollowsViewer(false);
-        }
-        setProfileNotFound(notFound);
-        setPublicRead(outcome === "failed" && !notFound ? "failed" : "answered");
+        setPublicRead(outcome === "failed" ? "failed" : "answered");
       }
     }
     void loadProfile();
@@ -906,13 +875,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     read: publicRead,
     ownerProfile: stored,
     tombstoned: state === "gone",
-    profileWithdrawn: profileNotFound,
     handleReserved,
   });
   useEffect(() => {
     if (!routeHandle || routeHandle === YOU_SENTINEL) return;
-    if (handleReserved || profileNotFound) notFound();
-  }, [routeHandle, handleReserved, profileNotFound]);
+    if (handleReserved) notFound();
+  }, [routeHandle, handleReserved]);
 
   // Signed-out /u/you: the viewer has no handle yet. This is an INVITATION, not a
   // profile — so it shows only the honest "make the night yours" intro + the
@@ -1063,8 +1031,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   //  • own profile  → Edit (toggles the inline editor)
   //  • anonymous, on a handle NOBODY owns → Claim this handle (adopt, then edit)
   //  • other viewer → Follow
-  //  • a withdrawn account (the read answered 404) → nothing to follow or
-  //    message; a stranger meets the same claim offer as on an empty handle
   // The claim's second condition is the whole point: it is an offer about an
   // EMPTY handle, so it may only be made once the public read has answered and
   // reported no owner (`handleIsAdoptable`). An anonymous viewer on somebody
@@ -1103,7 +1069,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     </>
   ) : profileClaimOfferVisible({ isAnonymous, isYouRoute, canAdoptHandle }) ? (
     <ProfileClaimOffer onClaim={claimHandle} />
-  ) : isYouRoute || profileNotFound ? null : (
+  ) : isYouRoute ? null : (
     <>
       <ProfileFollowBoundary
         friendsLaunchEnabled={socialFriendsLaunchEnabled}

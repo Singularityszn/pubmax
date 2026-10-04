@@ -98,6 +98,11 @@ export type VenuePrice = {
   pool: string;
   happy_hour: string;
   karaoke: string;
+  /**
+   * Alcohol-free drinks the pub's own site stated, with the quote kept beside
+   * the row in the website-amenity evidence file. Absent is unknown.
+   */
+  non_alcoholic?: string;
   cool: string;
   source_datasets: string;
   source_row_count: number;
@@ -106,6 +111,11 @@ export type VenuePrice = {
   has_individual_pub_page_row: boolean;
   is_clean_canonical_app_row: boolean;
   data_quality_notes: string;
+  /**
+   * The instants this row's figure was read at its source, `|`-joined. Absent
+   * or empty on a row nobody read a price for.
+   */
+  scraped_at_values?: string;
   /**
    * Present when the operator that published this price has left the pub. The
    * row is dated history and no reader may read it as a price
@@ -233,6 +243,8 @@ export type Venue = {
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
   storySourceUrl?: string;
+  /** A pub that left OpenStreetMap: answered by id so a stored reference names it, never listed. */
+  retired?: true;
   // Publicly-documented accessible-venue facts (PRD issue #28). Present ONLY for
   // the small curated seed of pubs whose access is documented (see
   // lib/venueAccessibilitySeeds.ts); for every other venue this is undefined —
@@ -386,7 +398,8 @@ export const initialFilters: Filters = {
 
 /**
  * The source column each amenity is read from. `nonAlcoholic` is deliberately
- * absent: it is derived from the pub's listed drink names, not a column, and
+ * absent: it is derived from the pub's listed drink names or the
+ * `non_alcoholic` column stamped from the pub's own site, and
  * `venueAmenityStatus` reads it through `derivedAmenityStatus`.
  */
 const AMENITY_SOURCE_COLUMNS = {
@@ -643,7 +656,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         pool: prices.some((price) => truthyFlag(price.pool)),
         happyHour: prices.some((price) => truthyFlag(price.happy_hour)),
         karaoke: prices.some((price) => truthyFlag(price.karaoke)),
-        nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
+        nonAlcoholic:
+          hasNonAlcoholic(prices.map((price) => price.pint_name)) ||
+          prices.some((price) => truthyFlag(price.non_alcoholic ?? "")),
       },
       website: prices.find((price) => price.website)?.website ?? "",
       bookingLink: firstHttp(...prices.map((price) => price.booking_link)),

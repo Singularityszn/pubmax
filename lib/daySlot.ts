@@ -22,3 +22,15 @@ export function daySlot(now: Date): DaySlot {
   if (hour >= 17 && hour < 22) return "evening";
   return "night";
 }
+
+/**
+ * The band /tonight names. The Day/Tonight switch is already on Tonight, so a
+ * morning or afternoon clock must not make its weather line say morning.
+ * Evening and night keep the clock, because those are tonight. Only that
+ * strip reads this; every other surface reads the clock's `daySlot`.
+ */
+export function tonightDayPart(now: Date): DaySlot {
+  const slot = daySlot(now);
+  if (slot === "morning" || slot === "afternoon") return "evening";
+  return slot;
+}

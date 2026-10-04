@@ -20,6 +20,7 @@ import {
   useConversationMode,
   useConversationStatus,
 } from "@elevenlabs/react";
+import { useRouter } from "next/navigation";
 import { Mic, MicOff, Send } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
@@ -32,6 +33,10 @@ import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
+  ELEVENLABS_LIBSAMPLERATE_PATH,
+  ELEVENLABS_WORKLET_PATHS,
+} from "@/lib/elevenlabsWorkletAssets";
+import {
   createPubPalVoiceStartController,
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
@@ -40,6 +45,7 @@ import {
 
 type VoiceTokenResponse = {
   signedUrl?: string;
+  conversationId?: string;
   overrides?: PalVoiceOverrides;
   maxSessionSeconds?: number;
   error?: string;
@@ -58,9 +64,19 @@ type VoiceSessionAttempt = {
   voiceEndReason: VoiceEndReason | null;
 };
 
+/**
+ * Where a typed message goes when no voice session is live: the written Pal
+ * thread, with the question already asked through its `?ask=` deep link. The
+ * ElevenLabs SDK only takes text inside a running conversation, so the box
+ * beside the Start button must not depend on one.
+ */
+function palWrittenAskHref(value: string): string {
+  return `/pal/chat?${new URLSearchParams({ ask: value }).toString()}`;
+}
+
 async function syncVoiceToolTurn(input: {
   conversationId: string;
-  threadTurn?: { role: "user" | "assistant"; content: string };
+  threadTurn?: { role: "user"; content: string };
 }): Promise<void> {
   try {
     const response = await authedActionFetch("/api/pub-pal/tool-turn", {
@@ -92,6 +108,7 @@ async function releaseVoiceSession(durationSeconds: number): Promise<void> {
 }
 
 function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+  const router = useRouter();
   const { startSession, endSession, sendUserMessage } = useConversationControls();
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
@@ -222,26 +239,25 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
+        if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
+          workletPaths: ELEVENLABS_WORKLET_PATHS,
+          libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onMessage: ({ role, message }) => {
             const conversationId = conversationIdRef.current;
             const content = message.trim();
-            if (!conversationId || !content) return;
-            const threadRole =
-              role === "user" ? "user" : role === "agent" ? "assistant" : null;
-            if (!threadRole) return;
+            if (!conversationId || !content || role !== "user") return;
             void syncVoiceToolTurn({
               conversationId,
-              threadTurn: { role: threadRole, content },
+              threadTurn: { role: "user", content },
             });
           },
           overrides: overrides
             ? {
                 agent: {
-                  prompt: { prompt: overrides.systemPrompt },
                   firstMessage: overrides.firstMessage,
                 },
                 ...(overrides.voiceId
@@ -249,12 +265,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
                   : {}),
               }
             : undefined,
-          onConnect: (meta) => {
-            const conversationId = meta?.conversationId;
-            if (conversationId) {
-              conversationIdRef.current = conversationId;
-              void syncVoiceToolTurn({ conversationId });
-            }
+          onConnect: () => {
+            const boundId = conversationIdRef.current;
+            if (boundId) void syncVoiceToolTurn({ conversationId: boundId });
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
@@ -316,9 +329,18 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     }
   };
 
+  const voiceConnecting = isStarting || status === "connecting";
+
   const send = () => {
     const value = text.trim();
-    if (!value) return;
+    if (!value || voiceConnecting) return;
+    if (status !== "connected") {
+      // No live conversation: sendUserMessage would throw and the Pal would
+      // sit on "thinking" forever. Ask the written Pal instead.
+      setText("");
+      router.push(palWrittenAskHref(value));
+      return;
+    }
     onStateChange?.("thinking");
     sendUserMessage(value);
     const conversationId = conversationIdRef.current;
@@ -362,13 +384,20 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             value={text}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter") send(); }}
+            maxLength={500}
             placeholder="Or type the night you want…"
           />
-          <button type="button" onClick={send} aria-label="Send message">
+          <button
+            type="button"
+            onClick={send}
+            disabled={voiceConnecting}
+            aria-label="Send message"
+          >
             <Send size={17} />
           </button>
         </label>
       </div>
+      {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
       {error && <p className="palVoiceError" role="alert">{error}</p>}
       <p className="palVoicePrivacy">
         No audio or transcript becomes memory. The Pal proposes facts for you to approve separately.

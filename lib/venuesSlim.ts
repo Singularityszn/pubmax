@@ -26,16 +26,11 @@ import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { EXPECTED_MAP_DATA_REVISION, MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
-const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() ||
-  (process.env.NODE_ENV === "production"
-    ? (() => {
-        throw new Error("A deploy revision is required for production map data");
-      })()
-    : "local");
 const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
 
 function offlineKeyForPath(path: string): string {
@@ -65,6 +60,8 @@ export type SlimVenue = {
   anchorCourse?: FoodCategory;
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
+  /** A pub that left OpenStreetMap, served by id only so a stored reference names it. */
+  retired?: true;
 };
 
 function isBoolean(value: unknown): value is boolean {
@@ -230,7 +227,10 @@ function directMonolithRequest(path: string): {
   if (MAP_DATA_REVISION === "local") return { path, options: {} };
   return {
     path: `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`,
-    options: { expectedRevision: MAP_DATA_REVISION },
+    options:
+      EXPECTED_MAP_DATA_REVISION === undefined
+        ? {}
+        : { expectedRevision: EXPECTED_MAP_DATA_REVISION },
   };
 }
 

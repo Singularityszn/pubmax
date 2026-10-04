@@ -53,6 +53,8 @@ npm run fetch:city-pubs -- --skip-if-present
 
 Venue ids are city-salted (`venue-mcr-…`, `venue-glw-…`, …) so they never collide with London `venue-…` ids.
 
+A city venue id is derived from the pub's name, address and point, so an OSM edit can give the same pub a new id. Every `fetch:city-pubs` run records each id it superseded, and each pub that left OSM with no successor as retired, in `public/data/cities/venue_id_aliases.json` (`scripts/lib/cityVenueIdAliases.mjs`). Commit that file with the pack: a stored pint drop, save or crawl stop resolves through it.
+
 ## Licence / attribution
 
 OpenStreetMap data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), licensed under the [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/).

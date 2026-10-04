@@ -294,10 +294,10 @@ export async function addNightMoment(
   ownerId: string,
   memoryId: string,
   raw: unknown,
-  options: { allowContributor?: boolean } = {},
+  options: { allowContributor?: boolean; mediaObjectKey?: string | null } = {},
 ): Promise<NightMoment | null> {
   const memory = await getMemory(memoryId);
-  const draft = cleanNightMomentDraft(raw);
+  const draft = cleanNightMomentDraft(raw, options.mediaObjectKey ?? null);
   if (!memory || !draft || (!options.allowContributor && memory.ownerId !== ownerId)) return null;
   const createdAt = now();
   // Author-confirmed at creation: alt text supplied here came straight from the

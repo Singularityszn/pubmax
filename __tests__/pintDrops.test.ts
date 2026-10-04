@@ -84,14 +84,28 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 // requiresSupabaseStore() flag below — so no-op it here for a deterministic import
 // in every environment.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
-vi.mock("@/lib/venueAliases", () => ({
-  resolveCanonicalVenueId: async (id: string) =>
-    id === "legacy-pub"
-      ? "canonical-pub"
-      : id === "legacy-bar"
-        ? "bar-test"
-        : id,
-}));
+// A stored drop nudges Realtime in the background, never awaited by the
+// response. The Supabase-configured cases below point at an unreachable stub
+// URL, so the real nudge outlived the file and logged its failure while the
+// worker was closing: vitest reported an EnvironmentTeardownError and failed
+// the whole run. The nudge itself is pinned in pintDropsBroadcast.test.ts.
+const signalPintDropLanded = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/pintDropsBroadcast.server", () => ({ signalPintDropLanded }));
+vi.mock("@/lib/venueAliases", () => {
+  const aliases: Record<string, string> = { "legacy-pub": "canonical-pub", "legacy-bar": "bar-test" };
+  const canonical = (id: string) => aliases[id] ?? id;
+  return {
+    resolveCanonicalVenueId: async (id: string) => canonical(id),
+    loadVenueAliasResolver: async () => ({
+      canonical,
+      storedIds: (id: string) => [
+        canonical(id),
+        ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
+      ],
+      retired: () => null,
+    }),
+  };
+});
 vi.mock("@/lib/venueIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
   const venue = (id: string): import("@/lib/venueIndex").VenueRef =>
@@ -537,6 +551,18 @@ describe("POST /api/pint-drops (create)", () => {
       passedDownNote: "The back bar is the original 1904 mahogany.",
     });
     expect(res.status).toBe(201);
+  });
+
+  it("stores no profile row for a signed-out demo drop", async () => {
+    gateActor.userId = null;
+    const res = await post({
+      venueId: VENUE,
+      handle: "demo_drinker",
+      passedDownNote: "The back bar is the original 1904 mahogany.",
+    });
+    expect(res.status).toBe(201);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(await memoryProfileStore.getByHandle("demo_drinker")).toBeNull();
   });
 
   it("confirms an anonymous price against a second account's public one", async () => {

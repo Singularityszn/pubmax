@@ -290,6 +290,10 @@
 /* The policy link rides the end of the disclosure it is about, so the card
    keeps one quiet row rather than four stacked ones. */
 .todayInlineLink {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
   color: var(--brass-ink);
   font-weight: 700;
   text-underline-offset: 2px;

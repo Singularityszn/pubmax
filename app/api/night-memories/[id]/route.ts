@@ -53,6 +53,6 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   }
   // The photos leave with the rows. A key the storage seam cannot delete is its
   // own failure and never turns a completed removal into a refusal.
-  await Promise.all(removed.mediaObjectKeys.map((key) => removeNightMomentPhoto(key)));
+  await Promise.all(removed.mediaObjectKeys.map((key) => removeNightMomentPhoto(key, ownerId)));
   return jsonNoStore({ removed: true });
 }

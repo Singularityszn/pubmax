@@ -44,6 +44,12 @@ import { priceMovementLine } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { discardBody } from "@/lib/responseBody";
+import {
+  LANDING_SKYLINE_HERO_AVIF_SRCSET,
+  LANDING_SKYLINE_HERO_JPG_FALLBACK,
+  LANDING_SKYLINE_HERO_SIZES,
+  LANDING_SKYLINE_HERO_WEBP_SRCSET,
+} from "@/lib/landingSkylineHero";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -72,14 +78,6 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
-const HERO_PHOTO_SIZES = [
-  "(max-width: 640px) min(calc(100vw - clamp(22px, 5vw, 32px) - 80px), 34rem, calc((100svh - 64px) * .33))",
-  "(max-width: 959px) min(calc(100vw - clamp(22px, 5vw, 32px) - 80px), 34rem, max(14rem, 36svh))",
-  "(max-width: 1279px) min(34rem, calc((min(1240px, 100vw) - 64px - clamp(28px, 4vw, 56px)) * .475))",
-  "min(34rem, calc((min(1240px, calc(100vw - 64px)) - 64px - clamp(28px, 4vw, 56px)) * .475))",
-].join(", ");
-const HERO_PHOTO_AVIF_SRCSET = "/landing/hero-thames-1024.avif 1024w, /landing/hero-thames-1600.avif 1600w";
-
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
@@ -105,7 +103,7 @@ function trackLandingCta(target: LandingCtaTarget) {
 type Evidence =
   | "loading"
   | "unavailable"
-  | { publisher: AnswerPublisher | null; standing: PriceStanding };
+  | { publisher: AnswerPublisher | null; standing: PriceStanding; observedOn: string | null };
 
 /** What the card prints, whichever lane it came from. */
 type Answer = {
@@ -120,7 +118,6 @@ type Answer = {
   scope: LandingAnswerScope;
   walkMinutes?: number;
   evidence: Evidence;
-  collectedOn: string;
   then: LandingArchiveThen | null;
   rail: LandingRailRow[];
 };
@@ -144,8 +141,7 @@ function anchorAnswer(
     pintName: card.pintName,
     drinkHref: card.drinkHref,
     scope: "anchor",
-    evidence: { publisher: card.publisher, standing: card.standing },
-    collectedOn: card.collectedOn,
+    evidence: { publisher: card.publisher, standing: card.standing, observedOn: card.observedOn },
     // The index holds the anchor's own then row with its printed labels.
     then: archive[card.id] ?? null,
     rail,
@@ -157,7 +153,6 @@ function nearAnswer(
   rest: NearMeCard[],
   scope: "walkable" | "widened",
   archive: LandingArchiveIndex,
-  collectedOn: string,
 ): Answer {
   return {
     id: first.id,
@@ -169,7 +164,6 @@ function nearAnswer(
     scope,
     walkMinutes: first.walkMinutes,
     evidence: "loading",
-    collectedOn,
     then: archive[first.id] ?? null,
     rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
       id: card.id,
@@ -190,7 +184,6 @@ function nearAnswer(
 async function readEvidence(
   venueId: string,
   priceGbp: number,
-  collectedOn: string,
   signal: AbortSignal,
 ): Promise<Evidence> {
   try {
@@ -202,7 +195,7 @@ async function readEvidence(
     const payload = (await response.json()) as { venue?: { prices?: LegacyPintPrice[] } };
     const prices = Array.isArray(payload.venue?.prices) ? payload.venue.prices : null;
     if (!prices) return "unavailable";
-    return answerEvidenceFor({ priceGbp, prices, collectedOn });
+    return answerEvidenceFor({ priceGbp, prices });
   } catch {
     return "unavailable";
   }
@@ -223,13 +216,13 @@ export default function LandingHero({
   );
   const [near, setNear] = useState<NearState>({ kind: "idle" });
   const generation = useRef(0);
-  const collectedOn = card?.collectedOn ?? null;
+  const hasCard = card !== null;
 
   // The swap. One generation counter keeps a slow first read from landing
   // over a later one. The ranker and the slim index load only here, so the
   // landing's own bundle never carries them for a reader who never taps.
   const locate = useCallback(() => {
-    if (!collectedOn) return;
+    if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setNear({ kind: "failed", line: NEAR_ME_FAILED_LINE });
       return;
@@ -256,15 +249,10 @@ export default function LandingHero({
               return;
             }
             const [first, ...rest] = ranked.cards;
-            setAnswer(nearAnswer(first, rest, ranked.scope, archive, collectedOn));
+            setAnswer(nearAnswer(first, rest, ranked.scope, archive));
             setNear({ kind: "answered" });
             const controller = new AbortController();
-            const evidence = await readEvidence(
-              first.id,
-              first.cheapestPrice,
-              collectedOn,
-              controller.signal,
-            );
+            const evidence = await readEvidence(first.id, first.cheapestPrice, controller.signal);
             if (mine !== generation.current) return;
             setAnswer((current) =>
               current && current.id === first.id ? { ...current, evidence } : current,
@@ -275,12 +263,12 @@ export default function LandingHero({
       () => fail(NEAR_ME_FAILED_LINE),
       NEAR_ME_LOCATION_OPTIONS,
     );
-  }, [archive, collectedOn]);
+  }, [archive, hasCard]);
 
   // A reader who already said yes gets the near-you answer with no tap. A
   // reader who has not is never asked on arrival: the control on the card asks.
   useEffect(() => {
-    if (!collectedOn) return;
+    if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
     let cancelled = false;
     navigator.permissions
@@ -292,7 +280,7 @@ export default function LandingHero({
     return () => {
       cancelled = true;
     };
-  }, [collectedOn, locate]);
+  }, [hasCard, locate]);
 
   // Which picture the card stands on. It follows the ANSWER, so a near-you
   // swap moves to that pub's own borough rather than keeping the anchor's.
@@ -337,15 +325,6 @@ export default function LandingHero({
   );
 
   return (
-    <>
-      <link
-        rel="preload"
-        as="image"
-        type="image/avif"
-        imageSrcSet={HERO_PHOTO_AVIF_SRCSET}
-        imageSizes={HERO_PHOTO_SIZES}
-        fetchPriority="high"
-      />
     <Screen
       className="lpHero"
       kicker="PUBMAXX"
@@ -357,21 +336,21 @@ export default function LandingHero({
           <picture>
             <source
               type="image/avif"
-              srcSet={HERO_PHOTO_AVIF_SRCSET}
-              sizes={HERO_PHOTO_SIZES}
+              srcSet={LANDING_SKYLINE_HERO_AVIF_SRCSET}
+              sizes={LANDING_SKYLINE_HERO_SIZES}
             />
             <source
               type="image/webp"
-              srcSet="/landing/hero-thames-1024.webp 1024w, /landing/hero-thames-1600.webp 1600w"
-              sizes={HERO_PHOTO_SIZES}
+              srcSet={LANDING_SKYLINE_HERO_WEBP_SRCSET}
+              sizes={LANDING_SKYLINE_HERO_SIZES}
             />
             <img
               className="lpLondonPhoto"
-              src="/landing/hero-thames-1600.jpg"
+              src={LANDING_SKYLINE_HERO_JPG_FALLBACK}
               width={1600}
               height={1067}
               alt="Tower Bridge and the Thames in London from above"
-              decoding="async"
+              decoding="sync"
               loading="eager"
               fetchPriority="high"
             />
@@ -405,7 +384,6 @@ export default function LandingHero({
       {answer ? <AnswerCard answer={answer} near={near} onLocate={locate} photo={photo} /> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
-    </>
   );
 }
 
@@ -432,6 +410,9 @@ function AnswerCard({
   const evidence = answer.evidence;
   const publisher = typeof evidence === "object" ? evidence.publisher : null;
   const standing = typeof evidence === "object" ? evidence.standing : null;
+  // The day THIS pub's row was read. No day prints until the evidence names
+  // one, and none for a row that records no read.
+  const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
   return (
     <article
       className="lpPubCard lpAnswerCard lpPubCard--photo"
@@ -485,7 +466,7 @@ function AnswerCard({
         ) : (
           sourceLine(evidence)
         )}
-        , collected {collectedDay(answer.collectedOn)}.
+        {observedOn ? `, collected ${collectedDay(observedOn)}` : ""}.
       </p>
       {standing ? (
         <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>

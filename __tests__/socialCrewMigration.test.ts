@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -40,8 +40,11 @@ function authenticatedSql(
 /**
  * The barrier probe this proof needs and no other does: it holds a mutation
  * open on its own connection and reads the snapshot RPC while the write is
- * still uncommitted. It rides the shared session's own psql and connection
- * arguments, so there is still one cluster and one binary search.
+ * still uncommitted. The writer loops in `pg_sleep` until the reader publishes
+ * a release lock, so the session stays active. The release lock is
+ * session-scoped and the next race reuses the same key, so this function
+ * waits until the releasing session has exited. The probe uses this session's
+ * psql and connection arguments: one cluster, one binary search.
  */
 function snapshotDuringWriteOn(
   session: PostgresSession,
@@ -49,39 +52,130 @@ function snapshotDuringWriteOn(
   const psql = session.psql;
   const connection = session.databaseArgs;
   return async (mutation, snapshotExpression) => {
-    const barrierKey = "7531001";
-    const readyMarker = "SOCIAL_CREW_MUTATION_READY";
+    const barrierKey = 7531001;
+    const commitKey = 7531002;
+    const rollbackKey = 7531003;
+    let writerStderr = "";
     const writer = spawn(psql, [
-      ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A",
-    ], { stdio: ["pipe", "pipe", "pipe"] });
-    writer.stdout!.setEncoding("utf8");
+      ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-c",
+      `begin;
+       set local statement_timeout = '30s';
+       select pg_catalog.pg_advisory_xact_lock(${barrierKey}::bigint);
+       ${mutation};
+       do $social_crew_barrier$
+       begin
+         loop
+           if exists (
+             select 1 from pg_catalog.pg_locks
+             where locktype = 'advisory' and classid = 0 and objid = ${commitKey}
+               and objsubid = 1 and granted and pid <> pg_catalog.pg_backend_pid()
+           ) then
+             return;
+           end if;
+           if exists (
+             select 1 from pg_catalog.pg_locks
+             where locktype = 'advisory' and classid = 0 and objid = ${rollbackKey}
+               and objsubid = 1 and granted and pid <> pg_catalog.pg_backend_pid()
+           ) then
+             raise exception 'snapshot reader failed before commit';
+           end if;
+           perform pg_catalog.pg_sleep(0.05);
+         end loop;
+       end
+       $social_crew_barrier$;
+       commit;`,
+    ], { stdio: ["ignore", "pipe", "pipe"] });
     writer.stderr!.setEncoding("utf8");
-    let writerOutput = "";
-    let writerError = "";
-    writer.stderr!.on("data", (chunk: string) => { writerError += chunk; });
-    const ready = new Promise<void>((resolve, reject) => {
-      writer.stdout!.on("data", (chunk: string) => {
-        writerOutput += chunk;
-        if (writerOutput.includes(readyMarker)) resolve();
-      });
+    writer.stderr!.on("data", (chunk: string) => { writerStderr += chunk; });
+    const writerDone = new Promise<number | null>((resolve, reject) => {
       writer.once("error", reject);
-      writer.once("exit", (code) => {
-        if (!writerOutput.includes(readyMarker)) {
-          reject(new Error(`Race writer exited before barrier (${code}): ${writerError}`));
-        }
-      });
+      writer.once("exit", (code) => resolve(code));
     });
-    writer.stdin!.write(`begin;
-      select pg_catalog.pg_advisory_xact_lock(${barrierKey}::bigint);
-      ${mutation};
-      select '${readyMarker}';
-    `);
+    const signalRelease = (key: number): ChildProcess => spawn(psql, [
+      ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-c",
+      `select pg_catalog.pg_advisory_lock(${key}::bigint);
+       do $social_crew_release$
+       begin
+         loop
+           exit when not exists (
+             select 1 from pg_catalog.pg_locks
+             where locktype = 'advisory' and classid = 0 and objid = ${barrierKey}
+               and objsubid = 1 and granted and pid <> pg_catalog.pg_backend_pid()
+           );
+           perform pg_catalog.pg_sleep(0.05);
+         end loop;
+       end
+       $social_crew_release$;
+       select pg_catalog.pg_advisory_unlock(${key}::bigint);`,
+    ], { stdio: ["ignore", "ignore", "pipe"] });
+    const finishWriter = async (key: number, requireSuccess: boolean): Promise<void> => {
+      if (writer.exitCode !== null) {
+        if (requireSuccess) {
+          throw new Error(`Race writer exited before release (${writer.exitCode}): ${writerStderr}`);
+        }
+        return;
+      }
+      const holder = signalRelease(key);
+      let holderStderr = "";
+      holder.stderr!.setEncoding("utf8");
+      holder.stderr!.on("data", (chunk: string) => { holderStderr += chunk; });
+      const holderDone = new Promise<number | null>((resolve, reject) => {
+        holder.once("error", reject);
+        holder.once("exit", (code) => resolve(code));
+      });
+      try {
+        const code = await Promise.race([
+          writerDone,
+          sleep(20_000).then(() => "timeout" as const),
+        ]);
+        if (code === "timeout") {
+          writer.kill("SIGTERM");
+          throw new Error(`Race writer did not finish: ${writerStderr}`);
+        }
+        if (requireSuccess && code !== 0) {
+          throw new Error(`Race writer failed (${code}): ${writerStderr}`);
+        }
+        const holderCode = await Promise.race([
+          holderDone,
+          sleep(5_000).then(() => "timeout" as const),
+        ]);
+        if (holderCode === "timeout") {
+          throw new Error(`Release lock ${key} did not clear: ${holderStderr}`);
+        }
+        if (holderCode !== 0) {
+          throw new Error(`Release lock ${key} failed (${holderCode}): ${holderStderr}`);
+        }
+      } finally {
+        if (holder.exitCode === null) holder.kill("SIGTERM");
+        await Promise.race([holderDone.catch(() => undefined), sleep(2_000)]);
+      }
+    };
+    const writerState = () => session.sqlAsync(
+      `select coalesce(string_agg(
+         activity.state || '|' || coalesce(activity.wait_event_type, '') || '|' || coalesce(activity.wait_event, ''),
+         ','
+       ), '')
+       from pg_stat_activity activity
+       join pg_locks held on held.pid = activity.pid
+       where held.locktype = 'advisory' and held.classid = 0 and held.objid = ${barrierKey}
+         and held.objsubid = 1 and held.granted
+         and activity.pid <> pg_backend_pid()`,
+    );
     let readerCompleted = false;
     try {
-      await Promise.race([
-        ready,
-        sleep(10_000).then(() => { throw new Error("Race writer did not reach barrier."); }),
-      ]);
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        if (writer.exitCode !== null) {
+          throw new Error(`Race writer exited before barrier (${writer.exitCode}): ${writerStderr}`);
+        }
+        const row = await writerState();
+        if (row === "active|Timeout|PgSleep") break;
+        if (attempt === 199) throw new Error(`Race writer did not reach barrier (${row || "absent"}).`);
+        await sleep(50);
+      }
+      const held = await writerState();
+      if (!held.startsWith("active|")) {
+        throw new Error(`Race writer was ${held || "absent"} while holding the uncommitted mutation`);
+      }
       const stdout = await session.sqlAsync(
         `select case
           when pg_catalog.pg_try_advisory_lock(${barrierKey}::bigint) then '"barrier_missing"'
@@ -92,19 +186,11 @@ function snapshotDuringWriteOn(
       readerCompleted = true;
       return snapshot;
     } finally {
-      const exited = new Promise<number | null>((resolve) => writer.once("exit", resolve));
-      if (writer.exitCode === null) {
-        writer.stdin!.end(`${readerCompleted ? "commit" : "rollback"};\n\\q\n`);
-        await Promise.race([
-          exited,
-          sleep(10_000).then(() => {
-            writer.kill("SIGTERM");
-            throw new Error("Race writer did not commit.");
-          }),
-        ]);
-      }
-      if (writer.exitCode !== 0) {
-        throw new Error(`Race writer failed (${writer.exitCode}): ${writerError}`);
+      try {
+        await finishWriter(readerCompleted ? commitKey : rollbackKey, readerCompleted);
+      } catch (error) {
+        if (readerCompleted) throw error;
+        if (writer.exitCode === null) writer.kill("SIGTERM");
       }
     }
   };
@@ -798,14 +884,32 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
         ('${metadataFirstHost}','${metadataFirstPlan}','Host','${metadataFirstToken}','in',now(),now(),true)
     `);
 
+    // Each statement runs in its own psql process, so a fixed sleep cannot
+    // order them on a loaded host. The first session takes an advisory lock
+    // after its first call; the second waits for that lock, or for the first
+    // session's committed effect, before it makes its own call.
+    const afterFirstCall = (key: number, committed: string): string =>
+      `do $first_call$
+       begin
+         while not exists (
+           select 1 from pg_catalog.pg_locks
+           where locktype = 'advisory' and classid = 0 and objid = ${key}
+             and objsubid = 1 and granted and pid <> pg_catalog.pg_backend_pid()
+         ) and not exists (${committed}) loop
+           perform pg_catalog.pg_sleep(0.01);
+         end loop;
+       end
+       $first_call$;`;
+
     const conversionFirst = await db.concurrentResults([
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
        select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${conversionFirstPlan}','${conversionFirstToken}','private','metadata-race-key-01','${DIGEST_A}');
+       select pg_catalog.pg_advisory_xact_lock(7531101::bigint);
        select pg_sleep(0.5); commit;`,
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
-       select pg_sleep(0.2);
+       ${afterFirstCall(7531101, `select 1 from public.plans where id='${conversionFirstPlan}' and social_owner_account_id is not null`)}
        select public.update_legacy_plan_status_context_atomic('${conversionFirstPlan}','${conversionFirstToken}','active','{"nightArea":"Soho"}'::jsonb);
        commit;`,
     ]);
@@ -818,10 +922,11 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
        select public.update_legacy_plan_status_context_atomic('${metadataFirstPlan}','${metadataFirstToken}','active','{"nightArea":"Soho"}'::jsonb);
+       select pg_catalog.pg_advisory_xact_lock(7531102::bigint);
        select pg_sleep(0.5); commit;`,
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
-       select pg_sleep(0.2);
+       ${afterFirstCall(7531102, `select 1 from public.plans where id='${metadataFirstPlan}' and status='active'`)}
        select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${metadataFirstPlan}','${metadataFirstToken}','private','metadata-race-key-02','${DIGEST_A}');
        commit;`,
     ]);

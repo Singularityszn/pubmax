@@ -7,15 +7,7 @@ import {
   resolveClaims,
   type FactSource,
 } from "@/lib/factClaims";
-import {
-  buildPriceClaims,
-  conflictPrices,
-  priceFieldId,
-  priceStorySignals,
-  resolvePrice,
-  PRICE_CONFLICT_WINDOW_MS,
-} from "@/lib/priceFactClaims";
-import { priceConfidence, FRESH_WITHIN_DAYS } from "@/lib/priceConfidence";
+import { priceConfidence } from "@/lib/priceConfidence";
 
 const NOW = Date.UTC(2026, 6, 20, 20, 0, 0);
 const DAY = 86_400_000;
@@ -135,67 +127,6 @@ describe("conflict-window behaviour", () => {
   });
 });
 
-// THE VOUCH-UPGRADE PATH IS GONE (battle test L03). It used to sit here: an
-// anonymous, IP-keyed confirm rode into the signals as a third `community`
-// publisher, and one tap turned a lone scraped baseline from `single_source`
-// into `corroborated`. An IP is a household, a pub's own wifi and a mobile
-// carrier's NAT, so it could never prove two people, and "corroborated" is a
-// word this tree owns elsewhere with a much harder meaning: two authority keys
-// derived from two verified accounts. The generic claim model below still
-// corroborates across two REAL publishers; what left is the fake third one.
-
-describe("the retired vouch publisher", () => {
-  it("no longer rides into the story signals", () => {
-    const signals = priceStorySignals({ baselineGbp: 6.4, nowGbp: null });
-    expect(signals).toHaveLength(1);
-    expect(signals.every((signal) => signal.publisher !== "price-confirm")).toBe(true);
-  });
-
-  it("leaves a lone scraped baseline as the single source it is", () => {
-    const signals = priceStorySignals({ baselineGbp: 6.4, nowGbp: null });
-    const claims = buildPriceClaims(priceFieldId("venue-1"), signals);
-    expect(claims).toHaveLength(1);
-    expect(claims[0].verification).toBe("single_source");
-  });
-
-  it("still corroborates across two publishers that are really two", () => {
-    // The model is unchanged. Only the anonymous publisher is gone.
-    const claims = buildPriceClaims(FIELD, [
-      { gbp: 6.4, authority: "scraped", observedAt: 0, publisher: "dataset" },
-      { gbp: 6.4, authority: "community", observedAt: NOW, publisher: "community-report" },
-    ]);
-    expect(claims).toHaveLength(1);
-    expect(claims[0].verification).toBe("corroborated");
-  });
-});
-
-describe("honest-conflict render inputs — scrape 6.40 vs a dated community now price", () => {
-  it("surfaces both prices ascending when the community report is dated", () => {
-    const signals = priceStorySignals({
-      baselineGbp: 6.4,
-      nowGbp: 6.9,
-      nowObservedAt: NOW - DAY,
-    });
-    const res = resolvePrice(priceFieldId("venue-1"), signals, { now: NOW });
-    expect(res?.winner.value).toBe(6.4); // scraped serves by authority
-    expect(conflictPrices(res)).toEqual([6.4, 6.9]); // both exposed, never hidden
-  });
-
-  it("an UNDATED community now-price cannot fake liveness", () => {
-    // Absence of proof is not a conflict. This used to lean on a confirm
-    // timestamp; it leans on the observation's own date now, which is the only
-    // date anybody can check.
-    const signals = priceStorySignals({ baselineGbp: 6.4, nowGbp: 6.9 });
-    expect(
-      conflictPrices(resolvePrice(priceFieldId("venue-1"), signals, { now: NOW })),
-    ).toEqual([]);
-  });
-
-  it("the conflict window matches priceConfidence's fresh fortnight", () => {
-    expect(PRICE_CONFLICT_WINDOW_MS).toBe(FRESH_WITHIN_DAYS * DAY);
-  });
-});
-
 describe("adapter API stability — priceConfidence still answers { state, label }", () => {
   it("dates a recently observed price as fresh, and says nothing about it", () => {
     expect(priceConfidence({ priceObservedAt: NOW - DAY }, NOW)).toEqual({
@@ -208,14 +139,6 @@ describe("adapter API stability — priceConfidence still answers { state, label
     const out = priceConfidence({}, NOW);
     expect(out.state).toBe("stale");
     expect(out.label).toBe("worth a fresh look");
-  });
-
-  it("pennies equality collapses 6.4 and 6.40 to one claim", () => {
-    const claims = buildPriceClaims(FIELD, [
-      { gbp: 6.4, authority: "scraped", observedAt: 0 },
-      { gbp: 6.40, authority: "community", observedAt: NOW, publisher: "x" },
-    ]);
-    expect(claims).toHaveLength(1);
   });
 });
 

@@ -1,3 +1,6 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -21,12 +24,13 @@ import {
   uiUxAuditContextOptions,
   uiUxChromiumLaunchOptions,
 } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
-import { resolveAuditOutputRoot } from "../scripts/lib/uiUxBattleTestOutput.mjs";
+import { UI_UX_AUDIT_ROOT, resolveAuditOutputRoot } from "../scripts/lib/uiUxBattleTestOutput.mjs";
 
 test("audit output stays inside dedicated temporary root", () => {
-  expect(resolveAuditOutputRoot("after-dark")).toBe(
-    "/tmp/pubmax-ui-ux-battle-test/after-dark",
+  expect(UI_UX_AUDIT_ROOT).toBe(
+    join(tmpdir(), `pubmax-ui-ux-battle-test-${process.getuid?.() ?? process.pid}`),
   );
+  expect(resolveAuditOutputRoot("after-dark")).toBe(join(UI_UX_AUDIT_ROOT, "after-dark"));
   for (const unsafe of [".", "..", "../proof", "/tmp/proof"]) {
     expect(() => resolveAuditOutputRoot(unsafe)).toThrow(
       "UI_UX_OUTPUT must be one safe directory name",
@@ -438,6 +442,10 @@ test.describe("UI UX battle-test guardrails", () => {
       localStorage.removeItem("pubmaxx:analytics-consent:v1");
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      // The card waits until the product has answered
+      // (lib/consentAnswerMoment.ts). This case measures the Privacy link,
+      // so the answer that ends the wait is seeded.
+      sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
     });
     await page.goto("/today");
     const privacy = page.locator(".analyticsConsentPrompt a");
@@ -463,8 +471,18 @@ test.describe("UI UX battle-test guardrails", () => {
       await navigateToAuditedRoute(page, baseURL!, route);
 
       const result = await page.evaluate(() => {
+        const isClippedVisuallyHidden = (style: CSSStyleDeclaration) => {
+          if (style.overflow !== "hidden") return false;
+          const clipPath = style.clipPath;
+          if (clipPath === "inset(50%)" || clipPath.includes("inset(50%")) {
+            return true;
+          }
+          const clip = style.clip;
+          return clip.startsWith("rect(0") || clip === "rect(0px, 0px, 0px, 0px)";
+        };
         const visible = (element: Element) => {
           const style = getComputedStyle(element);
+          if (isClippedVisuallyHidden(style)) return false;
           const rect = element.getBoundingClientRect();
           return (
             style.display !== "none" &&

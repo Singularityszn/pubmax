@@ -114,7 +114,7 @@ function main() {
   lines.push("");
   lines.push("### Freshness caveat");
   lines.push("");
-  lines.push("`public/data/pint_prices_app_dataset.json` rows have no `observedAt`/date field, so a per-venue or per-borough \"freshest observation date\" cannot be computed from the shipped data. Dated provenance exists only at the snapshot level in `public/data/price_updates/prices_YYYYMMDD.json` (and the drink/food equivalents). Any future per-observation freshness needs a dated field carried through the export pipeline.");
+  lines.push("`public/data/pint_prices_app_dataset.json` rows carry `scraped_at_values`, the instant that row was last read. A per-venue date is that row's own read (`data/README.md`). Snapshot bundles under `public/data/price_updates/` sit beside those rows; they are not the only date the shipped data holds.");
   lines.push("");
   lines.push("### Worst 10 boroughs by priced-venue count (persona-hollow first)");
   lines.push("");

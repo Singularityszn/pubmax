@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Ellipsis, GlassWater, LocateFixed, LocateOff, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CitySwitcher from "@/components/map/CitySwitcher";
@@ -195,40 +195,6 @@ function MapChipRow({
   );
 }
 
-/**
- * Publish the phone chrome's MEASURED bottom edge, so a surface that has to
- * clear it reads a fact rather than the resting stack.
- *
- * `--mobile-map-chrome-full-h` is a published berth: one bar plus the docked
- * chip row. Rows come and go around it (a query chip, the search row), and the
- * first-visit strip anchored to the berth alone landed at y 120 with the chip
- * row's own bottom at 215, so "Pints" read through the strip. The toolbar
- * already publishes its own height this way (components/map/MapToolbar.tsx).
- */
-function usePublishedChromeHeight(): void {
-  useEffect(() => {
-    if (typeof ResizeObserver === "undefined") return;
-    const chrome = document.querySelector<HTMLElement>(".mobileMapChrome");
-    const shell = chrome?.closest<HTMLElement>(".appShell");
-    if (!chrome || !shell) return;
-    const publish = () => {
-      const box = chrome.getBoundingClientRect();
-      if (box.height <= 0) return;
-      shell.style.setProperty(
-        "--mobile-map-chrome-measured-h",
-        `${Math.round(box.bottom)}px`,
-      );
-    };
-    publish();
-    const observer = new ResizeObserver(publish);
-    observer.observe(chrome);
-    return () => {
-      observer.disconnect();
-      shell.style.removeProperty("--mobile-map-chrome-measured-h");
-    };
-  }, []);
-}
-
 export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
@@ -321,7 +287,6 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
    */
   sheetsEnabled?: boolean;
 }) {
-  usePublishedChromeHeight();
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.

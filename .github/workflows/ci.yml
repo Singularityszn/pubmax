@@ -32,10 +32,19 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - name: Checkout full diff
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
 
       - name: Check changed-file scope
         env:
@@ -49,18 +58,23 @@ jobs:
     timeout-minutes: 31
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       - name: Lint
         run: npm run lint
@@ -72,23 +86,28 @@ jobs:
 
   production-build:
     name: Production build
-    needs: [lint-and-types, freshness]
+    needs: [lint-and-types]
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 28
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       - name: Build
         env:
@@ -107,18 +126,23 @@ jobs:
         shard: [1, 2]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       # Fresh checkout: production-build does not upload data/generated, but
       # validate-data and venue route tests expect slim/detail artifacts.
@@ -142,6 +166,7 @@ jobs:
           --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
           --exclude '__tests__/accountRetentionLedgerMigrationEffective.test.ts'
           --exclude '__tests__/accountVisibilityMigrationEffective.test.ts'
+          --exclude '__tests__/browserRoleGrantFence.test.ts'
           --exclude '__tests__/drinkWallRlsMigrationEffective.test.ts'
           --exclude '__tests__/foundingMembersMigration.test.ts'
           --exclude '__tests__/groupMessageThreadsMigrationEffective.test.ts'
@@ -160,6 +185,7 @@ jobs:
           --exclude '__tests__/pintDropDailyCapAtomicEffective.test.ts'
           --exclude '__tests__/pintDropMeasureMigrationEffective.test.ts'
           --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/pintDropsTableDoorMigrationEffective.test.ts'
           --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
           --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
           --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
@@ -170,8 +196,10 @@ jobs:
           --exclude '__tests__/planSelectedDrinkEvidenceProposalMigrationEffective.test.ts'
           --exclude '__tests__/planSelectedDrinkEvidenceReplaceContextMigrationEffective.test.ts'
           --exclude '__tests__/planSelectedDrinkEvidenceReplaceMigrationEffective.test.ts'
+          --exclude '__tests__/postgresHarnessTimeouts.test.ts'
           --exclude '__tests__/postgresShmHarness.test.ts'
           --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
+          --exclude '__tests__/publicGrantSweepMigrationEffective.test.ts'
           --exclude '__tests__/publicWithdrawnProfilesMigrationEffective.test.ts'
           --exclude '__tests__/rateLimitExpiryMigration.test.ts'
           --exclude '__tests__/rlsWave2Session.test.ts'
@@ -192,16 +220,20 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
       - name: Enforce coverage
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
@@ -211,6 +243,7 @@ jobs:
           --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
           --exclude '__tests__/accountRetentionLedgerMigrationEffective.test.ts'
           --exclude '__tests__/accountVisibilityMigrationEffective.test.ts'
+          --exclude '__tests__/browserRoleGrantFence.test.ts'
           --exclude '__tests__/drinkWallRlsMigrationEffective.test.ts'
           --exclude '__tests__/foundingMembersMigration.test.ts'
           --exclude '__tests__/groupMessageThreadsMigrationEffective.test.ts'
@@ -229,6 +262,7 @@ jobs:
           --exclude '__tests__/pintDropDailyCapAtomicEffective.test.ts'
           --exclude '__tests__/pintDropMeasureMigrationEffective.test.ts'
           --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/pintDropsTableDoorMigrationEffective.test.ts'
           --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
           --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
           --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
@@ -239,8 +273,10 @@ jobs:
           --exclude '__tests__/planSelectedDrinkEvidenceProposalMigrationEffective.test.ts'
           --exclude '__tests__/planSelectedDrinkEvidenceReplaceContextMigrationEffective.test.ts'
           --exclude '__tests__/planSelectedDrinkEvidenceReplaceMigrationEffective.test.ts'
+          --exclude '__tests__/postgresHarnessTimeouts.test.ts'
           --exclude '__tests__/postgresShmHarness.test.ts'
           --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
+          --exclude '__tests__/publicGrantSweepMigrationEffective.test.ts'
           --exclude '__tests__/publicWithdrawnProfilesMigrationEffective.test.ts'
           --exclude '__tests__/rateLimitExpiryMigration.test.ts'
           --exclude '__tests__/rlsWave2Session.test.ts'
@@ -260,16 +296,20 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
       - name: Check every tracked feed
         run: |
           npm run check:freshness -- --artifacts-only

@@ -9,8 +9,9 @@
  * under the first-pint field (PlanAstra at 390).
  *
  * The visually-hidden idiom has no such dependency: a 1px clipped box is out
- * of sight wherever it is laid out, and the focused state restores real
- * geometry over the page. */
+ * of sight wherever it is laid out, and the focused state restores a real
+ * 44px target over the page. Tap-target audits exempt clipped controls.
+ */
 .skipLink {
   position: fixed;
   top: 0;
@@ -33,6 +34,8 @@
   z-index: 100000;
   width: auto;
   height: auto;
+  min-width: 44px;
+  min-height: 44px;
   margin: 8px;
   padding: 10px 16px;
   overflow: visible;

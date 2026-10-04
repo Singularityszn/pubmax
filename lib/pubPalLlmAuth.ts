@@ -1,7 +1,6 @@
-// Shared-secret gate for ElevenLabs Pub Pal webhooks (/api/pub-pal/tools/* and
-// legacy /api/pub-pal/llm).
-// Fail closed in production when the secret is unset; callers must present the same
-// value via Authorization Bearer or the dedicated header.
+// Shared-secret gate for ElevenLabs Pub Pal webhook tools (/api/pub-pal/tools/*).
+// Fails closed whenever the secret is unset. Callers present the same value via
+// Authorization Bearer or the dedicated header.
 
 import "server-only";
 
@@ -35,7 +34,7 @@ function readPubPalLlmSharedSecret(): string | null {
 }
 
 /**
- * Gate the Custom LLM route. Returns `null` when authorised, or a ready Response
+ * Gate a Pub Pal webhook. Returns `null` when authorised, or a ready Response
  * when the caller should be turned away.
  */
 export function assertPubPalLlmAuth(request: Request): Response | null {

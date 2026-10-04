@@ -1,8 +1,11 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { callerUserId } from "@/lib/authServer";
+import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -29,10 +32,6 @@ function normaliseTurns(raw: unknown): AskTurn[] {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!palVoiceConfigured()) {
-    return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
-  }
-
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   if (
     await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
@@ -60,10 +59,38 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
+  // Voice is optional. Keyless deploys still answer from the same grounded
+  // tools as /api/ask, and they never call OpenRouter.
+  if (!palVoiceConfigured()) {
+    try {
+      const answer = await runAsk({
+        query,
+        cityId: record.cityId,
+        turns: normaliseTurns(record.turns),
+        skipModel: true,
+        traceRoute: "api/pub-pal/chat",
+      });
+      return jsonNoStore(answer);
+    } catch (error) {
+      console.error("pub-pal-chat.unexpected_error", error);
+      return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+    }
+  }
+
+  const ownerId = await callerUserId(request);
+  if (!ownerId) {
+    return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
+  }
+
+  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
+  if (budgetRefusal) return budgetRefusal;
+
   const outcome = await runPalElevenLabsChatTurn({
     query,
     cityId: record.cityId,
-    turns: normaliseTurns(record.turns),
+    threadId: record.threadId,
+    fenceTurns: normaliseTurns(record.turns).filter((turn) => turn.role === "user"),
+    ownerId,
   });
 
   if (!outcome.ok) {

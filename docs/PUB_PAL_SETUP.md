@@ -1,8 +1,9 @@
 # Pub Pal setup: text now, voice when you switch it on
 
-Pub Pal typed chat and voice share one ElevenLabs agent in production. Map Ask
-still answers keylessly via `/api/ask`. Voice and `/pal/chat` need the four
-ElevenLabs values below and one script run.
+Pub Pal typed chat answers keylessly via `/api/pub-pal/chat` (the same grounded
+`runAsk` tools as map Ask, no OpenRouter). Voice and the hosted-LLM typed path
+share one ElevenLabs agent when the four values below are set and the agent
+script has run. Map Ask still answers keylessly via `/api/ask`.
 
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
@@ -14,10 +15,10 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | No | Same agent as voice in text-only mode via `/api/pub-pal/chat` |
+| `/pal/chat` text ask | Yes | `/api/pub-pal/chat` via deterministic `runAsk` when ElevenLabs is off; same agent as voice in text-only mode when it is on |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
-| Model tool selection | ElevenLabs | Hosted LLM on the agent picks webhook tools; no OpenRouter |
+| Model tool selection | Keyless regex | With ElevenLabs, the hosted LLM on the agent picks webhook tools; neither path calls OpenRouter |
 | Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
 | Voice | No | Needs the four ElevenLabs values below |
 
@@ -35,7 +36,7 @@ Variables → Production, Preview). All four are server-only.
 |---|---|
 | `ELEVENLABS_API_KEY` | Account key. Never reaches the browser: `/api/pub-pal/voice-token` mints a short-lived signed session URL instead |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
-| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/tools/{name}` (and the legacy `/api/pub-pal/llm` bridge if still wired). Generate with `openssl rand -hex 32` |
+| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/tools/{name}`. Generate with `openssl rand -hex 32` |
 | `ELEVENLABS_VOICE_ROBIN` … `_CORGI` | One voice id per species (`lib/palElevenLabsVoice.ts`). Create with `npm run pubpal:design-voices` |
 | `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The onboarding voice picks. When the slot for a Pal's pick is set it always wins; the species voice is used only when that slot is empty |
 
@@ -83,8 +84,10 @@ and PATCHes the agent plus workspace webhook tools. Each tool calls
 (stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`), waits up to
 28 seconds for a response (`response_timeout_secs` in the script; the route
 allows 30 seconds via `maxDuration`). Deploying the app alone does not change
-timeout or webhook body schema on an agent that already exists: re-run this
-script with `ELEVENLABS_PUB_PAL_AGENT_ID` set after changing those values.
+the system prompt, the override grants, a tool schema, or the timeout on an
+agent that already exists. The captain re-runs
+`npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those
+changes. Do not run that command from an agent session.
 Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Live
 proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
@@ -106,9 +109,11 @@ was created before session voice overrides were enabled. Re-run
 `true` on that agent.
 
 If the UI shows **Failed to load the rawAudioProcessor worklet module** (or the
-session never reaches "Pal is listening" after metadata), the page CSP is
-blocking ElevenLabs AudioWorklet scripts. Production CSP must include `blob:`
-and `data:` in `script-src` (see `proxy.ts`).
+session never reaches "Pal is listening" after metadata), the same-origin
+AudioWorklet files were not copied. `npm run prepare:maplibre-worker` (the first
+step of `npm run dev` and `npm run build`) writes them to `public/vendor/elevenlabs/`, and the voice session
+passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
+`blob:` or `data:` back into `script-src`.
 
 ---
 

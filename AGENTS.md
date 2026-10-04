@@ -23,7 +23,7 @@ its detail file and keep the area file's title line in step, never in this file.
 | [`lib/AGENTS.md`](lib/AGENTS.md) | The policy leaves, the closed vocabularies and the stores. |
 | [`lib/harvest/AGENTS.md`](lib/harvest/AGENTS.md) | Pointer to scripts/AGENTS.md, which owns the harvest rules. |
 | [`__tests__/AGENTS.md`](__tests__/AGENTS.md) | The unit suite: the PostgreSQL harness, jsdom and the launch fences. |
-| [`e2e/AGENTS.md`](e2e/AGENTS.md) | The Playwright suite: the server it drives and the idioms that stop a spec lying. |
+| [`e2e/AGENTS.md`](e2e/AGENTS.md) | Driving the app in a browser: evidence shots and page checks (`npm run e2e:cli`), a private-port server, and the Playwright suite. |
 | [`scripts/AGENTS.md`](scripts/AGENTS.md) | The CLIs: harvest, builders, quality gates and deploys. |
 | [`supabase/AGENTS.md`](supabase/AGENTS.md) | Migration labels, rollbacks, RLS and the permission matrix. |
 | [`ios/AGENTS.md`](ios/AGENTS.md) | The Capacitor shell seams and the iOS capabilities. |
@@ -61,8 +61,8 @@ tree is named here, and this file stays under 12 KB.
 - **Runs keyless.** `npm run dev` works with no secrets: Pint Drops use an in-memory store and `/api/heritage` returns grounded structured-only answers. Supabase and `OPENROUTER_API_KEY` in `.env.local` are only needed for durable persistence, browser auth, admin moderation and narrated heritage replies. See `.env.example`.
 - **Standard commands** live in `package.json` scripts and `README.md`. `npm run verify` is the pre-push gate; `npm run ci` is verify plus build.
 - **Pre-push hook** (`.githooks/pre-push`) runs `npm run verify`, but only after `npm run setup` sets `core.hooksPath=.githooks`; it is not enabled in a fresh clone.
-- **Do not commit tooling churn.** `next dev` rewrites `next-env.d.ts`'s route-types import to the dev path and `npm install-scripts approve` adds an `allowScripts` block to `package.json`. Both are local artifacts of running the app, not changes: `git checkout --` them before committing.
-- **Shared-worktree build gotcha:** a concurrent `next dev` and `next build` can clobber `.next` mid-build and leave `BUILD_ID` missing, so the `prestart` guard refuses to `next start`. For isolated production QA, build and serve with `NEXT_DIST_DIR=.next-prod`.
+- **Do not commit tooling churn.** `next dev` rewrites `next-env.d.ts`'s route-types import to the dev path, a local artifact of running the app: `git checkout --` it before committing. The `allowScripts` block in `package.json` is committed policy, and `npm install-scripts approve` rewrites it; change a row only with its reason in `scripts/ci/install-script-allowlist.mjs`.
+- **Shared-worktree build gotcha:** a concurrent `next dev` and `next build` can clobber `.next` mid-build and leave `BUILD_ID` missing, so the guard at the head of `npm run start` refuses to `next start`. For isolated production QA, build and serve with `NEXT_DIST_DIR=.next-prod`.
 
 ### Anti-goals
 

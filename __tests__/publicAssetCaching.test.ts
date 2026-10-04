@@ -110,7 +110,12 @@ const BUILD_WRITTEN_FIXED_URLS = [
   {
     prefix: "/vendor/maplibre/",
     probe: "/vendor/maplibre/maplibre-gl-worker.mjs",
-    reason: "prebuild overwrites fixed MapLibre worker module URLs",
+    reason: "npm run build overwrites fixed MapLibre worker module URLs",
+  },
+  {
+    prefix: "/vendor/elevenlabs/",
+    probe: "/vendor/elevenlabs/raw-audio-processor.js",
+    reason: "npm run build overwrites fixed ElevenLabs AudioWorklet URLs",
   },
   {
     prefix: "/store-assets/png/",

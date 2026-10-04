@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
 
+import { haversineMeters } from "@/lib/greatCircle.mjs";
 import { haversineKm } from "@/lib/haversine";
-import { haversineKm as scriptHaversineKm } from "@/scripts/lib/geo.mjs";
+import {
+  haversineKm as scriptHaversineKm,
+  haversineMeters as scriptHaversineMeters,
+} from "@/scripts/lib/geo.mjs";
+
+// London to Edinburgh, pinned when the two old formulas still agreed.
+const LONDON_EDINBURGH_METRES = 533_652.20033900486;
 
 // The single shared great-circle helper. All map "nearest" features depend on it,
 // so pin its behaviour: zero for a point on itself, symmetric, ~111 km per degree
@@ -31,13 +38,19 @@ describe("haversineKm", () => {
     expect(d).toBeLessThan(3.6);
   });
 
-  it("matches the script distance for the same longitude-first points", () => {
-    const london: [number, number] = [-0.1278, 51.5074];
-    const edinburgh: [number, number] = [-3.1883, 55.9533];
+  it("pins one London to Edinburgh result through the master and both adapters", () => {
+    const londonLat = 51.5074;
+    const londonLng = -0.1278;
+    const edinburghLat = 55.9533;
+    const edinburghLng = -3.1883;
 
-    expect(haversineKm(london, edinburgh)).toBe(
-      scriptHaversineKm(london[1], london[0], edinburgh[1], edinburgh[0]),
-    );
+    // samePubIdentity and the scripts call the module with latitude first.
+    const metres = haversineMeters(londonLat, londonLng, edinburghLat, edinburghLng);
+    expect(metres).toBe(LONDON_EDINBURGH_METRES);
+    expect(scriptHaversineMeters(londonLat, londonLng, edinburghLat, edinburghLng)).toBe(metres);
+    expect(scriptHaversineKm(londonLat, londonLng, edinburghLat, edinburghLng)).toBe(metres / 1_000);
+    // nearestVenueIds calls the tuple adapter with GeoJSON [lng, lat] order.
+    expect(haversineKm([londonLng, londonLat], [edinburghLng, edinburghLat])).toBe(metres / 1_000);
   });
 
   it("returns a finite half-circumference for antipodal polar points", () => {

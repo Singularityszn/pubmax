@@ -31,6 +31,7 @@ import {
   readLastTrainDestination,
   writeLastTrainDestination,
 } from "@/lib/lastTrainDestination";
+import { safeSessionStorage } from "@/lib/safeStorage";
 import { nearestStaticStation } from "@/lib/staticStations";
 import {
   buildLastPintShareText,
@@ -221,8 +222,7 @@ async function dispatchCrewShare(shareText: string): Promise<CrewShareOutcome> {
 }
 
 function readSessionDestination(): string {
-  if (typeof window === "undefined") return "";
-  return readLastTrainDestination(window.sessionStorage);
+  return readLastTrainDestination(safeSessionStorage());
 }
 
 // Friction-sweep follow-up 7: when the live check fails entirely, the card
@@ -347,10 +347,7 @@ export default function LastTrainCard({
   const displayState = currentLastTrainState(state, requestKey);
 
   function saveDestination(raw: string) {
-    const next =
-      typeof window === "undefined"
-        ? raw.trim()
-        : writeLastTrainDestination(raw, window.sessionStorage);
+    const next = writeLastTrainDestination(raw, safeSessionStorage());
     setDestination(next);
     setDestinationDraft(next);
     setEditingDestination(false);

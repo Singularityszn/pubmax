@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { isFoodCategory } from "@/lib/food";
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
-import { assertCurrentFamousVenueRows } from "@/scripts/build_slim_index.mjs";
+import { famousRowsForRebuild } from "@/scripts/build_slim_index.mjs";
+import { applyVerification } from "@/scripts/verify_famous_venues.mjs";
+import { famousSeedLapsedAt } from "./helpers/currentFamousVenues";
 import { normalizeVenueName } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -170,21 +172,158 @@ describe("famous venue seeds", () => {
     }
   });
 
-  it("withholds expired famous venues from slim instead of failing the build", () => {
-    const rows = PACKS.flatMap(([file]) => loadSeed(file));
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-09-25T12:00:00.000Z")),
-    ).toHaveLength(71);
-    vi.restoreAllMocks();
-    const logs: string[] = [];
-    const spy = vi.spyOn(console, "log").mockImplementation((...args) => {
-      logs.push(args.map(String).join(" "));
+  describe("slim rebuild", () => {
+    type SlimPayload = { generatedAt: string; rows: { id: string; kind: string }[] };
+    const committedSlim = (): SlimPayload =>
+      JSON.parse(
+        readFileSync(path.join(ROOT, "public", "data", "venues_slim.json"), "utf8"),
+      ) as SlimPayload;
+    const shippedFamousIds = (payload: SlimPayload) =>
+      payload.rows
+        .filter((row) => ["bar", "food", "restaurant"].includes(row.kind))
+        .map((row) => row.id)
+        .sort();
+    const keptIds = (result: { rows: { id: string }[] }) =>
+      result.rows.map((row) => row.id).sort();
+    const seedRows = () => PACKS.flatMap(([file]) => loadSeed(file));
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
     });
-    expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-10-25T00:00:00.000Z")),
-    ).toHaveLength(0);
-    expect(logs.join("\n")).toMatch(/withholding 88 famous venue/);
-    spy.mockRestore();
+
+    it("rebuilds at the committed stamp, so a build after the seed lapses stays green", () => {
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      expect(shippedFamousIds(lastSlim).length).toBeGreaterThan(0);
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(famousSeedLapsedAt().getTime() + 7 * 24 * 3_600_000));
+      const result = famousRowsForRebuild(seedRows(), {
+        lastSlim,
+        removedIds: [],
+        refreshAt: null,
+      });
+      expect(result.builtAt.toISOString()).toBe(lastSlim.generatedAt);
+      expect(keptIds(result)).toEqual(shippedFamousIds(lastSlim));
+    });
+
+    it("refuses a refresh that drops famous venues the last index shipped", () => {
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const lapsedAt = famousSeedLapsedAt();
+      expect(() =>
+        famousRowsForRebuild(seedRows(), {
+          lastSlim: committedSlim(),
+          removedIds: [],
+          refreshAt: lapsedAt,
+        }),
+      ).toThrow(/slim rebuild would drop famous venue/);
+      expect(() =>
+        famousRowsForRebuild(seedRows(), {
+          lastSlim: { generatedAt: committedSlim().generatedAt, rows: [] },
+          removedIds: [],
+          refreshAt: lapsedAt,
+        }),
+      ).toThrow(/slim rebuild would keep 0 famous venues/);
+    });
+
+    it("points a build after a seed re-verification at refresh:slim, and the refresh keeps every venue", () => {
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const verifiedDay = "2026-10-05";
+      const reverified = [
+        ...applyVerification(
+          new Map(PACKS.map(([file]) => [file, loadSeed(file)])),
+          seedRows().map((row) => ({ id: row.id, outcome: "confirmed" as const })),
+          verifiedDay,
+        ).values(),
+      ].flat() as FamousVenueRow[];
+      expect(() =>
+        famousRowsForRebuild(reverified, { lastSlim, removedIds: [], refreshAt: null }),
+      ).toThrow(
+        `observed after the committed stamp ${lastSlim.generatedAt}: ${reverified.map((row) => row.id).join(", ")}; the seed was re-verified or added after the committed stamp; run npm run refresh:slim`,
+      );
+      const refreshed = famousRowsForRebuild(reverified, {
+        lastSlim,
+        removedIds: [],
+        refreshAt: new Date(`${verifiedDay}T12:00:00.000Z`),
+      });
+      expect(keptIds(refreshed)).toEqual(reverified.map((row) => row.id).sort());
+      expect(() =>
+        famousRowsForRebuild(seedRows(), {
+          lastSlim,
+          removedIds: [],
+          refreshAt: famousSeedLapsedAt(),
+        }),
+      ).not.toThrow(/refresh:slim/);
+    });
+
+    it("fails a build after a famous seed row is added, naming refresh:slim instead of withholding it", () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const [template] = seedRows();
+      const stampMs = Date.parse(lastSlim.generatedAt);
+      const dayMs = 24 * 60 * 60 * 1000;
+      const observedAt = new Date(stampMs + dayMs).toISOString().slice(0, 10);
+      const expiresAt = new Date(stampMs + 31 * dayMs).toISOString().slice(0, 10);
+      const added = {
+        ...template,
+        id: `${template.id}-added`,
+        observedAt,
+        expiresAt,
+      };
+      const seed = [...seedRows(), added];
+      expect(() =>
+        famousRowsForRebuild(seed, { lastSlim, removedIds: [], refreshAt: null }),
+      ).toThrow(
+        new RegExp(`${added.id}; the seed was re-verified or added after the committed stamp; run npm run refresh:slim, then commit the slim`),
+      );
+      expect(log).not.toHaveBeenCalled();
+      const refreshed = famousRowsForRebuild(seed, {
+        lastSlim,
+        removedIds: [],
+        refreshAt: new Date(`${observedAt}T12:00:00.000Z`),
+      });
+      expect(keptIds(refreshed)).toContain(added.id);
+    });
+
+    it("refuses a build-time rebuild with no committed stamp to rebuild at", () => {
+      expect(() =>
+        famousRowsForRebuild(seedRows(), { lastSlim: null, removedIds: [], refreshAt: null }),
+      ).toThrow(/refresh:slim/);
+    });
+
+    it("lets a venue named in removed.json leave the seed and keeps the guard for the rest", () => {
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const [gone, other] = shippedFamousIds(lastSlim);
+      const seed = seedRows().filter((row) => row.id !== gone && row.id !== other);
+      expect(() =>
+        famousRowsForRebuild(seed, { lastSlim, removedIds: [gone], refreshAt: null }),
+      ).toThrow(new RegExp(`not in data/famous_venues/removed.json: ${other}$`));
+      const result = famousRowsForRebuild(
+        seedRows().filter((row) => row.id !== gone),
+        { lastSlim, removedIds: [gone], refreshAt: null },
+      );
+      expect(keptIds(result)).toEqual(shippedFamousIds(lastSlim).filter((id) => id !== gone));
+      expect(() =>
+        famousRowsForRebuild(seedRows(), {
+          lastSlim,
+          removedIds: shippedFamousIds(lastSlim),
+          refreshAt: famousSeedLapsedAt(),
+        }),
+      ).toThrow(/not current at/);
+    });
+
+    it("names in removed.json only venues that have left the seed", () => {
+      const removed = JSON.parse(
+        readFileSync(path.join(ROOT, "data", "famous_venues", "removed.json"), "utf8"),
+      ) as unknown[];
+      expect(Array.isArray(removed)).toBe(true);
+      const seedIds = new Set(seedRows().map((row) => row.id));
+      for (const id of removed) {
+        expect(typeof id).toBe("string");
+        expect(seedIds.has(id as string), String(id)).toBe(false);
+      }
+    });
   });
 });

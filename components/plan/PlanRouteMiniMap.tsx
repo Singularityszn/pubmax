@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   lineCoordsFromFeatureCollection,
@@ -78,7 +78,7 @@ export default function PlanRouteMiniMap({
   stops: PlanCrawlRouteStop[];
   mapHref?: string | null;
 }) {
-  const router = useRouter();
+  const attributionSlotRef = useRef<HTMLDivElement | null>(null);
   const [resolved, setResolved] = useState<ResolvedPlanCrawlRoute | null>(null);
   const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [drawn, setDrawn] = useState<DrawnRoute | null>(null);
@@ -155,28 +155,9 @@ export default function PlanRouteMiniMap({
     : `Route map: ${count} stops`;
   const description = `Walking route between ${activeResolved.names.join(", ")}.`;
 
-  return (
-    <figure
-      className={`planRouteMiniMap planRouteMiniMap--in${mapHref ? " planRouteMiniMap--clickable" : ""}`} data-source={activeDrawn.source}
-      onClick={
-        mapHref
-          ? () => {
-              router.push(mapHref);
-            }
-          : undefined
-      }
-      onKeyDown={
-        mapHref
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                router.push(mapHref);
-              }
-            }
-          : undefined
-      }
-      tabIndex={mapHref ? 0 : undefined}
- role={mapHref ? "button" : "group"} aria-labelledby={`${titleId} ${descId}`}>
+  const labelledBy = `${titleId} ${descId}`;
+  const preview = (
+    <>
       <p id={titleId} className="planRouteMiniMap__title">
         {title}
       </p>
@@ -188,7 +169,25 @@ export default function PlanRouteMiniMap({
         routeLine={geo.routeLine}
         routeStops={geo.routeStops}
         lineCoords={activeDrawn.line}
+        attributionSlotRef={attributionSlotRef}
       />
-    </figure>
+    </>
+  );
+
+  return (
+    <div className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
+      {mapHref ? (
+        <Link className="planRouteMiniMap--clickable" href={mapHref} prefetch={false} aria-labelledby={labelledBy}>
+          {preview}
+        </Link>
+      ) : (
+        <div role="group" aria-labelledby={labelledBy}>
+          {preview}
+        </div>
+      )}
+      {/* MapLibre's credit button cannot sit inside this link or inside the
+          aria-hidden canvas: either one is a nested or hidden control. */}
+      <div ref={attributionSlotRef} className="planRouteMiniMap__attrib" />
+    </div>
   );
 }

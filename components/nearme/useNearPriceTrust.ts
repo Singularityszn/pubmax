@@ -40,12 +40,13 @@ function isNearPriceTrustResponse(value: unknown): value is NearPriceTrustRespon
       (item) =>
         item &&
         typeof item === "object" &&
-        Object.keys(item).length === 3 &&
-        ["venueId", "price", "publisher"].every((key) => Object.hasOwn(item, key)) &&
+        Object.keys(item).length === 4 &&
+        ["venueId", "price", "publisher", "observedAt"].every((key) => Object.hasOwn(item, key)) &&
         typeof item.venueId === "string" &&
         typeof item.price === "number" &&
         Number.isFinite(item.price) &&
-        (item.publisher === null || typeof item.publisher === "string"),
+        (item.publisher === null || typeof item.publisher === "string") &&
+        (item.observedAt === null || typeof item.observedAt === "string"),
     )
   );
 }

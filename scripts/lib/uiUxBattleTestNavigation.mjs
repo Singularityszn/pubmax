@@ -18,8 +18,10 @@ export const AUDITED_ROUTES = [
   {
     name: "tonight",
     path: "/tonight",
+    // A settled night is a terminal listings status plus the control that
+    // night paints. Not-configured stays empty and keeps the map link.
     readySelector:
-      '[data-testid="tonight-screen"][data-listings-status="ready"]:has(.tonightFootLink), [data-testid="tonight-screen"][data-listings-status="empty"]:has(.tonightStatusLink), [data-testid="tonight-screen"][data-listings-status="error"]:has(.tonightStatusError .tonightRetry), [data-testid="tonight-screen"]:not([data-listings-status]):has(.tonightFootLink, .tonightStatusLink, .tonightStatusError .tonightRetry)',
+      '[data-testid="tonight-screen"][data-listings-status="ready"]:has(.tonightFootLink), [data-testid="tonight-screen"][data-listings-status="empty"]:has(.tonightFootLink, .tonightStatusLink), [data-testid="tonight-screen"][data-listings-status="error"]:has(.tonightStatusError .tonightRetry, .tonightFootLink), [data-testid="tonight-screen"]:not([data-listings-status]):has(.tonightFootLink, .tonightStatusLink, .tonightStatusError .tonightRetry)',
     pendingSelectors: ["[data-testid='listings-skeleton']"],
     waitForAuthResolution: true,
   },

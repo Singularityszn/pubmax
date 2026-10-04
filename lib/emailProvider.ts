@@ -25,6 +25,7 @@
 // That transport is intentionally NOT implemented here.
 
 import type { DeliveryStatus } from "@/lib/deliveryStatus";
+import { isEmailProviderConfigured } from "@/lib/emailProviderConfigured.mjs";
 
 /** A single email, provider-agnostic. Rendered HTML + a plain-text alternative
  *  (both required — every message ships a text/plain part for deliverability and
@@ -61,10 +62,12 @@ export interface EmailProvider {
   send(messages: readonly EmailMessage[]): Promise<PerMessageResult[]>;
 }
 
-/** The env keys the real Resend sender needs. Both must be present to go live —
- *  an API key with no verified From address cannot deliver. */
+/** The env keys the real Resend sender needs. Both must be present to go live.
+ *  An API key with no verified From address cannot deliver. The boolean lives
+ *  in lib/emailProviderConfigured.mjs so the digest script calls the same
+ *  check without importing this TypeScript module. */
 export function isResendConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+  return isEmailProviderConfigured();
 }
 
 /**

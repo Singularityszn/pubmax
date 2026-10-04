@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 test.use({ viewport: { width: 390, height: 844 } });
+
+const SHOTS = runnerShotDir("pubmax-wanted-wave-a");
 
 test.describe("Wanted Wave A phone chrome", () => {
   test.beforeEach(async ({ page }) => {
@@ -34,7 +38,7 @@ test.describe("Wanted Wave A phone chrome", () => {
       await expect(page.getByText(/Sign in to keep a Wanted list/i)).toBeVisible();
     }
     await page.screenshot({
-      path: path.join("/tmp", "wanted-wave-a-you-390.png"),
+      path: path.join(SHOTS, "wanted-wave-a-you-390.png"),
       fullPage: true,
     });
   });
@@ -61,7 +65,7 @@ test.describe("Wanted Wave A phone chrome", () => {
     await page.waitForTimeout(500);
     expect(wantedReads).toEqual([]);
     await page.screenshot({
-      path: path.join("/tmp", "wanted-wave-a-plan-390.png"),
+      path: path.join(SHOTS, "wanted-wave-a-plan-390.png"),
       fullPage: true,
     });
   });

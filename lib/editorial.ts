@@ -10,6 +10,7 @@ import {
   storedEditorialItem,
   type EditorialItem,
 } from "@/lib/editorialRss.mjs";
+import { isHttpUrl } from "@/lib/httpUrl";
 
 export const EDITORIAL_RAIL_TITLE = "Also this week";
 export const EDITORIAL_EMPTY_LINE = "No picks this week.";
@@ -111,22 +112,12 @@ function isIso(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
-function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function readItem(value: unknown): EditorialItem | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
   if (typeof row.source_id !== "string" || row.source_id.trim().length === 0) return null;
   if (typeof row.title !== "string" || row.title.trim().length === 0) return null;
-  if (!isHttpUrl(row.canonical_url)) return null;
+  if (!isHttpUrl(row.canonical_url, { allowWhitespace: true })) return null;
   if (!isIso(row.published_at)) return null;
   if (typeof row.excerpt !== "string") return null;
   if (typeof row.attribution_label !== "string" || row.attribution_label.trim().length === 0) {

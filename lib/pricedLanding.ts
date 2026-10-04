@@ -23,6 +23,8 @@ export type PricedLandingRow = {
   pintName: string;
   priceGbp: number;
   publisher: PricedLandingPublisher | null;
+  /** The instant this row's price was last read at its source. Absent or null when it records none. */
+  observedAt?: string | null;
 };
 
 /** A candidate row before ranking. Rank is assigned by this module alone. */

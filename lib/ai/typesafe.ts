@@ -2,8 +2,7 @@
 //
 // `lib/ai/typesafe.server.ts` is the APP door: `server-only`, the `typesafe`
 // paid-spend lane and route observability. `server-only` makes it unimportable
-// from a plain Node CLI, so the offline judged passes import THIS module -
-// the same split as `lib/contextDev.ts` beside `lib/contextDev.server.ts`.
+// from a plain Node CLI, so the offline judged passes import THIS module.
 //
 // What it must NOT become is a second policy. The retry rule, the wall-clock
 // deadline and the base URL below are the server door's, written out again

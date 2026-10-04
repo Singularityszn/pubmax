@@ -620,11 +620,6 @@ describe("no surface puts the raw accent back on a light word", () => {
   // surface their ink lands on is an ancestor's decision.
   const HOLD_TO_INK: ReadonlyArray<readonly [file: string, selector: string]> = [
     ["components/ui/kicker.css", ".kicker {"],
-    ["components/city/cityChooser.css", ".cityChooser--section .cityChooserLocate {"],
-    [
-      "components/city/cityChooser.css",
-      ".cityChooser--section .cityChooserReleaseBadge {",
-    ],
     ["components/map/venueOccupancy.css", ".venueOccupancySignIn a {"],
     ["components/plan/nightCrawl.css", ".nightCrawl__enterKicker {"],
   ];
@@ -637,8 +632,7 @@ describe("no surface puts the raw accent back on a light word", () => {
       const block = css.slice(start);
       const declaration = block.slice(0, block.indexOf("}"));
       // The accent's ink, or the page's own ink: either is a word that is
-      // not the raw coral. The city chooser's locate control moved to the
-      // plain pill the landing answer card wears, whose label is --color-text.
+      // not the raw coral.
       expect(
         declaration,
         `${selector} in ${file} paints its text with var(--color-accent-ink) or var(--color-text)`,

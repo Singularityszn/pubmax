@@ -23,6 +23,8 @@ import {
   isClerkMiddlewareConfigured,
 } from "@/lib/clerkIdentity";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
+import { GET as readPubPal } from "@/app/api/pub-pal/route";
+import { GET as readVersion } from "@/app/api/version/route";
 import { CDN_CACHED_DOCUMENT_PATHS, config, securityProxy } from "@/proxy";
 
 /**
@@ -221,6 +223,27 @@ describe("the CSP the proxy actually ships", () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
   });
 
+  it("never admits data: or blob: into script-src", () => {
+    const paths = ["/", "/map", "/tonight", "/today", "/near", "/login", "/pal"];
+    const sourcesFor = (path: string) =>
+      (directive(policyFor(path), "script-src") ?? "").split(/\s+/).slice(1);
+    for (const path of paths) {
+      expect(sourcesFor(path), path).not.toContain("data:");
+      expect(sourcesFor(path), path).not.toContain("blob:");
+    }
+    vi.stubEnv("NODE_ENV", "development");
+    try {
+      for (const path of paths) {
+        const sources = sourcesFor(path);
+        expect(sources, `development ${path}`).not.toContain("data:");
+        expect(sources, `development ${path}`).not.toContain("blob:");
+      }
+      expect(directive(policyFor("/login"), "script-src")).toContain("'unsafe-eval'");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("keeps object-src, base-uri and frame-ancestors locked down", () => {
     const policy = policyFor();
     expect(directive(policy, "object-src")).toBe("object-src 'none'");
@@ -402,8 +425,8 @@ describe("the CSP once a Clerk key is configured", () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
     // The pre-existing sources are still there.
     expect(scriptSrc).toContain("'self'");
-    expect(scriptSrc).toContain("blob:");
-    expect(scriptSrc).toContain("data:");
+    expect(scriptSrc.split(/\s+/).slice(1)).not.toContain("blob:");
+    expect(scriptSrc.split(/\s+/).slice(1)).not.toContain("data:");
     expect(scriptSrc).toContain("https://va.vercel-scripts.com");
   });
 
@@ -579,7 +602,7 @@ describe("the middleware gate needs BOTH keys", () => {
     expect(response.headers.get("Content-Security-Policy")).toContain("script-src");
   });
 
-  it("keeps preview Social APIs on the plain security proxy", async () => {
+  it("sends every /api caller straight to the security proxy", async () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
     vi.resetModules();
@@ -593,16 +616,45 @@ describe("the middleware gate needs BOTH keys", () => {
 
     try {
       const mod = await import("@/proxy");
-      const response = await mod.proxy(
-        new NextRequest(
-          "https://pubmax-preview.vercel.app/api/social/access",
-          { headers: { host: "pubmax-preview.vercel.app" } },
-        ),
-        {} as NextFetchEvent,
-      );
+      const event = {} as NextFetchEvent;
+      const urls = [
+        "https://pubmax-preview.vercel.app/api/social/access",
+        "https://pubmax-preview.vercel.app/api/price-submit",
+        "https://pubmax-preview.vercel.app/api/cron/refresh-night-signals",
+        "https://pubmaxxing.com/api/pub-pal",
+        "https://pubmaxxing.com/api/version",
+        "https://pubmaxxing.com/api",
+      ];
+      for (const url of urls) {
+        const response = await mod.proxy(
+          new NextRequest(url, {
+            headers: {
+              host: new URL(url).host,
+              accept: "text/html",
+              "sec-fetch-dest": "document",
+            },
+          }),
+          event,
+        );
+        if (!(response instanceof Response)) throw new Error("proxy returned no response");
+        expect(response.status, url).toBe(200);
+        expect(response.headers.get("location"), url).toBeNull();
+        expect(response.headers.get("x-middleware-next"), url).toBe("1");
+        expect(response.headers.get("X-Robots-Tag"), url).toBe("noindex, nofollow");
+        expect(response.headers.get("Content-Security-Policy"), url).toBeNull();
+        expect(response.headers.get("Access-Control-Allow-Origin"), url).toBeNull();
+        expect(response.headers.get("Access-Control-Allow-Credentials"), url).toBeNull();
+      }
 
-      if (!(response instanceof Response)) throw new Error("proxy returned no response");
-      expect(response.status).toBe(200);
+      const slashed = await mod.proxy(
+        new NextRequest("https://pubmaxxing.com/api/price-submit/", {
+          headers: { host: "pubmaxxing.com" },
+        }),
+        event,
+      );
+      if (!(slashed instanceof Response)) throw new Error("proxy returned no response");
+      expect(slashed.status).toBe(308);
+      expect(slashed.headers.get("location")).toBe("https://pubmaxxing.com/api/price-submit");
       expect(clerkProxy).not.toHaveBeenCalled();
     } finally {
       vi.doUnmock("@clerk/nextjs/server");
@@ -633,6 +685,10 @@ describe("the middleware gate needs BOTH keys", () => {
         new NextRequest("https://pubmaxxing.com/login"),
         event,
       );
+      const ingestResponse = await mod.proxy(
+        new NextRequest("https://pubmaxxing.com/ingest/e"),
+        event,
+      );
 
       if (!(clerkResponse instanceof Response)) {
         throw new Error("Clerk proxy returned no response");
@@ -640,12 +696,16 @@ describe("the middleware gate needs BOTH keys", () => {
       if (!(documentResponse instanceof Response)) {
         throw new Error("document proxy returned no response");
       }
+      if (!(ingestResponse instanceof Response)) {
+        throw new Error("ingest proxy returned no response");
+      }
       expect(clerkResponse.status).toBe(418);
       expect(documentResponse.status).toBe(418);
-      expect(clerkProxy).toHaveBeenCalledTimes(2);
+      expect(ingestResponse.status).toBe(418);
+      expect(clerkProxy).toHaveBeenCalledTimes(3);
       expect(
         clerkProxy.mock.calls.map(([request]) => request.nextUrl.pathname),
-      ).toEqual(["/__clerk/v1/environment", "/login"]);
+      ).toEqual(["/__clerk/v1/environment", "/login", "/ingest/e"]);
     } finally {
       vi.doUnmock("@clerk/nextjs/server");
       vi.resetModules();
@@ -654,7 +714,7 @@ describe("the middleware gate needs BOTH keys", () => {
 });
 
 describe("the proxy export Next.js actually runs", () => {
-  it("leaves Supabase-authoritative Social APIs outside Clerk middleware", () => {
+  it("still runs the proxy on every /api route", () => {
     expect(config.matcher).toContainEqual({ source: "/api/:path*" });
     expect(
       unstable_doesMiddlewareMatch({
@@ -684,5 +744,29 @@ describe("the proxy export Next.js actually runs", () => {
     expect(
       unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/map" }),
     ).toBe(true);
+  });
+});
+
+describe("API auth and public headers survive the Clerk narrowing", () => {
+  it("rejects an anonymous call to a route that requires a session", async () => {
+    const response = await readPubPal(new Request("https://pubmaxxing.com/api/pub-pal"));
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({ code: "AUTH_REQUIRED" });
+    expect(response.headers.get("Cache-Control")).toContain("no-store");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
+  it("keeps the public version response headers, including the absence of CORS", () => {
+    vi.stubEnv("CRON_SECRET", "cron-secret-not-sent-by-the-caller");
+    const response = readVersion(new Request("https://pubmaxxing.com/api/version"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe(
+      "no-store, no-cache, must-revalidate, max-age=0",
+    );
+    expect(response.headers.get("CDN-Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
   });
 });

@@ -29,13 +29,13 @@ async function dismissVenueIndexRetryIfPresent(page: Page): Promise<void> {
     .filter({ hasText: /pub list/i })
     .getByRole("button", { name: "Retry" });
   if (!(await retry.isVisible().catch(() => false))) return;
-  await retry.evaluate((node) => (node as HTMLElement).click());
+  await retry.click();
   await expect(page.getByText(/pub list (hasn't|still hasn't) loaded/i)).toHaveCount(0, {
     timeout: 60_000,
   });
 }
 
-async function waitForVenueIndexReady(page: Page, timeout = 120_000): Promise<void> {
+async function waitForVenueIndexReady(page: Page, timeout = 60_000): Promise<void> {
   await expect(async () => {
     await dismissVenueIndexRetryIfPresent(page);
     const pending = page.getByText("Fetching the pub list…");
@@ -59,41 +59,29 @@ export async function expectMapToolbarReady(
   }).toPass({ timeout });
 }
 
-async function focusAreaForQuery(page: Page, query: string): Promise<void> {
-  const areaOption = page
-    .getByRole("group", { name: "Areas", exact: true })
-    .getByRole("option", { name: new RegExp(query, "i") })
-    .first();
-  if (!(await areaOption.isVisible().catch(() => false))) return;
-  await areaOption.evaluate((node) => (node as HTMLElement).click());
-}
-
 export async function selectFirstToolbarVenue(
   page: Page,
   query: string,
-  timeout = 120_000,
+  timeout = 60_000,
 ): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
   // Exact group names only: "Venues across city maps" is a different lane whose
   // first "Soho" row can be a Birmingham tavern that opens another city's map.
   await waitForVenueIndexReady(page, timeout);
+  // Suggestions render from a deferred query, which a loaded runner can hold for
+  // seconds. Wait on the venue row itself; refilling the same text keeps the
+  // query, whereas picking an Area clears it and restarts that render.
   await expect(async () => {
     await dismissVenueIndexRetryIfPresent(page);
     await search.click();
     await search.fill(query);
-    await expect(searchSuggestionsListbox(page)).toBeVisible({ timeout: 2_000 });
-    const option = mapVenueSuggestionGroup(page).getByRole("option").first();
-    if (!(await option.isVisible().catch(() => false))) {
-      await focusAreaForQuery(page, query);
-      await search.click();
-      await search.fill(query);
-      await expect(searchSuggestionsListbox(page)).toBeVisible({ timeout: 2_000 });
-    }
-    await expect(option).toBeVisible({ timeout: 2_000 });
+    await expect(mapVenueSuggestionGroup(page).getByRole("option").first()).toBeVisible({
+      timeout: 15_000,
+    });
   }).toPass({ timeout });
   await expect(async () => {
     const option = mapVenueSuggestionGroup(page).getByRole("option").first();
-    await option.evaluate((node) => (node as HTMLElement).click());
+    await option.click();
     await expect(page).toHaveURL(/sel=/, { timeout: 2_000 });
   }).toPass({ timeout: 60_000 });
 }

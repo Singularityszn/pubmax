@@ -16,10 +16,24 @@ export type AuthCallbackSessionResult<SessionValue> = {
   banned: boolean;
 };
 
+type AuthCallbackUser = {
+  id: string;
+  email?: string | null;
+  emailConfirmedAt?: string | null;
+};
+
 type AuthCallbackUserLookup = (accessToken: string) => Promise<{
-  data: { user: { id: string; email?: string | null } | null };
+  data: { user: AuthCallbackUser | null };
   error: unknown;
 }>;
+
+/** A verified email, otherwise no label. An unverified email is one the sender of the link can choose. */
+export function authCallbackConfirmationLabel(user: AuthCallbackUser): string | null {
+  const email = user.email?.trim() ?? "";
+  const confirmed =
+    typeof user.emailConfirmedAt === "string" && user.emailConfirmedAt.trim().length > 0;
+  return email && confirmed ? email : null;
+}
 
 export async function fetchAuthCallbackUser(
   accessToken: string,
@@ -53,10 +67,15 @@ export async function fetchAuthCallbackUser(
   if (typeof body?.id !== "string" || !body.id) {
     return { data: { user: null }, error: new Error("Invalid identity") };
   }
+  const emailConfirmedAt =
+    typeof body.email_confirmed_at === "string" && body.email_confirmed_at.trim()
+      ? body.email_confirmed_at
+      : null;
   return {
     data: { user: {
       id: body.id,
       email: typeof body.email === "string" ? body.email : null,
+      emailConfirmedAt,
     } },
     error: null,
   };
@@ -86,7 +105,7 @@ export type PreparedAuthCallbackSession<SessionValue> =
   | { status: "banned" }
   | {
       status: "confirmation-required";
-      identity: { userId: string; label: string };
+      identity: { userId: string; label: string | null };
       confirm: () => Promise<AuthCallbackSessionResult<SessionValue>>;
     };
 
@@ -120,7 +139,7 @@ export async function prepareAuthCallbackSession<SessionValue>(
     if (refreshed.error || !userId || originalUserId !== userId) {
       return { status: "verification-failed" };
     }
-    const label = refreshed.data.user?.email?.trim() || userId;
+    const label = authCallbackConfirmationLabel(refreshed.data.user ?? { id: userId });
     const verifiedTokens = {
       accessToken: minted.session.access_token,
       refreshToken: minted.session.refresh_token,

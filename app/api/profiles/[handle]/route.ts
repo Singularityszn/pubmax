@@ -15,12 +15,12 @@
 // made, and `projection` is which of the two answers THIS reader was handed.
 // `lib/profileVisibilityBoundary.server.ts` is the only place that is decided.
 
-import { profilePublicPresence } from "@/lib/accountPublicAccess.server";
+import { profilePublicPresence, withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { isAccountVisibility } from "@/lib/accountVisibility";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxDisplayName } from "@/lib/pubmaxxIdentity";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { callerOwnedWithdrawnHandle, gateHandleAction } from "@/lib/profileOwnership";
 import { projectionCarriesSocialLinks } from "@/lib/profileVisibility";
 import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import {
@@ -81,7 +81,7 @@ async function publicLinksFor(profile: ProfileRecord | null): Promise<PublicSoci
 
 // Trust boundary for profile edits — the request body is untrusted. cleanText
 // (lib/textClean) strips inline HTML angle brackets + control chars, collapses
-// whitespace, and caps length; isHttpUrl validates the avatar link. Both mirror
+// whitespace, and caps length; cleanHttpUrl validates the avatar link. Both mirror
 // the shared trust boundary so every write path agrees.
 
 // Editable field caps. The handle itself is NOT editable here (it is the
@@ -169,8 +169,13 @@ export async function GET(
     // "Follows you" (lib/followRelation.ts owns that resolution). The reverse
     // edge is already public through /following and /lot, so this adds a round
     // trip's worth of convenience, never a new disclosure.
+    // A withdrawn viewer answers like a viewer who never existed: both flags
+    // stay false, so the query cannot say that handle exists.
+    const viewerIsWithdrawn = viewer
+      ? (await withdrawnHandles([viewer])).has(viewer)
+      : false;
     const [viewerFollowing, followsViewer] =
-      socialEnabled && viewer && viewer !== handle
+      socialEnabled && viewer && viewer !== handle && !viewerIsWithdrawn
         ? await Promise.all([
             follows.isFollowing(viewer, handle),
             follows.isFollowing(handle, viewer),
@@ -178,9 +183,22 @@ export async function GET(
         : [false, false];
 
     // Auth-deletion stamp only. Legacy user_id-null rows stay fully live.
+    // A banned or suspended handle answers the same body as a handle nobody
+    // owns, except to its verified owner. A distinct 404 is how a reader
+    // learns the account existed.
     const presence = await profilePublicPresence(profile);
-    if (presence === "withdrawn") {
-      return publicApiError("Profile not found.", "NOT_FOUND", 404);
+    if (presence === "withdrawn" && !(await callerOwnedWithdrawnHandle(request, handle))) {
+      return jsonNoStore(
+        {
+          profile: null,
+          projection: "full",
+          socialLinks: [],
+          counts: socialEnabled ? { followers: 0, following: 0 } : null,
+          viewerFollowing: false,
+          followsViewer: false,
+        },
+        { status: 200 },
+      );
     }
 
     if (presence === "gone" || isProfileTombstoned(profile)) {
@@ -256,11 +274,14 @@ export async function GET(
 //   • We resolve the caller's VERIFIED auth uid from their bearer token
 //     (callerUserId → Supabase auth.getUser). No token / invalid token → null
 //     (anonymous), never a trusted uid.
-//   • An unlinked legacy handle keeps anonymous demo edits, but an authenticated
-//     write cannot turn it into account ownership. A genuinely new handle can
-//     be created and linked. A LINKED handle is editable only by its owner, so a
-//     non-owner (anonymous OR a different account) gets 403. This is the security
-//     win: once claimed, a handle can't be hijacked.
+//   • An existing unlinked legacy handle keeps anonymous demo edits. An
+//     anonymous PATCH of a handle with no row stores nothing, so it cannot
+//     freeze that handle against the account that later claims it. An
+//     authenticated write cannot turn a legacy row into account ownership. A
+//     genuinely new handle can still be created and linked by its account. A
+//     LINKED handle is editable only by its owner, so a non-owner (anonymous
+//     OR a different account) gets 403. This is the security win: once
+//     claimed, a handle can't be hijacked.
 //
 // Regardless of auth we still apply the full server-side trust boundary below
 // (strip HTML/control chars, cap lengths, validate the avatar URL) and
@@ -309,10 +330,13 @@ export async function PATCH(
 
   try {
     const store = profileStore();
-    // Ensure a lightweight anonymous row exists before an anonymous demo edit.
-    // An authenticated new-handle write was already created by the gate.
-    await store.ensure(handle);
+    // An authenticated new-handle write was already created, owned, by the
+    // gate. An anonymous PATCH must not insert a row: that insert is unowned,
+    // and an unowned row is frozen against the account that later claims it.
     const profile = await store.update(handle, built.patch);
+    if (!profile) {
+      return publicApiError("Profile not found.", "NOT_FOUND", 404);
+    }
     return jsonNoStore({ profile: publicProfileFromRecord(profile) }, { status: 200 });
   } catch (err) {
     // The one storage failure worth its own sentence: the person asked to change

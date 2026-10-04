@@ -20,6 +20,8 @@ import { summariseContributions, type ContributionInput } from "@/lib/pintContri
 import { isLimited, normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex } from "@/lib/venueIndex";
 
 // A stats read fans out to the venue index; cap how often one IP (and the whole
@@ -59,11 +61,11 @@ export async function GET(request: Request): Promise<Response> {
       ? []
       : await pintDropsStore().listVisible(undefined, { handle }, handle, cityId);
 
-    const index = await getVenueIndex();
+    const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
     const entries: ContributionInput[] = drops.map((drop) => ({
       createdAt: drop.createdAt,
       priceGbp: drop.priceGbp,
-      borough: index.get(drop.venueId)?.borough ?? "London",
+      borough: storedVenueRef(index, aliases, drop.venueId)?.borough ?? "London",
     }));
 
     const summary = summariseContributions(handle, entries);

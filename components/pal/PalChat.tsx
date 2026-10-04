@@ -1,7 +1,7 @@
 "use client";
 
-// Pub Pal chat surface (/pal/chat) — a chat SKIN over Pub Pal ElevenLabs chat (`/api/pub-pal/chat`,
-// ADR 0014). The user asks in natural language; the tool registry answers from
+// Pub Pal chat surface (/pal/chat) — a chat SKIN over `/api/pub-pal/chat` (ADR 0014).
+// The user asks in natural language; the tool registry answers from
 // listed pubs, What's On, CityMCP, heritage, and prices. Cards keep provenance.
 // Proposals need an explicit Confirm (ADR 0006). In-thread turns may refine an
 // ask; durable Pal memory stays confirm-gated elsewhere. Web grounding stays
@@ -24,6 +24,7 @@ import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import Screen from "@/components/ui/screen";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
@@ -83,7 +84,7 @@ type Entry =
       /** In-thread recall only (lib/palRecall). Never a durable memory. */
       recall: PalRecall | null;
     }
-  | { kind: "error"; id: string; message: string };
+  | { kind: "error"; id: string; message: string; needsSignIn?: boolean };
 
 function VenueLink({
   card,
@@ -228,6 +229,7 @@ export function AnswerCard({
 export default function PalChat() {
   const router = useRouter();
   const { user, session } = useAuth();
+  const viewerSession = useViewerSession();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
@@ -314,7 +316,12 @@ export default function PalChat() {
       if (result.status === "error") {
         setEntries((prev) => [
           ...prev,
-          { kind: "error", id: nextId(), message: result.message },
+          {
+            kind: "error",
+            id: nextId(),
+            message: result.message,
+            needsSignIn: result.needsSignIn,
+          },
         ]);
         return;
       }
@@ -525,6 +532,20 @@ export default function PalChat() {
                     role="alert"
                   >
                     {entry.message}
+                    {/* A 401 while the session is still loading is not
+                        sign-out, so the door waits for the live answer. */}
+                    {entry.needsSignIn && viewerSession.signedOut ? (
+                      <>
+                        {" "}
+                        <Link
+                          prefetch={false}
+                          className="palGlanceExit"
+                          href="/login?mode=signin&from=/pal/chat"
+                        >
+                          Sign in
+                        </Link>
+                      </>
+                    ) : null}
                   </p>
                 </div>
               );

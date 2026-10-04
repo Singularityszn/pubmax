@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (
     requestedHandle &&
     requestedHandle !== YOU_SENTINEL &&
-    (await publicProfileRouteWithholdsNotFound(requestedHandle))
+    publicProfileRouteWithholdsNotFound(requestedHandle)
   ) {
     return {
       title: "Page not found",
@@ -117,8 +117,10 @@ export default async function ProfilePage({ params }: PageProps) {
   if (
     requestedHandle &&
     requestedHandle !== YOU_SENTINEL &&
-    (await publicProfileRouteWithholdsNotFound(requestedHandle))
+    publicProfileRouteWithholdsNotFound(requestedHandle)
   ) {
+    // Status is decided in layout.tsx. This call still renders the not-found UI
+    // if the page is reached another way.
     notFound();
   }
   return <ProfilePageClient params={params} />;

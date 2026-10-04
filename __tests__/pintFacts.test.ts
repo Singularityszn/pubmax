@@ -162,7 +162,6 @@ describe("faqPageJsonLd", () => {
     const ld = faqPageJsonLd(faqItems(stats, {
       monthYear: "July 2026",
       year: "2026",
-      observedDate: "16 July 2026",
     }));
     expect(ld).not.toBeNull();
     expect(ld!["@type"]).toBe("FAQPage");

@@ -348,6 +348,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   const mapStage = page.locator(".mapStage");
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(planner.locator("#railSearchInput")).toBeVisible();
+  await expect(planner.locator(".controlRail")).toHaveCount(1);
+  await expect(planner.getByRole("group", { name: "Crawl mode" })).toBeVisible();
   await expect
     .poll(async () => (await renderedBox(planner, "planner rail")).x)
     .toBeCloseTo(0, 0);
@@ -379,12 +381,25 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   // spring can finish before the first sample, so mid-exchange geometry is
   // asserted only when a crossing frame is caught.
   let caughtMidExchange = false;
+  let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
+  let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
+  let toolbarMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
   try {
     await expect
       .poll(
         async () => {
-          const box = await renderedBox(planner, "moving planner");
-          return box.x < -1 && box.x > -box.width;
+          const [plannerBox, venueBox, toolbarBox] = await Promise.all([
+            renderedBox(planner, "moving planner"),
+            renderedBox(venue, "moving venue"),
+            renderedBox(toolbar, "moving toolbar"),
+          ]);
+          const crossing = plannerBox.x < -1 && plannerBox.x > -plannerBox.width;
+          if (crossing) {
+            plannerMid = plannerBox;
+            venueMid = venueBox;
+            toolbarMid = toolbarBox;
+          }
+          return crossing;
         },
         {
           intervals: [8, 8, 8, 8, 16, 16, 32],
@@ -396,15 +411,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   } catch {
     caughtMidExchange = false;
   }
-  let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let toolbarMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  if (caughtMidExchange) {
-    [plannerMid, venueMid, toolbarMid] = await Promise.all([
-      renderedBox(planner, "planner during exchange"),
-      renderedBox(venue, "venue during exchange"),
-      renderedBox(toolbar, "toolbar during exchange"),
-    ]);
+  if (caughtMidExchange && plannerMid && venueMid && toolbarMid) {
     expect(plannerMid.x).toBeLessThan(0);
     expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
     expect(venueMid.x).toBeGreaterThan(800);

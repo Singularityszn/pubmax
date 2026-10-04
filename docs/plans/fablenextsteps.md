@@ -382,7 +382,7 @@ Any new P0 is one of:
 - No creator or venue pilot has produced measured acquisition or venue updates.
 - Saved Pubs, Night Memories, Night Stories, Open Crews, occupancy, and price missions have zero Production rows.
 - The Production Vercel environment still contains Clerk keys. Clerk is optional, while Supabase is the canonical PUBMAXX identity. Decide to retain and certify Clerk or remove both Clerk keys and its CSP origins.
-- `package.json` permits Node `>=22`, so a future major can change build behaviour. Pin the supported major after the next dependency review.
+- [`package.json`](../../package.json) owns supported Node releases. Decide whether to constrain future majors at the next dependency review.
 - Vercel reports install-script approval warnings for `core-js`, two `esbuild` versions, and `unrs-resolver`. Review and approve only required scripts through the repository policy.
 - Production function bundles are approximately 25 MB for common routes. Continue route-island and trace containment work before this becomes a cold-start regression.
 - The `.co.uk` alias certificate command returned a transient Vercel response error during reassignment, although later inspection showed all aliases on the current deployment. Recheck certificate health in the Vercel domain panel.

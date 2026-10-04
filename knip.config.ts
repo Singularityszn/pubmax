@@ -108,6 +108,8 @@ const config: KnipConfig = {
     // App code imports the .ts wrapper through @/lib/siteContact; knip
     // resolves the bare specifier to the .mjs leaf and loses the wrapper.
     "lib/siteContact.ts",
+    // Same shape: app code imports @/lib/httpUrl, the leaf is lib/httpUrl.mjs.
+    "lib/httpUrl.ts",
 
     // Fence tests import these leaves to pin a published number; no runtime
     // caller is the point of them.
@@ -191,8 +193,9 @@ const config: KnipConfig = {
   // Arize tracing registers; this app never imports it directly.
   ignoreDependencies: ["postcss", "playwright", "openai"],
   // System SysV IPC and process tools the postgres harness shells out to
-  // (scripts/rls/postgresShm.mjs); they are not npm binaries.
-  ignoreBinaries: ["ipcs", "ipcrm", "ps"],
+  // (scripts/rls/postgresShm.mjs), and the Google Cloud CLI the pub-website
+  // amenity harvest mints its Vertex token with; they are not npm binaries.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud"],
 };
 
 // This optional local MCP CLI has its own pinned package manifest and named

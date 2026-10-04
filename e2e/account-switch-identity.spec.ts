@@ -11,6 +11,7 @@ import {
   seedSignedIn,
   type Stub,
 } from "./helpers/authDoubles";
+import { runnerShotDir } from "./helpers/runnerShotDir";
 
 // The signed-in account is the ONLY identity authority.
 //
@@ -24,7 +25,7 @@ import {
 // owner-only reads are browser route doubles. Every surface under test is the
 // real shipped UI, and the durable resume cookie is the REAL route.
 
-const SHOTS = "/tmp/pubmax-account-switch";
+const SHOTS = runnerShotDir("pubmax-account-switch");
 
 
 

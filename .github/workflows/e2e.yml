@@ -24,20 +24,35 @@ jobs:
     name: Browser law pins
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 46
+    # One production server and one Chromium on the shared Mac. On 3-4 Oct 2026
+    # several of these jobs ran together (host load ~79) and
+    # e2e/map-surface-history.spec.ts, e2e/smoke.spec.ts and
+    # e2e/visit-reports.spec.ts timed out; the same specs pass when the machine
+    # is quiet. queue: max holds the other branches until this slot is free.
+    # Lint and unit tests stay outside this group.
+    concurrency:
+      group: pubmax-mac-browser
+      cancel-in-progress: false
+      queue: max
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
@@ -45,6 +60,8 @@ jobs:
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
 
+      # One worker. Four killed the single production server on this rig, and
+      # on 3-4 Oct 2026 this cap is what passed once the machine was quiet.
       - name: Run law-pinning journeys
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
@@ -88,24 +105,36 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 45
+    # Same pubmax-mac-browser slot as Browser law pins: one web server plus
+    # Chromium on this Mac. The two shards wait for each other, and for any
+    # pull-request law-pin job, instead of stacking browsers. See that job.
+    concurrency:
+      group: pubmax-mac-browser
+      cancel-in-progress: false
+      queue: max
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright

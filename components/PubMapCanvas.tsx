@@ -223,8 +223,8 @@ import {
 } from "@/lib/mapArrivalBearing";
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
-// Next's asset URL transform does not emit beside the worker. The predev and
-// prebuild copy step preserves that pair under one same-origin public path.
+// Next's asset URL transform does not emit beside the worker. The copy step
+// `npm run dev` and `npm run build` start with preserves that pair under one same-origin public path.
 maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 
 type PubMapCanvasProps = {
@@ -377,7 +377,7 @@ type PubMapCanvasProps = {
    */
   transitLinesPath?: string | null;
   /**
-   * City landmark catalog (from landmarksForCity). Defaults to London.
+   * City landmark catalog (from landmarksForCityAsync). Defaults to London.
    * Empty array skips the landmark layer entirely.
    */
   cityLandmarks?: Landmark[];

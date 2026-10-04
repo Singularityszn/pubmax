@@ -16,6 +16,7 @@ Full rules: [`docs/rules/scripts-ci-gates-and-audits.md`](../docs/rules/scripts-
 - [EVERY GATE IS RUN BY SOMETHING, AND A REPORT-GATE RUNS WHERE THE REPORT IS.](../docs/rules/scripts-ci-gates-and-audits.md#every-gate-is-run-by-something-and-a-report-gate-runs-where-the-report-is)
 - [An audit waiver is a documented exception, not a mute button.](../docs/rules/scripts-ci-gates-and-audits.md#an-audit-waiver-is-a-documented-exception-not-a-mute-button)
 - [The no-mistakes Test step runs `npm run verify:no-mistakes` as its own command.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command)
+- [Generated database types are cut from the harness cluster, and verify refuses drift.](../docs/rules/scripts-ci-gates-and-audits.md#generated-database-types-are-cut-from-the-harness-cluster-and-verify-refuses-drift)
 
 ## Harvest and source permission
 
@@ -28,6 +29,7 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [The London harvest reads first-party pages, and a skip is a finding.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-harvest-reads-first-party-pages-and-a-skip-is-a-finding)
 - [THE WETHERSPOON DIRECTORY IS THE PUBS THE CHAIN RUNS TODAY, AND IT IS NEVER EDITED BY HAND.](../docs/rules/scripts-harvest-and-source-permission.md#the-wetherspoon-directory-is-the-pubs-the-chain-runs-today-and-it-is-never-edite)
 - [The UK venue extraction is OSM-stated or it does not exist.](../docs/rules/scripts-harvest-and-source-permission.md#the-uk-venue-extraction-is-osm-stated-or-it-does-not-exist)
+- [The nightly Tavily pass spends the plan and writes Listed evidence only.](../docs/rules/scripts-harvest-and-source-permission.md#the-nightly-tavily-pass-spends-the-plan-and-writes-listed-evidence-only)
 
 ## Builders and publishers
 
@@ -35,6 +37,7 @@ Full rules: [`docs/rules/scripts-builders-and-publishers.md`](../docs/rules/scri
 
 - [THE HYPED-PUBS PUBLISH IS ONE COMMAND, AND IT FETCHES NOTHING.](../docs/rules/scripts-builders-and-publishers.md#the-hyped-pubs-publish-is-one-command-and-it-fetches-nothing)
 - [The Pint Index PUBLISHES what drinkers confirmed, and the producer is a script.](../docs/rules/scripts-builders-and-publishers.md#the-pint-index-publishes-what-drinkers-confirmed-and-the-producer-is-a-script)
+- [A SLIM REBUILD THAT DROPS A SHIPPED FAMOUS VENUE FAILS.](../docs/rules/scripts-builders-and-publishers.md#a-slim-rebuild-that-drops-a-shipped-famous-venue-fails)
 - [THE HISTORIC DIRECTORY PUBLISHES THROUGH THREE GATES, AND EACH ONE REFUSES RATHER THAN REWRITES.](../docs/rules/scripts-builders-and-publishers.md#the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather)
 
 ## Deploys and uploads

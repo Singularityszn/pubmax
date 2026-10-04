@@ -116,11 +116,13 @@ function buildBaseScratch(): string {
     join(scratchLib, "editorialRss.mjs"),
   );
   // What's-On files share one row-shape predicate with the app. The validator
-  // imports it, so scratch runs must carry the same module.
+  // imports it, so scratch runs must carry the same module and the shared
+  // URL leaf it imports.
   cpSync(
     join(ROOT, "lib", "whatsOnRowShape.mjs"),
     join(scratchLib, "whatsOnRowShape.mjs"),
   );
+  cpSync(join(ROOT, "lib", "httpUrl.mjs"), join(scratchLib, "httpUrl.mjs"));
   // The UK place index is checked against the same name rule the chooser and
   // the builder share, which the script imports rather than restates.
   cpSync(
@@ -749,7 +751,7 @@ describe("validate-data.mjs postcode-coordinate validation", () => {
     expect(stdout).toContain("postcode-coordinate contradiction");
     expect(stdout).toContain("The Lincoln Arms");
     expect(stdout).toContain("EN1");
-    expect(stdout).toContain("12.60 km exceeds 5 km");
+    expect(stdout).toContain("12.91 km exceeds 5 km");
   });
 
   it("applies only an exact documented exception", () => {

@@ -56,6 +56,14 @@ jobs:
     name: Performance budget
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 55
+    # Shares pubmax-mac-browser with Browser tests. This job starts its own
+    # production server and Chromium; on 3-4 Oct 2026 several such jobs at
+    # once pushed host load to ~79 and timed out specs that pass when the
+    # machine is quiet. The queue waits. Lint and unit tests are not in it.
+    concurrency:
+      group: pubmax-mac-browser
+      cancel-in-progress: false
+      queue: max
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
       # measuring deadline from the wall MINUS what the sweep and the merge-base
@@ -65,21 +73,26 @@ jobs:
         run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(node -p "Date.now()")" >> "$GITHUB_ENV"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           # The ratchet check compares this branch's ceilings against the base
           # branch's, so it needs the base branch to compare against.
           fetch-depth: 0
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       # A budget is a ratchet, and this is the pawl. When the gate fails, the
       # fastest way to make the red go away is to raise the ceiling, and #1314 is
@@ -126,6 +139,8 @@ jobs:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
+        # One worker, same cap as Browser law pins: four killed the single
+        # production server on this rig.
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
 
       # WAS IT THE BRANCH, OR WAS IT THE BOX?
@@ -167,7 +182,7 @@ jobs:
 
       - name: Keep the A/B evidence with the run
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: performance-budget-ab
           path: |
@@ -192,20 +207,31 @@ jobs:
     needs: [performance-budget]
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 17
+    # Same pubmax-mac-browser slot as the budget sweep above and as Browser
+    # tests: one web server plus Chromium on this Mac.
+    concurrency:
+      group: pubmax-mac-browser
+      cancel-in-progress: false
+      queue: max
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: Refuse the console user
+        run: bash scripts/ci/assert-runner-identity.sh
+
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run deps:install-scripts
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
@@ -219,6 +245,7 @@ jobs:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
+        # One worker, same cap as the budget sweep above.
         run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
 
       # The spec writes the table into its own Playwright output directory, so
@@ -228,7 +255,7 @@ jobs:
       # one and does not need a second red mark.
       - name: Upload UX lane table
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ux-lane-13-perf
           path: test-results/**/ux-lane-13-perf.md

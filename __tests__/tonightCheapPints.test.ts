@@ -46,6 +46,7 @@ describe("tonight cheap pints", () => {
       borough: "Southwark",
       priceGbp: 4.2,
       chain: null,
+      observedAt: null,
     });
   });
 

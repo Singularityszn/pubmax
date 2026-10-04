@@ -1,28 +1,33 @@
 {
-  "generatedAt": "2026-07-26T01:07:30.747Z",
-  "ukPubs": 38215,
-  "matchedTotal": 3039,
-  "uniqueToUk": 35176,
+  "generatedAt": "2026-10-02T10:12:37.850Z",
+  "ukPubs": 38118,
+  "matchedTotal": 3662,
+  "uniqueToUk": 34456,
   "byMatchType": {
-    "osm-id": 2358,
-    "name-distance": 681
+    "osm-id": 2968,
+    "name-distance": 694
   },
   "matchRadiusM": 150,
   "sources": [
     {
       "source": "city:bath",
       "entries": 68,
-      "matched": 67
+      "matched": 66
+    },
+    {
+      "source": "city:birmingham",
+      "entries": 299,
+      "matched": 294
     },
     {
       "source": "city:bristol",
       "entries": 269,
-      "matched": 269
+      "matched": 267
     },
     {
       "source": "city:cambridge",
       "entries": 81,
-      "matched": 80
+      "matched": 78
     },
     {
       "source": "city:durham",
@@ -35,14 +40,24 @@
       "matched": 293
     },
     {
+      "source": "city:leeds",
+      "entries": 288,
+      "matched": 288
+    },
+    {
       "source": "city:liverpool",
       "entries": 406,
-      "matched": 404
+      "matched": 403
+    },
+    {
+      "source": "city:llandudno",
+      "entries": 56,
+      "matched": 57
     },
     {
       "source": "city:manchester",
       "entries": 544,
-      "matched": 543
+      "matched": 540
     },
     {
       "source": "city:oxford",
@@ -51,13 +66,13 @@
     },
     {
       "source": "curated-london-slim",
-      "entries": 1919,
-      "matched": 680
+      "entries": 1977,
+      "matched": 684
     },
     {
       "source": "outer-london-osm-seed",
       "entries": 722,
-      "matched": 575
+      "matched": 564
     }
   ],
   "samples": [

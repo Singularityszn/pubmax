@@ -36,7 +36,7 @@ page, official API, open data) supports.
 | **Price updates (cheapest pint)** | None. The `sources` allowlist is empty | **RETIRED** (`retired: true`). The hand-run publish and its stub parser are deleted; the served envelope stays empty and its `generatedAt` is an envelope date that names the bundled pint collection day and dates no observation | Closed lane | supply, not permission: the chains that permit reading publish no web pint price | Never (closed lane) | retired |
 | **Drink price updates** | Reviewed first-party observations, collected once | None. Captain ruling 2026-09-05: a **static snapshot**. The one permitted source (Wetherspoons) publishes no per-drink web prices, so no run can advance the file and a staleness budget was a promise nobody could keep | Snapshot - surfaces name it "Snapshot from &lt;collection date&gt;" and claim nothing about currency | adding a source is a separate captain decision, not a budget change | Never (closed lane) | untracked (`class: snapshot`, budget `null`) |
 | **Food price updates** | One 2026-07-11 import, never repeated | **RETIRED** (`retired: true`). No script in the tree writes `food_price_updates/latest.json` and nobody hand-harvests it; the 3 MB pack still ships and the venue Menu tab still reads it, every row carrying its own `observedAt` | Closed lane | no writer at all, which is a stronger fact than a missing key | Never (closed lane) | retired |
-| **Pint Index (borough medians)** | Confirmed Pint Drops + official-publisher / open-data | Recomputed as eligible observations arrive | **Event-sourced** (grows with the product) | none | User-cadence — **the growth loop IS the refresh** | untracked |
+| **Pint Index (borough medians)** | Confirmed Pint Drops + official-publisher / open-data | Recomputed as eligible observations arrive | **Event-sourced** (grows with the product) | none | User-cadence — **the growth loop IS the refresh** | none while the snapshot is empty (`class: snapshot`, budget `null`); 2160 h once it holds observations |
 | **Late-food evidence** | Hand-evidenced per Night Area | Manual curation | Episodic | none | Episodic | untracked |
 | **Venue presence (Wetherspoons/OSM)** | OSM Overpass + directory | `fetch:city-pubs` / `fetch:uk-pubs` / `fetch:uk-venues` / `fetch:wetherspoons-pubs` (manual); the venue packs and their London publish carry no registry entry yet, so the spine can call them neither fresh nor stale ([`VENUES.md`](../data/osm/uk/VENUES.md)) | Episodic | None (keyless); the directory read is gated by `lib/harvest/sourcePolicy.ts` | Episodic (OSM changes slowly) | untracked |
 | **PUBMAXXING all-drinks / history seed** | Sibling `pubmaxxing` repo | Manual `build:pubmaxxing-seed` import | Episodic | none | Per-import | untracked |
@@ -102,8 +102,10 @@ Honest accounting of what will **not** get fresher on its own:
 1. **Pint Index & Pint Drops → user-cadence by design.** There is no cron and
    there shouldn't be: the index only grows from *confirmed* Pint Drops and
    official-publisher/open-data observations. **The growth loop is the refresh
-   mechanism.** More users confirming drops = fresher index. Registered as
-   `user-cadence`, budget `null`.
+   mechanism.** More users confirming drops = fresher index. While the
+   published snapshot is empty it is registered as `snapshot`, budget `null`;
+   the first published observation restores `user-cadence` and its 2160 h
+   budget (see the registry entry).
 2. **Two price lanes are CLOSED, and a third is dry.** `price_updates` and
    `food_price_updates` both declare `retired: true`: the first had a publish
    whose only parser returned `[]` by construction (deleted, with the parser

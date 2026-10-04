@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { runnerShotDir } from "./helpers/runnerShotDir";
+
 // The account surface as a social identity card: the nav menu names the person
 // and where they go, the public profile carries their own linked handles, and
 // the editor adds and removes them.
@@ -11,6 +13,7 @@ import { expect, test, type Page } from "@playwright/test";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-00000000000b";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const HANDLE = "socialproof";
+const SHOTS = runnerShotDir("pubmax-social-identity");
 
 type Connection = {
   provider: string;
@@ -160,7 +163,7 @@ test.describe("social identity card", () => {
 
     // The popover rises on open; let it settle so the shot is the resting card.
     await page.waitForTimeout(400);
-    await page.screenshot({ path: "/tmp/pubmax-account-menu-1440.png" });
+    await page.screenshot({ path: `${SHOTS}/account-menu-1440.png` });
   });
 
   test("public profile carries the owner's own links, safely", async ({ page }) => {
@@ -177,7 +180,7 @@ test.describe("social identity card", () => {
       await expect(anchor).toHaveAttribute("target", "_blank");
     }
 
-    await page.screenshot({ path: "/tmp/pubmax-profile-socials-1440.png", fullPage: false });
+    await page.screenshot({ path: `${SHOTS}/profile-socials-1440.png`, fullPage: false });
   });
 
   test("phone profile keeps the links and the editor readable at 390", async ({ page }) => {
@@ -186,7 +189,7 @@ test.describe("social identity card", () => {
 
     await page.goto(`/u/${HANDLE}`);
     await expect(page.locator(".profileSocials")).toBeVisible();
-    await page.screenshot({ path: "/tmp/pubmax-profile-socials-390.png" });
+    await page.screenshot({ path: `${SHOTS}/profile-socials-390.png` });
 
     await page.getByRole("button", { name: "Edit profile" }).click();
     const editor = page.locator(".socialLinks");
@@ -203,6 +206,6 @@ test.describe("social identity card", () => {
     );
     expect(overflow).toBeLessThanOrEqual(1);
 
-    await page.screenshot({ path: "/tmp/pubmax-social-editor-390.png" });
+    await page.screenshot({ path: `${SHOTS}/social-editor-390.png` });
   });
 });

@@ -57,10 +57,18 @@ export function shouldPrefetch(connection: ConnectionLike | null): boolean {
   return true;
 }
 
+/**
+ * The query flag a reader sets to be answered for a pub that left the map.
+ * Without it `/api/venue/[id]` answers a retired id as not found, so no reader
+ * gets a closed pub's last point unless it asks to name it.
+ */
+export const VENUE_DETAIL_INCLUDE_RETIRED_PARAM = "include_retired";
+
 // Builds the route URL for a venue id. Kept tiny + exported so callers and tests
-// agree on the exact shape PubMap's own `warmVenueDetail` fetches.
+// agree on the exact shape PubMap's own `warmVenueDetail` fetches. The map's
+// sheet is the one reader that names a retired pub, so it opts in.
 export function venueDetailUrl(venueId: string): string {
-  return `/api/venue/${encodeURIComponent(venueId)}`;
+  return `/api/venue/${encodeURIComponent(venueId)}?${VENUE_DETAIL_INCLUDE_RETIRED_PARAM}=1`;
 }
 
 export type PrefetchHandle = {

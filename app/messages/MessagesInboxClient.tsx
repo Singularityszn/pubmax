@@ -1,6 +1,8 @@
 "use client";
 
+import { MessageCircle, Search, SquarePen } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -87,9 +89,9 @@ export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
 
   return (
     <div>
-      <p className="messagesThreadEyebrow">Your conversations</p>
-      <h2>Pick a message</h2>
-      <p>Choose someone from your inbox to read the thread and reply.</p>
+      <MessageCircle className="messagesThreadEmptyIcon" size={44} aria-hidden="true" />
+      <h2>Your messages</h2>
+      <p>Choose a conversation or start a new message.</p>
     </div>
   );
 }
@@ -99,6 +101,7 @@ export default function MessagesInboxClient({
 }: {
   activeConversationId?: string;
 }): React.JSX.Element {
+  const router = useRouter();
   const { accountRevision, user, handle: authHandle } = useAuth();
   const viewerSession = useViewerSession();
   const isMobileViewport = useSyncExternalStore(
@@ -108,10 +111,15 @@ export default function MessagesInboxClient({
   );
   // The thread route hides this pane on a phone; a hidden list owes no read.
   const paneHidden = Boolean(activeConversationId) && isMobileViewport;
+  const [composeRevision, setComposeRevision] = useState<number | null>(null);
+  const [inboxSearch, setInboxSearch] = useState({ revision: accountRevision, query: "" });
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  // The server refused this handle's inbox (403): the account does not own it.
+  // Asking again cannot change that, so it is not `failed` and has no retry.
+  const [handleNotOwned, setHandleNotOwned] = useState(false);
   const [failed, setFailed] = useState(false);
   // A read that ANSWERED but could not run one of the reads behind it. The rows
   // are real; a count or a preview may be missing. Kept apart from `failed`,
@@ -121,9 +129,22 @@ export default function MessagesInboxClient({
   const [retrying, setRetrying] = useState(false);
   const retryingRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
+  const requestGenerationRef = useRef(0);
+  const pendingReadRef = useRef<{
+    generation: number;
+    signal?: AbortSignal;
+    promise: Promise<void>;
+  } | null>(null);
+  const liveRef = useRef(false);
   useLayoutEffect(() => {
     accountRevisionRef.current = accountRevision;
-  }, [accountRevision]);
+    liveRef.current = !paneHidden;
+    return () => {
+      liveRef.current = false;
+      requestGenerationRef.current += 1;
+      pendingReadRef.current = null;
+    };
+  }, [accountRevision, user, authHandle, paneHidden]);
 
   useEffect(() => {
     let active = true;
@@ -138,14 +159,24 @@ export default function MessagesInboxClient({
   }, [authHandle]);
 
   const refresh = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, supersede = false) => {
       const requestRevision = accountRevision;
-      if (requestRevision !== accountRevisionRef.current) return;
-      const stillCurrent = () => requestRevision === accountRevisionRef.current;
+      if (!liveRef.current || signal?.aborted || requestRevision !== accountRevisionRef.current) return;
+      const pending = pendingReadRef.current;
+      if (!supersede && pending && !pending.signal?.aborted && pending.generation === requestGenerationRef.current) {
+        return pending.promise;
+      }
+      const generation = ++requestGenerationRef.current;
+      const stillCurrent = () =>
+        liveRef.current &&
+        !signal?.aborted &&
+        generation === requestGenerationRef.current &&
+        requestRevision === accountRevisionRef.current;
       if (!user) {
         if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
+        setHandleNotOwned(false);
         setFailed(false);
         setPartial(false);
         setLoadedRevision(requestRevision);
@@ -156,58 +187,67 @@ export default function MessagesInboxClient({
         if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
+        setHandleNotOwned(false);
         setFailed(false);
         setPartial(false);
         setLoadedRevision(requestRevision);
         return;
       }
-      try {
-        const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
-          signal,
-        }, { requiresIdentity: true });
-        if (!stillCurrent()) {
-          discardBody(res);
-          return;
-        }
-        if (res.status === 401) {
-          discardBody(res);
-          setNeedsSignIn(true);
-          setConversations([]);
-          setFailed(false);
-          setPartial(false);
-          return;
-        }
-        if (!res.ok) {
-          discardBody(res);
+      const promise = Promise.resolve().then(async () => {
+        try {
+          if (!stillCurrent()) return;
+          const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
+            signal,
+          }, { requiresIdentity: true });
+          if (!stillCurrent()) {
+            discardBody(res);
+            return;
+          }
+          setHandleNotOwned(res.status === 403);
+          if (res.status === 401 || res.status === 403) {
+            discardBody(res);
+            setNeedsSignIn(res.status === 401);
+            setConversations([]);
+            setFailed(false);
+            setPartial(false);
+            return;
+          }
+          if (!res.ok) {
+            discardBody(res);
+            setNeedsSignIn(false);
+            setFailed(true);
+            setPartial(false);
+            return;
+          }
           setNeedsSignIn(false);
-          setFailed(true);
-          setPartial(false);
-          return;
+          const body = (await res.json()) as {
+            conversations?: ConversationDTO[];
+            status?: string;
+          };
+          if (!stillCurrent()) return;
+          const rows = Array.isArray(body.conversations) ? body.conversations : [];
+          const degraded = body.status === "degraded";
+          setConversations(rows);
+          // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
+          // answered, so the honest surface is the same one a failed read gets.
+          setFailed(degraded && rows.length === 0);
+          setPartial(degraded && rows.length > 0);
+        } catch (err) {
+          const aborted =
+            signal?.aborted || (err instanceof Error && err.name === "AbortError");
+          if (!aborted && stillCurrent()) {
+            setNeedsSignIn(false);
+            setHandleNotOwned(false);
+            setFailed(true);
+            setPartial(false);
+          }
+        } finally {
+          if (stillCurrent()) setLoadedRevision(requestRevision);
+          if (pendingReadRef.current?.generation === generation) pendingReadRef.current = null;
         }
-        setNeedsSignIn(false);
-        const body = (await res.json()) as {
-          conversations?: ConversationDTO[];
-          status?: string;
-        };
-        if (!stillCurrent()) return;
-        const rows = Array.isArray(body.conversations) ? body.conversations : [];
-        const degraded = body.status === "degraded";
-        setConversations(rows);
-        // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
-        // answered, so the honest surface is the same one a failed read gets.
-        setFailed(degraded && rows.length === 0);
-        setPartial(degraded && rows.length > 0);
-      } catch (err) {
-        const aborted =
-          signal?.aborted || (err instanceof Error && err.name === "AbortError");
-        if (!aborted && stillCurrent()) {
-          setNeedsSignIn(false);
-          setFailed(true);
-          setPartial(false);
-        }
-      } finally {
-        if (stillCurrent()) setLoadedRevision(requestRevision);
-      }
+      });
+      pendingReadRef.current = { generation, signal, promise };
+      return promise;
     },
     // `handle` is deliberately NOT a dependency: the read derives the handle
     // itself, and re-keying on the state copy made every mount fetch the inbox
@@ -254,31 +294,33 @@ export default function MessagesInboxClient({
   // The subscription owns the poll: fallback cadence without a socket, a slow
   // safety poll with one, nothing while the tab is hidden.
   useEffect(() => {
-    if (paneHidden || !handle) return;
+    if (paneHidden || !handle || handleNotOwned) return;
     return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
-  }, [refresh, handle, paneHidden]);
+  }, [refresh, handle, paneHidden, handleNotOwned]);
 
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured
   // from the same instant.
   const now = new Date();
+  const searchQuery = inboxSearch.revision === accountRevision ? inboxSearch.query : "";
+  const filteredConversations = conversations.filter((conversation) =>
+    conversationRowName(conversation, handle).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
+  const openCompose = () => setComposeRevision(accountRevision);
 
   return (
     <Screen
       as="section"
       className="messagesScreen"
-      kicker="Messages"
       title="Messages"
       titleId="messages-title"
-      // A new message starts from a person, and the people are on Social.
-      // Signed out, the one painted control is the door that WORKS: a
-      // painted New message led to a sign-in wall, and the reader met two
-      // doors for one step. The sign-in door carries the way back here.
       primary={
         viewerSession.signedOut ? (
           <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
         ) : (
-          <Link href="/social">New message</Link>
+          <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
+            <SquarePen size={25} aria-hidden="true" />
+          </button>
         )
       }
     >
@@ -290,12 +332,34 @@ export default function MessagesInboxClient({
         </p>
       ) : null}
 
-      {/* A GROUP IS OPENED FROM THE INBOX, because a group is not "with" one
-          person and there is no profile to start it from. It sits under the
-          head rather than beside it: the head's one painted control is the
-          door to the people, and a screen has one primary. */}
       {!viewerSession.signedOut && user ? (
-        <MessagesNewGroup handle={handle} onOpened={() => void refresh()} />
+        <>
+          <label className="messagesInboxSearch">
+            <Search size={18} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search conversations"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(event) => setInboxSearch({ revision: accountRevision, query: event.target.value })}
+            />
+          </label>
+          <MessagesNewGroup
+            key={`${accountRevision}:${handle}`}
+            handle={handle}
+            open={composeRevision === accountRevision}
+            onClose={() => setComposeRevision(null)}
+            allowDirect
+            suggestedRecipients={accountDataReady ? conversations
+              .filter((conversation) => conversation.kind !== "group")
+              .map((conversation) => ({ handle: conversation.otherHandle, avatarUrl: conversation.otherAvatarUrl })) : []}
+            onOpened={(conversationId) => {
+              setComposeRevision(null);
+              void refresh(undefined, true);
+              router.push(`/messages/${encodeURIComponent(conversationId)}`);
+            }}
+          />
+        </>
       ) : null}
 
       {!accountDataReady ? (
@@ -309,17 +373,20 @@ export default function MessagesInboxClient({
           Private messages need a signed-in account, so each message is tied to
           the right handle.
         </EmptyState>
+      ) : handleNotOwned ? (
+        <EmptyState
+          title={`@${handle} isn\u2019t linked to your account.`}
+          action={<Link href="/u/you#account-settings">Claim a handle</Link>}
+        >
+          Messages open for the handle your account claims.
+        </EmptyState>
       ) : failed && conversations.length === 0 ? (
         <div role="alert">
           <EmptyState title="Couldn&rsquo;t load your conversations." action={retryButton} />
         </div>
       ) : conversations.length === 0 ? (
-        <EmptyState
-          title="Nobody in here yet."
-          action={<Link href="/social">Find someone to message</Link>}
-        >
-          Find someone worth a pint on the feed, open their profile, and tap
-          Message. That&rsquo;s how a round starts.
+        <EmptyState title="Your messages start here.">
+          Tap New message to find a person or start a group.
         </EmptyState>
       ) : (
         <>
@@ -334,8 +401,9 @@ export default function MessagesInboxClient({
               {retryButton}
             </p>
           ) : null}
+          {filteredConversations.length === 0 ? <p className="messagesSearchEmpty">No conversations match your search.</p> : null}
           <ul className="conversationList">
-            {conversations.map((c) => {
+            {filteredConversations.map((c) => {
               const active = c.id === activeConversationId;
               const unread = (c.unread ?? 0) > 0;
               const classes = [
@@ -353,7 +421,7 @@ export default function MessagesInboxClient({
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
                   >
-                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} />
+                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} size={56} />
                     <div className="conversationBody">
                       {/* ONE naming rule for every kind (`conversationRowName`):
                           a DM is the other person, a group is its title or its

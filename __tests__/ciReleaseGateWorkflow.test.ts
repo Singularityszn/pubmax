@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
 import { PERF_AB_JOB_WALL_MS } from "@/lib/performanceAbEvidence";
 
@@ -64,6 +65,31 @@ function parseSteps(yaml: string): WorkflowStep[] {
   return steps;
 }
 
+/**
+ * Each job's `needs` list, as GitHub reads it. A job with no needs starts on
+ * its own. The scalar, flow and block forms all parse to the same list.
+ */
+function parseJobNeeds(yaml: string): Record<string, string[]> {
+  const { jobs } = parse(yaml) as { jobs: Record<string, { needs?: string | string[] }> };
+  return Object.fromEntries(
+    Object.entries(jobs).map(([job, { needs }]) => [
+      job,
+      needs === undefined ? [] : Array.isArray(needs) ? needs : [needs],
+    ]),
+  );
+}
+
+function jobAncestors(job: string, needs: Record<string, string[]>): Set<string> {
+  const seen = new Set<string>();
+  const walk = (name: string) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    for (const dep of needs[name] ?? []) walk(dep);
+  };
+  walk(job);
+  return seen;
+}
+
 /** Each job's own wall, in minutes, as GitHub reads it. */
 function parseJobWalls(yaml: string): Record<string, number> {
   const walls: Record<string, number> = {};
@@ -94,10 +120,10 @@ describe("clean-main CI release gate", () => {
   });
 
   it("does not persist the workflow token in build checkouts", () => {
-    const checkouts = workflow.match(/uses: actions\/checkout@v4/g) ?? [];
+    const checkouts = workflow.match(/uses: actions\/checkout@[0-9a-f]{40} # v\S+/g) ?? [];
     const protectedCheckouts =
       workflow.match(
-        /uses: actions\/checkout@v4\n\s+with:\n\s+persist-credentials: false/g,
+        /uses: actions\/checkout@[0-9a-f]{40} # v\S+\n\s+with:\n\s+persist-credentials: false/g,
       ) ?? [];
 
     expect(checkouts.length).toBeGreaterThan(0);
@@ -139,6 +165,17 @@ describe("clean-main CI release gate", () => {
     const [first] = steps.filter((step) => step.job === "performance-budget");
     expect(first.run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
     expect(first.run).toContain("GITHUB_ENV");
+  });
+
+  it("does not let the freshness calendar skip the build, unit shards or coverage", () => {
+    const needs = parseJobNeeds(workflow);
+    for (const job of ["production-build", "unit-tests", "coverage"]) {
+      expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
+    }
+    expect(needs["production-build"]).toEqual(["lint-and-types"]);
+    expect(needs["unit-tests"]).toEqual(["production-build"]);
+    expect(needs.coverage).toEqual(["unit-tests"]);
+    expect(needs.freshness).toEqual([]);
   });
 
   it("gates coverage and freshness independently", () => {

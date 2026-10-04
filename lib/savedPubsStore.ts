@@ -8,10 +8,11 @@ import "server-only";
 //
 // KEYING — the applied saved_pubs schema (migration 0006) has NO actor_hash
 // column: it keys saves by `profile_id` (a FK to public.profiles) with a unique
-// index on (profile_id, venue_id, list_type). Identity is still the self-asserted
-// `handle` (no auth yet), so a handle's saves are made retrievable by bootstrapping
-// a profile row for that handle (profileStore.ensure → profile_id) exactly the way
-// the follow graph resolves a handle to a profile id. The `actorHash` a caller may
+// index on (profile_id, venue_id, list_type). A write looks up the handle's
+// existing profile and does not mint one: an ensure() insert would be an
+// unowned row, and an unowned row is frozen against the account that later
+// claims the handle. A signed-in write already has an owned row from the
+// ownership gate. The `actorHash` a caller may
 // pass is accepted for parity with the reactions/comments actor model and used as
 // the memory-store partition key, but the durable path keys strictly by the
 // handle's profile id — no invented columns.
@@ -21,11 +22,14 @@ import "server-only";
 // FAIL-SOFT: a store error yields an empty list / an unchanged toggle rather than
 // throwing to the caller, so a saved-pubs outage can never break the profile page.
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
+import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
+import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 // The list a pub is filed under is now free text (story 33): the seven built-ins
@@ -135,13 +139,20 @@ export type SavedPubsStore = {
 
 // ── DTO enrichment (server-side venue-name resolution) ───────────────────────
 // Fold raw rows into DTOs, resolving each venue id to its real pub name + map url
-// through the bundled index. An id the dataset no longer carries falls back to a
-// friendly label — never the raw "venue-…" id. Newest save first.
-function dtoFromRow(row: SavedRow, index: Awaited<ReturnType<typeof getVenueIndex>>): SavedPubDTO {
+// through the bundled index. A save stored under a merged or superseded venue id
+// is answered under the id that venue carries now, and a toggle matches every
+// id the venue may be stored under, so the two always name one save. An id the
+// dataset no longer carries falls back to a friendly label — never the raw
+// "venue-…" id. Newest save first.
+type VenueIndexMap = Awaited<ReturnType<typeof getVenueIndex>>;
+
+function dtoFromRow(row: SavedRow, index: VenueIndexMap, aliases: VenueAliasResolver): SavedPubDTO {
+  const venueId = aliases.canonical(row.venueId);
+  const venue = storedVenueRef(index, aliases, venueId);
   return {
-    venueId: row.venueId,
-    venueName: index.get(row.venueId)?.name ?? "A London venue",
-    venueMapUrl: venueMapUrl(row.venueId),
+    venueId,
+    venueName: venue ? storedVenueName(venue) : "A London venue",
+    venueMapUrl: venueMapUrl(venueId),
     listType: row.listType,
     ...(row.note ? { note: row.note } : {}),
     savedAt: row.savedAt,
@@ -150,16 +161,17 @@ function dtoFromRow(row: SavedRow, index: Awaited<ReturnType<typeof getVenueInde
 
 function enrichRows(
   rows: SavedRow[],
-  index: Awaited<ReturnType<typeof getVenueIndex>>,
+  index: VenueIndexMap,
+  aliases: VenueAliasResolver,
 ): SavedPubDTO[] {
   return rows
-    .map((row) => dtoFromRow(row, index))
+    .map((row) => dtoFromRow(row, index, aliases))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
 async function enrich(rows: SavedRow[]): Promise<SavedPubDTO[]> {
-  const index = await getVenueIndex();
-  return enrichRows(rows, index);
+  const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
+  return enrichRows(rows, index, aliases);
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -184,17 +196,17 @@ function unavailableBatch(handles: readonly string[]): Map<string, SavedPubsRead
   ]));
 }
 
-// Resolve a handle to its profile id, bootstrapping a row on first save (mirrors
-// how the follow graph resolves a handle → profile). Reads never create — only a
-// toggle bootstraps, so a read for a handle that has saved nothing is a cheap miss.
+// Resolve a handle to a profile id that already exists. A saved-pub or list-follow
+// write must not insert a profile: that insert has no owner, and an unowned row
+// is frozen against the account that later claims the handle. A signed-in write
+// already owns a row, created by the gate. An anonymous write may use a row that
+// already exists and stores nothing when it does not.
 async function profileIdForHandle(
   profiles: ProfileStore,
   handle: string,
-  create: boolean,
 ): Promise<string | null> {
   const key = normalizeHandle(handle);
   if (!key) return null;
-  if (create) return (await profiles.ensure(key)).id;
   const row = await profiles.getByHandle(key);
   return row?.id ?? null;
 }
@@ -211,7 +223,7 @@ function rowFrom(raw: Record<string, unknown>): SavedRow | null {
   };
 }
 
-const supabaseSavedPubsStore: SavedPubsStore = {
+export const supabaseSavedPubsStore: SavedPubsStore = {
   async readSavedByHandles({ handles }) {
     const keys = normalizedHandleKeys(handles);
     if (keys.length === 0) return new Map();
@@ -259,11 +271,11 @@ const supabaseSavedPubsStore: SavedPubsStore = {
         rowsByHandle.set(handle, rows);
       }
 
-      const index = await getVenueIndex();
+      const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
       for (const handle of keys) {
         result.set(handle, {
           status: "ready",
-          rows: enrichRows(rowsByHandle.get(handle) ?? [], index),
+          rows: enrichRows(rowsByHandle.get(handle) ?? [], index, aliases),
         });
       }
       return result;
@@ -274,7 +286,7 @@ const supabaseSavedPubsStore: SavedPubsStore = {
 
   async readSaved({ handle }) {
     try {
-      const profileId = await profileIdForHandle(supabaseProfileStore, handle ?? "", false);
+      const profileId = await profileIdForHandle(supabaseProfileStore, handle ?? "");
       if (!profileId) return { status: "ready", rows: [] };
       const { data, error } = await admin()
         .from(TABLE)
@@ -297,19 +309,21 @@ const supabaseSavedPubsStore: SavedPubsStore = {
 
   async toggleSaved(input) {
     const listType = cleanListType(input.listType);
-    const venueId = input.venueId;
     try {
-      const profileId = await profileIdForHandle(supabaseProfileStore, input.handle, true);
-      if (!profileId || !venueId || !listType) {
+      const profileId = await profileIdForHandle(supabaseProfileStore, input.handle);
+      if (!profileId || !input.venueId || !listType) {
         return this.listSaved({ handle: input.handle });
       }
+      const venueIds = (await loadVenueAliasResolver()).storedIds(input.venueId);
+      const venueId = venueIds[0];
 
-      // Is (profile, venue, list) already saved? A select decides insert vs delete.
+      // Is (profile, venue, list) already saved, under any id the venue may be
+      // stored under? A select decides insert vs delete.
       const { data: existing, error: readError } = await admin()
         .from(TABLE)
         .select("id")
         .eq("profile_id", profileId)
-        .eq("venue_id", venueId)
+        .in("venue_id", venueIds)
         .eq("list_type", listType)
         .limit(1);
       if (readError) throw new Error(readError.message);
@@ -319,7 +333,7 @@ const supabaseSavedPubsStore: SavedPubsStore = {
           .from(TABLE)
           .delete()
           .eq("profile_id", profileId)
-          .eq("venue_id", venueId)
+          .in("venue_id", venueIds)
           .eq("list_type", listType);
         if (error) throw new Error(error.message);
       } else {
@@ -343,12 +357,23 @@ const supabaseSavedPubsStore: SavedPubsStore = {
 
   async ensureSaved(input) {
     const listType = cleanListType(input.listType);
-    const venueId = input.venueId;
     const profileId = input.profileId.trim();
-    if (!profileId || !normalizeHandle(input.handle) || !venueId || !listType) {
+    if (!profileId || !normalizeHandle(input.handle) || !input.venueId || !listType) {
       return { outcome: "unavailable" };
     }
     try {
+      const [venueId, ...formerIds] = (await loadVenueAliasResolver()).storedIds(input.venueId);
+      if (formerIds.length > 0) {
+        const { data: former, error: formerError } = await admin()
+          .from(TABLE)
+          .select("id")
+          .eq("profile_id", profileId)
+          .in("venue_id", formerIds)
+          .eq("list_type", listType)
+          .limit(1);
+        if (formerError) throw new Error(formerError.message);
+        if ((former ?? []).length > 0) return { outcome: "already_saved" };
+      }
       const { data, error } = await admin()
         .from(TABLE)
         .upsert(
@@ -396,13 +421,13 @@ export const memorySavedPubsStore: SavedPubsStore = {
   async readSavedByHandles({ handles }) {
     const keys = normalizedHandleKeys(handles);
     if (keys.length === 0) return new Map();
-    const index = await getVenueIndex();
+    const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
     const result = readyBatch(keys);
     for (const handle of keys) {
       const partition = memoryRows.get(ownerKey(handle));
       result.set(handle, {
         status: "ready",
-        rows: enrichRows(partition ? [...partition.values()] : [], index),
+        rows: enrichRows(partition ? [...partition.values()] : [], index, aliases),
       });
     }
     return result;
@@ -427,14 +452,15 @@ export const memorySavedPubsStore: SavedPubsStore = {
     if (!input.venueId || !listType) {
       return this.listSaved({ handle: input.handle, actorHash: input.actorHash });
     }
+    const venueIds = (await loadVenueAliasResolver()).storedIds(input.venueId);
     const partition = memoryRows.get(owner) ?? new Map<string, SavedRow>();
-    const key = rowKey(input.venueId, listType);
-    if (partition.has(key)) {
-      partition.delete(key);
+    const savedKeys = venueIds.map((id) => rowKey(id, listType)).filter((key) => partition.has(key));
+    if (savedKeys.length > 0) {
+      for (const key of savedKeys) partition.delete(key);
     } else {
       const note = cleanNote(input.note);
-      partition.set(key, {
-        venueId: input.venueId,
+      partition.set(rowKey(venueIds[0], listType), {
+        venueId: venueIds[0],
         listType,
         ...(note ? { note } : {}),
         savedAt: new Date().toISOString(),
@@ -450,11 +476,11 @@ export const memorySavedPubsStore: SavedPubsStore = {
     if (!input.profileId.trim() || !normalizeHandle(input.handle) || !input.venueId || !listType) {
       return { outcome: "unavailable" };
     }
+    const venueIds = (await loadVenueAliasResolver()).storedIds(input.venueId);
     const partition = memoryRows.get(owner) ?? new Map<string, SavedRow>();
-    const key = rowKey(input.venueId, listType);
-    if (partition.has(key)) return { outcome: "already_saved" };
-    partition.set(key, {
-      venueId: input.venueId,
+    if (venueIds.some((id) => partition.has(rowKey(id, listType)))) return { outcome: "already_saved" };
+    partition.set(rowKey(venueIds[0], listType), {
+      venueId: venueIds[0],
       listType,
       savedAt: new Date().toISOString(),
     });
@@ -466,8 +492,34 @@ export const memorySavedPubsStore: SavedPubsStore = {
 // The single seam: Supabase when configured, process-memory otherwise. Note the
 // memory store uses the in-memory profile store implicitly (no profile id needed),
 // so dev/demo/test never touch the network.
-export function savedPubsStore(): SavedPubsStore {
-  return selectStore(memorySavedPubsStore, supabaseSavedPubsStore);
+/**
+ * `ownHandle` is the handle the verified caller owns. Withdrawal hides a handle
+ * from everybody but its owner, so that one handle is read as live.
+ */
+export function savedPubsStore(ownHandle?: string): SavedPubsStore {
+  return ownHandle
+    ? withoutWithdrawnSaves(selectStore(memorySavedPubsStore, supabaseSavedPubsStore), ownHandle)
+    : selectStore(publicMemorySavedPubsStore, publicSupabaseSavedPubsStore);
+}
+
+function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): SavedPubsStore {
+  return {
+    async listSaved(input) {
+      if (input.handle && (await isWithdrawnHandle(input.handle, ownHandle).catch(() => true))) return [];
+      return store.listSaved(input);
+    },
+    readSavedByHandles: (input) => store.readSavedByHandles(input),
+    readSaved: (input) => store.readSaved(input),
+    toggleSaved: (input) => store.toggleSaved(input),
+    ensureSaved: (input) => store.ensureSaved(input),
+  };
+}
+
+/** A banned or suspended handle reads as a handle nobody owns. Throws when the withdrawal read fails. */
+async function isWithdrawnHandle(handle: string, ownHandle?: string): Promise<boolean> {
+  const key = normalizeHandle(handle);
+  if (!key || key === ownHandle) return false;
+  return (await withdrawnHandles([key])).has(key);
 }
 
 /** Test-only: clear the in-memory saved-pub partitions between cases. */
@@ -490,10 +542,10 @@ export type SavedListsStore = {
   createList(handle: string, name: string): Promise<string[]>;
 };
 
-const supabaseSavedListsStore: SavedListsStore = {
+export const supabaseSavedListsStore: SavedListsStore = {
   async listCustom(handle) {
     try {
-      const profileId = await profileIdForHandle(supabaseProfileStore, handle, false);
+      const profileId = await profileIdForHandle(supabaseProfileStore, handle);
       if (!profileId) return [];
       const { data, error } = await admin()
         .from(LISTS_TABLE)
@@ -514,7 +566,7 @@ const supabaseSavedListsStore: SavedListsStore = {
     // A built-in name needs no registry row — it's always offered. Blank → no-op.
     if (!clean || isBuiltInListType(clean)) return this.listCustom(handle);
     try {
-      const profileId = await profileIdForHandle(supabaseProfileStore, handle, true);
+      const profileId = await profileIdForHandle(supabaseProfileStore, handle);
       if (!profileId) return this.listCustom(handle);
       const { error } = await admin()
         .from(LISTS_TABLE)
@@ -552,8 +604,20 @@ export const memorySavedListsStore: SavedListsStore = {
   },
 };
 
-export function savedListsStore(): SavedListsStore {
-  return selectStore(memorySavedListsStore, supabaseSavedListsStore);
+export function savedListsStore(ownHandle?: string): SavedListsStore {
+  return ownHandle
+    ? withoutWithdrawnLists(selectStore(memorySavedListsStore, supabaseSavedListsStore), ownHandle)
+    : selectStore(publicMemorySavedListsStore, publicSupabaseSavedListsStore);
+}
+
+function withoutWithdrawnLists(store: SavedListsStore, ownHandle?: string): SavedListsStore {
+  return {
+    async listCustom(handle) {
+      if (await isWithdrawnHandle(handle, ownHandle).catch(() => true)) return [];
+      return store.listCustom(handle);
+    },
+    createList: (handle, name) => store.createList(handle, name),
+  };
 }
 
 /** Test-only: clear the in-memory custom-list registry between cases. */
@@ -587,7 +651,7 @@ type FollowedSavedListDTO = {
 };
 
 export type SavedListFollowsStore = {
-  /** Follow another handle's named list (idempotent). False for invalid/self follows. */
+  /** Follow another handle's named list (idempotent). False for invalid/self follows and for an owner nobody can follow. */
   followList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
   /** Remove a followed-list edge (idempotent). */
   unfollowList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
@@ -666,8 +730,8 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
     const listType = cleanListType(rawListType);
     if (!follower || !owner || !listType || isSelfListFollow(follower, owner)) return false;
 
-    const followerId = await profileIdForHandle(supabaseProfileStore, follower, true);
-    const ownerId = await profileIdForHandle(supabaseProfileStore, owner, true);
+    const followerId = await profileIdForHandle(supabaseProfileStore, follower);
+    const ownerId = await profileIdForHandle(supabaseProfileStore, owner);
     if (!followerId || !ownerId) return false;
 
     const { error } = await admin().from(LIST_FOLLOWS_TABLE).insert({
@@ -680,8 +744,8 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
   },
 
   async unfollowList(followerHandle, ownerHandle, rawListType) {
-    const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle, false);
-    const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle, false);
+    const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle);
+    const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle);
     const listType = cleanListType(rawListType);
     if (!followerId || !ownerId || !listType) return true;
 
@@ -697,8 +761,8 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
 
   async isFollowingList(followerHandle, ownerHandle, rawListType) {
     try {
-      const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle, false);
-      const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle, false);
+      const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle);
+      const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle);
       const listType = cleanListType(rawListType);
       if (!followerId || !ownerId || !listType) return false;
       const { data, error } = await admin()
@@ -717,7 +781,7 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
 
   async counts(ownerHandle, rawListType) {
     try {
-      const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle, false);
+      const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle);
       const listType = cleanListType(rawListType);
       if (!ownerId || !listType) return { followers: 0, savedPubs: 0 };
       const [followers, savedPubs] = await Promise.all([
@@ -732,7 +796,7 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
 
   async listFollowedBy(followerHandle) {
     try {
-      const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle, false);
+      const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle);
       if (!followerId) return [];
       const { data, error } = await admin()
         .from(LIST_FOLLOWS_TABLE)
@@ -866,11 +930,60 @@ const memorySavedListFollowsStore: SavedListFollowsStore = {
   },
 };
 
-export function savedListFollowsStore(): SavedListFollowsStore {
-  return selectStore(memorySavedListFollowsStore, supabaseSavedListFollowsStore);
+export function savedListFollowsStore(ownHandle?: string): SavedListFollowsStore {
+  return ownHandle
+    ? withoutWithdrawnListFollows(
+        selectStore(memorySavedListFollowsStore, supabaseSavedListFollowsStore),
+        ownHandle,
+      )
+    : selectStore(publicMemorySavedListFollowsStore, publicSupabaseSavedListFollowsStore);
+}
+
+function withoutWithdrawnListFollows(
+  store: SavedListFollowsStore,
+  ownHandle?: string,
+): SavedListFollowsStore {
+  return {
+    async followList(follower, owner, listType) {
+      if (await isWithdrawnHandle(owner, ownHandle)) return false;
+      return store.followList(follower, owner, listType);
+    },
+    unfollowList: (follower, owner, listType) => store.unfollowList(follower, owner, listType),
+    async isFollowingList(follower, owner, listType) {
+      if (
+        (await isWithdrawnHandle(follower, ownHandle)) ||
+        (await isWithdrawnHandle(owner, ownHandle))
+      ) {
+        return false;
+      }
+      return store.isFollowingList(follower, owner, listType);
+    },
+    async counts(owner, listType) {
+      try {
+        if (await isWithdrawnHandle(owner, ownHandle)) return { followers: 0, savedPubs: 0 };
+      } catch {
+        return { followers: null, savedPubs: 0 };
+      }
+      return store.counts(owner, listType);
+    },
+    async listFollowedBy(follower) {
+      if (await isWithdrawnHandle(follower, ownHandle)) return [];
+      const lists = await store.listFollowedBy(follower);
+      if (lists.length === 0) return lists;
+      const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));
+      return lists.filter((list) => !hidden.has(normalizeHandle(list.ownerHandle)));
+    },
+  };
 }
 
 /** Test-only: clear the in-memory saved-list follow edges between cases. */
 export function __resetMemorySavedListFollows(): void {
   memoryListFollows.clear();
 }
+
+const publicMemorySavedPubsStore = withoutWithdrawnSaves(memorySavedPubsStore);
+const publicSupabaseSavedPubsStore = withoutWithdrawnSaves(supabaseSavedPubsStore);
+const publicMemorySavedListsStore = withoutWithdrawnLists(memorySavedListsStore);
+const publicSupabaseSavedListsStore = withoutWithdrawnLists(supabaseSavedListsStore);
+const publicMemorySavedListFollowsStore = withoutWithdrawnListFollows(memorySavedListFollowsStore);
+const publicSupabaseSavedListFollowsStore = withoutWithdrawnListFollows(supabaseSavedListFollowsStore);

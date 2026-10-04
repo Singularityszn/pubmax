@@ -9,7 +9,7 @@ Shard JSON is generated. This README is hand-written and survives rebuilds.
 `npm run build:uk-base` rebuilds the shards from `data/osm/uk/uk_osm_pubs.json`
 and the `bar` kind of `data/osm/uk/uk_osm_venues_drink.json`, and then
 `places.json` from the raw Overpass chunks beside it; it also runs inside
-`prebuild` and `prevalidate-data`.
+`build` and `prevalidate-data`.
 
 ## What is here
 
@@ -64,9 +64,9 @@ the curated slim manifest keeps its required per-shard URLs and validation.
 `addr:village`, `addr:place`, and `addr:suburb` tags already attached to pubs
 in the committed UK Overpass snapshots. Equal names more than 30 km apart stay
 separate, and each result points at a real source pub nearest the locality
-median. The two city pickers load the file only after someone searches, through
-the one shared reader `lib/useUkPlaceIndex.ts`: the landing's chooser, and
-`/places`, which falls back to this index when no city row matches the query. No
+median. The city picker, `/places`, loads the file through
+`lib/useUkPlaceIndex.ts` only after someone searches, and only when no city row
+matches the query. No
 pub count or price claim is derived from it.
 
 National **pub name** search is a separate server index

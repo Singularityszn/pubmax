@@ -97,8 +97,10 @@ afterEach(() => {
 
 describe("build scripts", () => {
   it("regenerates bundled data artifacts before the production build", () => {
-    expect(packageJson.scripts?.prebuild).toBe(
-      "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board",
+    // `.npmrc` sets ignore-scripts, which skips pre/post hooks, so the build
+    // names its own first steps rather than relying on a `prebuild` hook.
+    expect(packageJson.scripts?.build).toBe(
+      "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board && next build",
     );
   });
 
@@ -112,7 +114,9 @@ describe("build scripts", () => {
   });
 
   it("regenerates bundled data artifacts before data validation", () => {
-    expect(packageJson.scripts?.["prevalidate-data"]).toBe("node scripts/prevalidate-data.mjs");
+    expect(packageJson.scripts?.["validate-data"]).toBe(
+      "node scripts/prevalidate-data.mjs && node scripts/validate-data.mjs",
+    );
   });
 
   it("skips bundled-data regeneration when validating committed artifacts", () => {

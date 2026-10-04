@@ -5,6 +5,7 @@
 // The DTO a client may see is Venue ID, reason, optional drink category,
 // and optional observation date. No price, handle, or coordinates.
 
+import { cleanVenueId } from "@/lib/cleanVenueId";
 import {
   isCorroborated,
   isWithinMaxAge,
@@ -25,7 +26,6 @@ export const PRICE_EVIDENCE_MISSION_REASONS = [
 export type PriceEvidenceMissionReason = (typeof PRICE_EVIDENCE_MISSION_REASONS)[number];
 
 export const MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS = 8;
-const MAX_VENUE_ID = 64;
 
 export type PriceEvidenceMission = {
   venueId: string;
@@ -71,10 +71,6 @@ export function isPriceEvidenceMissionReason(
 
 export function priceEvidenceMissionKey(mission: PriceEvidenceMission): string {
   return `${mission.venueId}\u0000${mission.reason}\u0000${mission.drinkCategory ?? ""}`;
-}
-
-function cleanVenueId(value: string): string {
-  return value.replace(/[\x00-\x1F\x7F]/g, "").trim().slice(0, MAX_VENUE_ID);
 }
 
 export function parsePriceEvidenceMissionVenueIds(

@@ -134,6 +134,22 @@ export function postgresSkipReason() {
 /* ------------------------------------------------------------------ */
 
 export const POSTGRES_SLOT_ROOT = join(tmpdir(), "pubmax-postgres-slots");
+
+/**
+ * Ceilings for every throwaway cluster. A pipeline verify sat for two hours
+ * on pubmax-pg-social-crews: one session idle in a transaction, one UPDATE
+ * waiting on it, and no lock_timeout. lock_timeout stays above the 10s local
+ * statement_timeout the race proofs set, so those proofs still fail on their
+ * own ceiling. statement_timeout matches the vitest test ceiling, because a
+ * synchronous psql does not hear that timer. 15s is long enough for a
+ * snapshot read and short enough that an idle session dies while the suite
+ * is still running.
+ */
+export const HARNESS_CLUSTER_SETTINGS = Object.freeze([
+  "lock_timeout = 15s",
+  "statement_timeout = 60s",
+  "idle_in_transaction_session_timeout = 15s",
+]);
 /**
  * Six live clusters against a macOS default of 32 SysV segments leaves room for
  * everything else on the machine. Raise it only with `ipcs -m` in front of you.

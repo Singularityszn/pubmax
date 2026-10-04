@@ -2,8 +2,18 @@
 // timeout, curated house-voice error copy (no raw JS error text ever reaches the
 // UI), and provenance preserved through both response shapes. Hermetic: injected
 // fetch, no network, deterministic timers.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+const authed = vi.hoisted(() => ({
+  authedActionFetch: vi.fn<(input: RequestInfo | URL, init: RequestInit, options: unknown) => Promise<Response>>(),
+}));
+
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
+  authedActionFetch: authed.authedActionFetch,
+}));
+
+import { AuthActionSessionError } from "@/lib/authedFetch";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { createPalChatSession } from "@/lib/palChatClient";
 
@@ -157,6 +167,51 @@ describe("createPalChatSession", () => {
     });
     const result = await ask("anything", "london");
     expect(result).toEqual({ status: "error", message: PAL_ERROR_FALLBACK });
+  });
+
+  it("presents the signed-in session by default", async () => {
+    authed.authedActionFetch.mockResolvedValueOnce(jsonResponse(VENUE_BODY));
+    const ask = createPalChatSession();
+    const result = await ask("quiet near bank", "london");
+    expect(result?.status).toBe("answered");
+    expect(authed.authedActionFetch).toHaveBeenCalledWith(
+      "/api/pub-pal/chat",
+      expect.objectContaining({ method: "POST" }),
+      { requiresIdentity: true },
+    );
+  });
+
+  it("says the session is still waking instead of a dead-end error", async () => {
+    authed.authedActionFetch.mockRejectedValueOnce(new AuthActionSessionError());
+    const ask = createPalChatSession();
+    const result = await ask("anything", "london");
+    expect(result).toEqual({ status: "error", message: "Still waking your session. Try again." });
+  });
+
+  it("marks a 401 as a sign-in door", async () => {
+    const ask = createPalChatSession({
+      fetchImpl: async () => jsonResponse({ error: "Sign in to ask Pub Pal." }, 401),
+    });
+    const result = await ask("anything", "london");
+    expect(result).toEqual({
+      status: "error",
+      message: "Sign in to ask Pub Pal.",
+      needsSignIn: true,
+    });
+  });
+
+  it("names the previous answer's conversation as the thread on a follow-up", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const ask = createPalChatSession({
+      fetchImpl: async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return jsonResponse({ answer: "Two picks.", cards: [], conversationId: "conv_threadtest1" });
+      },
+    });
+    await ask("quiet pubs in Soho", "london");
+    await ask("somewhere cheaper there?", "london");
+    expect(bodies[0]).not.toHaveProperty("threadId");
+    expect(bodies[1]?.threadId).toBe("conv_threadtest1");
   });
 
   it("curates copy for a non-ok, non-JSON body (no SyntaxError leak)", async () => {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BRAND_NAME } from "@/lib/brandNaming";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 import {
   analyticsConsentDecision,
@@ -33,11 +33,86 @@ type AnalyticsConsentPromptContentProps = {
 // (__tests__/analyticsConsentRow.test.ts). It still names the brand
 // (lib/brandNaming.ts), says what is collected and why, and that it is never
 // sold and carries no ads; the rest is one tap away on /privacy.
+// The page reserves the card's REAL height while it is mounted, so the foot
+// clears the card at every text size and wrap, and the reserve is gone the
+// moment the card is (app/globals.css reads --analytics-consent-reserve).
+function useConsentReserve(card: RefObject<HTMLElement | null>): void {
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (!element) return;
+    const root = document.documentElement;
+    const publish = () => {
+      root.style.setProperty(
+        "--analytics-consent-reserve",
+        `${Math.ceil(element.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    const onFocusIn = (event: FocusEvent) => {
+      const focused = event.target;
+      if (!(focused instanceof HTMLElement)) return;
+      clearFocusedFieldAboveConsentCard(element, focused);
+    };
+    document.addEventListener("focusin", onFocusIn);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publish);
+    observer?.observe(element);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      observer?.disconnect();
+      root.style.removeProperty("--analytics-consent-reserve");
+    };
+  }, [card]);
+}
+
+type Box = { top: number; bottom: number; height: number; width: number };
+
+/** Pixels to scroll so a focused box finishes fully above the consent card. */
+export function consentFocusScrollDelta(box: Box, lane: { top: number; bottom: number }): number {
+  if (box.height <= 0 || box.width <= 0) return 0;
+  if (box.bottom <= lane.top || box.top >= lane.bottom) return 0;
+  return box.bottom - lane.top;
+}
+
+function scrollingAncestor(node: HTMLElement): HTMLElement | null {
+  let parent = node.parentElement;
+  while (parent) {
+    const overflow = getComputedStyle(parent).overflowY;
+    if (
+      (overflow === "auto" || overflow === "scroll")
+      && parent.scrollHeight > parent.clientHeight + 1
+    ) {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+function clearFocusedFieldAboveConsentCard(card: HTMLElement, focused: HTMLElement): void {
+  if (card.contains(focused) || focused.closest(".mobileTabBar")) return;
+  const lane = card.getBoundingClientRect();
+  const delta = Math.ceil(consentFocusScrollDelta(focused.getBoundingClientRect(), lane));
+  if (delta <= 0) return;
+  // The root scroll-padding already names this lane. Chromium's own focus
+  // scroll still leaves a field under the card, so the field is moved by the
+  // overlap itself. The card is fixed, so the lane does not move with the page.
+  window.scrollBy(0, delta);
+  const remaining = Math.ceil(
+    consentFocusScrollDelta(focused.getBoundingClientRect(), lane),
+  );
+  if (remaining <= 0) return;
+  const scroller = scrollingAncestor(focused);
+  if (scroller) scroller.scrollTop += remaining;
+}
+
 export function AnalyticsConsentPromptContent({
   onDecision,
 }: AnalyticsConsentPromptContentProps) {
+  const cardRef = useRef<HTMLElement | null>(null);
+  useConsentReserve(cardRef);
   return (
     <aside
+      ref={cardRef}
       className="analyticsConsentPrompt"
       aria-label="Anonymous analytics choice"
     >
