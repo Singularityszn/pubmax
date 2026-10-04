@@ -154,15 +154,15 @@ const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
 const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
 const SPORT_ADJUNCT =
   "(?:here|there|(?:(?:every|each|on|at|this|next)\\s+)?(?:(?:mon|tues|wednes|thurs|fri|satur|sun)days?|days?|nights?|weekends?|weeks?|mornings?|afternoons?|evenings?))\\b";
-const PREPOSITION =
-  "(?:on|in|at|from|for|with|of|by|to|during|before|after|across|throughout|until|between|behind|near|inside|above|via)\\b";
-/** Viewed content a dual-use verb must reach before any preposition or conjunction. */
-const VIEWED_CONTENT = `(?:${SPORT_SHOWN.source}|\\b(?:games?|action|them)\\b)`;
+/** A viewed-content object read from its first word: a closed determiner, partitive and modifier prefix, then sport, games, action or them. */
+const VIEWED_OBJECT =
+  "(?:(?:every|each|all|most|some|any|an?|the|our)\\s+(?:one\\s+)?(?:of\\s+)?)?(?:(?:the|our)\\s+)?" +
+  `(?:(?:big|live|international|six)\\s+)*(?:${SPORT_SHOWN.source}|\\b(?:games?|action|them)\\b)`;
 /** Shows, screens and broadcasts are verbs only before a viewed-content object; otherwise they can be denied nouns. */
 const SPORT_REMAINDER_PREDICATE = new RegExp(
   `^\\s*${SPORT_OBJECT}((?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*)\\s+(?:(?:is|are|isn'?t|aren'?t)\\b|(will)\\b|` +
-  `(?:${DUAL_USE_VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:(?!${PREPOSITION}|(?:and|or|but)\\b)[\\w'-]+\\s+){0,3}?${VIEWED_CONTENT}|` +
-  `(?:(has|have)|${VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:(${PREPOSITION})|\\w))`,
+  `(?:${DUAL_USE_VIEWING_VERB})\\s+${VIEWED_OBJECT}|` +
+  `(?:(has|have)|${VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:((?:on|in|at|from|for|with|of)\\b)|\\w))`,
   "i",
 );
 const DENIED_SPORT_LIST = new RegExp(`\\b(?:no|without)\\s+${SPORT_OBJECTS}\\s*$`, "i");
