@@ -50,6 +50,10 @@ as `restaurant` rows of `public/data/london_venues/`. The shard row is the same
 `[osmRef, name, address, lat, lng, kind]` tuple, so no price, band or opening
 claim rides on it.
 
+The map does not draw `london_venues` yet: its base layer streams `uk_base`
+pubs and bars only. These restaurants are in the London data, and showing
+them on the map is separate follow-up work.
+
 ## Run and resume
 
 Load `TAVILY_API_KEY` in the invoking shell. The script never reads a key file.
