@@ -1,0 +1,223 @@
+// London restaurants that serve drinks, on the evidence of their own sites.
+//
+// OpenStreetMap rarely tags alcohol on a restaurant: of about 9,600 named
+// London restaurants, 159 state it, so the London venue layer showed almost no
+// restaurant a drinker could sit in. This lane keeps OSM as the identity (name,
+// address, position) and asks the restaurant's OWN website whether it pours.
+// A row is published only with a verbatim quote from that site, the URL that
+// stated it, the day it was read and a robots answer that permitted the read.
+//
+// The rules are pure and live here; `scripts/harvest_london_restaurant_drinks.mjs`
+// does the reading, and `scripts/build_london_venue_shards.mjs` publishes.
+
+import { allowedEvidenceUrl, ownSiteFor, withoutName } from "./parallelVenueDiscovery.mjs";
+import { pageText } from "./webVenueDiscovery.mjs";
+
+export const LONDON = { id: "london", displayName: "London" };
+
+// Sites that answer for many restaurants and never for one: delivery,
+// booking, review, listing and link-in-bio hosts. An OSM `website` tag that
+// points at one of them names a channel, not the restaurant's own site.
+const NOT_OWN_SITE = /(?:^|\.)(?:deliveroo\.[a-z.]+|just-?eat\.[a-z.]+|ubereats\.com|uber\.com|tripadvisor\.[a-z.]+|opentable\.[a-z.]+|resy\.com|sevenrooms\.com|thefork\.[a-z.]+|quandoo\.[a-z.]+|bookatable\.[a-z.]+|designmynight\.com|squaremeal\.co\.uk|timeout\.com|yelp\.[a-z.]+|yell\.com|linktr\.ee|beacons\.ai|business\.site|toasttab\.com|order\.online|slerp\.com|flipdish\.[a-z.]+|foodhub\.co\.uk|hungrrr\.co\.uk|kukd\.com|zomato\.com|happycow\.net|wikipedia\.org|wikidata\.org)$/;
+
+export function hostOf(url) {
+  return new URL(url).hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+}
+
+/** The site a restaurant's OSM tag names, when it is a site of its own and the fence permits it. */
+export function taggedOwnSite(website) {
+  const raw = String(website ?? "").trim().split(/\s*;\s*/)[0];
+  if (!raw) return null;
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    if (!allowedEvidenceUrl(url) || NOT_OWN_SITE.test(hostOf(url))) return null;
+    return new URL(url).href;
+  } catch {
+    return null;
+  }
+}
+
+const POSTCODE = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/gi;
+const compactPostcode = (value) => String(value ?? "").toUpperCase().replace(/\s+/g, "");
+const fold = (value) => String(value ?? "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * A search result binds a restaurant's own site only when its host carries a
+ * distinctive word of the name (the shared own-site rule) and its text states
+ * this restaurant's postcode, or its house number and street. Two restaurants
+ * with one name stay apart that way.
+ */
+export function searchBindsSite(candidate, result) {
+  if (!allowedEvidenceUrl(result?.url) || NOT_OWN_SITE.test(hostOf(result.url))) return null;
+  const site = ownSiteFor(candidate.name, result.url, LONDON);
+  if (!site) return null;
+  const text = `${result.title ?? ""}\n${result.content ?? ""}\n${result.raw_content ?? ""}`;
+  const postcode = compactPostcode(candidate.postcode);
+  const statedPostcodes = (text.match(POSTCODE) ?? []).map(compactPostcode);
+  const street = candidate.street && candidate.housenumber ? fold(`${candidate.housenumber} ${candidate.street}`) : null;
+  const bound = (postcode && statedPostcodes.includes(postcode)) || (street && fold(text).includes(street));
+  return bound ? result.url : null;
+}
+
+export function searchQuery(candidate) {
+  const where = candidate.postcode || [candidate.housenumber, candidate.street].filter(Boolean).join(" ");
+  return `${candidate.name} restaurant ${where} London`.replace(/\s+/g, " ").trim();
+}
+
+// What a restaurant pours. Words a soft drink or a dish also uses are left
+// out ("drinks", "bar" alone), and the phrases below are struck before the
+// test so an alcohol-free beer or a ginger beer cannot pass as one.
+const DRINK_WORDS = /\b(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|draught|ciders?|prosecco|champagne|cava|sake|soju|spirits|whiske?y|gin|negronis?|spritz|aperitivo|sommelier|by the glass|fully licensed|licensed (?:bar|restaurant)|alcoholic drinks)\b/;
+const NOT_ALCOHOL = /\b(?:non[- ]?alcoholic|alcohol[- ]free|low (?:and|&) no|no (?:and|&) low|zero[- ](?:alcohol|proof)|0(?:\.0)?%|de-?alcoholi[sz]ed|ginger|root|birch|soft)(?:[- ]+[a-z]+){0,2}?[- ]+(?:wine ?lists?|wines?|cocktails?|beers?|lagers?|ales|ciders?|spirits|gin|prosecco|sake|drinks)\b/g;
+
+// A drink cooked into a dish is an ingredient, not a drink served: beer
+// batter, a red wine jus, cider vinegar, a sake tare.
+const INGREDIENT = /\b(?:wines?|beers?|lagers?|ales|ciders?|sake|whiske?y|gin|champagne|prosecco|cava)[- ](?:batter(?:ed)?|sauce|jus|vinegar|reduction|glaze[ds]?|braised|poached|marinated|marinade|tare|butter|jelly|gravy|cured|dressing|risotto|mustard|syrup|caramel)\b|\b(?:in|with) (?:a )?(?:red |white )?wine (?:and \w+ )?(?:sauce|jus|reduction)\b|\bcooking (?:wine|sake)\b/g;
+
+// A page that says the restaurant does not pour settles it, whatever else the
+// site says: bring-your-own, unlicensed, or a stated no-alcohol house.
+const REFUSES_ALCOHOL = /\b(?:byob?|bring your own (?:bottle|wine|drinks?|alcohol|booze|beer)|unlicen[cs]ed|not licen[cs]ed|(?:do not|don't|dont|does not|doesn't) serve (?:any )?alcohol|no alcohol (?:is )?(?:served|on the premises|allowed)(?! to)|alcohol is not (?:served|permitted|sold)|we are (?:a )?(?:dry|alcohol[- ]free)|alcohol[- ]free (?:restaurant|venue|establishment|premises))\b/;
+
+const clean = (line) => line.replace(/[*_#>`\\|]/g, " ").replace(/\[([^\]]*)\]/g, "$1").replace(/\s+/g, " ").trim();
+
+/** True when the quote, read without the venue's own name, states alcohol. */
+export function statesRestaurantDrinks(quote, name) {
+  const rest = withoutName(quote, name).replace(NOT_ALCOHOL, " ").replace(INGREDIENT, " ");
+  return DRINK_WORDS.test(rest);
+}
+
+// Page furniture that can carry a drink word without saying what this
+// restaurant pours: copyright footers and legal lines.
+const FURNITURE = /©|\bcopyright\b|all rights reserved|registered (?:in england|office|company)|company (?:no|number)/;
+const DRINK_WORDS_ALL = new RegExp(DRINK_WORDS.source, "g");
+
+// How much a line says: one point per distinct drink word, so "cocktails,
+// wine and craft beer" outranks a passing "prosecco".
+function drinkScore(line, name) {
+  const rest = withoutName(line, name).replace(NOT_ALCOHOL, " ").replace(INGREDIENT, " ");
+  return new Set(rest.match(DRINK_WORDS_ALL) ?? []).size;
+}
+
+/**
+ * Reads one page of the restaurant's own site. Returns the line that says
+ * most about what it pours, or the line that refuses alcohol, or neither. A
+ * refusal outranks any drinking line on the same page, and footers never count.
+ */
+export function drinksEvidence(markdown, name) {
+  const lines = pageText(markdown).split("\n").map(clean).filter((line) => line.length >= 12 && line.length <= 240);
+  const refusal = lines.find((line) => REFUSES_ALCOHOL.test(fold(line)));
+  if (refusal) return { refused: refusal };
+  let best = null;
+  let bestScore = 0;
+  for (const line of lines) {
+    if (FURNITURE.test(fold(line)) || !statesRestaurantDrinks(line, name)) continue;
+    const score = drinkScore(line, name);
+    if (score > bestScore) {
+      best = line;
+      bestScore = score;
+    }
+  }
+  return best ? { quote: best } : {};
+}
+
+const DRINK_LINK = /drink|wine|cocktail|beer|\bbar\b|sake|spirits/i;
+const MENU_LINK = /menu/i;
+
+/**
+ * Pages of the same site worth one more read when the landing page states
+ * nothing: drinks, wine, cocktail and bar pages first, then menus. At most
+ * `limit`, never another host, never the page itself.
+ */
+export function drinkLinks(markdown, pageUrl, limit = 3) {
+  const base = new URL(pageUrl);
+  const drink = [];
+  const menu = [];
+  for (const match of String(markdown ?? "").matchAll(/(?<!!)\[([^\]]{0,80})\]\(([^)\s]+)\)/g)) {
+    let url;
+    try {
+      url = new URL(match[2], base);
+    } catch {
+      continue;
+    }
+    url.hash = "";
+    if (!/^https?:$/.test(url.protocol) || hostOf(url.href) !== hostOf(base.href) || url.href === base.href) continue;
+    if (/\.(?:jpe?g|png|gif|webp|svg|mp4|zip)$/i.test(url.pathname)) continue;
+    const label = `${match[1]} ${decodeURIComponent(url.pathname)}`;
+    if (DRINK_LINK.test(label)) drink.push(url.href);
+    else if (MENU_LINK.test(label)) menu.push(url.href);
+  }
+  return [...new Set([...drink, ...menu])].filter(allowedEvidenceUrl).slice(0, limit);
+}
+
+/** OSM restaurants that may need evidence: named, positioned, alcohol not stated either way. */
+export function restaurantCandidate(element, { statesAlcohol }) {
+  const tags = element?.tags ?? {};
+  const name = String(tags.name ?? "").trim();
+  const lat = Number(element?.lat ?? element?.center?.lat);
+  const lng = Number(element?.lon ?? element?.center?.lon);
+  if (tags.amenity !== "restaurant" || !name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (statesAlcohol(tags) || /^(?:no|none)$/i.test(String(tags.alcohol ?? ""))) return null;
+  const street = String(tags["addr:street"] ?? "").trim() || null;
+  const housenumber = String(tags["addr:housenumber"] ?? "").trim() || null;
+  const postcode = String(tags["addr:postcode"] ?? "").trim() || null;
+  return {
+    osmId: `${element.type}/${element.id}`,
+    name,
+    lat,
+    lng,
+    address: [housenumber, street, tags["addr:city"] || null, postcode].filter(Boolean).join(", "),
+    postcode,
+    street,
+    housenumber,
+    website: taggedOwnSite(tags.website ?? tags["contact:website"] ?? tags.url),
+  };
+}
+
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+const OSM_ID = /^(?:node|way|relation)\/\d+$/;
+
+const ownSite = (url) => allowedEvidenceUrl(url) && !NOT_OWN_SITE.test(hostOf(url));
+
+function evidenceProblems(entry, row) {
+  const excerpt = String(entry?.excerpt ?? "");
+  return [
+    (!ownSite(row.website) || !allowedEvidenceUrl(entry?.url) || hostOf(entry.url) !== hostOf(row.website)) && `evidence ${entry?.url} is not on the restaurant's own site`,
+    !statesRestaurantDrinks(excerpt, row.name) && "excerpt does not state alcohol without the name",
+    REFUSES_ALCOHOL.test(fold(excerpt)) && "excerpt refuses alcohol",
+    FURNITURE.test(fold(excerpt)) && "excerpt is page furniture",
+    !ISO.test(String(entry?.observedAt ?? "")) && "evidence has no read date",
+    (entry?.robots?.outcome !== "allowed" || !ISO.test(String(entry?.robots?.checkedAt ?? ""))) && "evidence has no recorded robots permission",
+  ].filter(Boolean);
+}
+
+function rowProblems(row, inGreaterLondon) {
+  const evidence = Array.isArray(row?.evidence) ? row.evidence : [];
+  return [
+    !OSM_ID.test(String(row?.osmId ?? "")) && "osmId is not an OSM element id",
+    row?.kind !== "restaurant" && "kind must be restaurant",
+    (typeof row?.name !== "string" || !row.name.trim()) && "no name",
+    !inGreaterLondon(Number(row?.lat), Number(row?.lng)) && "outside Greater London",
+    !ownSite(row?.website) && "website is not an own site the fence permits",
+    !evidence.length && "no evidence",
+    ...evidence.flatMap((entry) => evidenceProblems(entry, row)),
+  ].filter(Boolean);
+}
+
+/**
+ * Every published row, checked again on every build: an OSM identity inside
+ * Greater London, an own-site evidence URL the fence permits, a recorded robots
+ * permission, a quote that states alcohol without the venue's name and a read
+ * date. Returns the problems; an empty list is a valid pack.
+ */
+export function validateRestaurantDrinksPack(pack, { inGreaterLondon }) {
+  if (!pack || !Array.isArray(pack.rows)) return ["pack has no rows array"];
+  const problems = [];
+  const seen = new Set();
+  for (const row of pack.rows) {
+    const id = row?.osmId ?? "(no osmId)";
+    if (seen.has(id)) problems.push(`${id}: repeated`);
+    seen.add(id);
+    problems.push(...rowProblems(row, inGreaterLondon).map((problem) => `${id}: ${problem}`));
+  }
+  return problems;
+}

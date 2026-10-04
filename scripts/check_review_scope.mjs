@@ -121,6 +121,17 @@ export const REGENERATED_LANES = [
     ],
   },
   {
+    id: "london_venues",
+    output: /^public\/data\/london_venues\/(?!README\.md$).+/,
+    inputs: [
+      /^scripts\/build_london_venue_shards\.mjs$/,
+      /^scripts\/lib\/ukBaseGrid\.mjs$/,
+      /^scripts\/lib\/londonRestaurantDrinks\.mjs$/,
+      /^data\/osm\/uk\/uk_osm_venues_[a-z]+\.json$/,
+      /^data\/london_restaurant_drinks\/evidence\.json$/,
+    ],
+  },
+  {
     id: "uk_pub_search",
     output: /^data\/generated\/uk_pub_search\.json$/,
     inputs: [

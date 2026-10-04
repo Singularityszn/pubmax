@@ -44,6 +44,7 @@
     "fetch:uk-pubs": "node scripts/fetch_uk_osm_pubs.mjs",
     "fetch:uk-venues": "node scripts/fetch_uk_osm_venues.mjs",
     "build:london-venues": "node scripts/build_london_venue_shards.mjs",
+    "harvest:london-restaurant-drinks": "node scripts/harvest_london_restaurant_drinks.mjs",
     "build:london-desks": "node scripts/build_london_desk_index.mjs",
     "build:price-estimates": "node scripts/build_price_estimate_baselines.mjs",
     "harvest:chain-prices": "tsx scripts/harvest_chain_menu_prices.mjs",

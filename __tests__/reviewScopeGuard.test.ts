@@ -216,6 +216,27 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
   });
 
+  it("permits London venue shards when the diff carries the restaurant drinks evidence", () => {
+    const report = summarizeReviewScope([
+      "data/london_restaurant_drinks/evidence.json",
+      "public/data/london_venues/manifest.json",
+      "public/data/london_venues/packs/0123456789abcdef/51.500_-0.125.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["london_venues"]);
+  });
+
+  it("refuses London venue shards that nothing in the diff produced", () => {
+    const report = summarizeReviewScope(["public/data/london_venues/manifest.json"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/london_venues/manifest.json" },
+    ]);
+  });
+
   it("permits the UK pub search index when the diff carries the UK OSM pack", () => {
     const report = summarizeReviewScope([
       "data/osm/uk/uk_osm_pubs.json",

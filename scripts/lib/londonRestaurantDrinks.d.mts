@@ -1,0 +1,22 @@
+export type RestaurantCandidate = {
+  osmId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  address: string;
+  postcode: string | null;
+  street: string | null;
+  housenumber: string | null;
+  website: string | null;
+};
+export type SearchResult = { url?: string; title?: string; content?: string; raw_content?: string | null };
+export const LONDON: { id: "london"; displayName: "London" };
+export function hostOf(url: string): string;
+export function taggedOwnSite(website: unknown): string | null;
+export function searchBindsSite(candidate: Pick<RestaurantCandidate, "name" | "postcode" | "street" | "housenumber">, result: SearchResult): string | null;
+export function searchQuery(candidate: Pick<RestaurantCandidate, "name" | "postcode" | "street" | "housenumber">): string;
+export function statesRestaurantDrinks(quote: string, name: string): boolean;
+export function drinksEvidence(markdown: unknown, name: string): { quote?: string; refused?: string };
+export function drinkLinks(markdown: unknown, pageUrl: string, limit?: number): string[];
+export function restaurantCandidate(element: unknown, deps: { statesAlcohol: (tags: Record<string, string>) => boolean }): RestaurantCandidate | null;
+export function validateRestaurantDrinksPack(pack: unknown, deps: { inGreaterLondon: (lat: number, lng: number) => boolean }): string[];
