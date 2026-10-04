@@ -6,11 +6,13 @@ import path from "node:path";
 import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { isVenueKind } from "@/lib/venues";
 
 type SlimRow = Record<string, unknown>;
 
-const cache = new Map<CityId, ConciergeVenue[]>();
-const inflight = new Map<CityId, Promise<ConciergeVenue[]>>();
+type VenueCatalogue = { venues: ConciergeVenue[]; complete: boolean };
+const cache = new Map<CityId, VenueCatalogue>();
+const inflight = new Map<CityId, Promise<VenueCatalogue>>();
 
 function bool(record: Record<string, unknown>, key: string): boolean {
   return record[key] === true;
@@ -67,12 +69,32 @@ function toVenue(value: unknown): ConciergeVenue | null {
   };
 }
 
+function readCatalogue(rows: unknown[] | null): VenueCatalogue {
+  const normalized = rows?.map(toVenue) ?? [];
+  const ids = new Set<string>();
+  const complete = rows?.every((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const row = value as SlimRow;
+    if (typeof row.id !== "string" || !row.id || ids.has(row.id)) return false;
+    ids.add(row.id);
+    // A declared, known non-pub is intentionally outside this catalogue.
+    // Unknown kinds, malformed pub rows and duplicate identities are not deletion evidence.
+    return normalized[index] !== null || (isVenueKind(row.kind) && row.kind !== "pub");
+  }) ?? false;
+  return { venues: normalized.filter((venue): venue is ConciergeVenue => venue !== null), complete };
+}
+
 /** Read and defensively normalise the server-owned city venue index. */
-export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenue[]> {
+export async function loadConciergeVenues(
+  cityId: CityId,
+  options: { requireCompleteCatalogue?: boolean } = {},
+): Promise<ConciergeVenue[]> {
+  const usable = (catalogue: VenueCatalogue) => options.requireCompleteCatalogue && !catalogue.complete
+    ? [] : catalogue.venues;
   const hit = cache.get(cityId);
-  if (hit) return hit;
+  if (hit) return usable(hit);
   const pending = inflight.get(cityId);
-  if (pending) return pending;
+  if (pending) return usable(await pending);
 
   const load = (async () => {
     try {
@@ -86,18 +108,17 @@ export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenu
         "utf8",
       );
       const parsed: unknown = JSON.parse(raw);
-      const rows = rowsFromSlimPayload(parsed) ?? [];
-      const venues = rows.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null);
-      cache.set(cityId, venues);
-      return venues;
+      const catalogue = readCatalogue(rowsFromSlimPayload(parsed));
+      cache.set(cityId, catalogue);
+      return catalogue;
     } catch {
       // Missing/corrupt data must degrade to an honest empty result, never 500.
-      return [];
+      return { venues: [], complete: false };
     }
   })();
   inflight.set(cityId, load);
   try {
-    return await load;
+    return usable(await load);
   } finally {
     if (inflight.get(cityId) === load) inflight.delete(cityId);
   }

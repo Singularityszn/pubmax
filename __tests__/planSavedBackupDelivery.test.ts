@@ -249,6 +249,30 @@ describe("Saved Plan backups through canonical route and approved quote doors", 
     expect(reloaded.plan.routeRevision).toBe(1);
   });
 
+  it("normalizes a retained backup ID before keeping its exact quote after a preceding backup disappears", async () => {
+    const remainingQuote = { ...quote, pence: 725, sourceUrl: "https://example.org/remaining-menu" };
+    fixture.rows.push(row({ venueId: "venue-e", priceGbp: 7.25, sourceUrl: remainingQuote.sourceUrl }));
+    const original = submitted();
+    const stops = [{ ...original[0], alternatives: [original[0].alternatives![0],
+      { venueId: "venue-e", venueName: "Client name", selectedDrinkPriceEvidence: remainingQuote }] },
+    ...original.slice(1)];
+    const created = await create(stops);
+    const saved = await memberRead(created.plan.plan.id, created.memberToken);
+    const wire = planSummaryRouteUpdateBody({ stops: seedRouteDraft(saved.stops, []),
+      expectedRouteRevision: 1, authority: null });
+    const alternatives = (wire.stops as Array<{ alternatives?: Array<{ venueId: string }> }>)[0].alternatives!;
+    alternatives[1].venueId = " venue-e ";
+    fixture.venueSuffixes = fixture.venueSuffixes.filter((suffix) => suffix !== "d");
+
+    const updated = await patch(created.plan.plan.id, created.memberToken, wire);
+    expect(updated.stops[0].alternatives).toEqual([
+      { venueId: "venue-e", venueName: "Canonical e", selectedDrinkPriceEvidence: remainingQuote },
+    ]);
+    const reloaded = await memberRead(created.plan.plan.id, created.memberToken);
+    expect(reloaded.stops).toEqual(updated.stops);
+    expect(reloaded.plan.routeRevision).toBe(2);
+  });
+
   it.each([
     ["new unknown backup", [{ venueId: "venue-a", alternatives: [{ venueId: "venue-d" }, { venueId: "venue-unknown" }] },
       { venueId: "venue-b" }, { venueId: "venue-c" }]],
