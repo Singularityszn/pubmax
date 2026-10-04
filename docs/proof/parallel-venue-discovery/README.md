@@ -85,6 +85,12 @@ Parallel ran out of credit (HTTP 402) after 868 `pro` Task runs, and Firecrawl r
 - `__tests__/discoverRunSlice.test.ts` drives `runSlice` with fake lanes: under the default Parallel provider a city outside `--cities` replays its cached Tavily lane, `--refresh` touches only the selected city, and `--cities=` spends nowhere.
 - `__tests__/webSlice.test.ts` drives the real slice with fake I/O: a cached city replays to completion without a call, robots retries twice with fresh checkers before a recorded skip and keeps a recovered host's checker, a page Extract cannot read at either depth is skipped with both errors and its status unless it is gone, non-venue sites are filtered before any read, and `--refresh` starts over.
 
+## Browser gate follow-up
+
+CI on `8ab4ca525` reported a flaky 390 px landing hierarchy test. Its class locator matched two navigation elements during hydration. The retry passed, but the browser gate correctly refused the flaky result.
+
+The test now selects the visible `Primary` navigation and requires exactly one before measuring its box. Its existing overlap and tap assertions remain. The original test passed five local runs, so the captured CI failure is the reproduction evidence. The corrected test passed 30 local production-browser runs with installed Chrome: ten each at 1440 x 900, 390 x 844 and 320 x 568. Retries were disabled. This is focused landing proof, not a repeat of the nine earlier venue journeys.
+
 ## First-batch browser evidence
 
 These screenshots predate the fan-out. They show first-batch venues, which remain in the packs. Browser checks used `chrome-devtools-axi` with an owned profile outside the repository, against a local production build at `127.0.0.1:3326`. No Google Maps or Places content was read or copied.
