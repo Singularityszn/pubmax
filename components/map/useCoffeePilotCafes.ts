@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 import type { CoffeePilotCafe, CoffeePilotStatus } from "@/lib/coffeePilot";
 import { loadCoffeePilotCafes } from "@/lib/coffeePilotLoader";
@@ -47,4 +55,26 @@ export function useCoffeePilotCafes(wanted: boolean): CoffeePilotState {
     [cafes],
   );
   return { status, cafes, byId, retry };
+}
+
+/**
+ * Lets a pilot cafe selection go once `release` says it has no sheet to open
+ * (lib/pubMap.ts `coffeePilotSelection`). It leaves through the map trail's own
+ * `rejectSelection`, so the cafe's venue entry leaves history with the sheet
+ * and a later Back cannot land on it.
+ */
+export function useReleaseCoffeeSelection(
+  release: boolean,
+  selectedVenueId: string,
+  rejectSelection: (venueId: string) => void,
+  setSelectedVenueId: Dispatch<SetStateAction<string>>,
+): void {
+  useEffect(() => {
+    if (!release) return;
+    const released = selectedVenueId;
+    queueMicrotask(() => {
+      rejectSelection(released);
+      setSelectedVenueId((current) => (current === released ? "" : current));
+    });
+  }, [rejectSelection, release, selectedVenueId, setSelectedVenueId]);
 }

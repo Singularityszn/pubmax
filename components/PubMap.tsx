@@ -395,7 +395,10 @@ import {
 } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
-import { useCoffeePilotCafes } from "@/components/map/useCoffeePilotCafes";
+import {
+  useCoffeePilotCafes,
+  useReleaseCoffeeSelection,
+} from "@/components/map/useCoffeePilotCafes";
 import type { CoffeePilotCafe } from "@/lib/coffeePilot";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
@@ -3408,17 +3411,6 @@ export default function PubMap({
   // while it IS the selection.
   const basePubOpen = mapSelection.basePubOpen;
   const coffeeCafeOpen = mapSelection.coffeeCafeOpen;
-  // A `venue-osm-` id off the coffee lens, or one the pilot does not hold or
-  // could not be read to place, has no sheet to open: let it go rather than
-  // hold a skeleton.
-  const releaseCoffeeSelection = coffeePilotPick.release;
-  useEffect(() => {
-    if (!releaseCoffeeSelection) return;
-    const unresolved = selectedVenueId;
-    queueMicrotask(() => {
-      setSelectedVenueId((current) => (current === unresolved ? "" : current));
-    });
-  }, [releaseCoffeeSelection, selectedVenueId, setSelectedVenueId]);
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
   // because the id alone could not say which shard cell a shared/reloaded
   // link should stream. Empty for curated selections, which clears the param.
@@ -4975,6 +4967,15 @@ export default function PubMap({
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
+  // A `venue-osm-` id off the coffee lens, or one the pilot does not hold or
+  // could not be read to place, has no sheet to open: let it go rather than
+  // hold a skeleton.
+  useReleaseCoffeeSelection(
+    coffeePilotPick.release,
+    selectedVenueId,
+    rejectMapSelection,
+    setSelectedVenueId,
+  );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
     surfaceOpenRef.current = mapSurfaceTrail.open;
@@ -6283,7 +6284,9 @@ export default function PubMap({
       coffeePilotLensOn &&
       coffeePilot.status === "failed" &&
       trimmedMapQuery.length === 0 &&
+      !mapLoadingActive &&
       !mapCanvasUnavailable &&
+      !showMapArrivalCard &&
       mapOverlay !== "search" &&
       !mapSoftRetryActive &&
       !detailOpen &&
