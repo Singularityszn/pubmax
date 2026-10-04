@@ -2,113 +2,18 @@
   "city": "glasgow",
   "districts": 26,
   "slices": 104,
-  "slicesComplete": 4,
+  "slicesComplete": 99,
   "incompleteSlices": [
-    "G1/pub",
-    "G1/bar",
-    "G1/cocktail-bar",
-    "G1/restaurant",
-    "G2/pub",
-    "G2/bar",
-    "G2/cocktail-bar",
-    "G2/restaurant",
-    "G3/pub",
-    "G3/bar",
-    "G3/cocktail-bar",
-    "G3/restaurant",
-    "G4/pub",
-    "G4/bar",
-    "G4/cocktail-bar",
-    "G4/restaurant",
-    "G5/bar",
-    "G5/restaurant",
-    "G11/pub",
-    "G11/bar",
-    "G11/cocktail-bar",
-    "G11/restaurant",
-    "G12/pub",
-    "G12/bar",
-    "G12/cocktail-bar",
-    "G12/restaurant",
-    "G13/pub",
-    "G13/bar",
-    "G13/cocktail-bar",
-    "G13/restaurant",
-    "G14/pub",
-    "G14/bar",
-    "G14/restaurant",
-    "G20/pub",
-    "G20/bar",
-    "G20/cocktail-bar",
-    "G20/restaurant",
-    "G21/pub",
-    "G21/bar",
-    "G21/cocktail-bar",
-    "G21/restaurant",
-    "G22/bar",
-    "G22/cocktail-bar",
-    "G22/restaurant",
-    "G31/pub",
-    "G31/bar",
-    "G31/cocktail-bar",
-    "G31/restaurant",
-    "G32/pub",
-    "G32/bar",
-    "G32/cocktail-bar",
-    "G32/restaurant",
-    "G33/pub",
-    "G33/bar",
-    "G33/cocktail-bar",
-    "G33/restaurant",
-    "G40/pub",
-    "G40/bar",
-    "G40/cocktail-bar",
-    "G40/restaurant",
-    "G41/pub",
-    "G41/bar",
-    "G41/cocktail-bar",
-    "G41/restaurant",
-    "G42/pub",
-    "G42/bar",
-    "G42/cocktail-bar",
-    "G42/restaurant",
-    "G43/pub",
-    "G43/bar",
-    "G43/cocktail-bar",
-    "G43/restaurant",
-    "G44/pub",
-    "G44/bar",
-    "G44/cocktail-bar",
-    "G44/restaurant",
-    "G51/pub",
-    "G51/bar",
-    "G51/cocktail-bar",
-    "G51/restaurant",
-    "G52/pub",
-    "G52/bar",
-    "G52/cocktail-bar",
-    "G52/restaurant",
-    "G53/pub",
-    "G53/bar",
-    "G53/cocktail-bar",
-    "G53/restaurant",
-    "G64/pub",
-    "G64/bar",
-    "G64/cocktail-bar",
-    "G64/restaurant",
-    "G72/pub",
-    "G72/bar",
-    "G72/cocktail-bar",
-    "G72/restaurant",
-    "G73/pub",
-    "G73/bar",
-    "G73/cocktail-bar",
-    "G73/restaurant"
+    "G1/cocktail-bar: 1 pages not read yet (robots unreachable for www.ukinbound.org); rerun to resume",
+    "G31/bar: 1 pages not read yet (robots unreachable for iblog.dearbornschools.org); rerun to resume",
+    "G32/cocktail-bar: 1 pages not read yet (robots unreachable for www.datathistle.com); rerun to resume",
+    "G40/cocktail-bar: 1 pages not read yet (robots unreachable for mercureglasgow.cityhotel.org); rerun to resume",
+    "G41/bar: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume"
   ],
   "taskRuns": 75,
-  "webSearches": 0,
-  "pagesRead": 0,
-  "researched": 305,
+  "webSearches": 215,
+  "pagesRead": 948,
+  "researched": 315,
   "added": 0,
   "retained": [
     {
@@ -197,7 +102,7 @@
     }
   ],
   "totalAccepted": 24,
-  "repeats": 4,
+  "repeats": 6,
   "duplicates": [
     {
       "name": "Big Slope",
@@ -228,6 +133,41 @@
       "name": "Springpark Bar",
       "matchedName": "Springpark Bar",
       "matchedId": "node/1776219961"
+    },
+    {
+      "name": "The Palais Bar",
+      "matchedName": "Palais",
+      "matchedId": "node/3068355994"
+    },
+    {
+      "name": "Lea Rig",
+      "matchedName": "Lea Rig",
+      "matchedId": "node/11922516760"
+    },
+    {
+      "name": "Bristol Bar",
+      "matchedName": "Bristol Bar",
+      "matchedId": "node/12900418866"
+    },
+    {
+      "name": "Duke Bar",
+      "matchedName": "The Duke Bar",
+      "matchedId": "node/1600288392"
+    },
+    {
+      "name": "Louden Tavern",
+      "matchedName": "The Louden Tavern",
+      "matchedId": "node/12900418878"
+    },
+    {
+      "name": "Crown Creighton",
+      "matchedName": "The Crown Creighton",
+      "matchedId": "node/1600288387"
+    },
+    {
+      "name": "The Old Toll Bar",
+      "matchedName": "Old Toll Bar",
+      "matchedId": "node/7335597507"
     }
   ],
   "withdrawn": [],
@@ -293,6 +233,26 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d7236374-Reviews-Blane_Valley-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurant&find_loc=The+Briggait%2C+Glasgow+G1+5HZ%2C+Vereinigtes+K%C3%B6nigreich&cflt=pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://researchonline.gcu.ac.uk/ws/files/41435114/Final_accepted_IP_new_tracker_off_070720.pdf",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.terrafirmachambers.com/documents/SLLP2013.pdf",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Ralph & Finns",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -307,6 +267,26 @@
     {
       "name": "Woody’s Glasgow",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.socialpubandkitchen.co.uk/home-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/tingle-bar-glasgow-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://delmonicas.co.uk/contact",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://committeeroom9.co.uk/contact",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://thecorinthianclub.co.uk/contact-us",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The LAB",
@@ -369,6 +349,26 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_near=hotel-ibis-styles-glasgow-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.peerspace.com/uk/resources/strangest-bars-in-the-uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/the-ivy-buchanan-street-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/house-of-gods-cocktail-lounge-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.socialpubandkitchen.co.uk/home-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Cafe Gandolfi",
       "reason": "missing-venue-specific-citation"
     },
@@ -427,6 +427,22 @@
     {
       "name": "Revolution Glasgow",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://forums.pubsgalore.co.uk/showthread.php?22863-Jumpin-Jaks-now-Sauchie-Beer-Hall-Sauchiehall-Street-Glasgow-G2-3JA=",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.thelaudersglasgow.co.uk/whatson",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thehorseshoebarglasgow.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=20-45+Waterloo+Street%2C+Glasgow+G2+6HS%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Nice n Sleazy",
@@ -525,6 +541,22 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://glasgow.cylex-uk.co.uk/company/havana-17034883.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=20-45+Waterloo+Street%2C+Glasgow+G2+6HS%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.linkedin.com/posts/tony-mctaggart-771b71212_moskito-cocktail-bar-and-restaurant-196-activity-7095906742621847552-iaup",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.glasgow.gov.uk/article/4925/Best-Bar-None-Privacy-Notice",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Rioja",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -559,6 +591,22 @@
     {
       "name": "Eleven Fifty Five",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://es.hoteles.com/go/scotland/best-pubs-glasgow",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d6160458-Reviews-BrewDog_Glasgow-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://thedrakepub.co.uk/contact",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.staloysius.org",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "The Finnieston Bar & Restaurant",
@@ -613,6 +661,30 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.cntraveller.com/article/best-bars-in-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Govan+Rd%2C+Glasgow+G51+3UU",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://red-sky-bar.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/all-our-uk-gigs/venues?filter=all&strana=102",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://acorn-hotel.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Eleven Fifty Five",
       "reason": "missing-venue-specific-citation"
     },
@@ -653,6 +725,18 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.radissonhotels.com/en-us/hotels/radisson-red-glasgow/dining/ouibar-ktchn",
+      "reason": "unreadable: extract: Error fetching content"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/scotland/venues?letter=t&strana=2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=6-7+Newton+Terrace%2C+Glasgow+G3+7PJ",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "The Kelvin",
       "reason": "missing-venue-specific-citation"
     },
@@ -667,6 +751,26 @@
     {
       "name": "Celentano’s",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d8273513-Reviews-The_Hug_Pint-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://researchonline.gcu.ac.uk/ws/files/41435114/Final_accepted_IP_new_tracker_off_070720.pdf",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-part-time-bar-staff-weekend-l-glasgow-jobs.html?start=15",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Kennedy+St%2C+Glasgow+G4+0PP",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "226 Gallowgate",
@@ -687,6 +791,18 @@
     {
       "name": "Celentano's",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Drury+St%2C+Glasgow+G2+5AA&start=50",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.atlasobscura.com/places/panther-milk-bar-glasgow",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Brett",
@@ -757,6 +873,26 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.cntraveller.com/article/best-bars-in-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=557A+Dumbarton+Road%2C+Glasgow+G11+6HU%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://prestigestudentliving.com/student-accommodation/glasgow/scotway-house",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d2617337-Reviews-TriBeCa_Cafe_Bar_Glasgow_West-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.scotrail.co.uk/inspiration-hub/things-to-do/gaga-kitchen-bar",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "The Skillet",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -813,6 +949,26 @@
       "reason": "missing-drinking-evidence"
     },
     {
+      "name": "https://www.thetennentsbarglasgow.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=25+Beaconsfield+Rd%2C+Glasgow+G12+0PJ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d3521900-Reviews-Inn_Deep-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.thetennentsbarglasgow.co.uk/main-menu",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://hillheadbookclub.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "The Clarence",
       "reason": "missing-drinking-evidence"
     },
@@ -827,6 +983,18 @@
     {
       "name": "Cail Bruich",
       "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.thetennentsbarglasgow.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://hillheadbookclub.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=28+Vinicombe+St%2C+Glasgow+G12+8BE%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Ubiquitous Chip",
@@ -855,6 +1023,42 @@
     {
       "name": "The Skillet",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://glasgow.cylex-uk.co.uk/company/the-basement-26774767.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Govan+Rd%2C+Glasgow+G51+3UU",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thetennentsbarglasgow.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-cocktail-bar-l-glasgow-jobs.html?start=15",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://the-parlour-10.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://oran-mor.co.uk/contact",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/ShowUserReviews-g186534-d2525831-r522351791-Bar_Soba_Byres_Road-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://oran-mor.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://hillheadbookclub.co.uk",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Ubiquitous Chip",
@@ -921,6 +1125,18 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://mapcarta.com/W1314420810",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.architectureglasgow.co.uk/derelict.yoker.ferry.pub.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/scotland/glasgow+and+surrounding+areas",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
       "name": "McNabbs",
       "reason": "missing-venue-specific-citation"
     },
@@ -939,6 +1155,22 @@
     {
       "name": "Station Bar",
       "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://cdn.novaloca.com/docs/598_10128_1531ebb4-4dd0-48d9-9126-6a785078a3e1.pdf",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=2-4+Watt+Road%2C+Glasgow+G52+4RR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/career/bar-staff/salaries/Glasgow-G14-0PT?campaignid=serp-more&fromjk=cc903490c08beb72&from=serp-more",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.recoverymeetingfinder.com/find-a-meeting/glasgow%20south",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "La Bodega",
@@ -969,6 +1201,26 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://mapcarta.com/N3560894658",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Maryhill+Road+579%2C+Glasgow+G20+7UH",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/all-our-uk-gigs/venues?strana=102",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://thewoodsideinn.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d3154916-Reviews-Wong_s-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Viking Bar",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -979,6 +1231,38 @@
     {
       "name": "Ram's Head",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Firhill+Rd%2C+Glasgow+G20+7BE",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d8502192-Reviews-The_Lockhouse_Bar-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://mapcarta.com/N3560894658",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://the-royalty-bar.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurants/glasgow-c666998/cocktail-bar-t2591",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://thewoodsideinn.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/all-our-uk-gigs/venues?filter=all&strana=102",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Firhill+Rd%2C+Glasgow+G20+7BE",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Punch Bowl",
@@ -1013,6 +1297,26 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://mapcarta.com/W174652316",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://shevlanes.co.uk/contact-us",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=head+chef&l=glasgow+g21+4xq",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://shevlanes.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yell.com/s/beers-waterside-kirkintilloch.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Pinkston Bar",
       "reason": "missing-venue-specific-citation"
     },
@@ -1021,8 +1325,28 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://shevlanes.co.uk/contact-us",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=server&l=g21+4lg",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Pinkston Bar",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.tripadvisor.com/ShowUserReviews-g186534-d19839036-r737234075-Garngad_Bar-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=brazilian&find_loc=Cobden+Rd%2C+Glasgow+G21+1YX",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://shop.coop.co.uk/product/jim-beam-black-cherry-kentucky-bourbon-whiskey-70cl--0080686043508",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Pinkston Bar",
@@ -1045,12 +1369,48 @@
       "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "The Space Club",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d5814444-Reviews-The_Bankroll_Cafe-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://rentberry.com/gb/apartments/170261912-two-br-450-ashgill-road-glasgow-g22-7hj-united-kingdom",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+3+106+Barloch+Street%2C+Glasgow+G22+5LE%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "The Space Club",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://glasgow.cylex-uk.co.uk/cocktail-bars?p=2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://balmore-bar-1.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://propertyauctions.io/listings/08ee4a0b117bc657c8ac7942770dfd0e",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "The Space Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/N1637944173",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/scotland/glasgow+and+surrounding+areas",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=19%2F23+Tollcross+Road%2C+Glasgow+G31+4UG%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Anchor Bar",
@@ -1065,12 +1425,40 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://mapcarta.com/N1637944173",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://propbar.co.uk/areas/scotland/glasgow/g31-3yg",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Coia’s Cafe",
       "reason": "missing-venue-specific-citation"
     },
     {
       "name": "Celinos",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurants/glasgow-c666998/cocktail-bar-t2591?p=2",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=559-561+Duke+Street%2C+Glasgow+G31+1NZ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thetimes.com/life-style/food-drink/article/table-talk-dominic-lawson-reviews-cacio-amp-pepe-pimlico-london-ncl5xmplp",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=accessories&find_near=elba-gallery-milngavie",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Coia’s Cafe",
@@ -1099,6 +1487,34 @@
     {
       "name": "Clachan Pub",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Town Tavern",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.tastecard.co.uk/restaurant-deals/independent/the-town-tavern-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d3479282-Reviews-Millers_Bar_and_Bistro-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://crystalroof.co.uk/postcodes/G32",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=19%2F23+Tollcross+Road%2C+Glasgow+G31+4UG%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d7322020-Reviews-The_Town_Tavern-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://urbanglasgow.co.uk/bushes-bar-tollcross-t2997.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "The Waverley Bar",
@@ -1141,12 +1557,52 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://guinndex.co.uk/pub/clachan-bar-glasgow",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://mapcarta.com/N687132263",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://bar-roma-1152371.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://ra.co/clubs/216588",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "The Gables",
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
       "name": "The Gartocher Bar",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://glasgow.cylex-uk.co.uk/cocktail-bars?p=3",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://the-gartocher-bar.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://glasgow.cylex-uk.co.uk/company/palaceum-bar-17047287.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_near=reflex-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d780474-Reviews-Kirkhouse-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d780474-Reviews-Kirkhouse-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "The Fullarton Park Hotel",
@@ -1177,6 +1633,10 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://mapcarta.com/W184618230",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Stewart Inn (Wee Pub)",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -1189,8 +1649,36 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://mapcarta.com/W184618230",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=6-8+Glentanar+Pl%2C+Glasgow+G22+7XT",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Mcguires Bar",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://glasgow.cylex-uk.co.uk/cocktail-bars?dst=tollcross",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=6-8+Glentanar+Pl%2C+Glasgow+G22+7XT",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Pest+Control&find_loc=Kirknewton+EH27",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.bw-garfieldhouse.co.uk/bar-grill",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://www.procook.co.uk/stores/Trafford",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "The Real MacKay",
@@ -1213,6 +1701,14 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://uk.indeed.com/q-london-cask-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://properties.zoomprospector.com/glasgowregion/property/Gateway-Court-Glasgow-Scotland/88ACEBBA-9B00-4B6A-B3D3-39079C298ADE",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Squirrel Bar",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -1221,8 +1717,32 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=204+London+Rd%2C+Glasgow+G40+1PB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://properties.zoomprospector.com/glasgowregion/property/Gateway-Court-Glasgow-Scotland/88ACEBBA-9B00-4B6A-B3D3-39079C298ADE",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.rhmorton.com/case-studies/cafe-gandolfi",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Barras Art and Design (BAaD)",
       "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d21225575-Reviews-The_Calton_Taproom-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://hawana-cafe.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "Barras Art and Design (BAaD)",
@@ -1249,6 +1769,50 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.greatlocalpubs.co.uk/james-tassie-glasgow/blog/spring",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://www.findmypub.com/operator-agreement/scotland/glasgow+and+surrounding+areas/glasgow/shawlands",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://www.opentable.com/r/church-on-the-hill-glasgow-2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thegranaryglasgow.co.uk/findus",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=7+Minard+Rd%2C+Glasgow+G41+2HR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.independent-upholstery.co.uk/privacy-policy.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d719314-Reviews-Heraghty_s-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.thegranaryglasgow.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/ShowUserReviews-g186534-d3953698-r495324378-The_Granary-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.greatlocalpubs.co.uk/james-tassie-glasgow/sport/football-pub",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=32b+St+Andrews+Road%2C+Glasgow+G41+1PF%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
       "name": "Heraghty's Bar",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -1267,6 +1831,34 @@
     {
       "name": "The Millwood",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=tapas&find_loc=Crown+Street%2C+Gorbals%2C+South+Side%2C+Glasgow+G5+9XR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thegranaryglasgow.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/scotland/venues?letter=t",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://crystalroof.co.uk/postcodes/G41",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/church-on-the-hill-glasgow-2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://ra.co/events/1742994",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=cocktailbars&find_loc=63-65+Kilmarnock+Rd%2C+Glasgow+G41+3YR",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Bar Tabacs",
@@ -1301,6 +1893,34 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://m.yelp.com/search?cflt=cocktailbars&find_loc=63-65+Kilmarnock+Rd%2C+Glasgow+G41+3YR",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://ra.co/clubs/218446",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://the-marlborough-4.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.thegranaryglasgow.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-bar-casual-l-glasgow-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/church-on-the-hill-glasgow-2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-coffee-shops-l-glasgow-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "Bar Tabacs",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -1327,6 +1947,294 @@
     {
       "name": "Victoria Bar",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=157-159+Allison+St%2C+Glasgow+G42+8RY",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/glasgow-bucks-bar-southside-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://ra.co/clubs/240371",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.resdiary.com/articles/scotland/top-5-bars-and-restaurants-in-glasgow-for-dry-january",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://shaws-bar.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/kilmurry-and-co-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=2%2F1+85+Tankerland+Road%2C+Glasgow+G44+4EW%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/old-smiddy-inn-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=2%2F1+85+Tankerland+Road%2C+Glasgow+G44+4EW%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurant/the-bank-cafe-bar-glasgow-r816568",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/montford-house-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186534-d23854445-Reviews-or15-Velvet_Sparrow-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.thefork.com/restaurant/the-bank-cafe-bar-glasgow-r816568",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Govan+Rd%2C+Glasgow+G51+3UU",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/old-smiddy-inn-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/the-bank-cafe-bar-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurant/the-bank-cafe-bar-glasgow-r816568/menu",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://cellar-675.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=1345+Govan+Rd%2C+Glasgow+G51+4TF%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d9454799-Reviews-The_Amethyst-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-gastro-pub-head-chef-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.village-hotels.co.uk/glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/restaurant/profile/123861/photos/6?lang=fr",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=1345+Govan+Rd%2C+Glasgow+G51+4TF%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.bbc.com/news/uk-63799670",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-gastro-pub-head-chef-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.caterer.com/jobs/all-our-bars/in-accademy-park?page=1&cmp=1",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.travelagewest.com/Hotels/Glasgow/Travelodge-Glasgow-Govan-p53225178",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=2-4+Watt+Road%2C+Glasgow+G52+4RR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=2-4+Watt+Road%2C+Glasgow+G52+4RR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurants/glasgow-c666998/cocktail-bar-t2591",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=2-4+Watt+Road%2C+Glasgow+G52+4RR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://the-pines-6.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://webster-bar-and-bistro.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://ayr.camra.org.uk/wp-content/uploads/2024/08/Full-Pints-Autumn-2024.pdf",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://open-data-design-glasgowgis.hub.arcgis.com/datasets/GlasgowGIS::licensed-premises",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=327+Nitshill+Rd%2C+Glasgow+G53+7BL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://crystalroof.co.uk/postcodes/G53",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=newamerican&find_loc=16-20+Bath+St%2C+Glasgow+G2+1HB",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d9974781-Reviews-Old_Plane_Tree-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=327+Nitshill+Rd%2C+Glasgow+G53+7BL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://open-data-design-glasgowgis.hub.arcgis.com/datasets/GlasgowGIS::licensed-premises",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://crystalroof.co.uk/postcodes/G53",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.royalmail.com/services-near-you/post-office/leithland-road-g53-5at",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=newamerican&find_loc=16-20+Bath+St%2C+Glasgow+G2+1HB",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d7682065-Reviews-Zizzi_Glasgow_Silverburn-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://the-nia-roo.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=G46",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-bartender-l-glasgow-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Drain+Installation&find_loc=Castle+Douglas+DG7",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=newamerican&find_loc=16-20+Bath+St%2C+Glasgow+G2+1HB",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/wagamama-glasgow-silverburn-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://five-guys-glasgow-silverburn.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Crosshill+Rd%2C+Glasgow+G64+2QG&start=160",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.allagents.co.uk/view-branch/pacittijones.co.uk/bishopbriggs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-abba-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://guinndex.co.uk/pub/the-avenue-bar-restaurant-glasgow",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://bishopbriggs.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d4585964-Reviews-or15-Crow_Tavern_Bishopbriggs-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/la-vita-pizzeria-bishopbriggs-glasgow",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Bishopbriggs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Attraction_Review-g2136842-d32839987-Reviews-The_Kirkhill_Bar-Cambuslang_South_Lanarkshire_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.royalmail.com/services-near-you/post-office/cambuslang-g72-7er",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://sweepers-lounge-bar.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/indiana-dome-glasgow-4",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://sweepers-lounge-bar.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_near=the-picture-house-rutherglen",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.cbre.co.uk/property-search/retail-space/listings/details/GB-Plus-517409/82-main-street-rutherglen-glasgow-south-lanarkshire-g73-2hz",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186534-d34314260-Reviews-Anderson_s-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d3838084-Reviews-An_Ruadh_Ghleann-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Glasgow+G44",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g186534-d2478425-Reviews-Picture_House-Glasgow_Scotland.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     }
   ],
   "outputPath": "data/cities/glasgow/parallel_venues.json"

@@ -2,2286 +2,1451 @@
   "city": "manchester",
   "districts": 52,
   "slices": 208,
-  "slicesComplete": 107,
+  "slicesComplete": 192,
   "incompleteSlices": [
-    "M1/bar",
-    "M1/cocktail-bar",
-    "M3/bar",
-    "M4/pub",
-    "M4/bar",
-    "M8/pub",
-    "M11/pub",
-    "M11/bar",
-    "M12/bar",
-    "M12/cocktail-bar",
-    "M13/bar",
-    "M13/restaurant",
-    "M14/pub",
-    "M14/bar",
-    "M15/pub",
-    "M15/bar",
-    "M15/cocktail-bar",
-    "M16/pub",
-    "M16/bar",
-    "M16/cocktail-bar",
-    "M17/cocktail-bar",
-    "M17/restaurant",
-    "M18/pub",
-    "M18/cocktail-bar",
-    "M19/pub",
-    "M19/bar",
-    "M19/cocktail-bar",
-    "M19/restaurant",
-    "M20/pub",
-    "M20/bar",
-    "M21/pub",
-    "M21/bar",
-    "M21/cocktail-bar",
-    "M22/bar",
-    "M23/pub",
-    "M23/bar",
-    "M23/cocktail-bar",
-    "M23/restaurant",
-    "M24/pub",
-    "M24/bar",
-    "M24/cocktail-bar",
-    "M25/pub",
-    "M25/cocktail-bar",
-    "M27/bar",
-    "M27/restaurant",
-    "M30/cocktail-bar",
-    "M32/cocktail-bar",
-    "M32/restaurant",
-    "M33/cocktail-bar",
-    "M34/pub",
-    "M34/bar",
-    "M35/pub",
-    "M35/bar",
-    "M35/cocktail-bar",
-    "M35/restaurant",
-    "M40/cocktail-bar",
-    "M40/restaurant",
-    "M41/pub",
-    "M41/bar",
-    "M41/restaurant",
-    "M43/pub",
-    "M43/cocktail-bar",
-    "M43/restaurant",
-    "M45/pub",
-    "M45/cocktail-bar",
-    "M50/restaurant",
-    "M60/pub",
-    "M60/cocktail-bar",
-    "M60/restaurant",
-    "OL1/pub",
-    "OL1/bar",
-    "OL1/cocktail-bar",
-    "OL6/bar",
-    "OL6/cocktail-bar",
-    "OL6/restaurant",
-    "OL7/pub",
-    "OL7/bar",
-    "OL7/cocktail-bar",
-    "OL7/restaurant",
-    "OL8/restaurant",
-    "OL9/cocktail-bar",
-    "OL9/restaurant",
-    "SK1/pub",
-    "SK1/bar",
-    "SK2/restaurant",
-    "SK3/pub",
-    "SK4/bar",
-    "SK5/pub",
-    "SK5/restaurant",
-    "SK6/pub",
-    "SK7/bar",
-    "SK8/pub",
-    "SK16/pub",
-    "SK16/bar",
-    "SK16/cocktail-bar",
-    "WA14/bar",
-    "WA14/cocktail-bar",
-    "WA15/pub",
-    "WA15/bar",
-    "WA15/cocktail-bar",
-    "WA15/restaurant"
+    "M1/bar: 1 pages not read yet (robots unreachable for themollyhouse.com); rerun to resume",
+    "M1/cocktail-bar: 2 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume",
+    "M1/restaurant: 1 pages not read yet (robots unreachable for themollyhouse.com); rerun to resume",
+    "M4/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
+    "M5/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
+    "M12/bar: 2 pages not read yet (robots unreachable for unlockmanchester.com); rerun to resume",
+    "M13/bar: 1 pages not read yet (robots unreachable for www.ticketline.co.uk); rerun to resume",
+    "M13/restaurant: 1 pages not read yet (robots unreachable for www.manchesteracademy.net); rerun to resume",
+    "M15/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
+    "M19/pub: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
+    "M20/pub: 2 pages not read yet (robots unreachable for south-manchester.u3asite.uk); rerun to resume",
+    "M20/bar: 1 pages not read yet (robots unreachable for www.theheadofsteam.co.uk); rerun to resume",
+    "M43/restaurant: 1 pages not read yet (robots unreachable for www.beerintheevening.com); rerun to resume",
+    "M45/pub: 1 pages not read yet (robots unreachable for licensing.bury.gov.uk); rerun to resume",
+    "M45/cocktail-bar: 1 pages not read yet (robots unreachable for licensing.bury.gov.uk); rerun to resume",
+    "M50/restaurant: 1 pages not read yet (robots unreachable for www.thelowry.com); rerun to resume"
   ],
   "taskRuns": 0,
-  "webSearches": 229,
-  "pagesRead": 280,
-  "researched": 492,
-  "added": 2,
-  "retained": [],
-  "totalAccepted": 2,
-  "repeats": 0,
+  "webSearches": 361,
+  "pagesRead": 1053,
+  "researched": 154,
+  "added": 0,
+  "retained": [
+    {
+      "name": "Vero Moderno",
+      "id": "venue-mcr-18ruxxm"
+    },
+    {
+      "name": "Deli-Lama Cafe-Bar",
+      "id": "venue-mcr-kcp7ci"
+    },
+    {
+      "name": "Tangerine",
+      "id": "venue-mcr-1lrqa7h"
+    },
+    {
+      "name": "Black Lion Hotel",
+      "id": "venue-mcr-1utjiiq"
+    },
+    {
+      "name": "Old Fire Station",
+      "id": "venue-mcr-1f6d0d1"
+    },
+    {
+      "name": "Ukrainian Club",
+      "id": "venue-mcr-17sam8q"
+    },
+    {
+      "name": "Irish World Heritage Centre",
+      "id": "venue-mcr-17wwbfk"
+    },
+    {
+      "name": "Velopark Cafe",
+      "id": "venue-mcr-2mlxmv"
+    },
+    {
+      "name": "Studio Bar",
+      "id": "venue-mcr-15m4rlr"
+    },
+    {
+      "name": "Fuzion Noodle Bar",
+      "id": "venue-mcr-nktoob"
+    },
+    {
+      "name": "9inety 6ix",
+      "id": "venue-mcr-1m6j34i"
+    },
+    {
+      "name": "Firbank Pub & Kitchen",
+      "id": "venue-mcr-v1581g"
+    },
+    {
+      "name": "Edgar Wood",
+      "id": "venue-mcr-oqqavb"
+    },
+    {
+      "name": "Roebuck",
+      "id": "venue-mcr-1b4tmsc"
+    },
+    {
+      "name": "Joiners Arms",
+      "id": "venue-mcr-j30rtl"
+    },
+    {
+      "name": "Middleton Archer",
+      "id": "venue-mcr-1h4tkgb"
+    },
+    {
+      "name": "Lancashire Fold",
+      "id": "venue-mcr-gy4wdx"
+    },
+    {
+      "name": "Nags Head",
+      "id": "venue-mcr-1qfay4y"
+    },
+    {
+      "name": "Monton Tap",
+      "id": "venue-mcr-1ouxp2m"
+    },
+    {
+      "name": "BrewChimp",
+      "id": "venue-mcr-u28b53"
+    },
+    {
+      "name": "Percy's",
+      "id": "venue-mcr-ud796n"
+    },
+    {
+      "name": "Vault 2",
+      "id": "venue-mcr-1b33plr"
+    },
+    {
+      "name": "Hatters Food & Drinks Hall",
+      "id": "venue-mcr-1rknt6h"
+    },
+    {
+      "name": "Queen Vic",
+      "id": "venue-mcr-1l60r8o"
+    },
+    {
+      "name": "Jolly Hatters",
+      "id": "venue-mcr-5o34fl"
+    },
+    {
+      "name": "Sun Inn",
+      "id": "venue-mcr-1n4thl8"
+    },
+    {
+      "name": "Queens Arms",
+      "id": "venue-mcr-6ad5bf"
+    },
+    {
+      "name": "The Lowry Bar & Kitchen",
+      "id": "venue-mcr-1yhy8tt"
+    },
+    {
+      "name": "Whittles",
+      "id": "venue-mcr-hat1lc"
+    },
+    {
+      "name": "Club Faith",
+      "id": "venue-mcr-pbewby"
+    },
+    {
+      "name": "Circus",
+      "id": "venue-mcr-1isw09m"
+    },
+    {
+      "name": "Billingtons",
+      "id": "venue-mcr-5nsmbs"
+    },
+    {
+      "name": "James Watts",
+      "id": "venue-mcr-1kmj7d5"
+    },
+    {
+      "name": "Brezo Lounge",
+      "id": "venue-mcr-rp20x6"
+    },
+    {
+      "name": "Crown Inn",
+      "id": "venue-mcr-lamvfp"
+    },
+    {
+      "name": "Rectory",
+      "id": "venue-mcr-7xp7wq"
+    },
+    {
+      "name": "Wobbly Stamp",
+      "id": "venue-mcr-18qj833"
+    },
+    {
+      "name": "Village Pub",
+      "id": "venue-mcr-157ruy1"
+    },
+    {
+      "name": "Astley Arms (Bottom)",
+      "id": "venue-mcr-18rfqdc"
+    }
+  ],
+  "totalAccepted": 40,
+  "repeats": 29,
   "duplicates": [
     {
-      "name": "The Angel Pub",
-      "matchedName": "The Angel",
-      "matchedId": "node/11290821391"
+      "name": "Old Pint Pot",
+      "matchedName": "The Old Pint Pot",
+      "matchedId": "node/1982756226"
+    },
+    {
+      "name": "New Oxford",
+      "matchedName": "The New Oxford",
+      "matchedId": "node/1359418285"
+    },
+    {
+      "name": "Kings Arms",
+      "matchedName": "Kings Arms",
+      "matchedId": "node/331277232"
+    },
+    {
+      "name": "Black Friar",
+      "matchedName": "The Black Friar",
+      "matchedId": "way/1052533886"
+    },
+    {
+      "name": "Joule Mcr",
+      "matchedName": "Joule MCR",
+      "matchedId": "node/10174732605"
+    },
+    {
+      "name": "Egerton Arms Hotel",
+      "matchedName": "Egerton Arms",
+      "matchedId": "way/944457450"
+    },
+    {
+      "name": "Eagle Inn",
+      "matchedName": "Eagle Inn",
+      "matchedId": "node/2207129152"
+    },
+    {
+      "name": "Welcome Inn",
+      "matchedName": "Welcome Inn",
+      "matchedId": "way/781943957"
+    },
+    {
+      "name": "Mary D's Beamish Bar",
+      "matchedName": "Mary D's",
+      "matchedId": "node/1634679820"
+    },
+    {
+      "name": "Townley",
+      "matchedName": "The Townley",
+      "matchedId": "way/478975778"
+    },
+    {
+      "name": "Grove Inn",
+      "matchedName": "Grove Inn",
+      "matchedId": "node/11649065956"
+    },
+    {
+      "name": "Corner Shop",
+      "matchedName": "The Corner Shop",
+      "matchedId": "way/1126491825"
+    },
+    {
+      "name": "Strawberry Duck",
+      "matchedName": "Strawberry Duck",
+      "matchedId": "way/624670042"
+    },
+    {
+      "name": "Black Boy",
+      "matchedName": "The Black Boy",
+      "matchedId": "way/727920306"
+    },
+    {
+      "name": "Red Rose Inn",
+      "matchedName": "The Red Rose",
+      "matchedId": "way/727918567"
+    },
+    {
+      "name": "Albion Inn",
+      "matchedName": "Albion Inn",
+      "matchedId": "way/176677497"
+    },
+    {
+      "name": "Oddfellows Arms",
+      "matchedName": "Oddfellows Arms",
+      "matchedId": "node/1870710805"
+    },
+    {
+      "name": "Grapes",
+      "matchedName": "The Grapes",
+      "matchedId": "way/1115745088"
+    },
+    {
+      "name": "Eccles Cross",
+      "matchedName": "The Eccles Cross",
+      "matchedId": "way/1115745073"
+    },
+    {
+      "name": "Duke of York",
+      "matchedName": "Duke Of York",
+      "matchedId": "way/1115745096"
+    },
+    {
+      "name": "Oddfellows Arms",
+      "matchedName": "Oddfellows Arms",
+      "matchedId": "way/185603701"
+    },
+    {
+      "name": "Station Bar",
+      "matchedName": "The Station Bar",
+      "matchedId": "way/1115745095"
+    },
+    {
+      "name": "Dog & Partridge",
+      "matchedName": "The Dog & Partridge",
+      "matchedId": "way/204127482"
+    },
+    {
+      "name": "Malt Dog",
+      "matchedName": "Malt Dog",
+      "matchedId": "node/13276510917"
+    },
+    {
+      "name": "Longford Tap",
+      "matchedName": "The Longford Tap",
+      "matchedId": "node/9275145236"
+    },
+    {
+      "name": "Gorse Hill",
+      "matchedName": "Gorse Hill",
+      "matchedId": "node/1282184377"
+    },
+    {
+      "name": "Quadrant",
+      "matchedName": "The Quadrant",
+      "matchedId": "node/748834700"
+    },
+    {
+      "name": "Red Lion",
+      "matchedName": "Red Lion",
+      "matchedId": "node/266971368"
+    },
+    {
+      "name": "Acres Inn",
+      "matchedName": "The Acres Inn",
+      "matchedId": "node/1289969049"
+    },
+    {
+      "name": "Toll Point",
+      "matchedName": "The Toll Point",
+      "matchedId": "node/1290036987"
+    },
+    {
+      "name": "Chapel House",
+      "matchedName": "The Chapel House",
+      "matchedId": "node/1289961238"
+    },
+    {
+      "name": "Coach & Horses",
+      "matchedName": "Coach and Horses",
+      "matchedId": "way/588658201"
+    },
+    {
+      "name": "Old Peg",
+      "matchedName": "Old Peg",
+      "matchedId": "way/587939960"
+    },
+    {
+      "name": "Dane Bank",
+      "matchedName": "The New Dane Bank Hotel",
+      "matchedId": "node/1290053382"
+    },
+    {
+      "name": "Bees Knees",
+      "matchedName": "Bees Knees",
+      "matchedId": "node/10276815603"
+    },
+    {
+      "name": "Old Bank",
+      "matchedName": "The Old Bank",
+      "matchedId": "node/10040533696"
+    },
+    {
+      "name": "Town Hall Tavern",
+      "matchedName": "Town Hall Tavern",
+      "matchedId": "node/10025046035"
+    },
+    {
+      "name": "Fox & Pine",
+      "matchedName": "Fox and Pine",
+      "matchedId": "way/1093989828"
+    },
+    {
+      "name": "Ashton Arms",
+      "matchedName": "The Ashton Arms Freehouse",
+      "matchedId": "node/286964235"
+    },
+    {
+      "name": "Up Steps Inn",
+      "matchedName": "The Up Steps Inn",
+      "matchedId": "node/3084282734"
+    },
+    {
+      "name": "George Tavern",
+      "matchedName": "The George Tavern",
+      "matchedId": "node/286964245"
+    },
+    {
+      "name": "George & Dragon",
+      "matchedName": "George & Dragon",
+      "matchedId": "way/237962059"
+    },
+    {
+      "name": "Ashlea",
+      "matchedName": "Ashlea",
+      "matchedId": "way/1136749722"
+    },
+    {
+      "name": "White Hart Tavern",
+      "matchedName": "White Hart",
+      "matchedId": "way/1080317421"
+    },
+    {
+      "name": "Red Lion",
+      "matchedName": "Red Lion",
+      "matchedId": "way/292496556"
+    },
+    {
+      "name": "Horse & Farrier",
+      "matchedName": "Horse & Farrier",
+      "matchedId": "way/547647720"
+    },
+    {
+      "name": "Moss Trooper",
+      "matchedName": "Moss Trooper",
+      "matchedId": "node/25475859"
+    },
+    {
+      "name": "Quarry Bank Inn",
+      "matchedName": "The Quarry Bank",
+      "matchedId": "way/142265627"
+    },
+    {
+      "name": "Stonemasons Arms",
+      "matchedName": "The Stonemasons Arms",
+      "matchedId": "way/142265629"
+    },
+    {
+      "name": "Gardeners Arms",
+      "matchedName": "Gardeners Arms",
+      "matchedId": "node/59981073"
     }
   ],
   "withdrawn": [],
   "rejected": [
     {
       "name": "https://www.manchester.gov.uk/online-directories/births-marriages-deaths-and-nationality-directories/marriages-and-civil-partnerships-directories/venues-licensed-to-hold-ceremonies/rain-bar",
-      "reason": "unreadable: robots: robots-unreadable"
-    },
-    {
-      "name": "The Temple",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Rain Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Via Manchester",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "The Alchemist New York Street Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Sandbar",
-      "reason": "missing-venue-specific-citation"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "https://www.manchester.gov.uk/online-directories/births-marriages-deaths-and-nationality-directories/marriages-and-civil-partnerships-directories/venues-licensed-to-hold-ceremonies/rain-bar",
-      "reason": "unreadable: robots: robots-unreadable"
-    },
-    {
-      "name": "The Temple",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Rain Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Via Manchester",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "The Alchemist New York Street Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Sandbar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",
-      "reason": "unreadable: robots: robots-disallowed"
-    },
-    {
-      "name": "Red Light MCR",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Brotherhood of Pursuits and Pastimes",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Napoleon’s Casino and Restaurant Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Salut Wines",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Rendition MCR",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Holiday Inn Manchester City Centre",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Vermilion",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Osma",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Sparrows",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Black Friar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Edinburgh Castle",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Lily’s Indian Vegetarian Cuisine",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Indique",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Baratxuri",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Pen & Pencil",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Namii Kitchen & Cocktails",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Evelyn’s",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "This & That",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Matt & Phreds",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Bay Horse Tavern",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Whiskey Jar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Frog & Bucket",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Port Street Beer House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Alchemist New York Street Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "1863 Restaurant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Dahlia Stereo",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Balance Taproom",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Schofield’s Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Black Friar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Royal Albert Dock",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cloud 23",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Northern Monk Refectory LDS",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Albert’s Schloss",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Zouk",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Kosmonaut Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Grill",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The Bar",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Store Street Exchange",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Paddy's Pizza and Flakey",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "https://themollyhouse.com",
-      "reason": "unreadable: robots: robots-unreachable"
-    },
-    {
-      "name": "Bar Moxy Manchester",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Be At One Cocktail Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Yours Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Henry C",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Blinker",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Fitzgerald",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Schofield's Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Speak in Code",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "10 Tib Lane",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Arcane",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Stray",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Finders Keepers",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Posie",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Side Street",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Morris",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Double Down",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Mews Bar and Charcuterie",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "St Johns Buildings",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Carnival Street Food & Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Soho House Manchester",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Be At One Manchester",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Tib Street Tavern",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "BOX",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Courts Club",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Royal Oak",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Fletcher Moss",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Salmon of Knowledge",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Quadrant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Block and Gaskett",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Libero",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Billingham Catholic Club, Billingham",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Blackfriars Tavern, Great Yarmouth",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Old Pint Pot",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "New Oxford",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Deli-Lama Cafe-Bar",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=94-98+Bloom+St%2C+Manchester+M1+3LY",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "Porta",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Kings Arms",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Black Friar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Tangerine",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Anglesey",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Crown & Anchor",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cellar Door",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Adam Reid at The French",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cantaloupe",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Federico",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Molly House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Evuna",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Portfolio.MCR",
-      "reason": "missing-venue-specific-citation"
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "https://theoasthouse.uk.com",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Lost Cat",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Junior Jacksons",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "American Pies",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Sunset Lounge",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Blues Kitchen",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Society Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Schofield's Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Atomeca",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Smithfield Social",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "https://www.beerintheevening.com/pubs/results.shtml/tr/289/show_comments/5",
-      "reason": "unreadable: robots: robots-unreachable"
+      "name": "https://www.millenniumhotels.com/en/manchester/the-lowry-hotel",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://mapcarta.com/N12003596216",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Gullivers",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Port Street Beerhouse",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Mother Mac's",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Unicorn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "57 Thomas Street",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Crown and Kettle",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Smithfield Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Marble Arch",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Angel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Hare and Hounds",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Lower Turks Head",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Wharf",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Port Street Beer House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Marble Arch",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Briton’s Protection",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Crown & Kettle",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Molly House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Bay Horse Tavern",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Tib Street Tavern",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Kings Arms",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Angel Pub",
-      "reason": "missing-geocodable-address"
+      "name": "https://www.hotels.com/go/england/best-pubs-manchester",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Sports+Bars+%26+Pubs&find_loc=87-91+Great+Ancoats+St%2C+Manchester+M4+5AG",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "English Lounge Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The White Lion",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Grey Horse",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The City Arms",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Elnecot",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Renae",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Trof",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Terrace NQ",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Behind Closed Doors",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Dusk Til Pawn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Common Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Whiskey Jar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "NQ64",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Soup",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Port Street Beer House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Matt and Phred’s",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Northern Monk Refectory",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cane & Grain",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bar Fringe",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Fierce Bar Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Marble Arch",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Jimmy's Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Dishoom, Manchester",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Mother Macs",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bundobust",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Sandinista",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Black Lion",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "City Arms",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Vine Inn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Hampton & Vouis",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Clink Cafe",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Temple of Convenience",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Peveril of the Peak",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Trof",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Federal Cafe Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Beagle",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Henry C",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Big Hands",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Southside Tequila Joint",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "256",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bakers Vaults",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Angel Inn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "https://www.cntraveller.com/article/best-pubs-manchester",
-      "reason": "unreadable: robots: robots-disallowed"
-    },
-    {
-      "name": "Stray",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bar21 Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Schofield’s Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Speak in Code",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Blinker",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Morris",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Liquor Store",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Stray",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Tattu",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Fitzgerald",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Wash House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Behind Closed Doors",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cloud 23",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Sterling",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Daisy",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Finders Keepers",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Hawksmoor",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Behind Closed Doors",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Pixel Bar Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Pixel Bar Leeds",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Pixel Bar Liverpool",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Behind Closed Doors",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bar Fringe",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Wolf At The Door",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Lower Turks Head",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Jimmy's Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Founders Hall",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Rain Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Gullivers",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Millstone",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Sicilian NQ – Bistro and Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "NQ64",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Almost Famous",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cellar Door",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Adam Reid at The French",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cantaloupe",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Federico",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Molly House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Evuna",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Portfolio.MCR",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Fress Restaurant and Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Yates Manchester Printworks",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Boom Battle Bar Manchester Printworks",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Walkabout Manchester Printworks",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Firehouse Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Black Lion",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://marblebeers.com/the-marble-arch",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.reddit.com/r/manchester/comments/1t00jj/hey_rmanchester_ive_built_a_website_that_lists",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Café Beermoth",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Cane and Grain",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Double Down",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cottonopolis",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Allotment",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Tariff & Dale",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Whiskey Jar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Crazy Pedro's",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Behind Closed Doors",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Dive NQ",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Black Dog",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Hula",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Port Street Beer House",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Northern Monk",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Beatnikz Republic",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "57 Thomas Street",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Twenty Twenty Two",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "NQ64",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "7 Sins",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Smithfield",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Band on the Wall",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Night and Day",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Matt & Phreds",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Soup Kitchen",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Flok",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Common",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Trof",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "El Capo",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Bay Horse Tavern",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Quick Brown Fox",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Terrace",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Schofield’s Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Speak in Code",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Blinker",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Morris",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Liquor Store",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Stray",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Tattu",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Fitzgerald",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Wash House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Behind Closed Doors",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cloud 23",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Sterling",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Daisy",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Finders Keepers",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Hawksmoor",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Renae",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Trof",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Terrace NQ",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Behind Closed Doors",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Dusk Til Pawn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Common Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Whiskey Jar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "NQ64",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Soup",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Port Street Beer House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Matt and Phred’s",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Northern Monk Refectory",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cane & Grain",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bar Fringe",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Blue Eyed Panda",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Blossom Street Social",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Canto",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Edinburgh Castle",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Elnecot",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Epicurean",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Erst",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Firehouse / Ramona",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Flawd",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Jimmys",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Kerb",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "NAM",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Pull Up",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Seven Bro7hers",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Sugo Pasta Kitchen",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bar21 Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bruco",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Jimmy's Manchester",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "https://www.beerintheevening.com/pubs/results.shtml/tr/464/page/1/show_comments/5",
-      "reason": "unreadable: robots: robots-unreachable"
-    },
-    {
-      "name": "Brass Handles",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Star",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Dock Yard",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Kings Arms",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The White Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The New Oxford",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Wandering Palate",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Lime Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Old Pint Pot",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Old Fire Station",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Brass Handles",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Malt Dog",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Working Class Movement Library",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Lowry",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Flavours of Manchester – A Taste of Two Cities",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Four Sis4ers Gin Distillery",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Black Friar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Embankment Kitchen Restaurant & Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Storm Cone, Peel Park",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?strana=57",
-      "reason": "unreadable: robots: robots-unreadable"
-    },
-    {
-      "name": "Union Tavern",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Malt Dog",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "The View Bar & Restaurant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Ivy Asia, Manchester",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The River Restaurant",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "SCHOFIELD'S BAR",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Hawksmoor Manchester",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The Ivy Brasserie, Manchester",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Blacklock Manchester",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Wah Ji Wah",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Peter Street Kitchen",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bill's Restaurant & Bar - Spinningfields",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Embankment Kitchen",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "20 Stories Restaurant",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Tast Catala",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The View Bar and Restaurant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "the bar at fivefourstudios",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Dishoom Manchester",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "AC Hotel Manchester Salford Quays",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Shahi Masala on the Quays",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Clippers Brasserie at Copthorne Manchester",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Reflexion Salford Quays",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Turtle Bay Salford",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "The Alchemist Salford",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Porta",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Mrs A's Kitchen",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "FoodWell",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Lupo Caffè Italiano",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Vero Moderno",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The River Restaurant at The Lowry Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Lime Bar & Restaurant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Shahi Masala Asian Grill & Restaurant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Botanist Media City",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Alchemist Media City",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Onsite Cafe",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://caf-beermoth-craft-beer-bar.wheree.com/menu",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Dyer+St%2C+Salford+M5+4TB%2C+United+Kingdom",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Maida Grill House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "New Maker Yards",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Old Pint Pot",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Hemsley House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Trading Route",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Deli-Lama Cafe-Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Bricklayers Arms",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "New Oxford",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Porta",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Castlefield Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Welcome Inn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Stables Tavern",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Slug & Lettuce",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Joule Mcr",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Barca",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Egerton Arms Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Wharf",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Malt Dog",
-      "reason": "citation-does-not-bind-name-and-address"
+      "name": "https://www.postcodearea.co.uk/postaltowns/manchester/m54rp",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://salford-city-of-salford.cylex-uk.co.uk/bars-pubs?dst=blackfriars",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "AC Lounge & AC Terrace",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Cafe Football",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The Restaurant at the V&A",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Maida Grill House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Ivy",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://www.marriott.com/en-us/dining/restaurant-bar/manac-ac-hotel-manchester-salford-quays/5984816-ac-lounge-ac-terrace.mi",
+      "reason": "unreadable: extract: Error fetching content"
     },
     {
       "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?strana=57",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "OverDraught MCR",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Quick Brown Fox",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Brewdog",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Project Halcyon",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Seven Bro7hers Beerhouse",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Victoria Tap",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Malt Dog",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "The DBA",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Joshua Brooks",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Gorilla",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Castle Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Revolution",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=213%2F215+Langworthy+Road%2C+Salford+M6+5PW&start=20",
-      "reason": "unreadable: robots: robots-disallowed"
-    },
-    {
-      "name": "Jam Restaurant & Cocktail Bar-Liverpool",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Ashley Brook Pub",
-      "reason": "missing-venue-specific-citation"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://salford-city-of-salford.cylex-uk.co.uk/charlestown/beverages.html",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.yelp.com/search?cflt=belgian&find_loc=Langworthy+Rd%2C+Salford+M6+5PP",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.yelp.ca/search?cflt=pubs&find_loc=Manchester+M7+4SE",
-      "reason": "unreadable: robots: robots-disallowed"
-    },
-    {
-      "name": "Racecourse Hotel",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Star Inn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Star Inn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Star Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Malt Dog",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Spinner's Rest",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Fox Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Golden Lion",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Charlestown",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Cleveland",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Egerton Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Duke Of Wellington",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Abel Heywood",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Angel",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Ape & Apple",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Badger",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Balance Brewing & Blending Taproom",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Band on the wall",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bank",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bar Fringe",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bay Horse",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Beer House",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Apollo Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "https://www.inapub.co.uk/pubs/beer/Manchester/Joseph-Holt-Bitter",
-      "reason": "unreadable: firecrawl HTTP 408"
-    },
-    {
-      "name": "Derby Brewery Arms",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Derby Brewery Arms",
-      "reason": "missing-venue-specific-citation"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=North+Street%2C+Manchester+M8+8RE&start=10",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Spinner's Rest",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Fox Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Golden Lion",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Charlestown",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Cleveland",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Egerton Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Duke Of Wellington",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Abel Heywood",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Angel",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Ape & Apple",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Badger",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Balance Brewing & Blending Taproom",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Band on the wall",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bank",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bar Fringe",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bay Horse",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Beer House",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The Blind Tiger",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Darbar Restaurant",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://the-blind-tiger-1.wheree.com/menu",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=North+Street%2C+Manchester+M8+8RE&start=10",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Darbar Restaurant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Spinner's Rest",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Fox Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Golden Lion",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Charlestown",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Cleveland",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Egerton Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Duke Of Wellington",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Abel Heywood",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Angel",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Ape & Apple",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Badger",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Balance Brewing & Blending Taproom",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Band on the wall",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bank",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bar Fringe",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bay Horse",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Beer House",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "The Original Chicken Bar",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Charlestown",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Kez's Afro-Caribbean Bar & Grill",
-      "reason": "missing-geocodable-address"
+      "name": "https://democracy.manchester.gov.uk/documents/s59431/Appendix%201%20-%20Location%20plan%20and%20photo%20-%20PUBLISH.pdf",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Heaton+Park+Rd%2C+Manchester+M9+0QS",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "The Top Derby",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://www.manchester.gov.uk/online-directories/libraries-directories/libraries/all-libraries/beswick-library",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Kaijah Lounge",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Ye Golden Lion",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Billingham Catholic Club",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Blackfriars Tavern",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Nottingham Robin Hood Beer & Cider Festival",
-      "reason": "postcode-does-not-geocode-inside-city"
-    },
-    {
-      "name": "St Albans Beer & Cider Festival 2026",
-      "reason": "postcode-does-not-geocode-inside-city"
-    },
-    {
-      "name": "Bridge Inn",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Billingham Catholic Club",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Blackfriars Tavern",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Nottingham Robin Hood Beer & Cider Festival",
-      "reason": "postcode-does-not-geocode-inside-city"
-    },
-    {
-      "name": "St Albans Beer & Cider Festival 2026",
-      "reason": "postcode-does-not-geocode-inside-city"
-    },
-    {
-      "name": "Mary D's Beamish Bar",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Grano",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Chick Inn",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Joel's Grill",
-      "reason": "missing-venue-specific-citation"
+      "name": "https://democracy.manchester.gov.uk/documents/g3518/Public%20reports%20pack%2009th-Mar-2020%2010.10%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Gorton+Road%2C+Manchester+M11+2DZ%2C+United+Kingdom",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://rs.locationshub.com/Home/LocationDetail?rsLocationId=119-10240768",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "https://unlockmanchester.com/guide-articles/manchester-abc-drinks-ales-beers-and-cocktails",
-      "reason": "unreadable: robots: robots-unreachable"
+      "name": "https://m.yelp.ca/search?find_desc=Nightlife&find_loc=First+Floor+Raven+House%2C+113+Fairfield+Street%2C+Piccadilly%2C+Manchester+M12+6EL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://rs.locationshub.com/Home/LocationDetail?rsLocationId=119-10240835",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=bartender&l=m12%25205jg",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.ca/search?find_desc=Nightlife&find_loc=First+Floor+Raven+House%2C+113+Fairfield+Street%2C+Piccadilly%2C+Manchester+M12+6EL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g187069-d719620-Reviews-Kro_Bar-Manchester_Greater_Manchester_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://whatnightout.uk/manchester/venues/grove-bar-70464",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.resdiary.com/articles/locations/manchesters-most-student-friendly-restaurants-and-bars",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=restaurants&find_loc=Dickenson+Road%2C+Manchester+M13+0WQ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://democracy.manchester.gov.uk/documents/b1810/Supplemenary%20Agenda%20for%20the%20Licensing%20Sub%20Committee%20Hearing%20Panel%2007th-Jan-2019%2010.00%20Licensing%20Su.pdf?T=9",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=bar&l=m14+6ad",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/M144TB/overview",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Gt+Man+M16",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://9inety6ix.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=bar+work&l=manchester+m15+6bx",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.hyattrestaurants.com/en/manchester/bar/the-graduate-bar",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-liquor-store-first-street-manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://ra.co/clubs/197216",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/M160FE/overview",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.rover.com/uk/blog/top-7-dog-friendly-bars-manchester",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.limelighthealthhub.nhs.uk",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://oh-you-pretty-things-1.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.wheree.com/Pubs-c135-g2119474-Trafford",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/oh-you-pretty-things-trafford-centre",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.iwm.org.uk/sites/default/files/files/2019-02/Summer%20party%20package_2019.pdf",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Circle+Court%2C+Manchester+M17+1LB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://mapcarta.com/W343114318",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=bar+staff&l=m18+8qq",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://charlies-angels.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=106-108+Reddish+Lane%2C+Manchester+M18+7JL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://fredsalehouse.com",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://mapcarta.com/N3874519170",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://m.yelp.com/search?cflt=bars&find_loc=Stockport+Rd%2C+Manchester+M19+3AW%2C+United+Kingdom",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://democracy.manchester.gov.uk/documents/g2731/Public%20reports%20pack%2021st-Jan-2019%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.rightmove.co.uk/properties/92875209",
+      "reason": "unreadable: extract: Error fetching content"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Circle+Court%2C+Manchester+M17+1LB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Unit+5+Sandfold+Lane%2C+Manchester+M19+3BJ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Burton+Rd%2C+Manchester+M20",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thewoodstockarmsdidsbury.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://hodgepodgedays.co.uk/category/didsbury",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Chorlton-cum-Hardy%2C+Manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thewoodstockarmsdidsbury.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_near=bar-4-eighty-manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://democracy.manchester.gov.uk/documents/s54129/Appendix%206%20publish.pdf",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://philosophyinpubs.co.uk/venues/view/313735",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=137+Beech+Rd%2C+Manchester+M21+9DT%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g187069-d12115535-Reviews-Brewski_Chorlton-Manchester_Greater_Manchester_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/bar-san-juan-manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=Nightlife&find_loc=419-421+Barlow+Moor+Road%2C+Chorlton%2C+Manchester+M21+8ER%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/proof-bar-and-kitchen-manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Sunset+Ave%2C+Wythenshawe+M22",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.ubereats.com/gb/store/the-firbank-pub-%26-kitchen/uf9JiUxHSCiCtNygdOUbsw",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Fayrouz",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.gmmh.nhs.uk/home-based-treatment-teams-in-manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.bowlandmedicalpractice.co.uk",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-bpec-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://ryderdutton.co.uk/blog/middleton/5-great-beer-gardens-to-try-in-middleton-2",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/england/north+west/greater+manchester",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "Harbord Harbord",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Jolly Carter",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Harbord Harbord",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Jolly Carter",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://ryderdutton.co.uk/blog/middleton/5-great-beer-gardens-to-try-in-middleton-2",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.indeed.com/q-personal-licence-holder-hospitality-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://the-hideout-bar-eatery-prestwich.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Prestwich%2C+Greater+Manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://viscgo.com/contact",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g528792-d3192583-Reviews-Panama_Hatty_s_Grill-Prestwich_Bury_Greater_Manchester_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.ubereats.com/gb/store/r-bar-%26-bistro/7vq7f3hfTxG7Wsy8Ox0AaQ",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://enoteca-2.wheree.com/menu",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.opentable.com/r/edison-bar-manchester-2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=209-211+Monton+Road%2C+Eccles+M30+9GA",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/edison-bar-manchester-2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-cocktail-bartender-training-l-manchester-jobs.html?start=20",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/search?q=head+chef&l=m30+0sz",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.pressreader.com/uk/daily-mail/20240308/282724821893199",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g187069-d23925267-Reviews-VG_Bar_Grill-Manchester_Greater_Manchester_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Gt+Man+M16",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://fovps.org.uk/the-tea-room",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://melville-1.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.daynurseries.co.uk/day_nursery_search_results.cfm/searchpostcode/M32",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Circle+Court%2C+Manchester+M17+1LB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.almond-pubs.co.uk/pubs/fletchers-arms",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=Nightlife&find_loc=Egerton+Street%2C+Denton%2C+Manchester+M34+3PB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.almond-pubs.co.uk/pubs/fletchers-arms",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://m.yelp.com/search?cflt=bars&find_loc=Greaves+Ave%2C+Failsworth+M35+0NA",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Spinner's Rest",
-      "reason": "missing-geocodable-address"
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Wickentree+Lane%2C+Failsworth+M35",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Fox Inn",
-      "reason": "missing-geocodable-address"
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Greaves+Ave%2C+Failsworth+M35+0NA",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Golden Lion",
-      "reason": "missing-geocodable-address"
+      "name": "https://www.admiraltaverns.co.uk/pubs/wheatsheaf-failsworth-2",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Charlestown",
-      "reason": "missing-geocodable-address"
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Greaves+Ave%2C+Failsworth+M35+0NA",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Cleveland",
-      "reason": "missing-geocodable-address"
+      "name": "https://cousins.co.uk/estate-agents/manchester-city-centre",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Egerton Inn",
-      "reason": "missing-geocodable-address"
+      "name": "https://www.admiraltaverns.co.uk/newsarticles/take-a-look-inside-new-manchester-pub-following-220000-refurbishment",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Duke Of Wellington",
-      "reason": "missing-geocodable-address"
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+10+Brunswick+Mill+Bradford+Road%2C+Manchester+M40+7EZ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
-      "name": "Abel Heywood",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Angel",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Ape & Apple",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Badger",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Balance Brewing & Blending Taproom",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Band on the wall",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bank",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bar Fringe",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Bay Horse",
-      "reason": "missing-geocodable-address"
-    },
-    {
-      "name": "Beer House",
-      "reason": "missing-geocodable-address"
+      "name": "https://democracy.manchester.gov.uk/documents/g4211/Public%20reports%20pack%2009th-Jan-2023%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://www.opentable.com/r/vermilion",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Prestwich%2C+Greater+Manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Nag's Head",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Lilys at Eden Square",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bent Brook Hotel",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Three Barrels",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bevano Lounge",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Prairie Schooner Taphouse",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Tim Bobbin",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Copper Hatch",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Auld Chimp",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Barking Dog",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Doctor Brown's",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Lostock+Road%2C+Urmston+M41+0TD",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Lostock+Road%2C+Urmston+M41+0TD",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=british&find_loc=Urmston+M41+5SQ",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://kelder-wines.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://uk.linkedin.com/in/louise-cook-926903167",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=19-23+Crofts+Bank+Rd%2C+Urmston+M41+0TZ",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.admiraltaverns.co.uk/newsarticles/take-a-look-inside-new-manchester-pub-following-240000-makeover",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://droylsden.cylex-uk.co.uk/company/friendship-inn-18673448.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/biz/strawberry-gardens-inn-manchester",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://beervisits.beer/pub-bar-visit/pv-england/135-pv-greater-manchester/1311-droylsden-greater-manchester-silly-country-bar-bottle-shop",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://streetscan.co.uk/postcode/m43-7rz",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/newsarticles/take-a-look-inside-new-manchester-pub-following-240000-makeover",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://beervisits.beer/pub-bar-visit/pv-england/135-pv-greater-manchester/1311-droylsden-greater-manchester-silly-country-bar-bottle-shop",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.opentable.co.uk/r/industry-droylsden",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/industry-droylsden",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g187069-d4455605-Reviews-The_Haddon_Hall-Manchester_Greater_Manchester_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     },
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_near=the-marble-arch-manchester&start=80",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://whitefield.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://campotapasbar.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://campotapasbar.com",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://salford-city-of-salford.cylex-uk.co.uk/charlestown/beverages.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Attraction_Review-g187069-d11435903-Reviews-The_Pilcrow_Pub-Manchester_Greater_Manchester_England.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.manchester.gov.uk/business-and-investment/starting-a-business/health-and-safety",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Gt+Man+M16",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.opentable.com/r/the-ivy-on-the-roof-manchester",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://ryderdutton.co.uk/blog/royton/5-great-local-pubs-and-bars-in-royton-and-shaw",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "New Crown Inn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Rifle Range Inn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://oldham.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "This pub is Cash only.",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Acres%2C+Oldham+OL1+2RP%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://ashton-under-lyne.cylex-uk.co.uk/function%20venues.html",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=7-13+Hazelhurst+Rd%2C+Ashton-under-Lyne+OL6+9AZ",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-cash-in-hand-bar-l-manchester-m21-jobs.html?start=15",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.hospitalityjobsuk.com/jobs/front-of-house-jobs/pubs-and-bars-jobs/greater-manchester/part-time-flexible",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://m.yelp.com/search?cflt=cocktailbars&find_loc=Ashton-under-Lyne+OL6+7JH%2C+United+Kingdom",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.egorestaurants.co.uk/restaurants/north-west/ashton-under-lyne",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=cocktailbars&find_loc=Ashton-under-Lyne+OL6+7JH%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/village-pub-and-grill-manchester-ashton-ashton-under-lyne",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.village-hotels.co.uk/manchester-ashton",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.hotels.uk.com/uk/greater-manchester/hotels-in-tameside/village-hotel-manchester-ashton.ol7-0pg",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.travelweekly.com/Hotels/Ashton-Under-Lyne-England/Village-Hotel-Manchester-Ashton-p52988897",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.opentable.co.uk/r/village-pub-and-grill-manchester-ashton-ashton-under-lyne",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Ashton-under-Lyne+OL7+0QN",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/village-pub-and-grill-manchester-ashton-ashton-under-lyne",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://m.yelp.com/search?cflt=bars&find_loc=Oldham%2C+Manchester",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.opentable.com/r/filament-lounge-at-smokies-olham",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.opentable.co.uk/r/filament-lounge-at-smokies-olham",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://oldham.cylex-uk.co.uk/beer%20gardens.html",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://the-ace.wheree.com",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "requires full survey.",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Stockport library photo",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://ra.co/clubs/273948",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://historicengland.org.uk/campaigns/visit/walking-tours/historic-pub-walks-north-west-england/stockport",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_near=waterloo-hotel-stockport",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "requires full survey.",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Stockport library photo",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://thisisbask.co.uk",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Merseyway%2C+Stockport+SK1",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-milliner-stockport",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://stockport.cylex-uk.co.uk/beer%20gardens.html",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.almond-pubs.co.uk/pubs/puss-in-boots",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "Stockport library photo",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.almond-pubs.co.uk/pubs/the-jolly-sailor",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Alpha+House%2C+4+Greek+Street%2C+Stockport%2C+Stockport+SK3+8AB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Stockport library photo",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.theploughonthemoor.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.eatdrinkmeet.co.uk/find-a-location/venue/stockport/the-plough-on-the-moor",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/thoms-wine-bar-and-restaurant-stockport",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurants/stockport-c668205",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://historicengland.org.uk/campaigns/visit/walking-tours/historic-pub-walks-north-west-england/stockport",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mapcarta.com/W258323421",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://absolueskin.ie/product-similar-image?17054239011370=",
+      "reason": "unreadable: extract: 404 page not found"
     },
     {
       "name": "https://stockport.cylex-uk.co.uk/cocktail-bars?dst=heaton-norris",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.yelp.com/search?cflt=irish&find_loc=Reddish+Vale+Rd%2C+Stockport+SK5+7EU",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.midlandmarplebridge.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.premiumcountrypubcollection.co.uk/northwest",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://hazel-grove.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/bramhall-lounge-stockport",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Manchester+SK7+4DJ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.lyyve.com/property/stockport/link-detached-house/stockport-1",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://cheadle.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Gastropubs&find_loc=Cheadle+SK8",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/village-pub-and-grill-manchester-cheadle",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.almond-pubs.co.uk/pubs/the-station-house",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=8-10+Gatley+Rd%2C+Cheadle+SK8+1PY",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.village-hotels.co.uk/manchester-cheadle",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://dukinfield.cylex-uk.co.uk/bars-pubs",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mapcarta.com/N2341896059",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "Astley Arms (Top)",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Commercial",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Angel",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Tame Valley",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Wheatsheaf",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Chapel House",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Masons Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Lodge Hotel",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://streetscan.co.uk/postcode/sk16-4jw",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.cbre.co.uk/property-search/industrial-space/listings/details/GB-Plus-517520/land-at-crescent-road-ashton-under-lyne-greater-manchester-sk16-4hy",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://dukinfield.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_near=dunham-massey-national-trust-altrincham",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.postcodearea.co.uk/postaltowns/warrington/wa158ee/pubs",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://charliebrownsgastropubs.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.postcodearea.co.uk/postaltowns/warrington/wa158ee/pubs",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://timperley.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://charliebrownsgastropubs.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/victors-hale",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://altrincham.cylex-uk.co.uk/off-licence.html",
+      "reason": "unreadable: robots refused"
     }
   ],
   "outputPath": "data/cities/manchester/parallel_venues.json"

@@ -1,0 +1,128 @@
+{
+  "city": "cambridge",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 145700,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Town & Gown",
+      "kind": "pub",
+      "address": "8 Market Passage, Cambridge CB2 3PF",
+      "postcode": "CB2 3PF",
+      "locality": "Cambridge",
+      "website": null,
+      "lat": 52.206308,
+      "lng": 0.120055,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273",
+          "excerpt": "### Town & Gown\n\nPub, in Cambridge]\n\n1 Regular, 3 Changing Beers\n\n \n\n**0.1** miles from you\n\n8 Market Passage, Cambridge, CB2 3PF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:06.880Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/CB2%203PF",
+        "observedAt": "2026-10-04T13:07:10.667Z",
+        "postcode": "CB2 3PF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-cam-1i2z8r5"
+    },
+    {
+      "name": "BrewBoard Taproom",
+      "kind": "pub",
+      "address": "4-5 Peas Hill, Cambridge CB2 3PP",
+      "postcode": "CB2 3PP",
+      "locality": "Cambridge",
+      "website": null,
+      "lat": 52.204371,
+      "lng": 0.118733,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273",
+          "excerpt": "### BrewBoard Taproom\n\nBrewBoard Pub, in Cambridge]\n\n1 Changing Beer\n\n \n\n**0.1** miles from you\n\n4-5 Peas Hill, Cambridge, CB2 3PP"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:06.880Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/CB2%203PP",
+        "observedAt": "2026-10-04T13:07:10.710Z",
+        "postcode": "CB2 3PP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-cam-1li7ndy"
+    },
+    {
+      "name": "Cambridge Chop House",
+      "kind": "restaurant",
+      "address": "1 King's Parade, Cambridge CB2 1SJ",
+      "postcode": "CB2 1SJ",
+      "locality": "Cambridge",
+      "website": null,
+      "lat": 52.204261,
+      "lng": 0.117865,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273",
+          "excerpt": "### Cambridge Chop House\n\nCambscuisine Restaurant, in Cambridge]\n\n1 Regular, 1 Changing Beers\n\n \n\n**0.1** miles from you\n\n1 King's Parade, Cambridge, CB2 1SJ"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:06.880Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/CB2%201SJ",
+        "observedAt": "2026-10-04T13:07:10.779Z",
+        "postcode": "CB2 1SJ",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-cam-16fjk2j"
+    },
+    {
+      "name": "Arts Picturehouse",
+      "kind": "pub",
+      "address": "38-39 St Andrews Street, Cambridge CB2 3AR",
+      "postcode": "CB2 3AR",
+      "locality": "Cambridge",
+      "website": null,
+      "lat": 52.203004,
+      "lng": 0.123746,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/cb2-3nb-1490273",
+          "excerpt": "### Arts Picturehouse\n\nPub, in Cambridge]\n\n2 Changing Beers\n\n \n\n**0.2** miles from you\n\n38-39 St Andrews Street, Cambridge, CB2 3AR"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:06.880Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/CB2%203AR",
+        "observedAt": "2026-10-04T13:07:10.841Z",
+        "postcode": "CB2 3AR",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-cam-1009hl8"
+    }
+  ]
+}

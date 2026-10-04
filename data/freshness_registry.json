@@ -340,8 +340,8 @@
       },
       "cadence": "Manual, city-by-city research. Cached reruns preserve observation dates.",
       "stalenessBudgetHours": 2160,
-      "refreshWorkflow": "node scripts/discover_parallel_venues.mjs [--provider=tavily-firecrawl] --cities=<city,...>, then npm run build:city-slim and node scripts/discover_parallel_venues.mjs --check. Oldest accepted per-row observation owns the stamp; unchanged rows never inherit a new research date.",
-      "gate": "PARALLEL_API_KEY, or TAVILY_API_KEY and FIRECRAWL_API_KEY. Each venue requires venue-specific non-Google citations and a geocoded address or cited coordinates. Presence evidence only; no prices or opening-hours claims."
+      "refreshWorkflow": "node scripts/discover_parallel_venues.mjs [--provider=tavily] --cities=<city,...>, then npm run build:city-slim and node scripts/discover_parallel_venues.mjs --check. Oldest accepted per-row observation owns the stamp; unchanged rows never inherit a new research date.",
+      "gate": "PARALLEL_API_KEY or TAVILY_API_KEY. Each venue requires venue-specific non-Google citations and a geocoded address or cited coordinates. Presence evidence only; no prices or opening-hours claims."
     }
   ]
 }

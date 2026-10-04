@@ -1,0 +1,128 @@
+{
+  "city": "bath",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 193400,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "The Champagne Bar at Abbey Hotel Bath",
+      "kind": "bar",
+      "address": "1 North Parade, Bath BA1 1LF",
+      "postcode": "BA1 1LF",
+      "locality": "Bath",
+      "website": null,
+      "lat": 51.380638,
+      "lng": -2.357643,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.visitbath.co.uk/food-and-drink/bars-and-cocktail-bars"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.visitbath.co.uk/food-and-drink/bars-and-cocktail-bars",
+          "excerpt": "[The Champagne Bar at Abbey Hotel Bath]\n\n    ### Address\n\n    1 North Parade, Bath, BA1 1LF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:46.901Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BA1%201LF",
+        "observedAt": "2026-10-04T12:52:44.798Z",
+        "postcode": "BA1 1LF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bat-9g5hlz"
+    },
+    {
+      "name": "Hudson Bar & Grill",
+      "kind": "pub",
+      "address": "14 London Road, Bath BA1 5BU",
+      "postcode": "BA1 5BU",
+      "locality": "Bath",
+      "website": null,
+      "lat": 51.388888,
+      "lng": -2.358829,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844",
+          "excerpt": "[### Hudson Bar & Grill\n\nPub, in Bath]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\n14 London Road, Bath, BA1 5BU"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:47.453Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BA1%205BU",
+        "observedAt": "2026-10-04T13:06:55.820Z",
+        "postcode": "BA1 5BU",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bat-1ftmwfc"
+    },
+    {
+      "name": "Saracens Head",
+      "kind": "pub",
+      "address": "42 Broad Street, Bath BA1 5LP",
+      "postcode": "BA1 5LP",
+      "locality": "Bath",
+      "website": null,
+      "lat": 51.384074,
+      "lng": -2.360098,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844",
+          "excerpt": "### Saracens Head\n\nTaylor Walker (Greene King) Pub, in Bath]\n\n3 Regular, 1 Changing Beers\n\n \n\n**0.6** miles from you\n\n42 Broad Street, Bath, BA1 5LP"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:47.453Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BA1%205LP",
+        "observedAt": "2026-10-04T13:06:55.925Z",
+        "postcode": "BA1 5LP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bat-1btwlmw"
+    },
+    {
+      "name": "The Bath Distillery Gin Bar",
+      "kind": "bar",
+      "address": "2-3 Queen Street BA1 1HE",
+      "postcode": "BA1 1HE",
+      "locality": "Bath",
+      "website": null,
+      "lat": 51.382927,
+      "lng": -2.361857,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.designmynight.com/bath/blog/cocktail-bars-bath"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.designmynight.com/bath/blog/cocktail-bars-bath",
+          "excerpt": "### **7. The Bath****Distillery Gin Bar**\n\n* ***Where: 2-3 Queen Street, BA1 1HE"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:46.901Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BA1%201HE",
+        "observedAt": "2026-10-04T12:52:47.736Z",
+        "postcode": "BA1 1HE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bat-1jcx5ox"
+    }
+  ]
+}

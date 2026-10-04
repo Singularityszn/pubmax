@@ -8,19 +8,17 @@ import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { DISCOVERY_CITIES, POPULATION_SOURCES } from "./lib/parallelDiscoveryCities.mjs";
 import { allowedEvidenceUrl, assembleCityDiscoveries, inCity, parseTaskVenues, postcodeDistricts, postcodeIn, unseenNames, validateDiscoveryPack } from "./lib/parallelVenueDiscovery.mjs";
-import { rankSearchResults, webPageResult, webQueries } from "./lib/webVenueDiscovery.mjs";
+import { rankSearchResults, readFailureIsDefinitive, webPageResult, webQueries } from "./lib/webVenueDiscovery.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RAW = path.join(ROOT, "data-harvest/parallel-venue-discovery");
 const OUT = path.join(ROOT, "data/parallel-discovery");
 const PRICES = { base: 0.01, core: 0.025, pro: 0.10, ultra: 0.30 };
 const TAVILY_CREDIT_USD = 0.008;
-const FIRECRAWL_CREDIT_USD = 0.005;
-export const PROVIDERS = ["parallel", "tavily-firecrawl"];
+export const PROVIDERS = ["parallel", "tavily"];
 const ENDPOINTS = {
   parallel: { base: "https://api.parallel.ai", key: "PARALLEL_API_KEY", header: (key) => ({ "x-api-key": key }), exhausted: [402] },
   tavily: { base: "https://api.tavily.com", key: "TAVILY_API_KEY", header: (key) => ({ Authorization: `Bearer ${key}` }), exhausted: [402, 432, 433] },
-  firecrawl: { base: "https://api.firecrawl.dev", key: "FIRECRAWL_API_KEY", header: (key) => ({ Authorization: `Bearer ${key}` }), exhausted: [402] },
 };
 const TASK_INPUT_LIMIT = 24000;
 export const CATEGORIES = [
@@ -62,7 +60,7 @@ export function parseArgs(argv) {
   }
   for (const key of ["matches", "concurrency"]) if (!Number.isInteger(options[key]) || options[key] < 1) throw new Error(`Invalid ${key}; use a positive integer`);
   if (!Object.hasOwn(PRICES, options.processor)) throw new Error("Invalid processor; choose base, core, pro or ultra");
-  if (!PROVIDERS.includes(options.provider)) throw new Error("Invalid provider; choose parallel or tavily-firecrawl");
+  if (!PROVIDERS.includes(options.provider)) throw new Error("Invalid provider; choose parallel or tavily");
   if (options.cities?.some((id) => !DISCOVERY_CITIES.some((city) => city.id === id))) throw new Error("Unknown city; run node scripts/discover_parallel_venues.mjs --list");
   return options;
 }
@@ -128,8 +126,8 @@ async function providerRequest(provider, endpoint, { city, body, cost = () => 0,
         throw Object.assign(new Error(`${provider} ${endpoint.split("?")[0]} HTTP ${status}; validation=${JSON.stringify(details)}; checkpoint retained, rerun to resume`), { status });
       }
       const data = await response.json();
-      usage = data.usage ?? (data.data?.metadata?.creditsUsed === undefined ? null : { credits: data.data.metadata.creditsUsed });
-      runId = data.run_id ?? data.request_id ?? data.data?.metadata?.scrapeId ?? null;
+      usage = data.usage ?? null;
+      runId = data.run_id ?? data.request_id ?? null;
       estimatedCostUsd = cost(data);
       return data;
     } finally {
@@ -259,51 +257,56 @@ function limiter(size) {
   };
 }
 const tavilySlot = limiter(4);
-const firecrawlSlot = limiter(2);
 const robots = createRobotsChecker();
-const scrapes = new Map();
-const scrapeFile = (url) => path.join(RAW, "firecrawl", `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`);
-const PAGE_PROMPT = "List every pub, bar or restaurant serving alcoholic drinks that this page itself describes with a UK street address and full postcode. website is the venue's own site as linked on the page, or this page's site when the page is the venue's own site, else null. Evidence excerpts must be copied character for character from this page and together state the venue's name, full street address, postcode and pub, bar or alcohol service. Never infer or paraphrase. Set coordinates to null unless the page states them. Omit closed venues and any venue whose address the page does not state.";
+const pageFile = (url) => path.join(RAW, "pages", `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`);
 
-// One Firecrawl read per URL per run, behind robots and the source fence; the
-// landed page, not the asked one, is the evidence URL.
-function scrapePage(url, city) {
-  if (!scrapes.has(url)) scrapes.set(url, (async () => {
-    const file = scrapeFile(url);
-    const cached = await readJson(file);
-    if (cached) return cached;
+// Page text comes from the search result where Tavily returned it, otherwise
+// from one Tavily Extract call per batch. A stored read is either the page or
+// a settled refusal; timeouts and server errors are never stored. Robots is
+// asked live once per host per run, and an unreachable robots file, like a
+// transient read, leaves the slice to be asked again without losing the rest.
+async function readPages(urls, search, city) {
+  const pages = new Map();
+  const extract = [];
+  const transient = [];
+  for (const url of urls) {
     const permission = await robots(url);
-    if (!permission.allowed) {
-      const page = { url, unreadable: `robots: ${permission.reason}`, observedAt: new Date().toISOString() };
-      await writeJson(file, page);
-      return page;
+    if (permission.reason === "robots-unreachable") { transient.push(`robots unreachable for ${new URL(url).host}`); continue; }
+    if (!permission.allowed) { pages.set(url, { url, unreadable: "robots refused" }); continue; }
+    const stored = await readJson(pageFile(url));
+    const result = search.results.find((row) => row.url === url);
+    if (stored) pages.set(url, stored);
+    else if (result?.raw_content) pages.set(url, { url, landedUrl: url, observedAt: search.observedAt, title: result.title ?? null, text: result.raw_content });
+    else extract.push(url);
+  }
+  for (let at = 0; at < extract.length; at += 20) {
+    const batch = extract.slice(at, at + 20);
+    const response = await tavilySlot(() => providerRequest("tavily", "/extract", { city: city.id, timeoutMs: 90_000, cost: (data) => (data.usage?.credits ?? 0) * TAVILY_CREDIT_USD,
+      body: { urls: batch, extract_depth: "basic", format: "markdown", timeout: 30, include_usage: true } }));
+    const observedAt = new Date().toISOString();
+    for (const row of response.results ?? []) {
+      const same = (left, right) => String(left).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "") === String(right).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "");
+      const url = batch.find((asked) => same(asked, row.url));
+      if (!url) continue;
+      const landed = harvestRedirectLanding(url, row.url);
+      const page = landed.outcome === "refused" || !allowedEvidenceUrl(landed.url) ? { url, unreadable: "landed outside the source fence" }
+        : { url, landedUrl: landed.url, observedAt, title: search.results.find((result) => result.url === url)?.title ?? null, text: row.raw_content ?? "" };
+      await writeJson(pageFile(url), page);
+      pages.set(url, page);
     }
-    let response;
-    try {
-      response = await firecrawlSlot(() => providerRequest("firecrawl", "/v2/scrape", { city: city.id, timeoutMs: 120_000,
-        cost: (data) => (data.data?.metadata?.creditsUsed ?? 5) * FIRECRAWL_CREDIT_USD,
-        body: { url, formats: ["markdown", { type: "json", schema: SCHEMA, prompt: PAGE_PROMPT }], onlyMainContent: false, maxAge: 0, timeout: 60_000, location: { country: "GB", languages: ["en-GB"] } } }));
-    } catch (error) {
-      if (error.status >= 400 && error.status < 500 && ![402, 429].includes(error.status)) {
-        const page = { url, unreadable: `firecrawl HTTP ${error.status}` };
-        await writeJson(file, page);
-        return page;
-      }
-      throw error;
+    for (const failure of response.failed_results ?? []) {
+      if (!readFailureIsDefinitive(failure)) { transient.push(`Tavily Extract: ${String(failure.error).slice(0, 80)} for ${failure.url}`); continue; }
+      const page = { url: failure.url, unreadable: `extract: ${String(failure.error).slice(0, 120)}` };
+      await writeJson(pageFile(failure.url), page);
+      pages.set(failure.url, page);
     }
-    const metadata = response.data?.metadata ?? {};
-    const landed = harvestRedirectLanding(url, metadata.url ?? metadata.sourceURL);
-    const page = landed.outcome === "refused" || !allowedEvidenceUrl(landed.url) ? { url, unreadable: "landed outside the source fence" }
-      : metadata.statusCode >= 400 ? { url, unreadable: `page HTTP ${metadata.statusCode}` }
-        : { url, landedUrl: landed.url, observedAt: new Date().toISOString(), markdown: response.data?.markdown ?? "", json: response.data?.json ?? null };
-    await writeJson(file, page);
-    return page;
-  })());
-  return scrapes.get(url);
+    for (const url of batch) if (!pages.has(url) && !transient.some((reason) => reason.endsWith(` for ${url}`))) transient.push(`Tavily Extract returned nothing for ${url}`);
+  }
+  return { pages, transient };
 }
 
 // Searches a slice with Tavily, one query variant at a time, until a variant
-// finds no page the slice has not read, then reads each page with Firecrawl.
+// finds no page the slice has not read, then reads each page's own text.
 async function webSlice({ city, district, category }, spend) {
   const file = path.join(RAW, city.id, `${district}-${category.id}.web.json`);
   const state = (await readJson(file)) ?? { city: city.id, district, category: category.id, queries: [] };
@@ -323,31 +326,32 @@ async function webSlice({ city, district, category }, spend) {
         state.queries.push({ query, resultPath: path.relative(ROOT, resultPath), observedAt: new Date().toISOString() });
         await writeJson(file, state);
       }
-      const search = await readJson(path.join(ROOT, state.queries[index].resultPath));
+      const search = { ...(await readJson(path.join(ROOT, state.queries[index].resultPath))), observedAt: state.queries[index].observedAt };
       const urls = rankSearchResults(search.results, district).filter((url) => !read.has(url));
       if (!urls.length) break;
-      for (const url of urls) {
-        read.add(url);
-        if (!spend && !(await readJson(scrapeFile(url)))) return outcome(false);
-        const page = await scrapePage(url, city);
-        if (!page.json) { if (page.unreadable) rejected.push({ name: url, reason: `unreadable: ${page.unreadable}` }); continue; }
-        const result = webPageResult(page);
-        const parsed = parseTaskVenues(result, city, page.observedAt);
+      urls.forEach((url) => read.add(url));
+      if (!spend) return outcome(false);
+      const { pages, transient } = await readPages(urls, search, city);
+      for (const page of pages.values()) {
+        if (page.unreadable) { rejected.push({ name: page.url, reason: `unreadable: ${page.unreadable}` }); continue; }
+        const result = webPageResult(page, city, district);
+        const parsed = parseTaskVenues(result, city, page.observedAt, { local: true });
         researched += result.output.content.venues.length;
         rejected.push(...parsed.rejected);
         for (const candidate of parsed.candidates) {
           const row = await geocode(candidate, city);
-          if (row) found.push({ ...row, provider: "tavily-firecrawl" });
+          if (row) found.push({ ...row, provider: "tavily" });
           else rejected.push({ name: candidate.name, reason: "postcode-does-not-geocode-inside-city" });
         }
       }
+      if (transient.length) throw new Error(`${transient.length} pages not read yet (${transient[0]}); rerun to resume`);
     }
   } catch (error) { throw Object.assign(error, { partial: outcome(false) }); }
   return outcome(true);
 }
 
 // Parallel pages already paid for always count. A slice they leave
-// incomplete is finished by the Tavily and Firecrawl lane when it may spend.
+// incomplete is finished by the Tavily lane when it may spend.
 async function runSlice(slice, options) {
   const spend = !options.cities || options.cities.includes(slice.city.id);
   const parallel = await parallelSlice(slice, options, spend && options.provider === "parallel");
@@ -367,7 +371,7 @@ async function pool(items, size, work) {
       const index = next++;
       try { results[index] = await work(items[index]); }
       catch (error) {
-        results[index] = error.partial ?? null;
+        results[index] = error.partial ? { ...error.partial, failure: error.message } : null;
         failures.push(`${items[index].city.id}/${items[index].district}/${items[index].category.id}: ${error.message}`);
       }
     }
@@ -383,13 +387,13 @@ async function assembleCity(city, slices, results, base) {
   for (const other of DISCOVERY_CITIES) if (other !== city) others.push(...((await readJson(discoveryPath(other)))?.venues ?? []));
   const assembled = assembleCityDiscoveries({ found, previous, existing: [...base, ...others], city });
   for (const row of assembled.accepted) row.id = cityVenueIdForPub(city.id, row);
-  const pack = validateDiscoveryPack({ city: city.id, source: "Parallel Task API; Tavily Search with Firecrawl page reads",
-    observationMeaning: "Each row's observedAt is the date its Parallel research result or Firecrawl page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  const pack = validateDiscoveryPack({ city: city.id, source: "Parallel Task API; Tavily Search and Extract",
+    observationMeaning: "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
     populationPriority: city.population, populationSources: POPULATION_SOURCES, venues: assembled.venues }, city);
   if (pack.venues.length || previous.length) await writeJson(discoveryPath(city), pack);
   const report = { city: city.id, districts: new Set(own.map(({ slice }) => slice.district)).size, slices: own.length,
     slicesComplete: own.filter(({ result }) => result.complete).length,
-    incompleteSlices: own.filter(({ result }) => !result.complete).map(({ slice }) => `${slice.district}/${slice.category.id}`),
+    incompleteSlices: own.filter(({ result }) => !result.complete).map(({ slice, result }) => `${slice.district}/${slice.category.id}${result.failure ? `: ${result.failure}` : ""}`),
     taskRuns: own.reduce((total, { result }) => total + result.taskRuns, 0),
     webSearches: own.reduce((total, { result }) => total + (result.webSearches ?? 0), 0),
     pagesRead: own.reduce((total, { result }) => total + (result.pagesRead ?? 0), 0),
@@ -444,7 +448,7 @@ async function main() {
   if (process.argv.length === 3 && ["-v", "-V", "--version"].includes(process.argv[2])) { console.log("2.0.0"); return; }
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily-firecrawl>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported\ncredentials: PARALLEL_API_KEY, or TAVILY_API_KEY and FIRECRAWL_API_KEY, from environment; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily-firecrawl --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
+    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported\ncredentials: PARALLEL_API_KEY or TAVILY_API_KEY from environment, required before any run; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
     return;
   }
   if (options.check) { await checkPacks(); return; }
@@ -454,6 +458,8 @@ async function main() {
     console.log(`cities[${targets.length}]{id,population}:\n${targets.map((city) => `  ${city.id},${city.population}`).join("\n")}\nhelp: node scripts/discover_parallel_venues.mjs --cities=birmingham,leeds,glasgow`);
     return;
   }
+  const key = ENDPOINTS[options.provider].key;
+  if (!process.env[key]) throw new Error(`${key} is missing; load it in the invoking shell. A keyless replay would record a credential failure as the run's outcome`);
   await mkdir(RAW, { recursive: true });
   await mkdir(OUT, { recursive: true });
   const base = await baseVenues();
@@ -472,7 +478,7 @@ async function main() {
   await checkPacks({ publishFreshness: true });
   const usage = await usageSummary();
   const observed = (await Promise.all(DISCOVERY_CITIES.map(async (city) => ((await readJson(discoveryPath(city)))?.venues ?? []).map((row) => row.observedAt)))).flat().sort();
-  await writeJson(path.join(OUT, "summary.json"), { providers: ["parallel", "tavily-firecrawl"], parallelProcessor: options.processor, parallelMatchesPerPage: options.matches, categories: CATEGORIES.map((category) => category.id),
+  await writeJson(path.join(OUT, "summary.json"), { providers: PROVIDERS, parallelProcessor: options.processor, parallelMatchesPerPage: options.matches, categories: CATEGORIES.map((category) => category.id),
     oldestObservedAt: observed[0] ?? null, newestObservedAt: observed.at(-1) ?? null,
     cities: cities.map(({ city, districts, slices: count, slicesComplete, taskRuns, webSearches, pagesRead, researched, added, retained, totalAccepted, duplicates, rejected }) => ({ city, complete: slicesComplete === count, districts, slices: count, slicesComplete, taskRuns, webSearches, pagesRead, researched, added, retained: retained.length, duplicates: duplicates.length, rejected: rejected.length, totalAccepted, usage: usage.byCity[city] ?? {} })),
     allCitiesComplete: cities.every((city) => city.slicesComplete === city.slices), failedSlices: failures.length, firstFailure: failures[0] ?? null, usage });

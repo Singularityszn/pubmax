@@ -7,12 +7,15 @@ export interface DiscoveryVenue {
 }
 export function postcodeIn(value: unknown): string | null;
 export function isListingUrl(url: string): boolean;
+export const GENERIC_NAME_WORDS: Set<string>;
+export function words(value: unknown): string[];
+export function ownSiteFor(name: unknown, landedUrl: string, city: { displayName: string }): string | null;
 export function allowedEvidenceUrl(value: unknown): boolean;
 export function inCity(lat: unknown, lng: unknown, city: DiscoveryCity): boolean;
-export function citationBindsIdentity(row: { name: string; address: string; evidence: Array<{ excerpt: string }> }, city: DiscoveryCity): boolean;
+export function citationBindsIdentity(row: { name: string; address: string; evidence: Array<{ excerpt: string }> }, city: DiscoveryCity, options?: { local?: boolean }): boolean;
 export function unseenNames(rows: Array<{ name?: unknown } | null>, known: Array<{ name: string }>): string[];
 export function postcodeDistricts(rows: Array<{ lat: unknown; lng: unknown; postcode?: string | null; address?: string | null }>, city: DiscoveryCity): string[];
-export function parseTaskVenues(result: unknown, city: DiscoveryCity, observedAt: string): { candidates: DiscoveryVenue[]; rejected: Array<{ name: string; reason: string }> };
+export function parseTaskVenues(result: unknown, city: DiscoveryCity, observedAt: string, options?: { local?: boolean }): { candidates: DiscoveryVenue[]; rejected: Array<{ name: string; reason: string }> };
 export function sameVenue(a: { name: string; lat: number; lng: number; address?: string; coordinatePrecision?: string }, b: { name: string; lat: number; lng: number; address?: string; coordinatePrecision?: string }): boolean;
 export function dedupeVenues<T extends { name: string; lat: number; lng: number; address?: string; id?: string; osmId?: string }>(candidates: T[], existing: Array<{ name: string; lat: number; lng: number; address?: string; id?: string; osmId?: string }>): { accepted: T[]; duplicates: Array<{ name: string; matchedName: string; matchedId: string | null }> };
 export function validateDiscoveryPack<T>(pack: T, city: DiscoveryCity): T;

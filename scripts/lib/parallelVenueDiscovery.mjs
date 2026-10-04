@@ -34,6 +34,25 @@ function sourceBelongsToVenue(url, website) {
   return hostOf(url) === hostOf(website);
 }
 
+export const GENERIC_NAME_WORDS = new Set(["the", "and", "bar", "bars", "pub", "pubs", "inn", "restaurant", "restaurants", "kitchen", "club", "lounge", "tavern", "hotel", "cafe", "grill", "wine", "cocktail", "cocktails", "brewery", "taproom", "beer", "tap", "arms", "house", "great", "united", "kingdom", "england", "scotland", "wales"]);
+const NOT_OWN_SITE_HOST = /(?:^|[.-])(?:news|live|echo|post|times|herald|gazette|chronicle|mirror|guardian|evening|mail|express|telegraph|independent|observer|journal|argus|standard|bbc|tripadvisor|yelp|foursquare|timeout|trip|booking|expedia|wikipedia|reddit|tiktok)(?:[.-]|$)|247\./i;
+
+export const words = (value) => normalizeVenueIdentityName(value).split(/\s+/).map((word) => word.replace(/[^a-z0-9]/g, "")).filter(Boolean);
+
+// The page vouches for its own venue only when its registered domain carries
+// a distinctive word of the venue's name. City names, short and generic
+// words, news and aggregator hosts, and subdomains of other sites never count.
+export function ownSiteFor(name, landedUrl, city) {
+  const hostname = new URL(landedUrl).hostname.toLowerCase();
+  if (NOT_OWN_SITE_HOST.test(hostname)) return null;
+  const labels = hostname.split(".");
+  const registrable = labels.slice(/^(?:co|org|ac|gov|net|ltd|plc|me)\.uk$/.test(labels.slice(-2).join(".")) ? -3 : -2).join(".");
+  const host = registrable.replace(/[^a-z0-9]/g, "");
+  const cityWords = new Set(words(city.displayName));
+  const distinctive = words(name).filter((word) => word.length >= 4 && !GENERIC_NAME_WORDS.has(word) && !cityWords.has(word));
+  return distinctive.some((word) => host.includes(word)) ? `${new URL(landedUrl).origin}/` : null;
+}
+
 export function inCity(lat, lng, city) {
   const [south, west, north, east] = city.bbox;
   return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)
@@ -42,7 +61,11 @@ export function inCity(lat, lng, city) {
 
 // Every address part before and around the postcode must be quoted, so a
 // qualifier such as "Upstairs" cannot vouch for an invented street after it.
-export function citationBindsIdentity({ name, address, evidence }, city) {
+// With local set, one excerpt must state all of it: a listing's entries are
+// separate passages, and joining two of them would pair one venue's name with
+// another's address. Parallel's per-field citations bind across excerpts.
+export function citationBindsIdentity({ name, address, evidence }, city, { local = false } = {}) {
+  if (local) return (evidence ?? []).some((entry) => citationBindsIdentity({ name, address, evidence: [entry] }, city));
   const quotes = normalizedText((evidence ?? []).map((entry) => entry.excerpt).join(" "));
   const segments = text(address).split(",");
   const postcodeAt = segments.findIndex((segment) => postcodeIn(segment));
@@ -77,7 +100,7 @@ export function postcodeDistricts(rows, city) {
   return [...districts].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 }
 
-export function parseTaskVenues(result, city, observedAt) {
+export function parseTaskVenues(result, city, observedAt, { local = false } = {}) {
   if (!/^\d{4}-\d{2}-\d{2}T/.test(observedAt) || !Number.isFinite(Date.parse(observedAt)) || Date.parse(observedAt) > Date.now()) throw new Error("Invalid observation date");
   const output = result?.output;
   if (output?.type !== "json" || !Array.isArray(output.content?.venues)) throw new Error("Parallel Task result has no structured venues list");
@@ -101,7 +124,7 @@ export function parseTaskVenues(result, city, observedAt) {
     if (!name || !["pub", "bar", "restaurant"].includes(kind)) reason = "invalid-identity-or-kind";
     else if (!address || !postcode) reason = "missing-geocodable-address";
     else if (!evidence.length) reason = "missing-venue-specific-citation";
-    else if (!citationBindsIdentity({ name, address, evidence }, city)) reason = "citation-does-not-bind-name-and-address";
+    else if (!citationBindsIdentity({ name, address, evidence }, city, { local })) reason = "citation-does-not-bind-name-and-address";
     else if (/\b(?:permanently closed|closed permanently|ceased trading)\b/i.test(quotes)) reason = "closed-venue";
     else if (kind === "restaurant" ? !/\b(?:beers?|cocktails?|draught|lagers?|wine list|wines|spirits|alcoholic drinks)\b/i.test(quotes) : !/\b(?:pub|public house|bar|beers?|cocktails?|ales?|lagers?)\b/i.test(quotes)) reason = "missing-drinking-evidence";
     if (reason) { rejected.push({ name, reason }); continue; }
@@ -138,6 +161,8 @@ export function dedupeVenues(candidates, existing) {
   return { accepted, duplicates };
 }
 
+const webRow = (row) => Boolean(row.provider) && row.provider !== "parallel";
+
 export function validateDiscoveryPack(pack, city) {
   if (pack?.city !== city.id || !Array.isArray(pack?.venues)) throw new Error(`Invalid Parallel venue pack for ${city.id}`);
   for (const row of pack.venues) {
@@ -146,7 +171,8 @@ export function validateDiscoveryPack(pack, city) {
       || !/^\d{4}-\d{2}-\d{2}T/.test(row.observedAt) || !Number.isFinite(Date.parse(row.observedAt)) || Date.parse(row.observedAt) > Date.now()
       || !Array.isArray(row.sourceUrls) || !row.sourceUrls.length || !row.sourceUrls.every(allowedEvidenceUrl)
       || !Array.isArray(row.evidence) || !row.evidence.length || !row.evidence.every((entry) => row.sourceUrls.includes(entry.url) && text(entry.excerpt))
-      || !citationBindsIdentity(row, city)) {
+      || (webRow(row) && !row.sourceUrls.every((url) => isListingUrl(url) || ownSiteFor(row.name, url, city)))
+      || !citationBindsIdentity(row, city, { local: webRow(row) })) {
       throw new Error(`Invalid Parallel venue evidence: ${text(row?.name) || "unnamed"}`);
     }
   }

@@ -2,40 +2,281 @@
   "city": "oxford",
   "districts": 4,
   "slices": 16,
-  "slicesComplete": 7,
-  "incompleteSlices": [
-    "OX1/pub",
-    "OX1/bar",
-    "OX1/cocktail-bar",
-    "OX2/cocktail-bar",
-    "OX3/bar",
-    "OX3/cocktail-bar",
-    "OX3/restaurant",
-    "OX4/pub",
-    "OX4/cocktail-bar"
-  ],
+  "slicesComplete": 16,
+  "incompleteSlices": [],
   "taskRuns": 0,
-  "webSearches": 16,
-  "pagesRead": 12,
-  "researched": 0,
+  "webSearches": 31,
+  "pagesRead": 145,
+  "researched": 25,
   "added": 0,
-  "retained": [],
-  "totalAccepted": 0,
+  "retained": [
+    {
+      "name": "Royal Standard",
+      "id": "venue-oxf-13e5hn1"
+    },
+    {
+      "name": "Britannia",
+      "id": "venue-oxf-pcmcoj"
+    },
+    {
+      "name": "The Butcher's Arms",
+      "id": "venue-oxf-1aku938"
+    },
+    {
+      "name": "Hawkwell House Hotel",
+      "id": "venue-oxf-t029tn"
+    },
+    {
+      "name": "Tree Hotel",
+      "id": "venue-oxf-182lbc9"
+    },
+    {
+      "name": "Florence Park Community Centre",
+      "id": "venue-oxf-20k0ia"
+    },
+    {
+      "name": "Original Swan",
+      "id": "venue-oxf-bgoqjw"
+    },
+    {
+      "name": "Cricketer's Arms",
+      "id": "venue-oxf-m5pjg2"
+    },
+    {
+      "name": "Everest Nepalese",
+      "id": "venue-oxf-a7povx"
+    }
+  ],
+  "totalAccepted": 9,
   "repeats": 0,
-  "duplicates": [],
+  "duplicates": [
+    {
+      "name": "The OXO Bar",
+      "matchedName": "The Oxo Bar",
+      "matchedId": "node/6342939238"
+    },
+    {
+      "name": "Sandy’s Piano & Wine Bar",
+      "matchedName": "Sandy's Piano Bar",
+      "matchedId": "node/9466657441"
+    },
+    {
+      "name": "LJ - Love Jericho Cocktail Bar",
+      "matchedName": "Love Jericho",
+      "matchedId": "node/662951441"
+    },
+    {
+      "name": "Raoul's Bar",
+      "matchedName": "Raoul's",
+      "matchedId": "node/662951454"
+    },
+    {
+      "name": "Tile Shop Ale House",
+      "matchedName": "The Tile Shop Ale House",
+      "matchedId": "way/135885545"
+    },
+    {
+      "name": "Black Boy",
+      "matchedName": "The Black Boy",
+      "matchedId": "way/133611152"
+    },
+    {
+      "name": "Butchers Arms",
+      "matchedName": "The Butchers Arms",
+      "matchedId": "way/832383135"
+    },
+    {
+      "name": "White Hart",
+      "matchedName": "The White Hart",
+      "matchedId": "way/125480508"
+    },
+    {
+      "name": "Corner House",
+      "matchedName": "Corner House",
+      "matchedId": "way/98611410"
+    },
+    {
+      "name": "Red Lion",
+      "matchedName": "The Red Lion",
+      "matchedId": "way/136094733"
+    },
+    {
+      "name": "George Inn",
+      "matchedName": "The George Inn",
+      "matchedId": "way/961642705"
+    },
+    {
+      "name": "Jolly Postboys",
+      "matchedName": "The Jolly Postboys",
+      "matchedId": "way/196110115"
+    },
+    {
+      "name": "William Morris",
+      "matchedName": "William Morris",
+      "matchedId": "node/175707113"
+    }
+  ],
   "withdrawn": [],
   "rejected": [
     {
+      "name": "https://www.fullers.co.uk/pubs/pub-finder/oxfordshire",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
       "name": "https://www.redlionoxford.co.uk",
-      "reason": "unreadable: robots: robots-unreadable"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=1A+Little+Clarendon+St%2C+Oxford+OX1+2HP",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.klook.com/en-GB/blog/5-famous-pubs-in-oxford",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.redlionoxford.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.klook.com/en-GB/blog/5-famous-pubs-in-oxford",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Queen+St%2C+Oxford+OX1",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/no1-ship-street-first-floor-oxford",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.atlasobscura.com/places/bear-inn-oxford",
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.opentable.com/r/the-oxo-bar-oxford",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
     },
     {
       "name": "https://www.cntraveler.com/bars/oxford/angels",
-      "reason": "unreadable: robots: robots-disallowed"
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.oxfordcompass.org/venues/oxo-bar-oxford",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Queen+St%2C+Oxford+OX1",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=1A+Little+Clarendon+St%2C+Oxford+OX1+2HP",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.fullers.co.uk/pubs/pub-finder/managed-pubs",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?strana=57",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.opentable.com/r/lj-love-jericho-cocktail-bar-oxfordshire",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.ubereats.com/gb/store/lj-love-jericho-cocktail-bar/Ieqpl8bdTB6em1Y9pE-2Vg",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thedewdropinnoxford.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.wolfson.ox.ac.uk/social-life-food-and-drink/the-wolfson-bar",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=beerbar&find_loc=Observtory+Street%2C+Oxford+OX2+6EP",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-beer-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "Acropolis",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Mason's Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Ampleforth",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=lounges&find_loc=79-81+London+Road%2C+Oxford+OX3+9AA%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://theblackboyoxford.com/black-boy-oxford",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://pubmed.ncbi.nlm.nih.gov/24530702",
+      "reason": "unreadable: extract: Error fetching content"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/OX30LE/overview",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Oxford+OX3+7LE",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Oxford+OX3+9RZ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.simplyhired.co.uk/en-GB/search?q=bartender&l=ox3+9du",
+      "reason": "unreadable: extract: Failed to fetch url"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=Restaurants&find_loc=Goring%2C+Oxfordshire",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://headington.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://mycouncil.oxford.gov.uk/mgIssueHistoryHome.aspx?IId=16169",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thecapeofgoodhopeoxford.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.magdalenarms.co.uk/page/contact",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://oxford.cylex-uk.co.uk/bars-pubs?dst=east-oxford&p=2",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://www.thecapeofgoodhopeoxford.co.uk",
+      "reason": "unreadable: robots refused"
+    },
+    {
+      "name": "https://uk.indeed.com/q-bar-l-oxford-ox4-7fn-jobs.html",
+      "reason": "unreadable: extract: Failed to fetch url"
     }
   ],
   "outputPath": "data/cities/oxford/parallel_venues.json"

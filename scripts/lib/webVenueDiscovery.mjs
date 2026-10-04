@@ -1,38 +1,132 @@
-import { allowedEvidenceUrl, isListingUrl, postcodeIn } from "./parallelVenueDiscovery.mjs";
-import { normalizeVenueIdentityName } from "./venueCanonicalization.mjs";
+import { allowedEvidenceUrl, GENERIC_NAME_WORDS, isListingUrl, ownSiteFor, postcodeIn, words } from "./parallelVenueDiscovery.mjs";
 
 const POSTCODES = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/gi;
+const STREET_NUMBER = /^(?:unit|units|no\.?|number)?\s*\d+[a-z]?(?:\s*[-–&/]\s*\d+[a-z]?)?,?\s+[a-z]/i;
+const STREET_WORD = /\b(?:street|st|road|rd|lane|ln|square|sq|place|pl|row|way|avenue|ave|terrace|parade|gate|hill|walk|court|yard|quay|wharf|arcade|market|centre|center|close|crescent|drive|green|approach|precinct|circus|broadway|boulevard|mews|passage|alley|embankment|promenade|esplanade)\.?$/i;
+const BUILDING_WORD = /\b(?:house|building|buildings|mill|works|hall|chambers|exchange|arches|unit|units|floor|basement|upstairs|downstairs|courtyard|station|hotel|centre|quarter)\b/i;
+const SKIP_LINE = /^(?:open|(?:permanently |temporarily )?closed|address|location|location information|location_on|find us|where to find us|key information|contact|contact us|get in touch|visit us|directions|map|phone|tel|telephone|email|open now|opening hours|.*miles? from you|\d+ (?:regulars?|changing beers?)|cask ale.*|real ale.*|real cider.*|in [a-z' -]{2,30}|(?:independent |micro ?|community |sports |hotel |wine |cocktail |cafe |restaurant )?(?:pub|bar|club|restaurant|brewery|cafe|hotel)(?:(?: in| ·).{0,30})?)\s*:?$/i;
+const PHONE = /^(?:phone|tel|telephone|t)?\s*:?\s*\+?[\d ()]{9,}$/i;
+const GENERIC_NAME = /^(?:home|contact|contact us|about|about us|menus?|find us|location|address|opening hours|bookings?|book a table|reviews?|events?|gallery|news|blog|faqs?|directions|welcome|private hire|gift cards?|careers|tripadvisor)$/i;
+const NOT_A_NAME = /\b(?:in|near|around)\s+[a-z]|\bbest\b|\btop \d+\b|\bguide\b|\bthings to do\b/i;
+const PUB = /\b(?:pub|public house|inn|tavern|alehouse|ale house|freehouse|free house)\b/i;
+const BAR = /\b(?:bar|cocktails?|taproom|tap room|wine bar|beer hall)\b/i;
+const RESTAURANT = /\b(?:restaurant|dining|bistro|brasserie|trattoria|pizzeria|eatery|steakhouse)\b/i;
+const ALCOHOL = /\b(?:beers?|cocktails?|draught|lagers?|wine list|wines|spirits|ales?|alcoholic drinks)\b/i;
+
 
 // Link targets and image sources are page furniture, not words the page states.
 export function pageText(markdown) {
   return String(markdown ?? "").replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\]\([^)]*\)/g, "]");
 }
 
-const GENERIC_NAME_WORDS = new Set(["the", "and", "bar", "bars", "pub", "inn", "restaurant", "kitchen", "club", "lounge", "tavern", "hotel", "cafe", "grill", "wine", "cocktail", "cocktails", "brewery", "taproom"]);
+const clean = (value) => value.replace(/[*_#>`\\[\]]/g, " ").replace(/\s+/g, " ").trim()
+  .replace(/^\d{1,3}[.)]\s+/, "").replace(/^(?:address|location|where|find us)\s*:\s*/i, "");
+const PROSE = /[.!?]\s|\b\d{1,2}(?:[.:]\d{2})?\s?(?:am|pm)\b/i;
 
-// The extractor reads the page it would vouch for, so its own-site claim is
-// circular. A page is a venue's own site only when its host carries a
-// distinctive word of the venue's name; otherwise only a listing can vouch.
-export function ownSiteFor(name, landedUrl) {
-  const host = new URL(landedUrl).hostname.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const words = normalizeVenueIdentityName(name).split(/\s+/).map((word) => word.replace(/[^a-z0-9]/g, ""))
-    .filter((word) => word.length >= 3 && !GENERIC_NAME_WORDS.has(word));
-  return words.some((word) => host.includes(word)) ? `${new URL(landedUrl).origin}/` : null;
+function isNameLike(value, city) {
+  const cityWords = new Set(words(city.displayName));
+  return value.length >= 3 && value.length <= 60 && value.split(" ").length <= 8 && /[a-z]/i.test(value) && !/[:@]|https?\b|\d{3,}/.test(value) && !PROSE.test(value)
+    && !GENERIC_NAME.test(value) && !NOT_A_NAME.test(value) && !SKIP_LINE.test(value)
+    && words(value).some((word) => word.length >= 3 && !GENERIC_NAME_WORDS.has(word) && !cityWords.has(word));
 }
 
-// A scraped page in the Task result shape, so parseTaskVenues judges it with
+function sentenceAround(text, from, to, test) {
+  const lines = [];
+  let offset = 0;
+  for (const line of text.split("\n")) {
+    if (offset + line.length >= from && offset <= to) lines.push(line);
+    offset += line.length + 1;
+  }
+  for (const line of lines) {
+    const quote = line.trim();
+    if (quote.length >= 15 && quote.length <= 240 && test.test(quote)) return quote;
+  }
+  return null;
+}
+
+const wordCount = (value) => value.split(" ").length;
+
+// Address parts read backward from the postcode: up to three localities, then
+// at least one street, then at most one building. Returns where the name sits.
+const isStreet = (piece) => wordCount(piece) <= 6 && (STREET_NUMBER.test(piece) || STREET_WORD.test(piece));
+
+function addressBefore(pieces, tail) {
+  const parts = tail ? [tail] : [];
+  let index = pieces.length - 2;
+  let street = tail && isStreet(tail) ? pieces.length - 1 : -1;
+  let localities = 0;
+  for (; index >= 0 && parts.length < 6; index -= 1) {
+    const piece = pieces[index].text;
+    if (!piece) continue;
+    if (PROSE.test(piece)) break;
+    if (isStreet(piece)) { parts.unshift(piece); street = index; continue; }
+    if (street < 0 && localities < 3 && wordCount(piece) <= 3 && !/\d/.test(piece) && !SKIP_LINE.test(piece)) { parts.unshift(piece); localities += 1; continue; }
+    if (street >= 0 && BUILDING_WORD.test(piece) && wordCount(piece) <= 5) { parts.unshift(piece); index -= 1; }
+    break;
+  }
+  if (street < 0) return null;
+  const skip = (at) => !pieces[at].text || SKIP_LINE.test(pieces[at].text) || PHONE.test(pieces[at].text) || /^in [a-z' -]{2,30}$/i.test(pieces[at + 1]?.text ?? "");
+  for (let skipped = 0; index >= 0 && skipped < 6 && skip(index); index -= 1) skipped += 1;
+  return { parts, nameAt: index };
+}
+
+function entryKind(local) {
+  if (PUB.test(local)) return "pub";
+  if (BAR.test(local)) return "bar";
+  return RESTAURANT.test(local) && ALCOHOL.test(local) ? "restaurant" : null;
+}
+
+// Venue entries a page states itself: a name, then the address parts that
+// run up to a postcode in the district, with no other postcode between. The
+// excerpt quotes the whole entry, so its name, street and postcode are bound
+// by one passage rather than joined across a page.
+export function pageVenues({ text, title, landedUrl, city, district }) {
+  const listing = isListingUrl(landedUrl);
+  const titleNames = new Set(String(title ?? "").split(/\s*[|–—:·•]\s*|\s+-\s+/).map(clean).filter(Boolean).map((name) => name.toLowerCase()));
+  const venues = [];
+  const seen = new Set();
+  let previousEnd = 0;
+  for (const match of text.matchAll(POSTCODES)) {
+    const postcode = postcodeIn(match[0]);
+    const start = previousEnd;
+    const end = match.index + match[0].length;
+    previousEnd = end;
+    if (!postcode || postcode.split(" ")[0] !== district) continue;
+    const pieces = [...text.slice(start, end).matchAll(/[^\n,|]+/g)].map((piece) => ({ text: clean(piece[0]), at: start + piece.index + piece[0].length - piece[0].trimStart().length }));
+    const tail = clean(pieces.at(-1)?.text.replace(match[0], "") ?? "");
+    const address = wordCount(tail) <= 6 ? addressBefore(pieces, tail) : null;
+    const name = address && address.nameAt >= 0 ? pieces[address.nameAt].text : "";
+    if (!isNameLike(name, city) || (!listing && !titleNames.has(name.toLowerCase())) || seen.has(`${name.toLowerCase()}|${postcode}`)) continue;
+    const website = ownSiteFor(name, landedUrl, city);
+    if (!listing && !website) continue;
+    const excerptStart = pieces[address.nameAt].at;
+    const excerpt = text.slice(excerptStart, end).trim();
+    if (/^\s*(?:permanently |temporarily )?closed\s*$/im.test(excerpt)) continue;
+    const next = text.slice(end).search(POSTCODES);
+    const entryEnd = Math.min(text.length, end + (next < 0 ? 400 : Math.min(next, 400)));
+    const kind = entryKind(website ? text.slice(excerptStart, entryEnd) : excerpt);
+    if (!kind) continue;
+    const drink = kind === "restaurant" ? ALCOHOL : kind === "pub" ? PUB : BAR;
+    const quote = drink.test(excerpt) ? null : website ? sentenceAround(text, excerptStart, entryEnd, drink) : null;
+    if (!drink.test(excerpt) && !quote) continue;
+    seen.add(`${name.toLowerCase()}|${postcode}`);
+    const parts = address.parts;
+    venues.push({ name, kind, address: [...parts.slice(0, -1), `${parts.at(-1)} ${match[0]}`.trim()].join(", "), website, lat: null, lng: null,
+      evidence: [{ url: landedUrl, excerpt }, ...(quote ? [{ url: landedUrl, excerpt: quote }] : [])] });
+  }
+  return venues;
+}
+
+// A read page in the Task result shape, so parseTaskVenues judges it with
 // the same rules: every excerpt must appear verbatim in the page it cites.
-export function webPageResult({ landedUrl, markdown, json }) {
-  const venues = (Array.isArray(json?.venues) ? json.venues : []).map((row) => ({
-    ...row, website: ownSiteFor(row?.name, landedUrl), evidence: (Array.isArray(row?.evidence) ? row.evidence : []).map((entry) => ({ url: landedUrl, excerpt: entry?.excerpt })),
-  }));
-  const text = pageText(markdown);
+export function webPageResult({ landedUrl, text, title }, city, district) {
+  const venues = pageVenues({ text: pageText(text), title, landedUrl, city, district });
   return { output: { type: "json", content: { venues }, basis: venues.map((_, index) => ({
-    field: `venues.${index}`, confidence: "high", citations: [{ url: landedUrl, excerpts: [text] }],
+    field: `venues.${index}`, confidence: "high", citations: [{ url: landedUrl, excerpts: [pageText(text)] }],
   })) } };
 }
 
-// Pages worth a scrape: permitted, stating a postcode in this district, and
+// Pages worth reading: permitted, stating a postcode in this district, and
 // either a venue listing or a single venue's own page. A page naming several
 // postcodes on any other host cannot be the venue's own site.
 export function rankSearchResults(results, district) {
@@ -54,4 +148,14 @@ export function webQueries(city, district, category) {
     `independent ${category.label} ${district} ${city.displayName} postcode`,
     `new ${category.label} opened ${district} ${city.displayName}`,
   ];
+}
+
+// Only a page that is gone, or a source that refuses, is a settled answer.
+// Timeouts, rate limits and server errors are asked again on the next run.
+// Extract names a refusal only in words ("Failed to fetch url"), so its
+// failures are settled unless they name one of the transient causes.
+export function readFailureIsDefinitive(failure) {
+  const status = Number(failure?.status);
+  if (Number.isFinite(status) && status > 0) return status === 404 || status === 410;
+  return !/time[ds]? ?out|timeout|rate.?limit|too many|\b429\b|\b5\d\d\b|server error|temporar|try again|unavailable/i.test(String(failure?.error ?? ""));
 }

@@ -1,7 +1,7 @@
 {
   "city": "durham",
-  "source": "Parallel Task API; Tavily Search with Firecrawl page reads",
-  "observationMeaning": "Each row's observedAt is the date its Parallel research result or Firecrawl page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
   "populationPriority": 522100,
   "populationSources": [
     "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
@@ -292,6 +292,35 @@
       "provider": "parallel",
       "runId": "trun_ce5fd53e0016415f92fab25c0a2858e0",
       "id": "venue-dur-ocx10"
+    },
+    {
+      "name": "19Twenty Bar & Grill",
+      "kind": "bar",
+      "address": "19-20 Elvet Bridge, Durham DH1 3AA",
+      "postcode": "DH1 3AA",
+      "locality": "Durham",
+      "website": "https://19twenty.uk/",
+      "lat": 54.776326,
+      "lng": -1.574332,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://19twenty.uk"
+      ],
+      "evidence": [
+        {
+          "url": "https://19twenty.uk",
+          "excerpt": "19Twenty Bar & Grill  \n19-20 Elvet Bridge  \nDurham  \nDH1 3AA"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:48.276Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203AA",
+        "observedAt": "2026-10-04T12:50:48.368Z",
+        "postcode": "DH1 3AA",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-dur-lgcx28"
     }
   ]
 }
