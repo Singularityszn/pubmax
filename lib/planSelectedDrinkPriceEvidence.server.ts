@@ -122,7 +122,9 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
     const raw = submitted[position];
     const row = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
     const alternatives = Array.isArray(row.alternatives) ? row.alternatives : [];
-    return [row, ...(stop.alternatives ?? []).map((_, index) => alternatives[index])];
+    return [row, ...(stop.alternatives ?? []).map((alternative) => alternatives.find((value) =>
+      value && typeof value === "object" && !Array.isArray(value)
+      && (value as Record<string, unknown>).venueId === alternative.venueId))];
   });
   const priced = await resolvePriceEvidence(flattened, hints, rawContext);
   let offset = 0;
