@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 
 // The runbook's "What runs, when" table is the owner's only plain-language view
 // of the cron plane, and vercel.json cannot carry comments. A table row is held
-// to vercel.json for its route and schedules and to the route file for its
-// maxDuration, so a schedule change that skips the runbook fails here.
+// to vercel.json for its route and schedules and to the maxDuration its route
+// module exports, so a schedule change that skips the runbook fails here.
 
 const ROOT = process.cwd();
 const RUNBOOK = join(ROOT, "docs", "CRON_PLANE_RUNBOOK.md");
@@ -47,10 +47,11 @@ function runbookTableRows(): TableRow[] {
   return rows;
 }
 
-function routeMaxDuration(route: string): number | undefined {
-  const source = readFileSync(join(ROOT, "app", ...route.split("/").filter(Boolean), "route.ts"), "utf8");
-  const value = /export const maxDuration = (\d+);/.exec(source)?.[1];
-  return value === undefined ? undefined : Number(value);
+async function routeMaxDuration(route: string): Promise<unknown> {
+  const mod = (await import(join(ROOT, "app", ...route.split("/").filter(Boolean), "route.ts"))) as {
+    maxDuration?: unknown;
+  };
+  return mod.maxDuration;
 }
 
 describe("cron runbook What-runs-when table", () => {
@@ -71,9 +72,9 @@ describe("cron runbook What-runs-when table", () => {
     }
   });
 
-  it("gives each route the maxDuration its route file exports", () => {
+  it("gives each route the maxDuration its route module exports", async () => {
     for (const row of rows) {
-      expect(row.maxDurationSeconds, `${row.route} maxDuration`).toBe(routeMaxDuration(row.route));
+      expect(row.maxDurationSeconds, `${row.route} maxDuration`).toBe(await routeMaxDuration(row.route));
     }
   });
 });
