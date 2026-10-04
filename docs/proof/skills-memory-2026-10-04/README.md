@@ -26,7 +26,7 @@ Matt plugin remains disabled; Codex's plugin is enabled.
 | HumanLayer / Dex Horthy | `ca7c8088db69e315a8b2deea43820270457f8f3c` | Current; custom research files preserved |
 | Matt Pocock | `d81f3a183412e71a5b1e84ca21bc1a35eea03a60` | Current global files and plugin managers |
 | Michael Shimeles | `4b72f46b045e6fef52e6a98d4c162dd309826aed` | Added before-and-after, code-structure, evidence-driven-testing and greploop; reconciled greploop-apps |
-| Vercel agent skills | `063bee94c3f4df8453406c830b0a7df0f2860278` | Five project skill trees checked; local introduction retained |
+| Vercel agent skills | `063bee94c3f4df8453406c830b0a7df0f2860278` | Four trees match; `vercel-optimize` keeps four vendoring doc notes and the `lib/vercel.mjs` scope fix |
 | Emil | `e8a175de22ae1e49370fc144c1f3bb9aeedf988d` | Thirteen trees match, preserving emil-prototype name |
 | Taste | `ce26fc25c0e5e8cab638f883de62d9a86ee5e45b` | Thirteen installed trees match |
 | Anthropic Frontend Design | `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4` | Added canonical Codex skill; Claude already provides synced plugin |

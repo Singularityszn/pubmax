@@ -127,7 +127,9 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 
 - Repo: https://github.com/vercel-labs/agent-skills
 - Commit: `063bee94c3f4df8453406c830b0a7df0f2860278` (`main`)
-- Checked 4 Oct 2026. The five installed skill trees match upstream except the documented local introduction in `vercel-optimize/CONTRIBUTING.md`, which stays.
+- Checked 4 Oct 2026. Four installed skill trees match upstream. `vercel-optimize` keeps five local changes:
+  - `CONTRIBUTING.md`, `README.md`, `references/data-collection.md` and `references/playbooks/README.md` say the upstream test package `packages/vercel-optimize-tests` was not vendored.
+  - `lib/vercel.mjs` resolves a `usr_` link to the CLI username scope only when the signed-in user ID equals the linked ID. Upstream also accepts a missing user ID. This is the scope fix from `13121954d`.
 
 `react-best-practices` (frontmatter `vercel-react-best-practices`), `composition-patterns` (`vercel-composition-patterns`), `react-view-transitions` (`vercel-react-view-transitions`), `web-design-guidelines`, `vercel-optimize`.
 
