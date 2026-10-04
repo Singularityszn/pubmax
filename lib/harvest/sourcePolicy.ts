@@ -655,6 +655,63 @@ function namesOurOwnIpv4Octets(first: number, second: number): boolean {
 }
 
 /**
+ * Whether a numeric address is globally routable and safe to pin a harvested
+ * request to. DNS answers are judged here after resolution; names are not, and
+ * remain governed by `isHarvestableOperatorUrl`'s operator policy.
+ */
+export function isPublicHarvestAddress(value: string): boolean {
+  if (value.includes("%")) return false;
+  const host = value.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host.includes(":")) {
+    const hextets = parseIpv6Hextets(host);
+    if (!hextets) return false;
+    const first = hextets[0] ?? 0;
+    const mappedPrefix = hextets.slice(0, 5).every((part) => part === 0);
+    if (mappedPrefix && hextets[5] === 0) return false; // deprecated IPv4-compatible form
+    const embedded = embeddedIpv4Octets(hextets);
+    if (embedded) {
+      // Mapped and well-known NAT64 addresses carry a real v4 destination.
+      // 6to4 is deprecated and ambiguous as an outbound route, so fail closed.
+      if (first === 0x2002) return false;
+      const [a = 0, b = 0, c = 0, d = 0] = embedded;
+      return isPublicIpv4Octets(a, b, c, d);
+    }
+    // Global unicast is 2000::/3. Exclude IANA special-purpose allocations,
+    // transition networks and the documentation prefix inside that range.
+    if (first < 0x2000 || first > 0x3fff) return false;
+    if (first === 0x2001) {
+      const second = hextets[1] ?? 0;
+      if (second <= 0x01ff) return false; // 2001::/23 special-purpose block
+      if (second === 0x0db8) return false; // 2001:db8::/32 documentation
+    }
+    if (first === 0x3fff && (hextets[1] ?? 0) <= 0x0fff) return false; // 3fff::/20 docs
+    return true;
+  }
+
+  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!octets) return false;
+  const parts = octets.slice(1).map(Number);
+  if (parts.some((part) => part > 255)) return false;
+  return isPublicIpv4Octets(parts[0]!, parts[1]!, parts[2]!, parts[3]!);
+}
+
+function isPublicIpv4Octets(first: number, second: number, third: number, fourth: number): boolean {
+  if (first === 0 || first === 10 || first === 127) return false;
+  if (first === 100 && second >= 64 && second <= 127) return false; // 100.64.0.0/10
+  if (first === 169 && second === 254) return false;
+  if (first === 172 && second >= 16 && second <= 31) return false;
+  if (first === 192 && second === 168) return false;
+  if (first === 192 && second === 0 && third === 0) return false;
+  if (first === 192 && second === 0 && third === 2) return false;
+  if (first === 192 && second === 88 && third === 99) return false;
+  if (first === 198 && (second === 18 || second === 19)) return false;
+  if (first === 198 && second === 51 && third === 100) return false;
+  if (first === 203 && second === 0 && third === 113) return false;
+  if (first >= 224) return false; // multicast, reserved and broadcast
+  return [first, second, third, fourth].every((part) => Number.isInteger(part) && part >= 0 && part <= 255);
+}
+
+/**
  * The eight hextets of an IPv6 literal, or null when the text is not one.
  *
  * Handles the spellings a URL can carry: zero compression (`::`), a trailing
@@ -784,10 +841,19 @@ export type HarvestRedirectLanding =
 export function harvestRedirectLanding(
   askedUrl: string,
   landedUrl: string | null | undefined,
+  policy: HarvestUrlPolicy = "operator",
 ): HarvestRedirectLanding {
   const landed = typeof landedUrl === "string" && landedUrl.trim() ? landedUrl.trim() : askedUrl;
-  if (!isHarvestableOperatorUrl(landed)) return { outcome: "refused", url: landed };
+  if (!isHarvestablePageUrl(landed, policy)) return { outcome: "refused", url: landed };
   return { outcome: landed === askedUrl ? "same" : "redirected", url: landed };
+}
+
+/** URL policy classes used by the shared direct-page transport. */
+export type HarvestUrlPolicy = "operator" | "drink-update";
+
+/** Keep URL policy decisions in this module; the transport only enforces them. */
+export function isHarvestablePageUrl(value: unknown, policy: HarvestUrlPolicy = "operator"): value is string {
+  return policy === "drink-update" ? isHarvestableDrinkUpdateUrl(value) : isHarvestableOperatorUrl(value);
 }
 
 export function isHarvestableOperatorUrl(value: unknown): value is string {
