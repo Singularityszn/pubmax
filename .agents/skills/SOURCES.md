@@ -29,7 +29,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 
 - Repo: https://github.com/emilkowalski/skills
 - Commit: `e8a175de22ae1e49370fc144c1f3bb9aeedf988d` (`main`)
-- Checked 4 Oct 2026. All thirteen installed skill trees match this tip, preserving the `emil-prototype` namespace. No skill content changed.
+- Checked 4 Oct 2026. All thirteen installed skill trees match this tip, preserving the `emil-prototype` namespace. The new tip only adds `break-ui`, which was not installed; the thirteen installed trees are unchanged.
 
 `animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `emil-prototype`, `review-animations`, `write-swift`.
 
