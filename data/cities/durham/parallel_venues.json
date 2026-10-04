@@ -1,7 +1,7 @@
 {
   "city": "durham",
-  "source": "Parallel Task API",
-  "observationMeaning": "Each row's observedAt is the date its Parallel research result was retrieved. Cached reruns retain that date. Not a claim that every page was fetched live or that the venue is open tonight.",
+  "source": "Parallel Task API; Tavily Search with Firecrawl page reads",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result or Firecrawl page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
   "populationPriority": 522100,
   "populationSources": [
     "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
@@ -223,6 +223,75 @@
       },
       "runId": "trun_ce5fd53e0016415fbedffbe4ceba9ead",
       "id": "venue-dur-v0muyx"
+    },
+    {
+      "name": "Hotel Indigo Rotunda Bar",
+      "kind": "bar",
+      "address": "Hotel Indigo, 9 Old Elvet, Durham, County Durham, DH1 3HL",
+      "postcode": "DH1 3HL",
+      "locality": "Durham",
+      "website": "https://durham.hotelindigo.com/rotunda-bar",
+      "lat": 54.775057,
+      "lng": -1.571205,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thisisdurham.com/food-and-drink/hotel-indigo-rotunda-bar-p940391",
+        "https://durham.hotelindigo.com/rotunda-bar"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thisisdurham.com/food-and-drink/hotel-indigo-rotunda-bar-p940391",
+          "excerpt": "Hotel Indigo Rotunda Bar\nHotel Indigo 9 Old Elvet DURHAM County Durham DH1 3HL"
+        },
+        {
+          "url": "https://durham.hotelindigo.com/rotunda-bar",
+          "excerpt": "expertly mixed cocktails, locally brewed ales"
+        }
+      ],
+      "observedAt": "2026-10-04T11:17:41.649Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203HL",
+        "observedAt": "2026-10-04T12:21:02.811Z",
+        "postcode": "DH1 3HL",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415fb8242d40cc9c2cb4",
+      "id": "venue-dur-1yx09tz"
+    },
+    {
+      "name": "Cast Iron Bar",
+      "kind": "bar",
+      "address": "Delta Hotels by Marriott Durham Royal County, Old Elvet, Durham DH1 3JN",
+      "postcode": "DH1 3JN",
+      "locality": "Durham",
+      "website": "https://www.marriott.com/en-us/hotels/ncldd-delta-hotels-durham-royal-county/dining/",
+      "lat": 54.775705,
+      "lng": -1.571556,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thisisdurham.com/food-and-drink/cast-iron-bar-grill-and-terrace-p978131"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thisisdurham.com/food-and-drink/cast-iron-bar-grill-and-terrace-p978131",
+          "excerpt": "Delta Hotels by Marriott Durham Royal County Old Elvet Durham City County Durham DH1 3JN"
+        },
+        {
+          "url": "https://www.thisisdurham.com/food-and-drink/cast-iron-bar-grill-and-terrace-p978131",
+          "excerpt": "Expect craft beer on tap, creative cocktails, a carefully curated wine list and local spirits, including Durham Gin, in our vibrant Cast Iron Bar."
+        }
+      ],
+      "observedAt": "2026-10-04T11:19:33.350Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203JN",
+        "observedAt": "2026-10-04T12:21:02.998Z",
+        "postcode": "DH1 3JN",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415f92fab25c0a2858e0",
+      "id": "venue-dur-ocx10"
     }
   ]
 }

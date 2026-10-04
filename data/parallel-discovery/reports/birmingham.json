@@ -83,24 +83,530 @@
     "B92/restaurant"
   ],
   "taskRuns": 675,
+  "webSearches": 0,
+  "pagesRead": 0,
   "researched": 2056,
-  "added": 126,
+  "added": 0,
   "retained": [
     {
       "name": "Lulu Wild",
       "id": "venue-bhm-kpiwyz"
     },
     {
+      "name": "Piccolino",
+      "id": "venue-bhm-1li0nzy"
+    },
+    {
+      "name": "Pushkar Cocktail Bar & Dining",
+      "id": "venue-bhm-1jc7x0t"
+    },
+    {
+      "name": "Chez Mal Brasserie & Bar",
+      "id": "venue-bhm-1gksk42"
+    },
+    {
+      "name": "The Gin Vault",
+      "id": "venue-bhm-j7ue7h"
+    },
+    {
+      "name": "1000 Trades",
+      "id": "venue-bhm-byyumv"
+    },
+    {
+      "name": "Aluna",
+      "id": "venue-bhm-1m748zq"
+    },
+    {
+      "name": "Noel's Bar & Restaurant",
+      "id": "venue-bhm-1cnswoa"
+    },
+    {
+      "name": "Lucarelli Restaurant Birmingham Mailbox",
+      "id": "venue-bhm-no7l6h"
+    },
+    {
+      "name": "Miller & Carter – The Mailbox",
+      "id": "venue-bhm-5ugg8f"
+    },
+    {
+      "name": "Aria Restaurant",
+      "id": "venue-bhm-18p1g41"
+    },
+    {
+      "name": "Tonight Josephine Birmingham",
+      "id": "venue-bhm-1xfnku0"
+    },
+    {
+      "name": "Fumo Birmingham",
+      "id": "venue-bhm-1kun1ot"
+    },
+    {
+      "name": "Riva Blu Birmingham",
+      "id": "venue-bhm-qjb1ok"
+    },
+    {
+      "name": "Las Iguanas Temple Street",
+      "id": "venue-bhm-3ujde2"
+    },
+    {
+      "name": "Cosy Club Birmingham",
+      "id": "venue-bhm-1bqf1d2"
+    },
+    {
+      "name": "The Oyster Club by Adam Stokes",
+      "id": "venue-bhm-177wc6c"
+    },
+    {
+      "name": "San Carlo, Birmingham",
+      "id": "venue-bhm-oyjobp"
+    },
+    {
+      "name": "Merlin's Café Bar",
+      "id": "venue-bhm-15zyxr4"
+    },
+    {
+      "name": "Albert’s Schloss Birmingham",
+      "id": "venue-bhm-gm99yd"
+    },
+    {
+      "name": "Saint Paul’s House",
+      "id": "venue-bhm-1wqg66y"
+    },
+    {
+      "name": "Theatrix Birmingham",
+      "id": "venue-bhm-3qyhl0"
+    },
+    {
+      "name": "The Rectory 180 Club",
+      "id": "venue-bhm-1p048v8"
+    },
+    {
+      "name": "The Rectory",
+      "id": "venue-bhm-1b3455j"
+    },
+    {
+      "name": "Saint Paul's Market",
+      "id": "venue-bhm-1ta8ymj"
+    },
+    {
+      "name": "Theatrix",
+      "id": "venue-bhm-k6f8r6"
+    },
+    {
+      "name": "24 Stories",
+      "id": "venue-bhm-96iyii"
+    },
+    {
       "name": "Society Birmingham",
       "id": "venue-bhm-1erud0f"
+    },
+    {
+      "name": "White Tower",
+      "id": "venue-bhm-y387fz"
+    },
+    {
+      "name": "The Kerryman",
+      "id": "venue-bhm-1ddvzw4"
+    },
+    {
+      "name": "Redcorc Bar",
+      "id": "venue-bhm-149m3ql"
+    },
+    {
+      "name": "Milano Bar & Ristorante",
+      "id": "venue-bhm-k7mgai"
+    },
+    {
+      "name": "The Loft",
+      "id": "venue-bhm-v0l7dk"
+    },
+    {
+      "name": "Vietnamese Street Kitchen",
+      "id": "venue-bhm-1q1evep"
+    },
+    {
+      "name": "Bill’s Bullring",
+      "id": "venue-bhm-1ygxo0w"
+    },
+    {
+      "name": "Aston Inn",
+      "id": "venue-bhm-eyua5j"
+    },
+    {
+      "name": "Digger Inn",
+      "id": "venue-bhm-ac39lm"
+    },
+    {
+      "name": "Sacred Heart Club",
+      "id": "venue-bhm-10k2xrv"
+    },
+    {
+      "name": "Christophers Lounge",
+      "id": "venue-bhm-1lhxms5"
+    },
+    {
+      "name": "Shanahans Motel & Sports Bar",
+      "id": "venue-bhm-1bvnv31"
+    },
+    {
+      "name": "Shanahans B&B with Sports Bar",
+      "id": "venue-bhm-2bzzrr"
+    },
+    {
+      "name": "Harvester - Star City",
+      "id": "venue-bhm-l4c7jy"
+    },
+    {
+      "name": "Ward End Social Club",
+      "id": "venue-bhm-ytynte"
+    },
+    {
+      "name": "Saltley Inn",
+      "id": "venue-bhm-2jpoyl"
+    },
+    {
+      "name": "Maitland Hall Club",
+      "id": "venue-bhm-1keopea"
+    },
+    {
+      "name": "Bainsy's Bar",
+      "id": "venue-bhm-1l19ado"
+    },
+    {
+      "name": "Sophy Digbeth",
+      "id": "venue-bhm-4nv4xh"
+    },
+    {
+      "name": "Golf Fang Birmingham",
+      "id": "venue-bhm-1xbcyca"
+    },
+    {
+      "name": "The Nest",
+      "id": "venue-bhm-1t9h9vl"
+    },
+    {
+      "name": "Low Places",
+      "id": "venue-bhm-ecxhxl"
+    },
+    {
+      "name": "Mama Roux's",
+      "id": "venue-bhm-11u02mu"
+    },
+    {
+      "name": "670 Grams",
+      "id": "venue-bhm-1s3gdvb"
+    },
+    {
+      "name": "McDwyers",
+      "id": "venue-bhm-1lzn4xw"
+    },
+    {
+      "name": "Tyseley Working Mens Club",
+      "id": "venue-bhm-uchscy"
+    },
+    {
+      "name": "Midland Art Centre Arena Bar",
+      "id": "venue-bhm-12a591q"
+    },
+    {
+      "name": "MAC Bar",
+      "id": "venue-bhm-1yv4o13"
+    },
+    {
+      "name": "Kennedys Bar",
+      "id": "venue-bhm-f476z3"
+    },
+    {
+      "name": "La Plancha",
+      "id": "venue-bhm-1lzxjbg"
+    },
+    {
+      "name": "Sabai Sabai Moseley Village",
+      "id": "venue-bhm-y35s5f"
+    },
+    {
+      "name": "Moseley All Services Club",
+      "id": "venue-bhm-kfoo3x"
+    },
+    {
+      "name": "Satori",
+      "id": "venue-bhm-j9ub5q"
+    },
+    {
+      "name": "Kings Heath Cricket & Sports Club",
+      "id": "venue-bhm-mboz83"
+    },
+    {
+      "name": "La Santé",
+      "id": "venue-bhm-bayhtl"
     },
     {
       "name": "Byzantium Tapas Restaurant",
       "id": "venue-bhm-kj58hz"
     },
     {
+      "name": "Smoke + Ash Kings Heath",
+      "id": "venue-bhm-7muxsg"
+    },
+    {
+      "name": "Boom Battle Bar Birmingham Broad Street",
+      "id": "venue-bhm-1w0eleg"
+    },
+    {
+      "name": "Peg & Grill",
+      "id": "venue-bhm-1fxxxpl"
+    },
+    {
+      "name": "1900 Restaurant and Bar",
+      "id": "venue-bhm-17uk68q"
+    },
+    {
       "name": "Smoke + Ash Edgbaston Village",
       "id": "venue-bhm-m8q2cy"
+    },
+    {
+      "name": "Barbara’s Bier Haus",
+      "id": "venue-bhm-1hkkifg"
+    },
+    {
+      "name": "Edgbaston Golf Club",
+      "id": "venue-bhm-89i9oi"
+    },
+    {
+      "name": "Varanasi Birmingham",
+      "id": "venue-bhm-is4zwq"
+    },
+    {
+      "name": "1565 Bar & Terrace",
+      "id": "venue-bhm-lhdykc"
+    },
+    {
+      "name": "Birmingham Strathallan Hotel",
+      "id": "venue-bhm-yk9ds6"
+    },
+    {
+      "name": "Praza",
+      "id": "venue-bhm-1nrvsix"
+    },
+    {
+      "name": "Arco Lounge",
+      "id": "venue-bhm-4hu6wi"
+    },
+    {
+      "name": "Buonissimo",
+      "id": "venue-bhm-1ipeyfy"
+    },
+    {
+      "name": "Harborne Cricket Club",
+      "id": "venue-bhm-1nhc06d"
+    },
+    {
+      "name": "The Birdcage Harborne",
+      "id": "venue-bhm-u8ikuc"
+    },
+    {
+      "name": "El Buen Gusto",
+      "id": "venue-bhm-xe1x1j"
+    },
+    {
+      "name": "Barsana - Harborne",
+      "id": "venue-bhm-13drftn"
+    },
+    {
+      "name": "Vedique Resto Bar",
+      "id": "venue-bhm-18p3h9r"
+    },
+    {
+      "name": "YUMBO",
+      "id": "venue-bhm-1gehkph"
+    },
+    {
+      "name": "Craft & Culture",
+      "id": "venue-bhm-fuqk5p"
+    },
+    {
+      "name": "The Asylum Bar and Venue",
+      "id": "venue-bhm-nvaaho"
+    },
+    {
+      "name": "African Village Restaurant and Late Bar",
+      "id": "venue-bhm-ol7k7s"
+    },
+    {
+      "name": "The Spot Lounge",
+      "id": "venue-bhm-1jemd5f"
+    },
+    {
+      "name": "Lime N Chilli",
+      "id": "venue-bhm-vo76wg"
+    },
+    {
+      "name": "Oscott Social Club",
+      "id": "venue-bhm-1dc20m3"
+    },
+    {
+      "name": "The Erdington Club",
+      "id": "venue-bhm-ml194a"
+    },
+    {
+      "name": "Church Tavern",
+      "id": "venue-bhm-15t2n9a"
+    },
+    {
+      "name": "The Crown Erdington",
+      "id": "venue-bhm-8b93dn"
+    },
+    {
+      "name": "Erdington Conservative Club",
+      "id": "venue-bhm-4s5fi5"
+    },
+    {
+      "name": "Sheldon Marlborough Cricket Club",
+      "id": "venue-bhm-1oyth8y"
+    },
+    {
+      "name": "Yardley Ex Service Mens Club",
+      "id": "venue-bhm-1h6e58m"
+    },
+    {
+      "name": "O'Mahoney's Bar & Grill",
+      "id": "venue-bhm-5fqr4"
+    },
+    {
+      "name": "Holiday Inn Express Birmingham - South A45",
+      "id": "venue-bhm-q2qdpo"
+    },
+    {
+      "name": "Acocks Green Bowl",
+      "id": "venue-bhm-hnvw2u"
+    },
+    {
+      "name": "Pasta di Piazza",
+      "id": "venue-bhm-xhiwfs"
+    },
+    {
+      "name": "Boulevard",
+      "id": "venue-bhm-1fyauhs"
+    },
+    {
+      "name": "Grange Social Club",
+      "id": "venue-bhm-1t7l2kd"
+    },
+    {
+      "name": "Discobowl Acocks Green",
+      "id": "venue-bhm-1r4y52t"
+    },
+    {
+      "name": "Pickle Club",
+      "id": "venue-bhm-1bdtbei"
+    },
+    {
+      "name": "Hall Green H.G. Club",
+      "id": "venue-bhm-9ix5to"
+    },
+    {
+      "name": "Raja Monkey",
+      "id": "venue-bhm-spzeq2"
+    },
+    {
+      "name": "Weoley Castle Working Mens Club",
+      "id": "venue-bhm-11adpjg"
+    },
+    {
+      "name": "Oba's Kitchen, Lounge, Bar & Games",
+      "id": "venue-bhm-t0m5nl"
+    },
+    {
+      "name": "Deli 17",
+      "id": "venue-bhm-102sq77"
+    },
+    {
+      "name": "Bournbrook & Selly Oak Club",
+      "id": "venue-bhm-4sqyw2"
+    },
+    {
+      "name": "The Station Inn",
+      "id": "venue-bhm-lxgvbm"
+    },
+    {
+      "name": "Aston Manor Cricket Club",
+      "id": "venue-bhm-u53wtp"
+    },
+    {
+      "name": "Great Barr Hotel",
+      "id": "venue-bhm-18aknsz"
+    },
+    {
+      "name": "The Malt Shovel",
+      "id": "venue-bhm-ug2u87"
+    },
+    {
+      "name": "Great Barr Conservative Club",
+      "id": "venue-bhm-kc9iu2"
+    },
+    {
+      "name": "Special Spices",
+      "id": "venue-bhm-1dp4nd8"
+    },
+    {
+      "name": "Valley Bar",
+      "id": "venue-bhm-4hovxf"
+    },
+    {
+      "name": "Boars Head World Buffet",
+      "id": "venue-bhm-boprhz"
+    },
+    {
+      "name": "No1 Public House",
+      "id": "venue-bhm-1ro4064"
+    },
+    {
+      "name": "Aston Old Edwardians Rugby Club",
+      "id": "venue-bhm-146hkcn"
+    },
+    {
+      "name": "The Kingstanding Inn",
+      "id": "venue-bhm-h653zn"
+    },
+    {
+      "name": "Avenue Bar Restaurant & Grill",
+      "id": "venue-bhm-gptg05"
+    },
+    {
+      "name": "Craft Inn, Bearwood",
+      "id": "venue-bhm-1x4uv1u"
+    },
+    {
+      "name": "Smethwick Labour Club",
+      "id": "venue-bhm-1ijioos"
+    },
+    {
+      "name": "Zaalsha",
+      "id": "venue-bhm-13tnpcy"
+    },
+    {
+      "name": "Antonios Food Emporio",
+      "id": "venue-bhm-scp9zj"
+    },
+    {
+      "name": "Vine",
+      "id": "venue-bhm-19n5wp6"
+    },
+    {
+      "name": "The Vine Indian Grill and Curry Pub",
+      "id": "venue-bhm-5ile1c"
+    },
+    {
+      "name": "Verdo Lounge",
+      "id": "venue-bhm-hyl478"
+    },
+    {
+      "name": "Franks",
+      "id": "venue-bhm-awfbdr"
+    },
+    {
+      "name": "Olton Mere Sailing Club",
+      "id": "venue-bhm-1gg3rw7"
     }
   ],
   "totalAccepted": 130,

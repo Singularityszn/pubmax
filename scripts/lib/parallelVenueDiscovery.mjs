@@ -4,7 +4,7 @@ import { haversineMeters, namesLikelySamePub, normalizeVenueIdentityName } from 
 const text = (value) => typeof value === "string" ? value.trim() : "";
 const normalizedText = (value) => text(value).normalize("NFKD").toLowerCase().replace(/[^a-z0-9]/g, "");
 const POSTCODE = /\b(?:GIR\s?0AA|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i;
-const LISTING_HOSTS = ["camra.org.uk", "whatpub.com", "designmynight.com", "squaremeal.co.uk", "opentable.co.uk", "opentable.com", "visitbirmingham.com", "visitleeds.co.uk", "visitglasgow.com", "visitscotland.com", "visitmanchester.com", "visitliverpool.com", "visitbristol.co.uk"];
+const LISTING_HOSTS = ["camra.org.uk", "whatpub.com", "designmynight.com", "squaremeal.co.uk", "opentable.co.uk", "opentable.com", "visitbirmingham.com", "visitleeds.co.uk", "visitglasgow.com", "visitscotland.com", "visitmanchester.com", "visitliverpool.com", "visitbristol.co.uk", "visitbath.co.uk", "experienceoxfordshire.org", "visitcambridge.org", "thisisdurham.com", "gonorthwales.co.uk"];
 
 export function postcodeIn(value) {
   const match = text(value).match(POSTCODE);
@@ -21,11 +21,17 @@ export function allowedEvidenceUrl(value) {
     && !host.endsWith(".google") && !/(?:^|\/)maps(?:\/|$)/i.test(url.pathname);
 }
 
+const hostOf = (url) => new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+
+export function isListingUrl(url) {
+  const host = hostOf(url);
+  return LISTING_HOSTS.some((listing) => host === listing || host.endsWith(`.${listing}`));
+}
+
 function sourceBelongsToVenue(url, website) {
-  const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
-  if (LISTING_HOSTS.some((listing) => host === listing || host.endsWith(`.${listing}`))) return true;
+  if (isListingUrl(url)) return true;
   if (!allowedEvidenceUrl(website)) return false;
-  return host === new URL(website).hostname.toLowerCase().replace(/^www\./, "");
+  return hostOf(url) === hostOf(website);
 }
 
 export function inCity(lat, lng, city) {

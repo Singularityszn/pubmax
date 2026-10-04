@@ -2,26 +2,21 @@
   "city": "oxford",
   "districts": 4,
   "slices": 16,
-  "slicesComplete": 0,
+  "slicesComplete": 7,
   "incompleteSlices": [
     "OX1/pub",
     "OX1/bar",
     "OX1/cocktail-bar",
-    "OX1/restaurant",
-    "OX2/pub",
-    "OX2/bar",
     "OX2/cocktail-bar",
-    "OX2/restaurant",
-    "OX3/pub",
     "OX3/bar",
     "OX3/cocktail-bar",
     "OX3/restaurant",
     "OX4/pub",
-    "OX4/bar",
-    "OX4/cocktail-bar",
-    "OX4/restaurant"
+    "OX4/cocktail-bar"
   ],
   "taskRuns": 0,
+  "webSearches": 16,
+  "pagesRead": 12,
   "researched": 0,
   "added": 0,
   "retained": [],
@@ -29,6 +24,19 @@
   "repeats": 0,
   "duplicates": [],
   "withdrawn": [],
-  "rejected": [],
+  "rejected": [
+    {
+      "name": "https://www.redlionoxford.co.uk",
+      "reason": "unreadable: robots: robots-unreadable"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-oxo-bar-oxford",
+      "reason": "unreadable: robots: robots-disallowed"
+    },
+    {
+      "name": "https://www.cntraveler.com/bars/oxford/angels",
+      "reason": "unreadable: robots: robots-disallowed"
+    }
+  ],
   "outputPath": "data/cities/oxford/parallel_venues.json"
 }

@@ -106,9 +106,96 @@
     "G73/restaurant"
   ],
   "taskRuns": 75,
+  "webSearches": 0,
+  "pagesRead": 0,
   "researched": 305,
-  "added": 21,
-  "retained": [],
+  "added": 0,
+  "retained": [
+    {
+      "name": "Poko Loko",
+      "id": "venue-glw-1wgwpjb"
+    },
+    {
+      "name": "Atlantic Bar & Brasserie",
+      "id": "venue-glw-p8mmqn"
+    },
+    {
+      "name": "Berlinkys",
+      "id": "venue-glw-gqihq0"
+    },
+    {
+      "name": "King Tut's Wah Wah Hut",
+      "id": "venue-glw-1ttk5oj"
+    },
+    {
+      "name": "Cask & Clyde",
+      "id": "venue-glw-1qot0be"
+    },
+    {
+      "name": "Porter & Rye",
+      "id": "venue-glw-1f8zhs8"
+    },
+    {
+      "name": "Five March",
+      "id": "venue-glw-151al08"
+    },
+    {
+      "name": "Gael & Grain",
+      "id": "venue-glw-1v8x3ko"
+    },
+    {
+      "name": "Sylvan",
+      "id": "venue-glw-81e1xe"
+    },
+    {
+      "name": "Whisky Mist Bar & Kitchen",
+      "id": "venue-glw-2eo1ro"
+    },
+    {
+      "name": "The Kelvin",
+      "id": "venue-glw-1vwfpmg"
+    },
+    {
+      "name": "The Jenny Burn",
+      "id": "venue-glw-12qgst9"
+    },
+    {
+      "name": "Wunderbar West",
+      "id": "venue-glw-1xftadp"
+    },
+    {
+      "name": "La Mesa Dumbarton Road",
+      "id": "venue-glw-1a55kbz"
+    },
+    {
+      "name": "Epicures",
+      "id": "venue-glw-48nwk4"
+    },
+    {
+      "name": "The Bothy Glasgow",
+      "id": "venue-glw-xz24qa"
+    },
+    {
+      "name": "The Left Bank",
+      "id": "venue-glw-b7rg4t"
+    },
+    {
+      "name": "Little SoHo Jordanhill",
+      "id": "venue-glw-ikatr9"
+    },
+    {
+      "name": "Killermont Polo Club",
+      "id": "venue-glw-v872fm"
+    },
+    {
+      "name": "Tavern Bar",
+      "id": "venue-glw-1dsyp0k"
+    },
+    {
+      "name": "The McMillan",
+      "id": "venue-glw-mfbz0j"
+    }
+  ],
   "totalAccepted": 24,
   "repeats": 4,
   "duplicates": [

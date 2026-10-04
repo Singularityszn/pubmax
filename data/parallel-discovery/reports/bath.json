@@ -2,18 +2,18 @@
   "city": "bath",
   "districts": 2,
   "slices": 8,
-  "slicesComplete": 0,
+  "slicesComplete": 2,
   "incompleteSlices": [
     "BA1/pub",
     "BA1/bar",
     "BA1/cocktail-bar",
     "BA1/restaurant",
-    "BA2/pub",
     "BA2/bar",
-    "BA2/cocktail-bar",
-    "BA2/restaurant"
+    "BA2/cocktail-bar"
   ],
   "taskRuns": 0,
+  "webSearches": 8,
+  "pagesRead": 8,
   "researched": 0,
   "added": 0,
   "retained": [],
@@ -21,6 +21,15 @@
   "repeats": 0,
   "duplicates": [],
   "withdrawn": [],
-  "rejected": [],
+  "rejected": [
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots: robots-disallowed"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots: robots-disallowed"
+    }
+  ],
   "outputPath": "data/cities/bath/parallel_venues.json"
 }
