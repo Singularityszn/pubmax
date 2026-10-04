@@ -12,6 +12,7 @@ import {
   COFFEE_PILOT_FILE,
   coffeePilotProblems,
   shoreditchCafeIds,
+  shoreditchCafeNames,
 } from "../scripts/lib/coffeePilotRows.mjs";
 
 const ROOT = resolve(__dirname, "..");
@@ -35,10 +36,11 @@ describe("Shoreditch coffee pilot", () => {
     rows: unknown[];
   };
   const venueIds = shoreditchCafeIds(ROOT);
+  const venueNames = shoreditchCafeNames(ROOT);
   const sampleId = [...venueIds][0];
 
   it("holds only listed rows for the three named drinks", () => {
-    expect(coffeePilotProblems(file, venueIds, Date.parse("2026-10-03T18:00:00Z"))).toEqual([]);
+    expect(coffeePilotProblems(file, venueIds, Date.parse("2026-10-03T18:00:00Z"), venueNames)).toEqual([]);
     expect(file.rows.length).toBeGreaterThan(0);
     expect(venueIds.size).toBeGreaterThan(0);
   });
@@ -63,6 +65,23 @@ describe("Shoreditch coffee pilot", () => {
       ...base,
       rows: [listedRow(sampleId, { venueId: "venue-osm-n1" })],
     }, venueIds, now).join("\n")).toContain("not a cafe in the Shoreditch box");
+    const names = new Map([[sampleId, "Real Cafe"]]);
+    expect(coffeePilotProblems({
+      ...base,
+      rows: [listedRow(sampleId, { venueName: "Real Cafe" })],
+    }, venueIds, now, names)).toEqual([]);
+    expect(coffeePilotProblems({
+      ...base,
+      rows: [listedRow(sampleId, { venueName: "Other Cafe" })],
+    }, venueIds, now, names).join("\n")).toContain("does not match the cafe");
+    expect(coffeePilotProblems({
+      ...base,
+      rows: [listedRow(sampleId, { observedAt: "2026-02-30" })],
+    }, venueIds, now).join("\n")).toContain("calendar day");
+    expect(coffeePilotProblems({
+      ...base,
+      rows: [listedRow(sampleId, { observedAt: "2026-10-03T18:00:00Z" })],
+    }, venueIds, now).join("\n")).toContain("calendar day");
   });
 
   it("is not a freshness feed", () => {

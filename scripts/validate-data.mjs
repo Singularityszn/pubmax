@@ -17,7 +17,7 @@ import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
 import {
   COFFEE_PILOT_FILE,
   coffeePilotProblems,
-  shoreditchCafeIds,
+  shoreditchCafeNames,
 } from "./lib/coffeePilotRows.mjs";
 import { canonicalObservationsPayload } from "../lib/pintIndexCanonical.mjs";
 import { whatsOnRowProblems } from "../lib/whatsOnRowShape.mjs";
@@ -3972,14 +3972,14 @@ function validateCoffeePilot() {
     console.log(`FAIL ${name}: not valid JSON (${error.message})`);
     return { ok: false, count: 0 };
   }
-  let venueIds;
+  let venueNames;
   try {
-    venueIds = shoreditchCafeIds(ROOT_DIR);
+    venueNames = shoreditchCafeNames(ROOT_DIR);
   } catch (error) {
     console.log(`FAIL ${name}: could not read the London cafe pack (${error.message})`);
     return { ok: false, count: 0 };
   }
-  const problems = coffeePilotProblems(file, venueIds);
+  const problems = coffeePilotProblems(file, new Set(venueNames.keys()), Date.now(), venueNames);
   const count = Array.isArray(file?.rows) ? file.rows.length : 0;
   if (problems.length > 0) {
     console.log(`FAIL ${name}: ${problems.length} problem(s)`);

@@ -29,7 +29,7 @@ Places, review sites and menu aggregators were not used.
 | Cafe | Outcome |
 | --- | --- |
 | Crosstown, 157 Brick Lane | Row: flat white, latte, matcha latte (chain drink pages) |
-| Artist Cafe, 311 Old Street | Row: flat white, latte, matcha latte |
+| Shoreditch Artist Cafe, 311 Old Street | Row: flat white, latte, matcha latte |
 | Santo Remedio, 55 Great Eastern Street | Row: flat white, latte (menu PDF) |
 | Love Churros, Boxpark | Row: flat white, latte (chain menu image) |
 | Franzè & Evans, 101 Redchurch Street | Row: flat white, latte, matcha latte (menu PDF, hot prices) |

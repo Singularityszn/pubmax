@@ -28,8 +28,16 @@ const ROW_KEYS = new Set([
   "standing",
 ]);
 
-function isCalendarDay(value) {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value));
+function calendarDayMs(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return null;
+  }
+  return date.getTime();
 }
 
 function priceHasAtMostTwoDecimals(priceGbp) {
@@ -45,9 +53,10 @@ function priceHasAtMostTwoDecimals(priceGbp) {
  * @param {unknown} file
  * @param {ReadonlySet<string>} venueIds
  * @param {number} [now]
+ * @param {ReadonlyMap<string, string>} [venueNames] London-layer name for each id
  * @returns {string[]}
  */
-export function coffeePilotProblems(file, venueIds, now = Date.now()) {
+export function coffeePilotProblems(file, venueIds, now = Date.now(), venueNames) {
   /** @type {string[]} */
   const problems = [];
   if (!file || typeof file !== "object" || Array.isArray(file)) {
@@ -59,10 +68,9 @@ export function coffeePilotProblems(file, venueIds, now = Date.now()) {
   }
   if (record.version !== 1) problems.push("version must be 1");
   if (record.area !== "shoreditch") problems.push("area must be shoreditch");
-  if (!isCalendarDay(record.checkedOn)) problems.push("checkedOn must be a calendar day");
-  else if (Date.parse(/** @type {string} */ (record.checkedOn)) > now) {
-    problems.push("checkedOn is in the future");
-  }
+  const checkedOn = calendarDayMs(record.checkedOn);
+  if (checkedOn === null) problems.push("checkedOn must be a calendar day");
+  else if (checkedOn > now) problems.push("checkedOn is in the future");
   if (!Array.isArray(record.rows)) {
     problems.push("rows must be an array");
     return problems;
@@ -86,6 +94,13 @@ export function coffeePilotProblems(file, venueIds, now = Date.now()) {
     }
     if (typeof item.venueName !== "string" || item.venueName.trim().length === 0) {
       problems.push(`${where} venueName must name the cafe`);
+    } else if (
+      venueNames instanceof Map &&
+      typeof item.venueId === "string" &&
+      venueNames.has(item.venueId) &&
+      item.venueName !== venueNames.get(item.venueId)
+    ) {
+      problems.push(`${where} venueName does not match the cafe on the London layer`);
     }
     if (typeof item.drink !== "string" || !COFFEE_PILOT_DRINKS.includes(item.drink)) {
       problems.push(`${where} drink must be one of the three named drinks`);
@@ -107,11 +122,9 @@ export function coffeePilotProblems(file, venueIds, now = Date.now()) {
         problems.push(`${where} sourceUrl must be an absolute URL`);
       }
     }
-    if (typeof item.observedAt !== "string" || !Number.isFinite(Date.parse(item.observedAt))) {
-      problems.push(`${where} observedAt must be a date`);
-    } else if (Date.parse(item.observedAt) > now + 60_000) {
-      problems.push(`${where} observedAt is in the future`);
-    }
+    const observedAt = calendarDayMs(item.observedAt);
+    if (observedAt === null) problems.push(`${where} observedAt must be a calendar day`);
+    else if (observedAt > now) problems.push(`${where} observedAt is in the future`);
     if (item.standing !== "listed") problems.push(`${where} standing must be listed`);
     if (typeof item.venueId === "string" && typeof item.drink === "string") {
       const key = `${item.venueId}\n${item.drink}`;
@@ -128,11 +141,12 @@ export function coffeePilotProblems(file, venueIds, now = Date.now()) {
  * @param {string} rootDir
  * @returns {Set<string>}
  */
-export function shoreditchCafeIds(rootDir) {
+function shoreditchCafes(rootDir) {
   const manifestPath = join(rootDir, "public/data/london_venues/manifest.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   const prefix = String(manifest.urlPrefix ?? "").replace(/^\//, "");
-  const ids = new Set();
+  /** @type {Map<string, string>} */
+  const names = new Map();
   const shards = Array.isArray(manifest.shards) ? manifest.shards : [];
   for (const shard of shards) {
     const bbox = shard?.bbox;
@@ -145,13 +159,35 @@ export function shoreditchCafeIds(rootDir) {
     const venues = Array.isArray(pack?.venues) ? pack.venues : [];
     for (const venue of venues) {
       if (!Array.isArray(venue) || venue.length < 6) continue;
-      const [osmRef, , , lat, lng, kind] = venue;
+      const [osmRef, venueName, , lat, lng, kind] = venue;
       if (kind !== "cafe") continue;
       if (typeof lat !== "number" || typeof lng !== "number") continue;
       if (lat < COFFEE_PILOT_BOX.latMin || lat > COFFEE_PILOT_BOX.latMax) continue;
       if (lng < COFFEE_PILOT_BOX.lngMin || lng > COFFEE_PILOT_BOX.lngMax) continue;
-      if (typeof osmRef === "string" && /^[nwr]\d+$/.test(osmRef)) ids.add(`venue-osm-${osmRef}`);
+      if (typeof osmRef !== "string" || !/^[nwr]\d+$/.test(osmRef)) continue;
+      if (typeof venueName !== "string" || venueName.trim().length === 0) continue;
+      names.set(`venue-osm-${osmRef}`, venueName);
     }
   }
-  return ids;
+  return names;
+}
+
+/**
+ * Cafe id to the name on the London venue layer, inside the pilot box.
+ *
+ * @param {string} rootDir
+ * @returns {Map<string, string>}
+ */
+export function shoreditchCafeNames(rootDir) {
+  return shoreditchCafes(rootDir);
+}
+
+/**
+ * Cafe ids on the London venue layer inside the pilot box.
+ *
+ * @param {string} rootDir
+ * @returns {Set<string>}
+ */
+export function shoreditchCafeIds(rootDir) {
+  return new Set(shoreditchCafes(rootDir).keys());
 }
