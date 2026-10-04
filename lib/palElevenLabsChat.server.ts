@@ -152,9 +152,13 @@ export async function runPalElevenLabsChatTurn(
     let conversationId = "";
     let userMessageSent = false;
     let latestReply = "";
-    let toolRequested = false;
     let replyGeneration = 0;
+    let toolEvents = 0;
+    let replyToolEvents = 0;
     const pendingToolCalls = new Set<string>();
+    // The agent says a checking line before each tool call, so a reply is the
+    // answer only when no tool event followed it and no tool is still running.
+    const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
     const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
       const cards = turn?.cards ?? [];
       const proposals = turn?.proposals ?? [];
@@ -176,7 +180,7 @@ export async function runPalElevenLabsChatTurn(
     };
     const timer = setTimeout(() => {
       if (settled) return;
-      if (!latestReply || pendingToolCalls.size > 0) {
+      if (!latestReply || !replyIsAnswer()) {
         finish({ ok: false, code: "TIMEOUT" });
         return;
       }
@@ -200,6 +204,21 @@ export async function runPalElevenLabsChatTurn(
         // ignore
       }
       resolve(outcome);
+    };
+
+    const finishWithLatestReply = () => {
+      const agentMessage = latestReply;
+      const generation = replyGeneration;
+      const events = toolEvents;
+      void (async () => {
+        try {
+          const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
+          if (generation !== replyGeneration || events !== toolEvents) return;
+          finish(answer(agentMessage, turn));
+        } catch {
+          finish({ ok: false, code: "UNAVAILABLE" });
+        }
+      })();
     };
 
     const ws = new WebSocket(signedUrl);
@@ -275,45 +294,30 @@ export async function runPalElevenLabsChatTurn(
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
         latestReply = payload.agent_response_event?.agent_response?.trim() ?? "";
-        // The agent says a checking line before each tool call, so once a tool
-        // is asked for, only the reply standing when its turn completes is the answer.
-        if (toolRequested) return;
-        const agentMessage = latestReply;
-        const generation = ++replyGeneration;
-        void (async () => {
-          try {
-            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
-            if (toolRequested || generation !== replyGeneration) return;
-            finish(answer(agentMessage, turn));
-          } catch {
-            finish({ ok: false, code: "UNAVAILABLE" });
-          }
-        })();
+        replyGeneration += 1;
+        replyToolEvents = toolEvents;
+        // Once a tool is asked for, only the turn end may finish it.
+        if (toolEvents === 0) finishWithLatestReply();
         return;
       }
 
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
-        toolRequested = true;
+        toolEvents += 1;
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
         return;
       }
 
       if (payload.type === "agent_tool_response") {
+        if (!userMessageSent) return;
+        toolEvents += 1;
         pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
         return;
       }
 
       if (payload.type === "agent_response_complete") {
-        if (!userMessageSent || pendingToolCalls.size > 0) return;
-        const agentMessage = latestReply;
-        void (async () => {
-          try {
-            finish(answer(agentMessage, conversationId ? await waitForPubPalToolTurn(conversationId) : null));
-          } catch {
-            finish({ ok: false, code: "UNAVAILABLE" });
-          }
-        })();
+        if (!userMessageSent || !replyIsAnswer()) return;
+        finishWithLatestReply();
       }
     });
 

@@ -402,6 +402,44 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
   });
 
+  it("ignores a turn end for the checking line that comes before its tool request", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+      { afterMs: 10, event: responseComplete() },
+      { afterMs: 20, event: toolRequest("call_1") },
+      { afterMs: 300, event: toolResponse("call_1") },
+      { afterMs: 600, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  it("ignores a turn end between the tool response and the reply after it", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+      { afterMs: 20, event: toolRequest("call_1") },
+      { afterMs: 300, event: toolResponse("call_1") },
+      { afterMs: 10, event: responseComplete() },
+      { afterMs: 600, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which pubs near Soho have a pint under £5?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
   describe("on an agent that never sends agent_response_complete", () => {
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
@@ -438,6 +476,23 @@ describe("runPalElevenLabsChatTurn", () => {
         message: SOURCED_ANSWER,
         conversationId: "conv_regression01",
       });
+    });
+
+    it("times out rather than answer with a checking line when no reply follows its tool", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 10, event: toolRequest("call_1") },
+        { afterMs: 400, event: toolResponse("call_1") },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(22_000);
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
     });
 
     it("times out rather than answer with a checking line while its tool runs", async () => {
