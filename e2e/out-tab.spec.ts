@@ -85,6 +85,17 @@ for (const width of WIDTHS) {
       const tonightChip = when.getByRole("link", { name: "Tonight", exact: true });
       await expect(tonightChip).toBeVisible();
       await expect(tonightChip).toHaveAttribute("aria-current", "page");
+      await when.getByRole("link", { name: "Tomorrow", exact: true }).click();
+      await page.waitForURL(/\/out\?day=tomorrow$/);
+      await expect(
+        when.getByRole("link", { name: "Tomorrow", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "What’s on tomorrow.", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { level: 2, name: "What's on tomorrow", exact: true }),
+      ).toBeVisible();
       // Space activates a focused chip the way Enter does.
       const weekendChip = when.getByRole("link", { name: "Weekend", exact: true });
       await weekendChip.focus();
@@ -98,7 +109,16 @@ for (const width of WIDTHS) {
       await expect(
         page.getByRole("heading", { name: "What's on the weekend", exact: true }),
       ).toBeVisible();
-      await page.goto("/out");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "What’s on the weekend.", exact: true }),
+      ).toBeVisible();
+      await tonightChip.focus();
+      await page.keyboard.press("Enter");
+      await page.waitForURL(/\/out$/);
+      await expect(tonightChip).toHaveAttribute("aria-current", "page");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "What’s on tonight.", exact: true }),
+      ).toBeVisible();
 
       // Listings land first; open plans stay a quieter lane below.
       const listings = page.getByRole("region", { name: "What's on tonight" });
