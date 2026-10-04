@@ -116,11 +116,43 @@ describe("attachOutVenues", () => {
   });
 
   it("leaves a row the refresh already matched alone", () => {
-    const bundled = liveRow({ venueId: "venue-from-refresh", placeName: "The Dublin Castle" });
+    const bundled = liveRow({
+      venueId: DUBLIN_CASTLE.id,
+      placeName: "The Dublin Castle",
+      lat: undefined,
+      lng: undefined,
+    });
     const result = attachOutVenues([bundled], index);
-    expect(result.rows[0].venueId).toBe("venue-from-refresh");
+    expect(result.rows[0]).toBe(bundled);
     expect(result.matchedAtRequest).toBe(0);
     expect(result.unmatched).toBe(0);
+  });
+
+  it("keeps a listing visible but clears an attached id absent from the pub index", () => {
+    const arena = liveRow({
+      venueId: "venue-old-arena",
+      placeName: "The O2",
+      lat: 51.503,
+      lng: 0.0032,
+    });
+    const result = attachOutVenues([arena], index, () => false);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ id: arena.id, title: arena.title, source: arena.source });
+    expect(result.rows[0].venueId).toBeUndefined();
+    expect(result.matchedAtRequest).toBe(0);
+    expect(result.unmatched).toBe(1);
+    expect(arena.venueId).toBe("venue-old-arena");
+  });
+
+  it("does not label an arena as a pub using another listed pub's id", () => {
+    const arena = liveRow({ venueId: LEXINGTON.id, placeName: "ABBA Arena" });
+    const result = attachOutVenues([arena], index);
+
+    expect(result.rows[0].venueId).toBeUndefined();
+    expect(result.rows[0].placeName).toBe("ABBA Arena");
+    expect(result.unmatched).toBe(1);
+    expect(result.matchedAtRequest).toBe(0);
   });
 
   it("reattaches a row whose venueId is only whitespace", () => {

@@ -109,10 +109,12 @@ export type AttachOutVenuesResult = {
 };
 
 /**
- * Attach a venue to every row that carries none.
+ * Attach an eligible pub to each unmatched row.
  *
- * A row the refresh already matched is left exactly as it is: the CLI had the
- * address and the postcode to confirm with, so its answer is the stronger one.
+ * A refresh match remains authoritative while its id belongs to the named
+ * pub in this index. The CLI had address and postcode evidence, so do not
+ * re-run its proximity match. An id no longer accepted by the index cannot
+ * label a place as a pub; remove it and try the conservative matcher again.
  */
 export function attachOutVenues(
   rows: readonly WhatsOnRow[],
@@ -122,15 +124,26 @@ export function attachOutVenues(
   let matchedAtRequest = 0;
   let unmatched = 0;
   const out = rows.map((row) => {
-    if (canonicalOutVenueId(row.venueId)) return row;
-    if (!mayMatch(row)) {
-      unmatched += 1;
+    const attachedId = canonicalOutVenueId(row.venueId);
+    if (
+      isOutVenueId(index, attachedId) &&
+      index.byNormalizedName
+        .get(normalizeVenueIdentityName(row.placeName))
+        ?.some((candidate) => candidate.venueId === attachedId)
+    ) {
       return row;
+    }
+    const unmatchedRow = row.venueId === undefined ? row : { ...row, venueId: undefined };
+    // Rejected refresh links need recovery even without a live provider row.
+    // Originally unmatched bundled rows retain the caller's matching gate.
+    if (attachedId === null && !mayMatch(row)) {
+      unmatched += 1;
+      return unmatchedRow;
     }
     const venueId = matchOutRowVenue(row, index);
     if (!venueId) {
       unmatched += 1;
-      return row;
+      return unmatchedRow;
     }
     matchedAtRequest += 1;
     return { ...row, venueId };
