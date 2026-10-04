@@ -64,6 +64,7 @@ globalThis.fetch = async (input, init = {}) => {
     calls.push(url.split("/").at(-1));
     writeFileSync("calls.json", JSON.stringify(calls));
     if (process.env.FAKE_HOURS_FAILURE) return reply({}, 503);
+    if (process.env.FAKE_TERMINAL_STATUS && calls.length === 1) return reply({}, Number(process.env.FAKE_TERMINAL_STATUS));
     return reply({ displayName: { text: "GOOGLE NAME NEVER STORE" }, regularOpeningHours: { periods: [
       { open: { day: 1, hour: 10 }, close: { day: 1, hour: 20 } }
     ] } });
@@ -72,10 +73,10 @@ globalThis.fetch = async (input, init = {}) => {
 };
 `);
 }
-function run(failure = false, monthUsage = 1100) {
+function run(failure = false, monthUsage = 1100, terminalStatus = 0) {
   return spawnSync(process.execPath, ["--import", "tsx", "--import", "./fake-google.mjs", "scripts/verify_pub_hours.mjs", "--write"], {
     cwd: FIXTURE, encoding: "utf8", env: { ...process.env, GOOGLE_PLACES_API_KEY: "fake-key",
-      PATH: `${path.join(FIXTURE, "bin")}:${process.env.PATH}`, FAKE_HOURS_FAILURE: failure ? "1" : "", FAKE_MONTH_USAGE: String(monthUsage) },
+      PATH: `${path.join(FIXTURE, "bin")}:${process.env.PATH}`, FAKE_HOURS_FAILURE: failure ? "1" : "", FAKE_MONTH_USAGE: String(monthUsage), FAKE_TERMINAL_STATUS: String(terminalStatus || "") },
   });
 }
 function read(file: string) { return JSON.parse(readFileSync(path.join(FIXTURE, file), "utf8")); }
@@ -152,4 +153,21 @@ it("completes an all-missing-hours checkpoint with zero paid calls", () => {
   expect(output.spend).toMatchObject({ calls: 0, estimatedUsd: 0 });
   expect(existsSync(path.join(FIXTURE, "calls.json"))).toBe(false);
   expect(existsSync(path.join(FIXTURE, "quota-history.json"))).toBe(false);
+});
+
+it.each([400, 404])("records terminal Details HTTP %s as unknown and continues without retrying it", (status) => {
+  fixture();
+  const result = run(false, 1100, status);
+  expect(result.status, result.stderr).toBe(0);
+  expect(read("calls.json")).toEqual(["place-one", "place-two"]);
+  const file = "data/places_verification/pub_hours_london.json";
+  const output = read(file);
+  expect(output.rows.map((row: { venueId: string; verdict: string }) => [row.venueId, row.verdict])).toEqual([
+    ["venue-osm-n1", "unknown"], ["venue-osm-n2", "mismatch"], ["venue-osm-n3", "unknown"],
+  ]);
+  expect(output.spend).toMatchObject({ calls: 2, estimatedUsd: 0.04 });
+  expect(read("quota-state.json")).toEqual({ search: "10", details: "10" });
+  expect(run(false, 1100, status).status).toBe(0);
+  expect(read("calls.json")).toEqual(["place-one", "place-two"]);
+  expect(read(file).rows).toEqual(output.rows);
 });

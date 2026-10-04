@@ -100,7 +100,15 @@ export async function checkHours(options: {
       `https://places.googleapis.com/v1/places/${encodeURIComponent(venue.googlePlaceId)}`,
       { headers: { "X-Goog-Api-Key": options.apiKey, "X-Goog-FieldMask": "regularOpeningHours.periods" }, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000) },
     );
-    if (!response.ok) throw new Error(`Places Details HTTP ${response.status}; charged request reserved, stop before retry`);
+    if (!response.ok) {
+      if (response.status === 400 || response.status === 404) {
+        rows.push({ venueId: venue.venueId, googlePlaceId: venue.googlePlaceId,
+          verdict: "unknown", verifiedAt: new Date().toISOString() });
+        options.save(rows, calls);
+        continue;
+      }
+      throw new Error(`Places Details HTTP ${response.status}; charged request reserved, stop before retry`);
+    }
     let body;
     try { body = await response.json(); } catch { throw new Error("Places Details response unreadable; stop before retry"); }
     rows.push({ venueId: venue.venueId, googlePlaceId: venue.googlePlaceId,
