@@ -4,30 +4,30 @@ import path from "node:path";
 import { canonicalOsmId } from "@/lib/harvestFold";
 import type { PlacesEnrichmentRecord } from "@/lib/placesEnrichment";
 
-let cached: ReadonlyMap<string, readonly PlacesEnrichmentRecord[]> | undefined;
+const cached = new Map<string, Promise<readonly PlacesEnrichmentRecord[]>>();
 
-/** Runtime pack is declared in venueIndexTracing.mjs; source data stays server-side. Keyed by canonical OSM id. */
-async function loadIndex(): Promise<ReadonlyMap<string, readonly PlacesEnrichmentRecord[]>> {
-  if (cached) return cached;
-  try {
-    const file = path.join(/* turbopackIgnore: true */ process.cwd(), "data/places_enrichment.json");
-    const parsed = JSON.parse(await readFile(/* turbopackIgnore: true */ file, "utf8"));
-    if (parsed.version !== 1 || !Array.isArray(parsed.venues)) return new Map();
-    const index = new Map<string, PlacesEnrichmentRecord[]>();
-    for (const row of parsed.venues as PlacesEnrichmentRecord[]) {
-      if (!row || typeof row.venueId !== "string" || !/^[A-Za-z0-9_-]{10,}$/.test(row.googlePlaceId)) continue;
-      const key = canonicalOsmId(row.venueId);
-      if (key) index.set(key, [...(index.get(key) ?? []), row]);
-    }
-    cached = index;
-    return cached;
-  } catch { return new Map(); }
+/** Build-generated files keep cold venue requests scoped to their exact OSM identities. */
+function recordsForOsmId(key: string): Promise<readonly PlacesEnrichmentRecord[]> {
+  const existing = cached.get(key);
+  if (existing) return existing;
+  const pending = (async () => {
+    try {
+      const file = path.join(/* turbopackIgnore: true */ process.cwd(), "data/generated/places_enrichment", `${key.replace("/", "-")}.json`);
+      const parsed: unknown = JSON.parse(await readFile(/* turbopackIgnore: true */ file, "utf8"));
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((row): row is PlacesEnrichmentRecord =>
+        row && typeof row.venueId === "string" && canonicalOsmId(row.venueId) === key &&
+        typeof row.googlePlaceId === "string" && /^[A-Za-z0-9_-]{10,}$/.test(row.googlePlaceId));
+    } catch { return []; }
+  })();
+  cached.set(key, pending);
+  void pending.then((rows) => { if (!rows.length) cached.delete(key); });
+  return pending;
 }
 
 export async function placesRecordForVenue(venueId: string, osmIds: readonly string[] = []): Promise<PlacesEnrichmentRecord | null> {
-  const index = await loadIndex();
-  const matches = [...new Set([venueId, ...osmIds].flatMap((id) => canonicalOsmId(id) ?? []))]
-    .flatMap((key) => index.get(key) ?? []);
+  const keys = [...new Set([venueId, ...osmIds].flatMap((id) => canonicalOsmId(id) ?? []))];
+  const matches = (await Promise.all(keys.map(recordsForOsmId))).flat();
   if (new Set(matches.map((row) => row.googlePlaceId)).size !== 1) return null;
   return matches[0] ?? null;
 }

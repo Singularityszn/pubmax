@@ -6,8 +6,8 @@
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
-    "dev": "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && next dev --webpack",
-    "build": "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board && next build",
+    "dev": "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && npm run build:places-enrichment && next dev --webpack",
+    "build": "npm run prepare:maplibre-worker && npm run build:places-enrichment && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board && next build",
     "start": "node -e \"const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\\n\\u2717 '+d+'/BUILD_ID is missing \\u2014 there is no completed production build to serve.\\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\\n'), process.exit(1))\" && next start",
     "deploy:preview": "node scripts/deploy-vercel.mjs",
     "deploy:preview:prod-env": "node scripts/deploy-preview-prod-env.mjs",
@@ -110,6 +110,7 @@
     "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
     "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs",
     "verify:london-places": "node --import tsx scripts/verify_london_places.mjs",
+    "build:places-enrichment": "node --import tsx scripts/build_places_enrichment.mjs",
     "enrich:google-places": "node --import tsx scripts/enrich_google_places.mjs",
     "test:chatgpt-map": "npm --prefix scripts/chatgpt-map ci --no-audit --no-fund && npm --prefix scripts/chatgpt-map test",
     "deps:install-scripts": "node scripts/ci/install-script-allowlist.mjs",

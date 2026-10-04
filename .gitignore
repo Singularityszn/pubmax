@@ -131,3 +131,6 @@ e2e-shots/
 data/places_verification/enrichment_progress.json
 data/places_verification/enrichment_progress.json.tmp
 data/places_enrichment.json.tmp
+
+# Generated from copied Places observations before dev/build; runtime reads only requested OSM files.
+data/generated/places_enrichment/
