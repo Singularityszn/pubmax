@@ -345,7 +345,9 @@ test("selecting Gin keeps street-level UK pub presence available", async ({ page
   const requests = ukBaseRequests(page);
   const response = await page.goto("/map?drink=gin");
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole("checkbox", { name: "Drink: Gin", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", {
+    name: "Drink shown on the map: Gin. Choose another drink", exact: true,
+  })).toBeVisible();
   const wrap = page.locator(".mapCanvasWrap");
   await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", { timeout: 30_000 });
   await expect.poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), {
@@ -386,7 +388,24 @@ for (const viewport of [VIEWPORT, { width: 1440, height: 900 }]) {
       });
       await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
       await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 10_000 });
-      await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+      if (viewport.width < 768) {
+        const searchToggle = page.getByRole("button", { name: "Search the map", exact: true });
+        await expect(async () => {
+          if (await searchToggle.getAttribute("aria-expanded") !== "true") {
+            await searchToggle.click();
+          }
+          await expect(searchToggle).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+        const searchInput = page.getByRole("combobox", { name: "Search pubs", exact: true });
+        await expect(searchInput).toBeVisible();
+        await expect(searchInput).toBeEditable();
+        await page.keyboard.press("Escape");
+        await expect(searchToggle).toHaveAttribute("aria-expanded", "false");
+        await expect(searchInput).toHaveCount(0);
+        await expect(searchToggle).toBeFocused();
+      } else {
+        await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+      }
       await expect(page.getByRole("button", {
         name: "Map area: UK. Change city", exact: true,
       })).toBeVisible();
