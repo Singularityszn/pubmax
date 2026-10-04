@@ -348,6 +348,41 @@ describe("private cover rendering", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
+  it("does not let a refusal for a read started before a session refresh exclude the cover", async () => {
+    let resolveOld!: (response: Response) => void;
+    fetchCover.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }));
+    await render();
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    auth.token = "owner-token-2";
+    auth.session = {
+      access_token: "owner-token-2", refresh_token: "fixture-refresh", expires_in: 3_600,
+      token_type: "bearer", user: { id: "owner" } as User,
+    };
+    await render();
+    await act(async () => resolveOld(new Response("Unauthorized", { status: 401 })));
+    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
+    expect(new Headers(fetchCover.mock.calls.at(-1)![1]?.headers).get("Authorization")).toBe("Bearer owner-token-2");
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("gives a refreshed session its own bounded read before an outage excludes the cover", async () => {
+    vi.useFakeTimers();
+    fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
+    await render();
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    auth.token = "owner-token-2";
+    auth.session = {
+      access_token: "owner-token-2", refresh_token: "fixture-refresh", expires_in: 3_600,
+      token_type: "bearer", user: { id: "owner" } as User,
+    };
+    await render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    const refreshedReads = fetchCover.mock.calls.filter(([, init]) =>
+      new Headers(init?.headers).get("Authorization") === "Bearer owner-token-2");
+    expect(refreshedReads).toHaveLength(4);
+    expect(container.querySelector(".profileCoverFrames")).toBeNull();
+  });
+
   it("removes a cover whose visibility was withdrawn and does not show it to the next reader's refusal", async () => {
     vi.useFakeTimers();
     await render();

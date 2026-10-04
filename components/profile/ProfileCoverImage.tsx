@@ -29,6 +29,7 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
   const [loaded, setLoaded] = useState<{ readerKey: string; url: string } | null>(null);
   const onErrorRef = useRef(onError);
   const restartRef = useRef(() => {});
+  const sessionRef = useRef(session);
 
   useEffect(() => {
     onErrorRef.current = onError;
@@ -38,27 +39,26 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
     if (!userId && !providerHasAnswered(providerAuthState)) return;
     // Never send a bearer token to a supplied external URL or another API route.
     if (!/^\/api\/cover\/[a-zA-Z0-9-]+\/[a-zA-Z0-9-]+$/.test(src)) return;
-    const controller = new AbortController();
     const accountSignal = readProviderAccountSignal();
     let active = true;
-    let reading = false;
+    let attempt: AbortController | null = null;
     let objectUrl: string | null = null;
-    const current = () => active && !controller.signal.aborted && !accountSignal.aborted;
 
-    async function read() {
+    async function read(signal: AbortSignal) {
+      const current = () => active && !signal.aborted && !accountSignal.aborted;
       let retryAfterMs = 0;
       for (const delayMs of RETRY_DELAYS_MS) {
         const waitMs = Math.max(delayMs, retryAfterMs);
         // Respect a long server cooldown without keeping this read alive indefinitely.
         if (waitMs > 10_000) break;
-        if (waitMs && !await waitUnlessAborted(waitMs, controller.signal)) return;
+        if (waitMs && !await waitUnlessAborted(waitMs, signal)) return;
         if (!current()) return;
         try {
           // This versioned URL bypasses cover responses cached under the former public policy.
           const response = await authedActionFetch(`${src}?privacy=2`, {
             cache: "no-store",
             redirect: "error",
-            signal: controller.signal,
+            signal,
           }, { requiresIdentity: true });
           if (!current() || !response.ok) {
             discardBody(response);
@@ -90,16 +90,17 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
       if (current()) onErrorRef.current?.();
     }
     function load() {
-      if (reading || objectUrl) return;
-      reading = true;
-      void read().finally(() => { reading = false; });
+      if (objectUrl) return;
+      attempt?.abort();
+      attempt = new AbortController();
+      void read(attempt.signal);
     }
     restartRef.current = load;
     load();
     return () => {
       active = false;
       restartRef.current = () => {};
-      controller.abort();
+      attempt?.abort();
       if (!objectUrl) return;
       URL.revokeObjectURL(objectUrl);
       const released = objectUrl;
@@ -107,8 +108,10 @@ export default function ProfileCoverImage({ src, alt, className, width, height, 
     };
   }, [src, readerKey, providerAuthState, userId]);
 
-  // A same-account session refresh retries only a read that has not produced bytes.
+  // A same-account session refresh replaces any read that has not produced bytes.
   useEffect(() => {
+    if (sessionRef.current === session) return;
+    sessionRef.current = session;
     restartRef.current();
   }, [session]);
 
