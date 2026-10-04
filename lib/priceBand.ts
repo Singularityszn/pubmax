@@ -110,9 +110,12 @@ export function priceBandThresholdsFrom(
     .sort((a, b) => a - b);
   if (sorted.length < Math.max(1, minSample)) return null;
   const last = sorted.length - 1;
+  const cheapMaxGbp = sorted[Math.floor(last / 3)];
+  const averageMaxGbp = sorted[Math.floor((2 * last) / 3)];
+  if (cheapMaxGbp === undefined || averageMaxGbp === undefined) return null;
   return {
-    cheapMaxGbp: sorted[Math.floor(last / 3)],
-    averageMaxGbp: sorted[Math.floor((2 * last) / 3)],
+    cheapMaxGbp,
+    averageMaxGbp,
     sampleSize: sorted.length,
   };
 }

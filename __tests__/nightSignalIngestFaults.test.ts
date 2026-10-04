@@ -31,6 +31,7 @@ import {
   nightSignalCheckpointStore,
   resetNightSignalStoreMemory,
 } from "@/lib/nightSignalStore.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-05T20:00:00.000Z");
 
@@ -65,7 +66,7 @@ function fetchAnswering(answers: Array<unknown[] | null>): ReturnType<typeof vi.
     const answer = answers[Math.min(call, answers.length - 1)];
     call += 1;
     if (answer === null) return new Response("upstream error", { status: 503 });
-    return okResponse(answer);
+    return okResponse(defined(answer));
   });
 }
 

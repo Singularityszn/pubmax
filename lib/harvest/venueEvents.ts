@@ -117,6 +117,7 @@ export function resolveEventDate(line: string, nowMs: number): EventDateResoluti
   if (!match) return { ok: false, reason: "no-date" };
 
   const [, weekdayWord, dayText, monthText, yearText] = match;
+  if (monthText === undefined) return { ok: false, reason: "no-date" };
   const month = MONTH_INDEX.get(monthText.toLowerCase().slice(0, monthText.length > 3 ? undefined : 3));
   const monthIndex = month ?? MONTH_INDEX.get(monthText.toLowerCase().slice(0, 3));
   if (monthIndex === undefined) return { ok: false, reason: "no-date" };
@@ -144,14 +145,15 @@ export function resolveEventDate(line: string, nowMs: number): EventDateResoluti
     candidates.push({ year, month: monthIndex + 1, day });
   }
 
-  if (candidates.length === 0) return { ok: false, reason: "ambiguous-date" };
+  const [soonest] = candidates;
+  if (!soonest) return { ok: false, reason: "ambiguous-date" };
   if (candidates.length > 1 && wanted === undefined) {
     // No weekday to choose between them: take the soonest, which is what an
     // upcoming-events list means by a bare day and month.
-    return { ok: true, date: candidates[0] };
+    return { ok: true, date: soonest };
   }
   if (candidates.length > 1) return { ok: false, reason: "ambiguous-date" };
-  return { ok: true, date: candidates[0] };
+  return { ok: true, date: soonest };
 }
 
 const TIME_IN_LINE = /(?:doors?|from|starts?|kick[- ]?off)?\s*\b(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm))\b|\b(\d{1,2}:\d{2})\b/i;
@@ -266,7 +268,7 @@ export function parseVenueEventListings(markdown: string, nowMs: number): VenueE
     const heading = /^#{2,4}\s+(.+?)\s*$/.exec(raw);
     if (heading) {
       flush();
-      title = heading[1].trim();
+      title = (heading[1] ?? "").trim();
       continue;
     }
     if (title) body.push(raw);
@@ -291,7 +293,7 @@ export function findEventsPageUrl(markdown: string, siteUrl: string): string | n
     return null;
   }
   const links = markdown.matchAll(/\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g);
-  for (const [, text, href] of links) {
+  for (const [, text = "", href = ""] of links) {
     let candidate: URL;
     try {
       candidate = new URL(href, base);

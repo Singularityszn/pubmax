@@ -50,6 +50,7 @@ import {
   PINT_INDEX_EXCLUSION_REASONS,
 } from "@/lib/pintIndexFromConfirmations";
 import { readSecondReporter } from "@/lib/pintDropConfirmation";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-05T18:00:00.000Z");
 const RECENT = new Date(NOW - 60 * 60 * 1000).toISOString();
@@ -259,8 +260,8 @@ describe("every pint lane holds a non-pint out", () => {
       prices: [],
     } as unknown as Venue;
     const merged = mergeVenueDrops([venue], new Map([["venue-1", [half, halfPeer]]]), NOW);
-    expect(merged[0].cheapestPrice).toBe(5.5);
-    expect(merged[0].latestContributorPrice).toBe(null);
+    expect(defined(merged[0]).cheapestPrice).toBe(5.5);
+    expect(defined(merged[0]).latestContributorPrice).toBe(null);
   });
 
   it("reads the whole trust story as `none` over a pub whose only rows are halves", () => {

@@ -32,6 +32,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { discardBody } from "@/lib/responseBody";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = join(__dirname, "..");
 
@@ -131,7 +132,7 @@ function ifCondition(source: string, at: number): { close: number; text: string 
 /** The consequent of that `if`: a `{ ... }` block, or a single statement. */
 function ifConsequent(source: string, close: number): string | null {
   let i = close + 1;
-  while (i < source.length && /\s/.test(source[i])) i++;
+  while (i < source.length && /\s/.test(defined(source[i]))) i++;
   if (source[i] === "{") {
     let depth = 0;
     for (let j = i; j < source.length; j++) {
@@ -187,7 +188,7 @@ function unreadResponseExitsIn(source: string, label: string): Site[] {
       const name = binding[1];
       const start = binding.index as number;
       const after = source.slice(start);
-      const read = readsBody(name).exec(after);
+      const read = readsBody(defined(name)).exec(after);
       // Nothing reads this response at all: the window runs to the end of its
       // function, capped so one unread response cannot swallow the next.
       const windowEnd = start + (read ? read.index : Math.min(after.length, 3000));
@@ -202,8 +203,8 @@ function unreadResponseExitsIn(source: string, label: string): Site[] {
         const consequent = ifConsequent(source, condition.close);
         if (!consequent) continue;
         if (!/\b(return|throw|continue|break)\b/.test(consequent)) continue;
-        if (settlesBody(name).test(consequent)) continue;
-        if (discardedBefore(source, start, found.index, name)) continue;
+        if (settlesBody(defined(name)).test(consequent)) continue;
+        if (discardedBefore(source, start, found.index, defined(name))) continue;
         // Handing the response itself onward leaves the body to its new owner.
         // Naming one of its fields in a message does not, so drop the property
         // reads before looking for a bare mention.

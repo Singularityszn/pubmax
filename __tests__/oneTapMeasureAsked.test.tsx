@@ -45,6 +45,7 @@ import { attachBill } from "./helpers/oneTapBill";
 
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import { defined } from "@/__tests__/helpers/defined";
 
 const communityPrices = {
   byVenueId: new Map(),
@@ -146,7 +147,7 @@ describe("the one-tap price door asks the measure", () => {
 
   it("sends the half the drinker picked, and never a pint", async () => {
     await renderDoor();
-    const half = measureChips()[1];
+    const half = defined(measureChips()[1]);
     await act(async () => {
       half.click();
     });
@@ -168,7 +169,7 @@ describe("the one-tap price door asks the measure", () => {
   it("does not let a picked half follow the reader onto another drink", async () => {
     await renderDoor();
     await act(async () => {
-      measureChips()[1].click();
+      defined(measureChips()[1]).click();
     });
     const cocktail = Array.from(
       container.querySelectorAll<HTMLButtonElement>(".vpsubCat"),
@@ -192,7 +193,7 @@ describe("the one-tap price door asks the measure", () => {
     expect(note()).toMatch(/moves the map/i);
 
     await act(async () => {
-      measureChips()[1].click();
+      defined(measureChips()[1]).click();
     });
     // A half never moves the map at any count, so the sentence beside the
     // field may not say a second drinker will.
@@ -203,12 +204,12 @@ describe("the one-tap price door asks the measure", () => {
   it("starts the next log from the default rather than the last serving", async () => {
     await renderDoor();
     await act(async () => {
-      measureChips()[1].click();
+      defined(measureChips()[1]).click();
     });
     await logPrice();
 
-    expect(measureChips()[0].getAttribute("aria-checked")).toBe("true");
-    expect(measureChips()[1].getAttribute("aria-checked")).toBe("false");
+    expect(defined(measureChips()[0]).getAttribute("aria-checked")).toBe("true");
+    expect(defined(measureChips()[1]).getAttribute("aria-checked")).toBe("false");
   });
 });
 

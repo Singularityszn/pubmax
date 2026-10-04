@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { defined } from "@/__tests__/helpers/defined";
 
 type WorkflowStep = { uses?: string; run?: string };
 type Workflow = { jobs: Record<string, { steps: WorkflowStep[] }> };
@@ -50,7 +51,7 @@ describe("browser CI policy", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
     for (const jobName of ["law-pins", "full-suite"]) {
-      const steps = jobs[jobName].steps;
+      const steps = defined(jobs[jobName]).steps;
       const install = steps.findIndex((step) =>
         step.run?.split("\n").some((line) => {
           const words = line.trim().split(/\s+/);
@@ -77,7 +78,7 @@ describe("browser CI policy", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
     for (const jobName of ["law-pins", "full-suite"]) {
-      const steps = jobs[jobName].steps;
+      const steps = defined(jobs[jobName]).steps;
       const portStep = steps.findIndex(
         (step) => step.uses === "./.github/actions/pubmax-playwright-port",
       );

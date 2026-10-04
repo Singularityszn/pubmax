@@ -76,6 +76,7 @@ import { groupOutListings, outVenueMatchNotice } from "@/lib/outDesktopGrouping"
 import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const FIXTURE_NOW = new Date("2026-08-16T17:00:00.000Z");
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -268,7 +269,7 @@ describe("buildOutResponse", () => {
     );
     expect(body.status).toBe("degraded");
     expect(body.events).toHaveLength(1);
-    expect(body.events[0].title).toBe("A Night at the Playhouse");
+    expect(defined(body.events[0]).title).toBe("A Night at the Playhouse");
     // The public body says the lane is degraded and nothing about the upstream.
     expect(body.providers[0]).toEqual({
       name: "ticketmaster",
@@ -377,7 +378,7 @@ describe("buildOutResponse", () => {
       { now: FIXTURE_NOW.getTime(), loadBaseline: () => [dateOnly], liveProviders: [] },
     );
     expect(today.events.map((row) => row.id)).toEqual(["events-cm-1"]);
-    expect(today.events[0].startsAt).toBeUndefined();
+    expect(defined(today.events[0]).startsAt).toBeUndefined();
 
     const tomorrow = await buildOutResponse(
       { city: "london", day: "tomorrow" },
@@ -443,7 +444,7 @@ describe("buildOutResponse", () => {
         liveProviders: [],
       },
     );
-    expect(body.events[0].venueId).toBe("venue-soho-theatre");
+    expect(defined(body.events[0]).venueId).toBe("venue-soho-theatre");
   });
 });
 
@@ -560,8 +561,8 @@ describe("the two lanes fold onto one listing", () => {
       },
     );
     expect(body.events).toHaveLength(1);
-    expect(body.events[0].observedAt).toBe("2026-08-16T16:00:00.000Z");
-    expect(body.events[0].venueId).toBe("venue-soho-theatre");
+    expect(defined(body.events[0]).observedAt).toBe("2026-08-16T16:00:00.000Z");
+    expect(defined(body.events[0]).venueId).toBe("venue-soho-theatre");
   });
 
   it("keeps two shows in one venue at the same minute, because their ids differ", async () => {
@@ -931,11 +932,11 @@ describe("the live lane is venue-matched at request time", () => {
     expect(body.status).toBe("ready");
     expect(body.venueMatch).toBe("ready");
     expect(body.events).toHaveLength(1);
-    expect(body.events[0].venueId).toBe("venue-1137z1c");
+    expect(defined(body.events[0]).venueId).toBe("venue-1137z1c");
     // The row lands under the night it is on, carrying the pub it matched.
     const groups = groupOutListings(body.events, FIXTURE_NOW.getTime());
     expect(groups.map((group) => group.label)).toEqual(["Tonight"]);
-    expect(groups[0].rows[0].venueId).toBe("venue-1137z1c");
+    expect(defined(defined(groups[0]).rows[0]).venueId).toBe("venue-1137z1c");
   });
 
   it("prints an unmatched live row beside the matched one and still counts it", async () => {
@@ -1109,7 +1110,7 @@ describe("the live lane is venue-matched at request time", () => {
     // The listings themselves were read fine: the lane stays ready.
     expect(body.status).toBe("ready");
     expect(body.venueMatch).toBe("unavailable");
-    expect(body.events[0].venueId).toBeUndefined();
+    expect(defined(body.events[0]).venueId).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain("unreadable");
   });
 
@@ -1132,7 +1133,7 @@ describe("the live lane is venue-matched at request time", () => {
       },
     );
     expect(body.events).toHaveLength(1);
-    expect(body.events[0].venueId).toBe("venue-from-refresh");
+    expect(defined(body.events[0]).venueId).toBe("venue-from-refresh");
   });
 
   it("does not promote an unresolved bundled row through the weaker live matcher", async () => {
@@ -1153,7 +1154,7 @@ describe("the live lane is venue-matched at request time", () => {
         loadVenueMatchIndex: async () => slimIndex,
       },
     );
-    expect(body.events[0].venueId).toBeUndefined();
+    expect(defined(body.events[0]).venueId).toBeUndefined();
     expect(body.unmatchedCount).toBe(1);
   });
 });

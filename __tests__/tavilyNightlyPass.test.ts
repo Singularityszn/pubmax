@@ -24,6 +24,7 @@ import {
   tonightAllowance,
   venueKey,
 } from "@/lib/harvest/tavilyNightlyPass";
+import { defined } from "@/__tests__/helpers/defined";
 
 const FIXTURES = path.join(__dirname, "fixtures", "tavily-nightly");
 const searchFixture = JSON.parse(readFileSync(path.join(FIXTURES, "eastbrook-search.json"), "utf8"));
@@ -349,10 +350,10 @@ describe("price lines from a recorded page", () => {
     ]);
     expect(foodPage.drinks).toEqual([]);
     expect(drinks.excerpts[0]).toMatchObject({ sourceUrl, seenOn: "2026-10-01" });
-    expect(drinks.excerpts[0].excerpt).toContain("Beer garden out the back.");
-    expect(drinks.excerpts[0].excerpt).toContain("This pub is permanently closed.");
-    expect(drinks.excerpts[0].excerpt).toContain("Monday 12pm to 11pm");
-    expect(drinks.excerpts[0].excerpt).toContain("020 7946 0991");
+    expect(defined(drinks.excerpts[0]).excerpt).toContain("Beer garden out the back.");
+    expect(defined(drinks.excerpts[0]).excerpt).toContain("This pub is permanently closed.");
+    expect(defined(drinks.excerpts[0]).excerpt).toContain("Monday 12pm to 11pm");
+    expect(defined(drinks.excerpts[0]).excerpt).toContain("020 7946 0991");
     expect(drinks).not.toHaveProperty("hours");
     expect(drinks).not.toHaveProperty("phone");
     expect(drinks).not.toHaveProperty("food");
@@ -365,7 +366,7 @@ describe("price lines from a recorded page", () => {
       sourceUrl: "https://example.test/about",
       seenOn: "2026-10-01",
     });
-    expect(facts.excerpts[0].excerpt).toBe("We serve food.\nMonday 12pm to 11pm");
+    expect(defined(facts.excerpts[0]).excerpt).toBe("We serve food.\nMonday 12pm to 11pm");
     expect(facts.drinks).toEqual([]);
     expect(facts).not.toHaveProperty("hours");
     expect(facts).not.toHaveProperty("phone");
@@ -376,7 +377,7 @@ describe("price lines from a recorded page", () => {
       sourceUrl: "https://example.test/about",
       seenOn: "2026-10-01",
     });
-    expect(facts.excerpts[0].excerpt).toBe("We do not serve food.");
+    expect(defined(facts.excerpts[0]).excerpt).toBe("We do not serve food.");
     expect(facts.drinks).toEqual([]);
   });
 });
@@ -427,7 +428,7 @@ describe("never Confirmed", () => {
       ],
     });
     expect(doc.standingRule).toBe("listed");
-    expect(doc.venues[0].drinks[0].standing).toBe("listed");
+    expect(defined(defined(doc.venues[0]).drinks[0]).standing).toBe("listed");
     const encoded = JSON.stringify(doc);
     expect(encoded).not.toContain("confirmed");
     expect(encoded).not.toContain("cheapestPrice");
@@ -453,9 +454,9 @@ describe("never Confirmed", () => {
         },
       ],
     });
-    expect(doc.venues[0].drinks[0].sourceUrl).toBe(sourceUrl);
-    expect(doc.venues[0].excerpts.length).toBeGreaterThan(0);
-    expect(doc.venues[0].candidates).toEqual([sourceUrl]);
+    expect(defined(defined(doc.venues[0]).drinks[0]).sourceUrl).toBe(sourceUrl);
+    expect(defined(doc.venues[0]).excerpts.length).toBeGreaterThan(0);
+    expect(defined(doc.venues[0]).candidates).toEqual([sourceUrl]);
   });
 
   it("rejects a row that tries to set standing confirmed or a community price", () => {
@@ -522,7 +523,7 @@ describe("a night against recorded responses", () => {
     expect(first.cursor.lastSeen["venue-cn9acj"]).toBe("2026-10-01");
     expect(first.cursor.lastSeen["venue-next"]).toBeUndefined();
     expect(first.queue.venues).toHaveLength(1);
-    expect(first.queue.venues[0].drinks.every((row) => row.standing === "listed")).toBe(true);
+    expect(defined(first.queue.venues[0]).drinks.every((row) => row.standing === "listed")).toBe(true);
     expect(JSON.stringify(first.queue)).not.toContain("confirmed");
 
     const second = await runNightlyPass({
@@ -1200,15 +1201,15 @@ describe("a price stays in the lane the reader gave it", () => {
       { version: 1, standingRule: "listed", venues: [night([glass("125ml", "2026-10-01")], "2026-10-01")] },
       [night([glass("175ml", "2026-10-02")], "2026-10-02")],
     );
-    expect(queued.venues[0].drinks.map((row) => row.sizeDetail)).toEqual(["125ml", "175ml"]);
+    expect(defined(queued.venues[0]).drinks.map((row) => row.sizeDetail)).toEqual(["125ml", "175ml"]);
   });
 
   it("leaves an offer, a half and a food price out of the drink list and keeps the lines verbatim", () => {
     const page = "Burger from £12.00\nBurger Peroni Half £3.55\nBurger. House wine £40.00\nFish and chips £14.50\nBurger £12.00";
     const facts = factsFromPage(page, pageFact);
     expect(facts.drinks).toEqual([]);
-    expect(facts.excerpts[0].excerpt).toBe(page);
-    expect(facts.excerpts[0].sourceUrl).toBe(pageFact.sourceUrl);
+    expect(defined(facts.excerpts[0]).excerpt).toBe(page);
+    expect(defined(facts.excerpts[0]).sourceUrl).toBe(pageFact.sourceUrl);
   });
 
   it("keeps a sized drink on the same line as a dish and leaves the dish in the excerpt", () => {
@@ -1219,18 +1220,18 @@ describe("a price stays in the lane the reader gave it", () => {
       "London Pride|5.5",
       "Peroni|5.5",
     ]);
-    expect(facts.excerpts[0].excerpt).toBe(page);
+    expect(defined(facts.excerpts[0]).excerpt).toBe(page);
     expect(facts.drinks.find((row) => /burger|pie/i.test(row.drink))).toBeUndefined();
   });
 
   it("keeps a kitchen line verbatim beside the pint and does not turn it into a served flag", () => {
     const ours = factsFromPage("Our kitchen is closed.\nLondon Pride £5.50 /pint", pageFact);
-    expect(ours.excerpts[0].excerpt).toContain("Our kitchen is closed.");
+    expect(defined(ours.excerpts[0]).excerpt).toContain("Our kitchen is closed.");
     expect(ours.drinks.map((row) => row.drink)).toContain("London Pride");
     expect(ours).not.toHaveProperty("food");
     const qualified = factsFromPage("The kitchen is closed on Mondays.\nThe kitchen was closed for refurbishment.", pageFact);
-    expect(qualified.excerpts[0].excerpt).toContain("The kitchen is closed on Mondays.");
-    expect(qualified.excerpts[0].excerpt).toContain("The kitchen was closed for refurbishment.");
+    expect(defined(qualified.excerpts[0]).excerpt).toContain("The kitchen is closed on Mondays.");
+    expect(defined(qualified.excerpts[0]).excerpt).toContain("The kitchen was closed for refurbishment.");
     expect(qualified.drinks).toEqual([]);
   });
 
@@ -1242,7 +1243,7 @@ describe("a price stays in the lane the reader gave it", () => {
       title: "Sunday lunch",
     });
     expect(bare.drinks).toEqual([]);
-    expect(bare.excerpts[0].excerpt).toContain("Scotch egg £6.50");
+    expect(defined(bare.excerpts[0]).excerpt).toContain("Scotch egg £6.50");
     const headed = "Draught beer\nLondon Pride £5.50 /pint\nBottled beers\nPeroni 330ml bottle £5.50\nCask ale\nLandlord £4.20 /pint\nFood\nScotch egg £6.50\nRum baba £7";
     const menu = factsFromPage(headed, {
       sourceUrl: "https://pub.example/menu",
@@ -1255,7 +1256,7 @@ describe("a price stays in the lane the reader gave it", () => {
       "Peroni|bottle|5.5",
     ]);
     expect(menu.drinks.find((row) => /scotch|rum|baba/i.test(row.drink))).toBeUndefined();
-    expect(menu.excerpts[0].excerpt).toContain("Scotch egg £6.50");
+    expect(defined(menu.excerpts[0]).excerpt).toContain("Scotch egg £6.50");
   });
 
   it("keeps scotch egg and rum baba off a food menu and out of a food section", () => {
@@ -1266,11 +1267,11 @@ describe("a price stays in the lane the reader gave it", () => {
       title: "Food menu",
     });
     expect(foodPage.drinks).toEqual([]);
-    expect(foodPage.excerpts[0].excerpt).toBe(food);
+    expect(defined(foodPage.excerpts[0]).excerpt).toBe(food);
     const mixed = "London Pride £5.50 /pint\nFood\nScotch egg £6.50\nRum baba £7\nBeer\nGuinness £5.80 /pint";
     const drinksPage = factsFromPage(mixed, pageFact);
     expect(drinksPage.drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
-    expect(drinksPage.excerpts[0].excerpt).toBe(mixed);
+    expect(defined(drinksPage.excerpts[0]).excerpt).toBe(mixed);
   });
 
   it("keeps a sized pint when the path or heading names food and drink", () => {
@@ -1281,7 +1282,7 @@ describe("a price stays in the lane the reader gave it", () => {
       title: "Drinks",
     });
     expect(mixedPath.drinks.map((row) => row.drink)).toEqual(["London Pride"]);
-    expect(mixedPath.excerpts[0].excerpt).toContain("Scotch egg £6.50");
+    expect(defined(mixedPath.excerpts[0]).excerpt).toContain("Scotch egg £6.50");
     const headed = factsFromPage(`Food and Drink\n${line}`, {
       sourceUrl: "https://pub.example/menu",
       seenOn: "2026-10-01",
@@ -1314,8 +1315,8 @@ describe("a price stays in the lane the reader gave it", () => {
     const page = "Scotch egg £6.50\nRum baba £7";
     const facts = factsFromPage(page, pageFact);
     expect(facts.drinks).toEqual([]);
-    expect(facts.excerpts[0].excerpt).toContain("Scotch egg £6.50");
-    expect(facts.excerpts[0].excerpt).toContain("Rum baba £7");
+    expect(defined(facts.excerpts[0]).excerpt).toContain("Scotch egg £6.50");
+    expect(defined(facts.excerpts[0]).excerpt).toContain("Rum baba £7");
   });
 
   it("keeps sized pints on a drinks-titled menu when food lines are as many", () => {
@@ -1339,12 +1340,12 @@ describe("a price stays in the lane the reader gave it", () => {
 
   it("keeps closure wording verbatim and does not treat an open kitchen or a former name as a closure field", () => {
     const open = factsFromPage("The kitchen is now closed.\nFormerly known as The Red Lion.\nLondon Pride £5.50 /pint", pageFact);
-    expect(open.excerpts[0].excerpt).toContain("The kitchen is now closed.");
-    expect(open.excerpts[0].excerpt).toContain("Formerly known as The Red Lion.");
+    expect(defined(open.excerpts[0]).excerpt).toContain("The kitchen is now closed.");
+    expect(defined(open.excerpts[0]).excerpt).toContain("Formerly known as The Red Lion.");
     expect(open.drinks.map((row) => row.drink)).toContain("London Pride");
     expect(open).not.toHaveProperty("closure");
     const shut = factsFromPage("This pub is permanently closed.\nThe bar is closed for good.", pageFact);
-    expect(shut.excerpts[0].excerpt).toContain("This pub is permanently closed.");
+    expect(defined(shut.excerpts[0]).excerpt).toContain("This pub is permanently closed.");
     expect(shut.drinks).toEqual([]);
   });
 });
@@ -1441,10 +1442,10 @@ describe("two pubs named The Crown", () => {
       },
     });
     expect(calls).toEqual(["search"]);
-    expect(result.queue.venues[0].drinks).toEqual([]);
-    expect(result.queue.venues[0].website).toBeNull();
-    expect(result.queue.venues[0].candidates).toEqual([allowed]);
-    expect(result.queue.venues[0].excerpts.some((row) => row.sourceUrl === refused)).toBe(false);
+    expect(defined(result.queue.venues[0]).drinks).toEqual([]);
+    expect(defined(result.queue.venues[0]).website).toBeNull();
+    expect(defined(result.queue.venues[0]).candidates).toEqual([allowed]);
+    expect(defined(result.queue.venues[0]).excerpts.some((row) => row.sourceUrl === refused)).toBe(false);
     expect(result.cursor.lastSeen["crown-se1"]).toBeUndefined();
   });
 
@@ -1499,10 +1500,10 @@ describe("two pubs named The Crown", () => {
       },
     });
     const byId = Object.fromEntries(result.queue.venues.map((row) => [row.venueId, row]));
-    expect(byId["crown-se1"].website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
-    expect(byId["crown-se1"].drinks.map((row) => row.priceGbp)).toEqual([6.1]);
-    expect(byId["crown-e1"].website?.url).toBe("https://thecrown-cable.co.uk/drinks");
-    expect(byId["crown-e1"].drinks.map((row) => row.priceGbp)).toEqual([5.2]);
+    expect(defined(byId["crown-se1"]).website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
+    expect(defined(byId["crown-se1"]).drinks.map((row) => row.priceGbp)).toEqual([6.1]);
+    expect(defined(byId["crown-e1"]).website?.url).toBe("https://thecrown-cable.co.uk/drinks");
+    expect(defined(byId["crown-e1"]).drinks.map((row) => row.priceGbp)).toEqual([5.2]);
   });
 });
 
@@ -1667,8 +1668,8 @@ describe("a night that fails part way", () => {
       "https://eastbrookpub.co.uk/food-menu.pdf",
       "https://eastbrookpub.co.uk/drink-menu.html",
     ]]);
-    expect(result.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
-    expect(result.queue.venues[0].drinks.map((row) => row.drink)).toContain("London Pride");
+    expect(defined(result.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
+    expect(defined(result.queue.venues[0]).drinks.map((row) => row.drink)).toContain("London Pride");
   });
 
   it("keeps the previous pint and dish when a later read finds nothing", async () => {
@@ -1706,8 +1707,8 @@ describe("a night that fails part way", () => {
         };
       },
     });
-    expect(first.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
-    expect(first.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
+    expect(defined(first.queue.venues[0]).drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    expect(defined(first.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
     const later = await runNightlyPass({
       venues: [pub],
       cursor: first.cursor,
@@ -1721,9 +1722,9 @@ describe("a night that fails part way", () => {
     });
     expect(later.cursor.lastSeen["crown-se1"]).toBe("2026-09-01");
     expect(later.queue.venues).toHaveLength(1);
-    expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
-    expect(later.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
-    expect(later.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
+    expect(defined(later.queue.venues[0]).drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    expect(defined(later.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
+    expect(defined(later.queue.venues[0]).website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
   });
 
   it("does not mark a venue seen on an error payload, and marks a food-only read seen", async () => {
@@ -1769,7 +1770,7 @@ describe("a night that fails part way", () => {
       fetchImpl: async () => ({ error: "Too many requests", usage: { credits: 1 } }),
     });
     expect(errored.cursor.lastSeen["crown-se1"]).toBe("2026-09-01");
-    expect(errored.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    expect(defined(errored.queue.venues[0]).drinks.map((row) => row.priceGbp)).toEqual([5.5]);
     const foodOnly = await runNightlyPass({
       venues: [pub],
       cursor,
@@ -1797,8 +1798,8 @@ describe("a night that fails part way", () => {
       },
     });
     expect(foodOnly.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
-    expect(foodOnly.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([5.5]);
-    expect(foodOnly.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
+    expect(defined(foodOnly.queue.venues[0]).drinks.map((row) => row.priceGbp)).toEqual([5.5]);
+    expect(defined(foodOnly.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n")).toContain("Burger £12.00");
   });
 
   it("does not mark a venue seen when the search spends the last credit and skips extract", async () => {
@@ -1853,7 +1854,7 @@ describe("a night that fails part way", () => {
     });
     expect(laterCalls).toEqual(["search", "extract"]);
     expect(later.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
-    expect(later.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([6.2]);
+    expect(defined(later.queue.venues[0]).drinks.map((row) => row.priceGbp)).toEqual([6.2]);
   });
 
   it("keeps a measured snippet price when extract returns nothing and leaves the venue unseen", async () => {
@@ -1886,7 +1887,7 @@ describe("a night that fails part way", () => {
         return { results: [], usage: { credits: 1 } };
       },
     });
-    expect(empty.queue.venues[0].drinks.map((row) => ({
+    expect(defined(empty.queue.venues[0]).drinks.map((row) => ({
       drink: row.drink,
       size: row.size,
       priceGbp: row.priceGbp,
@@ -1906,7 +1907,7 @@ describe("a night that fails part way", () => {
         return { error: "extract failed", usage: { credits: 1 } };
       },
     });
-    expect(failed.queue.venues[0].drinks.map((row) => ({
+    expect(defined(failed.queue.venues[0]).drinks.map((row) => ({
       drink: row.drink,
       size: row.size,
       priceGbp: row.priceGbp,
@@ -1945,8 +1946,8 @@ describe("a night that fails part way", () => {
     });
     expect(calls).toEqual(["search"]);
     expect(result.cursor.lastSeen["crown-se1"]).toBe("2026-10-01");
-    expect(result.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/");
-    expect(result.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    expect(defined(result.queue.venues[0]).website?.url).toBe("https://thecrown-bankside.co.uk/");
+    expect(defined(result.queue.venues[0]).drinks.map((row) => row.drink)).toEqual(["London Pride"]);
   });
 
   it("keeps a queued food line when a later page states the kitchen but prices no dish", async () => {
@@ -1984,28 +1985,28 @@ describe("a night that fails part way", () => {
       { version: 1, lastSeen: {} },
       "Burger £12.00",
     );
-    expect(first.queue.venues[0].excerpts.map((row) => row.excerpt)).toEqual(["Burger £12.00"]);
+    expect(defined(first.queue.venues[0]).excerpts.map((row) => row.excerpt)).toEqual(["Burger £12.00"]);
     const kitchen = await night(oct1, first.queue, first.cursor, "Our kitchen\nLondon Pride £5.50 /pint");
-    expect(kitchen.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["London Pride"]);
-    expect(kitchen.queue.venues[0].excerpts.map((row) => row.excerpt)).toContain("Burger £12.00");
+    expect(defined(kitchen.queue.venues[0]).drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    expect(defined(kitchen.queue.venues[0]).excerpts.map((row) => row.excerpt)).toContain("Burger £12.00");
     const closed = await night(
       new Date("2026-10-31T12:00:00.000Z"),
       kitchen.queue,
       kitchen.cursor,
       "The kitchen closed tonight.\nGuinness £5.80 /pint",
     );
-    expect(closed.queue.venues[0].drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
-    expect(closed.queue.venues[0].excerpts.map((row) => row.excerpt)).toContain("Burger £12.00");
+    expect(defined(closed.queue.venues[0]).drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
+    expect(defined(closed.queue.venues[0]).excerpts.map((row) => row.excerpt)).toContain("Burger £12.00");
     const replaced = await night(
       new Date("2026-11-30T12:00:00.000Z"),
       closed.queue,
       closed.cursor,
       "Pie £9.00",
     );
-    const kept = replaced.queue.venues[0].excerpts.map((row) => row.excerpt);
+    const kept = defined(replaced.queue.venues[0]).excerpts.map((row) => row.excerpt);
     expect(kept).toContain("Burger £12.00");
     expect(kept).toContain("Pie £9.00");
-    expect(replaced.queue.venues[0].drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
+    expect(defined(replaced.queue.venues[0]).drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
   });
 
   it("keeps curator urls when a later search returns nothing", async () => {
@@ -2029,8 +2030,8 @@ describe("a night that fails part way", () => {
         usage: { credits: 1 },
       }),
     });
-    expect(first.queue.venues[0].website).toBeNull();
-    expect(first.queue.venues[0].candidates).toEqual(["https://thecrown.co.uk/drinks"]);
+    expect(defined(first.queue.venues[0]).website).toBeNull();
+    expect(defined(first.queue.venues[0]).candidates).toEqual(["https://thecrown.co.uk/drinks"]);
     const later = await runNightlyPass({
       venues: [pub],
       cursor: first.cursor,
@@ -2042,8 +2043,8 @@ describe("a night that fails part way", () => {
       queue: first.queue,
       fetchImpl: async () => ({ results: [], usage: { credits: 1 } }),
     });
-    expect(later.queue.venues[0].website).toBeNull();
-    expect(later.queue.venues[0].candidates).toEqual(["https://thecrown.co.uk/drinks"]);
+    expect(defined(later.queue.venues[0]).website).toBeNull();
+    expect(defined(later.queue.venues[0]).candidates).toEqual(["https://thecrown.co.uk/drinks"]);
   });
 
   it("clears unbound candidate urls once a later night binds the venue site", async () => {
@@ -2067,8 +2068,8 @@ describe("a night that fails part way", () => {
         usage: { credits: 1 },
       }),
     });
-    expect(first.queue.venues[0].website).toBeNull();
-    expect(first.queue.venues[0].candidates).toEqual(["https://thecrown.co.uk/drinks"]);
+    expect(defined(first.queue.venues[0]).website).toBeNull();
+    expect(defined(first.queue.venues[0]).candidates).toEqual(["https://thecrown.co.uk/drinks"]);
     const bound = await runNightlyPass({
       venues: [pub],
       cursor: first.cursor,
@@ -2095,9 +2096,9 @@ describe("a night that fails part way", () => {
         };
       },
     });
-    expect(bound.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
-    expect(bound.queue.venues[0].candidates).toEqual([]);
-    expect(bound.queue.venues[0].drinks.map((row) => row.priceGbp)).toEqual([6.1]);
+    expect(defined(bound.queue.venues[0]).website?.url).toBe("https://thecrown-bankside.co.uk/drinks");
+    expect(defined(bound.queue.venues[0]).candidates).toEqual([]);
+    expect(defined(bound.queue.venues[0]).drinks.map((row) => row.priceGbp)).toEqual([6.1]);
   });
 
   it("keeps earlier hours and phone lines when a later page does not restate them", async () => {
@@ -2135,7 +2136,7 @@ describe("a night that fails part way", () => {
       { version: 1, lastSeen: {} },
       "Monday 12pm to 11pm\nCall 020 7946 0991\nBeer garden out the back.\nThis pub is permanently closed.\nBurger £12.00",
     );
-    const firstText = first.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n");
+    const firstText = defined(first.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n");
     expect(firstText).toContain("Burger £12.00");
     expect(firstText).toContain("Beer garden out the back.");
     expect(firstText).toContain("This pub is permanently closed.");
@@ -2144,8 +2145,8 @@ describe("a night that fails part way", () => {
     expect(first.queue.venues[0]).not.toHaveProperty("hours");
     expect(first.queue.venues[0]).not.toHaveProperty("phone");
     const drinks = await night(oct1, first.queue, first.cursor, "London Pride £5.50 /pint");
-    const kept = drinks.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n");
-    expect(drinks.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    const kept = defined(drinks.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n");
+    expect(defined(drinks.queue.venues[0]).drinks.map((row) => row.drink)).toEqual(["London Pride"]);
     expect(kept).toContain("Burger £12.00");
     expect(kept).toContain("Beer garden out the back.");
     expect(kept).toContain("This pub is permanently closed.");
@@ -2157,8 +2158,8 @@ describe("a night that fails part way", () => {
       drinks.cursor,
       "The kitchen closed tonight.\nGuinness £5.80 /pint",
     );
-    expect(closed.queue.venues[0].drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
-    const closedText = closed.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n");
+    expect(defined(closed.queue.venues[0]).drinks.map((row) => row.drink).sort()).toEqual(["Guinness", "London Pride"]);
+    const closedText = defined(closed.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n");
     expect(closedText).toContain("Burger £12.00");
     expect(closedText).toContain("Monday 12pm to 11pm");
     expect(closedText).toContain("020 7946 0991");
@@ -2206,13 +2207,13 @@ describe("a night that fails part way", () => {
       },
     });
     expect(calls).toEqual(["search", "extract"]);
-    expect(result.queue.venues[0].website?.url).toBe("https://thecrown-bankside.co.uk/");
-    expect(result.queue.venues[0].drinks.map((row) => row.drink)).toEqual(["London Pride"]);
-    const text = result.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n");
+    expect(defined(result.queue.venues[0]).website?.url).toBe("https://thecrown-bankside.co.uk/");
+    expect(defined(result.queue.venues[0]).drinks.map((row) => row.drink)).toEqual(["London Pride"]);
+    const text = defined(result.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n");
     expect(text).toContain("London Pride £5.50");
     expect(text).toContain("Scotch egg £6.50");
     expect(text).toContain("Rum baba £7");
-    expect(result.queue.venues[0].drinks.find((row) => /scotch|rum|baba/i.test(row.drink))).toBeUndefined();
+    expect(defined(result.queue.venues[0]).drinks.find((row) => /scotch|rum|baba/i.test(row.drink))).toBeUndefined();
   });
 
   it("keeps an earlier hours excerpt when a later page states another day", async () => {
@@ -2255,7 +2256,7 @@ describe("a night that fails part way", () => {
       [drinks]: "Monday 12pm to 11pm",
       [beer]: "Tuesday 12pm to 11pm",
     });
-    const firstText = first.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n");
+    const firstText = defined(first.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n");
     expect(firstText).toContain("Monday 12pm to 11pm");
     expect(firstText).toContain("Tuesday 12pm to 11pm");
     expect(first.queue.venues[0]).not.toHaveProperty("hours");
@@ -2263,7 +2264,7 @@ describe("a night that fails part way", () => {
       [drinks]: "Sunday 12pm to 10pm",
       [beer]: "",
     });
-    const laterText = later.queue.venues[0].excerpts.map((row) => row.excerpt).join("\n");
+    const laterText = defined(later.queue.venues[0]).excerpts.map((row) => row.excerpt).join("\n");
     expect(laterText).toContain("Monday 12pm to 11pm");
     expect(laterText).toContain("Tuesday 12pm to 11pm");
     expect(laterText).toContain("Sunday 12pm to 10pm");

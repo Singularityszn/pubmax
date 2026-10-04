@@ -7,6 +7,7 @@ import {
   NearMeCardList,
 } from "@/components/nearme/NearMeNow";
 import { formatNearDistance, type NearMeCard } from "@/lib/nearMeAnswer";
+import { defined } from "@/__tests__/helpers/defined";
 
 /**
  * The de-box rule on /near (design judgement 2026-08-01, finding 2.13). Two
@@ -48,7 +49,7 @@ describe("/near rows: the caption belongs to the list, not the row", () => {
 
   it("keeps the caption count at one however long the list gets", () => {
     const long = Array.from({ length: 12 }, (_, index) => ({
-      ...CARDS[0],
+      ...defined(CARDS[0]),
       id: `row-${index}`,
       name: `Pub ${index}`,
     }));

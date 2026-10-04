@@ -41,6 +41,7 @@ import {
 } from "@/lib/messageAttachments";
 import { cleanAttachedBody, cleanBody } from "@/lib/messages";
 import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -189,8 +190,8 @@ describe("a reported message stops carrying its photo", () => {
     expect(await memoryMessagesStore.report(conversationId!, messageId, "sam")).toBe(true);
 
     const after = await memoryMessagesStore.listMessages(conversationId!, "sam");
-    expect(after?.[0].flagged).toBe(true);
-    expect(after?.[0].attachment).toBeUndefined();
+    expect(defined(after?.[0]).flagged).toBe(true);
+    expect(defined(after?.[0]).attachment).toBeUndefined();
     // The bytes stop being reachable at the same moment, through the same
     // projection, not through a second copy of the rule.
     expect(

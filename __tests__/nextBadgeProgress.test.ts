@@ -7,6 +7,7 @@ import {
   REGULAR_THRESHOLD,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Quest chips (IDEAS B2-lite): nextBadgeProgress is the forward-looking
 // companion to computeBadges — same inputs, returns the UNEARNED badges
@@ -55,9 +56,9 @@ describe("nextBadgeProgress", () => {
     expect(quests.map((q) => q.badge.id)).toEqual(["regular", "local-legend"]);
     // Regular is nearer (12/25 > 12/100).
     expect(quests[0]).toMatchObject({ current: 12, target: REGULAR_THRESHOLD });
-    expect(quests[0].label).toBe(`12 of ${REGULAR_THRESHOLD} pints to Regular`);
+    expect(defined(quests[0]).label).toBe(`12 of ${REGULAR_THRESHOLD} pints to Regular`);
     expect(quests[1]).toMatchObject({ current: 12, target: LOCAL_LEGEND_THRESHOLD });
-    expect(quests[1].label).toBe(`12 of ${LOCAL_LEGEND_THRESHOLD} pints to Local Legend`);
+    expect(defined(quests[1]).label).toBe(`12 of ${LOCAL_LEGEND_THRESHOLD} pints to Local Legend`);
   });
 
   it("binary badges report an honest 0-of-1 action, never a fake percentage", () => {
@@ -87,7 +88,7 @@ describe("nextBadgeProgress", () => {
       target: REGULAR_THRESHOLD,
     });
     // 24/25 beats every other unearned quest, so Regular leads.
-    expect(nearlyQuests[0].badge.id).toBe("regular");
+    expect(defined(nearlyQuests[0]).badge.id).toBe("regular");
 
     const atThreshold = Array.from({ length: REGULAR_THRESHOLD }, () => drop());
     const atQuests = progressFor(atThreshold);

@@ -4,6 +4,7 @@ import {
   buildVenueResolverIndex,
   resolveVenueId,
 } from "@/scripts/whatson/resolveVenueId.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function canonicalRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -67,7 +68,7 @@ describe("resolveVenueId", () => {
       index,
     );
 
-    const expectedId = [...index.byNormalizedName.get("anchor")!][0].venueId;
+    const expectedId = defined([...index.byNormalizedName.get("anchor")!][0]).venueId;
     expect(resolved).toBe(expectedId);
   });
 

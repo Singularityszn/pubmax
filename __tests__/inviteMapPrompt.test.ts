@@ -20,6 +20,7 @@ import {
   readPlanCapabilitySnapshot,
   writePlanCapability,
 } from "@/lib/planSessionCapability";
+import { defined } from "@/__tests__/helpers/defined";
 
 function memoryStorage(seed: Record<string, string> = {}) {
   const values = new Map<string, string>(Object.entries(seed));
@@ -37,7 +38,7 @@ function memoryStorage(seed: Record<string, string> = {}) {
  * below read those regions rather than counting attributes.
  */
 function liveRegionTexts(html: string): string[] {
-  return [...html.matchAll(/<p[^>]*role="status"[^>]*>(.*?)<\/p>/g)].map((match) => match[1]);
+  return [...html.matchAll(/<p[^>]*role="status"[^>]*>(.*?)<\/p>/g)].map((match) => defined(match[1]));
 }
 
 function savedLineCount(html: string): number {

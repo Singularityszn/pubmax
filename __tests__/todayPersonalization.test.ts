@@ -11,6 +11,7 @@ import {
   resolveTodayPersonalization,
 } from "@/lib/todayPersonalization";
 import type { TonightPickDto, WeatherBrief } from "@/lib/todayBrief";
+import { defined } from "@/__tests__/helpers/defined";
 
 function profile(
   overrides: Partial<NightProfileInput> = {},
@@ -387,7 +388,7 @@ describe("applyTodayPersonalization", () => {
       resolved,
     );
 
-    expect(result.picks[0].sourceLabel).toBe("Source A");
+    expect(defined(result.picks[0]).sourceLabel).toBe("Source A");
     expect(new Set(result.picks.map((item) => item.sourceLabel))).toEqual(
       new Set(["Source A", "Source B", "Source C"]),
     );

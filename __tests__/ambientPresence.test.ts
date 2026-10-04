@@ -20,6 +20,7 @@ import {
   __resetPresence,
 } from "@/lib/presenceStore";
 import { demoPintDrops } from "@/lib/pintDropSeeds";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Fixed instants (UTC — July, so Europe/London is UTC+1). Chosen so the London
 // wall-clock hour is unambiguous per case.
@@ -156,14 +157,14 @@ describe("recentPresenceWithAmbient — fallback wiring", () => {
       PEAK.getTime(),
     );
     const rows = await recentPresenceWithAmbient(undefined, PEAK.getTime() + 1000);
-    expect(rows[0].handle).toBe("real_ken");
-    expect(rows[0].provenance).toBeUndefined();
+    expect(defined(rows[0]).handle).toBe("real_ken");
+    expect(defined(rows[0]).provenance).toBeUndefined();
     expect(rows.some((r) => r.provenance === "demo")).toBe(true);
   });
 
   it("a real tap by a demo persona wins over its ambient twin (no duplicates)", async () => {
     const ambient = ambientPresenceRows(PEAK);
-    const twin = ambient[0];
+    const twin = defined(ambient[0]);
     await markPresence(
       { handle: twin.handle, venueId: twin.venueId, actorHash: "actor-twin" },
       PEAK.getTime(),
@@ -173,7 +174,7 @@ describe("recentPresenceWithAmbient — fallback wiring", () => {
       (r) => r.handle === twin.handle && r.venueId === twin.venueId,
     );
     expect(matches).toHaveLength(1);
-    expect(matches[0].provenance).toBeUndefined();
+    expect(defined(matches[0]).provenance).toBeUndefined();
   });
 
   it("returns [] during shut hours when nobody real is out (honest empty strip)", async () => {

@@ -14,6 +14,7 @@ import {
   youngsNameFromHostname,
   type YoungsDatasetVenue,
 } from "@/lib/youngs";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("nicholsonSlugToName", () => {
   it("maps known London slugs to human pub names", () => {
@@ -78,8 +79,8 @@ The Founder's Arms, Southbank
 `;
     const pubs = parseYoungsGardenMarkdown(md, "central.md");
     expect(pubs).toHaveLength(1);
-    expect(pubs[0].name).toMatch(/Founder/i);
-    expect(youngsHostname(pubs[0].url)).toBe("foundersarms.co.uk");
+    expect(defined(pubs[0]).name).toMatch(/Founder/i);
+    expect(youngsHostname(defined(pubs[0]).url)).toBe("foundersarms.co.uk");
   });
 
   it("matches by microsite hostname and refuses weak fuzzy collisions", () => {

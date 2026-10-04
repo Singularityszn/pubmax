@@ -106,21 +106,21 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("A crawl needs at least one stop.", "INVALID_REQUEST", 400);
   }
   const venueLookups = await Promise.all(
-    stops.map((stop) => lookupCanonicalVenue(stop.venueId)),
+    stops.map(async (stop) => ({ stop, lookup: await lookupCanonicalVenue(stop.venueId) })),
   );
-  if (venueLookups.some((lookup) => lookup.status === "unavailable")) {
+  if (venueLookups.some(({ lookup }) => lookup.status === "unavailable")) {
     return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
   }
   if (
     venueLookups.some(
-      (lookup) => lookup.status !== "found" || !isPubVenueKind(lookup.venue.kind),
+      ({ lookup }) => lookup.status !== "found" || !isPubVenueKind(lookup.venue.kind),
     )
   ) {
     return publicApiError("Every crawl stop must be a pub from the map.", "INVALID_REQUEST", 400);
   }
-  const canonicalStops = stops.map((stop, index) => ({
+  const canonicalStops = venueLookups.map(({ stop, lookup }) => ({
     ...stop,
-    venueId: venueLookups[index].canonicalId,
+    venueId: lookup.canonicalId,
   }));
 
   // Rate-limit by hashed IP (no handle on a crawl story). Durable when Supabase

@@ -11,6 +11,7 @@ vi.mock("@/lib/paidSpendBudget.server", () => ({
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 
 import { systemOne, TYPESAFE_API_BASE_URL } from "@/lib/ai/typesafe.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("systemOne", () => {
   afterEach(() => {
@@ -60,14 +61,14 @@ describe("systemOne request bounds", () => {
     );
 
     expect(calls).toHaveLength(1);
-    const config = calls[0].config as { retry?: { maxRetries?: number }; baseURL?: string };
+    const config = defined(calls[0]).config as { retry?: { maxRetries?: number }; baseURL?: string };
     // The SDK default is two retries with no total budget and a Retry-After it
     // will honour for a minute. Both would take this call off the 4s bound the
     // Pub Pal request path is held to, and bill three times per counted spend.
     expect(config.retry?.maxRetries).toBe(0);
     expect(config.baseURL).toBe(TYPESAFE_API_BASE_URL);
 
-    const options = calls[0].options as { timeout?: number; signal?: AbortSignal };
+    const options = defined(calls[0]).options as { timeout?: number; signal?: AbortSignal };
     expect(options.timeout).toBe(4_000);
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });

@@ -112,10 +112,10 @@ export function slugFromMenuUrl(url: string): string | null {
   try {
     const u = new URL(url);
     const m = u.pathname.match(MENU_PATH_RE);
-    return m ? m[1] : null;
+    return m?.[1] ?? null;
   } catch {
     const m = url.match(MENU_PATH_RE);
-    return m ? m[1] : null;
+    return m?.[1] ?? null;
   }
 }
 
@@ -133,7 +133,7 @@ export function splitPubSlug(slug: string): { name: string; locality: string } {
   }
   const parts = clean.split("-");
   if (parts.length <= 1) return { name: titleCase(clean), locality: "" };
-  const locality = parts[parts.length - 1];
+  const locality = parts.at(-1) ?? "";
   const name = parts.slice(0, -1).join("-");
   return { name: titleCase(name), locality: titleCase(locality) };
 }
@@ -175,7 +175,7 @@ function extractCanonicalSlug(html: string): string | null {
 
 function matchGroup(input: string, re: RegExp): string | null {
   const m = input.match(re);
-  return m ? m[1].trim() : null;
+  return m?.[1]?.trim() ?? null;
 }
 
 // Strip the chain suffix Wetherspoons appends to titles, e.g.
@@ -324,9 +324,9 @@ export function matchVenue(
     }
     scored.push({ venueKey: venue.venueKey, score, matchedName: venue.name });
   }
-  if (scored.length === 0) return null;
   scored.sort((a, b) => b.score - a.score);
   const top = scored[0];
+  if (!top) return null;
   const tie = scored[1];
   if (tie && tie.score === top.score && tie.venueKey !== top.venueKey) {
     return null; // ambiguous — refuse to guess

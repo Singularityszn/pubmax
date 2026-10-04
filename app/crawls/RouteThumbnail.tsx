@@ -34,9 +34,9 @@ export default function RouteThumbnail({ points, className, label }: RouteThumbn
   const inner = VIEW - PAD * 2;
   const xOffset = (span - (maxX - minX)) / 2;
   const yOffset = (span - (maxY - minY)) / 2;
-  const coords = points.map((_, i): [number, number] => [
-    PAD + ((xsRaw[i] - minX + xOffset) / span) * inner,
-    PAD + ((maxY - ysRaw[i] + yOffset) / span) * inner,
+  const coords = points.map((p): [number, number] => [
+    PAD + ((p[0] * lngScale - minX + xOffset) / span) * inner,
+    PAD + ((maxY - p[1] + yOffset) / span) * inner,
   ]);
   const polylinePoints = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
 

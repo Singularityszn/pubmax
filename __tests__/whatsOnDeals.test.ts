@@ -8,6 +8,7 @@ import {
   WETHERSPOONS_FOOD_DRINK_SOURCE,
 } from "../scripts/whatson/dealsRefresh.mjs";
 import { dedupeKey, dedupeRows, isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const CORONET = {
   slug: "the-coronet-holloway",
@@ -88,12 +89,12 @@ describe("buildWetherspoonsDealRows", () => {
 
   it("emits the B1 row contract shape with confidence:'listed', a resolved startsAt/endsAt window, and the honest caveat", () => {
     const rows = buildWetherspoonsDealRows({
-      deals: [WETHERSPOONS_DEALS[0]],
+      deals: [defined(WETHERSPOONS_DEALS[0])],
       venues: [CORONET],
       observedAt,
     });
     expect(rows).toHaveLength(1);
-    const row = rows[0];
+    const row = defined(rows[0]);
     expect(row).toMatchObject({
       id: "deal-jdw-jdw-small-plates-monday-the-coronet-holloway",
       placeName: "The Coronet",
@@ -114,7 +115,7 @@ describe("buildWetherspoonsDealRows", () => {
 
   it("passes isValidWhatsOnRow (the spine's own guard)", () => {
     const rows = buildWetherspoonsDealRows({
-      deals: [WETHERSPOONS_DEALS[0]],
+      deals: [defined(WETHERSPOONS_DEALS[0])],
       venues: [CORONET],
       observedAt,
     });
@@ -127,17 +128,17 @@ describe("buildWetherspoonsDealRows", () => {
     // clocks-forward switch on 29 Mar 2026, so the resolved window must carry
     // the BST (+01:00) offset even though `observedAt` itself is GMT.
     const rows = buildWetherspoonsDealRows({
-      deals: [WETHERSPOONS_DEALS[0]],
+      deals: [defined(WETHERSPOONS_DEALS[0])],
       venues: [CORONET],
       observedAt: "2026-03-27T10:00:00.000Z",
     });
-    expect(rows[0].startsAt).toBe("2026-03-30T11:30:00+01:00");
-    expect(rows[0].endsAt).toBe("2026-03-30T23:00:00+01:00");
+    expect(defined(rows[0]).startsAt).toBe("2026-03-30T11:30:00+01:00");
+    expect(defined(rows[0]).endsAt).toBe("2026-03-30T23:00:00+01:00");
   });
 
   it("drops a venue with no slug or no name, rather than guessing an id", () => {
     const rows = buildWetherspoonsDealRows({
-      deals: [WETHERSPOONS_DEALS[0]],
+      deals: [defined(WETHERSPOONS_DEALS[0])],
       venues: [{ ...CORONET, slug: undefined }, { ...CORONET, name: undefined }],
       observedAt,
     });
@@ -146,7 +147,7 @@ describe("buildWetherspoonsDealRows", () => {
 
   it("omits lat/lng when the venue carries no usable coordinates", () => {
     const rows = buildWetherspoonsDealRows({
-      deals: [WETHERSPOONS_DEALS[0]],
+      deals: [defined(WETHERSPOONS_DEALS[0])],
       venues: [{ ...CORONET, latitude: null, longitude: null }],
       observedAt,
     });
@@ -165,7 +166,7 @@ describe("buildWetherspoonsDealRows", () => {
 
   it("dedupeRows collapses two rows that land on the same (place, kind, startsAt), keeping the freshest", () => {
     const rows = buildWetherspoonsDealRows({
-      deals: [WETHERSPOONS_DEALS[0]],
+      deals: [defined(WETHERSPOONS_DEALS[0])],
       venues: [CORONET],
       observedAt,
     });
@@ -173,7 +174,7 @@ describe("buildWetherspoonsDealRows", () => {
     const fresh = { ...rows[0], id: "fresh-dupe", observedAt: "2026-07-12T00:00:00.000Z", title: "fresh" };
     const deduped = dedupeRows([stale, fresh] as unknown as WhatsOnRow[]);
     expect(deduped).toHaveLength(1);
-    expect(deduped[0].title).toBe("fresh");
+    expect(defined(deduped[0]).title).toBe("fresh");
   });
 });
 

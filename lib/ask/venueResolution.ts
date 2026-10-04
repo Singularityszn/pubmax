@@ -119,7 +119,7 @@ export function uniqueExactVenueNameMatch<T extends VenueNameMatchInput>(
   const needle = name.trim().toLowerCase();
   if (!needle) return null;
   const hits = venues.filter((v) => v.name.toLowerCase() === needle);
-  return hits.length === 1 ? hits[0] : null;
+  return hits.length === 1 ? (hits[0] ?? null) : null;
 }
 
 /**
@@ -174,8 +174,7 @@ export function intendedVenueQuestions(candidates: VenueResolutionCandidate[]) {
       ],
     },
   };
-  for (let index = 0; index < candidates.length; index += 1) {
-    const candidate = candidates[index];
+  for (const [index, candidate] of candidates.entries()) {
     criteria[candidateOptionKey(index)] = {
       what: `${candidate.name} in ${candidate.area}, ${candidate.address}`,
       not_for: "A different pub that only shares a word of the name",

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const themeCss = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
@@ -34,7 +35,7 @@ function mediaBlock(css: string, query: string): string {
 function token(source: string, name: string): string {
   const match = new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i").exec(source);
   expect(match, `${name} must be a plain hex in this block`).toBeTruthy();
-  return match![1].toLowerCase();
+  return defined(match![1]).toLowerCase();
 }
 
 function channels(hex: string): [number, number, number] {
@@ -48,7 +49,7 @@ function mixSrgb(a: string, b: string, percentA: number): string {
   const weight = percentA / 100;
   return first
     .map((channel, index) =>
-      Math.round(channel * weight + second[index] * (1 - weight)),
+      Math.round(channel * weight + defined(second[index]) * (1 - weight)),
     )
     .map((channel) => channel.toString(16).padStart(2, "0"))
     .join("")
@@ -62,14 +63,14 @@ function luminance(hex: string): number {
       ? value / 12.92
       : ((value + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
 }
 
 function contrast(first: string, second: string): number {
   const [light, dark] = [luminance(first), luminance(second)].sort(
     (a, b) => b - a,
   );
-  return (light + 0.05) / (dark + 0.05);
+  return (defined(light) + 0.05) / (defined(dark) + 0.05);
 }
 
 function shippedControlBorderWeight(): number {

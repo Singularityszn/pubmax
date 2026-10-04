@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { KEYLESS_CONVEX_FLAGS } from "@/lib/convex/contracts";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -17,7 +18,7 @@ const FROZEN_PRE_RULING_TABLES = ["planCompletions"];
 function schemaTables(): string[] {
   const schema = readFileSync(join(ROOT, "convex/schema.ts"), "utf8");
   return [...schema.matchAll(/^  ([A-Za-z][A-Za-z0-9]*): defineTable\(/gm)]
-    .map((match) => match[1])
+    .map((match) => defined(match[1]))
     .sort();
 }
 

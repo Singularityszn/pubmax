@@ -147,6 +147,14 @@ export default function MessageRecipientDialog({
 
   async function create() {
     if (!ready || createRef.current || !liveRef.current) return;
+    const [onlyRecipient] = selected;
+    const payload = group ? {
+      action: "open-group",
+      handle,
+      participants: selected.map((person) => person.handle),
+      ...(title.trim() ? { title: title.trim() } : {}),
+    } : onlyRecipient ? { action: "open", handle, other: onlyRecipient.handle } : null;
+    if (!payload) return;
     const controller = new AbortController();
     createRef.current = controller;
     const current = () => liveRef.current && !controller.signal.aborted;
@@ -157,12 +165,7 @@ export default function MessageRecipientDialog({
         method: "POST",
         signal: controller.signal,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(group ? {
-          action: "open-group",
-          handle,
-          participants: selected.map((person) => person.handle),
-          ...(title.trim() ? { title: title.trim() } : {}),
-        } : { action: "open", handle, other: selected[0].handle }),
+        body: JSON.stringify(payload),
       }, { requiresIdentity: true });
       if (!current()) {
         discardBody(response);

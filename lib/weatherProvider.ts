@@ -113,8 +113,9 @@ export async function fetchNightAreaObservations(
   );
   const observations: NightAreaWeatherObservation[] = [];
   const skipped: LondonNightAreaSlug[] = [];
-  settled.forEach((outcome, index) => {
-    const slug = LONDON_NIGHT_AREA_SLUGS[index];
+  LONDON_NIGHT_AREA_SLUGS.forEach((slug, index) => {
+    const outcome = settled[index];
+    if (!outcome) return;
     if (outcome.status === "fulfilled" && outcome.value) {
       observations.push(outcome.value);
     } else {

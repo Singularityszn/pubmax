@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = new Date("2026-07-18T12:00:00Z");
 const realFetch = global.fetch;
@@ -60,8 +61,8 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
 
     expect(global.fetch).not.toHaveBeenCalled();
     expect(results).toHaveLength(1);
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].detail).toContain("unmeasurable without credentials");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).detail).toContain("unmeasurable without credentials");
     expect(breached).toBe(true);
   });
 
@@ -78,11 +79,11 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
 
     const { results, breached } = await evaluateFreshness({ now: NOW, registry: storeRegistry() });
 
-    expect(results[0].observedAt).toBe("2026-07-16T00:00:00Z");
+    expect(defined(results[0]).observedAt).toBe("2026-07-16T00:00:00Z");
     // stalenessBudgetHours is intentionally null (episodic), so an ok read is
     // "untracked", never "fresh" — the budget question is a separate concern
     // from whether the age could be measured at all.
-    expect(results[0].status).toBe("untracked");
+    expect(defined(results[0]).status).toBe("untracked");
     expect(breached).toBe(false);
   });
 
@@ -99,8 +100,8 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
       registry: storeRegistry("whats_on"),
     });
 
-    expect(results[0].observedAt).toBe("2026-07-18T11:00:00Z");
-    expect(results[0].status).toBe("untracked");
+    expect(defined(results[0]).observedAt).toBe("2026-07-18T11:00:00Z");
+    expect(defined(results[0]).status).toBe("untracked");
     expect(breached).toBe(false);
   });
 
@@ -111,9 +112,9 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
 
     const { results, breached } = await evaluateFreshness({ now: NOW, registry: storeRegistry() });
 
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].detail).toContain("holds no stamp yet");
-    expect(results[0].detail).not.toContain("credentials");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).detail).toContain("holds no stamp yet");
+    expect(defined(results[0]).detail).not.toContain("credentials");
     expect(breached).toBe(true);
   });
 
@@ -126,10 +127,10 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
 
     const { results, breached } = await evaluateFreshness({ now: NOW, registry: storeRegistry() });
 
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].observedAt).toBeNull();
-    expect(results[0].detail).toContain("could not be queried");
-    expect(results[0].detail).toContain("ENOTFOUND");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).observedAt).toBeNull();
+    expect(defined(results[0]).detail).toContain("could not be queried");
+    expect(defined(results[0]).detail).toContain("ENOTFOUND");
     expect(breached).toBe(true);
   });
 
@@ -146,17 +147,17 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
 
     const { results, breached } = await evaluateFreshness({ now: NOW, registry: storeRegistry() });
 
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].detail).toContain("could not be queried");
-    expect(results[0].detail).toContain("migration 0047");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).detail).toContain("could not be queried");
+    expect(defined(results[0]).detail).toContain("migration 0047");
     expect(breached).toBe(true);
   });
 
   it("an unmeasurable store never counts as stale, even far past any implicit cadence", async () => {
     global.fetch = vi.fn();
     const { results } = await evaluateFreshness({ now: NOW, registry: storeRegistry() });
-    expect(results[0].status).not.toBe("stale");
-    expect(results[0].status).not.toBe("fresh");
+    expect(defined(results[0]).status).not.toBe("stale");
+    expect(defined(results[0]).status).not.toBe("fresh");
   });
 });
 
@@ -209,8 +210,8 @@ describe("evaluateFreshness — a declared row pack", () => {
       rootDir: rootHolding("[]"),
       registry: packRegistry(),
     });
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].detail).toContain("empty (0 rows)");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).detail).toContain("empty (0 rows)");
     expect(breached).toBe(true);
   });
 
@@ -220,8 +221,8 @@ describe("evaluateFreshness — a declared row pack", () => {
       rootDir: rootHolding(null),
       registry: packRegistry(),
     });
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].detail).toContain("not present at runtime");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).detail).toContain("not present at runtime");
   });
 
   it("answers the literal stamp once the pack holds rows", async () => {
@@ -230,8 +231,8 @@ describe("evaluateFreshness — a declared row pack", () => {
       rootDir: rootHolding(JSON.stringify([{ slug: "the-lamb" }])),
       registry: packRegistry(),
     });
-    expect(results[0].observedAt).toBe("2026-07-18T00:00:00Z");
-    expect(results[0].status).toBe("fresh");
+    expect(defined(results[0]).observedAt).toBe("2026-07-18T00:00:00Z");
+    expect(defined(results[0]).status).toBe("fresh");
   });
 
   // Parity with lib/freshnessArtifact.ts resolveDatasetStamp: a pack naming no
@@ -243,8 +244,8 @@ describe("evaluateFreshness — a declared row pack", () => {
       rootDir: rootHolding(null),
       registry: packRegistry({ artifact: null }),
     });
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].detail).toContain("no artifact to read it from");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).detail).toContain("no artifact to read it from");
     expect(breached).toBe(true);
   });
 
@@ -254,8 +255,8 @@ describe("evaluateFreshness — a declared row pack", () => {
       rootDir: rootHolding("[]"),
       registry: packRegistry({ pack: undefined }),
     });
-    expect(results[0].observedAt).toBe("2026-07-18T00:00:00Z");
-    expect(results[0].status).toBe("fresh");
+    expect(defined(results[0]).observedAt).toBe("2026-07-18T00:00:00Z");
+    expect(defined(results[0]).status).toBe("fresh");
   });
 
   // Parity with lib/freshness.ts evaluateDataset: the snapshot naming rule is a
@@ -276,11 +277,11 @@ describe("evaluateFreshness — a declared row pack", () => {
         }),
       });
 
-    expect((await at(days(30))).results[0].status).toBe("fresh");
+    expect(defined((await at(days(30))).results[0]).status).toBe("fresh");
 
     const past = await at(days(31));
-    expect(past.results[0].status).toBe("snapshot");
-    expect(past.results[0].detail).toContain("snapshot of its collection day");
+    expect(defined(past.results[0]).status).toBe("snapshot");
+    expect(defined(past.results[0]).detail).toContain("snapshot of its collection day");
     expect(past.breached).toBe(false);
   });
 });

@@ -54,6 +54,7 @@ import {
   memoryProfileStore,
   profileImageState,
 } from "@/lib/profileStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const HANDLE = "alice";
 const PROFILE_ID = "44444444-4444-4444-8444-444444444444";
@@ -618,7 +619,7 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     await expect(
       supabaseProfileCoverPhotoStore.reorder(
         ownedProfileId,
-        [rows[1].id, rows[0].id],
+        [defined(rows[1]).id, defined(rows[0]).id],
       ),
     ).rejects.toBeInstanceOf(ProfileCoverGuardUnavailableError);
 
@@ -745,7 +746,7 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
 
     const result = await supabaseProfileCoverPhotoStore.reorder(
       ownedProfileId,
-      [rows[1].id, rows[0].id],
+      [defined(rows[1]).id, defined(rows[0]).id],
     );
 
     expect(result).toEqual([]);

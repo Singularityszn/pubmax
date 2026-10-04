@@ -460,7 +460,7 @@ export const memorySavedPubsStore: SavedPubsStore = {
     const savedKeys = venueIds.map((id) => rowKey(id, listType)).filter((key) => partition.has(key));
     if (savedKeys.length > 0) {
       for (const key of savedKeys) partition.delete(key);
-    } else {
+    } else if (venueIds[0] !== undefined) {
       const note = cleanNote(input.note);
       partition.set(rowKey(venueIds[0], listType), {
         venueId: venueIds[0],
@@ -482,8 +482,10 @@ export const memorySavedPubsStore: SavedPubsStore = {
     const venueIds = (await loadVenueAliasResolver()).storedIds(input.venueId);
     const partition = memoryRows.get(owner) ?? new Map<string, SavedRow>();
     if (venueIds.some((id) => partition.has(rowKey(id, listType)))) return { outcome: "already_saved" };
-    partition.set(rowKey(venueIds[0], listType), {
-      venueId: venueIds[0],
+    const [storedId] = venueIds;
+    if (storedId === undefined) return { outcome: "unavailable" };
+    partition.set(rowKey(storedId, listType), {
+      venueId: storedId,
       listType,
       savedAt: new Date().toISOString(),
     });

@@ -18,6 +18,7 @@ import type { Venue } from "@/lib/venues";
 // The committed gazetteer — tests read it directly; the generation script
 // (scripts/gen_london_localities.mjs) is never run here (hermetic).
 import gazetteer from "@/public/data/london_localities.json";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Minimal Venue factory — only the fields the suggest models read matter.
 // Mirrors the house pattern in __tests__/areaButton.test.ts.
@@ -151,7 +152,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     });
     const camdens = result.areas.filter((a) => a.name === "Camden");
     expect(camdens).toHaveLength(1);
-    expect(camdens[0].kind).toBe("area");
+    expect(defined(camdens[0]).kind).toBe("area");
   });
 
   it("returns one exact Venue without inventing companion rows", () => {
@@ -194,7 +195,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       mapCenter: CENTRE,
     });
     expect(withUser.origin).toBe("user");
-    expect(withUser.pubs[0].distanceLabel).toContain("away");
+    expect(defined(withUser.pubs[0]).distanceLabel).toContain("away");
 
     const withoutUser = buildMapSearchSuggestions({
       cityId: "london",
@@ -204,7 +205,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       mapCenter: CENTRE,
     });
     expect(withoutUser.origin).toBe("map-centre");
-    expect(withoutUser.pubs[0].distanceLabel).toContain("from centre");
+    expect(defined(withoutUser.pubs[0]).distanceLabel).toContain("from centre");
   });
 
   it("carries a verified pub price when one exists, null otherwise", () => {
@@ -313,7 +314,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       userLocation: null,
       mapCenter: CENTRE,
     });
-    expect(result.pubs[0].id).toBe("near");
+    expect(defined(result.pubs[0]).id).toBe("near");
   });
 
   it("returns nearby areas and no pubs for an empty query (minimal prompt)", () => {
@@ -328,7 +329,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(result.pubs).toHaveLength(0);
     expect(result.areas.length).toBeGreaterThan(0);
     // Nearest area to a Shoreditch centre is Shoreditch itself.
-    expect(result.areas[0].slug).toBe("shoreditch");
+    expect(defined(result.areas[0]).slug).toBe("shoreditch");
   });
 
   it("returns empty groups (not a match) for a query nothing answers", () => {
@@ -352,7 +353,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       userLocation: null,
       mapCenter: CENTRE,
     });
-    expect(result.pubs[0].distanceLabel).toBe("");
+    expect(defined(result.pubs[0]).distanceLabel).toBe("");
   });
 
   it("surfaces resident UK base pubs in their own group, never when none are loaded", () => {
@@ -404,7 +405,7 @@ describe("buildMapPlaceSuggestions — in-map UK place search", () => {
       flyZoom: UK_PLACE_MAP_ZOOM,
       contextLabel: "S",
     });
-    expect(results[0].center).toEqual([-1.4789213, 53.3800941]);
+    expect(defined(results[0]).center).toEqual([-1.4789213, 53.3800941]);
   });
 
   it("routes a place inside a curated city to that city guide", () => {
@@ -551,8 +552,8 @@ describe("buildMapSearchSuggestions — localities (the basemap-label gap)", () 
     });
     const shoreditches = result.areas.filter((a) => a.name === "Shoreditch");
     expect(shoreditches).toHaveLength(1);
-    expect(shoreditches[0].kind).toBe("area");
-    expect(shoreditches[0].areaNewsArea).toBe("shoreditch");
+    expect(defined(shoreditches[0]).kind).toBe("area");
+    expect(defined(shoreditches[0]).areaNewsArea).toBe("shoreditch");
   });
 
   it("orders modelled area, then locality, then borough at an equal tier + distance", () => {
@@ -575,7 +576,7 @@ describe("buildMapSearchSuggestions — localities (the basemap-label gap)", () 
     // the locality must rank ahead of the borough, and the borough is deduped out.
     const riverside = result.areas.filter((a) => a.name === "Riverside");
     expect(riverside).toHaveLength(1);
-    expect(riverside[0].kind).toBe("locality");
+    expect(defined(riverside[0]).kind).toBe("locality");
   });
 
   it("ignores localities on an empty query (the prompt stays to modelled areas)", () => {

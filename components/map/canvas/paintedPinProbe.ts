@@ -1,5 +1,7 @@
 import type * as maplibregl from "maplibre-gl";
 
+import { lngLatOf } from "@/lib/geo";
+
 // A browser test cannot ask a canvas where its pins are, so it used to guess:
 // a grid of taps across the map, hoping one landed on a pin before the scan
 // gave up. Under worker contention it did not, and the guess read as a
@@ -107,7 +109,9 @@ export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
 
       const geometry = feature.geometry;
       if (geometry.type !== "Point") continue;
-      const [lng, lat] = geometry.coordinates;
+      const lngLat = lngLatOf(geometry.coordinates);
+      if (!lngLat) continue;
+      const [lng, lat] = lngLat;
       // No icon-anchor or icon-offset on the pin layers and no circle
       // translate on the cluster layer, so the projected coordinate is the
       // mark's centre (buildScene.ts).

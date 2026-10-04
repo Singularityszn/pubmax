@@ -38,6 +38,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 // hoisted above this import, so the route still sees every mock above; nothing
 // in it reads the environment until a request arrives.
 import { POST } from "@/app/api/auth/handle-password/route";
+import { defined } from "@/__tests__/helpers/defined";
 
 const SUPABASE_URL = "https://mock-project.supabase.co";
 
@@ -93,8 +94,8 @@ describe("POST /api/auth/handle-password", () => {
       [unknown, banned].map(async (res) => ({ status: res.status, body: await res.json() })),
     );
     expect(bodies[0]).toEqual(bodies[1]);
-    expect(bodies[0].status).toBe(401);
-    expect(bodies[0].body).toMatchObject({
+    expect(defined(bodies[0]).status).toBe(401);
+    expect(defined(bodies[0]).body).toMatchObject({
       code: "INVALID_CREDENTIALS",
       error: HANDLE_PASSWORD_GENERIC_ERROR,
     });
@@ -120,8 +121,8 @@ describe("POST /api/auth/handle-password", () => {
     );
     expect(bodies[0]).toEqual(bodies[1]);
     expect(bodies[1]).toEqual(bodies[2]);
-    expect(bodies[0].status).toBe(401);
-    expect(bodies[0].body.error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
+    expect(defined(bodies[0]).status).toBe(401);
+    expect(defined(bodies[0]).body.error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
   });
 
   it("hands the typed handle on for normalizing, whatever its case", async () => {

@@ -22,6 +22,7 @@ import {
 } from "../scripts/whatson/commonRefresh.mjs";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 import { isValidWhatsOnRow, parseWhatsOnRows } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const TODAY = "2026-08-16";
 const NOW = Date.parse("2026-08-16T10:00:00.000Z");
@@ -410,7 +411,7 @@ describe("the crawl budget advances", () => {
     });
     expect(seen).toEqual([upcoming]);
     expect(report.rows).toHaveLength(1);
-    expect(report.rows[0].startsDate).toBe("2026-08-20");
+    expect(defined(report.rows[0]).startsDate).toBe("2026-08-20");
     rmSync(dir, { recursive: true, force: true });
   });
 });

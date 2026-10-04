@@ -51,6 +51,7 @@ import {
   type Venue,
 } from "@/lib/venues";
 import { pintTrustFor } from "@/lib/pintTrust";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -162,7 +163,7 @@ function renderSelectedVenue(
   const aged = agedPriceDrop(drops, NOW);
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
-      venue: merged,
+      venue: defined(merged),
       tab: "overview",
       cityId: "london",
       mode: "suggest",
@@ -312,8 +313,8 @@ describe("a lone public Pint Drop on the venue Overview", () => {
 
   it("never moves the map: the projection and the corroboration gate are untouched", () => {
     const [merged] = mergeVenueDrops([venue()], new Map([[VENUE_ID, [drop()]]]), NOW);
-    expect(merged.cheapestPrice).toBeNull();
-    expect(merged.latestContributorPrice).toBeNull();
+    expect(defined(merged).cheapestPrice).toBeNull();
+    expect(defined(merged).latestContributorPrice).toBeNull();
     expect(corroboratedPriceDrop([drop()], NOW)).toBeNull();
   });
 });
@@ -384,12 +385,12 @@ function peekChipFor(drops: SummaryDrop[], base: Venue = venue()) {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const provisional = provisionalPriceDrop(drops, NOW);
   const aged = agedPriceDrop(drops, NOW);
-  const bundle = venueBundlePrices(merged);
+  const bundle = venueBundlePrices(defined(merged));
   return peekPriceChip(
     venuePriceLane(
-      merged,
+      defined(merged),
       corroboratedPriceDrop(drops, NOW)?.priceGbp ?? null,
-      venueSourcedPrice(merged),
+      venueSourcedPrice(defined(merged)),
       bundle,
       provisional
         ? {

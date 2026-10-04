@@ -4,6 +4,7 @@ import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { publishStagedDirectory } from "../scripts/lib/atomicDirectoryPublish.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const roots: string[] = [];
 const WHOLE_LAYER_BUDGET_BYTES = 5 * 1024 * 1024;
@@ -125,7 +126,7 @@ describe("publishStagedDirectory", () => {
       await fs.readFile(
         path.join(
           target,
-          `${manifest.urlPrefix}${manifest.shards[0].id}.json`.replace(
+          `${manifest.urlPrefix}${defined(manifest.shards[0]).id}.json`.replace(
             "/data/uk_base/",
             "",
           ),
@@ -205,7 +206,7 @@ describe("publishStagedDirectory", () => {
     const manifest = JSON.parse(
       await fs.readFile(path.join(target, "manifest.json"), "utf8"),
     ) as { shards: Array<{ url: string }> };
-    expect(manifest.shards[0].url).toBe(
+    expect(defined(manifest.shards[0]).url).toBe(
       "/data/uk_base/packs/aaaaaaaaaaaaaaaa/old.json",
     );
     expect(
@@ -247,7 +248,7 @@ describe("publishStagedDirectory", () => {
     const manifest = JSON.parse(
       await fs.readFile(path.join(target, "manifest.json"), "utf8"),
     ) as { shards: Array<{ url: string }> };
-    expect(manifest.shards[0].url).toBe(
+    expect(defined(manifest.shards[0]).url).toBe(
       "/data/uk_base/packs/aaaaaaaaaaaaaaaa/old.json",
     );
   });

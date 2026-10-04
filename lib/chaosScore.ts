@@ -22,7 +22,7 @@ export type ChaosBand = {
   oneLiner: string;
 };
 
-export const CHAOS_BANDS: readonly ChaosBand[] = [
+export const CHAOS_BANDS: readonly [ChaosBand, ...ChaosBand[]] = [
   { min: 0, grade: "Quiet", oneLiner: "A quiet one." },
   { min: 30, grade: "Steady", oneLiner: "A perfectly reasonable night." },
   { min: 55, grade: "Lively", oneLiner: "Started sensible, didn't stay that way." },

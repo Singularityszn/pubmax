@@ -20,6 +20,7 @@ import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
 import * as venueIndex from "@/lib/venueIndex";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/saved-pubs";
 
@@ -48,7 +49,7 @@ beforeAll(async () => {
     return realResolveVenue(id);
   });
   const index = await getVenueIndex();
-  const [id, ref] = [...index.entries()][0];
+  const [id, ref] = defined([...index.entries()][0]);
   REAL_VENUE_ID = id;
   REAL_VENUE_NAME = ref.name;
 });

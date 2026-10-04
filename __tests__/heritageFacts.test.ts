@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { heritageSourceLabel } from "@/lib/historicFilter";
 import { sanitizeHeritageFacts } from "@/lib/heritageFacts";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("heritageSourceLabel", () => {
   it("names each public source honestly", () => {
@@ -77,7 +78,7 @@ describe("sanitizeHeritageFacts", () => {
       { source: "osm", fact: "Has a beer garden.", sourceRef: "" },
     ]);
     expect(fact).toEqual({ source: "osm", fact: "Has a beer garden." });
-    expect("sourceRef" in fact).toBe(false);
+    expect("sourceRef" in defined(fact)).toBe(false);
   });
 
   it("keeps cited harvest web lore and drops uncited or http web lore", () => {

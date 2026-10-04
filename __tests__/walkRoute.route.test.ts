@@ -40,6 +40,7 @@ const consumeOrsBudget = vi.hoisted(() => vi.fn<() => Promise<boolean>>(() => Pr
 vi.mock("@/lib/walkRouteBudget", () => ({ consumeOrsBudget }));
 
 import { GET } from "@/app/api/walk-route/route";
+import { defined } from "@/__tests__/helpers/defined";
 
 const A: LngLat = [-0.1005, 51.5136];
 const B: LngLat = [-0.0975, 51.5142];
@@ -89,8 +90,8 @@ describe("GET /api/walk-route", () => {
     expect(res.status).toBe(200);
     const { line, source } = await body(res);
     expect(source).toBe("straight");
-    expect(line.features[0].properties).toEqual({ source: "straight" });
-    expect((line.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
+    expect(defined(line.features[0]).properties).toEqual({ source: "straight" });
+    expect((defined(line.features[0]).geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
     expect(fetchWalkLeg).not.toHaveBeenCalled();
   });
 
@@ -106,7 +107,7 @@ describe("GET /api/walk-route", () => {
     expect(source).toBe("ors");
     expect(fetchWalkLeg).toHaveBeenCalledTimes(2);
     // Two 3-point legs stitched (shared vertices B dropped once) => 5 points.
-    expect((line.features[0].geometry as GeoJSON.LineString).coordinates).toHaveLength(5);
+    expect((defined(line.features[0]).geometry as GeoJSON.LineString).coordinates).toHaveLength(5);
   });
 
   it("serves a cached leg without re-calling ORS", async () => {
@@ -129,7 +130,7 @@ describe("GET /api/walk-route", () => {
     const res = await get([A, B, C]);
     const { line, source } = await body(res);
     expect(source).toBe("straight");
-    const coords = (line.features[0].geometry as GeoJSON.LineString).coordinates;
+    const coords = (defined(line.features[0]).geometry as GeoJSON.LineString).coordinates;
     expect(coords[coords.length - 1]).toEqual(C);
   });
 
@@ -150,7 +151,7 @@ describe("GET /api/walk-route", () => {
     expect(legs).toHaveLength(2);
     expect(legs[0]).toMatchObject({ fromIndex: 0, toIndex: 1, source: "ors" });
     expect(legs[1]).toMatchObject({ fromIndex: 1, toIndex: 2, source: "straight" });
-    expect(legs[0].distanceKm).toBeGreaterThan(0);
+    expect(defined(legs[0]).distanceKm).toBeGreaterThan(0);
   });
 
   it("rate-limits a client past its per-window budget with a flat 429", async () => {
@@ -206,7 +207,7 @@ describe("GET /api/walk-route — global daily ORS budget", () => {
     expect(source).toBe("straight");
     expect(fetchWalkLeg).not.toHaveBeenCalled();
     // The drawable line is the straight fallback through every stop.
-    expect((line.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
+    expect((defined(line.features[0]).geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
   });
 
   it("partial budget: only the funded leg calls the provider, the denied leg is straight", async () => {

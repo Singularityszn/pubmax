@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The submit-failure line is the ONE sentence a contributor has to read, and the
 // success line is the only confirmation their account landed. Both are painted
@@ -25,7 +26,7 @@ function block(css: string, selector: string): string {
 function token(source: string, name: string): string {
   const match = new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i").exec(source);
   expect(match, `${name} must be a plain hex in this block`).toBeTruthy();
-  return match![1].toLowerCase();
+  return defined(match![1]).toLowerCase();
 }
 
 // Light: the base scale lives at :root, but the DOM's raised card is re-pointed
@@ -72,12 +73,12 @@ function relativeLuminance(hex: string): number {
     const s = c / 255;
     return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
 }
 
 function contrast(a: string, b: string): number {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
+  return (defined(hi) + 0.05) / (defined(lo) + 0.05);
 }
 
 /**
@@ -89,8 +90,8 @@ function shippedMixPercent(className: string): number {
   const bodies: string[] = [];
   const css = panelCss.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const names = selectors.split(",").map((s) => s.trim());
-    if (names.includes(`.${className}`)) bodies.push(body);
+    const names = defined(selectors).split(",").map((s) => s.trim());
+    if (names.includes(`.${className}`)) bodies.push(defined(body));
   }
   expect(bodies.length, `.${className} must have a rule`).toBeGreaterThan(0);
   const match = /color-mix\(in srgb,[\s\S]*?\s(\d+)%,\s*var\(--ink/.exec(bodies.join("\n"));
@@ -121,7 +122,7 @@ describe("Visit Report feedback lines", () => {
     // PR #1010 changed light --brick to a deeper destructive colour that clears
     // AA on its own. --pint remains a price-band colour, so visit feedback still
     // needs the shipped ink mix.
-    const light = THEMES[0];
+    const light = defined(THEMES[0]);
     expect(contrast(light.pint, light.card)).toBeLessThan(4.5);
     expect(contrast(light.brick, light.card)).toBeGreaterThanOrEqual(4.5);
   });

@@ -38,8 +38,10 @@ export function buildCrawlRouteSummary(
   }
   if (points.length < 2) return undefined;
   let totalKm = 0;
-  for (let i = 0; i < points.length - 1; i += 1) {
-    totalKm += haversineKm(points[i], points[i + 1]);
+  for (let i = 1; i < points.length; i += 1) {
+    const from = points[i - 1];
+    const to = points[i];
+    if (from && to) totalKm += haversineKm(from, to);
   }
   const totalMinutes = Math.max(1, Math.ceil((totalKm / WALK_KMH) * 60));
   return { totalKm, totalMinutes, points };

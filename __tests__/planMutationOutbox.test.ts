@@ -12,6 +12,7 @@ import {
   PLAN_MUTATION_OUTBOX_KEY,
   subscribePlanMutationOutbox,
 } from "@/lib/planMutationOutbox";
+import { defined } from "@/__tests__/helpers/defined";
 
 const stop = { venueId: "venue-1", venueName: "The Bull", position: 0 };
 
@@ -408,7 +409,7 @@ describe("planMutationOutbox", () => {
       await enqueueNightCrawlAction({
         planId: PLAN,
         type: "arrived",
-        stop: firstStop,
+        stop: defined(firstStop),
         idempotencyKey: "key-0",
         fingerprint: "fp-0",
         previousCursor: 0,
@@ -429,7 +430,7 @@ describe("planMutationOutbox", () => {
       await enqueueNightCrawlAction({
         planId: PLAN,
         type: "arrived",
-        stop: finalStop,
+        stop: defined(finalStop),
         idempotencyKey: "key-1",
         fingerprint: "fp-1",
         previousCursor: 1,

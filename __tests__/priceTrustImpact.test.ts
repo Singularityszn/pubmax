@@ -37,6 +37,7 @@ import {
   syncTrustAfterPriceRestored,
   syncTrustAfterPriceWrite,
 } from "@/lib/priceTrustImpact.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Every sync takes this synthetic clock, and every read must take it too:
 // pricesTrustedNow decays after the 30-day price-authority window, so a read
@@ -227,7 +228,7 @@ describe("syncTrustAfterPriceWrite", () => {
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
 
     const store = priceTrustEventStore();
-    const original = (await store.liveEventsFor(VENUE, "beer")).events[0];
+    const original = defined((await store.liveEventsFor(VENUE, "beer")).events[0]);
     expect(original).toBeTruthy();
     const reversal = await store.recordUnlock({
       fingerprint: `manual-reversal:${original.evidenceFingerprint}`,
@@ -446,7 +447,7 @@ describe("syncTrustAfterPriceHidden", () => {
 
     const covering = await priceTrustEventStore().liveEventsCovering(hiddenId);
     expect(covering.events).toHaveLength(1);
-    const standingEventId = covering.events[0].id;
+    const standingEventId = defined(covering.events[0]).id;
 
     const store = priceTrustEventStore();
     const recordUnlock = vi

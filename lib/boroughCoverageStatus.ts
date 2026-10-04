@@ -71,7 +71,8 @@ export type BoroughCoverageSummary =
 export function boroughCoverageSummary(
   rows: readonly BoroughCoverageInput[],
 ): BoroughCoverageSummary {
-  if (rows.length < 2) return { kind: "per-borough" };
+  const [first] = rows;
+  if (!first || rows.length < 2) return { kind: "per-borough" };
 
   const lines = new Set<string>();
   for (const row of rows) {
@@ -81,7 +82,6 @@ export function boroughCoverageSummary(
     if (lines.size > 1) return { kind: "per-borough" };
   }
 
-  const first = rows[0];
   const target = first.target ?? SEED_BOROUGH_MONTHLY_TARGET;
   if (first.status === "degraded" || first.status === "unknown") {
     return { kind: "shared", line: "We could not count corroborated pints just now." };

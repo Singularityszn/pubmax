@@ -399,10 +399,10 @@ function deskKindLabel(kind: VenueKind): string {
 }
 
 function expandDayToken(token: string): number[] {
-  const range = token.split("-");
-  if (range.length === 2 && DAY_TOKEN.test(range[0]) && DAY_TOKEN.test(range[1])) {
-    const start = DAY_INDEX[range[0]];
-    const end = DAY_INDEX[range[1]];
+  const [from = "", to = "", ...extra] = token.split("-");
+  if (extra.length === 0 && DAY_TOKEN.test(from) && DAY_TOKEN.test(to)) {
+    const start = DAY_INDEX[from];
+    const end = DAY_INDEX[to];
     if (start === undefined || end === undefined) return [];
     const days: number[] = [];
     let day = start;
@@ -434,8 +434,8 @@ function parseTimeWindows(raw: string): { opens: string; closes: string }[] {
     const match = /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2}|24:00)$/.exec(part.trim());
     if (!match) return [];
     windows.push({
-      opens: match[1].padStart(5, "0"),
-      closes: match[2] === "24:00" ? "24:00" : match[2].padStart(5, "0"),
+      opens: (match[1] ?? "").padStart(5, "0"),
+      closes: match[2] === "24:00" ? "24:00" : (match[2] ?? "").padStart(5, "0"),
     });
   }
   return windows;
@@ -511,7 +511,7 @@ export function parseOsmOpeningHours(
     }
     const off = /^(.*?)\s+off$/i.exec(rule);
     if (off) {
-      const days = parseDayList(off[1]);
+      const days = parseDayList(off[1] ?? "");
       if (days.length === 0) return null;
       for (const day of days) hours[day] = [];
       parsed = true;
@@ -519,8 +519,8 @@ export function parseOsmOpeningHours(
     }
     const match = /^(.*?)\s+(\d{1,2}:\d{2}\s*-\s*(?:\d{1,2}:\d{2}|24:00)(?:\s*,\s*\d{1,2}:\d{2}\s*-\s*(?:\d{1,2}:\d{2}|24:00))*)$/.exec(rule);
     if (!match) return null;
-    const days = parseDayList(match[1]);
-    const windows = parseTimeWindows(match[2]);
+    const days = parseDayList(match[1] ?? "");
+    const windows = parseTimeWindows(match[2] ?? "");
     if (days.length === 0 || windows.length === 0) return null;
     applyWindows(hours, days, windows);
     parsed = true;

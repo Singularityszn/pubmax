@@ -20,6 +20,7 @@ import {
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { defined } from "@/__tests__/helpers/defined";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -677,8 +678,8 @@ describe("validate-data.mjs slim venue index validation", () => {
     }
     const pair = [...groups.values()].find((group) => group.length >= 2);
     if (!pair) throw new Error("fixture has no same-count spatial shard pair");
-    const firstPath = join(scriptsDir, "..", "public", "data", pair[0].url.replace(/^\/data\//, ""));
-    const secondPath = join(scriptsDir, "..", "public", "data", pair[1].url.replace(/^\/data\//, ""));
+    const firstPath = join(scriptsDir, "..", "public", "data", defined(pair[0]).url.replace(/^\/data\//, ""));
+    const secondPath = join(scriptsDir, "..", "public", "data", defined(pair[1]).url.replace(/^\/data\//, ""));
     const first = readFileSync(firstPath, "utf8");
     const second = readFileSync(secondPath, "utf8");
     writeScratchFile(firstPath, second, "utf8");

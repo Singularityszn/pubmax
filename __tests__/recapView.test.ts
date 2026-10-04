@@ -14,6 +14,7 @@ import {
 import type { NightMoment, NightStory } from "@/lib/nightMemory";
 import type { EndingSelection } from "@/lib/plan";
 import type { PintDrop } from "@/lib/pintDropShared";
+import { defined } from "@/__tests__/helpers/defined";
 
 function moment(overrides: Partial<NightMoment>): NightMoment {
   return {
@@ -134,8 +135,8 @@ describe("composeRecapFromCompletion", () => {
     });
     expect(view.title).toBe("Tonight's Memory");
     expect(view.route.map((stop) => stop.venueName)).toEqual(["The First", "The Second"]);
-    expect(view.route[0].caption).toBe("where it started");
-    expect(view.route[1].caption).toBeNull();
+    expect(defined(view.route[0]).caption).toBe("where it started");
+    expect(defined(view.route[1]).caption).toBeNull();
     expect(view.pints).toEqual([]);
     expect(view.photos).toEqual([]);
     expect(view.ending).toEqual({ kind: "get_home", label: "Everyone headed home" });
@@ -231,7 +232,7 @@ describe("composeRecapFromPublishedStory", () => {
     expect(view?.stats.cheapestPintGbp).toBe(5.4);
     expect(view?.stats.pintCount).toBe(2);
     expect(view?.pints).toHaveLength(2);
-    expect(view?.pints[0].priceGbp).toBe(5.4);
+    expect(defined(view?.pints[0]).priceGbp).toBe(5.4);
   });
 });
 

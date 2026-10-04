@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildPlanGenerationStops, planBudgetSummary } from "@/lib/planGenerationDto";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { defined } from "@/__tests__/helpers/defined";
 
 const AREA = {
   name: "Test Area",
@@ -88,8 +89,8 @@ describe("plan generation response projection", () => {
       priceContext: { drinkCategory: "wine", zeroProof: false },
     });
 
-    expect(stops[0].selectedDrinkPriceEvidence).toBeNull();
-    expect(stops[0].alternatives[0]).toMatchObject({
+    expect(defined(stops[0]).selectedDrinkPriceEvidence).toBeNull();
+    expect(defined(stops[0]).alternatives[0]).toMatchObject({
       estimatedPintPricePence: null,
       priceEvidence: null,
       selectedDrinkPriceEvidence: {
@@ -126,7 +127,7 @@ describe("plan generation response projection", () => {
         priceEvidence: null,
         reason: `Close to the heart of the area, corroborated community ${drinkCategory} price £8.00.`,
       });
-      expect(stops[0].alternatives[0]).toMatchObject({
+      expect(defined(stops[0]).alternatives[0]).toMatchObject({
         estimatedPintPricePence: null,
         priceEvidence: null,
       });
@@ -219,9 +220,9 @@ describe("plan generation response projection", () => {
         },
       }],
     });
-    expect(stops[0].alternatives.map((alternative) => alternative.venueId))
+    expect(defined(stops[0]).alternatives.map((alternative) => alternative.venueId))
       .not.toContain("unused-fallback");
-    expect(stops[0].provenance).toEqual([
+    expect(defined(stops[0]).provenance).toEqual([
       { kind: "venue_dataset", label: "PUBMAXX venue record for Venue selected" },
       { kind: "night_area_review", label: "Test Area route review", asOf: AREA.lastReviewedAt },
       { kind: "night_signal", label: "Venue calendar: Thursday quiz", asOf: "2026-08-21T12:00:00.000Z" },
@@ -265,10 +266,10 @@ describe("plan generation response projection", () => {
       },
       reason: "Close to the heart of the area.",
     });
-    expect(stops[0].alternatives.map((alternative) => alternative.venueId))
+    expect(defined(stops[0]).alternatives.map((alternative) => alternative.venueId))
       .toEqual(["nearest", "middle"]);
-    expect(stops[0].alternatives).toHaveLength(2);
-    expect(stops[0].alternatives.map((alternative) => alternative.venueId))
+    expect(defined(stops[0]).alternatives).toHaveLength(2);
+    expect(defined(stops[0]).alternatives.map((alternative) => alternative.venueId))
       .not.toContain("other-chosen");
   });
 

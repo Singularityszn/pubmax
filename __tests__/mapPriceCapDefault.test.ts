@@ -11,6 +11,7 @@ import {
   type Venue,
   type VenuePrice,
 } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A price cap nobody can see is worse than a wrong figure: the reader cannot
 // tell there is anything to disbelieve. A fresh visitor used to land on
@@ -64,7 +65,7 @@ function makeVenue(address: string, priceGbp: number | null): Venue {
     is_clean_canonical_app_row: true,
     data_quality_notes: "",
   } as VenuePrice;
-  return groupVenuePrices([row])[0];
+  return defined(groupVenuePrices([row])[0]);
 }
 
 const chipFor = (maxPrice: number) =>

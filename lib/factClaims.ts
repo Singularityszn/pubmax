@@ -135,7 +135,7 @@ export function buildFactClaims<T>(
   sources: readonly FactSource<T>[],
   isEqual: (a: T, b: T) => boolean = Object.is,
 ): FactClaim<T>[] {
-  const groups: FactSource<T>[][] = [];
+  const groups: [FactSource<T>, ...FactSource<T>[]][] = [];
   for (const source of sources) {
     const group = groups.find((g) => isEqual(g[0].value, source.value));
     if (group) group.push(source);
@@ -200,13 +200,14 @@ export function resolveClaims<T>(
   claims: readonly FactClaim<T>[],
   opts: ResolveOptions<T>,
 ): FactResolution<T> | null {
-  if (claims.length === 0) return null;
+  const [first, ...rest] = claims;
+  if (!first) return null;
   const isEqual = opts.isEqual ?? Object.is;
 
   // First claim wins ties (compareClaims returns 0), keeping resolution stable.
-  let winner = claims[0];
-  for (let i = 1; i < claims.length; i += 1) {
-    if (compareClaims(claims[i], winner) > 0) winner = claims[i];
+  let winner = first;
+  for (const claim of rest) {
+    if (compareClaims(claim, winner) > 0) winner = claim;
   }
 
   const live = claims.filter(

@@ -3488,7 +3488,7 @@ export default function PubMap({
       setBuiltIds(ids);
       setRouteMapped(true);
       setActiveCrawl(null);
-      showLoadedRoute(ids[0]);
+      showLoadedRoute(ids[0]!);
     };
     if (!loader) {
       return;
@@ -3946,7 +3946,7 @@ export default function PubMap({
       });
       if (move === "select-one") {
         // Fly to the one match and open its sheet (reuses the pin path).
-        selectVenue(filteredVenuesRef.current[0].id);
+        selectVenue(filteredVenuesRef.current[0]!.id);
       } else if (move === "fit-many") {
         // Frame the whole matched set so none stay hidden off-screen.
         setSearchFitToken((token) => token + 1);

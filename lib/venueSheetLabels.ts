@@ -15,7 +15,7 @@ export function venueSheetLabels(
 ): VenueSheetLabels {
   const typeLabel = venue ? venueKindLabel(venue.kind) : "Venue";
   const noun = venue ? venueKindNoun(venue.kind) : "venue";
-  const detailLabel = `${noun[0].toUpperCase()}${noun.slice(1)} detail`;
+  const detailLabel = `${noun.charAt(0).toUpperCase()}${noun.slice(1)} detail`;
   return {
     typeLabel,
     summaryLabel: `Selected ${noun} summary`,

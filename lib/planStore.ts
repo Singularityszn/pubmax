@@ -777,7 +777,7 @@ export const memoryPlanStore: PlanStore = {
       // moves or gains an ordinary Swap. Replacing a one-Stop anchor-only draft
       // with three Stops is the atomic upgrade to a grounded route, and it is
       // only allowed once the caller has verified the grounding proof.
-      if (plan.plan.anchorVenueId && (!update.groundedUpgrade || stops[0].venueId !== plan.plan.anchorVenueId)) {
+      if (plan.plan.anchorVenueId && (!update.groundedUpgrade || stops[0]?.venueId !== plan.plan.anchorVenueId)) {
         return { ok: false, error: "forbidden" };
       }
       // One synchronous mutation keeps the demo store's route + revision
@@ -922,13 +922,15 @@ async function supabaseLegacyPlanMemberIdentityResult(id: string, rawToken: stri
       .is("membership_revoked_at", null)
       .order("joined_at").order("id");
     if (error) return { ok: false, error: "error" };
-    const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
+    const rows = data ?? [];
+    const index = rows.findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
+    const member = rows[index];
     return {
       ok: true,
-      identity: index < 0 ? null : {
-        memberId: String(data![index].id),
+      identity: !member ? null : {
+        memberId: String(member.id),
         role: index === 0 ? "host" : "guest",
-        collaborationAuthorized: index === 0 || data![index].can_collaborate === true,
+        collaborationAuthorized: index === 0 || member.can_collaborate === true,
       },
     };
   } catch {
@@ -1043,7 +1045,8 @@ export async function planMemberIdentity(id: string, rawToken: unknown): Promise
   const plan = memoryPlans.get(id);
   if (!plan) return null;
   const index = plan.crew.findIndex((member) => member.tokenHash === hash);
-  return index < 0 ? null : { memberId: plan.crew[index].id, role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || plan.crew[index].collaborationAuthorized };
+  const member = plan.crew[index];
+  return !member ? null : { memberId: member.id, role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || member.collaborationAuthorized };
 }
 
 export async function planMemberIdentityResult(id: string, rawToken: unknown): Promise<PlanMemberIdentityResult> {

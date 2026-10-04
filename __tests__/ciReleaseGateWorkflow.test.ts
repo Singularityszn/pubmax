@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 import { PERF_AB_JOB_WALL_MS } from "@/lib/performanceAbEvidence";
+import { defined } from "@/__tests__/helpers/defined";
 
 const HEAP = "--max-old-space-size=6144";
 
@@ -36,7 +37,7 @@ function parseSteps(yaml: string): WorkflowStep[] {
 
     const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
     if (jobHeader) {
-      job = jobHeader[1];
+      job = defined(jobHeader[1]);
       step = null;
       inEnv = false;
       continue;
@@ -51,14 +52,14 @@ function parseSteps(yaml: string): WorkflowStep[] {
     const entry = /^\s*(?:- )?([A-Za-z0-9_-]+):\s?(.*)$/.exec(line);
     if (!entry) continue;
     const [, key, value] = entry;
-    if (inEnv && !["name", "run", "uses", "with", "if", "env", "id"].includes(key)) {
-      step.env[key] = value.replace(/^"|"$/g, "");
+    if (inEnv && !["name", "run", "uses", "with", "if", "env", "id"].includes(defined(key))) {
+      step.env[defined(key)] = defined(value).replace(/^"|"$/g, "");
       continue;
     }
     inEnv = key === "env";
-    if (key === "name") step.name = value;
+    if (key === "name") step.name = defined(value);
     if (key === "run") {
-      step.run = value === ">-" || value === "|" ? "" : value;
+      step.run = value === ">-" || value === "|" ? "" : defined(value);
       if (value === ">-" || value === "|") block = { key: "run", indent };
     }
   }
@@ -97,7 +98,7 @@ function parseJobWalls(yaml: string): Record<string, number> {
   for (const line of yaml.split("\n")) {
     const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
     if (jobHeader) {
-      job = jobHeader[1];
+      job = defined(jobHeader[1]);
       continue;
     }
     const wall = /^ {4}timeout-minutes: (\d+)$/.exec(line);
@@ -154,7 +155,7 @@ describe("clean-main CI release gate", () => {
     // runs. Three numbers that must move together are held together here rather
     // than by a comment asking the next person to remember: the job's timeout,
     // the figure handed to the script, and the module's own mirror.
-    const wallMinutes = parseJobWalls(performanceWorkflow)["performance-budget"];
+    const wallMinutes = defined(parseJobWalls(performanceWorkflow)["performance-budget"]);
     expect(wallMinutes).toBe(PERF_AB_JOB_WALL_MS / 60_000);
 
     const abStep = steps.find((step) => step.name === "Tell a red route apart from a slow box");
@@ -163,8 +164,8 @@ describe("clean-main CI release gate", () => {
 
   it("records the job's start before anything can spend the wall", () => {
     const [first] = steps.filter((step) => step.job === "performance-budget");
-    expect(first.run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
-    expect(first.run).toContain("GITHUB_ENV");
+    expect(defined(first).run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
+    expect(defined(first).run).toContain("GITHUB_ENV");
   });
 
   it("does not let the freshness calendar skip the build, unit shards or coverage", () => {

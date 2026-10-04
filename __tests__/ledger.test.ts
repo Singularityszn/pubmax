@@ -8,6 +8,7 @@ import {
   toLedgerEntry,
   type LedgerSourceDrop,
 } from "@/lib/ledger";
+import { defined } from "@/__tests__/helpers/defined";
 
 function makeDrop(overrides: Partial<LedgerSourceDrop> = {}): LedgerSourceDrop {
   return {
@@ -94,7 +95,7 @@ describe("buildLedgerEntries", () => {
     ];
     const entries = buildLedgerEntries(drops);
     expect(entries).toHaveLength(1);
-    expect(entries[0].id).toBe("dup");
+    expect(defined(entries[0]).id).toBe("dup");
   });
 
   // The mirror of the dedupe: genuinely distinct drops (different ids) must all
@@ -129,8 +130,8 @@ describe("The Family Table (issue #27)", () => {
     const entries = buildFamilyTableEntries(legacyDrops);
     expect(entries.map((e) => e.id)).toEqual(["legacy-2", "legacy-1"]);
     // Legacy is family-lane, not anonymous: the handle is attributed, not withheld.
-    expect(entries[0].handle).toBe("@dad");
-    expect(entries[1].handle).toBe("@nan");
+    expect(defined(entries[0]).handle).toBe("@dad");
+    expect(defined(entries[1]).handle).toBe("@nan");
   });
 
   it("drops legacy entries with neither a note nor a price, same rule as the public ledger", () => {
@@ -195,7 +196,7 @@ describe("buildFamilyShareText", () => {
     // Decoded body contains the share text and the url.
     const bodyMatch = share.mailtoHref.match(/body=([^&]*)/);
     expect(bodyMatch).not.toBeNull();
-    const decodedBody = decodeURIComponent(bodyMatch![1]);
+    const decodedBody = decodeURIComponent(defined(bodyMatch![1]));
     expect(decodedBody).toContain("Grandad's local.");
     expect(decodedBody).toContain("/ledger/ten-bells");
   });

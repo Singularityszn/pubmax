@@ -119,6 +119,7 @@ export function buildLandingPubCard(
   const chosen =
     preferred ??
     [...candidates].sort((a, b) => spanYears(history.get(b.id), b, now) - spanYears(history.get(a.id), a, now))[0];
+  if (!chosen) return null;
 
   const arc = venuePriceArc(history.get(chosen.id) ?? [], chosen.cheapestPrice, now);
   if (!arc || arc.nowGbp === null || arc.deltaGbp === null) return null;

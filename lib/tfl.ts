@@ -376,7 +376,8 @@ function selectLondonDepartureCandidate(
   // TfL's 25:xx service hour is the first 01:xx occurrence on a fall-back
   // night. Without the original hour, retain the prior later-occurrence choice
   // for callers that only have a display clock and past-midnight flag.
-  return serviceHour === 25 ? candidates[0] : candidates[candidates.length - 1];
+  const chosen = serviceHour === 25 ? candidates[0] : candidates.at(-1);
+  return chosen ?? wallAsUtc - londonOffsetMinutes(new Date(wallAsUtc)) * 60_000;
 }
 
 export type LastPintDecisionInput = {

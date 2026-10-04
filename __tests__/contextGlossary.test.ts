@@ -10,13 +10,14 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CONTEXT = readFileSync(join(ROOT, "CONTEXT.md"), "utf8");
 
 /** Every `**Term**:` heading, in file order. */
 function glossaryTerms(): string[] {
-  return [...CONTEXT.matchAll(/^\*\*([^*]+)\*\*:/gm)].map((m) => m[1]);
+  return [...CONTEXT.matchAll(/^\*\*([^*]+)\*\*:/gm)].map((m) => defined(m[1]));
 }
 
 /**
@@ -67,7 +68,7 @@ describe("CONTEXT.md glossary", () => {
       (m) => m[1],
     );
     expect(modules.length).toBeGreaterThan(0);
-    const missing = modules.filter((path) => !existsSync(join(ROOT, path)));
+    const missing = modules.filter((path) => !existsSync(join(ROOT, defined(path))));
     expect(missing).toEqual([]);
   });
 

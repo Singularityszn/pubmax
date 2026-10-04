@@ -29,6 +29,7 @@ import { validatePintIndexSnapshot } from "@/lib/pintIndex";
 import { isEstimateBaselines, type EstimateBaselines } from "@/lib/priceEstimate";
 import { standingCarriesAuthority } from "@/lib/priceTier";
 import { authoritativeBundleRows, parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -71,7 +72,7 @@ describe("the estimate basis a city would need", () => {
     for (const row of estimates) {
       const [basisKind, basisKey] = String(row.basis).split(":");
       expect(basisKind, row.venueId).toBe("regional_baseline");
-      expect(boroughCodes.has(basisKey), `${row.venueId} modelled from ${row.basis}`).toBe(true);
+      expect(boroughCodes.has(defined(basisKey)), `${row.venueId} modelled from ${row.basis}`).toBe(true);
     }
   });
 });

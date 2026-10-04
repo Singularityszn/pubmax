@@ -8,6 +8,7 @@ import {
   formatDonutCount,
   type DonutCounts,
 } from "@/lib/donutClusterGeometry";
+import { defined } from "@/__tests__/helpers/defined";
 
 const COLORS = ["#2f8f5b", "#d99f45", "#d16353", "#6b726a"];
 
@@ -36,16 +37,16 @@ describe("buildDonutStrokeSegments", () => {
     const circumference = 2 * Math.PI * radius;
     const segments = buildDonutStrokeSegments(counts, COLORS, radius);
     expect(segments).toHaveLength(2);
-    expect(segments[0].index).toBe(0);
-    expect(segments[0].color).toBe(COLORS[0]);
-    expect(segments[1].index).toBe(1);
+    expect(defined(segments[0]).index).toBe(0);
+    expect(defined(segments[0]).color).toBe(COLORS[0]);
+    expect(defined(segments[1]).index).toBe(1);
 
     // First segment's arc length is 3/4 of the circumference.
-    const [firstArc] = segments[0].dasharray.split(" ").map(Number);
+    const [firstArc] = defined(segments[0]).dasharray.split(" ").map(Number);
     expect(firstArc).toBeCloseTo(circumference * 0.75, 2);
     // Segments are laid end to end: the second starts where the first ends.
-    expect(segments[1].dashoffset).toBeCloseTo(-firstArc, 2);
-    expect(segments[0].dashoffset).toBeCloseTo(0, 5);
+    expect(defined(segments[1]).dashoffset).toBeCloseTo(-defined(firstArc), 2);
+    expect(defined(segments[0]).dashoffset).toBeCloseTo(0, 5);
   });
 
   it("returns no segments when every bucket is empty or radius is non-positive", () => {

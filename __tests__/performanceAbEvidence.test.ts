@@ -36,6 +36,7 @@ import {
   type AbRoutePair,
   type AbRoutePlan,
 } from "@/lib/performanceAbEvidence";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE INSTRUMENT THAT TELLS A RED ROUTE APART FROM A SLOW BOX.
 //
@@ -74,16 +75,16 @@ describe("abNoiseBandPct", () => {
 describe("compareArms", () => {
   it("reads a branch slower than base by more than the band as BRANCH SLOWER", () => {
     const [row] = compareArms([pair({ branch: [900, 920, 940], base: [600, 610, 620] })], method);
-    expect(row.branchMedian).toBe(920);
-    expect(row.baseMedian).toBe(610);
-    expect(row.deltaPct).toBe(51);
-    expect(row.verdict).toBe("BRANCH SLOWER");
-    expect(row.runnerDrift).toBe(false);
+    expect(defined(row).branchMedian).toBe(920);
+    expect(defined(row).baseMedian).toBe(610);
+    expect(defined(row).deltaPct).toBe(51);
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).runnerDrift).toBe(false);
   });
 
   it("reads a branch inside the band as NOT SLOWER THAN BASE", () => {
     const [row] = compareArms([pair()], method);
-    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+    expect(defined(row).verdict).toBe("NOT SLOWER THAN BASE");
   });
 
   it("tests the band on the UNROUNDED ratio, and rounds only for the eye", () => {
@@ -94,8 +95,8 @@ describe("compareArms", () => {
       [pair({ branch: [11_240, 11_240, 11_240], base: [10_000, 10_000, 10_000] })],
       method,
     );
-    expect(row.verdict).toBe("BRANCH SLOWER");
-    expect(row.deltaPct).toBe(12);
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).deltaPct).toBe(12);
   });
 
   it("leaves a difference exactly the width of the band inside it", () => {
@@ -103,8 +104,8 @@ describe("compareArms", () => {
       [pair({ branch: [11_200, 11_200, 11_200], base: [10_000, 10_000, 10_000] })],
       method,
     );
-    expect(row.deltaPct).toBe(12);
-    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+    expect(defined(row).deltaPct).toBe(12);
+    expect(defined(row).verdict).toBe("NOT SLOWER THAN BASE");
   });
 
   it("refuses BRANCH SLOWER on a gap past the band but under the floor for that route", () => {
@@ -115,9 +116,9 @@ describe("compareArms", () => {
       [pair({ budget: 300, branch: [225, 225, 225], base: [200, 200, 200] })],
       method,
     );
-    expect(row.deltaPct).toBe(13);
+    expect(defined(row).deltaPct).toBe(13);
     expect(abNoiseFloor("lcpMs", method, 300)).toBe(30);
-    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+    expect(defined(row).verdict).toBe("NOT SLOWER THAN BASE");
   });
 
   it("convicts an 80 ms regression on a low-ceiling route the method marks as noisy", () => {
@@ -130,10 +131,10 @@ describe("compareArms", () => {
       [pair({ budget: 300, branch: [400, 400, 400], base: [320, 320, 320] })],
       method,
     );
-    expect(row.deltaPct).toBe(25);
+    expect(defined(row).deltaPct).toBe(25);
     expect(abNoiseBandPct(method)).toBe(12);
-    expect(row.verdict).toBe("BRANCH SLOWER");
-    expect(row.runnerDrift).toBe(false);
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).runnerDrift).toBe(false);
   });
 
   it("convicts a 220 ms regression on that same route and never calls it runner drift", () => {
@@ -148,10 +149,10 @@ describe("compareArms", () => {
       ],
       method,
     );
-    expect(row.deltaPct).toBe(73);
-    expect(row.verdict).toBe("BRANCH SLOWER");
-    expect(row.runnerDrift).toBe(false);
-    expect(formatAbVerdictLines([row]).join("\n")).not.toContain("runner drift");
+    expect(defined(row).deltaPct).toBe(73);
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).runnerDrift).toBe(false);
+    expect(formatAbVerdictLines([defined(row)]).join("\n")).not.toContain("runner drift");
   });
 
   it("never exonerates a real regression because the METRIC floor outsizes the ceiling", () => {
@@ -170,13 +171,13 @@ describe("compareArms", () => {
       ],
       method,
     );
-    expect(row.deltaPct).toBe(73);
+    expect(defined(row).deltaPct).toBe(73);
     expect(abNoiseFloor("lcpMs", method, 300)).toBeLessThan(
       method.sampleSpreadFloors.lcpMs,
     );
-    expect(row.verdict).toBe("BRANCH SLOWER");
-    expect(row.runnerDrift).toBe(false);
-    expect(formatAbVerdictLines([row]).join("\n")).not.toContain("runner drift");
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).runnerDrift).toBe(false);
+    expect(formatAbVerdictLines([defined(row)]).join("\n")).not.toContain("runner drift");
   });
 
   it("refuses BRANCH SLOWER on a millisecond of server render, which is scheduler jitter", () => {
@@ -184,7 +185,7 @@ describe("compareArms", () => {
       [pair({ metric: "serverRenderMs", budget: 150, branch: [9, 9, 9], base: [8, 8, 8] })],
       method,
     );
-    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+    expect(defined(row).verdict).toBe("NOT SLOWER THAN BASE");
   });
 
   it("reads BRANCH SLOWER once the gap clears BOTH the band and the floor", () => {
@@ -192,11 +193,11 @@ describe("compareArms", () => {
       [pair({ budget: 300, branch: [900, 900, 900], base: [600, 600, 600] })],
       method,
     );
-    expect(row.deltaPct).toBe(50);
-    expect(row.branchMedian - row.baseMedian).toBeGreaterThanOrEqual(
+    expect(defined(row).deltaPct).toBe(50);
+    expect(defined(row).branchMedian - defined(row).baseMedian).toBeGreaterThanOrEqual(
       abNoiseFloor("lcpMs", method, 300),
     );
-    expect(row.verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
   });
 
   it("reads a branch faster than base as NOT SLOWER THAN BASE however far both sit over the ceiling", () => {
@@ -209,17 +210,17 @@ describe("compareArms", () => {
       [pair({ budget: 200, branch: [1600, 1700, 1800], base: [1800, 1900, 2000] })],
       method,
     );
-    expect(row.branchMedian).toBe(1700);
-    expect(row.baseMedian).toBe(1900);
-    expect(row.deltaPct).toBe(-11);
-    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+    expect(defined(row).branchMedian).toBe(1700);
+    expect(defined(row).baseMedian).toBe(1900);
+    expect(defined(row).deltaPct).toBe(-11);
+    expect(defined(row).verdict).toBe("NOT SLOWER THAN BASE");
   });
 
   it("names a route that breached its ceiling and measured no slower than base as runner drift", () => {
     const [row] = compareArms([pair()], method);
-    expect(row.branchMedian).toBeGreaterThan(row.budget);
-    expect(row.runnerDrift).toBe(true);
-    expect(formatAbVerdictLines([row]).join("\n")).toContain("runner drift");
+    expect(defined(row).branchMedian).toBeGreaterThan(defined(row).budget);
+    expect(defined(row).runnerDrift).toBe(true);
+    expect(formatAbVerdictLines([defined(row)]).join("\n")).toContain("runner drift");
   });
 
   it("names runner drift off the SWEEP's figure, on the clearest reading there is", () => {
@@ -231,11 +232,11 @@ describe("compareArms", () => {
       [pair({ sweepMeasured: 888, branch: [540, 540, 540], base: [545, 545, 545] })],
       method,
     );
-    expect(row.branchMedian).toBeLessThan(row.budget);
-    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
-    expect(row.runnerDrift).toBe(true);
-    expect(formatAbVerdictLines([row]).join("\n")).toContain("runner drift");
-    expect(formatAbVerdictLines([row]).join("\n")).toContain("888");
+    expect(defined(row).branchMedian).toBeLessThan(defined(row).budget);
+    expect(defined(row).verdict).toBe("NOT SLOWER THAN BASE");
+    expect(defined(row).runnerDrift).toBe(true);
+    expect(formatAbVerdictLines([defined(row)]).join("\n")).toContain("runner drift");
+    expect(formatAbVerdictLines([defined(row)]).join("\n")).toContain("888");
   });
 
   it("never calls a route the sweep measured inside its ceiling runner drift", () => {
@@ -243,22 +244,22 @@ describe("compareArms", () => {
       [pair({ sweepMeasured: 500, branch: [540, 540, 540], base: [545, 545, 545] })],
       method,
     );
-    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
-    expect(row.runnerDrift).toBe(false);
+    expect(defined(row).verdict).toBe("NOT SLOWER THAN BASE");
+    expect(defined(row).runnerDrift).toBe(false);
   });
 
   it("never calls a branch slower than base runner drift", () => {
     const [row] = compareArms([pair({ branch: [900, 920, 940], base: [600, 610, 620] })], method);
-    expect(row.runnerDrift).toBe(false);
-    expect(formatAbVerdictLines([row]).join("\n")).not.toContain("runner drift");
+    expect(defined(row).runnerDrift).toBe(false);
+    expect(formatAbVerdictLines([defined(row)]).join("\n")).not.toContain("runner drift");
   });
 
   it("reports an arm it could not measure as NOT COMPARED rather than guessing", () => {
     // Absence of evidence is not evidence of drift. A base arm that never
     // measured cannot clear a branch, and it cannot convict one either.
     const [row] = compareArms([pair({ base: [Number.NaN, Number.NaN, Number.NaN] })], method);
-    expect(row.verdict).toBe("NOT COMPARED");
-    expect(row.runnerDrift).toBe(false);
+    expect(defined(row).verdict).toBe("NOT COMPARED");
+    expect(defined(row).runnerDrift).toBe(false);
   });
 
   it("refuses a verdict on an arm that did not complete its plan", () => {
@@ -271,11 +272,11 @@ describe("compareArms", () => {
       [pair({ budget: 300, branch: [Number.NaN, Number.NaN, 340], base: [300, 305, 310] })],
       method,
     );
-    expect(row.branchSamples).toBe(1);
-    expect(row.baseSamples).toBe(3);
-    expect(row.verdict).toBe("NOT COMPARED");
-    expect(row.runnerDrift).toBe(false);
-    expect(formatAbVerdictLines([row]).join("\n")).not.toContain("runner drift");
+    expect(defined(row).branchSamples).toBe(1);
+    expect(defined(row).baseSamples).toBe(3);
+    expect(defined(row).verdict).toBe("NOT COMPARED");
+    expect(defined(row).runnerDrift).toBe(false);
+    expect(formatAbVerdictLines([defined(row)]).join("\n")).not.toContain("runner drift");
   });
 
   it("gives a marked route's seven samples a verdict when both arms complete them", () => {
@@ -284,9 +285,9 @@ describe("compareArms", () => {
       [pair({ branch: seven(900), base: seven(600), plannedSamples: 7 })],
       method,
     );
-    expect(row.branchSamples).toBe(7);
-    expect(row.plannedSamples).toBe(7);
-    expect(row.verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).branchSamples).toBe(7);
+    expect(defined(row).plannedSamples).toBe(7);
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
   });
 
   it("says what backed each median on every row, whatever the verdict", () => {
@@ -304,8 +305,8 @@ describe("compareArms", () => {
       [pair({ metric: "requests", budget: 60, branch: [120, 120, 120], base: [60, 60, 60] })],
       method,
     );
-    expect(row.verdict).toBe("BRANCH SLOWER");
-    expect(row.deltaPct).toBe(100);
+    expect(defined(row).verdict).toBe("BRANCH SLOWER");
+    expect(defined(row).deltaPct).toBe(100);
   });
 
   it("keeps one row per breached metric, in the order it was handed them", () => {
@@ -681,7 +682,7 @@ describe("selectAbBreaches", () => {
 
   it("costs a marked route its noise floor, so fewer of them fit than quiet ones", () => {
     const marked = [plan("/today", true), plan("/crawls", true), plan("/discover", true)];
-    const budget = abNavigationsForRoute(marked[0], method) * 2;
+    const budget = abNavigationsForRoute(defined(marked[0]), method) * 2;
     const selection = selectAbBreaches(
       marked.map((route, index) => breach({ path: route.path, measured: 900 - index, budget: 500 })),
       marked,
@@ -731,7 +732,7 @@ describe("formatAbScopeLines", () => {
       method,
     );
     const [line] = formatAbScopeLines(selection, 2, 16);
-    expect(line.indexOf("2 route(s) breached")).toBe(0);
+    expect(defined(line).indexOf("2 route(s) breached")).toBe(0);
     expect(line).toContain("2 measured");
   });
 

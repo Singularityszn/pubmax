@@ -1,4 +1,5 @@
 import type { Route } from "next";
+import { clockMinutes } from "@/lib/clock";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
@@ -170,10 +171,6 @@ function rawOptions(): RawOption[] {
   return LONDON_NIGHT_AREA_SLUGS.flatMap((area) => areas[area]?.options ?? []);
 }
 
-function clockMinutes(value: string): number {
-  const [hour, minute] = value.split(":").map(Number);
-  return hour * 60 + minute;
-}
 
 function londonClock(
   value: Date,
@@ -220,7 +217,7 @@ export function isLateFoodOpenAt(
     return true;
   const previousDay =
     WEEKDAYS[(dayIndex + WEEKDAYS.length - 1) % WEEKDAYS.length];
-  return (hours.weekly[previousDay] ?? []).some(
+  return ((previousDay && hours.weekly[previousDay]) || []).some(
     (window) =>
       window.closesNextDay && local.minutes < clockMinutes(window.close),
   );

@@ -14,6 +14,7 @@ import {
   mapCanvasUnavailableLine,
   type MapCanvasReadinessState,
 } from "@/lib/mapCanvasAvailability";
+import { defined } from "@/__tests__/helpers/defined";
 
 const SILENT: MapCanvasReadinessState = {
   moduleFailed: false,
@@ -156,7 +157,7 @@ describe("the readiness ceiling", () => {
       new RegExp(`const ${name} = ([0-9_]+);`),
     );
     expect(match, `${name} is no longer a literal in PubMapCanvas`).not.toBeNull();
-    return Number(match![1].replace(/_/g, ""));
+    return Number(defined(match![1]).replace(/_/g, ""));
   }
 
   it("sits above the canvas's own pin-ready ceiling", () => {

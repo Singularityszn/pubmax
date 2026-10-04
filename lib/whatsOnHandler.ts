@@ -48,8 +48,8 @@ function parseLimit(raw: string | null): number | undefined {
 function parseNear(raw: string | null): { lat: number; lng: number } | undefined {
   if (!raw) return undefined;
   const parts = raw.split(",").map((s) => Number.parseFloat(s.trim()));
-  if (parts.length !== 2) return undefined;
   const [lat, lng] = parts;
+  if (parts.length !== 2 || lat === undefined || lng === undefined) return undefined;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return undefined;
   return coarsenViewerPoint({ lat, lng });

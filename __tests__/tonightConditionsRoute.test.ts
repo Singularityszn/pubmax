@@ -4,6 +4,7 @@ import { GET } from "@/app/api/tonight-conditions/route";
 import { resolveTonightConditions } from "@/lib/tonightConditionsRoute";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Hermetic weather fixtures. These tests must NOT read the shipped
 // public/data/weather/latest.json — the live refresh workflow rewrites it (0 or
@@ -42,10 +43,10 @@ const EMPTY = snapshot([]);
 // The same reading, two days old: long past its 12h expiry at NOW.
 const STALE = snapshot([
   {
-    ...WARM_DRY.observations[0],
+    ...defined(WARM_DRY.observations[0]),
     observedAt: "2026-07-16T18:45:00.000Z",
     expiresAt: "2026-07-17T06:45:00.000Z",
-    source: { ...WARM_DRY.observations[0].source, publishedAt: "2026-07-16T18:45:00.000Z" },
+    source: { ...defined(WARM_DRY.observations[0]).source, publishedAt: "2026-07-16T18:45:00.000Z" },
   },
 ]);
 

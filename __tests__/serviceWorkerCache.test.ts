@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Listener = (event: unknown) => void;
 
@@ -670,7 +671,7 @@ describe("service worker map cache", () => {
       entries: {
         "pubmax-sw-plan-target": [["/plan/current?old=1", currentPlan], ...excluded],
         "pubmax-sw-plan-legacy-active": [["/plan/legacy?old=1", legacyPlan], ...excluded],
-        "pubmax-sw-shell-target": [shells[0], ...excluded],
+        "pubmax-sw-shell-target": [defined(shells[0]), ...excluded],
         "pubmax-sw-shell-legacy-active": [...shells.slice(1), ...excluded],
       },
     });

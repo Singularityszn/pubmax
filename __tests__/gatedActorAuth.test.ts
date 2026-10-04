@@ -19,6 +19,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = join(__dirname, "..");
 const API_ROOT = join(ROOT, "app", "api");
@@ -78,10 +79,10 @@ function escape(value: string): string {
 
 /** `/api/profiles/${x}/follow` reads as a path with one wildcard segment. */
 function literalPath(raw: string): string {
-  return raw
+  return defined(raw
     .slice(1, -1)
     .replace(/\$\{[^}]*\}/g, "x")
-    .split(/[?#]/)[0]
+    .split(/[?#]/)[0])
     .replace(/[?#].*$/, "");
 }
 
@@ -107,7 +108,7 @@ describe("an actor-bearing write proves who is acting", () => {
       const source = readFileSync(file, "utf8");
       if (!source.includes("/api/")) continue;
       for (const match of source.matchAll(BARE_FETCH)) {
-        const path = literalPath(match[1]);
+        const path = literalPath(defined(match[1]));
         const rest = source.slice(match.index, match.index + 420);
         if (!MUTATING_METHOD.test(rest)) continue;
         if (PROVES_THE_CALLER.test(rest)) continue;

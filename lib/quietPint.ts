@@ -123,8 +123,7 @@ function bestSourcedFact(facts: readonly HeritageFact[]): HeritageFact | null {
       typeof fact.fact === "string" &&
       fact.fact.trim(),
   );
-  if (sourced.length === 0) return null;
-  return [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0];
+  return [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0] ?? null;
 }
 
 function londonWeekdayName(now: Date): string {

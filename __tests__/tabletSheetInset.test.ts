@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 /**
  * THE TABLET SHEET PUBLISHES ITS OWN OFFSET, AND NOTHING RESTATES IT (#1516).
@@ -32,7 +33,7 @@ const springDrawerSource = read("components/map/SpringDrawer.tsx");
 function block(css: string, selector: RegExp): string {
   const match = css.match(new RegExp(`${selector.source}\\s*{([^}]*)}`));
   if (!match) throw new Error(`no rule for ${selector}`);
-  return match[1];
+  return defined(match[1]);
 }
 
 describe("the map shell cannot be scrolled by anything", () => {

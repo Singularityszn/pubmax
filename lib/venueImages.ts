@@ -1,3 +1,5 @@
+import { lastOf } from "@/lib/tuple";
+
 const VENUE_IMAGE_BLOCKLIST = new Set(["images.app.goo.gl", "search.app.goo.gl"]);
 
 export function directVenueImageUrl(url: string): string {
@@ -71,9 +73,9 @@ export function venueImageWidthFor(
   maxWidth?: VenueImageWidth,
 ): VenueImageWidth | null {
   if (!proxiedImageSource(proxyUrl)) return null;
-  const ceiling = maxWidth ?? VENUE_IMAGE_WIDTHS[VENUE_IMAGE_WIDTHS.length - 1];
+  const ceiling = maxWidth ?? lastOf(VENUE_IMAGE_WIDTHS);
   const offered = VENUE_IMAGE_WIDTHS.filter((width) => width <= ceiling);
-  return offered.find((width) => width >= asked) ?? offered[offered.length - 1]!;
+  return offered.find((width) => width >= asked) ?? offered.at(-1) ?? null;
 }
 
 /**
