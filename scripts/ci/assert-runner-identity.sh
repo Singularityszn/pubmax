@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Retired 4 October 2026. CI runs on GitHub-hosted ubuntu-latest.
+# The console-user check only applied to the Mac runners.
+echo "assert-runner-identity: retired. Workflows run on GitHub-hosted ubuntu-latest. See docs/CI_RUNBOOK.md." >&2
+exit 1
+
 # Refuse to run a job as the person at the keyboard.
 #
 # The self-hosted pubmax-mac runners execute branch code and every dependency
