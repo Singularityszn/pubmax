@@ -126,7 +126,7 @@ function createCli(
   amenities: ModelAmenities = { liveSports: { value: true, evidence: SPORTS_QUOTE } },
   options: { secondPub?: boolean } = {},
 ) {
-  const scratchParent = path.join(ROOT, ".audit/runner-recovery/tests");
+  const scratchParent = path.join(ROOT, "test-results/runner-recovery");
   mkdirSync(scratchParent, { recursive: true });
   const root = mkdtempSync(path.join(scratchParent, "cli-"));
   scratchRoots.push(root);
@@ -319,6 +319,22 @@ describe("pub website amenities CLI permission and page citations", () => {
       expect.objectContaining({ sourceUrl: EXTRA, verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE } }),
     ]);
     expect(dataset[0]).toMatchObject({ food: "y", live_sports: "y" });
+  });
+
+  it("keeps a quote repeated on a shared-host homepage cited by its pub-specific linked page", () => {
+    const pages = pagesWithLinkedLanding(EXTRA);
+    pages[HOME].body = `<p>${WELCOME} ${SPORTS_QUOTE}</p><a href="/sports">Sport</a>`;
+    pages[SECOND_PUB] = { body: `<p>Welcome to Synthetic Second Pub. ${POOL_QUOTE}</p>` };
+    const { dataset, evidence } = runCli(pages, {
+      liveSports: { value: true, evidence: SPORTS_QUOTE },
+      pool: { value: true, evidence: POOL_QUOTE },
+    }, { secondPub: true, restamp: true });
+    expect(evidence.rows).toEqual([
+      expect.objectContaining({ osmId: "node/synthetic-1", sourceUrl: EXTRA, amenities: { liveSports: SPORTS_QUOTE } }),
+      expect.objectContaining({ osmId: "node/synthetic-2", sourceUrl: SECOND_PUB, amenities: { pool: POOL_QUOTE } }),
+    ]);
+    expect(dataset[0].live_sports).toBe("y");
+    expect(dataset[1]).toMatchObject({ live_sports: "", pool: "y" });
   });
 
   it("cites the permitted linked landing that contains the retained quote", () => {
@@ -546,6 +562,22 @@ describe("pub website amenities CLI checkpoint publication", () => {
     const rerun = cli.run();
     expect(rerun.status, rerun.stderr).toBe(0);
     expect(cli.output()).toEqual({ calls, dataset, evidence });
+  });
+
+  it.each([
+    { amenities: { liveSports: { value: true, evidence: SPORTS_QUOTE } }, skipCounts: {} },
+    { amenities: {}, skipCounts: { ok: 1 } },
+  ])("counts unused pubs once across a recovered replay of published evidence ($skipCounts)", ({ amenities, skipCounts }) => {
+    const cli = createCli(pagesWithLinkedLanding(), amenities);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: { operation: "write", path: `${CHECKPOINT}.tmp`, occurrence: 2 } });
+    const interrupted = cli.run();
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    expect(cli.read(EVIDENCE).skipCounts).toEqual(skipCounts);
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {} });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    expect(cli.calls()).toEqual([]);
+    expect(cli.read(EVIDENCE).skipCounts).toEqual(skipCounts);
   });
 
   it("keeps already published reruns byte-identical without external calls", () => {
