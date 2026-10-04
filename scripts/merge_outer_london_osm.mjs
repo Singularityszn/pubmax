@@ -39,6 +39,8 @@ import {
   postcodeOutward,
 } from "./lib/venueCanonicalization.mjs";
 
+import { stampedOsmId, resolveSourceVenueKind, assertSourceVenueKinds } from "../lib/sourceVenueKind.mjs";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SEED_PATH = join(ROOT, "data/osm/outer_london_osm_pubs.json");
 const APP_PATH = join(ROOT, "public/data/pint_prices_app_dataset.json");
@@ -64,12 +66,6 @@ function normName(value) {
 // same OSM row on a repeat run; the near-duplicate check below does the real work.
 function venueKey(name, lat, lng) {
   return `${normName(name)}|${Number(lat).toFixed(4)}|${Number(lng).toFixed(4)}`;
-}
-
-// The OSM element a merged row was stamped with, from its data_quality_notes.
-function stampedOsmId(row) {
-  const match = /(?:^|\|)osm_overpass\|([^|]+)/.exec(String(row.data_quality_notes ?? ""));
-  return match ? match[1] : null;
 }
 
 function nextAppPriceId(existing) {
@@ -131,6 +127,22 @@ function main() {
     if (!inLondon(lat, lng)) continue;
 
     const osmId = String(pub.osmId ?? "");
+    const amenity = pub.amenity;
+    // Only an exact sourced element can supply a pub/bar classification.
+    const kindEvidence = amenity === "pub" || amenity === "bar" ? {
+      venue_kind: amenity,
+      venue_kind_osm_id: osmId,
+      venue_kind_observed_at: seed.fetchedAt,
+    } : {};
+    if (Object.keys(kindEvidence).length) {
+      const stated = { ...kindEvidence, data_quality_notes: `osm_overpass|${osmId}` };
+      const sourceKind = resolveSourceVenueKind([stated]);
+      if (sourceKind.status !== "stated") throw new Error(sourceKind.diagnostic);
+      const existing = app.filter((row) => stampedOsmId(row) === osmId);
+      const combined = resolveSourceVenueKind([...existing, stated]);
+      if (combined.status === "conflict") throw new Error(combined.diagnostic);
+      for (const row of existing) Object.assign(row, kindEvidence);
+    }
     if (osmId && existingOsmIds.has(osmId)) {
       skippedDup += 1;
       continue;
@@ -151,9 +163,9 @@ function main() {
     added += 1;
     byBorough[borough] = (byBorough[borough] ?? 0) + 1;
 
-    const amenity = pub.amenity ? String(pub.amenity) : "pub";
     app.push({
       app_price_id: `app_price_${String(seq).padStart(6, "0")}`,
+      ...kindEvidence,
       pub_name: name,
       pint_name: "",
       price_gbp: null, // UNPRICED — honest pin, never an invented price.
@@ -204,6 +216,8 @@ function main() {
       scraped_at_values: fetchedAt,
     });
   }
+
+  assertSourceVenueKinds(app);
 
   writeFileSync(APP_PATH, `${JSON.stringify(app)}\n`, "utf8");
   console.log(`merged ${added} OSM pubs into ${relative(ROOT, APP_PATH)} (${skippedDup} skipped as duplicates)`);
