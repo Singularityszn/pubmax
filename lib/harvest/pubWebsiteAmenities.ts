@@ -1,9 +1,10 @@
 // Amenity claims taken from a pub's own website.
 //
 // A true value is kept only when the model quotes a phrase that is actually on
-// the page and that phrase states the amenity. The quote is the evidence. A blank price-dataset column is the
-// existing amenity path, so a kept value stamps that column with SITE_STAMP and
-// leaves a column the source already answered alone.
+// the page and that phrase states the amenity. The quote is the evidence. A
+// blank price-dataset column is the existing amenity path, so a kept value
+// stamps that column with SITE_STAMP and leaves a column the source already
+// answered alone.
 
 import { haversineMeters } from "../greatCircle.mjs";
 
