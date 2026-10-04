@@ -56,6 +56,62 @@ describe("parsePubAmenityModelJson", () => {
 });
 
 describe("keepEvidencedAmenities", () => {
+  it("does not publish a bare sporting event heading as televised sport", () => {
+    const quote = "WORLD CUP 2026";
+    const parsed = parsePubAmenityModelJson(JSON.stringify({
+      amenities: { liveSports: { value: true, evidence: quote } },
+    }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const kept = keepEvidencedAmenities(parsed.amenities, quote);
+    expect(kept).toEqual({});
+    expect(statedAmenities({ liveSports: quote })).toEqual({});
+    expect(pubSpecificEvidence([
+      { sourceUrl: "https://pub.example/", amenities: { liveSports: quote } },
+    ])).toEqual([]);
+    expect(stampAmenityColumns(liftSiteStamps({ live_sports: SITE_STAMP }), kept).row)
+      .toEqual({ live_sports: "" });
+  });
+
+  it("does not publish an explicit refusal of screens and live sport", () => {
+    const quote = "No screens and no live sport at this pub.";
+    const parsed = parsePubAmenityModelJson(JSON.stringify({
+      amenities: { liveSports: { value: true, evidence: quote } },
+    }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const kept = keepEvidencedAmenities(parsed.amenities, quote);
+    expect(kept).toEqual({});
+    expect(statedAmenities({ liveSports: quote })).toEqual({});
+    expect(pubSpecificEvidence([
+      { sourceUrl: "https://pub.example/", amenities: { liveSports: quote } },
+    ])).toEqual([]);
+    expect(stampAmenityColumns(liftSiteStamps({ live_sports: SITE_STAMP }), kept).row)
+      .toEqual({ live_sports: "" });
+  });
+
+  it.each([
+    "We show live sport on our Sky Sports screens.",
+    "Watch football on our TV screens.",
+    "No food, but we show live sport on our TV screens.",
+  ])("publishes affirmative televised sport evidence: %s", (quote) => {
+    const parsed = parsePubAmenityModelJson(JSON.stringify({
+      amenities: { liveSports: { value: true, evidence: quote } },
+    }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const kept = keepEvidencedAmenities(parsed.amenities, quote);
+    expect(kept).toEqual({ liveSports: quote });
+    expect(pubSpecificEvidence([
+      { sourceUrl: "https://pub.example/", amenities: kept },
+    ])).toEqual([{ sourceUrl: "https://pub.example/", amenities: { liveSports: quote } }]);
+    expect(stampAmenityColumns({ live_sports: "" }, kept).row)
+      .toEqual({ live_sports: SITE_STAMP });
+  });
+
   it("keeps a true value only when the quote is on the page", () => {
     const kept = keepEvidencedAmenities(
       {
