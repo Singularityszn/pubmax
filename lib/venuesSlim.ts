@@ -111,8 +111,12 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
 function hasValidAnchor(row: Record<string, unknown>): boolean {
   const hasAnyAnchor =
     row.anchorLabel !== undefined ||
+    row.anchorCourse !== undefined ||
     row.anchorObservedAt !== undefined ||
     row.anchorSourceUrl !== undefined;
+  // Presence records carry no price claim and therefore need no price anchor.
+  // Partial anchor claims still fail the complete-provenance checks below.
+  if (row.cheapestPrice === null && !hasAnyAnchor) return true;
   const courseOk =
     row.kind === "restaurant"
       ? isFoodCategory(row.anchorCourse)
