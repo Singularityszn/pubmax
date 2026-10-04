@@ -9,6 +9,7 @@
 
 import type { CityId } from "@/lib/cities";
 import type { MapChosenAreaSelection } from "@/lib/mapChosenArea";
+import { londonObservationDay } from "@/lib/drinks";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import {
@@ -376,7 +377,7 @@ function rankCheapestDrinks(
         price !== null
           ? lensPrices === null
             ? formatGbp(price)
-            : `${lensCategoryLabel} · ${formatGbp(price)} · ${lensPrices.get(venue.id)?.servingSize ?? "serving not recorded"}${lensPrices.get(venue.id)?.source === "listed" ? ` · published menu ${lensPrices.get(venue.id)?.observedAt?.slice(0, 10)}` : ""}`
+            : `${lensCategoryLabel} · ${formatGbp(price)} · ${lensPrices.get(venue.id)?.servingSize ?? "serving not recorded"}${lensPrices.get(venue.id)?.source === "listed" ? ` · published menu ${londonObservationDay(lensPrices.get(venue.id)?.observedAt ?? "") ?? "date unavailable"}` : ""}`
           : lensPrices === null
             ? "no priced pints yet"
             : drinkLensUnknownRowLabel(

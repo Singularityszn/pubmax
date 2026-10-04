@@ -110,7 +110,7 @@ async function expectGeneratedPresentation(page: Page, authority: GeneratedAutho
     await check(description).toContainText(`£${(quote.pence / 100).toFixed(2)}`, options);
     await check(description).toContainText(quote.source === "listed" ? "published menu" : "community report", options);
     const date = new Date(quote.source === "listed" ? quote.observedAt : quote.reportedAt)
-      .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+      .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
     await check(description).toContainText(date, options);
     await check(description).toContainText(quote.serving ? `Serving ${quote.serving}.` : "Serving size not recorded.", options);
     if (quote.source === "listed") {

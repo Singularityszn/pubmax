@@ -261,7 +261,7 @@ for (const journey of journeys) {
         continue;
       }
       const reported = new Date(evidence.source === "listed" ? evidence.observedAt : evidence.reportedAt)
-        .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+        .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
       await expect(displayedQuote).toHaveCount(1);
       await expect(displayedQuote).toContainText(`£${(evidence.pence / 100).toFixed(2)}`);
       await expect(displayedQuote).toContainText(evidence.source === "listed" ? "published menu" : "community report");

@@ -278,10 +278,16 @@ const LONDON_ISO_DAY = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/London",
 });
 
+/** The `YYYY-MM-DD` London day of an observation instant, or null when it is not a date. */
+export function londonObservationDay(observedAt: string): string | null {
+  const date = new Date(observedAt);
+  return Number.isFinite(date.getTime()) ? LONDON_ISO_DAY.format(date) : null;
+}
+
 /** The `YYYY-MM-DD` London day of that read, the day every caption prints, or null. */
 export function legacyPintPriceObservedOn(price: LegacyPintPrice): string | null {
   const observedAt = legacyPintPriceObservedAt(price);
-  return observedAt ? LONDON_ISO_DAY.format(new Date(observedAt)) : null;
+  return observedAt ? londonObservationDay(observedAt) : null;
 }
 
 

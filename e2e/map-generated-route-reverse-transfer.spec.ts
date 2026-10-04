@@ -87,7 +87,7 @@ test("reversed generated Vodka route hands the displayed order to Plan", async (
   await expect(originalQuote).toContainText(`£${(quote.pence / 100).toFixed(2)}`);
   await expect(originalQuote).toContainText(quote.source === "listed" ? "published menu" : "community report");
   const date = new Date(quote.source === "listed" ? quote.observedAt : quote.reportedAt)
-    .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
   await expect(originalQuote).toContainText(date);
   await expect(originalQuote).toContainText(quote.serving ? `Serving ${quote.serving}.` : "Serving size not recorded.");
   if (quote.source === "listed") {

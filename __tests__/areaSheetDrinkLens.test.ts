@@ -59,6 +59,18 @@ describe("AreaSheet under a selected drink lens", () => {
     expect(html).not.toContain("serving not recorded");
   });
 
+  it.each([
+    ["late UTC summer shipped wine read", "2026-09-21T23:00:41.622Z", "published menu 2026-09-22"],
+    ["late UTC winter read", "2026-01-21T23:00:41.000Z", "published menu 2026-01-21"],
+    ["date-only read", "2026-09-21", "published menu 2026-09-21"],
+    ["invalid read", "not-a-date", "published menu date unavailable"],
+    ["absent read", undefined, "published menu date unavailable"],
+  ])("dates the %s by its London calendar day", (_, observedAt, label) => {
+    const html = renderSheet(new Map([["a", { venueId: "a", category: "wine", categoryLabel: "Wine", priceGbp: 6.25,
+      source: "listed", sourceUrl: "https://pub.example/menu", observedAt, servingSize: "125ml" }]]), "ready");
+    expect(html).toContain(label);
+  });
+
   it("adds nothing when the index answered in full", () => {
     const html = renderSheet(new Map(), "ready");
     expect(html).toContain("Whisky prices in Piccadilly");
