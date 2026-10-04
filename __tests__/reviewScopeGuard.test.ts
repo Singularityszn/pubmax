@@ -549,14 +549,23 @@ describe("CI-step fix commits", () => {
     ).toEqual([]);
   });
 
-  it("fails the CLI on CI churn a later revert hid from the net diff, and passes a review data fix", () => {
+  it("fails a --ci-commits run on CI churn a revert hid, and ignores it without the flag", () => {
     const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-ci-fix-"));
     const git = (...args: string[]) =>
       execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
-    const scope = (base: string, head: string) =>
+    const scope = (base: string, head: string, ...flags: string[]) =>
       spawnSync(
         process.execPath,
-        [join(process.cwd(), "scripts/check_review_scope.mjs"), "--base", base, "--head", head, "--repo", repo],
+        [
+          join(process.cwd(), "scripts/check_review_scope.mjs"),
+          "--base",
+          base,
+          "--head",
+          head,
+          "--repo",
+          repo,
+          ...flags,
+        ],
         { encoding: "utf8" },
       );
 
@@ -579,7 +588,7 @@ describe("CI-step fix commits", () => {
       git("commit", "-qm", "no-mistakes(review): Fix the slim builder and rebuild shards");
       const reviewed = git("rev-parse", "HEAD");
 
-      const reviewOnly = scope(base, reviewed);
+      const reviewOnly = scope(base, reviewed, "--ci-commits");
       expect(reviewOnly.status).toBe(0);
       expect(JSON.parse(reviewOnly.stdout).ciChurn).toEqual([]);
 
@@ -596,7 +605,12 @@ describe("CI-step fix commits", () => {
       ]);
       expect(summarizeReviewScope(changedFilesFromGit(reviewed, head, repo)).ok).toBe(true);
 
-      const result = scope(base, head);
+      const push = scope(base, head);
+      expect(push.status).toBe(0);
+      expect(JSON.parse(push.stdout).ciChurn).toEqual([]);
+      expect(push.stderr).toBe("");
+
+      const result = scope(base, head, "--ci-commits");
       expect(result.status).toBe(1);
       expect(JSON.parse(result.stdout).ciChurn).toEqual([
         { sha: churned, path: "e2e/map-surface-history.spec.ts", category: "ci-flake" },

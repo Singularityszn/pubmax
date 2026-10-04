@@ -70,6 +70,7 @@ export type CiFixChurn = { sha: string; path: string; category: "ci-data" | "ci-
 /** Bundled-data and known-flake paths that no-mistakes CI-step fix commits touched. */
 export function ciFixChurn(commits: readonly BranchCommit[]): CiFixChurn[];
 export function commitsFromGit(base: string, head: string, cwd: string): BranchCommit[];
+/** Reads CI-step fix commits only when argv carries --ci-commits. */
 export function runReviewScopeCli(
   argv?: string[],
   cwd?: string,

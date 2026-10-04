@@ -330,7 +330,9 @@ function parseNameStatus(line) {
  * e2e/map-surface-history.spec.ts on PRs 1862, 1870, 1880, 1909 and 1950. A
  * later revert hides a commit from the net diff, so this check reads every
  * CI-step commit, not the diff. Review and Document fixes on a data branch
- * may commit regenerated shards; only a CI repair may not.
+ * may commit regenerated shards; only a CI repair may not. It runs only under
+ * --ci-commits, which ci.yml passes for a pull request: a merged commit on
+ * main cannot be rewritten, so a push there never reads the commit log.
  */
 export const CI_FIX_COMMIT_SUBJECT = /^no-mistakes\(ci\):/;
 
@@ -369,13 +371,17 @@ export function commitsFromGit(base, head, cwd) {
 }
 
 function usage() {
-  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>]";
+  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>] [--ci-commits]";
 }
 
 function parseArgs(argv) {
-  const values = {};
+  const values = { ciCommits: false };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
+    if (flag === "--ci-commits") {
+      values.ciCommits = true;
+      continue;
+    }
     if (flag !== "--base" && flag !== "--head" && flag !== "--repo") {
       throw new Error(`unknown option: ${flag}\n${usage()}`);
     }
@@ -394,7 +400,7 @@ export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cw
   const args = parseArgs(argv);
   const files = changedFilesFromGit(args.base, args.head, args.repo ?? cwd);
   const scope = summarizeReviewScope(files);
-  const ciChurn = ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd));
+  const ciChurn = args.ciCommits ? ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd)) : [];
   const report = { ...scope, ciChurn, ok: scope.ok && ciChurn.length === 0 };
   console.log(JSON.stringify({ base: args.base, head: args.head, ...report }, null, 2));
   return report;
