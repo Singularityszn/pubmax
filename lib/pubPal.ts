@@ -143,7 +143,7 @@ export type PubPal = {
   updatedAt: string;
 };
 
-export { isPubPalMemoryKind, PUB_PAL_MEMORY_KINDS, type PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
+export { isPubPalMemoryKind, type PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
 export type PubPalMemory = {
   id: string;
