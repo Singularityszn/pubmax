@@ -290,7 +290,7 @@ export default function SavedListDetail({
         {venues.length === 0 ? (
           <p className="profileEmpty">@{owner} has not saved any venues to this list yet.</p>
         ) : (
-          <ul className="savedListItems listDetailItems">
+          <ul className="savedListItems">
             {venues.map((venue) => (
               <li className="savedItem listDetailItem" key={`${venue.venueId}:${venue.listType}`}>
                 <Link className="savedItemVenue" href={venue.venueMapUrl}>
