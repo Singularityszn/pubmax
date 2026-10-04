@@ -326,8 +326,8 @@
       },
       "cadence": "Manual verified-id push; each copied field stays shown under its own observedAt and is due for refresh after 30 days",
       "stalenessBudgetHours": 720,
-      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh; then --write --exclusive --refresh after shared-key jobs finish). --refresh starts a new push only once a copied field is over 30 days old and re-requests every field older than that push. Without --refresh the command resumes the current push. The committed spend ledger seeds a clone with no local checkpoint and keeps earlier pushes' attempts.",
-      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields, USD 85 attempt cap per push and checked daily-quota restoration. Oldest copied field dates this artifact."
+      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh; then --write --exclusive --refresh after shared-key jobs finish). --refresh starts a new push only once a copied row is over 30 days old and re-requests rows that are missing, failed earlier or were over 30 days old when that push started. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 400 or 404 failures are recorded and the run continues. The committed spend ledger seeds a clone with no local checkpoint and keeps earlier pushes' attempts.",
+      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields, USD 85 attempt cap per push and checked daily-quota restoration. Oldest copied row dates this artifact."
     }
   ]
 }

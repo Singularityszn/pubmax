@@ -16,14 +16,15 @@ it("keeps copied content limited to verified identities and individually dated a
     expect(ids.has(row.venueId)).toBe(false);
     ids.add(row.venueId);
     expect(row.googlePlaceId).toBe(verified.get(row.venueId));
-    expect(Object.keys(row).every(key => ["venueId", "googlePlaceId", ...fields].includes(key))).toBe(true);
+    expect(Object.keys(row).every(key => ["venueId", "googlePlaceId", "observedAt", ...fields].includes(key))).toBe(true);
+    expect(Number.isFinite(Date.parse(row.observedAt))).toBe(true);
+    dates.push(row.observedAt);
     for (const field of fields) {
       if (!row[field]) continue;
       const observation = row[field];
       expect(Object.keys(observation).sort()).toEqual(["observedAt", "source", "value"]);
       expect(observation.source).toBe("google_places");
-      expect(Number.isFinite(Date.parse(observation.observedAt))).toBe(true);
-      dates.push(observation.observedAt);
+      expect(observation.observedAt).toBe(row.observedAt);
       if (field === "regularOpeningHours") {
         expect(Array.isArray(observation.value.periods)).toBe(true);
         expect(Object.keys(observation.value).every(key => ["periods", "weekdayDescriptions"].includes(key))).toBe(true);

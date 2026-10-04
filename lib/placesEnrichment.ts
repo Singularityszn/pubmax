@@ -9,6 +9,7 @@ type PlacesHours = { periods: unknown[]; weekdayDescriptions?: string[] };
 export type PlacesEnrichmentRecord = {
   venueId: string;
   googlePlaceId: string;
+  observedAt: string;
   regularOpeningHours?: PlacesObservation<PlacesHours>;
   formattedAddress?: PlacesObservation<string>;
   nationalPhoneNumber?: PlacesObservation<string>;
@@ -43,7 +44,7 @@ export function placesEnrichmentRecord(
 ): PlacesEnrichmentRecord {
   if (!/^venue-[a-z0-9-]+$/.test(venueId) || !/^[A-Za-z0-9_-]{10,}$/.test(googlePlaceId)
     || !Number.isFinite(Date.parse(observedAt))) throw new Error("Invalid Places observation identity or date");
-  const record: PlacesEnrichmentRecord = { venueId, googlePlaceId };
+  const record: PlacesEnrichmentRecord = { venueId, googlePlaceId, observedAt };
   const observe = <T,>(value: T): PlacesObservation<T> => ({ value, source: "google_places", observedAt });
   for (const field of ["formattedAddress", "nationalPhoneNumber", "websiteUri"] as const) {
     const value = details[field];
@@ -63,23 +64,18 @@ export function placesEnrichmentRecord(
   return record;
 }
 
-/** A copied field past this age stays shown under its own date and is due for a --refresh push. */
+/** A copied field past this age stays shown under its own date, stops deciding open state and is due for a --refresh push. */
 export const PLACES_REFRESH_DAYS = OPENING_EVIDENCE_FRESH_DAYS;
 
-/** Oldest copied field date, or null when the record holds no field. */
-export function placesRecordObservedAt(record: PlacesEnrichmentRecord): string | null {
-  return [record.regularOpeningHours, record.formattedAddress, record.nationalPhoneNumber, record.websiteUri]
-    .flatMap((field) => field ? [field.observedAt] : []).sort()[0] ?? null;
-}
-
-/** Copied fields keep showing with their own observedAt; only invalid or future-dated values are refused. */
-export function usablePlacesObservation<T>(field: PlacesObservation<T> | undefined, now: Date): field is PlacesObservation<T> {
+/** Copied fields keep showing with their own observedAt; only invalid, future-dated or (with maxAgeDays) older values are refused. */
+export function usablePlacesObservation<T>(field: PlacesObservation<T> | undefined, now: Date, maxAgeDays = Infinity): field is PlacesObservation<T> {
   if (!field || field.source !== "google_places" || typeof field.observedAt !== "string") return false;
   const age = now.getTime() - Date.parse(field.observedAt);
-  return Number.isFinite(age) && age >= 0;
+  return Number.isFinite(age) && age >= 0 && age <= maxAgeDays * 86_400_000;
 }
 
-export function placesOpeningHours(record: PlacesEnrichmentRecord | null | undefined, now = new Date()): WeeklyOpeningHours | undefined {
+/** Display hours at any age; pass PLACES_REFRESH_DAYS where the hours decide open state. */
+export function placesOpeningHours(record: PlacesEnrichmentRecord | null | undefined, now = new Date(), maxAgeDays = Infinity): WeeklyOpeningHours | undefined {
   const field = record?.regularOpeningHours;
-  return usablePlacesObservation(field, now) ? weeklyHoursFromPlacesPeriods(field.value?.periods) ?? undefined : undefined;
+  return usablePlacesObservation(field, now, maxAgeDays) ? weeklyHoursFromPlacesPeriods(field.value?.periods) ?? undefined : undefined;
 }

@@ -1,9 +1,9 @@
 import { firstHttp } from "@/lib/httpUrl";
 import { venueContactContract } from "@/lib/venueTruth";
 import { venueContacts, type Venue } from "@/lib/venues";
-import { usablePlacesObservation, placesOpeningHours, type PlacesEnrichmentRecord } from "@/lib/placesEnrichment";
+import { PLACES_REFRESH_DAYS, usablePlacesObservation, placesOpeningHours, type PlacesEnrichmentRecord } from "@/lib/placesEnrichment";
 
-/** Each field keeps its own date; invalid or future-dated contacts and hours cannot override another source. */
+/** Each field keeps its own date; invalid or future-dated contacts cannot override another source, and only hours inside the refresh window set open state. */
 export function applyPlacesEnrichment(venue: Venue, record: PlacesEnrichmentRecord | null | undefined, now = new Date()): Venue {
   if (!record) return venue;
   const existing = venueContacts(venue);
@@ -20,7 +20,7 @@ export function applyPlacesEnrichment(venue: Venue, record: PlacesEnrichmentReco
     contacts.phoneNumber = existing.phoneNumber;
     contacts.phoneHref = existing.phoneHref;
   }
-  const openingHours = placesOpeningHours(record, now);
+  const openingHours = placesOpeningHours(record, now, PLACES_REFRESH_DAYS);
   return { ...venue, address, website, contacts, placesContent: record,
     ...(openingHours ? { openingHours } : {}),
   };

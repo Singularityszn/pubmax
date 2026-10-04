@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync, renameSync, readdirSync } from
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { PLACES_REFRESH_DAYS, placesEnrichmentRecord, placesRecordObservedAt, planPlacesEnrichment } from "../lib/placesEnrichment.ts";
+import { PLACES_REFRESH_DAYS, placesEnrichmentRecord, planPlacesEnrichment } from "../lib/placesEnrichment.ts";
 import { restoreQuotasUntilVerified } from "../lib/placesVerification.ts";
 import { accessToken, dailyOverrideValue, effectiveDailyLimit, setDailyOverrides,
   monthPlacesRequests, SEARCH_METRIC, DETAILS_METRIC } from "./lib/googlePlacesQuota.mjs";
@@ -13,6 +13,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "data/places_enrichment.json");
 const CHECKPOINT = join(ROOT, "data/places_verification/enrichment_progress.json");
 const CAP_USD = 85;
+const REFRESH_MS = PLACES_REFRESH_DAYS * 86_400_000;
+const ROW_FAILURES = new Set([400, 404]);
 const MASK = "regularOpeningHours.periods,regularOpeningHours.weekdayDescriptions,formattedAddress,nationalPhoneNumber,websiteUri";
 const read = (file) => JSON.parse(readFileSync(file, "utf8"));
 function write(file, value) {
@@ -36,23 +38,29 @@ function priorLedger() {
   const committed = pack && { inputHash: pack.inputHash, attempts: pack.spend.attemptedCalls, priorAttempts: pack.spend.priorAttemptedCalls,
     runStartedAt: pack.spend.runStartedAt, completed: Object.fromEntries(pack.venues.map((row) => [row.venueId, row])), errors: pack.errors };
   const total = (ledger) => ledger ? ledger.priorAttempts + ledger.attempts : -1;
-  return total(committed) > total(checkpoint) ? committed : checkpoint;
+  if (total(checkpoint) > total(committed)) return checkpoint;
+  return committed && checkpoint ? { ...committed, quotaBefore: checkpoint.quotaBefore, quotaRestored: checkpoint.quotaRestored } : committed;
 }
+
+/** An error belongs to the current push when no refresh has started one or it is dated after that start. */
+const inPush = (ledger, observedAt) => !ledger.runStartedAt || Date.parse(observedAt) >= Date.parse(ledger.runStartedAt);
 
 /** Resume the current push, or with --refresh start a new one once a copied field is past its refresh window. */
 function currentPush(rows, reportRows, inputHash, refresh) {
   let previous = priorLedger() ?? { inputHash, attempts: 0, priorAttempts: 0, runStartedAt: null, completed: {}, errors: [] };
   const plan = planPlacesEnrichment(rows, reportRows, CAP_USD, 0);
-  const pendingIn = (ledger) => plan.rows.filter((row) => {
-    const record = ledger.completed[row.venueId];
-    if (!record) return true;
-    const observedAt = placesRecordObservedAt(record);
-    return Boolean(ledger.runStartedAt) && (!observedAt || Date.parse(observedAt) < Date.parse(ledger.runStartedAt));
-  });
+  const pendingIn = (ledger) => {
+    const failed = new Set(ledger.errors.filter((row) => inPush(ledger, row.observedAt)).map((row) => row.venueId));
+    return plan.rows.filter((row) => {
+      const record = ledger.completed[row.venueId];
+      if (failed.has(row.venueId)) return false;
+      return !record || (Boolean(ledger.runStartedAt) && Date.parse(record.observedAt) < Date.parse(ledger.runStartedAt) - REFRESH_MS);
+    });
+  };
   const budgetFor = (ledger) => planPlacesEnrichment(pendingIn(ledger), reportRows, CAP_USD, ledger.attempts * 0.02);
   if (refresh) {
-    const oldest = Object.values(previous.completed).map(placesRecordObservedAt).filter(Boolean).sort()[0];
-    if (!oldest || Date.now() - Date.parse(oldest) <= PLACES_REFRESH_DAYS * 86_400_000)
+    const oldest = Object.values(previous.completed).map((record) => record.observedAt).sort()[0];
+    if (!oldest || Date.now() - Date.parse(oldest) <= REFRESH_MS)
       throw new Error(`No copied field is older than ${PLACES_REFRESH_DAYS} days; nothing to refresh`);
     if (previous.inputHash === inputHash && budgetFor(previous).rows.length)
       throw new Error("The current push still has budgeted rows; resume it without --refresh");
@@ -107,7 +115,7 @@ async function main() {
   const save = () => {
     write(CHECKPOINT, previous);
     const venues = Object.values(previous.completed);
-    write(OUT, { version: 1, inputHash, observedAt: venues.map(placesRecordObservedAt).filter(Boolean).sort()[0] ?? null,
+    write(OUT, { version: 1, inputHash, observedAt: venues.map((row) => row.observedAt).sort()[0] ?? null,
     spend: { capUsd: CAP_USD, attemptedCalls: previous.attempts, usdPerThousand: 20, reservedUsd: previous.attempts * 2 / 100,
       priorAttemptedCalls: previous.priorAttempts, priorReservedUsd: previous.priorAttempts * 2 / 100, runStartedAt: previous.runStartedAt,
       monthToDatePlacesRequestsBeforeRun: monthUsage, freeAllowanceAssumed: 0 },
@@ -139,13 +147,15 @@ async function main() {
       const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(row.googlePlaceId)}`, {
         headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": MASK }, signal: AbortSignal.timeout(20_000),
       });
-      if (!response.ok) {
-        previous.errors.push({ venueId: row.venueId, status: response.status, observedAt: new Date().toISOString() });
-        save();
-        throw new Error(`Places request failed HTTP ${response.status}; reserved attempt counted, response content not logged`);
+      const observedAt = new Date().toISOString();
+      if (response.ok) previous.completed[row.venueId] = placesEnrichmentRecord(row.venueId, row.googlePlaceId, await response.json(), observedAt);
+      else {
+        previous.errors.push({ venueId: row.venueId, status: response.status, observedAt });
+        if (!ROW_FAILURES.has(response.status)) {
+          save();
+          throw new Error(`Places request failed HTTP ${response.status}; run stopped, reserved attempt counted and row left for the next push, response content not logged`);
+        }
       }
-      const body = await response.json();
-      previous.completed[row.venueId] = placesEnrichmentRecord(row.venueId, row.googlePlaceId, body, new Date().toISOString());
       if (previous.attempts % 10 === 0) { save(); console.log(JSON.stringify({ attemptedCalls: previous.attempts, reservedUsd: previous.attempts * 2 / 100 })); }
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
@@ -157,7 +167,8 @@ async function main() {
     }
   }
   if (interrupted) throw new Error("Interrupted; checkpoint saved and quotas restored");
-  console.log(JSON.stringify({ completed: Object.keys(previous.completed).length, attemptedCalls: previous.attempts, reservedUsd: previous.attempts * 2 / 100 }));
+  console.log(JSON.stringify({ completed: Object.keys(previous.completed).length, attemptedCalls: previous.attempts, reservedUsd: previous.attempts * 2 / 100,
+    failedRows: previous.errors.filter((row) => inPush(previous, row.observedAt)) }));
 }
 
 main().catch((error) => { console.error(error.message); process.exitCode = 1; });

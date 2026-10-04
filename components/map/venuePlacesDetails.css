@@ -35,3 +35,7 @@
   color: var(--ink);
   text-underline-offset: 3px;
 }
+.venuePlacesDetailsCredit {
+  display: block;
+  margin-block: var(--space-1);
+}
