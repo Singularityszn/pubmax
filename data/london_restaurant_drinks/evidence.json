@@ -5149,27 +5149,6 @@
       ]
     },
     {
-      "osmId": "node/4684958737",
-      "kind": "restaurant",
-      "name": "Skygarden - Fenchurch Restaurant",
-      "address": "20, Fenchurch Street, London, EC3M 3BY",
-      "lat": 51.51123,
-      "lng": -0.0837459,
-      "website": "https://skygarden.london/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://skygarden.london/fenchurch-restaurant",
-          "excerpt": "36 floors above London, make your special weekend full of bubbles and views. Add bottomless Prosecco to brunch or Sunday roast at Darwin Brasserie.",
-          "observedAt": "2026-10-04T22:24:57.366Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:12:51.691Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/4685849442",
       "kind": "restaurant",
       "name": "Natura Pizzeria",
@@ -6304,27 +6283,6 @@
       ]
     },
     {
-      "osmId": "node/5943507485",
-      "kind": "restaurant",
-      "name": "Frog by Adam Handling",
-      "address": "34-38, Southampton Street, London, WC2E 7HG",
-      "lat": 51.5107609,
-      "lng": -0.1220317,
-      "website": "https://www.frogbyadamhandling.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.frogbyadamhandling.com/",
-          "excerpt": "Situated just below my Frog restaurant, located opposite the iconic Savoy Hotel in Covent Garden, Eve bar (1-PIN) is an experience of unapologetic indulgence, centred on cocktails, Champagne and caviar.",
-          "observedAt": "2026-10-04T22:25:42.712Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:13:25.715Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/5943700601",
       "kind": "restaurant",
       "name": "Noble Rot Mayfair",
@@ -6656,27 +6614,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:13:39.984Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/6298762613",
-      "kind": "restaurant",
-      "name": "Ottolenghi",
-      "address": "63-65, Marylebone Lane, London, W1U 2RA",
-      "lat": 51.5178625,
-      "lng": -0.150835,
-      "website": "https://ottolenghi.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://ottolenghi.co.uk/collections/drinks",
-          "excerpt": "Good food deserves good drink. This collection has a bit of everything we love - vibrant wines, our Botivo for a non-alcoholic lift, and bottled cocktails that make hosting effortless.",
-          "observedAt": "2026-10-04T22:31:57.287Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:31:28.486Z"
           }
         }
       ]
@@ -16715,27 +16652,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:28.912Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/434681394",
-      "kind": "restaurant",
-      "name": "The Savanna",
-      "address": "Liverpool Street, London, EC2M 7PY",
-      "lat": 51.5182249,
-      "lng": -0.0824157,
-      "website": "https://www.thesavanna.co.uk/",
-      "siteFrom": "tavily-search",
-      "evidence": [
-        {
-          "url": "https://www.thesavanna.co.uk/pages/stores/the-savanna-liverpool-street",
-          "excerpt": "South African Wines & Liqueurs – One of London’s best selections, featuring renowned brands and premium choices.",
-          "observedAt": "2026-10-04T22:31:41.523Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:30:05.485Z"
           }
         }
       ]

@@ -33,6 +33,7 @@ import {
   excludedOsmIds,
   hostOf,
   LONDON,
+  offPremisesUrl,
   restaurantCandidate,
   searchBindsSite,
   searchQuery,
@@ -269,7 +270,7 @@ function judgePage(entry, candidate, url, answer, page) {
   const landed = landedOnOwnSite(candidate, entry.site.url, page);
   if (!landed) return void (entry.blocked = "landedOffSite");
   entry.read = true;
-  const found = drinksEvidence(page.text, candidate.name);
+  const found = offPremisesUrl(landed) ? {} : drinksEvidence(page.text, candidate.name);
   // A refusal on any page read outranks a drinking line read beside it.
   if (found.refused) entry.verdict = { refused: found.refused, url: landed };
   else if (found.quote && !entry.verdict) {

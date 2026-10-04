@@ -122,9 +122,15 @@ const FURNITURE = /©|\bcopyright\b|all rights reserved|registered (?:in england
 
 // A line that sells, gives, delivers or teaches a drink, or that names another
 // venue, says nothing about what this restaurant pours: a wine shop, a gift,
-// a delivery, a masterclass, a consultancy, a sister venue, or the stray
-// bracket left by navigation link text.
-const OFF_PREMISES = /\b(?:(?:wine|bottle|online|farm) shop|shop online|purchase|buy\b(?! (?:one|two|1|2)\b)|order online|deliver(?:y|ies|ed)|to take home|hampers?|gifts?|masterclass(?:es)?|workshops?|(?:making|tasting|cooking|cocktail|wine) (?:class(?:es)?|courses?)|consultancy|consulting|our other (?:restaurants?|venues?|sites?|bars?)|sister (?:restaurants?|venues?|bars?|sites?))\b|\b(?:alongside|part of) [a-z ]* group\b|[\[\]]/;
+// a delivery, a masterclass, a consultancy, a sister venue, a bar beneath the
+// restaurant, a brasserie elsewhere, or the stray bracket left by navigation
+// link text.
+const OFF_PREMISES = /\b(?:(?:wine|bottle|online|farm) shop|shop online|purchase|buy\b(?! (?:one|two|1|2)\b)|order online|deliver(?:y|ies|ed)|to take home|hampers?|gifts?|masterclass(?:es)?|workshops?|(?:making|tasting|cooking|cocktail|wine) (?:class(?:es)?|courses?)|consultancy|consulting|our other (?:restaurants?|venues?|sites?|bars?)|sister (?:restaurants?|venues?|bars?|sites?))\b|\b(?:alongside|part of) [a-z ]* group\b|\b(?:below|above|beneath|underneath) (?:my|our) (?:[a-z]+ )?restaurant\b|\bat (?!our\b|the\b|my\b|this\b)[a-z]+ brasserie\b|[\[\]]/;
+
+// A page at a shop path (a Shopify collection, a product, a shop or a store
+// page) sells what it names; it is not evidence and is not followed.
+const OFF_PREMISES_PATH = /^\/(?:pages\/)?(?:collections|products?|shop|stores?)(?:\/|$)/i;
+export const offPremisesUrl = (url) => OFF_PREMISES_PATH.test(new URL(url).pathname);
 const DRINK_WORDS_ALL = new RegExp(DRINK_WORDS.source, "g");
 
 // How much a line says: one point per distinct drink word, so "cocktails,
@@ -162,7 +168,7 @@ const MENU_LINK = /menu/i;
 /**
  * Pages of the same site worth one more read when the landing page states
  * nothing: drinks, wine, cocktail and bar pages first, then menus. At most
- * `limit`, never another host, never the page itself.
+ * `limit`, never another host, never a shop page, never the page itself.
  */
 export function drinkLinks(markdown, pageUrl, limit = 3) {
   const base = new URL(pageUrl);
@@ -182,7 +188,7 @@ export function drinkLinks(markdown, pageUrl, limit = 3) {
     if (DRINK_LINK.test(label)) drink.push(url.href);
     else if (MENU_LINK.test(label)) menu.push(url.href);
   }
-  return [...new Set([...drink, ...menu])].filter(allowedEvidenceUrl).slice(0, limit);
+  return [...new Set([...drink, ...menu])].filter((url) => allowedEvidenceUrl(url) && !offPremisesUrl(url)).slice(0, limit);
 }
 
 /** OSM restaurants that may need evidence: named, positioned, alcohol not stated either way, not excluded. */
@@ -218,6 +224,7 @@ function evidenceProblems(entry, row) {
   const excerpt = String(entry?.excerpt ?? "");
   return [
     (!ownSite(row.website) || !allowedEvidenceUrl(entry?.url) || hostOf(entry.url) !== hostOf(row.website)) && `evidence ${entry?.url} is not on the restaurant's own site`,
+    allowedEvidenceUrl(entry?.url) && offPremisesUrl(entry.url) && `evidence ${entry.url} is a shop page`,
     !statesRestaurantDrinks(excerpt, row.name) && "excerpt does not state alcohol without the name",
     REFUSES_ALCOHOL.test(fold(excerpt)) && "excerpt refuses alcohol",
     FURNITURE.test(fold(excerpt)) && "excerpt is page furniture",

@@ -1,5 +1,5 @@
 {
-  "meaning": "OSM restaurants whose own-site quote the drink classifier accepts but which a reviewer found does not say this restaurant pours: a line about another venue of the group, a shop, a class, a delivery service or a consultancy. The harvest never publishes an excluded osmId, and validateRestaurantDrinksPack refuses a pack that holds one, so build:london-venues and --check fail on it. Hand-written.",
+  "meaning": "Restaurants a reviewer excluded by hand: the drink classifier accepted a quote from the restaurant own site, and the reviewer found the quote is about another venue, a shop or a class, not about this restaurant pouring. The harvest never makes an excluded osmId a candidate, and validateRestaurantDrinksPack refuses a pack that holds one, so build:london-venues and --check fail on it. A quote a rule can refuse belongs in the classifier, not here. Hand-written.",
   "rows": [
     {
       "osmId": "node/14206419347",
@@ -45,116 +45,6 @@
       "osmId": "way/697821712",
       "name": "Drunch",
       "reason": "The quote describes the speakeasy beneath Drunch Oxford Circus, not this St John's Wood restaurant."
-    },
-    {
-      "osmId": "node/2850205346",
-      "name": "Carluccio's",
-      "reason": "The quote is about wine sold to take home."
-    },
-    {
-      "osmId": "node/800600510",
-      "name": "Franco Manca",
-      "reason": "The quote names a pizza and spritz masterclass, not drinks poured."
-    },
-    {
-      "osmId": "node/6513889435",
-      "name": "Champagne Route",
-      "reason": "The quote is about wine delivery, not drinks poured."
-    },
-    {
-      "osmId": "node/7242961373",
-      "name": "Golborne Deli",
-      "reason": "The quote names a wine consultancy service, not drinks poured."
-    },
-    {
-      "osmId": "node/300425811",
-      "name": "Wright Brothers",
-      "reason": "The quote is navigation link text: it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/610923040",
-      "name": "Cocotte",
-      "reason": "The quote is navigation link text: it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/667461790",
-      "name": "Humble Grape",
-      "reason": "The quote names \"wine shop\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/675854609",
-      "name": "Wiltons Restaurant",
-      "reason": "The quote names \"masterclass\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/2396118589",
-      "name": "Levan",
-      "reason": "The quote names \"wine shop\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/6019685654",
-      "name": "Big Easy",
-      "reason": "The quote names \"making classes\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/6345021508",
-      "name": "Wright Brothers Battersea",
-      "reason": "The quote names \"masterclasses\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/8202853011",
-      "name": "La Famiglia",
-      "reason": "The quote is navigation link text: it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/8443231437",
-      "name": "Farang",
-      "reason": "The quote names \"to take home\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/9845461168",
-      "name": "Pasta Evangelists",
-      "reason": "The quote names \"making classes\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "node/13754021102",
-      "name": "Big Easy",
-      "reason": "The quote is navigation link text: it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "way/59981980",
-      "name": "Kartuli",
-      "reason": "The quote names \"wine shop\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "way/65658373",
-      "name": "Pizza Pilgrims",
-      "reason": "The quote names \"buy\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "way/110608819",
-      "name": "Lume London",
-      "reason": "The quote names \"wine shop\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "way/226909126",
-      "name": "Carousel",
-      "reason": "The quote is navigation link text: it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "way/273697611",
-      "name": "Andrew Edmunds",
-      "reason": "The quote names \"wine courses\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "way/363976699",
-      "name": "Dalchini",
-      "reason": "The quote names \"gift\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
-    },
-    {
-      "osmId": "way/876410220",
-      "name": "Brinkley's",
-      "reason": "The quote names \"wine shop\": it sells, gives, delivers or teaches a drink, or names another venue, rather than saying this restaurant pours."
     }
   ]
 }

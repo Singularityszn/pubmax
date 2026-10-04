@@ -32,18 +32,22 @@ drinker could sit in. This lane asks each restaurant's own website instead.
    or "The Wine Library" says nothing. Alcohol-free and non-alcoholic drinks,
    ginger beer and soft drinks are struck too, and copyright footers never
    count. Nor does a line that sells, gives, delivers or teaches a drink, or
-   names another venue: a wine shop, a gift, a delivery, a masterclass. Of several lines, the one naming the most drinks is kept.
+   names another venue: a wine shop, a gift, a delivery, a masterclass. A
+   shop page (`/collections/`, `/products/`, `/shop/`, `/stores/`) is neither
+   evidence nor followed. Of several lines, the one naming the most drinks is
+   kept.
 
 A page that says bring-your-own, unlicensed, or that the restaurant does not
 serve alcohol settles the restaurant as dry, whatever else the site says.
 
-`exclusions.json` is hand-written. Each row names an `osmId`, the restaurant's
-name and the reason a reviewer found its quote says nothing about this
-restaurant pouring, such as a line about another venue of the group, a shop or
-a class. The harvest never makes an excluded restaurant a candidate, and
+`exclusions.json` holds hand exclusions only. Each row names an `osmId`, the
+restaurant's name and the reason a reviewer found its quote is about another
+venue of the group, a shop or a class, not about this restaurant pouring. The
+harvest never makes an excluded restaurant a candidate, and
 `validateRestaurantDrinksPack` refuses a pack that holds one, so
-`npm run build:london-venues` and `--check` fail on it. Add a row there rather
-than editing `evidence.json` by hand, because the next run rewrites that file.
+`npm run build:london-venues` and `--check` fail on it. Excluding a restaurant
+drops it for good, so a quote a rule can refuse belongs in the classifier
+instead, where the next run may still find a clean line on the same site.
 
 ## What a row carries
 
@@ -108,15 +112,16 @@ sausage marinated in red wine, "we don't use beer in our batter", free
 champagne flutes, sake meaning salmon, "high spirits", another restaurant's
 name, and a line that says a branch does not sell alcohol. The 54 committed
 rows whose quote failed the tightened check were removed without a new read.
-Thirteen more were excluded in `exclusions.json` by hand because their quote is
-about another venue of the group, a shop, a class, a delivery service or a
-consultancy. The classifier then learned that class too: a line that names a
-wine shop, a purchase, a gift, a hamper, a delivery, a masterclass, a workshop,
-a making or tasting class, a consultancy, a sister venue or the group's other
-venues, or that carries stray navigation brackets, is not evidence. That rule
-was run over every committed row, and the 18 rows it rejected were added to
-`exclusions.json` with the phrase that rejected them. `evidence.json` holds 933
-restaurants (931 are new to the London layer; OSM already shipped 2).
+Nine more were excluded by hand in `exclusions.json` because their quote is
+about another venue of the group, a shop or a class. The classifier then
+learned that class: a line that names a wine shop, a purchase, a gift, a
+hamper, a delivery, a masterclass, a workshop, a making or tasting class, a
+consultancy, a sister venue, the group's other venues, a bar beneath the
+restaurant or a brasserie elsewhere, or that carries stray navigation brackets,
+is not evidence, and neither is a shop page. The 26 committed rows whose quote
+that rule refuses were removed without a new read and are not excluded, so the
+next run may publish a clean line from the same site. `evidence.json` holds
+929 restaurants (927 are new to the London layer; OSM already shipped 2).
 `report.json` still holds that run's counts, including its 1,018 accepted; the
 next run that reads the pages again replaces them.
 

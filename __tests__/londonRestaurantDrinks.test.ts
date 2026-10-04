@@ -135,6 +135,8 @@ describe("London restaurant drinks evidence", () => {
       "Part of the Woodhead Restaurant Group alongside Quality Wines",
       "Cocktails at our sister restaurant across the road",
       "Champagne Bar, Selfridges Trafford]",
+      "Situated just below my restaurant, Eve bar is centred on cocktails and Champagne",
+      "Add bottomless Prosecco to brunch at Darwin Brasserie",
     ]) {
       expect(drinksEvidence(line, "Example"), line).toEqual({});
     }
@@ -144,6 +146,11 @@ describe("London restaurant drinks evidence", () => {
 
   it("ignores copyright footers", () => {
     expect(drinksEvidence("© 2017 Terroirs Natural Wine Group", "Terroirs")).toEqual({});
+  });
+
+  it("never follows a shop page, however drinks-like its link", () => {
+    const page = "[Drinks](/collections/drinks) [Wine](/products/house-red) [Bar](/shop/bar-kit) [Store](/pages/stores/soho) [Drinks menu](/drinks)";
+    expect(drinkLinks(page, "https://www.example-trattoria.co.uk/")).toEqual(["https://www.example-trattoria.co.uk/drinks"]);
   });
 
   it("follows drinks pages before menus, on the same site only", () => {
@@ -202,6 +209,10 @@ describe("London restaurant drinks evidence", () => {
     expect(check([row(), row()])).toEqual(["node/101: repeated"]);
     expect(check([row({ osmId: "node/202" })])).toEqual(["node/202: excluded in exclusions.json"]);
     expect(check([row({ evidence: [{ ...row().evidence[0], excerpt: "Visit our wine shop on the corner" }] })])).not.toEqual([]);
+    expect(check([row({ evidence: [{ ...row().evidence[0], url: "https://www.trattoriaexample.co.uk/collections/drinks" }] })])).toEqual([
+      "node/101: evidence https://www.trattoriaexample.co.uk/collections/drinks is a shop page",
+    ]);
+    expect(check([row({ evidence: [{ ...row().evidence[0], url: "https://www.trattoriaexample.co.uk/images/store/drinks-menu.pdf" }] })])).toEqual([]);
     expect(() => validateRestaurantDrinksPack({ rows: [row()] }, { inGreaterLondon, exclusions: { rows: [{ osmId: "node/202", name: "Elsewhere Grill" }] } })).toThrow(/reason/);
   });
 

@@ -17,6 +17,7 @@ export function searchBindsSite(candidate: Pick<RestaurantCandidate, "name" | "p
 export function searchQuery(candidate: Pick<RestaurantCandidate, "name" | "postcode" | "street" | "housenumber">): string;
 export function statesRestaurantDrinks(quote: string, name: string): boolean;
 export function drinksEvidence(markdown: unknown, name: string): { quote?: string; refused?: string };
+export function offPremisesUrl(url: string): boolean;
 export function drinkLinks(markdown: unknown, pageUrl: string, limit?: number): string[];
 export function restaurantCandidate(element: unknown, deps: { statesAlcohol: (tags: Record<string, string>) => boolean; excluded: Set<string> }): RestaurantCandidate | null;
 export function excludedOsmIds(exclusions: unknown): Set<string>;
