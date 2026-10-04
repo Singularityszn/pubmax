@@ -104,11 +104,17 @@ if (
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  // Observed on the local rig: at four workers the single production-style
-  // server died mid-suite and every later context reported connection refused
-  // (267 of them). At two workers it stays up. CI shards run a server each, so
-  // the cap is the local rig's alone.
-  workers: process.env.CI ? undefined : 2,
+  // Four workers killed the single production-style server on this rig: it
+  // died mid-suite and every later context reported connection refused (267
+  // of them). Two workers stay up locally. CI is one worker. On 3-4 Oct 2026
+  // several browser jobs shared this Mac (host load ~79) and
+  // e2e/map-surface-history.spec.ts, e2e/smoke.spec.ts and
+  // e2e/visit-reports.spec.ts timed out; those specs pass when the machine is
+  // quiet, and the law-pin job was already at one worker. The
+  // pubmax-mac-browser concurrency group keeps a single such job on the
+  // machine, and this cap keeps that job to one browser. Timeouts and the
+  // existing CI retry stay as they are.
+  workers: process.env.CI ? 1 : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
