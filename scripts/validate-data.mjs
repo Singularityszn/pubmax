@@ -55,6 +55,7 @@ import {
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
 import { isLivePriceRow, priceSupersededErrors } from "../lib/priceRowEligibility.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
+import { resolveSourceVenueKind } from "../lib/sourceVenueKind.mjs";
 import { EDITORIAL_FEEDS, EDITORIAL_ITEM_KEYS } from "../lib/editorialRss.mjs";
 import {
   describeInternalLanguage,
@@ -1326,6 +1327,11 @@ function validateSlimVenues() {
 
   const expected = new Map();
   for (const [key, prices] of grouped) {
+    const sourceKind = resolveSourceVenueKind(prices);
+    if (sourceKind.status === "conflict") {
+      errs.add(`${key}: ${sourceKind.diagnostic}`);
+      continue;
+    }
     const first = prices[0];
     if (isReplacedByFamousVenue(first, liveFamousRows)) continue;
     // A superseded row is dated history, never a pin price (lib/priceRowEligibility.mjs).
@@ -1337,9 +1343,14 @@ function validateSlimVenues() {
       name: String(first.pub_name),
       lat: Number(first.latitude),
       lng: Number(first.longitude),
-      cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
+      cheapestPrice:
+        sourceKind.kind === "bar"
+          ? null
+          : numericPrices.length
+            ? Math.min(...numericPrices)
+            : null,
       borough: String(first.primary_borough || ""),
-      kind: undefined,
+      kind: sourceKind.kind,
       priceBand: undefined,
     });
   }

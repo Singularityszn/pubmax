@@ -165,6 +165,10 @@ function buildBaseScratch(): string {
     join(ROOT, "lib", "priceRowEligibility.mjs"),
     join(scratchLib, "priceRowEligibility.mjs"),
   );
+  cpSync(
+    join(ROOT, "lib", "sourceVenueKind.mjs"),
+    join(scratchLib, "sourceVenueKind.mjs"),
+  );
   cpSync(join(ROOT, "lib", "editorialRss.mjs"), join(scratchLib, "editorialRss.mjs"));
   // The priced-index exclusion guard (#1463) is its own leaf module plus one
   // hand-curated data file, which the script imports/reads rather than
@@ -284,6 +288,72 @@ function setupScratch(files: Record<string, unknown>): string {
     writeFileSync(join(drinkDir, name), JSON.stringify(body), "utf8");
   }
   return join(scratchRoot, "scripts");
+}
+
+type SlimKindFixtureRow = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  kind?: string;
+  cheapestPrice: number | null;
+};
+
+type PintKindFixtureRow = Record<string, unknown> & {
+  app_price_id: string;
+  pub_name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  price_gbp: number | null;
+  venue_kind?: string;
+  venue_kind_osm_id?: string;
+  venue_kind_observed_at?: string;
+  data_quality_notes?: string;
+};
+
+function readSourcedBarFixture(scriptsDir: string) {
+  const dataDir = join(scriptsDir, "..", "public", "data");
+  const slimPayload = JSON.parse(
+    readFileSync(join(dataDir, "venues_slim.json"), "utf8"),
+  ) as { rows: SlimKindFixtureRow[] };
+  const slimRows = slimPayload.rows;
+  const rows = JSON.parse(
+    readFileSync(join(dataDir, "pint_prices_app_dataset.json"), "utf8"),
+  ) as PintKindFixtureRow[];
+  const sourcedBar = slimRows.find(
+    (slim) =>
+      slim.kind === "bar" &&
+      slim.id.startsWith("venue-") &&
+      rows.some(
+        (row) =>
+          row.venue_kind === "bar" &&
+          row.pub_name === slim.name &&
+          Number(row.latitude) === slim.lat &&
+          Number(row.longitude) === slim.lng &&
+          typeof row.price_gbp === "number",
+      ),
+  );
+  if (!sourcedBar) {
+    throw new Error("fixture has no priced sourced bar in the slim index");
+  }
+
+  const sourceIndex = rows.findIndex(
+    (row) =>
+      row.venue_kind === "bar" &&
+      row.pub_name === sourcedBar.name &&
+      Number(row.latitude) === sourcedBar.lat &&
+      Number(row.longitude) === sourcedBar.lng,
+  );
+  if (sourceIndex < 0) throw new Error("fixture has no raw rows for sourced bar");
+
+  return {
+    dataPath: join(dataDir, "pint_prices_app_dataset.json"),
+    rows,
+    slimRows,
+    sourcedBar,
+    sourceIndex,
+  };
 }
 
 /**
@@ -621,6 +691,131 @@ describe("validate-data.mjs slim venue index validation", () => {
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(0);
     expect(stdout).toContain("PASS public/data/venues_slim.json");
+
+    const fixture = readSourcedBarFixture(scriptsDir);
+    expect(fixture.sourcedBar.cheapestPrice).toBeNull();
+    const pricedSourceBar = fixture.rows.find(
+      (row) =>
+        row.venue_kind === "bar" &&
+        row.pub_name === fixture.sourcedBar.name &&
+        Number(row.latitude) === fixture.sourcedBar.lat &&
+        Number(row.longitude) === fixture.sourcedBar.lng &&
+        typeof row.price_gbp === "number",
+    );
+    expect(pricedSourceBar).toBeDefined();
+
+    const famousBar = fixture.slimRows.find(
+      (row) => row.kind === "bar" && row.id.startsWith("bar-"),
+    );
+    expect(famousBar).toBeDefined();
+    expect(famousBar?.cheapestPrice).toEqual(expect.any(Number));
+
+    const detailIndex = JSON.parse(
+      readFileSync(
+        join(scriptsDir, "..", "data", "generated", "venue_detail_index.json"),
+        "utf8",
+      ),
+    ) as { venues: Record<string, { offset: number; length: number }> };
+    const detailEntry = detailIndex.venues[fixture.sourcedBar.id];
+    expect(detailEntry).toBeDefined();
+    const detailBytes = readFileSync(
+      join(scriptsDir, "..", "data", "generated", "venue_details.jsonl"),
+    );
+    const detail = JSON.parse(
+      detailBytes
+        .subarray(detailEntry!.offset, detailEntry!.offset + detailEntry!.length)
+        .toString("utf8"),
+    ) as { rows: PintKindFixtureRow[] };
+    expect(detail.rows).toContainEqual(
+      expect.objectContaining({
+        app_price_id: pricedSourceBar?.app_price_id,
+        price_gbp: pricedSourceBar?.price_gbp,
+      }),
+    );
+  });
+
+  it("FAILS on malformed OSM kind evidence for a published sourced bar", () => {
+    const scriptsDir = setupScratch({});
+    const fixture = readSourcedBarFixture(scriptsDir);
+    const row = fixture.rows[fixture.sourceIndex];
+    fixture.rows[fixture.sourceIndex] = {
+      ...row,
+      venue_kind_osm_id: "not-an-osm-id",
+    };
+    writeScratchFile(fixture.dataPath, JSON.stringify(fixture.rows), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("source venue kind refused");
+    expect(stdout).toContain(row.app_price_id);
+  });
+
+  it("FAILS on contradictory sourced kinds within a raw venue group", () => {
+    const scriptsDir = setupScratch({});
+    const fixture = readSourcedBarFixture(scriptsDir);
+    const row = fixture.rows[fixture.sourceIndex];
+    fixture.rows.push({
+      ...row,
+      app_price_id: "app_price_validator_source_kind_conflict",
+      venue_kind: "pub",
+    });
+    writeScratchFile(fixture.dataPath, JSON.stringify(fixture.rows), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("source venue kind refused");
+    expect(stdout).toContain("app_price_validator_source_kind_conflict");
+  });
+
+  it("FAILS on contradictory source evidence even when famous seed replaces raw group", () => {
+    const scriptsDir = setupScratch({});
+    const fixture = readSourcedBarFixture(scriptsDir);
+    const famousBars = JSON.parse(
+      readFileSync(
+        join(scriptsDir, "..", "data", "famous_venues", "bars.json"),
+        "utf8",
+      ),
+    ) as Array<{ id: string; name: string; lat: number; lng: number; borough: string }>;
+    const famousBar = famousBars.find((row) =>
+      fixture.slimRows.some((slim) => slim.id === row.id && slim.kind === "bar"),
+    );
+    if (!famousBar) throw new Error("fixture has no published famous bar");
+
+    const template = fixture.rows[fixture.sourceIndex];
+    const osmId = "node/999999999999";
+    const evidence = {
+      ...template,
+      pub_name: famousBar.name,
+      address: "Validator source-kind fixture",
+      latitude: famousBar.lat,
+      longitude: famousBar.lng,
+      primary_borough: famousBar.borough,
+      venue_kind_osm_id: osmId,
+      venue_kind_observed_at: "2026-10-04T12:00:00.000Z",
+      data_quality_notes: `osm_overpass|${osmId}`,
+    };
+    fixture.rows.push(
+      {
+        ...evidence,
+        app_price_id: "app_price_validator_famous_kind_pub",
+        venue_kind: "pub",
+      },
+      {
+        ...evidence,
+        app_price_id: "app_price_validator_famous_kind_bar",
+        venue_kind: "bar",
+      },
+    );
+    writeScratchFile(fixture.dataPath, JSON.stringify(fixture.rows), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("source venue kind refused");
+    expect(stdout).toContain("app_price_validator_famous_kind_pub");
+    expect(stdout).toContain("app_price_validator_famous_kind_bar");
   });
 
   it("FAILS when the slim index does not match the full dataset ids", () => {
