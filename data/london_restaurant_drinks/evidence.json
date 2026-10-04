@@ -487,27 +487,6 @@
       ]
     },
     {
-      "osmId": "node/299615649",
-      "kind": "restaurant",
-      "name": "Street Burger",
-      "address": "341, Upper Street, London, N1 0PB",
-      "lat": 51.5351424,
-      "lng": -0.1039686,
-      "website": "https://www.gordonramsayrestaurants.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.gordonramsayrestaurants.com/",
-          "excerpt": "From mastering cocktail-making to learning the art of cooking perfect beef Wellington, our masterclasses are suited for everyone.",
-          "observedAt": "2026-10-04T22:22:47.161Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:09:39.740Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/299616421",
       "kind": "restaurant",
       "name": "Hong Kong Restaurant",
@@ -1469,27 +1448,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:10:09.780Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/581005278",
-      "kind": "restaurant",
-      "name": "Quality Chop House",
-      "address": "88-94, Farringdon Road, London, EC1R 3EA",
-      "lat": 51.5247707,
-      "lng": -0.1100541,
-      "website": "https://thequalitychophouse.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://thequalitychophouse.com/",
-          "excerpt": "The Quality Chop House is part of the Woodhead Restaurant Group alongside Portland, Clipstone, Quality Wines and 64 Goodge Street.",
-          "observedAt": "2026-10-04T22:23:01.188Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:10:10.010Z"
           }
         }
       ]
@@ -3385,27 +3343,6 @@
       ]
     },
     {
-      "osmId": "node/2528915750",
-      "kind": "restaurant",
-      "name": "Il Gusto",
-      "address": "11, Craven Road, London, W2 3BP",
-      "lat": 51.5148495,
-      "lng": -0.1766841,
-      "website": "http://ilgusto.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "http://ilgusto.co.uk/",
-          "excerpt": "Free Champagne Flutes with orders over £99",
-          "observedAt": "2026-10-04T22:24:06.105Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:11:27.494Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/2529378335",
       "kind": "restaurant",
       "name": "San Lorenzo",
@@ -4934,27 +4871,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:12:27.924Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/4321451979",
-      "kind": "restaurant",
-      "name": "Café Chula",
-      "address": "75–89, Camden Lock Place, London, NW1 8AF",
-      "lat": 51.5409966,
-      "lng": -0.1465686,
-      "website": "https://www.cafechula.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.cafechula.co.uk/",
-          "excerpt": "180 Club is Camden’s late-night darts bar with bookable lanes, cocktails, and bites to eat, perfect for groups, parties, and after-work socials.",
-          "observedAt": "2026-10-04T22:24:49.310Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:12:28.536Z"
           }
         }
       ]
@@ -7690,27 +7606,6 @@
       ]
     },
     {
-      "osmId": "node/7006445047",
-      "kind": "restaurant",
-      "name": "Lina Stores",
-      "address": "20, Stable Street, London, N1C 4DR",
-      "lat": 51.5372648,
-      "lng": -0.1250964,
-      "website": "https://www.linastores.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.linastores.co.uk/",
-          "excerpt": "Our most popular Lina Stores products can also be found in our online shop for nationwide delivery, including fresh pasta and sauces, meats, cheeses, Italian wines and many other classic delicatessen products!",
-          "observedAt": "2026-10-04T22:26:03.888Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:14:09.303Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/7043923923",
       "kind": "restaurant",
       "name": "TGI Fridays",
@@ -7895,27 +7790,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:31:28.468Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "node/7176248885",
-      "kind": "restaurant",
-      "name": "Henrietta Bistro",
-      "address": "14-15, Henrietta Street, London, WC2E 8QH",
-      "lat": 51.5109435,
-      "lng": -0.1237926,
-      "website": "https://www.henriettahotel.com/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.henriettahotel.com/",
-          "excerpt": "Share the Experimental Experience in London and choose from a night in Covent Garden, a dinner at Henri, cocktails at Experimental Cocktail Club, live music at STEREO or a bottle of wine at La Compagnie. The ideal gift awaits.",
-          "observedAt": "2026-10-04T22:26:08.217Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:14:23.518Z"
           }
         }
       ]
@@ -12709,27 +12583,6 @@
       ]
     },
     {
-      "osmId": "node/13571496075",
-      "kind": "restaurant",
-      "name": "Lina Stores",
-      "address": "51, Greek Street, London, W1D 4EH",
-      "lat": 51.5141279,
-      "lng": -0.1310665,
-      "website": "https://www.linastores.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.linastores.co.uk/",
-          "excerpt": "Our most popular Lina Stores products can also be found in our online shop for nationwide delivery, including fresh pasta and sauces, meats, cheeses, Italian wines and many other classic delicatessen products!",
-          "observedAt": "2026-10-04T22:26:03.888Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:14:09.303Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/13571511909",
       "kind": "restaurant",
       "name": "Forty Dean Street",
@@ -13738,27 +13591,6 @@
       ]
     },
     {
-      "osmId": "node/14206419347",
-      "kind": "restaurant",
-      "name": "Cicchetti",
-      "address": "172-173, Piccadilly, London, W1J 9EU",
-      "lat": 51.5080884,
-      "lng": -0.1393226,
-      "website": "https://sancarlo.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://sancarlo.co.uk/restaurants/london/cicchetti-piccadilly/",
-          "excerpt": "Champagne Bar, Selfridges Trafford]",
-          "observedAt": "2026-10-04T22:29:00.897Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:03.229Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/14206805323",
       "kind": "restaurant",
       "name": "The Maine Mayfair",
@@ -14636,27 +14468,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:18:16.303Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/134065150",
-      "kind": "restaurant",
-      "name": "Lina Stores",
-      "address": "13-15, Marylebone Lane, London",
-      "lat": 51.5162707,
-      "lng": -0.1502863,
-      "website": "https://linastores.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://linastores.co.uk/",
-          "excerpt": "Our most popular Lina Stores products can also be found in our online shop for nationwide delivery, including fresh pasta and sauces, meats, cheeses, Italian wines and many other classic delicatessen products!",
-          "observedAt": "2026-10-04T22:29:14.839Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:18:17.266Z"
           }
         }
       ]
@@ -18521,27 +18332,6 @@
           "robots": {
             "outcome": "allowed",
             "checkedAt": "2026-10-04T22:20:20.050Z"
-          }
-        }
-      ]
-    },
-    {
-      "osmId": "way/697821712",
-      "kind": "restaurant",
-      "name": "Drunch",
-      "address": "38, St John's Wood Terrace, London, NW8 6LS",
-      "lat": 51.5349846,
-      "lng": -0.168737,
-      "website": "https://www.drunch.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://www.drunch.co.uk/",
-          "excerpt": "Born in 2022, a hidden speakeasy beneath Drunch Oxford Circus, open Thursday to Saturday for dinner, music & cocktails. An intimate, late-night escape from the world of Drunch.]",
-          "observedAt": "2026-10-04T22:30:52.714Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:20:21.863Z"
           }
         }
       ]

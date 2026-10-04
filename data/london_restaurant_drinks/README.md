@@ -92,16 +92,20 @@ their own site. 47 sites said they do not serve alcohol. 2,029 sites were read
 and stated nothing. 229 were refused by robots, 524 could not reach robots, and
 414 Tavily could not read.
 
-The classifier was then tightened so a dish, an ingredient list or an idiom
-that names a drink is not evidence: a prawn or fruit cocktail, cocktail sauce,
-champagne cod, a cider vinaigrette, white wine and saffron, sausage marinated
-in red wine, "we don't use beer in our batter", sake meaning salmon, "high
-spirits", another restaurant's name, and a line that says a branch does not
-sell alcohol. The 53 committed rows whose quote failed the tightened check were
-removed without a new read, so `evidence.json` holds 965 restaurants (963 are
-new to the London layer; OSM already shipped 2). `report.json` still holds that run's counts,
-including its 1,018 accepted; the next run that reads the pages again replaces
-them.
+The classifier was then tightened so a dish, an ingredient list, glassware or
+an idiom that names a drink is not evidence: a prawn or fruit cocktail,
+cocktail sauce, champagne cod, a cider vinaigrette, white wine and saffron,
+sausage marinated in red wine, "we don't use beer in our batter", free
+champagne flutes, sake meaning salmon, "high spirits", another restaurant's
+name, and a line that says a branch does not sell alcohol. The 54 committed
+rows whose quote failed the tightened check were removed without a new read.
+Nine more were removed by hand because their quote is about another venue of
+the group, a shop or a class, not about this restaurant pouring: Cicchetti,
+Quality Chop House, Café Chula, Henrietta Bistro, Drunch, Street Burger and
+three Lina Stores. `evidence.json` holds 955 restaurants (953 are new to the
+London layer; OSM already shipped 2). `report.json` still holds that run's
+counts, including its 1,018 accepted; the next run that reads the pages again
+replaces them.
 
 `report.json` counts 1,997 Tavily credits. The first full run stopped on a
 rate limit before writing its report, so its 146 searches (about 146 credits)

@@ -87,6 +87,7 @@ describe("London restaurant drinks evidence", () => {
       "Pork sausage marinated in full bodied red wine",
       "Chicken thighs marinated in sake and miso",
       "Influenced by restaurants such as The River Cafe, St John Bread & Wine and Spring",
+      "Free Champagne Flutes with orders over £99",
       "Virgin-Gin Mule",
       "A place of abundance, high spirits and generosity.",
       "Gan gin gan yuu – As you eat, so you are",
@@ -98,6 +99,9 @@ describe("London restaurant drinks evidence", () => {
     expect(drinksEvidence("Sauces: Hollandaise (1,4,7) Pepper (1,4,7,9) Red Wine (1,7,14)", "Example")).toEqual({});
     expect(statesRestaurantDrinks("Oysters paired with wine, champagne and more", "Example")).toBe(true);
     expect(statesRestaurantDrinks("Steamed dumplings served with a glass of wine", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("Steamed dumplings served with chilled white wine", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("Grilled steak paired with a crisp red wine", "Example")).toBe(true);
+    expect(statesRestaurantDrinks("Enjoy £2 off all glasses of wine and cocktails", "Example")).toBe(true);
     expect(statesRestaurantDrinks("We serve virgin and classic cocktails", "Example")).toBe(true);
     expect(statesRestaurantDrinks("We serve soft and alcoholic drinks", "Example")).toBe(true);
     expect(statesRestaurantDrinks("Prawn cocktail, and a glass of champagne", "Example")).toBe(true);
@@ -113,6 +117,8 @@ describe("London restaurant drinks evidence", () => {
     expect(drinksEvidence("No alcohol served to under 18s. Cocktails from 5pm.", "Example")).toEqual({ quote: "No alcohol served to under 18s. Cocktails from 5pm." });
     expect(drinksEvidence("Our Baker Street branch does not offer alcoholic beverages. Guests may bring their own wine or spirits.", "Example").refused).toBeTruthy();
     expect(drinksEvidence("Sorry, we don’t serve alcohol but lassi is on the house.", "Example").refused).toBeTruthy();
+    expect(drinksEvidence("Cocktails, wine and craft beer every night.\nWe don’t serve alcohol to anyone under 18.", "Example")).toEqual({ quote: "Cocktails, wine and craft beer every night." });
+    expect(drinksEvidence("Cocktails, wine and craft beer every night.\nWe do not sell alcoholic drinks without ID.", "Example")).toEqual({ quote: "Cocktails, wine and craft beer every night." });
   });
 
   it("ignores copyright footers", () => {
