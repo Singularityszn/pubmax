@@ -135,6 +135,8 @@ const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
 const SPORT_SHOWN =
   /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b|\bsky\b|\btnt\b|\bbt\b|\btelevised\b|\btackle\b|\bkick\b|\bvs\b/i;
+const SPORT_VIEWING = /\b(?:show(?:s|ing|n)?|watch(?:es|ing)?|screens?|tv|televised|broadcast(?:s|ing)?)\b/i;
+const NO_SPORT_VIEWING = /\b(?:no|without)\s+(?:live\s+)?(?:sports?|screens?|tv)\b/i;
 const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?sports\b/i;
 const LIVE_MUSIC =
   /\blive\b[^.]{0,20}\b(?:music|bands?|gigs?|jazz|folk|blues|soul|funk|country|singers?|vocals|acts?|artists)\b|\bbands?\b|\bgigs?\b|\bjazz\b|\bfolk\b|\bblues\b|\bopen mic\b|\bsingers?\b|\bsings? live\b|\bchoir\b|\bjams?\b|\bacoustic\b|\btrad\b|\bseisi|\bconcerts?\b|\btribute show\b|\bmusic venues?\b|\bmusic (?:nights?|events?)\b/i;
@@ -168,7 +170,8 @@ const DANGLING_INFINITIVE = /\bto (?:keep|make|get|give|take|bring|have)$/;
 const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) => boolean>> = {
   food: (quote) => !SITE_NAVIGATION.test(quote),
   liveSports: (quote) =>
-    SPORT_SHOWN.test(quote) && !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote),
+    SPORT_SHOWN.test(quote) && SPORT_VIEWING.test(quote) &&
+    !NO_SPORT_VIEWING.test(quote) && !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote),
   liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
   pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
   nonAlcoholic: (quote) => ALCOHOL_FREE.test(quote),
