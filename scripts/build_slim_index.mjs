@@ -283,6 +283,15 @@ function stableVenueIdFromKey(key) {
   return `venue-${(hash >>> 0).toString(36)}`;
 }
 
+// A raw bar's drink observations are not a structured venue anchor. Keep them
+// in its detail artifact; the compact presence row makes no numeric claim.
+function compactRawPrice(prices, sourceKind) {
+  if (sourceKind.kind === "bar") return null;
+  const numeric = prices.map((row) => row.price_gbp)
+    .filter((price) => typeof price === "number" && Number.isFinite(price));
+  return numeric.length ? Math.min(...numeric) : null;
+}
+
 // --- filter hint helpers ------------------------------------------------------
 
 function truthyFlag(value) {
@@ -878,12 +887,7 @@ async function main() {
         Math.abs(row.lng - Number(first.longitude)) < 0.001,
     );
     if (duplicateFamousVenue) continue;
-    const numericPrices = prices
-      .map((p) => p.price_gbp)
-      .filter((p) => typeof p === "number" && Number.isFinite(p));
-    const cheapestPrice = numericPrices.length
-      ? Math.min(...numericPrices)
-      : null;
+    const cheapestPrice = compactRawPrice(prices, sourceKind);
     const id = stableVenueIdFromKey(key);
 
     const lat = Number(first.latitude);

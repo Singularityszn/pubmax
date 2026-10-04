@@ -11,6 +11,7 @@ import {
 import {
   anchorMonthLabel,
   anchorSourceLabel,
+  compactVenueAnchor,
 } from "@/lib/venueAnchorPresentation";
 import {
   isPubVenueKind,
@@ -129,6 +130,13 @@ export function hoverPriceLine(
   return { price: null, provenance: "Tap for detail" };
 }
 
+function hoverAnchor(venue: Venue | null | undefined) {
+  if (!venue || typeof venue.cheapestPrice !== "number" ||
+      !Number.isFinite(venue.cheapestPrice) || venue.cheapestPrice <= 0) return null;
+  const metadata = compactVenueAnchor(venue);
+  return metadata ? { ...metadata, price: venue.cheapestPrice } : null;
+}
+
 export function hoverCardCopy(
   mapVenue: Venue | undefined,
   signal: VenueSignal | undefined,
@@ -198,30 +206,26 @@ export function hoverCardCopy(
     };
   }
 
-  const price =
-    hoverDetail?.cheapestPrice ?? mapVenue?.cheapestPrice ?? null;
-  const anchorLabel =
-    hoverDetail?.anchorLabel ?? mapVenue?.anchorLabel;
-  const observedAt =
-    hoverDetail?.anchorObservedAt ?? mapVenue?.anchorObservedAt;
-  const sourceUrl =
-    hoverDetail?.anchorSourceUrl ?? mapVenue?.anchorSourceUrl;
-  const provenance = [
-    "Anchor",
-    anchorMonthLabel(observedAt),
-    anchorSourceLabel(sourceUrl),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // The amount and its evidence must come from one complete record.
+  const anchor = hoverAnchor(hoverDetail) ?? hoverAnchor(mapVenue);
+  if (!anchor) {
+    return {
+      venueTypeLabel,
+      price: null,
+      priceBand: null,
+      priceSuffix: "",
+      provenance: "Tap for detail",
+      detailLabel: "venue detail",
+      pendingNote: "",
+    };
+  }
   return {
     venueTypeLabel,
-    price,
+    price: anchor.price,
     // An anchor is a cocktail or a course, never a pint, so it wears no band.
     priceBand: null,
-    priceSuffix:
-      anchorLabel ??
-      (kind === "bar" ? "cocktail anchor" : "large doner anchor"),
-    provenance,
+    priceSuffix: anchor.label,
+    provenance: `Anchor · ${anchor.observedLabel} · ${anchor.sourceLabel}`,
     detailLabel: "venue detail",
     pendingNote: "",
   };

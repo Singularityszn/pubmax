@@ -98,6 +98,55 @@ describe("hoverCardCopy", () => {
     expect(copy.priceSuffix).not.toContain("pint");
   });
 
+  it.each([
+    {},
+    { anchorLabel: "House cocktail" },
+    { anchorObservedAt: "2026-09-20", anchorSourceUrl: "https://example.com/menu" },
+    { anchorLabel: "House cocktail", anchorObservedAt: "not a date", anchorSourceUrl: "https://example.com/menu" },
+    { anchorLabel: "House cocktail", anchorObservedAt: "2026-09-20", anchorSourceUrl: "not a URL" },
+  ])("keeps incomplete anchor metadata neutral without claiming that no price was recorded: %j", (metadata) => {
+    const copy = hoverCardCopy({ kind: "bar", cheapestPrice: null } as Venue, undefined, { kind: "bar", cheapestPrice: 6, ...metadata } as Venue);
+    expect(copy).toEqual({ venueTypeLabel: "Bar", price: null, priceBand: null, priceSuffix: "", provenance: "Tap for detail", detailLabel: "venue detail", pendingNote: "" });
+  });
+
+  it("does not combine partial metadata from two records into an anchor", () => {
+    const copy = hoverCardCopy(
+      { kind: "bar", cheapestPrice: 25, anchorLabel: "House cocktail" } as Venue,
+      undefined,
+      { kind: "bar", cheapestPrice: 6, anchorObservedAt: "2026-09-20", anchorSourceUrl: "https://example.com/menu" } as Venue,
+    );
+    expect(copy.price).toBeNull();
+    expect(copy.provenance).toBe("Tap for detail");
+    expect(copy.priceSuffix).toBe("");
+  });
+
+  it("pairs a complete compact anchor with its own amount when detail has only a drink figure", () => {
+    const copy = hoverCardCopy(
+      { kind: "bar", cheapestPrice: 25, anchorLabel: "House cocktail", anchorObservedAt: "2026-09-20", anchorSourceUrl: "https://example.com/menu" } as Venue,
+      undefined,
+      { kind: "bar", cheapestPrice: 6 } as Venue,
+    );
+    expect(copy).toMatchObject({ price: 25, priceSuffix: "House cocktail", provenance: "Anchor · Sept · example.com" });
+  });
+
+  it("uses a complete detail anchor with its own amount", () => {
+    const copy = hoverCardCopy(
+      { kind: "bar", cheapestPrice: 30, anchorLabel: "Compact cocktail", anchorObservedAt: "2026-08-20", anchorSourceUrl: "https://compact.example/menu" } as Venue,
+      undefined,
+      { kind: "bar", cheapestPrice: 25, anchorLabel: "Detail cocktail", anchorObservedAt: "2026-09-20", anchorSourceUrl: "https://detail.example/menu" } as Venue,
+    );
+    expect(copy).toMatchObject({ price: 25, priceSuffix: "Detail cocktail", provenance: "Anchor · Sept · detail.example" });
+  });
+
+  it("keeps selected-drink prices above an unanchored bar summary", () => {
+    const copy = hoverCardCopy(
+      { kind: "bar", cheapestPrice: null } as Venue, undefined, { kind: "bar", cheapestPrice: 6 } as Venue, false,
+      { venueId: "bar", category: "wine", categoryLabel: "Wine", priceGbp: 7, source: "community", submittedAt: Date.now() },
+    );
+    expect(copy).toMatchObject({ price: 7, priceSuffix: "Wine", priceBand: null });
+    expect(copy.provenance).toContain("Community");
+  });
+
   it("uses the large doner anchor label for late-food venues", () => {
     const copy = hoverCardCopy(
       {
