@@ -15,7 +15,7 @@ for (const row of records) {
     throw new Error("Invalid Places enrichment identity");
   }
   const existing = grouped.get(key) ?? [];
-  const same = existing.find((entry) => entry.venueId === row.venueId && entry.googlePlaceId === row.googlePlaceId);
+  const same = existing.find((entry) => entry.googlePlaceId === row.googlePlaceId);
   if (!same) existing.push({ ...row });
   else {
     for (const [field, observation] of Object.entries(row)) {

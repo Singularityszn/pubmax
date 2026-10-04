@@ -36,9 +36,21 @@ it("builds only exact identity records and a freshness stamp dated by the oldest
     expect(merged).toHaveLength(1);
     expect(merged[0].rating.value).toBe(4.2);
     expect(merged[0].formattedAddress).toEqual(rows[0].formattedAddress);
+    writeFileSync(path.join(fixture, "data/places_enrichment_uk_cities_extras.json"), JSON.stringify({ version: 1, venues: [{
+      venueId: "venue-uk-n123", googlePlaceId: rows[0].googlePlaceId, observedAt: "2026-10-06T00:00:00Z",
+      rating: { value: 4.7, source: "google_places", observedAt: "2026-10-06T00:00:00Z" },
+      formattedAddress: { value: "Older address", source: "google_places", observedAt: "2026-10-01T00:00:00Z" },
+    }] }));
+    build();
+    const aliases = JSON.parse(readFileSync(path.join(output, "node-123.json"), "utf8"));
+    expect(aliases).toHaveLength(1);
+    expect(aliases[0].rating).toEqual({ value: 4.7, source: "google_places", observedAt: "2026-10-06T00:00:00Z" });
+    expect(aliases[0].formattedAddress).toEqual(rows[0].formattedAddress);
+    expect(aliases[0].observedAt).toBe("2026-10-06T00:00:00Z");
     expect(stamp().observedAt).toBe("2026-10-02T00:00:00Z");
     expect(Object.fromEntries(Object.entries(stamp().packs).map(([name, row]) => [name, (row as { observedAt: string }).observedAt]))).toEqual({
       places_enrichment: "2026-10-04T00:00:00Z", places_enrichment_uk_cities: "2026-10-02T00:00:00Z", places_enrichment_london_extras: "2026-10-05T00:00:00Z",
+      places_enrichment_uk_cities_extras: "2026-10-06T00:00:00Z",
     });
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });
