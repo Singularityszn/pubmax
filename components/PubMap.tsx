@@ -1002,19 +1002,22 @@ function activeLensNounFor(
 /**
  * The name the top bar is allowed to print.
  *
- * A remembered chosen area wins, then the arrival's own place name, then the
- * claim the VIEW earned (areaClaimedByViewport answers null for a view over no
+ * A national overview names the UK. Otherwise a remembered chosen area wins,
+ * then the arrival's place name, then the claim the VIEW earned
+ * (areaClaimedByViewport answers null for a view over no
  * single area), and the city name is the fallback. It lives here because
  * __tests__/ukPlaceMapArrival.test.ts pins this chain to this file.
  */
 function mapChipLabelFor(input: {
+  nationalOverview: boolean;
   mapChosenArea: { cityId: CityId; label: string } | null;
   cityId: CityId;
   ukPlaceArrival: { name: string } | null;
   claimedArea: { name: string } | null | undefined;
   mapContextName: string;
 }): string {
-  const { mapChosenArea, cityId, ukPlaceArrival, claimedArea, mapContextName } = input;
+  const { nationalOverview, mapChosenArea, cityId, ukPlaceArrival, claimedArea, mapContextName } = input;
+  if (nationalOverview) return mapContextName;
   return mapChosenArea && mapChosenArea.cityId === cityId
     ? mapChosenArea.label
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
@@ -4800,6 +4803,7 @@ export default function PubMap({
   ]);
 
   const mapChipLabel = mapChipLabelFor({
+    nationalOverview: ukNationalBrowse && !ukPlaceArrival && mapViewport.zoom < UK_BASE_MIN_ZOOM,
     mapChosenArea,
     cityId,
     ukPlaceArrival,
