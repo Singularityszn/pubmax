@@ -675,10 +675,13 @@ a.lpPubPint:hover { color: var(--ink); }
 
 /* Phone: the answer sits between the heading and the tap, so the heading
    gives up one size step and the card its outer padding, and the whole
-   screen still reads kicker, claim, answer, action inside 844px. */
+   screen still reads kicker, claim, answer, action inside 844px. The floor
+   is 10vw at 320: a 34px floor left the first line 2px of slack, and Linux
+   glyph metrics wrapped the claim to a third line that pushed the primary
+   under the tab bar. */
 @media (max-width: 700px) {
   .lpHero { padding-top: 80px; gap: var(--space-5); }
-  .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
+  .lpHero .screenTitle { font-size: clamp(2rem, 10vw, 2.75rem); line-height: .94; }
   .lpHero .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
   .lpHero .lpPubName { font-size: var(--text-lg); }
   .lpHero .lpPubPrice .priceBadge { font-size: var(--text-base); min-block-size: 2.1rem; }
