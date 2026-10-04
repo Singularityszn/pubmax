@@ -166,6 +166,24 @@ describe("inferNightContext", () => {
     expect(inferNightContext("a soft drink in Shoreditch", EVENING).context.zeroProof).toBe(true);
   });
 
+  it.each([
+    "No alcohol tonight",
+    "no-alcohol in Soho",
+    "NO ALCOHOL tonight, near the Wine Bar",
+  ])("keeps the explicit alcohol-free request in %s", (query) => {
+    expect(inferNightContext(query, EVENING).context).toMatchObject({
+      zeroProof: true,
+      drinkCategory: null,
+    });
+  });
+
+  it.each([
+    "Piano alcohol tasting in Soho",
+    "No alcoholometers needed for wine in Soho",
+  ])("requires complete no-alcohol tokens in %s", (query) => {
+    expect(inferNightContext(query, EVENING).context.zeroProof).toBe(false);
+  });
+
   it("maps coffee and catch-up language to daytime even against an evening clock", () => {
     expect(inferNightContext("coffee in Clapham for 2", EVENING).context.daypart).toBe("daytime");
     expect(inferNightContext("a catch-up in Clapham for 2", EVENING).context.daypart).toBe("daytime");
