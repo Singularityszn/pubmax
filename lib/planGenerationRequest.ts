@@ -23,6 +23,7 @@ import {
 import { isPlanIdempotencyKey } from "@/lib/planStore";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanPlanGenerationDrinkRefresh, type PlanGenerationDrinkRefresh } from "@/lib/planGenerationDrinkRefresh";
 
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
@@ -57,6 +58,7 @@ export type PlanGenerationAnchor = {
   acceptedArea: PlanningIntentArea;
   startsAt: string | null;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  selectedDrinkRefresh?: PlanGenerationDrinkRefresh;
 };
 
 type PlanGenerationRequest = {
@@ -131,9 +133,12 @@ function canonicalIsoOrNull(value: unknown): string | null | undefined {
 function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !(hasExactKeys(value, ANCHOR_KEYS)
-    || hasExactKeys(value, [...ANCHOR_KEYS, "selectedDrinkPriceEvidence"]))) return undefined;
+    || hasExactKeys(value, [...ANCHOR_KEYS, "selectedDrinkPriceEvidence"])
+    || hasExactKeys(value, [...ANCHOR_KEYS, "selectedDrinkRefresh"]))) return undefined;
   const selected = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
   if (Object.hasOwn(value, "selectedDrinkPriceEvidence") && !selected) return undefined;
+  const refresh = cleanPlanGenerationDrinkRefresh(value.selectedDrinkRefresh);
+  if (Object.hasOwn(value, "selectedDrinkRefresh") && !refresh) return undefined;
   if (typeof value.venueId !== "string" || !ANCHOR_VENUE_ID_PATTERN.test(value.venueId)) return undefined;
   if (typeof value.source !== "string" || !(PLANNING_INTENT_SOURCES as readonly string[]).includes(value.source)) {
     return undefined;
@@ -148,6 +153,7 @@ function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
     acceptedArea,
     startsAt,
     ...(selected ? { selectedDrinkPriceEvidence: selected } : {}),
+    ...(refresh ? { selectedDrinkRefresh: refresh } : {}),
   };
 }
 

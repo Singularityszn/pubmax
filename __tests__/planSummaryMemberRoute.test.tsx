@@ -349,10 +349,15 @@ describe("saved named Stop 1 refresh request", () => {
       cityId: "london",
       anchor: {
         venueId: anchorVenueId, source: "map-search", acceptedArea: null, startsAt: state.plan.startTime,
-        ...(selectedEvidence ? { selectedDrinkPriceEvidence: namedEvidence } : {}),
+        ...(selectedEvidence ? { selectedDrinkRefresh: {
+          category: "wine", serving: "125ml", drinkLabel: "Chardonnay, Pays D’oc, France", drinkSubtype: "wine-white",
+        } } : {}),
       },
     });
     expect(window.localStorage.getItem(`${PLAN_PENDING_ROUTE_PREFIX}${PLAN}`)).toBeNull();
+    expect(renderedStops()).toEqual([
+      selectedEvidence ? "The Georgewine:550" : "The George", "The Swan", "The Crown",
+    ]);
   });
 });
 
@@ -388,7 +393,9 @@ describe("saved refresh anchor evidence boundaries", () => {
       cityId: "london",
       ...(anchorVenueId ? { anchor: {
         venueId: anchorVenueId, source: "map-search", acceptedArea: null, startsAt: state.plan.startTime,
-        ...(expectEvidence ? { selectedDrinkPriceEvidence: evidence } : {}),
+        ...(expectEvidence ? { selectedDrinkRefresh: {
+          category: "wine", serving: "125ml", drinkLabel: "Chardonnay, Pays D’oc, France", drinkSubtype: "wine-white",
+        } } : {}),
       } } : {}),
     });
     expect(JSON.stringify(state)).toBe(before);
