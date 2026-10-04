@@ -356,8 +356,6 @@ export function ciFixChurn(commits) {
 }
 
 export function commitsFromGit(base, head, cwd) {
-  // A push that creates a branch names no base, and so no range to read.
-  if (/^0{40}$/.test(base)) return [];
   const output = execFileSync(
     "git",
     ["log", "--no-renames", "--format=%x1e%H%x1f%s", "--name-only", `${base}..${head}`],

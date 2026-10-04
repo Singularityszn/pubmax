@@ -621,8 +621,4 @@ describe("CI-step fix commits", () => {
       rmSync(repo, { recursive: true, force: true });
     }
   });
-
-  it("reads no commit range from an all-zero base", () => {
-    expect(commitsFromGit("0".repeat(40), "HEAD", process.cwd())).toEqual([]);
-  });
 });
