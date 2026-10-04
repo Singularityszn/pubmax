@@ -39,8 +39,8 @@ const UNSUPPORTED_FEATURES = new RegExp(`\\b(?:${[
   "theatre", "jazz", "folk", "blues", "acoustic", "reggae", "indie", "punk", "metal",
 ].join("|")})\\b`);
 
-// Mood, quality, crowd, age, price and schedule claims no stored field can back,
-// plus words that deny a feature. A lone "happy" or "live" is a mood word.
+// Mood, quality, reputation, crowd, age, price, quantity and schedule claims no
+// stored field can back, plus words that deny a feature or say it has ended. A lone "happy" or "live" is a mood word.
 const UNVERIFIABLE = new RegExp(`\\b(?:${[
   "no", "not", "never", "none", "nor", "without", "lacks?", "lacking", "out of", "minus", "except", "isn't", "aren't",
   "doesn't", "don't", "won't", "can't", "cannot", "hasn't", "haven't", "nothing", "forget", "skip",
@@ -58,6 +58,10 @@ const UNVERIFIABLE = new RegExp(`\\b(?:${[
   "pricey", "expensive", "prices?", "priced", "value", "bargains?", "deals?", "discounts?", "quid", "budget",
   "wallet", "free", "every", "weekly", "nightly", "daily", "tonight", "today", "weekends?", "mornings?",
   "afternoons?", "evenings?", "nights", "late", "open", "opens", "until", "always", "often", "usually", "what a",
+  "known", "renowned", "reputation", "speciali[sz](?:e|es|ed|ing)", "special(?:i?ty|ities)", "signature",
+  "once", "used to", "formerly", "former", "gone", "dropped", "stopped", "ended", "banned", "ditched", "closed",
+  "rubbish", "dreadful", "terrible", "awful", "bad", "worst", "poor", "overpriced", "range of", "selection of",
+  "variety of", "plenty", "lots", "loads",
 ].join("|")})\\b`);
 
 // Each verb may govern only the features it fits: nobody catches a cocktail.

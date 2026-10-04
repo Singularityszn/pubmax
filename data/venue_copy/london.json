@@ -1,8 +1,8 @@
 {
   "version": 2,
   "model": "gemini-2.5-flash-lite",
-  "generatedAt": "2026-10-04T13:31:56.842Z",
-  "startedAt": "2026-10-04T13:06:08.844Z",
+  "generatedAt": "2026-10-04T13:41:43.615Z",
+  "startedAt": "2026-10-04T13:41:35.553Z",
   "sourceDataset": "public/data/pint_prices_app_dataset.json",
   "sourceDatasetSha256": "680ce1c0e7e1725d5d2a37ed106498478c7aacdf4f033b66da6084241645e9e3",
   "pricing": {
@@ -11,9 +11,9 @@
     "outputUsdPerMillion": 0.4
   },
   "taskCapUsd": 15,
-  "projectedSpendUsd": 4.7380852,
-  "actualSpendUsd": 0.13800700000000024,
-  "requests": 920,
+  "projectedSpendUsd": 0.20440060000000024,
+  "actualSpendUsd": 0.13835430000000024,
+  "requests": 923,
   "venues": {
     "venue-10ft2ey": {
       "venueId": "venue-10ft2ey",
@@ -130,7 +130,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Westminster spot pours a range of cocktails.",
+      "description": "This place does cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -805,7 +805,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Tower Hamlets pub pours a selection of cocktails.",
+      "description": "You can get cocktails here.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -1131,7 +1131,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "They serve a selection of cocktails.",
+      "description": "Fancy a cocktail? This spot serves them.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -3044,17 +3044,6 @@
         "Pool"
       ]
     },
-    "venue-1r4e6my": {
-      "venueId": "venue-1r4e6my",
-      "borough": "Camden",
-      "supportedTags": [
-        "Cocktails"
-      ],
-      "description": "They specialise in cocktails.",
-      "vibeTags": [
-        "Cocktails"
-      ]
-    },
     "venue-1rlon1q": {
       "venueId": "venue-1rlon1q",
       "borough": "Westminster",
@@ -4857,7 +4846,7 @@
         "Live music",
         "Karaoke"
       ],
-      "description": "Live music and karaoke are what this Lambeth pub is known for.",
+      "description": "This pub hosts live music and karaoke.",
       "vibeTags": [
         "Live music",
         "Karaoke"
@@ -4965,7 +4954,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Islington pub serves a range of cocktails.",
+      "description": "This place does cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5002,7 +4991,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Westminster venue pours a variety of cocktails.",
+      "description": "Looking for cocktails? Try this venue.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5557,7 +5546,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Westminster pub is known for its cocktails.",
+      "description": "They pour cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -5874,7 +5863,7 @@
       "supportedTags": [
         "Cocktails"
       ],
-      "description": "This Islington pub specialises in cocktails.",
+      "description": "This Islington local has cocktails.",
       "vibeTags": [
         "Cocktails"
       ]
@@ -8930,6 +8919,10 @@
     },
     "venue-1r447i7": {
       "reason": "insufficient-stored-facts"
+    },
+    "venue-1r4e6my": {
+      "inputHash": "832b9ca3028397ca9af19d414eaaec087a75d280b0ebfdb015a60331f94e0126",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-1r6x415": {
       "reason": "insufficient-stored-facts"
