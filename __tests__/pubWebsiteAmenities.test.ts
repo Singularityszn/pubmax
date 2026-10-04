@@ -82,6 +82,8 @@ describe("keepEvidencedAmenities", () => {
     "Watch a kick tutorial on our TVs.",
     "Watch a tackle tutorial on our screens.",
     "Watch Alien vs Predator on our TVs.",
+    "Watch Liverpool vs Man City",
+    "Liverpool vs Man City live",
   ])("does not publish a quote that does not say sport is shown here: %s", (quote) => {
     const parsed = parsePubAmenityModelJson(JSON.stringify({
       amenities: { liveSports: { value: true, evidence: quote } },
@@ -118,6 +120,7 @@ describe("keepEvidencedAmenities", () => {
     "The Crown is known as a \"Sports Pub\" for football and rugby.",
     "A pub known for televised sport.",
     "Live boxing on our screens.",
+    "Watch Liverpool vs Man City live",
     "No Sky Sports, but we show live sport on TNT Sports.",
     "We don't show football; we show rugby on our TVs.",
     "We show live sport on TNT Sports, but no Sky Sports.",

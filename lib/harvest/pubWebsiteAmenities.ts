@@ -137,6 +137,8 @@ const SPORT_SHOWN =
   /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
 const SPORT_VIEWING =
   /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b|\bsports?\s+(?:pub|bar)s?\b/i;
+/** Team fixture copy must explicitly invite live viewing; a bare "vs" is not sport. */
+const LIVE_TEAM_FIXTURE = /\bwatch\s+[a-z][a-z0-9 &'-]{0,60}\s+vs\s+[a-z][a-z0-9 &'-]{0,60}\s+live\b/i;
 const NO_SPORT_VIEWING = new RegExp(
   `\\b(?:no|without)\\s+(?:live\\s+|sky\\s+|tnt\\s+|bt\\s+)?(?:${SPORT_SHOWN.source}|\\b(?:screens?|screenings?|tvs?)\\b)|` +
   `\\b(?:do\\s+not|don'?t|never)\\s+show\\s+(?:any\\s+)?(?:live\\s+)?(?:${SPORT_SHOWN.source})|` +
@@ -180,7 +182,8 @@ const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) =
   liveSports: (quote) =>
     !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote) &&
     quote.split(/[.,;!?]|\b(?:but|however|yet|although|while)\b/i).some((clause) =>
-      SPORT_SHOWN.test(clause) && SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause),
+      (SPORT_SHOWN.test(clause) || LIVE_TEAM_FIXTURE.test(clause)) &&
+      SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause),
     ),
   liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
   pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
