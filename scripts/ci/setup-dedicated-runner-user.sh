@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Retired 4 October 2026. CI runs on GitHub-hosted ubuntu-latest.
+# This script used to register the Mac runners. It must not run.
+echo "setup-dedicated-runner-user: retired. Workflows run on GitHub-hosted ubuntu-latest. See docs/CI_RUNBOOK.md." >&2
+exit 1
+
 # Move the pubmax self-hosted runners off the Mac's login user.
 #
 # Before: three runners (karan-mac-pubmax, -2, -3) run as the console user,
