@@ -25,6 +25,9 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     if (drink === "beer") {
       await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
       await expect(route.locator(".routeList")).toContainText("AMSTEL");
+      await expect(route.locator(".routeMetrics")).toContainText("£6.15");
+      await expect(route.locator(".routeMetrics")).toContainText("known subtotal · 1 of 2 stops priced");
+      await expect(route.locator(".routeMetrics")).not.toContainText("estimated round");
       await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(1);
     } else {
       await expect(route.getByRole("heading", { name: `${drink === "wine" ? "Wine" : "Gin"} plan`, exact: true })).toBeVisible();
@@ -59,6 +62,9 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     if (drink === "beer") {
       await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
       await expect(route.locator(".routeList")).toContainText("AMSTEL");
+      await expect(route.locator(".routeMetrics")).toContainText("£6.15");
+      await expect(route.locator(".routeMetrics")).toContainText("known subtotal · 1 of 2 stops priced");
+      await expect(route.locator(".routeMetrics")).not.toContainText("estimated round");
       await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(1);
     } else {
       await expect(route.getByRole("heading", { name: `${drink === "wine" ? "Wine" : "Gin"} plan`, exact: true })).toBeVisible();

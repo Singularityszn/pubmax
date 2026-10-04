@@ -26,6 +26,8 @@ const duke = {
   curation: { nearWater: false, writerPick: false }, hasStory: false,
 } as Venue;
 const dove = { ...duke, id: "venue-dove", name: "The Dove", latitude: 51.51 };
+const unpricedDuke = { ...duke, cheapestPrice: null, cheapestPint: "" } as Venue;
+const unpricedDove = { ...dove, cheapestPrice: null, cheapestPint: "" } as Venue;
 const wine: MapPlanDrinkSelection = { drinkCategory: "wine", drinkSubtype: "", drinkBrand: "" };
 const wineQuote: MapLensPrice = {
   venueId: duke.id, category: "wine", categoryLabel: "Wine", priceGbp: 5.5,
@@ -64,6 +66,31 @@ function button(text: string): HTMLButtonElement {
   if (!match) throw new Error(`Missing ${text} button.`);
   return match;
 }
+
+describe("Beer round total price coverage", () => {
+  it("labels a partial amount as a known subtotal and names its coverage", async () => {
+    await render({ route: [duke, unpricedDove] });
+    const total = container.querySelector(".routeMetrics > div");
+    expect(total?.querySelector("span")?.textContent).toBe("£6.15");
+    expect(total?.querySelector("small")?.textContent).toBe(
+      "known subtotal · 1 of 2 stops priced",
+    );
+  });
+
+  it("shows no round total when no stop has a recorded price", async () => {
+    await render({ route: [unpricedDuke, unpricedDove] });
+    const total = container.querySelector(".routeMetrics > div");
+    expect(total?.querySelector("span")?.textContent).toBe("Not recorded");
+    expect(total?.querySelector("small")?.textContent).toBe("round total");
+  });
+
+  it("keeps the estimated round label when every stop has a price", async () => {
+    await render({ route: [duke, dove] });
+    const total = container.querySelector(".routeMetrics > div");
+    expect(total?.querySelector("span")?.textContent).toBe("£12.30");
+    expect(total?.querySelector("small")?.textContent).toBe("estimated round");
+  });
+});
 
 describe("selected-drink hand-built Plan", () => {
   it("shows Wine with unknown total instead of the Duke's AMSTEL pint", async () => {
