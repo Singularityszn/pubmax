@@ -55,6 +55,44 @@ function expectSportsPublication(quote: string, expected: boolean) {
 
 describe("sports evidence publication", () => {
   it.each([
+    "Live football, rugby and cricket are not shown.",
+    "Sky Sports, TNT Sports and BT Sport are not available.",
+    "We don't have Sky Sports, TNT Sports or BT Sport.",
+    "Live GAA and rugby aren't shown.",
+    "Live premier league and rugby are not shown here.",
+    "Live gaelic and rugby aren't shown.",
+    "Live sporting and rugby aren't shown.",
+    "We don't show football, rugby and cricket on TV.",
+    "Sky Sports, TNT Sports, and BT Sport are unavailable.",
+    "We don't have Sky Sports, TNT Sports, or BT Sport.",
+    "No Sky Sports, TNT Sports or BT Sport here.",
+  ])("refuses shared denials over supported sport and provider lists: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "Sky Sports is unavailable, we show football on our TVs.",
+    "We don't have Sky Sports, we have TNT Sports.",
+    "We show football on our TVs, Sky Sports is unavailable.",
+    "We have TNT Sports, we don't have Sky Sports.",
+    "Football is not shown, rugby is broadcast on our TVs.",
+    "We don't show football, rugby is broadcast on our TVs.",
+    "We don't have Sky Sports, TNT Sports is available.",
+    "We don't show football, rugby and cricket are broadcast on our TVs.",
+    "We have Sky Sports, rugby is not available.",
+    "We don't have Sky Sports, TNT Sports or BT Sport, we show football on our TVs.",
+    "Live football, rugby and cricket are not shown, we have TNT Sports.",
+  ])("retains independent affirmative clauses beside comma denials: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each(["GAA", "gaelic", "sporting", "premier league"])(
+    "publishes supported live viewing vocabulary: %s", (sport) => {
+      expectSportsPublication(`Live ${sport} here.`, true);
+    },
+  );
+
+  it.each([
     "We don't have any Sky Sports.",
     "We do not have access to TNT Sports.",
     "We no longer have Sky Sports.",

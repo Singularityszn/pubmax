@@ -139,10 +139,12 @@ const SPORT_SHOWN =
 const SPORT_VIEWING =
   /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b|\bsports?\s+(?:pub|bar)s?\b/i;
 const SPORT_OBJECT =
-  "\\b(?:(?:sky|tnt|bt)\\s+sports?|(?:live\\s+)?(?:f1|formula\\s*1|sports?|football|footy|rugby|cricket|boxing))\\b";
-const SPORT_OBJECTS = `${SPORT_OBJECT}(?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*`;
+  "\\b(?:(?:sky|tnt|bt)\\s+sports?|(?:live\\s+)?(?:f1|formula\\s*1|sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing))\\b";
+const SPORT_OBJECTS = `${SPORT_OBJECT}(?:(?:\\s+(?:and|or)\\s+|\\s*,\\s*(?:(?:and|or)\\s+)?)${SPORT_OBJECT})*`;
 const BARE_SPORT_OBJECTS = new RegExp(`^\\s*${SPORT_OBJECTS}\\s*$`, "i");
 const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
+const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
+const SPORT_SUBJECT_PREDICATE = new RegExp(`^\\s*${SPORT_OBJECTS}\\s+(?:is|are|isn'?t|aren'?t)\\b`, "i");
 const NO_SPORT_AVAILABILITY = new RegExp(
   "\\b(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+have\\s+(?:any\\s+|access\\s+to\\s+)?|" +
   "(?:(?:are|is)\\s+not|'re\\s+not|aren'?t|isn'?t)\\s+subscribed\\s+to\\s+)" + SPORT_OBJECTS + "|" +
@@ -175,9 +177,15 @@ function sportClauses(quote: string): string[] {
   for (const boundary of quote.matchAll(new RegExp(SPORT_CLAUSE_BOUNDARY, "gi"))) {
     const clause = quote.slice(start, boundary.index);
     const next = boundary.index + boundary[0].length;
+    const following = quote.slice(next).replace(/^\s*(?:and|or)\s+/, "");
     if (
-      boundary[0] === "and" && BARE_SPORT_OBJECTS.test(clause) &&
-      SPORT_SUBJECT.test(quote.slice(next))
+      (boundary[0] === "and" || boundary[0] === ",") &&
+      (BARE_SPORT_OBJECTS.test(clause.replace(/,\s*$/, "")) || (
+        boundary[0] === "," && SPORT_OBJECT_END.test(clause) &&
+        (NO_SPORT_AVAILABILITY.test(clause) || NO_SPORT_VIEWING.test(clause)) &&
+        !SPORT_SUBJECT_PREDICATE.test(following)
+      )) &&
+      SPORT_SUBJECT.test(following)
     ) continue;
     clauses.push(clause);
     start = next;
