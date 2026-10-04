@@ -46,7 +46,12 @@ jobs:
         env:
           REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           REVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node scripts/check_review_scope.mjs --base "$REVIEW_BASE_SHA" --head "$REVIEW_HEAD_SHA"
+        # A merged commit on main cannot be rewritten, so only a pull request
+        # reads its CI-step fix commits.
+        run: |
+          args=(--base "$REVIEW_BASE_SHA" --head "$REVIEW_HEAD_SHA")
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then args+=(--ci-commits); fi
+          node scripts/check_review_scope.mjs "${args[@]}"
 
   lint-and-types:
     name: Lint and typecheck
