@@ -48,6 +48,7 @@ import cp from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 const config = JSON.parse(fs.readFileSync("fixture.json", "utf8"));
 const calls = [];
+let modelIndex = 0;
 const blocked = (kind) => {
   calls.push({ kind: "unexpected", boundary: kind });
   process.exitCode = 91;
@@ -97,8 +98,11 @@ globalThis.fetch = async (input, options) => {
   if (url === config.modelUrl) {
     const request = JSON.parse(options.body);
     calls.push({ kind: "model", page: request.contents[0].parts[0].text });
+    const amenities = config.amenityResults
+      ? config.amenityResults[modelIndex++] ?? blocked("unexpected model result")
+      : config.amenities;
     return new Response(JSON.stringify({
-      candidates: [{ content: { parts: [{ text: JSON.stringify({ amenities: config.amenities }) }] } }],
+      candidates: [{ content: { parts: [{ text: JSON.stringify({ amenities }) }] } }],
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50 },
     }), { headers: { "content-type": "application/json" } });
   }
@@ -216,7 +220,32 @@ function pagesWithLinkedLanding(landing = LANDING, rules = "Allow: /"): Record<s
   };
 }
 
+function createSharedHomepageCli() {
+  const cli = createCli({
+    "https://first.example/robots.txt": { body: "User-agent: *\nAllow: /", type: "text/plain" },
+    [HOME]: { body: `<p>${WELCOME} ${SPORTS_QUOTE}</p>` },
+  }, undefined, { secondPub: true });
+  const pubs = cli.read("data/osm/uk/uk_osm_pubs.json");
+  pubs.pubs[1].website = HOME;
+  cli.write("data/osm/uk/uk_osm_pubs.json", pubs);
+  cli.write("fixture.json", {
+    ...cli.read("fixture.json"),
+    amenityResults: [{ liveSports: { value: true, evidence: SPORTS_QUOTE } }, {}],
+  });
+  return cli;
+}
+
 describe("pub website amenities CLI permission and page citations", () => {
+  it("refuses a shared homepage when its other pub retains no amenity", () => {
+    const cli = createSharedHomepageCli();
+    const result = cli.run();
+    expect(result.status, result.stderr).toBe(0);
+    const { dataset, evidence } = cli.output();
+    expect(cli.calls().filter((call) => call.kind === "model")).toHaveLength(2);
+    expect(evidence.rows, result.stdout).toEqual([]);
+    expect(dataset.map((row: typeof PRICE_ROW) => row.live_sports)).toEqual(["", ""]);
+  });
+
   it("rejects a quote assembled across separate pages", () => {
     const { dataset, evidence } = runCli(pagesWithLinkedLanding(EXTRA), {
       liveSports: { value: true, evidence: `for all visitors. ${SPORTS_QUOTE}` },
@@ -350,6 +379,69 @@ describe("pub website amenities CLI permission and page citations", () => {
 
 
 describe("pub website amenities CLI checkpoint publication", () => {
+  it.each([
+    { operation: "rename", path: EVIDENCE },
+    { operation: "write", path: `${CHECKPOINT}.tmp`, occurrence: 2 },
+  ])("refuses shared-page recovery beside an empty published peer after $operation $path", (failure) => {
+    const cli = createSharedHomepageCli();
+    cli.write("fixture.json", { ...cli.read("fixture.json"), amenityResults: [{}] });
+    expect(cli.run(["--limit", "1"]).status).toBe(0);
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"),
+      amenityResults: [{ liveSports: { value: true, evidence: SPORTS_QUOTE } }],
+      failure,
+    });
+    const interrupted = cli.run();
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-2"]).toMatchObject({
+      publication: "pending", verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE },
+    });
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z",
+    });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows, resumed.stdout).toEqual([]);
+    expect(dataset.map((row: typeof PRICE_ROW) => row.live_sports)).toEqual(["", ""]);
+    const before = { dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) };
+    expect(cli.run().status).toBe(0);
+    expect(cli.calls()).toEqual([]);
+    expect({ dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) }).toEqual(before);
+  });
+
+  it.each(["recorded pages", "legacy empty pages"])("retains an empty published peer's ownership for later publication with %s", (kind) => {
+    const cli = createSharedHomepageCli();
+    cli.write("fixture.json", { ...cli.read("fixture.json"), amenityResults: [{}] });
+    expect(cli.run(["--limit", "1"]).status).toBe(0);
+    expect(cli.output().evidence.rows).toEqual([]);
+    if (kind === "legacy empty pages") {
+      const checkpoint = cli.read(CHECKPOINT);
+      checkpoint.byOsmId["node/synthetic-1"].pages = [];
+      cli.write(CHECKPOINT, checkpoint);
+    }
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"),
+      amenityResults: [{ liveSports: { value: true, evidence: SPORTS_QUOTE } }],
+      now: "2026-10-04T12:00:00Z",
+    });
+    const later = cli.run();
+    expect(later.status, later.stderr).toBe(0);
+    const { dataset, evidence } = cli.output();
+    expect(evidence.rows, later.stdout).toEqual([]);
+    expect(dataset.map((row: typeof PRICE_ROW) => row.live_sports)).toEqual(["", ""]);
+    const before = { dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) };
+    cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {} });
+    for (const args of [[], ["--restamp"]]) {
+      const rerun = cli.run(args);
+      expect(rerun.status, rerun.stderr).toBe(0);
+      expect(cli.calls()).toEqual([]);
+      expect({ dataset: cli.readText(DATASET), evidence: cli.readText(EVIDENCE) }).toEqual(before);
+    }
+  });
+
   it.each([
     { operation: "write", path: `${DATASET}.tmp` },
     { operation: "rename", path: DATASET },

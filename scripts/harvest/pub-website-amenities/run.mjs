@@ -305,9 +305,9 @@ function readEvidence() {
 }
 
 /** Compare pages against other pubs, without counting this pub's sibling pages as pubs. */
-function pubSpecificPages(rows) {
+function pubSpecificPages(rows, ownership = []) {
   const byHost = new Map();
-  for (const row of rows) {
+  for (const row of [...rows, ...ownership]) {
     let host;
     try {
       host = new URL(row.sourceUrl).host.toLowerCase();
@@ -419,7 +419,7 @@ function recoverableObservation(entry, pub) {
 }
 
 /** The committed evidence with this run's pages laid over it. */
-function mergeEvidence(previous, fresh) {
+function mergeEvidence(previous, fresh, ownership) {
   const skipCounts = { ...(previous?.skipCounts ?? {}) };
   const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
   for (const [osmId, entry] of fresh) {
@@ -428,7 +428,7 @@ function mergeEvidence(previous, fresh) {
       skipCounts[status] = (skipCounts[status] ?? 0) + 1;
       continue;
     }
-    for (const page of entry.pages ?? [entry]) {
+    for (const page of entry.pages?.length ? entry.pages : [entry]) {
       candidates.push({
         osmId,
         name: entry.name,
@@ -439,7 +439,7 @@ function mergeEvidence(previous, fresh) {
       });
     }
   }
-  const rows = pubSpecificPages(candidates).sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const rows = pubSpecificPages(candidates, ownership).sort((a, b) => a.osmId.localeCompare(b.osmId));
   const unused = candidates.length - rows.length;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts };
@@ -635,8 +635,8 @@ async function main() {
       for (const key of Object.keys(amenities)) {
         if (key in kept) delete amenities[key];
       }
-      if (Object.keys(amenities).length === 0) continue;
       Object.assign(kept, amenities);
+      // Empty pages still identify their owner when another pub cites them.
       evidencedPages.push({ sourceUrl: page.sourceUrl, amenities });
     }
     byOsmId[pub.osmId] = {
@@ -678,7 +678,17 @@ async function main() {
   await Promise.all(workers);
   await save();
 
-  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh);
+  // Published peers still own their permitted pages. Recover ownership only:
+  // removed quotes must never return from a published checkpoint.
+  const ownership = Object.entries(byOsmId).flatMap(([osmId, entry]) => {
+    if (!recoverableObservation(entry, currentPubs.get(osmId))) return [];
+    return (entry.pages?.length ? entry.pages : [entry]).map((page) => ({
+      osmId,
+      sourceUrl: page.sourceUrl,
+      amenities: {},
+    }));
+  });
+  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh, ownership);
   const evidence = withStampFigures({
     version: 1,
     model: FLASH_LITE_SKU.model,
