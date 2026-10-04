@@ -1,7 +1,7 @@
 import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
-import type { AskCard, AskProposal } from "@/lib/ask/types";
+import { isAskToolName, type AskCard, type AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
@@ -24,16 +24,25 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForPubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
+/**
+ * The stored results of this turn's tools. When the agent has said which tools
+ * it called, wait for every one of them, so a second tool's cards are not lost
+ * because the first one landed sooner.
+ */
+async function waitForPubPalToolTurn(
+  conversationId: string,
+  calledTools: readonly string[],
+): Promise<PubPalToolTurn | null> {
   const deadline = Date.now() + TOOL_TURN_WAIT_MS;
   while (Date.now() < deadline) {
     const peek = await readPubPalToolTurn(conversationId);
-    if (
-      peek &&
-      (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0)
-    ) {
-      return peek;
-    }
+    const landed = calledTools.length > 0
+      ? calledTools.every((name) => peek?.toolsUsed.includes(name))
+      : Boolean(
+          peek &&
+          (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0),
+        );
+    if (peek && landed) return peek;
     await sleep(TOOL_TURN_POLL_MS);
   }
   return readPubPalToolTurn(conversationId);
@@ -60,6 +69,7 @@ function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
 
 type AgentResponseEvent = {
   type?: string;
+  agent_tool_response?: { tool_name?: string; is_called?: boolean; is_error?: boolean };
   agent_response_event?: { agent_response?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
@@ -148,6 +158,9 @@ export async function runPalElevenLabsChatTurn(
     let settled = false;
     let conversationId = "";
     let userMessageSent = false;
+    // Tools the agent reports it ran. The webhook stores their results, but
+    // toolsUsed must not depend on that write landing before the reply.
+    const calledTools: string[] = [];
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
@@ -179,7 +192,12 @@ export async function runPalElevenLabsChatTurn(
             },
             conversation: {
               text_only: true,
-              client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
+              client_events: [
+                "agent_response",
+                "agent_tool_response",
+                "conversation_initiation_metadata",
+                "ping",
+              ],
             },
           },
         }),
@@ -230,12 +248,29 @@ export async function runPalElevenLabsChatTurn(
         return;
       }
 
+      if (payload.type === "agent_tool_response") {
+        const tool = payload.agent_tool_response;
+        const name = tool?.tool_name?.trim() ?? "";
+        if (
+          userMessageSent &&
+          tool?.is_called !== false &&
+          !tool?.is_error &&
+          isAskToolName(name) &&
+          !calledTools.includes(name)
+        ) {
+          calledTools.push(name);
+        }
+        return;
+      }
+
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
         const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
         void (async () => {
           try {
-            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
+            const turn = conversationId
+              ? await waitForPubPalToolTurn(conversationId, calledTools)
+              : null;
             const cards = turn?.cards ?? [];
             const proposals = turn?.proposals ?? [];
             const message =
@@ -251,7 +286,7 @@ export async function runPalElevenLabsChatTurn(
               cards,
               proposals,
               conversationId,
-              toolsUsed: turn?.toolsUsed ?? [],
+              toolsUsed: [...new Set([...(turn?.toolsUsed ?? []), ...calledTools])],
             });
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });

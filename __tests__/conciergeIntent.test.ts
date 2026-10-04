@@ -131,6 +131,27 @@ describe("parseConciergeIntent keyless fallback", () => {
     });
   });
 
+  it("stops the area at a time word, so a crawl tonight still has an area", async () => {
+    const parsed = await parseConciergeIntent("Plan me a 3 pub crawl in Shoreditch tonight");
+
+    expect(parsed.intent.area).toBe("Shoreditch");
+  });
+
+  it("reads a known area named without a preposition", async () => {
+    await expect(parseConciergeIntent("Can you plan a Shoreditch crawl?")).resolves.toMatchObject({
+      intent: { area: "Shoreditch" },
+    });
+    await expect(parseConciergeIntent("plan me a shoreditch crawl tonight")).resolves.toMatchObject({
+      intent: { area: "Shoreditch" },
+    });
+  });
+
+  it("keeps an unlisted area phrase but drops the time words after it", async () => {
+    const parsed = await parseConciergeIntent("Pubs in Stoke Newington this evening");
+
+    expect(parsed.intent.area).toBe("Stoke Newington");
+  });
+
   it("falls back to regex when systemOne throws and never spends without a key", async () => {
     vi.mocked(systemOne).mockRejectedValue(new Error("typesafe unavailable"));
     await expect(parseConciergeIntent("Cheapest pint in Camden tonight")).resolves.toEqual({
