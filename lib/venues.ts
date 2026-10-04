@@ -226,7 +226,7 @@ export type Venue = {
   imageUrl: string;
   description: string;
   dataQualityNotes: string[];
-  /** Gemini-selected copy, validated against this pub's stored structured fields. */
+  /** Gemini-written copy, validated against this pub's stored structured fields. */
   recordCopy?: VenueRecordCopy;
   sourceDatasets: string[];
   curation: VenueCuration;

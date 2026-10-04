@@ -8,47 +8,57 @@ against the current stored pub dataset without calling Gemini.
 The input is `public/data/pint_prices_app_dataset.json`, grouped through the
 same venue identity function as the app. This lane covers curated pubs in that
 dataset, not the country-wide OSM base layer or non-pub anchors. The generator
-sends only a venue ID, a sentence based on its stored London borough, and
-positive structured amenity fields expressed as allowed sentences and tags.
-It excludes names, free text, URLs, Google Places data, prices and hours. It
-does not fetch a page, call Places, use search grounding or change any quota.
+sends only a venue ID, its stored London borough and its positive structured
+amenity fields, each with the words that may state it. It excludes names, free
+text, URLs, Google Places data, prices and hours. It does not fetch a page,
+call Places, use search grounding or change any quota.
 
-Gemini 2.5 Flash-Lite selects and orders at most three offered sentences and
-three offered tags. Publication refuses any invented wording, unsupported tag,
-ambiguous duplicate ID. Each pub is validated independently. Valid rows survive
-a failed batch; failed pubs get one individual retry, then no generated copy.
-The pack lists each skipped ID and its validation reason. Sparse records keep only their known pub
-type and borough. We do not infer that a pub is cosy, lively or traditional.
+Food, live sport and beer garden are left out: the Overview chips already show
+them. The remaining facts are cocktails, alcohol-free options, live music, pub
+quiz, darts, pool, happy hour and karaoke. Tags a chip also prints use the
+chip's words. A pub with none of those facts gets no copy and is listed in
+`skipped` as `insufficient-stored-facts`. We never publish a bare borough line.
 
-The existing venue-detail reader adds `recordCopy` after revalidating each
-selection against the pub's current structured fields. The Overview tab shows
-that description and its tags. The map index, price rows, source descriptions
-and price trust states keep their existing meanings. A missing or invalid
-pack shows no generated copy. A removed supporting amenity suppresses the
-old copy until the pack is regenerated.
+Gemini 2.5 Flash-Lite writes a short description in its own words and picks one
+to three of the pub's supported tags. Publication checks facts, not wording.
+Every word of the description must state a supported fact, name the pub's
+borough, or be a connective that states nothing. It must name at least one
+supported fact. Mood, age and clientele words are not in that vocabulary, so a
+claim that a pub is cosy, lively or historic fails. Each pub is validated
+independently. Valid rows survive a failed batch; a failed pub gets one
+individual retry, then no generated copy and an `invalid-copy-after-retry` skip.
+
+Each entry records the borough and supported tags it was written from. The
+existing venue-detail reader adds `recordCopy` after revalidating the entry
+against the pub's current structured fields. The Overview tab shows that
+description and its tags. A missing or invalid pack shows no generated copy. A
+removed supporting amenity suppresses the old copy until the pack is
+regenerated. A pub added to the dataset later shows no copy until then.
 
 `generatedAt` dates generation only. It does not date a new venue observation
-or prove that an amenity is available tonight. `sourceDatasetSha256` identifies
-the input file. The sentences and tags in each entry are the grounding proof.
+or prove that an amenity is available tonight. `sourceDatasetSha256` records
+the input file as provenance; a later price refresh does not invalidate the pack.
 
 Calls use authenticated `gcloud` on Vertex AI project `pubmaxx`, global region.
 No API key is required or copied. Calls start three seconds apart, double their
 spacing on HTTP 429 up to one minute, and recover toward three seconds after
-successful responses. The fixed USD 15 cap cannot be raised by a
-flag; `--cap-usd` can lower it. Projection allows HTTP retries for each batch and one individual grounding retry
-per pub, and
-uses UTF-8 bytes plus framing room as a conservative input-token bound.
-Each call reserves its maximum cost in a durable checkpoint before sending.
-Successful responses replace that reservation with token-metered spend,
-including thinking tokens. Non-200 responses are not billed by Vertex AI.
-Unknown transport outcomes retain their reservation and prevent publication.
+successful responses. A batch stops the run after eight quota responses in a
+row; rerunning resumes from the checkpoint. The fixed USD 15 cap cannot be raised by a flag;
+`--cap-usd` can lower it. Projection allows HTTP retries for each batch and one
+individual grounding retry per pub, and uses UTF-8 bytes plus framing room as a
+conservative input-token bound. Each call reserves its maximum cost in a durable
+checkpoint before sending. Successful responses replace that reservation with
+token-metered spend, including thinking tokens. Non-200 responses are not
+billed by Vertex AI, whatever their body. An unknown transport outcome keeps its
+reservation and stops the run; the next run releases it and retries the batch.
 Reported spend is calculated from API token usage, not a billing invoice.
 
 Checkpoint: `data-harvest/pub-record-copy/checkpoint.json`, ignored by git.
+Without one, spend and request counts continue from the published pack.
 Reruns resume only validated entries whose structured inputs still match.
 Spend remains cumulative across resumed runs. Output is replaced atomically
-only after every selected pub has valid copy or a documented skip and every
-reservation is settled. Matching skipped inputs are not retried on resume.
+only after every pub has valid copy or a documented skip and every reservation
+is settled. Matching skipped inputs are not retried on resume.
 
 Pricing: [Vertex AI standard pricing](https://cloud.google.com/vertex-ai/generative-ai/pricing),
 USD 0.10 per million text input tokens and USD 0.40 per million output tokens,

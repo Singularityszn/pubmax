@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { FLASH_LITE_SKU, spendFromTokenCounts } from "../lib/harvest/pubWebsiteAmenities.ts";
-import { copyChoicesForVenue, validateVenueRecordCopy } from "../lib/venueRecordCopy.ts";
+import { COPY_CONNECTIVE_WORDS, copyFactsForVenue, copyWordsForTag, validateVenueRecordCopy } from "../lib/venueRecordCopy.ts";
 import { VENUE_RECORD_COPY_TRACING_INCLUDE } from "../lib/venueRecordCopyFile.mjs";
 import { groupVenuePrices } from "../lib/venues.ts";
 
@@ -15,24 +15,28 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const JOB_CAP_USD = 15;
 const BATCH_SIZE = 10;
 const OUTPUT_TOKENS = 4096;
+const INSUFFICIENT = "insufficient-stored-facts";
+const INVALID = "invalid-copy-after-retry";
 const PROMPT = [
-  "Write short pub descriptions and select up to three vibe tags using ONLY the supplied stored facts.",
-  "Return JSON {rows:[{venueId:string,sentenceIndexes:number[],tagIndexes:number[]}]}, one row per supplied venue.",
-  "Select offered sentences and tags by their zero-based array indexes. Never return text.",
-  "sentenceIndexes must start with 0, followed by up to two other distinct offered sentence indexes.",
-  "Select between one and three distinct tag indexes. Do not add, edit, combine or invent any fact.",
-  "Pick the most distinctive supported amenities. Prefer specific tags over Pub when available.",
-  "For a sparse record, return sentenceIndexes [0] and tagIndexes [0]. Never infer atmosphere from a name.",
-  "No external knowledge, Google Places, tools, web searches, prices, hours or claims about clientele.",
+  "Write one short description and choose vibe tags for each London pub using ONLY its supplied stored facts.",
+  "Return JSON {rows:[{venueId:string,description:string,vibeTags:string[]}]}, one row per supplied venue.",
+  "description: ONE plain sentence of 20 to 140 characters, starting with a capital letter and ending with a full stop.",
+  "Make the pub, or the local, the subject: the facts belong to it, never to the borough. Name the supplied facts, each once. You may name the supplied borough or London, spelt and capitalised exactly. Add nothing else: no filler, no repetition.",
+  "Write like a Londoner telling a mate: dry and direct, never salesy. Vary the sentence shape between venues.",
+  `Use no word except these, the words of the venue's borough and the words listed for its facts: ${COPY_CONNECTIVE_WORDS.join(", ")}.`,
+  "Use no digits, apostrophes or punctuation other than commas, hyphens and the final full stop.",
+  "vibeTags: one to three of the venue's fact tags, copied exactly, most distinctive first.",
+  "Never mention the pub name, food, beer gardens, sport, prices, hours, history, mood or clientele.",
+  "No external knowledge, Google Places, tools or web searches.",
   "VENUES:",
 ].join("\n");
 
 function options() {
-  const opts = { generate: false, check: false, dryRun: false, limit: Infinity, cap: JOB_CAP_USD,
+  const opts = { generate: false, check: false, dryRun: false, cap: JOB_CAP_USD,
     dataset: path.join(ROOT, "public/data/pint_prices_app_dataset.json"),
     out: path.join(ROOT, VENUE_RECORD_COPY_TRACING_INCLUDE),
     checkpoint: path.join(ROOT, "data-harvest/pub-record-copy/checkpoint.json") };
-  const values = { "--dataset": "dataset", "--out": "out", "--checkpoint": "checkpoint", "--limit": "limit", "--cap-usd": "cap" };
+  const values = { "--dataset": "dataset", "--out": "out", "--checkpoint": "checkpoint", "--cap-usd": "cap" };
   for (let i = 2; i < process.argv.length; i++) {
     const flag = process.argv[i];
     if (flag === "--generate") opts.generate = true;
@@ -41,10 +45,9 @@ function options() {
     else if (values[flag]) {
       const value = process.argv[++i];
       if (!value || value.startsWith("--")) throw new Error(`missing value for ${flag}`);
-      opts[values[flag]] = ["limit", "cap"].includes(values[flag]) ? Number(value) : path.resolve(value);
+      opts[values[flag]] = values[flag] === "cap" ? Number(value) : path.resolve(value);
     } else throw new Error(`unknown argument ${flag}`);
   }
-  if (opts.limit !== Infinity && (!Number.isSafeInteger(opts.limit) || opts.limit < 1)) throw new Error("--limit must be a positive integer");
   if (!Number.isFinite(opts.cap) || opts.cap <= 0 || opts.cap > JOB_CAP_USD) throw new Error("--cap-usd must be positive and at most 15");
   if (opts.check && opts.generate) throw new Error("--check cannot generate");
   if (opts.dryRun && opts.generate) throw new Error("--dry-run cannot generate");
@@ -65,29 +68,34 @@ function writeJson(file, value) {
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const cost = (inputTokens, outputTokens) => spendFromTokenCounts({ inputTokens, outputTokens,
   inputUsdPerMillion: FLASH_LITE_SKU.inputUsdPerMillion, outputUsdPerMillion: FLASH_LITE_SKU.outputUsdPerMillion });
-const textFor = (batch) => `${PROMPT}\n${JSON.stringify(batch)}`;
+const textFor = (batch) => `${PROMPT}\n${JSON.stringify(batch.map(({ venueId, borough, supportedTags }) =>
+  ({ venueId, borough, facts: supportedTags.map((tag) => ({ tag, words: copyWordsForTag(tag) })) })))}`;
 // One UTF-8 byte per input token is deliberately conservative, with framing room.
 const reserveFor = (batch) => cost(Buffer.byteLength(textFor(batch), "utf8") + 4096, OUTPUT_TOKENS);
 
-function checkPublishedCopy(choices, out) {
+function checkPublishedCopy(facts, out) {
   const pack = readJson(out);
-  if (pack.version !== 1 || pack.model !== FLASH_LITE_SKU.model) throw new Error("invalid copy pack");
+  if (pack.version !== 2 || pack.model !== FLASH_LITE_SKU.model) throw new Error("invalid copy pack");
   const entries = pack.venues;
-  if (!entries || typeof entries !== "object" || Object.keys(entries).length + Object.keys(pack.skipped ?? {}).length !== choices.length)
+  const skipped = pack.skipped ?? {};
+  if (!entries || typeof entries !== "object" || Object.keys(entries).length + Object.keys(skipped).length !== facts.length)
     throw new Error("copy coverage differs from the stored pub dataset");
-  for (const choice of choices) {
-    if (entries[choice.venueId]) {
-      if (!validateVenueRecordCopy(choice, entries[choice.venueId])) throw new Error(`ungrounded copy for ${choice.venueId}`);
-      if (pack.skipped?.[choice.venueId]) throw new Error("duplicate copy status");
-    } else if (pack.skipped?.[choice.venueId]?.reason !== "invalid-selection-after-retry") {
-      throw new Error(`undocumented missing copy for ${choice.venueId}`);
+  for (const fact of facts) {
+    if (entries[fact.venueId]) {
+      if (!validateVenueRecordCopy(fact, entries[fact.venueId])) throw new Error(`ungrounded copy for ${fact.venueId}`);
+      if (skipped[fact.venueId]) throw new Error("duplicate copy status");
+    } else if (skipped[fact.venueId]?.reason !== (fact.supportedTags.length ? INVALID : INSUFFICIENT)) {
+      throw new Error(`undocumented missing copy for ${fact.venueId}`);
     }
   }
-  console.log(JSON.stringify({ checkedVenues: Object.keys(entries).length, skippedVenues: Object.keys(pack.skipped ?? {}).length, actualSpendUsd: pack.actualSpendUsd }));
+  console.log(JSON.stringify({ checkedVenues: Object.keys(entries).length, skippedVenues: Object.keys(skipped).length, actualSpendUsd: pack.actualSpendUsd }));
 }
 
-function loadSpendCheckpoint(file) {
-  const checkpoint = readJson(file, { version: 1, actualSpendUsd: 0, reservedUsd: 0, requests: 0, entries: {} });
+function loadSpendCheckpoint(file, out) {
+  // A fresh checkpoint continues the metered spend the published pack records.
+  const published = readJson(out, null);
+  const checkpoint = readJson(file, { version: 1, actualSpendUsd: published?.actualSpendUsd ?? 0, reservedUsd: 0,
+    requests: published?.requests ?? 0, entries: {} });
   if (checkpoint.version !== 1 || !checkpoint.entries ||
       ![checkpoint.actualSpendUsd, checkpoint.reservedUsd].every((n) => Number.isFinite(n) && n >= 0) ||
       !Number.isSafeInteger(checkpoint.requests) || checkpoint.requests < 0) throw new Error("invalid spend checkpoint");
@@ -110,7 +118,7 @@ function settleUsage(checkpoint, body, reserve) {
   if (!metered) throw new Error("missing model usage; spend reservation retained, no venue copy published");
 }
 
-function selectionsFrom(body, batch) {
+function copyFrom(body, batch) {
   const candidate = body.candidates?.[0];
   let rows;
   try {
@@ -118,15 +126,10 @@ function selectionsFrom(body, batch) {
   } catch { rows = null; }
   const complete = candidate?.finishReason === "STOP" && Array.isArray(rows);
   const normalized = [];
-  for (const choice of batch) {
-    const matching = complete ? rows.filter((row) => row?.venueId === choice.venueId) : [];
-    const entry = matching.length === 1 ? matching[0] : null;
-    const indexes = (items, offered) => Array.isArray(items) && items.every((i) => Number.isSafeInteger(i) && i >= 0 && i < offered.length)
-      ? items.map((i) => offered[i]) : null;
-    const selection = { venueId: choice.venueId,
-      sentences: indexes(entry?.sentenceIndexes, choice.sentences),
-      vibeTags: indexes(entry?.tagIndexes, choice.vibeTags) };
-    if (validateVenueRecordCopy(choice, selection)) normalized.push(selection);
+  for (const fact of batch) {
+    const matching = complete ? rows.filter((row) => row?.venueId === fact.venueId) : [];
+    const copy = matching.length === 1 ? validateVenueRecordCopy(fact, matching[0]) : null;
+    if (copy) normalized.push({ ...fact, ...copy });
   }
   return normalized;
 }
@@ -148,29 +151,33 @@ async function main() {
   const raw = readFileSync(opts.dataset, "utf8");
   const data = JSON.parse(raw);
   if (!Array.isArray(data) || data.length === 0) throw new Error("expected a non-empty stored venue dataset");
-  const choices = groupVenuePrices(data).map(copyChoicesForVenue).filter(Boolean)
-    .sort((a, b) => a.venueId.localeCompare(b.venueId)).slice(0, opts.limit);
-  if (!choices.length) throw new Error("no pub records to generate");
+  const facts = groupVenuePrices(data).map(copyFactsForVenue).filter(Boolean)
+    .sort((a, b) => a.venueId.localeCompare(b.venueId));
+  if (!facts.length) throw new Error("no pub records to generate");
   if (opts.check) {
-    checkPublishedCopy(choices, opts.out);
+    checkPublishedCopy(facts, opts.out);
     return;
   }
-  const checkpoint = loadSpendCheckpoint(opts.checkpoint);
-  const pending = choices.filter((choice) => {
-    const entry = checkpoint.entries[choice.venueId];
-    const inputHash = hash(JSON.stringify(choice));
-    if (checkpoint.skipped[choice.venueId]?.inputHash === inputHash) return false;
-    return entry?.inputHash !== inputHash || !validateVenueRecordCopy(choice, entry);
+  const checkpoint = loadSpendCheckpoint(opts.checkpoint, opts.out);
+  // An earlier unknown outcome is released so it can never block a later run.
+  const releasedReservationUsd = checkpoint.reservedUsd;
+  checkpoint.reservedUsd = 0;
+  const eligible = facts.filter((fact) => fact.supportedTags.length > 0);
+  const pending = eligible.filter((fact) => {
+    const entry = checkpoint.entries[fact.venueId];
+    const inputHash = hash(JSON.stringify(fact));
+    if (checkpoint.skipped[fact.venueId]?.inputHash === inputHash) return false;
+    return entry?.inputHash !== inputHash || !validateVenueRecordCopy(fact, entry);
   });
   const batches = [];
   for (let i = 0; i < pending.length; i += BATCH_SIZE) batches.push(pending.slice(i, i + BATCH_SIZE));
   // Allow HTTP retries for each batch and one single-pub grounding retry per pending pub.
-  const projectedSpendUsd = checkpoint.actualSpendUsd + checkpoint.reservedUsd +
+  const projectedSpendUsd = checkpoint.actualSpendUsd +
     batches.reduce((sum, batch) => sum + reserveFor(batch) * 3, 0) +
-    pending.reduce((sum, choice) => sum + reserveFor([choice]) * 3, 0);
-  console.log(JSON.stringify({ model: FLASH_LITE_SKU.model, venues: choices.length, pending: pending.length,
-    batches: batches.length, projectedSpendUsd, taskCapUsd: opts.cap, actualSpendUsd: checkpoint.actualSpendUsd,
-    unresolvedReservedUsd: checkpoint.reservedUsd, mode: opts.generate ? "generate" : "dry-run" }));
+    pending.reduce((sum, fact) => sum + reserveFor([fact]) * 3, 0);
+  console.log(JSON.stringify({ model: FLASH_LITE_SKU.model, venues: facts.length, eligible: eligible.length,
+    pending: pending.length, batches: batches.length, projectedSpendUsd, taskCapUsd: opts.cap,
+    actualSpendUsd: checkpoint.actualSpendUsd, releasedReservationUsd, mode: opts.generate ? "generate" : "dry-run" }));
   if (projectedSpendUsd > opts.cap) throw new Error("projected spend exceeds task cap; no model call made");
   if (!opts.generate) return;
   let token = "";
@@ -179,7 +186,8 @@ async function main() {
   let pacingMs = 3_000;
   const startedAt = new Date().toISOString();
   async function requestBatch(batch) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Quota responses back off to the one-minute ceiling before giving up.
+    for (let attempt = 0; attempt < 8; attempt++) {
       if (!token || Date.now() - tokenAt > 20 * 60 * 1000) {
         token = execFileSync("gcloud", ["auth", "print-access-token"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
         tokenAt = Date.now();
@@ -204,16 +212,16 @@ async function main() {
             generationConfig: { temperature: 0, maxOutputTokens: OUTPUT_TOKENS,
               thinkingConfig: { thinkingBudget: 0 }, responseMimeType: "application/json",
               responseSchema: { type: "OBJECT", required: ["rows"], properties: {
-                rows: { type: "ARRAY", minItems: batch.length, maxItems: batch.length, items: { type: "OBJECT", required: ["venueId", "sentenceIndexes", "tagIndexes"], properties: {
-                  venueId: { type: "STRING", enum: batch.map((choice) => choice.venueId) },
-                  sentenceIndexes: { type: "ARRAY", minItems: 1, maxItems: 3, items: { type: "INTEGER", minimum: 0, maximum: 11 } },
-                  tagIndexes: { type: "ARRAY", minItems: 1, maxItems: 3, items: { type: "INTEGER", minimum: 0, maximum: 11 } },
+                rows: { type: "ARRAY", minItems: batch.length, maxItems: batch.length, items: { type: "OBJECT", required: ["venueId", "description", "vibeTags"], properties: {
+                  venueId: { type: "STRING", enum: batch.map((fact) => fact.venueId) },
+                  description: { type: "STRING" },
+                  vibeTags: { type: "ARRAY", minItems: 1, maxItems: 3, items: { type: "STRING", enum: [...new Set(batch.flatMap((fact) => fact.supportedTags))] } },
                 } } },
               } },
             },
           }),
         });
-        body = await response.json();
+        body = response.ok ? await response.json() : await response.json().catch(() => null);
       } catch {
         throw new Error("model response unavailable; worst-case spend reservation retained, resume from checkpoint");
       }
@@ -227,7 +235,7 @@ async function main() {
           pacingMs = Math.min(60_000, pacingMs * 2);
           nextCallAt = Date.now() + pacingMs;
         }
-        if ([401, 429, 503].includes(response.status) && attempt < 2) {
+        if (response.status === 429 ? attempt < 7 : [401, 503].includes(response.status) && attempt < 2) {
           if (response.status !== 429) await new Promise((resolve) => setTimeout(resolve, 30_000 * (attempt + 1)));
           continue;
         }
@@ -244,44 +252,44 @@ async function main() {
     }
     throw new Error("model request attempts exhausted");
   }
-  function retain(choice, entry) {
-    const inputHash = hash(JSON.stringify(choice));
+  function retain(fact, entry) {
+    const inputHash = hash(JSON.stringify(fact));
     if (entry) {
-      checkpoint.entries[choice.venueId] = { ...entry, inputHash };
-      delete checkpoint.skipped[choice.venueId];
+      checkpoint.entries[fact.venueId] = { ...entry, inputHash };
+      delete checkpoint.skipped[fact.venueId];
     } else {
-      delete checkpoint.entries[choice.venueId];
-      checkpoint.skipped[choice.venueId] = { inputHash, reason: "invalid-selection-after-retry" };
+      delete checkpoint.entries[fact.venueId];
+      checkpoint.skipped[fact.venueId] = { inputHash, reason: INVALID };
     }
     writeJson(opts.checkpoint, checkpoint);
   }
   for (const [batchIndex, batch] of batches.entries()) {
-    const normalized = selectionsFrom(await requestBatch(batch), batch);
+    const normalized = copyFrom(await requestBatch(batch), batch);
     const failed = [];
-    for (const choice of batch) {
-      const entry = normalized.find((row) => row.venueId === choice.venueId);
-      if (entry) retain(choice, entry);
-      else failed.push(choice);
+    for (const fact of batch) {
+      const entry = normalized.find((row) => row.venueId === fact.venueId);
+      if (entry) retain(fact, entry);
+      else failed.push(fact);
     }
-    for (const choice of failed) {
-      const retried = selectionsFrom(await requestBatch([choice]), [choice]);
-      retain(choice, retried[0]);
+    for (const fact of failed) {
+      const retried = copyFrom(await requestBatch([fact]), [fact]);
+      retain(fact, retried[0]);
     }
     if ((batchIndex + 1) % 10 === 0 || batchIndex === batches.length - 1)
       console.log(JSON.stringify({ completedBatches: batchIndex + 1, totalBatches: batches.length, actualSpendUsd: checkpoint.actualSpendUsd }));
   }
   if (checkpoint.reservedUsd > 0.000000001) throw new Error("unresolved spend reservations; copy retained in checkpoint, publication refused");
-  const venues = Object.fromEntries(choices.filter((choice) => !checkpoint.skipped[choice.venueId]).map((choice) => {
-    const { venueId, sentences, vibeTags } = checkpoint.entries[choice.venueId];
-    return [venueId, { venueId, sentences, vibeTags }];
+  const venues = Object.fromEntries(eligible.filter((fact) => !checkpoint.skipped[fact.venueId]).map((fact) => {
+    const { venueId, borough, supportedTags, description, vibeTags } = checkpoint.entries[fact.venueId];
+    return [venueId, { venueId, borough, supportedTags, description, vibeTags }];
   }));
-  writeJson(opts.out, { version: 1, model: FLASH_LITE_SKU.model, generatedAt: new Date().toISOString(),
+  writeJson(opts.out, { version: 2, model: FLASH_LITE_SKU.model, generatedAt: new Date().toISOString(),
     startedAt, sourceDataset: "public/data/pint_prices_app_dataset.json", sourceDatasetSha256: hash(raw),
     pricing: FLASH_LITE_SKU, taskCapUsd: opts.cap, projectedSpendUsd,
     actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests, venues,
-    skipped: Object.fromEntries(choices.filter((choice) => checkpoint.skipped[choice.venueId]).map((choice) =>
-      [choice.venueId, checkpoint.skipped[choice.venueId]])) });
-  console.log(JSON.stringify({ publishedVenues: Object.keys(venues).length, skippedVenues: choices.length - Object.keys(venues).length, actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests }));
+    skipped: Object.fromEntries(facts.filter((fact) => !venues[fact.venueId]).map((fact) =>
+      [fact.venueId, fact.supportedTags.length ? checkpoint.skipped[fact.venueId] : { reason: INSUFFICIENT }])) });
+  console.log(JSON.stringify({ publishedVenues: Object.keys(venues).length, skippedVenues: facts.length - Object.keys(venues).length, actualSpendUsd: checkpoint.actualSpendUsd, requests: checkpoint.requests }));
 }
 
 main().catch((error) => { console.error(error.message); process.exitCode = 1; });
